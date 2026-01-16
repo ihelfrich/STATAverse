@@ -52,3 +52,4 @@ Notes
 - Added ASCII-only content to comply with repository guidelines.
 - Did not remove `.DS_Store`; pending user instruction.
 - Added `.gitignore` entries to exclude `.DS_Store` and `EconometricsBooks/` from commits until needed.
+- Committed and pushed changes to `origin/main`.
