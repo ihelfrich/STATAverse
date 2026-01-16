@@ -1340,6 +1340,281 @@
       });
   }
 
+  function initMethodLab() {
+    var lab = document.querySelector("[data-method-lab]");
+    if (!lab) {
+      return;
+    }
+    if (lab.dataset.ready === "true") {
+      return;
+    }
+    lab.dataset.ready = "true";
+
+    var dataSrc = lab.getAttribute("data-method-lab-src");
+    var steps = lab.querySelector("[data-lab-steps]");
+    var summary = lab.querySelector("[data-lab-summary]");
+    var results = lab.querySelector("[data-method-results]");
+    var copyButton = lab.querySelector("[data-copy-plan]");
+    var copyNote = lab.querySelector("[data-copy-note]");
+
+    if (!dataSrc || !steps || !summary || !results) {
+      return;
+    }
+
+    function clearNode(node) {
+      while (node.firstChild) {
+        node.removeChild(node.firstChild);
+      }
+    }
+
+    function createOptionButton(groupId, option) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "chip";
+      button.setAttribute("data-group", groupId);
+      button.setAttribute("data-value", option.id);
+
+      var label = document.createElement("span");
+      label.className = "chip-label";
+      label.textContent = option.label;
+      button.appendChild(label);
+
+      if (option.hint) {
+        var hint = document.createElement("span");
+        hint.className = "chip-hint";
+        hint.textContent = option.hint;
+        button.appendChild(hint);
+      }
+
+      return button;
+    }
+
+    function renderGroup(group) {
+      var card = document.createElement("article");
+      card.className = "lab-step";
+
+      var heading = document.createElement("h3");
+      heading.textContent = group.title;
+      card.appendChild(heading);
+
+      if (group.subtitle) {
+        var subtitle = document.createElement("p");
+        subtitle.className = "muted";
+        subtitle.textContent = group.subtitle;
+        card.appendChild(subtitle);
+      }
+
+      var grid = document.createElement("div");
+      grid.className = "chip-grid";
+      group.options.forEach(function (option) {
+        grid.appendChild(createOptionButton(group.id, option));
+      });
+      card.appendChild(grid);
+      return card;
+    }
+
+    function renderMethodCard(method) {
+      var card = document.createElement("article");
+      card.className = "method-card";
+
+      var title = document.createElement("h3");
+      title.textContent = method.title;
+      card.appendChild(title);
+
+      var why = document.createElement("p");
+      why.textContent = method.why;
+      card.appendChild(why);
+
+      if (method.stata) {
+        var code = document.createElement("pre");
+        code.textContent = method.stata;
+        card.appendChild(code);
+      }
+
+      if (method.diagnostic) {
+        var diagnostic = document.createElement("p");
+        diagnostic.className = "muted";
+        diagnostic.textContent = "Diagnostics: " + method.diagnostic;
+        card.appendChild(diagnostic);
+      }
+
+      if (method.pitfall) {
+        var pitfall = document.createElement("p");
+        pitfall.className = "muted";
+        pitfall.textContent = "Pitfall: " + method.pitfall;
+        card.appendChild(pitfall);
+      }
+
+      if (method.links && method.links.length) {
+        var links = document.createElement("div");
+        links.className = "method-links";
+        method.links.forEach(function (link) {
+          var anchor = document.createElement("a");
+          anchor.className = "text-link";
+          anchor.href = link.href;
+          anchor.textContent = link.label;
+          links.appendChild(anchor);
+        });
+        card.appendChild(links);
+      }
+
+      return card;
+    }
+
+    function updateSummary(selections, data) {
+      clearNode(summary);
+
+      var heading = document.createElement("h3");
+      heading.textContent = "Your draft plan";
+      summary.appendChild(heading);
+
+      var list = document.createElement("ul");
+      list.className = "summary-list";
+
+      data.groups.forEach(function (group) {
+        var value = selections[group.id];
+        var option = group.options.find(function (item) {
+          return item.id === value;
+        });
+        var item = document.createElement("li");
+        item.textContent = group.title + ": " + (option ? option.label : "Not selected");
+        list.appendChild(item);
+      });
+
+      summary.appendChild(list);
+    }
+
+    function buildPlanText(methods, selections, data) {
+      var lines = ["STATAverse Method Lab Plan", ""];
+      data.groups.forEach(function (group) {
+        var value = selections[group.id];
+        var option = group.options.find(function (item) {
+          return item.id === value;
+        });
+        lines.push(group.title + ": " + (option ? option.label : "Not selected"));
+      });
+      lines.push("", "Recommended methods:");
+      methods.forEach(function (method) {
+        lines.push("- " + method.title);
+        if (method.stata) {
+          lines.push("  Stata: " + method.stata.split("
+").join(" | "));
+        }
+      });
+      return lines.join("
+");
+    }
+
+    function updateResults(selections, data) {
+      var methodIds = [];
+      data.always.forEach(function (item) {
+        if (!methodIds.includes(item)) {
+          methodIds.push(item);
+        }
+      });
+
+      data.groups.forEach(function (group) {
+        var choice = selections[group.id];
+        var option = group.options.find(function (item) {
+          return item.id === choice;
+        });
+        if (!option || !option.methods) {
+          return;
+        }
+        option.methods.forEach(function (method) {
+          if (!methodIds.includes(method)) {
+            methodIds.push(method);
+          }
+        });
+      });
+
+      clearNode(results);
+      var methods = methodIds
+        .map(function (id) {
+          return data.methods[id];
+        })
+        .filter(Boolean);
+
+      if (!methods.length) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "Select options to see recommendations.";
+        results.appendChild(empty);
+        if (copyButton) {
+          copyButton.disabled = true;
+        }
+        return;
+      }
+
+      methods.forEach(function (method) {
+        results.appendChild(renderMethodCard(method));
+      });
+
+      if (copyButton) {
+        copyButton.disabled = false;
+        copyButton.onclick = function () {
+          var planText = buildPlanText(methods, selections, data);
+          navigator.clipboard.writeText(planText).then(
+            function () {
+              if (copyNote) {
+                copyNote.textContent = "Plan copied to clipboard.";
+              }
+            },
+            function () {
+              if (copyNote) {
+                copyNote.textContent = "Copy failed. Select and copy manually.";
+              }
+            }
+          );
+        };
+      }
+    }
+
+    function bindInteractions(data) {
+      var selections = {};
+      steps.addEventListener("click", function (event) {
+        var target = event.target.closest(".chip");
+        if (!target) {
+          return;
+        }
+        var group = target.getAttribute("data-group");
+        var value = target.getAttribute("data-value");
+        if (!group || !value) {
+          return;
+        }
+
+        steps.querySelectorAll('.chip[data-group="' + group + '"]').forEach(function (chip) {
+          chip.classList.toggle("active", chip === target);
+        });
+
+        selections[group] = value;
+        updateSummary(selections, data);
+        updateResults(selections, data);
+      });
+
+      updateSummary(selections, data);
+      updateResults(selections, data);
+    }
+
+    fetch(dataSrc)
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load method lab data");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        clearNode(steps);
+        data.groups.forEach(function (group) {
+          steps.appendChild(renderGroup(group));
+        });
+        bindInteractions(data);
+      })
+      .catch(function () {
+        summary.textContent = "Could not load Method Lab data.";
+      });
+  }
+
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) {
       return;
@@ -1574,6 +1849,7 @@
     initScriptBuilder();
     initSiteSearch();
     initWorkspace();
+    initMethodLab();
     initGlossaryIndex();
     initConceptPage();
     renderMarkdownLessons();

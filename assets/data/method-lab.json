@@ -1,0 +1,191 @@
+{
+  "groups": [
+    {
+      "id": "outcome",
+      "title": "Outcome type",
+      "subtitle": "What does your dependent variable look like?",
+      "options": [
+        {
+          "id": "continuous",
+          "label": "Continuous",
+          "hint": "Sales, profit, time, temperature",
+          "methods": ["ols"]
+        },
+        {
+          "id": "binary",
+          "label": "Binary",
+          "hint": "Yes/No, adopted/not adopted",
+          "methods": ["logit"]
+        },
+        {
+          "id": "count",
+          "label": "Count",
+          "hint": "0, 1, 2, 3... defects, events",
+          "methods": ["count"]
+        },
+        {
+          "id": "fraction",
+          "label": "Fraction",
+          "hint": "Rates or shares between 0 and 1",
+          "methods": ["fractional"]
+        },
+        {
+          "id": "duration",
+          "label": "Time-to-event",
+          "hint": "Time until exit, failure, churn",
+          "methods": ["hazard"]
+        }
+      ]
+    },
+    {
+      "id": "structure",
+      "title": "Data structure",
+      "subtitle": "How is the data organized?",
+      "options": [
+        {
+          "id": "cross",
+          "label": "Cross-section",
+          "hint": "One snapshot of many units",
+          "methods": []
+        },
+        {
+          "id": "panel",
+          "label": "Panel",
+          "hint": "Same units tracked over time",
+          "methods": ["panel"]
+        }
+      ]
+    },
+    {
+      "id": "endogeneity",
+      "title": "Endogeneity risk",
+      "subtitle": "Could X be tangled with unobservables?",
+      "options": [
+        {
+          "id": "none",
+          "label": "Low",
+          "hint": "Design is clean or randomized",
+          "methods": []
+        },
+        {
+          "id": "maybe",
+          "label": "Maybe",
+          "hint": "Some unobserved factors likely",
+          "methods": ["diagnostics"]
+        },
+        {
+          "id": "yes",
+          "label": "High",
+          "hint": "Selection, simultaneity, or omitted vars",
+          "methods": ["iv", "did"]
+        }
+      ]
+    }
+  ],
+  "always": ["diagnostics", "reporting"],
+  "methods": {
+    "ols": {
+      "title": "OLS regression",
+      "why": "Baseline for continuous outcomes and clear interpretation.",
+      "stata": "regress y x1 x2, vce(robust)",
+      "diagnostic": "Check residual plots, leverage, and heteroskedasticity.",
+      "pitfall": "Ignoring nonlinearity or omitted variables.",
+      "links": [
+        {"label": "OLS intuition module", "href": "../ZeroToHero/modules/02-ols-intuition.html"},
+        {"label": "Diagnostics script", "href": "../ScriptLibrary/script.html?id=ols-robust-diagnostics"}
+      ]
+    },
+    "logit": {
+      "title": "Logit / Probit",
+      "why": "Models binary outcomes with probabilities constrained to 0-1.",
+      "stata": "logit y x1 x2\nmargins, dydx(*)",
+      "diagnostic": "Report marginal effects and predicted probabilities.",
+      "pitfall": "Interpreting raw coefficients as effects.",
+      "links": [
+        {"label": "Limited outcomes module", "href": "../ZeroToHero/modules/03-limited-outcomes.html"},
+        {"label": "Logit script", "href": "../ScriptLibrary/script.html?id=logit-margins"}
+      ]
+    },
+    "count": {
+      "title": "Poisson / Negative binomial",
+      "why": "Counts need non-negative predictions and overdispersion checks.",
+      "stata": "poisson y x1 x2, vce(robust)\nestat gof\nnbreg y x1 x2, vce(robust)",
+      "diagnostic": "Check overdispersion and zero inflation.",
+      "pitfall": "Using OLS on skewed counts.",
+      "links": [
+        {"label": "Count model script", "href": "../ScriptLibrary/script.html?id=poisson-nb-overdispersion"}
+      ]
+    },
+    "fractional": {
+      "title": "Fractional response",
+      "why": "Handles proportions between 0 and 1 without impossible predictions.",
+      "stata": "fracreg logit y x1 x2\nmargins, dydx(*)",
+      "diagnostic": "Inspect fitted values for boundary issues.",
+      "pitfall": "Treating fractions as binary or using OLS.",
+      "links": [
+        {"label": "Topics map", "href": "../Topics/"}
+      ]
+    },
+    "hazard": {
+      "title": "Hazard / duration models",
+      "why": "Captures time-to-event outcomes and censoring.",
+      "stata": "stset duration, failure(event)\nstcox x1 x2, vce(robust)",
+      "diagnostic": "Check proportional hazards assumptions.",
+      "pitfall": "Ignoring censoring or duration dependence.",
+      "links": [
+        {"label": "Topics map", "href": "../Topics/"}
+      ]
+    },
+    "panel": {
+      "title": "Panel FE/RE",
+      "why": "Controls for time-invariant unobserved factors in panel data.",
+      "stata": "xtset id time\nxtreg y x1 x2, fe vce(cluster id)",
+      "diagnostic": "Compare FE vs RE and test for serial correlation.",
+      "pitfall": "Forgetting to cluster at the panel level.",
+      "links": [
+        {"label": "Panel setup script", "href": "../ScriptLibrary/script.html?id=panel-setup"},
+        {"label": "Code Library panel toolkit", "href": "../CodeLibrary/"}
+      ]
+    },
+    "iv": {
+      "title": "Instrumental variables",
+      "why": "Corrects for endogeneity when a valid instrument exists.",
+      "stata": "ivregress 2sls y (x1 = z1), vce(robust)",
+      "diagnostic": "Check first-stage strength and exclusion logic.",
+      "pitfall": "Weak instruments or implausible exclusion.",
+      "links": [
+        {"label": "Endogeneity simulator", "href": "../CodeLibrary/"}
+      ]
+    },
+    "did": {
+      "title": "Difference-in-differences",
+      "why": "Causal design when a treatment shocks one group over time.",
+      "stata": "xtset id time\nxtreg y i.treated##i.post, fe vce(cluster id)",
+      "diagnostic": "Assess parallel trends with pre-trends.",
+      "pitfall": "Ignoring staggered adoption or pre-trend violations.",
+      "links": [
+        {"label": "Topics map", "href": "../Topics/"}
+      ]
+    },
+    "diagnostics": {
+      "title": "Diagnostics checklist",
+      "why": "Assure assumptions before final interpretation.",
+      "stata": "estat hettest\nestat vif\nrvfplot",
+      "diagnostic": "Report diagnostics in an appendix or robustness section.",
+      "pitfall": "Skipping checks because the model looks significant.",
+      "links": [
+        {"label": "Diagnostics script", "href": "../ScriptLibrary/script.html?id=ols-robust-diagnostics"}
+      ]
+    },
+    "reporting": {
+      "title": "Reporting standard",
+      "why": "Translate estimates into plain-language results and tables.",
+      "stata": "esttab, se star(* 0.1 ** 0.05 *** 0.01)",
+      "diagnostic": "State assumptions, identification, and robustness clearly.",
+      "pitfall": "Only reporting p-values without effect size context.",
+      "links": [
+        {"label": "Export tables", "href": "../ScriptLibrary/script.html?id=export-regression-table"}
+      ]
+    }
+  }
+}

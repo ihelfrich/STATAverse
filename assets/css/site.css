@@ -805,6 +805,120 @@ body.page-zero {
   line-height: 1.6;
 }
 
+.method-lab {
+  display: grid;
+  gap: 2rem;
+}
+
+.lab-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.lab-step {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.chip-grid {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.chip {
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+  border-radius: var(--radius-small);
+  border: 1px solid rgba(27, 27, 25, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  font-family: var(--font-body);
+}
+
+.chip:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.chip.active {
+  border-color: var(--accent-2);
+  box-shadow: var(--shadow-soft);
+}
+
+.chip-label {
+  font-weight: 600;
+}
+
+.chip-hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.lab-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.summary-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.8rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.copy-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 1.2rem;
+}
+
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.method-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.method-card pre {
+  background: rgba(27, 27, 25, 0.06);
+  border-radius: var(--radius-small);
+  padding: 0.7rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.method-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
 .glossary-term {
   background: none;
   border: none;

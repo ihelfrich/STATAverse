@@ -285,3 +285,26 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2026-01-15
+Author: Codex (GPT-5)
+Scope: Add Method Lab interactive decision engine and site wiring.
+Summary
+- Added Method Lab wizard that recommends methods, Stata snippets, and diagnostics.
+- Wired Method Lab into global navigation, homepage paths, and site search index.
+- Added Method Lab data catalog and styling support.
+
+Files created
+- `MethodLab/index.html`
+- `assets/data/method-lab.json`
+
+Files modified
+- `assets/js/site.js`
+- `assets/css/site.css`
+- `index.html`
+- `tools/build_site_index.py`
+- `assets/data/site-index.json`
+- Various navigation headers across HTML pages
+
+Other AI contributions
+- None recorded in this log entry.

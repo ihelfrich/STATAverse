@@ -458,6 +458,18 @@
   },
   {
     "type": "page",
+    "title": "Method Lab",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "methods",
+      "decision",
+      "lab"
+    ],
+    "level": "All",
+    "path": "MethodLab/index.html"
+  },
+  {
+    "type": "page",
     "title": "Script Builder",
     "summary": "Primary navigation page.",
     "tags": [

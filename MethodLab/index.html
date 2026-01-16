@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Method Lab | STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+  <body class="page-zero">
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="../ScriptLibrary/">Scripts</a>
+          <a href="../CodeLibrary/">Code Library</a>
+          <a href="../MethodLab/" class="active">Method Lab</a>
+          <a href="../Topics/">Topics</a>
+          <a href="../Readings/">Readings</a>
+          <a href="../Search/">Search</a>
+          <a href="../Workspace/">Workspace</a>
+          <a href="../ZeroToHero/">Zero-to-Hero</a>
+          <a href="../STATAForBusiness/">Stata for Business</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero hero-compact">
+        <div class="hero-copy">
+          <span class="eyebrow">Method lab</span>
+          <h1>Choose the right model in minutes</h1>
+          <p class="lead">
+            A guided decision engine that turns your research setup into defensible
+            econometric choices. Built for intuition first, then publication-ready rigor.
+          </p>
+        </div>
+        <div class="hero-panel">
+          <div class="panel-card">
+            <div class="panel-title">What you get</div>
+            <ul class="panel-list">
+              <li>Method recommendations with plain-language justifications.</li>
+              <li>Stata starter code and diagnostics checklist.</li>
+              <li>Links to scripts, modules, and readings.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <h2>Method finder</h2>
+          <p>Answer three questions. Get a complete modeling plan.</p>
+        </div>
+        <div class="method-lab" data-method-lab data-method-lab-src="../assets/data/method-lab.json">
+          <div class="lab-grid" data-lab-steps></div>
+          <div class="lab-summary">
+            <div class="summary-card" data-lab-summary>
+              <h3>Your draft plan</h3>
+              <p class="muted">Select options to generate a tailored recommendation.</p>
+            </div>
+            <button class="btn ghost" type="button" data-copy-plan disabled>Copy plan</button>
+            <div class="copy-note" data-copy-note aria-live="polite"></div>
+          </div>
+          <div class="method-grid" data-method-results></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>STATAverse | Method Lab</div>
+    </footer>
+
+    <script src="../assets/js/site.js"></script>
+  </body>
+</html>
