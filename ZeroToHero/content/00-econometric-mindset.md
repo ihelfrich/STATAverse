@@ -34,16 +34,16 @@ Use these four prompts before touching any estimator:
 The data generating process (DGP) is your mental map for how outcomes are created.
 
 **Core idea:**
-\\\\(\text{Outcome} = \text{Systematic part} + \text{Noise}\\\\)
+\(\text{Outcome} = \text{Systematic part} + \text{Noise}\)
 
 <details class="math-toggle algebra">
   <summary>Show algebra form</summary>
   <div class="math-block">
     We often start with the linear model:
 
-    \\\\[y_i = \beta_0 + \beta_1 x_i + u_i\\\\]
+    \[y_i = \beta_0 + \beta_1 x_i + u_i\]
 
-    where \\\\(y_i\\\\) is the outcome (sales), \\\\(x_i\\\\) is a predictor (promotion), and \\\\(u_i\\\\) is everything
+    where \(y_i\) is the outcome (sales), \(x_i\) is a predictor (promotion), and \(u_i\) is everything
     you did not measure.
   </div>
 </details>
@@ -53,10 +53,10 @@ The data generating process (DGP) is your mental map for how outcomes are create
   <div class="math-block">
     Stack all observations into vectors and matrices:
 
-    \\\\[\mathbf{y} = \mathbf{X}\beta + \mathbf{u}\\\\]
+    \[\mathbf{y} = \mathbf{X}\beta + \mathbf{u}\]
 
-    \\\\(\mathbf{y}\\\\) is an \\\\(n \times 1\\\\) outcome vector, \\\\(\mathbf{X}\\\\) is an \\\\(n \times k\\\\) matrix of predictors,
-    and \\\\(\beta\\\\) is a \\\\(k \times 1\\\\) vector of coefficients.
+    \(\mathbf{y}\) is an \(n \times 1\) outcome vector, \(\mathbf{X}\) is an \(n \times k\) matrix of predictors,
+    and \(\beta\) is a \(k \times 1\) vector of coefficients.
   </div>
 </details>
 

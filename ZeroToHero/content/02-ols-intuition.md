@@ -39,16 +39,16 @@ We start with a scatterplot of price and sales. Every point is a store-week.
 ## Step 2: The OLS objective
 OLS chooses coefficients that minimize the sum of squared residuals.
 
-\\\\[\min_{\beta} \sum_{i=1}^n (y_i - \hat{y}_i)^2\\\\]
+\[\min_{\beta} \sum_{i=1}^n (y_i - \hat{y}_i)^2\]
 
 <details class="math-toggle algebra">
   <summary>Show algebra derivation</summary>
   <div class="math-block">
     For simple regression with one predictor, the slope is:
 
-    \\\\[\hat{\beta}_1 = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}\\\\]
+    \[\hat{\beta}_1 = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}\]
 
-    This is why we need variation in \\\\(x\\\\): if \\\\(x\\\\) does not vary, the denominator is zero.
+    This is why we need variation in \(x\): if \(x\) does not vary, the denominator is zero.
   </div>
 </details>
 
@@ -57,11 +57,11 @@ OLS chooses coefficients that minimize the sum of squared residuals.
   <div class="math-block">
     The OLS solution solves the normal equations:
 
-    \\\\[\mathbf{X}'\mathbf{X}\hat{\beta} = \mathbf{X}'\mathbf{y}\\\\]
+    \[\mathbf{X}'\mathbf{X}\hat{\beta} = \mathbf{X}'\mathbf{y}\]
 
     which yields:
 
-    \\\\[\hat{\beta} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{y}\\\\]
+    \[\hat{\beta} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{y}\]
   </div>
 </details>
 

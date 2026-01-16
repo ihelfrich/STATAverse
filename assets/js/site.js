@@ -581,6 +581,20 @@
       ],
       ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
       throwOnError: false,
+      trust: true,
+    });
+  }
+
+  function setupMathToggleListeners(container) {
+    var mathToggles = container.querySelectorAll("details.math-toggle, details.check-details, details.answer-key");
+    mathToggles.forEach(function (details) {
+      details.addEventListener("toggle", function () {
+        if (details.open) {
+          setTimeout(function() {
+            renderMath(details);
+          }, 10);
+        }
+      });
     });
   }
 
@@ -590,6 +604,7 @@
     initCharts(container);
     initModelSelectors(container);
     renderMath(container);
+    setupMathToggleListeners(container);
   }
 
   
