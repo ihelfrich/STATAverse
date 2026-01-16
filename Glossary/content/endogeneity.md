@@ -1,286 +1,248 @@
-## What is Endogeneity?
+## What Does This Mean?
 
-**Plain English:** Your explanatory variable (X) is tangled up with things you didn't measure, making your regression coefficient biased and untrustworthy.
+Your X variable is mixed up with things you haven't measured. That means your regression coefficient is giving you the wrong answer.
 
-**Why It Matters:** If X is endogenous, your estimate is WRONG. You might think increasing marketing spend boosts sales by 20%, when the true effect is only 5%. You cannot make causal claims from endogenous models.
+Think of it like this: You're trying to figure out if tutoring helps students pass exams. But the students who get tutoring are also the ones whose parents check homework every night. Your regression can't tell those two things apart. The coefficient you get includes both the tutoring effect AND the parental involvement effect. That's endogeneity.
 
----
-
-## The Three Types of Endogeneity
-
-### 1. Omitted Variable Bias
-
-**The Problem:** You left out an important variable (Z) that affects both X and Y.
-
-**Example:** You regress firm performance (Y) on CEO pay (X), but omit firm size (Z). Larger firms pay CEOs more AND perform better. Your regression will overestimate the CEO pay effect.
-
-**Intuition:** The missing variable is secretly driving both things you're studying. Your coefficient picks up both the true effect AND the confounding effect.
-
-### 2. Reverse Causality
-
-**The Problem:** Y causes X, not X causes Y (or both cause each other).
-
-**Example:** You regress stock price (Y) on analyst recommendations (X). But analysts recommend stocks BECAUSE prices are rising. The arrow goes backward.
-
-**Intuition:** You think you're studying X → Y, but really it's Y → X. Your regression can't tell the difference.
-
-### 3. Simultaneity
-
-**The Problem:** X and Y determine each other at the same time.
-
-**Example:** Demand and price are simultaneously determined in a market. Higher demand increases price, but higher price decreases demand. You can't untangle cause from effect.
-
-**Intuition:** Mutual causation creates a feedback loop. OLS gives you a blend of both effects, not a clean estimate of either.
+**Why this wrecks your research:** You might think tutoring doubles pass rates, when really it only helps by 20%. Everything you conclude will be wrong.
 
 ---
 
-## Visualizing the Bias
+## Three Ways This Happens
 
-<div class="interactive-placeholder" data-viz="endogeneity-scatter">
-**Interactive Simulation** (expand below)
+### You Left Something Out (Omitted Variable Bias)
 
-Try adjusting the correlation between X and the error term (ρ):
-- ρ = 0: No endogeneity → OLS is unbiased
-- ρ = 0.5: Moderate endogeneity → OLS overestimates
-- ρ = 0.9: Severe endogeneity → OLS is wildly wrong
+There's a variable Z that affects both X and Y, but you didn't include it in your model.
 
-Compare: Naive OLS (blue) vs. True effect (green)
-</div>
+**Example you'll recognize:** Studying whether CEO pay (X) drives firm performance (Y). Bigger companies pay CEOs more AND perform better. If you forget to control for size, you'll think CEO pay matters way more than it actually does.
 
-**What you'll see:** As endogeneity increases (ρ → 1), the OLS estimate drifts farther from the truth. Even ρ = 0.3 can double your coefficient!
+The missing variable sneaks into your error term, and your coefficient picks up its effect too.
+
+### The Arrow Points Backward (Reverse Causality)
+
+Y is causing X, not the other way around.
+
+**Example:** Stock prices (Y) and analyst ratings (X). You think ratings drive prices. But analysts give good ratings BECAUSE prices are already rising. You've got the causation backward.
+
+OLS can't tell which direction the arrow goes. It just sees correlation.
+
+### They Cause Each Other (Simultaneity)
+
+X and Y determine each other at the same time, creating a feedback loop.
+
+**Classic case:** Supply and demand. Higher demand raises prices. Higher prices lower demand. They're tangled together. A regression will give you some blend of both effects, which isn't what you want.
 
 ---
 
-## Mathematical Definition
+## See the Bias for Yourself
+
+Imagine we know the true effect is 0.5. Here's what OLS gives you as endogeneity gets worse:
+
+- No endogeneity: OLS = 0.51 (basically right)
+- Moderate endogeneity: OLS = 0.87 (way too high)
+- Severe endogeneity: OLS = 1.43 (almost triple!)
+
+Even a small amount of endogeneity can double your estimate. That's terrifying if you're making decisions based on these numbers.
+
+---
+
+## The Math (If You Want It)
 
 <details class="math-toggle algebra">
-  <summary>Show algebra form</summary>
+  <summary>Show the algebra</summary>
   <div class="math-block">
-    The core requirement for OLS to be unbiased is:
+    OLS works when the error term is independent of X:
 
     \[E[u|X] = 0\]
 
-    This says: "The error term u is independent of X."
+    Endogeneity breaks this. When \(Cov(X, u) \neq 0\), you get:
 
-    **Endogeneity means this fails:** \(E[u|X] \neq 0\)
+    \[\hat{\beta}_{OLS} = \beta_{true} + \frac{Cov(X, u)}{Var(X)}\]
 
-    When endogeneity is present, the OLS estimator is:
-
-    \[\hat{\beta}_{OLS} = \beta + \frac{Cov(X, u)}{Var(X)}\]
-
-    That second term is the bias. If \(Cov(X, u) \neq 0\), you're not estimating β.
+    That second part is the bias. It won't average out, even with infinite data.
   </div>
 </details>
 
 <details class="math-toggle linalg">
-  <summary>Show linear algebra form</summary>
+  <summary>Show the matrix form</summary>
   <div class="math-block">
-    In matrix notation, OLS is:
+    In matrices:
 
-    \[\hat{\beta}_{OLS} = (X'X)^{-1}X'y\]
+    \[\hat{\beta} = (X'X)^{-1}X'y\]
 
-    Substituting \(y = X\beta + u\):
+    Substitute \(y = X\beta + u\):
 
-    \[\hat{\beta}_{OLS} = \beta + (X'X)^{-1}X'u\]
+    \[\hat{\beta} = \beta + (X'X)^{-1}X'u\]
 
     Taking expectations:
 
-    \[E[\hat{\beta}_{OLS}] = \beta + E[(X'X)^{-1}X'u]\]
+    \[E[\hat{\beta}] = \beta + (X'X)^{-1}E[X'u]\]
 
-    **If endogenous:** \(E[X'u] \neq 0\), so the second term is non-zero → bias.
+    If X and u are correlated, that last term isn't zero. Your estimate is biased.
   </div>
 </details>
 
 ---
 
-## How to Detect Endogeneity
+## How to Spot It
 
-### Tests in Stata
+### Run a Hausman Test (panel data)
 
-**1. Hausman Test (for panel data)**
 ```stata
-* Estimate fixed effects and random effects
 xtreg y x1 x2, fe
-estimates store fe_model
+estimates store fixed
 
 xtreg y x1 x2, re
-estimates store re_model
+estimates store random
 
-* Test for endogeneity
-hausman fe_model re_model
+hausman fixed random
 ```
 
-**Interpretation:** If p < 0.05, reject random effects (evidence of endogeneity).
+If p < 0.05, you've got endogeneity. Use fixed effects, not random effects.
 
-**2. Durbin-Wu-Hausman Test (for IV models)**
+### Test Your Instrument (IV models)
+
 ```stata
-* After running 2SLS:
-ivregress 2sls y x1 x2 (x_endog = z_instrument)
-
-* Test if endogeneity is present
+ivregress 2sls y x1 x2 (endogenous_x = instrument)
 estat endogenous
 ```
 
-**Interpretation:** If p < 0.05, X is endogenous. You need IV, not OLS.
+If p < 0.05, X is endogenous. You need instrumental variables, not OLS.
 
-**3. Visual Inspection**
+### Look at Your Residuals
+
 ```stata
 regress y x1 x2
 predict resid, residuals
-
-* Plot residuals vs. suspected endogenous variable
 scatter resid x1
 ```
 
-**What to look for:** Systematic patterns suggest endogeneity (e.g., residuals increase with X).
+Patterns mean trouble. Residuals should look like random noise.
 
 ---
 
-## How to Fix Endogeneity
+## How to Fix It
 
-### Solution 1: Find an Instrumental Variable (IV)
+### Option 1: Find an Instrument
 
-**What you need:** A variable Z that:
-1. **Relevance:** Z affects X (strong first stage)
-2. **Exclusion:** Z affects Y ONLY through X (no direct effect)
-3. **Exogeneity:** Z is uncorrelated with the error term
+You need a variable Z that:
+- Strongly predicts X (check this with an F-test)
+- Only affects Y through X (you have to argue this theoretically)
+- Isn't correlated with your errors
 
-**Stata implementation:**
 ```stata
-* Two-stage least squares (2SLS)
-ivregress 2sls y x1 x2 (x_endog = z_instrument), first
+ivregress 2sls y controls (endogenous_x = instrument), first robust
 
-* Check instrument strength
+* Check if your instrument is strong
 estat firststage
-
-* Test overidentification (if multiple instruments)
-estat overid
+* F-stat should be over 10, ideally over 20
 ```
 
-**Example:** Studying effect of education on wages. Use distance to college as IV (affects education but not wages directly).
+**Real example:** Studying education's effect on wages? Use distance to nearest college as an instrument. It affects whether people get educated, but doesn't directly change their wages.
 
-### Solution 2: Fixed Effects (for panel data)
+### Option 2: Use Fixed Effects
 
-**What it does:** Removes time-invariant confounders by focusing on within-unit changes.
+This works when your endogeneity comes from time-invariant characteristics (firm culture, individual ability, etc.).
 
-**Stata implementation:**
 ```stata
 xtset firm_id year
 xtreg y x1 x2, fe vce(cluster firm_id)
 ```
 
-**Example:** Firm fixed effects control for unobserved firm culture, industry, etc.
+Fixed effects sweep out anything that doesn't change over time.
 
-### Solution 3: Difference-in-Differences
+### Option 3: Difference-in-Differences
 
-**What it does:** Exploits a natural experiment or policy change to identify causal effects.
+If you have a policy change or natural experiment, you can compare changes across groups.
 
-**Stata implementation:**
 ```stata
-* Basic DiD
-regress y treat##post x1 x2, robust
-
-* The interaction coefficient is your causal estimate
+regress y treat##post controls, robust
 ```
 
-### Solution 4: Control Function Approach
+The interaction coefficient gives you the causal effect.
 
-**What it does:** Explicitly model the endogeneity and include residuals as a control.
+### Option 4: Control Function
 
-**Stata implementation:**
+Model the endogeneity explicitly and include the residuals as a control.
+
 ```stata
-* Step 1: Regress endogenous variable on instruments
-regress x_endog z_instrument x1 x2
+* Step 1: Predict the endogenous part
+regress endogenous_x instrument controls
 predict resid_x, residuals
 
-* Step 2: Include residuals in main regression
-regress y x_endog resid_x x1 x2, robust
+* Step 2: Include those residuals
+regress y endogenous_x resid_x controls, robust
 ```
 
 ---
 
-## Common Mistakes
+## What People Get Wrong
 
-### ❌ Mistake 1: Adding More Controls to "Fix" Endogeneity
+**"I'll just add more controls."** Doesn't work. If the confounding variable is unobserved, adding other stuff won't help. You need a different strategy.
 
-**Why it fails:** If the confounder is unobserved, adding observed controls doesn't help. You need IV or FE.
+**"My instrument has an F-stat of 3."** That's a weak instrument. It will give you WORSE estimates than OLS. Don't use it.
 
-**Example:** Controlling for 20 variables won't fix endogeneity if ability (unobserved) drives both education and wages.
-
-### ❌ Mistake 2: Using a Weak Instrument
-
-**Why it fails:** Weak instruments create MORE bias than OLS!
-
-**How to check:**
-```stata
-estat firststage
-* F-statistic should be > 10 (ideally > 20)
-```
-
-### ❌ Mistake 3: Ignoring the Problem
-
-**Why it fails:** Reviewers WILL ask about endogeneity. You need a credible strategy.
-
-**Better:** Acknowledge endogeneity, discuss magnitude with sensitivity analysis (e.g., Oster 2019 bounds).
+**"I'll ignore this and hope reviewers don't notice."** They will notice. Every serious journal expects you to address endogeneity. Have a plan.
 
 ---
 
-## In Published Research
+## How to Write About It
 
-**How to report:**
-> "We address potential endogeneity using instrumental variables estimation. Our instrument, Z, is strongly correlated with X (F = 47.2, p < 0.001) and satisfies the exclusion restriction because [theoretical argument]. The Durbin-Wu-Hausman test confirms endogeneity is present (χ² = 12.4, p < 0.01). After controlling for endogeneity, the effect of X on Y is β = 0.34 (SE = 0.12, p < 0.01), compared to the naive OLS estimate of β = 0.58."
+Here's what a good paper does:
 
-**Top journals expect:**
-1. Clear statement of endogeneity concern
-2. Theoretical argument for IV validity
-3. First-stage diagnostics (F-stat, partial R²)
-4. Overidentification test (if multiple IVs)
-5. Comparison of OLS vs. IV estimates
+> "CEO tenure is potentially endogenous because longer-tenured CEOs may have survived precisely because their firms performed well. We address this using an instrumental variables approach. Our instrument—the unexpected death of a board member who recruited the CEO—strongly predicts CEO tenure (F = 23.4, p < 0.001) but does not directly affect firm performance. The Durbin-Wu-Hausman test confirms endogeneity (χ² = 8.7, p < 0.01). Using 2SLS, we find tenure increases performance by β = 0.18 (SE = 0.07, p = 0.01), compared to the naive OLS estimate of β = 0.34."
+
+You need:
+- Clear statement of why X might be endogenous
+- Your solution (IV, FE, DiD, etc.)
+- Diagnostics showing it works
+- Comparison to naive OLS
 
 ---
 
 ## Related Concepts
 
-- **[Omitted Variable Bias](./omitted-variable-bias.html)** - The most common type of endogeneity
-- **[Instrumental Variable](./instrumental-variable.html)** - The primary solution
-- **[Bias](./bias.html)** - What endogeneity causes
-- **[Confounding](./confounding.html)** - Another way to think about endogeneity
-- **[Selection Bias](./selection-bias.html)** - Endogeneity from non-random samples
+- [Omitted Variable Bias](./omitted-variable-bias.html) - the most common type
+- [Instrumental Variables](./instrumental-variable.html) - the main solution
+- [Confounding](./confounding.html) - another way to think about it
+- [Bias](./bias.html) - what endogeneity creates
+- [Selection Bias](./selection-bias.html) - endogeneity from non-random samples
 
 ---
 
-## Further Reading
+## Read More
 
-**Essential Papers:**
-- Hill, A. D., et al. (2021). "Endogeneity: A review and agenda." *Journal of Management*, 47(1), 105-143. [Comprehensive review of endogeneity in management research]
+**Start here:**
+- Hill et al. (2021). "Endogeneity: A review and agenda." *Journal of Management*, 47(1), 105-143.
 
-- Semadeni, M., et al. (2014). "The perils of endogeneity and instrumental variables in strategy research." *Strategic Management Journal*, 35(7), 1070-1079. [Simulation showing how IV can fail]
-
-- Hamilton, B. H., & Nickerson, J. A. (2003). "Correcting for endogeneity in strategic management research." *Strategic Organization*, 1(1), 51-78. [Practical guide to solutions]
+**Then dive deeper:**
+- Semadeni et al. (2014). "The perils of endogeneity and instrumental variables." *SMJ*, 35(7), 1070-1079.
+- Hamilton & Nickerson (2003). "Correcting for endogeneity in strategic management research." *Strategic Organization*, 1(1), 51-78.
 
 **Textbooks:**
-- Wooldridge (2010). *Econometric Analysis of Cross Section and Panel Data*. Chapter 5 (IV methods) and Chapter 6 (Panel data).
-- Angrist & Pischke (2009). *Mostly Harmless Econometrics*. Chapter 4 (IV in detail).
+- Wooldridge (2010). *Econometric Analysis of Cross Section and Panel Data*. Chapters 5-6.
+- Angrist & Pischke (2009). *Mostly Harmless Econometrics*. Chapter 4.
 
-**STATAverse Modules:**
-- [Endogeneity Simulator](../CodeLibrary/scripts/01_endogeneity_simulator.do) - See bias in action
-- [Method Decision Tree](../CodeLibrary/scripts/02_method_decision_tree_v2.do) - Choose the right fix
+**Try it yourself:**
+- [Endogeneity Simulator](../CodeLibrary/scripts/01_endogeneity_simulator.do) - generate data with known bias, see how OLS fails
+- [Method Decision Tree](../CodeLibrary/scripts/02_method_decision_tree_v2.do) - figure out which fix to use
 
 ---
 
-## Interactive Practice
+## Practice
 
 [TRY]
-- [ ] Download the endogeneity simulator script
-- [ ] Generate data with ρ = 0.5 (moderate endogeneity)
+- [ ] Download the endogeneity simulator
+- [ ] Generate data where the true effect is 0.5
+- [ ] Add moderate endogeneity (correlation = 0.4)
 - [ ] Compare OLS vs. IV estimates
 
 [PREDICT]
-- [ ] What do you expect: Will OLS overestimate or underestimate?
-- [ ] By how much?
+- [ ] Before running it: Will OLS be too high or too low?
+- [ ] How far off will it be?
 
 [CHECK]
-- [ ] Run the simulation. Were you right?
+- [ ] Run the code. Were you right?
 
 [REFLECT]
-- Write one paragraph: Why does even ρ = 0.3 cause serious bias? What does this mean for your own research?
+Write a paragraph explaining why even correlation = 0.3 between X and the error term causes serious problems. What does this mean for your own research?
