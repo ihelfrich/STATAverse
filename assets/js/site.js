@@ -1501,12 +1501,10 @@
       methods.forEach(function (method) {
         lines.push("- " + method.title);
         if (method.stata) {
-          lines.push("  Stata: " + method.stata.split("
-").join(" | "));
+          lines.push("  Stata: " + method.stata.split("\\n").join(" | "));
         }
       });
-      return lines.join("
-");
+      return lines.join("\\n");
     }
 
     function updateResults(selections, data) {
