@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Econometrics Glossary | STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+  <body class="page-zero">
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="../ScriptLibrary/">Scripts</a>
+          <a href="../CodeLibrary/">Code Library</a>
+          <a href="../Search/">Search</a>
+          <a href="../Topics/">Topics</a>
+          <a href="../Readings/">Readings</a>
+          <a href="../Workspace/">Workspace</a>
+          <a href="./" class="active">Glossary</a>
+          <a href="../ZeroToHero/">Zero-to-Hero</a>
+          <a href="../STATAForBusiness/">Stata for Business</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero hero-compact">
+        <div class="hero-copy">
+          <span class="eyebrow">Comprehensive glossary</span>
+          <h1>Every econometric concept, clearly explained</h1>
+          <p class="lead">
+            No jargon, no assumptions. Each term starts with plain English, builds to mathematical
+            rigor, and connects to Stata implementation. This is the reference you wish your
+            textbook had.
+          </p>
+          <div class="filter-bar">
+            <input
+              id="glossary-search"
+              class="search-input"
+              type="search"
+              placeholder="Search concepts..."
+              aria-label="Search glossary"
+            />
+            <div class="filter-chips" data-glossary-filters>
+              <button class="filter-chip active" data-filter="all" type="button">All</button>
+              <button class="filter-chip" data-filter="Fundamentals" type="button">Fundamentals</button>
+              <button class="filter-chip" data-filter="Causal Inference" type="button">Causal Inference</button>
+              <button class="filter-chip" data-filter="Diagnostics" type="button">Diagnostics</button>
+              <button class="filter-chip" data-filter="Panel Data" type="button">Panel Data</button>
+              <button class="filter-chip" data-filter="Inference" type="button">Inference</button>
+              <button class="filter-chip" data-filter="Interpretation" type="button">Interpretation</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card-grid" data-glossary-grid>
+          <!-- Glossary cards will be generated here -->
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>STATAverse | Econometrics Glossary</div>
+    </footer>
+
+    <script src="../assets/js/site.js"></script>
+  </body>
+</html>

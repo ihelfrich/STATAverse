@@ -1402,12 +1402,180 @@
     });
   }
 
+  function initGlossaryIndex() {
+    var grid = document.querySelector("[data-glossary-grid]");
+    if (!grid) {
+      return;
+    }
+    var searchInput = document.getElementById("glossary-search");
+    var filters = document.querySelector("[data-glossary-filters]");
+    var activeFilter = "all";
+    var glossaryData = [];
+
+    function renderCards(items) {
+      grid.innerHTML = "";
+      if (!items.length) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "No concepts match your search.";
+        grid.appendChild(empty);
+        return;
+      }
+
+      items.forEach(function (item) {
+        var card = document.createElement("article");
+        card.className = "card";
+
+        var tag = document.createElement("div");
+        tag.className = "card-tag";
+        tag.textContent = item.category;
+
+        var title = document.createElement("h3");
+        title.textContent = item.term;
+
+        var desc = document.createElement("p");
+        desc.textContent = item.plainEnglish;
+
+        var meta = document.createElement("div");
+        meta.className = "card-meta";
+        var difficulty = document.createElement("span");
+        difficulty.className = "pill";
+        difficulty.textContent = item.difficulty;
+        meta.appendChild(difficulty);
+
+        if (item.hasInteractive) {
+          var interactive = document.createElement("span");
+          interactive.className = "pill";
+          interactive.textContent = "Interactive";
+          meta.appendChild(interactive);
+        }
+
+        var link = document.createElement("a");
+        link.className = "text-link";
+        link.href = "./concept.html?id=" + item.id;
+        link.textContent = "Learn more →";
+
+        card.appendChild(tag);
+        card.appendChild(title);
+        card.appendChild(desc);
+        card.appendChild(meta);
+        card.appendChild(link);
+
+        grid.appendChild(card);
+      });
+    }
+
+    function filterConcepts() {
+      var query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+      var filtered = glossaryData.filter(function (item) {
+        var matchesCategory = activeFilter === "all" || item.category === activeFilter;
+        if (!matchesCategory) {
+          return false;
+        }
+        if (!query) {
+          return true;
+        }
+        var haystack = [item.term, item.plainEnglish, item.whyItMatters, item.category]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+      renderCards(filtered);
+    }
+
+    if (filters) {
+      filters.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!target.matches("[data-filter]")) {
+          return;
+        }
+        activeFilter = target.getAttribute("data-filter") || "all";
+        filters.querySelectorAll(".filter-chip").forEach(function (chip) {
+          chip.classList.toggle("active", chip === target);
+        });
+        filterConcepts();
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener("input", filterConcepts);
+    }
+
+    fetch("../assets/data/glossary.json")
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load glossary");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        glossaryData = data;
+        filterConcepts();
+      })
+      .catch(function () {
+        grid.innerHTML = "";
+        var error = document.createElement("p");
+        error.className = "muted";
+        error.textContent = "Glossary data unavailable.";
+        grid.appendChild(error);
+      });
+  }
+
+  function initConceptPage() {
+    var page = document.querySelector("[data-concept-page]");
+    if (!page) {
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get("id");
+    if (!id) {
+      page.querySelector("[data-concept-title]").textContent = "Concept not found";
+      return;
+    }
+
+    fetch("../assets/data/glossary.json")
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load glossary");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        var concept = data.find(function (item) {
+          return item.id === id;
+        });
+        if (!concept) {
+          throw new Error("Concept not found");
+        }
+
+        var categoryEl = page.querySelector("[data-concept-category]");
+        var titleEl = page.querySelector("[data-concept-title]");
+        var plainEnglishEl = page.querySelector("[data-concept-plain-english]");
+        var content = page.querySelector("[data-md]");
+
+        categoryEl.textContent = concept.category;
+        titleEl.textContent = concept.term;
+        plainEnglishEl.textContent = concept.plainEnglish;
+        document.title = concept.term + " | STATAverse Glossary";
+
+        if (content) {
+          content.setAttribute("data-md", "./content/" + id + ".md");
+          renderMarkdownLessons();
+        }
+      })
+      .catch(function () {
+        page.querySelector("[data-concept-title]").textContent = "Concept not found";
+      });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     initScriptPage();
     initScriptLibrary();
     initScriptBuilder();
     initSiteSearch();
     initWorkspace();
+    initGlossaryIndex();
+    initConceptPage();
     renderMarkdownLessons();
     enhanceRoot(document);
     registerServiceWorker();
