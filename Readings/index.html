@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Script | STATAverse</title>
+    <title>Readings | STATAverse</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,23 +17,26 @@
       <nav class="nav">
         <a class="brand" href="../index.html">STATAverse</a>
         <div class="nav-links">
-          <a href="./index.html">Scripts</a>
+          <a href="../ScriptLibrary/">Scripts</a>
           <a href="../Search/">Search</a>
-          <a href="../Topics/">Topics</a>
-          <a href="../Readings/">Readings</a>
           <a href="../Workspace/">Workspace</a>
+          <a href="../Topics/">Topics</a>
+          <a href="./index.html">Readings</a>
           <a href="../ZeroToHero/">Zero-to-Hero</a>
           <a href="../STATAForBusiness/">Stata for Business</a>
         </div>
       </nav>
     </header>
 
-    <main class="page dataset-page" data-script-page>
+    <main class="page">
       <aside class="side-nav">
-        <div class="side-title">Script library</div>
+        <div class="side-title">Library</div>
         <ul class="side-links">
-          <li><a href="./index.html">All scripts</a></li>
-          <li><a class="active" href="#">Current script</a></li>
+          <li><a href="../ZeroToHero/">Zero-to-Hero</a></li>
+          <li><a href="../STATAForBusiness/">Stata for Business</a></li>
+          <li><a href="../ScriptLibrary/">Script Library</a></li>
+          <li><a href="../Topics/">Topics Map</a></li>
+          <li><a class="active" href="./index.html">Readings</a></li>
         </ul>
         <div class="side-title">On this page</div>
         <div class="toc" data-toc></div>
@@ -41,23 +44,23 @@
 
       <section class="lesson">
         <div class="lesson-header">
-          <div class="eyebrow">Script</div>
-          <h1 data-script-title>Loading...</h1>
-          <p class="lead" data-script-summary></p>
-          <div class="script-meta" data-script-tags></div>
-          <div class="dataset-actions">
-            <a class="btn primary" data-script-download href="#">Download .do</a>
-            <a class="btn ghost" href="./builder.html">Build workflow</a>
-            <a class="btn ghost" href="./index.html">Back to library</a>
+          <div class="eyebrow">Reading library</div>
+          <h1>Graduate econometrics readings and references</h1>
+          <p class="lead">
+            A curated reading map tied to the Topics catalog. Focus on interpretation, model
+            choice, and applied workflow.
+          </p>
+          <div class="progress" data-progress>
+            <div class="progress-bar"></div>
+            <div class="progress-label">0/0 tasks</div>
           </div>
         </div>
-
-        <article class="lesson-content" data-md=""></article>
+        <article class="lesson-content" data-md="./content/reading-list.md"></article>
       </section>
     </main>
 
     <footer class="site-footer">
-      <div>STATAverse | Script Library</div>
+      <div>STATAverse | Reading Library</div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

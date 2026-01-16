@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Code Library - STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="../ScriptLibrary/">Scripts</a>
+          <a href="../Search/">Search</a>
+          <a href="./" class="active">Code Library</a>
+          <a href="../ZeroToHero/">Zero-to-Hero</a>
+          <a href="../STATAForBusiness/">Stata for Business</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="hero">
+        <h1>Publication-Ready Code Library</h1>
+        <p class="lead">
+          World-class Stata modules for advanced applied econometrics. Each script is tested,
+          documented, and aligned with PhD-level coursework (MGTO 80430).
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>📚 Core Philosophy</h2>
+        <div class="card-grid">
+          <article class="card">
+            <h3>Three-Level Learning</h3>
+            <p><strong>Level 1: Intuition</strong> - Plain language, everyday examples</p>
+            <p><strong>Level 2: Implementation</strong> - Tested Stata code, diagnostics</p>
+            <p><strong>Level 3: Publication</strong> - AMJ/SMJ reporting standards</p>
+          </article>
+          <article class="card">
+            <h3>Jargon-Free Start</h3>
+            <p>Every technical term is defined with everyday analogies before use.
+               You can start with zero econometrics background.</p>
+          </article>
+          <article class="card">
+            <h3>Publication-Ready</h3>
+            <p>Code generates tables, figures, and diagnostics meeting top journal standards
+               (Academy of Management Journal, Strategic Management Journal).</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>🎯 Module Index (Aligned with MGTO 80430)</h2>
+
+        <article class="card">
+          <div class="card-tag">Session 2 - Foundations</div>
+          <h3>00. Regression in Plain English</h3>
+          <p>
+            Build intuition for what regression ACTUALLY tells you. Zero jargon.
+            Coffee shop example with realistic numbers. Covers coefficients, p-values,
+            R-squared in everyday language.
+          </p>
+          <ul>
+            <li>✓ Beginner-friendly (no statistics background)</li>
+            <li>✓ Visual intuition before formulas</li>
+            <li>✓ Common mistakes flagged</li>
+          </ul>
+          <a href="./scripts/00_regression_plain_english.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+          <a href="https://github.com/ihelfrich/STATAverse/blob/main/CodeLibrary/scripts/00_regression_plain_english.do"
+             class="text-link" target="_blank">View on GitHub</a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">Sessions 2-11 - All Methods</div>
+          <h3>02. Method Decision Tree</h3>
+          <p>
+            Intelligent decision support for choosing the right econometric method.
+            Answer questions about your data structure, outcome type, and endogeneity concerns—get
+            tailored recommendations with working Stata code.
+          </p>
+          <ul>
+            <li>✓ Three-level architecture (Intuition → Implementation → Publication)</li>
+            <li>✓ Comprehensive glossary (15+ terms defined)</li>
+            <li>✓ Course-aligned (cites Kennedy, Cameron & Trivedi, Angrist & Pischke)</li>
+          </ul>
+          <strong>Methods Covered:</strong>
+          <ul>
+            <li>OLS regression (cross-section and panel)</li>
+            <li>Fixed effects and hybrid models</li>
+            <li>Logistic regression (binary outcomes)</li>
+            <li>Count models (Poisson, negative binomial)</li>
+            <li>Fractional response models</li>
+            <li>Instrumental variables (IV/2SLS)</li>
+          </ul>
+          <a href="./scripts/02_method_decision_tree_v2.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+          <a href="https://github.com/ihelfrich/STATAverse/blob/main/CodeLibrary/scripts/02_method_decision_tree_v2.do"
+             class="text-link" target="_blank">View on GitHub</a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">Sessions 7-8 - Endogeneity</div>
+          <h3>01. Endogeneity Simulator</h3>
+          <p>
+            Simulation-based learning for endogeneity and instrumental variables.
+            Generate data with KNOWN bias, see exactly what endogeneity does, compare
+            naive OLS vs. IV/2SLS side-by-side.
+          </p>
+          <ul>
+            <li>✓ Visual demonstration of bias</li>
+            <li>✓ Sensitivity analysis (ρ = 0 to 1)</li>
+            <li>✓ Publication-quality graphs</li>
+          </ul>
+          <a href="./scripts/01_endogeneity_simulator.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">Sessions 7-8 - Endogeneity</div>
+          <h3>01b. Endogeneity Intuition (Beginner Version)</h3>
+          <p>
+            The ice cream and shark attacks story. Explains confounding variables using
+            everyday examples before introducing technical terms. Perfect for complete beginners.
+          </p>
+          <a href="./scripts/01b_endogeneity_intuition.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">All Sessions - Reference</div>
+          <h3>03. Anti-Patterns Library</h3>
+          <p>
+            Learn from common mistakes with working examples where you KNOW the truth.
+            Demonstrates exactly how mistakes create bias, provides correct approach side-by-side.
+          </p>
+          <strong>Mistakes Covered:</strong>
+          <ul>
+            <li>❌ Interpreting raw logit coefficients</li>
+            <li>❌ The "control variable illusion" (post-treatment bias)</li>
+            <li>❌ Using ratios as dependent variables</li>
+            <li>❌ Pooled OLS when fixed effects needed</li>
+            <li>❌ Weak instruments (worse than OLS!)</li>
+          </ul>
+          <a href="./scripts/03_anti_patterns.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">All Sessions - Diagnostics</div>
+          <h3>04. Assumption Checker</h3>
+          <p>
+            Complete diagnostic workflows for major methods. Not just "run this test" but
+            "here's what to do if violated." Covers OLS, panel data, and IV assumptions exhaustively.
+          </p>
+          <ul>
+            <li>✓ OLS: Linearity, heteroskedasticity, multicollinearity, endogeneity</li>
+            <li>✓ Panel: Strict exogeneity, serial correlation, FE vs RE</li>
+            <li>✓ IV: Instrument relevance, exogeneity, weak IV tests</li>
+          </ul>
+          <a href="./scripts/04_assumption_checker.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">Session 3 - Moderation</div>
+          <h3>05. Moderation Mastery</h3>
+          <p>
+            Implements cutting-edge guidance from Busenbark et al. (2022, ORM).
+            Shows why interaction coefficients ≠ interaction effects. Demonstrates proper
+            marginal effects calculation, creates publication-ready marginsplots.
+          </p>
+          <ul>
+            <li>✓ 2-way and 3-way interactions</li>
+            <li>✓ Johnson-Neyman regions of significance</li>
+            <li>✓ Complete reporting template</li>
+          </ul>
+          <strong>Key Reading:</strong> Busenbark et al. (2022, ORM) - Marginal effects approach
+          <a href="./scripts/05_moderation_mastery.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+        </article>
+
+        <article class="card">
+          <div class="card-tag">Sessions 10-11 - Panel Data</div>
+          <h3>06. Panel Data Toolkit</h3>
+          <p>
+            Comprehensive panel data guide covering FE, RE, hybrid models, GEE, and
+            variance decomposition. Generates realistic panel data with known properties.
+          </p>
+          <ul>
+            <li>✓ Fixed effects, random effects</li>
+            <li>✓ Hybrid (within-between) models</li>
+            <li>✓ Generalized Estimating Equations (GEE)</li>
+            <li>✓ Variance decomposition (Quigley & Graffin 2016)</li>
+          </ul>
+          <a href="./scripts/06_panel_data_toolkit.do" class="btn ghost" download>
+            Download Script (.do)
+          </a>
+        </article>
+      </section>
+
+      <section class="section">
+        <h2>📖 Documentation</h2>
+        <div class="card-grid">
+          <article class="card outline">
+            <h3>Master Architecture</h3>
+            <p>Complete system design document explaining the three-level learning approach,
+               course alignment matrix, and pedagogical principles.</p>
+            <a href="./MASTER_ARCHITECTURE.md" class="text-link">Read Documentation</a>
+          </article>
+          <article class="card outline">
+            <h3>Innovation Summary</h3>
+            <p>What makes STATAverse different from textbooks, Stata manuals, and online tutorials.
+               Impact potential for students, researchers, and instructors.</p>
+            <a href="./INNOVATION_SUMMARY.md" class="text-link">Read Summary</a>
+          </article>
+          <article class="card outline">
+            <h3>Transformation Summary</h3>
+            <p>Before/after analysis showing how we built world-class quality:
+               intuition-first, jargon-managed, publication-ready throughout.</p>
+            <a href="./TRANSFORMATION_SUMMARY.md" class="text-link">Read Analysis</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>🎓 Course Alignment: MGTO 80430</h2>
+        <p>
+          These modules are designed to support <strong>Advanced Applied Econometrics</strong>
+          (MGTO 80430) at Notre Dame's Mendoza College of Business, taught by Prof. John Busenbark.
+          However, the methods apply to all disciplines seeking rigorous hypothesis testing.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Session</th>
+              <th>Topic</th>
+              <th>STATAverse Module</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2</td>
+              <td>Regression, Causality</td>
+              <td>00_regression_plain_english.do</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Moderation, Non-linearity</td>
+              <td>05_moderation_mastery.do</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Binary, Count DVs</td>
+              <td>02_method_decision_tree_v2.do (logit/count sections)</td>
+            </tr>
+            <tr>
+              <td>7-8</td>
+              <td>Endogeneity, IV</td>
+              <td>01_endogeneity_simulator.do, 01b_endogeneity_intuition.do</td>
+            </tr>
+            <tr>
+              <td>10-11</td>
+              <td>Panel Data</td>
+              <td>06_panel_data_toolkit.do</td>
+            </tr>
+            <tr>
+              <td>All</td>
+              <td>Method Selection</td>
+              <td>02_method_decision_tree_v2.do</td>
+            </tr>
+            <tr>
+              <td>All</td>
+              <td>Diagnostics</td>
+              <td>04_assumption_checker.do</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>💎 Key Features</h2>
+        <ul>
+          <li><strong>Tested Code</strong>: Every script runs without errors in Stata 18 MP</li>
+          <li><strong>Publication-Ready</strong>: Generates AMJ/SMJ-quality tables and figures</li>
+          <li><strong>Heavily Commented</strong>: Every section explained in plain language</li>
+          <li><strong>Modular Design</strong>: Copy what you need, ignore the rest</li>
+          <li><strong>Theory-Integrated</strong>: Cites key methodological papers</li>
+          <li><strong>Beginner-Accessible</strong>: Start with zero econometrics background</li>
+          <li><strong>PhD-Rigorous</strong>: Scales to publication-ready mastery</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>🚀 Getting Started</h2>
+        <ol>
+          <li><strong>Download</strong> the script you need (click "Download Script" buttons above)</li>
+          <li><strong>Open</strong> in Stata (16, 17, or 18)</li>
+          <li><strong>Run</strong> the script: <code>do scriptname.do</code></li>
+          <li><strong>Adapt</strong> to your own data and research question</li>
+        </ol>
+
+        <h3>Recommended Learning Path</h3>
+        <ol>
+          <li>Start with <strong>00_regression_plain_english.do</strong> (intuition building)</li>
+          <li>Use <strong>02_method_decision_tree_v2.do</strong> (choose your method)</li>
+          <li>Learn from <strong>03_anti_patterns.do</strong> (avoid common mistakes)</li>
+          <li>Master diagnostics with <strong>04_assumption_checker.do</strong></li>
+          <li>Dive deep into specific methods as needed</li>
+        </ol>
+      </section>
+
+      <section class="section">
+        <h2>📚 Key Readings Referenced</h2>
+        <ul>
+          <li>Kennedy, P. (2008). <em>A Guide to Econometrics</em>, 6th Edition. MIT Press.</li>
+          <li>Cameron, A. C. & Trivedi, P. K. (2022). <em>Microeconometrics Using Stata</em>, 2nd Edition. Stata Press.</li>
+          <li>Angrist, J.D. & Pischke, J. (2009). <em>Mostly Harmless Econometrics</em>. Princeton University Press.</li>
+          <li>Busenbark et al. (2022). "A marginal effects approach to interpreting main effects and moderation." <em>ORM</em>.</li>
+          <li>Hoetker (2007). "The use of logit and probit models in strategic management research." <em>SMJ</em>.</li>
+          <li>Certo et al. (2017). "A tale of two effects: Using longitudinal data." <em>SMJ</em>.</li>
+          <li>Hill et al. (2021). "Endogeneity: A review and agenda." <em>JOM</em>.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        STATAverse Code Library by Dr. Ian Helfrich. All code tested and publication-ready.
+      </div>
+    </footer>
+
+    <script src="../assets/js/site.js"></script>
+  </body>
+</html>

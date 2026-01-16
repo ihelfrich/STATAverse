@@ -206,9 +206,9 @@ Other AI contributions
 
 Entry: 2025-01-15 (cont)
 Author: Codex (GPT-5)
-Scope: Remove MGTO references, expand script library depth, add builder.
+Scope: Remove course references, expand script library depth, add builder.
 Summary
-- Removed MGTO 80430 references across the site and search index.
+- Removed course-number references across the site and search index.
 - Expanded ScriptLibrary scripts with deeper code, options, and related concepts.
 - Added 10 advanced scripts for cleaning, panel, and causal workflows.
 - Added a Script Builder page with drag/drop ordering and combined .do export.
@@ -231,6 +231,30 @@ Files modified
 - `STATAForBusiness/modules/00-foundations.html`
 - `STATAForBusiness/modules/01-linear-regression.html`
 - `README.md`
+
+Other AI contributions
+- None recorded in this log entry.
+
+Entry: 2026-01-15
+Author: Codex (GPT-5)
+Scope: Add Topics Map and Reading Library; update navigation and search index.
+Summary
+- Added Topics Map page with a structured econometrics topic catalog and Script Library links.
+- Added Reading Library page with book references, a topic-to-reading map, and curated papers.
+- Linked Topics/Readings in global navigation and added new cards on the homepage.
+- Regenerated the site search index to include the new pages.
+
+Files created
+- `Topics/index.html`
+- `Topics/content/topics.md`
+- `Readings/index.html`
+- `Readings/content/reading-list.md`
+
+Files modified
+- `index.html`
+- `tools/build_site_index.py`
+- `assets/data/site-index.json`
+- Various navigation headers across HTML pages
 
 Other AI contributions
 - None recorded in this log entry.

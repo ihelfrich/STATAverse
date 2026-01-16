@@ -474,5 +474,27 @@
     ],
     "level": "All",
     "path": "Workspace/index.html"
+  },
+  {
+    "type": "page",
+    "title": "Topics Map",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "topics",
+      "map"
+    ],
+    "level": "All",
+    "path": "Topics/index.html"
+  },
+  {
+    "type": "page",
+    "title": "Reading Library",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "readings",
+      "references"
+    ],
+    "level": "All",
+    "path": "Readings/index.html"
   }
 ]

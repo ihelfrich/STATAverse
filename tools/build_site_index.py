@@ -85,6 +85,8 @@ pages = [
     ("Script Builder", "ScriptLibrary/builder.html", ["scripts", "builder"]),
     ("Site Search", "Search/index.html", ["search"]),
     ("Workspace", "Workspace/index.html", ["workspace"]),
+    ("Topics Map", "Topics/index.html", ["topics", "map"]),
+    ("Reading Library", "Readings/index.html", ["readings", "references"]),
 ]
 for title, path, tags in pages:
     entries.append({
