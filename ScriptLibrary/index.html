@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stata Script Library | STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+  <body class="page-zero">
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="./index.html">Scripts</a>
+          <a href="../ZeroToHero/">Zero-to-Hero</a>
+          <a href="../STATAForBusiness/">Stata for Business</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero hero-compact">
+        <div class="hero-copy">
+          <span class="eyebrow">Script library</span>
+          <h1>Small Stata scripts for single tasks</h1>
+          <p class="lead">
+            Grab a focused .do script for a single task: import, clean, reshape, merge, model, or
+            export. Every script is short, annotated, and ready to drop into a project.
+          </p>
+          <div class="filter-bar">
+            <input
+              id="script-search"
+              class="search-input"
+              type="search"
+              placeholder="Search scripts, tags, or levels"
+              aria-label="Search scripts"
+            />
+            <div class="filter-chips" data-filter-chips>
+              <button class="filter-chip active" data-filter="all" type="button">All</button>
+              <button class="filter-chip" data-filter="import" type="button">Import</button>
+              <button class="filter-chip" data-filter="cleaning" type="button">Cleaning</button>
+              <button class="filter-chip" data-filter="transform" type="button">Transform</button>
+              <button class="filter-chip" data-filter="merge" type="button">Merge</button>
+              <button class="filter-chip" data-filter="model" type="button">Model</button>
+              <button class="filter-chip" data-filter="export" type="button">Export</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="script-grid" data-script-library></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>STATAverse | Script Library</div>
+    </footer>
+
+    <script src="../assets/js/site.js"></script>
+  </body>
+</html>

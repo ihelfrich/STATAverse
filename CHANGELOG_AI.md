@@ -90,3 +90,73 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2025-01-15 (cont)
+Author: Codex (GPT-5)
+Scope: Added ScriptLibrary section with reusable Stata scripts.
+Summary
+- Added a ScriptLibrary section with index and per-script pages.
+- Created a starter set of 15 single-task Stata scripts with matching documentation.
+- Added script search, filter, and metadata loading in the site JS.
+- Added styling for script cards, tags, and filters.
+- Wired Scripts navigation across site pages and added a root card.
+
+Files created
+- `ScriptLibrary/index.html`
+- `ScriptLibrary/script.html`
+- `ScriptLibrary/scripts.json`
+- `ScriptLibrary/content/project-setup-log.md`
+- `ScriptLibrary/content/import-csv.md`
+- `ScriptLibrary/content/import-excel.md`
+- `ScriptLibrary/content/standardize-variable-names.md`
+- `ScriptLibrary/content/missingness-report.md`
+- `ScriptLibrary/content/encode-categorical.md`
+- `ScriptLibrary/content/group-summaries.md`
+- `ScriptLibrary/content/merge-1-1.md`
+- `ScriptLibrary/content/append-files.md`
+- `ScriptLibrary/content/reshape-wide-long.md`
+- `ScriptLibrary/content/panel-setup.md`
+- `ScriptLibrary/content/ols-robust-diagnostics.md`
+- `ScriptLibrary/content/logit-margins.md`
+- `ScriptLibrary/content/poisson-nb-overdispersion.md`
+- `ScriptLibrary/content/loop-acs-hhi.md`
+- `ScriptLibrary/content/export-regression-table.md`
+- `ScriptLibrary/scripts/project-setup-log.do`
+- `ScriptLibrary/scripts/import-csv.do`
+- `ScriptLibrary/scripts/import-excel.do`
+- `ScriptLibrary/scripts/standardize-variable-names.do`
+- `ScriptLibrary/scripts/missingness-report.do`
+- `ScriptLibrary/scripts/encode-categorical.do`
+- `ScriptLibrary/scripts/group-summaries.do`
+- `ScriptLibrary/scripts/merge-1-1.do`
+- `ScriptLibrary/scripts/append-files.do`
+- `ScriptLibrary/scripts/reshape-wide-long.do`
+- `ScriptLibrary/scripts/panel-setup.do`
+- `ScriptLibrary/scripts/ols-robust-diagnostics.do`
+- `ScriptLibrary/scripts/logit-margins.do`
+- `ScriptLibrary/scripts/poisson-nb-overdispersion.do`
+- `ScriptLibrary/scripts/loop-acs-hhi.do`
+- `ScriptLibrary/scripts/export-regression-table.do`
+
+Files modified
+- `assets/js/site.js`
+- `assets/css/site.css`
+- `index.html`
+- `ZeroToHero/index.html`
+- `ZeroToHero/modules/00-econometric-mindset.html`
+- `ZeroToHero/modules/01-stata-foundations.html`
+- `ZeroToHero/modules/02-ols-intuition.html`
+- `ZeroToHero/modules/03-limited-outcomes.html`
+- `ZeroToHero/datasets/index.html`
+- `ZeroToHero/datasets/coffee-chain.html`
+- `ZeroToHero/datasets/warehouse-picking.html`
+- `ZeroToHero/datasets/fulfillment-delays.html`
+- `ZeroToHero/projects/index.html`
+- `ZeroToHero/projects/project-01.html`
+- `ZeroToHero/projects/project-02.html`
+- `STATAForBusiness/index.html`
+- `STATAForBusiness/modules/00-foundations.html`
+- `STATAForBusiness/modules/01-linear-regression.html`
+
+Other AI contributions
+- None recorded in this log entry.

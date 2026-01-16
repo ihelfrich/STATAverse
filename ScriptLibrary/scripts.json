@@ -1,0 +1,165 @@
+[
+  {
+    "id": "project-setup-log",
+    "title": "Project setup and log",
+    "summary": "Create standard folders, set session defaults, and start a log file.",
+    "tags": [
+      "workflow",
+      "logging",
+      "setup"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "import-csv",
+    "title": "Import a CSV file",
+    "summary": "Load a CSV with headers, then quickly inspect and save as DTA.",
+    "tags": [
+      "import",
+      "data"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "import-excel",
+    "title": "Import an Excel sheet",
+    "summary": "Read a specific worksheet from an Excel file and save to DTA.",
+    "tags": [
+      "import",
+      "data"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "standardize-variable-names",
+    "title": "Standardize variable names",
+    "summary": "Convert names to lowercase and remove spaces or symbols.",
+    "tags": [
+      "cleaning",
+      "transform"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "missingness-report",
+    "title": "Missingness report",
+    "summary": "Summarize missing values and flag rows with any missing data.",
+    "tags": [
+      "cleaning",
+      "quality"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "encode-categorical",
+    "title": "Encode categorical strings",
+    "summary": "Convert string categories into labeled numeric codes.",
+    "tags": [
+      "cleaning",
+      "transform"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "group-summaries",
+    "title": "Grouped summaries",
+    "summary": "Compute means by group and produce a collapsed dataset.",
+    "tags": [
+      "summary",
+      "transform"
+    ],
+    "level": "Beginner"
+  },
+  {
+    "id": "merge-1-1",
+    "title": "Merge 1:1 datasets",
+    "summary": "Merge two datasets by a unique identifier and keep matched rows.",
+    "tags": [
+      "merge",
+      "data"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "append-files",
+    "title": "Append multiple files",
+    "summary": "Stack datasets with identical columns using a loop.",
+    "tags": [
+      "append",
+      "data"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "reshape-wide-long",
+    "title": "Reshape wide to long",
+    "summary": "Convert repeated columns into a tidy long format.",
+    "tags": [
+      "reshape",
+      "transform"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "panel-setup",
+    "title": "Panel setup with xtset",
+    "summary": "Declare panel structure and inspect panel balance.",
+    "tags": [
+      "panel",
+      "workflow"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "ols-robust-diagnostics",
+    "title": "OLS with robust SEs and diagnostics",
+    "summary": "Run OLS, test heteroskedasticity, and inspect residuals.",
+    "tags": [
+      "model",
+      "ols",
+      "diagnostics"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "logit-margins",
+    "title": "Logit with marginal effects",
+    "summary": "Estimate a binary outcome model and interpret marginal effects.",
+    "tags": [
+      "model",
+      "binary"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "poisson-nb-overdispersion",
+    "title": "Poisson vs negative binomial",
+    "summary": "Compare count models and test for overdispersion.",
+    "tags": [
+      "model",
+      "count"
+    ],
+    "level": "Intermediate"
+  },
+  {
+    "id": "loop-acs-hhi",
+    "title": "Loop import ACS HHI files",
+    "summary": "Import multiple ACS median household income CSVs and stack them.",
+    "tags": [
+      "import",
+      "loop",
+      "acs"
+    ],
+    "level": "Advanced"
+  },
+  {
+    "id": "export-regression-table",
+    "title": "Export regression table",
+    "summary": "Use esttab to export results to RTF or CSV.",
+    "tags": [
+      "export",
+      "model"
+    ],
+    "level": "Intermediate"
+  }
+]

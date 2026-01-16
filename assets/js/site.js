@@ -591,6 +591,187 @@
     renderMath(container);
   }
 
+  
+  function initScriptLibrary() {
+    var library = document.querySelector("[data-script-library]");
+    if (!library) {
+      return;
+    }
+    var searchInput = document.getElementById("script-search");
+    var chipContainer = document.querySelector("[data-filter-chips]");
+    var activeFilter = "all";
+    var scripts = [];
+
+    function renderScripts(list) {
+      library.innerHTML = "";
+      if (!list.length) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "No scripts match your search.";
+        library.appendChild(empty);
+        return;
+      }
+
+      list.forEach(function (item) {
+        var card = document.createElement("article");
+        card.className = "script-card";
+
+        var tagRow = document.createElement("div");
+        tagRow.className = "script-tags";
+        item.tags.forEach(function (tag) {
+          var span = document.createElement("span");
+          span.className = "script-tag";
+          span.textContent = tag;
+          tagRow.appendChild(span);
+        });
+
+        var title = document.createElement("h3");
+        title.textContent = item.title;
+
+        var summary = document.createElement("p");
+        summary.className = "muted";
+        summary.textContent = item.summary;
+
+        var level = document.createElement("span");
+        level.className = "pill";
+        level.textContent = item.level;
+
+        var link = document.createElement("a");
+        link.className = "text-link";
+        link.href = "./script.html?id=" + encodeURIComponent(item.id);
+        link.textContent = "Open script";
+
+        card.appendChild(tagRow);
+        card.appendChild(title);
+        card.appendChild(summary);
+        card.appendChild(level);
+        card.appendChild(link);
+
+        library.appendChild(card);
+      });
+    }
+
+    function filterScripts() {
+      var query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+      var filtered = scripts.filter(function (item) {
+        var matchesFilter = activeFilter === "all" || item.tags.includes(activeFilter);
+        if (!matchesFilter) {
+          return false;
+        }
+        if (!query) {
+          return true;
+        }
+        var haystack = [item.title, item.summary, item.level, item.tags.join(" ")]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+      renderScripts(filtered);
+    }
+
+    if (chipContainer) {
+      chipContainer.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!target.matches("[data-filter]")) {
+          return;
+        }
+        activeFilter = target.getAttribute("data-filter") || "all";
+        chipContainer.querySelectorAll(".filter-chip").forEach(function (chip) {
+          chip.classList.toggle("active", chip === target);
+        });
+        filterScripts();
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener("input", filterScripts);
+    }
+
+    fetch("./scripts.json")
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load scripts");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        scripts = data;
+        filterScripts();
+      })
+      .catch(function () {
+        library.innerHTML = "";
+        var error = document.createElement("p");
+        error.className = "muted";
+        error.textContent = "Script library unavailable.";
+        library.appendChild(error);
+      });
+  }
+
+  function initScriptPage() {
+    var page = document.querySelector("[data-script-page]");
+    if (!page) {
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get("id");
+    if (!id) {
+      page.querySelector("[data-script-title]").textContent = "Script not found";
+      page.querySelector("[data-script-summary]").textContent =
+        "Missing script id. Return to the library.";
+      return;
+    }
+
+    fetch("./scripts.json")
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load scripts");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        var match = data.find(function (item) {
+          return item.id === id;
+        });
+        if (!match) {
+          throw new Error("Script not found");
+        }
+        var title = page.querySelector("[data-script-title]");
+        var summary = page.querySelector("[data-script-summary]");
+        var tags = page.querySelector("[data-script-tags]");
+        var download = page.querySelector("[data-script-download]");
+        var content = page.querySelector("[data-md]");
+
+        title.textContent = match.title;
+        summary.textContent = match.summary;
+        document.title = match.title + " | STATAverse";
+
+        tags.innerHTML = "";
+        match.tags.forEach(function (tag) {
+          var span = document.createElement("span");
+          span.className = "pill";
+          span.textContent = tag;
+          tags.appendChild(span);
+        });
+        var level = document.createElement("span");
+        level.className = "pill";
+        level.textContent = match.level;
+        tags.appendChild(level);
+
+        download.setAttribute("href", "./scripts/" + match.id + ".do");
+        download.setAttribute("download", match.id + ".do");
+
+        if (content) {
+          content.setAttribute("data-md", "./content/" + match.id + ".md");
+          renderMarkdownLessons();
+        }
+      })
+      .catch(function () {
+        page.querySelector("[data-script-title]").textContent = "Script not found";
+        page.querySelector("[data-script-summary]").textContent =
+          "This script does not exist yet.";
+      });
+  }
+
   function enhanceLesson(container) {
     wrapCallouts(container);
     wrapAnswerKeys(container);
@@ -617,7 +798,6 @@
     containers.forEach(function (container) {
       var mdPath = container.getAttribute("data-md");
       if (!mdPath) {
-        container.textContent = "No lesson path found.";
         return;
       }
 
@@ -643,6 +823,8 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    initScriptPage();
+    initScriptLibrary();
     renderMarkdownLessons();
     enhanceRoot(document);
   });
