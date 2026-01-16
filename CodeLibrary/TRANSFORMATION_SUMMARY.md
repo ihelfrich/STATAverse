@@ -9,13 +9,13 @@
 
 ### **BEFORE** (Original Approach)
 The original modules were:
-- ✅ Technically correct
-- ✅ Well-commented
-- ✅ Stata code worked
-- ❌ **Too technical** for beginners
-- ❌ **Jargon-first** approach (assumed knowledge)
-- ❌ **Not aligned** with course structure
-- ❌ **Limited pedagogical scaffolding**
+- Yes Technically correct
+- Yes Well-commented
+- Yes Stata code worked
+- No **Too technical** for beginners
+- No **Jargon-first** approach (assumed knowledge)
+- No **Not aligned** with course structure
+- No **Limited pedagogical scaffolding**
 
 Example from original:
 ```stata
@@ -25,19 +25,19 @@ local dv_type = 1  // 1=continuous, 2=binary...
 
 ### **AFTER** (World-Class Standard)
 The new modules are:
-- ✅ **Three-level architecture**: Intuition → Implementation → Publication
-- ✅ **Plain language first**: Everyday examples before technical terms
-- ✅ **Course-aligned**: Every module maps to graduate econometrics curriculum sessions
-- ✅ **Publication-ready**: AMJ/SMJ standards integrated
-- ✅ **Jargon translator**: Technical terms defined with analogies
-- ✅ **Beginner-accessible**: Can start with zero knowledge
-- ✅ **PhD-rigorous**: Scales to publication mastery
+- Yes **Three-level architecture**: Intuition -> Implementation -> Publication
+- Yes **Plain language first**: Everyday examples before technical terms
+- Yes **Course-aligned**: Every module maps to graduate econometrics curriculum sessions
+- Yes **Publication-ready**: AMJ/SMJ standards integrated
+- Yes **Jargon translator**: Technical terms defined with analogies
+- Yes **Beginner-accessible**: Can start with zero knowledge
+- Yes **PhD-rigorous**: Scales to publication mastery
 
 Example from new version:
 ```stata
 display "Think of choosing an econometric method like choosing a tool:"
-display "  🔨 Using a hammer to drive a screw → It might work, but it's not right"
-display "  ✓  Using the right tool → Clean, credible, publishable results"
+display "   Using a hammer to drive a screw -> It might work, but it's not right"
+display "  Yes  Using the right tool -> Clean, credible, publishable results"
 ```
 
 ---
@@ -76,9 +76,9 @@ display "  ✓  Using the right tool → Clean, credible, publishable results"
 **Example**:
 ```
 Imagine you're trying to understand if raising prices hurts sales. But you
-only raised prices during busy seasons—when you would have sold more anyway!
+only raised prices during busy seasons--when you would have sold more anyway!
 
-Econometricians call this ENDOGENEITY—when your explanatory variable is
+Econometricians call this ENDOGENEITY--when your explanatory variable is
 correlated with unmeasured factors.
 ```
 
@@ -98,7 +98,7 @@ Every module now maps to specific graduate econometrics curriculum sessions:
 
 Content builds systematically:
 1. **Common sense** ("Does advertising increase sales?")
-2. **Pattern recognition** (Outcome type + Data structure → Method)
+2. **Pattern recognition** (Outcome type + Data structure -> Method)
 3. **Technical precision** (Mathematical specifications)
 4. **Implementation** (Working Stata code)
 5. **Publication** (How to report in top journals)
@@ -113,7 +113,7 @@ Instead of abstract examples, use realistic cases:
 
 ### 6. **Common Mistakes Highlighted**
 
-Every method includes "❌ COMMON MISTAKES TO AVOID":
+Every method includes "No COMMON MISTAKES TO AVOID":
 - Not using robust standard errors
 - Interpreting logit coefficients as marginal effects
 - Including post-treatment controls
@@ -123,9 +123,9 @@ Every method includes "❌ COMMON MISTAKES TO AVOID":
 ### 7. **Reviewer Response Guidance**
 
 Prepares students for real publication process:
-- "Have you addressed endogeneity?" → Here's how to respond
-- "Your interaction doesn't work." → Show marginal effects plot
-- "Too many/few controls." → Theory-based justification
+- "Have you addressed endogeneity?" -> Here's how to respond
+- "Your interaction doesn't work." -> Show marginal effects plot
+- "Too many/few controls." -> Theory-based justification
 
 ---
 
@@ -161,20 +161,20 @@ Prepares students for real publication process:
 ```stata
 display "Recommended method: OLS REGRESSION with robust SEs"
 display "Why this works:"
-display "  • Continuous outcome → OLS appropriate"
+display "  - Continuous outcome -> OLS appropriate"
 regress y x1 x2 control1 control2, vce(robust)
 ```
 
 **AFTER (World-Class)**:
 ```stata
-display "═══════════════════════════════════════════════════════"
+display "-------------------------------------------------------"
 display "  RECOMMENDED METHOD: OLS REGRESSION WITH ROBUST SEs"
-display "═══════════════════════════════════════════════════════"
+display "-------------------------------------------------------"
 
 display "WHY THIS METHOD WORKS FOR YOUR DATA:"
-display "  ✓ Continuous outcome → OLS is designed for this"
-display "  ✓ Cross-sectional data → No time-series issues"
-display "  ✓ No obvious endogeneity → Causal interpretation possible"
+display "  Yes Continuous outcome -> OLS is designed for this"
+display "  Yes Cross-sectional data -> No time-series issues"
+display "  Yes No obvious endogeneity -> Causal interpretation possible"
 
 display "WHAT YOU'RE ESTIMATING:"
 display "  Y = β₀ + β₁X₁ + ... + ε"
@@ -210,12 +210,12 @@ display "Problem: Interaction coefficient ≠ interaction in marginal effects!"
 [Step-by-step interaction protocol]
 
 display "COMMON MISTAKES TO AVOID:"
-display "  ❌ Interpreting raw logit coefficients as marginal effects"
+display "  No Interpreting raw logit coefficients as marginal effects"
 [Complete mistake catalogue]
 
 display "KEY READINGS:"
-display "  • Hoetker (2007, SMJ)"
-display "  • Bowen (2012, JOM)"
+display "  - Hoetker (2007, SMJ)"
+display "  - Bowen (2012, JOM)"
 [Complete reading list]
 ```
 
@@ -262,7 +262,7 @@ display "  • Bowen (2012, JOM)"
    - Common mistakes highlighted (practical)
    - Real research scenarios (relevant)
 
-5. **SUPER Intelligent Design**
+5. **Clear design**
    - Progressive complexity (scaffolded learning)
    - Multiple entry points (beginners to experts)
    - Course-aligned (every session covered)
@@ -382,28 +382,28 @@ Students should feel confident:
 ## Comparison to Existing Resources
 
 ### **vs. Textbooks** (Kennedy, Cameron & Trivedi)
-- ✅ **Intuition-first** (textbooks are reference-style)
-- ✅ **Plain language** (textbooks use jargon)
-- ✅ **Executable code** (textbooks have limited examples)
-- ✅ **Publication standards** (textbooks don't cover this)
+- Yes **Intuition-first** (textbooks are reference-style)
+- Yes **Plain language** (textbooks use jargon)
+- Yes **Executable code** (textbooks have limited examples)
+- Yes **Publication standards** (textbooks don't cover this)
 
 ### **vs. Stata Manuals**
-- ✅ **Conceptual understanding** (manuals are command-focused)
-- ✅ **Method selection** (manuals assume you know what method)
-- ✅ **Integration** (manuals are siloed by command)
-- ✅ **Course-aligned** (manuals are general-purpose)
+- Yes **Conceptual understanding** (manuals are command-focused)
+- Yes **Method selection** (manuals assume you know what method)
+- Yes **Integration** (manuals are siloed by command)
+- Yes **Course-aligned** (manuals are general-purpose)
 
 ### **vs. Online Tutorials**
-- ✅ **Tested & verified** (many tutorials have errors)
-- ✅ **Publication-ready** (tutorials are basic)
-- ✅ **Theory-integrated** (tutorials lack theory)
-- ✅ **Comprehensive** (tutorials are piecemeal)
+- Yes **Tested & verified** (many tutorials have errors)
+- Yes **Publication-ready** (tutorials are basic)
+- Yes **Theory-integrated** (tutorials lack theory)
+- Yes **Comprehensive** (tutorials are piecemeal)
 
 ### **vs. Existing Courses**
-- ✅ **Self-paced** (courses are fixed-schedule)
-- ✅ **Permanent resource** (courses end)
-- ✅ **Multiple entry points** (courses are linear)
-- ✅ **Continuously updated** (courses are static)
+- Yes **Self-paced** (courses are fixed-schedule)
+- Yes **Permanent resource** (courses end)
+- Yes **Multiple entry points** (courses are linear)
+- Yes **Continuously updated** (courses are static)
 
 ---
 
@@ -419,7 +419,7 @@ Students should feel confident:
 >
 > This is the resource I wish I had in my first year."
 >
-> — *PhD Student, Strategic Management*
+> -- *PhD Student, Strategic Management*
 
 ---
 
@@ -437,7 +437,7 @@ Students should feel confident:
 - **Publish** research (not just complete homework)
 - **Teach** others (not just consume content)
 
-**This is world-class.**
+**This is rigorous.**
 
 ---
 

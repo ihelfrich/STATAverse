@@ -331,3 +331,26 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2026-01-15
+Author: Codex (GPT-5)
+Scope: Reduce marketing tone and tighten copy voice across core pages.
+Summary
+- Rewrote homepage, Code Library, and Method Lab copy to be direct and less promotional.
+- Removed emoji-heavy headings and hype language from Code Library docs.
+- Cleaned Readings intro and README phrasing for a more natural voice.
+
+Files modified
+- `index.html`
+- `CodeLibrary/index.html`
+- `CodeLibrary/README.md`
+- `CodeLibrary/INNOVATION_SUMMARY.md`
+- `CodeLibrary/MASTER_ARCHITECTURE.md`
+- `CodeLibrary/TRANSFORMATION_SUMMARY.md`
+- `CodeLibrary/transformation.html`
+- `MethodLab/index.html`
+- `Readings/content/reading-list.md`
+- `README.md`
+
+Other AI contributions
+- None recorded in this log entry.

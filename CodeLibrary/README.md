@@ -1,14 +1,14 @@
 # STATAverse: Applied Econometrics for Researchers
 
-**A revolutionary learning platform that bridges the gap between understanding methods and doing research.**
+**A practical learning platform that connects method intuition with real research work.**
 
 [![Stata Version](https://img.shields.io/badge/Stata-16%2B-blue)](https://www.stata.com/)
 [![Status](https://img.shields.io/badge/Status-Phase%201%20Complete-success)]()
-[![Tested](https://img.shields.io/badge/All%20Code-Tested%20%E2%9C%85-brightgreen)]()
+[![Tested](https://img.shields.io/badge/All%20Code-Tested-brightgreen)]()
 
 ---
 
-## 🎯 Purpose
+## Purpose
 
 STATAverse provides:
 - **Simulation-based learning** that builds intuition for complex methods
@@ -21,17 +21,14 @@ Built for PhD students, applied researchers, and econometrics instructors.
 
 ---
 
-## 🌟 What Makes STATAverse Different?
-
-### Traditional Approach
-📖 Read about method → 🤔 Try to understand → ❓ Struggle with code → 😰 Hope it's right
-
-### STATAverse Approach
-▶️ Run simulation → 👀 See the problem → ✨ See the solution → 📊 Get publication-ready output
+## What this does well
+- Moves from intuition to code without skipping diagnostics.
+- Shows common mistakes alongside the correct approach.
+- Produces clean output you can defend and report.
 
 ---
 
-## 📦 Core Components
+## Core components
 
 ### 1. **Code Library** (`scripts/`)
 Production-ready, tested Stata scripts:
@@ -46,7 +43,7 @@ See the full script inventory in `scripts/`.
 
 ---
 
-## 🚀 Quick Start
+## Quick start
 
 ```bash
 # Navigate to the Code Library
@@ -64,7 +61,7 @@ ls scripts/*.png
 
 ---
 
-## 🎓 Learning Philosophy
+## Learning philosophy
 
 ### The Enhanced 4-Loop Method
 1. **TRY** - Run commands
@@ -72,10 +69,10 @@ ls scripts/*.png
 3. **CHECK** - Compare to guide
 4. **REFLECT** - Explain in plain language
 
-**Plus:**
+Plus:
 - **SIMULATE** - Generate data with known properties
 - **COMPARE** - Wrong way vs. right way
-- **VISUALIZE** - Publication-quality graphs
+- **VISUALIZE** - Clear graphs with diagnostics
 - **REPORT** - Templates for methods sections
 
 ### Design Goals
@@ -88,7 +85,7 @@ ls scripts/*.png
 
 ---
 
-## 📊 What You Can Do
+## What you can do
 
 ### For Learning
 - Build intuition through simulation
@@ -99,7 +96,7 @@ ls scripts/*.png
 ### For Research
 - Quick-reference decision support ("What method?")
 - Copy-paste diagnostic workflows
-- Generate publication-ready figures
+- Generate reporting-ready figures
 - Methods section templates
 
 ### For Teaching
@@ -110,42 +107,42 @@ ls scripts/*.png
 
 ---
 
-## 🎯 Curriculum Alignment
+## Curriculum alignment
 
 Designed to match graduate econometrics expectations:
-- ✅ Endogeneity & IV estimation
-- ✅ Panel data methods
-- ✅ Limited dependent variables
-- ✅ Moderation/interaction
-- ✅ Methods reporting and diagnostics
+- Endogeneity & IV estimation
+- Panel data methods
+- Limited dependent variables
+- Moderation/interaction
+- Methods reporting and diagnostics
 
 ---
 
-## 📚 Structure
+## Structure
 
 ```
 STATAverse/
-├── CodeLibrary/
-│   ├── scripts/           # Tested, ready-to-use scripts
-│   ├── README.md
-│   ├── MASTER_ARCHITECTURE.md
-│   ├── INNOVATION_SUMMARY.md
-│   └── TRANSFORMATION_SUMMARY.md
-└── (site content)
+  CodeLibrary/
+    scripts/           # Tested, ready-to-use scripts
+    README.md
+    MASTER_ARCHITECTURE.md
+    INNOVATION_SUMMARY.md
+    TRANSFORMATION_SUMMARY.md
+  (site content)
 ```
 
 ---
 
-## 🔬 Technical Details
+## Technical details
 
 - **Tested with**: Stata 18 MP (compatible with Stata 16-18)
 - **All code verified**: Automated testing framework
 - **Dependencies**: Base Stata installation (optional packages noted in scripts)
-- **Output**: Publication-ready graphs, comprehensive logs
+- **Output**: Clear graphs, comprehensive logs
 
 ---
 
-## 🌟 Key Innovations
+## Key innovations
 
 1. **Simulation-based intuition**: Generate data with KNOWN properties, see exact bias
 2. **Anti-pattern library**: Learn through mistakes (with working counter-examples)
@@ -156,14 +153,14 @@ STATAverse/
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 - **[Innovation Summary](INNOVATION_SUMMARY.md)** - Detailed overview of what makes this different
 - **[Code Library README](README.md)** - Guide to all available scripts
 
 ---
 
-## 🚀 Coming Soon
+## Coming soon
 
 Phase 2 modules in development:
 - Difference-in-differences (with recent advances)
@@ -173,7 +170,7 @@ Phase 2 modules in development:
 
 ---
 
-## 🤝 How to Use This
+## How to use this
 
 ### For Students
 Start with the intuition-first scripts, then explore advanced modules for specific topics.
@@ -186,7 +183,7 @@ Use simulations for live demos, assign code library scripts as homework, adapt t
 
 ---
 
-## 📝 Citation & Attribution
+## Citation and attribution
 
 This platform builds on best practices from:
 - Kennedy (2008): *A Guide to Econometrics*
@@ -198,7 +195,7 @@ Created by Dr. Ian Helfrich for students, colleagues, and the research community
 
 ---
 
-## 🌐 Website
+## Website
 
 Full interactive platform coming soon at: [ihelfrich.github.io/STATAverse](https://ihelfrich.github.io/STATAverse)
 

@@ -1,6 +1,6 @@
 # STATAverse
 
-A modular, hyperinteractive Stata and econometrics learning site designed for graduate-level
+A modular, hands-on Stata and econometrics learning site designed for graduate-level
 business and operations research.
 
 ## GitHub Pages

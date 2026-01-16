@@ -7,7 +7,7 @@
 
 ## Mission Statement
 
-Build the **world's foremost STATA resource** for applied econometrics—nuanced, novel, meaningful, and real. After completing this system, students should be able to:
+Build the **world's foremost STATA resource** for applied econometrics--nuanced, novel, meaningful, and real. After completing this system, students should be able to:
 
 1. **Publish** in top journals (AMJ, SMJ, ASQ, MS, SMJ)
 2. **Answer** every methodological question in advanced applied econometrics
@@ -73,11 +73,11 @@ Every module maps to graduate econometrics curriculum sessions:
 **Example**:
 ```
 Imagine you're trying to understand if raising prices hurts sales. But you
-only raised prices during busy seasons—when you would have sold more anyway!
+only raised prices during busy seasons--when you would have sold more anyway!
 Now you can't tell if the sales change was because of price or because of
 the season. Your price variable is "tangled up" with season.
 
-Econometricians call this ENDOGENEITY—when your explanatory variable is
+Econometricians call this ENDOGENEITY--when your explanatory variable is
 correlated with unmeasured factors that also affect the outcome.
 ```
 
@@ -92,12 +92,12 @@ Every major concept includes:
 ### 5. Anti-Pattern Library
 
 Teach through **common mistakes**:
-- ❌ Interpreting logit coefficients as marginal effects
-- ❌ Controlling for post-treatment variables
-- ❌ Using ratios as DVs without correction
-- ❌ Ignoring clustered standard errors
-- ❌ Weak instruments (worse than OLS!)
-- ❌ Mechanical interaction interpretation
+- No Interpreting logit coefficients as marginal effects
+- No Controlling for post-treatment variables
+- No Using ratios as DVs without correction
+- No Ignoring clustered standard errors
+- No Weak instruments (worse than OLS!)
+- No Mechanical interaction interpretation
 
 Each mistake gets:
 - Working example where you **know** the truth
@@ -148,9 +148,9 @@ Every `.do` file follows this structure:
 * LEVEL 1: INTUITION - Building Understanding
 *==============================================================================
 
-display "═══════════════════════════════════════════════════════════"
+display "-----------------------------------------------------------"
 display "   What is [CONCEPT]? (And Why Should You Care?)"
-display "═══════════════════════════════════════════════════════════"
+display "-----------------------------------------------------------"
 
 * [Everyday example with plain language]
 * [Visual analogy]
@@ -339,12 +339,12 @@ display "═══════════════════════�
 ## Quality Standards
 
 ### Code Testing Protocol
-1. ✅ Runs without errors in Stata 18 MP
-2. ✅ Generates expected output (verified)
-3. ✅ Creates publication-quality visualizations
-4. ✅ Exports tables in LaTeX and Word formats
-5. ✅ Includes comments explaining every section
-6. ✅ Cites relevant methodological papers
+1. Yes Runs without errors in Stata 18 MP
+2. Yes Generates expected output (verified)
+3. Yes Creates publication-quality visualizations
+4. Yes Exports tables in LaTeX and Word formats
+5. Yes Includes comments explaining every section
+6. Yes Cites relevant methodological papers
 
 ### Documentation Standards
 1. Every script has learning objectives
@@ -371,7 +371,7 @@ After completing STATAverse, students should be able to:
 - [ ] Implement fixes for violated assumptions
 
 ### Skill Metrics
-- [ ] Write publication-ready methods sections
+- [ ] Write reporting-ready methods sections
 - [ ] Generate AMJ/SMJ-quality tables and figures
 - [ ] Respond to reviewer methodological concerns
 - [ ] Conduct comprehensive robustness checks
@@ -457,12 +457,12 @@ After completing STATAverse, students should be able to:
 
 **Creator**: Dr. Ian Helfrich
 **Website**: https://ihelfrich.github.io/STATAverse/
-**Purpose**: World-class applied econometrics education
+**Purpose**: Rigorous applied econometrics education
 
 **Philosophy**:
 > "The best econometrics resource teaches you to think like an economist,
 > code like a programmer, and write like a scholar. Intuition first,
-> rigor always, publication-ready throughout."
+> rigor always, reporting-ready throughout."
 
 ---
 

@@ -1,6 +1,6 @@
 ## Welcome to the Reading Library
 
-This curated collection represents the definitive reference library for applied econometrics and Stata programming. Whether you're beginning your quantitative journey or conducting publishable research, these resources provide the theoretical foundations, practical implementation guidance, and methodological rigor that define world-class empirical work.
+This collection is the working reference library for applied econometrics and Stata. If you are new to quantitative methods, start with the intuition-first chapters. If you are writing for publication, use the diagnostics and design sections to sharpen your methods.
 
 Each recommendation has been selected for clarity, practical relevance, and alignment with modern research standards. The library is organized by topic, with clear guidance on how texts complement one another and when to use each resource.
 
@@ -242,7 +242,7 @@ Combine Wooldridge's *Cross Section and Panel Data* or Greene's *Econometric Ana
 Use this library as a reference: consult journal articles for method-specific guidance, verify implementation with Cameron and Trivedi, and check theoretical foundations in Greene or Wooldridge as needed.
 
 ### For Instructors
-The textbooks are organized by pedagogical level (introductory → advanced) and topic. Journal articles provide real-world examples of method application and common pitfalls to avoid.
+The textbooks are organized by pedagogical level (introductory -> advanced) and topic. Journal articles provide real-world examples of method application and common pitfalls to avoid.
 
 ---
 
