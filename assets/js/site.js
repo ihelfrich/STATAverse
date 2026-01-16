@@ -1663,11 +1663,14 @@
       fetch(mdPath)
         .then(function (res) {
           if (!res.ok) {
-            throw new Error("Failed to load lesson");
+            throw new Error("Failed to load lesson: " + res.status);
           }
           return res.text();
         })
         .then(function (markdown) {
+          if (!markdown || markdown.trim() === "") {
+            throw new Error("Markdown content is empty");
+          }
           container.innerHTML = window.marked.parse(markdown, {
             gfm: true,
             breaks: false,
@@ -1675,8 +1678,9 @@
           enhanceLesson(container);
           enhanceRoot(container);
         })
-        .catch(function () {
-          container.textContent = "Could not load lesson content.";
+        .catch(function (err) {
+          console.error("Error loading markdown:", err, "Path:", mdPath);
+          container.textContent = "Could not load lesson content: " + (err.message || "Unknown error");
         });
     });
   }
