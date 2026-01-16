@@ -531,6 +531,44 @@
     });
   }
 
+  function initModelSelectors(container) {
+    var selectors = container.querySelectorAll("[data-model-selector]");
+    selectors.forEach(function (selector) {
+      if (selector.dataset.ready === "true") {
+        return;
+      }
+      selector.dataset.ready = "true";
+
+      var tabs = selector.querySelectorAll("[data-model-tab]");
+      var panels = selector.querySelectorAll("[data-model-panel]");
+      if (!tabs.length || !panels.length) {
+        return;
+      }
+
+      function activateTab(target) {
+        tabs.forEach(function (tab) {
+          var isActive = tab.getAttribute("data-model-tab") === target;
+          tab.classList.toggle("active", isActive);
+          tab.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+        panels.forEach(function (panel) {
+          var isActive = panel.getAttribute("data-model-panel") === target;
+          panel.classList.toggle("active", isActive);
+        });
+      }
+
+      tabs.forEach(function (tab) {
+        tab.setAttribute("type", "button");
+        tab.setAttribute("aria-pressed", "false");
+        tab.addEventListener("click", function () {
+          activateTab(tab.getAttribute("data-model-tab"));
+        });
+      });
+
+      activateTab(tabs[0].getAttribute("data-model-tab"));
+    });
+  }
+
   function renderMath(container) {
     if (!window.renderMathInElement) {
       return;
@@ -549,6 +587,7 @@
     initGlossary(container);
     initDataPreviews(container);
     initCharts(container);
+    initModelSelectors(container);
     renderMath(container);
   }
 

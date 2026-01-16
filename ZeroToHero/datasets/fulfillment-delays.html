@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Project 01 Promo Impact | STATAverse</title>
+    <title>Fulfillment Delays | STATAverse</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,19 +18,20 @@
         <a class="brand" href="../../index.html">STATAverse</a>
         <div class="nav-links">
           <a href="../index.html">Zero-to-Hero</a>
-          <a href="../datasets/index.html">Datasets</a>
-          <a href="./index.html">Projects</a>
+          <a href="./index.html">Datasets</a>
+          <a href="../projects/index.html">Projects</a>
         </div>
       </nav>
     </header>
 
     <main class="page dataset-page">
       <aside class="side-nav">
-        <div class="side-title">Projects</div>
+        <div class="side-title">Datasets</div>
         <ul class="side-links">
-          <li><a href="./index.html">Overview</a></li>
-          <li><a class="active" href="project-01.html">Project 01</a></li>
-          <li><a href="project-02.html">Project 02</a></li>
+          <li><a href="./index.html">Library</a></li>
+          <li><a href="coffee-chain.html">Coffee chain weekly</a></li>
+          <li><a href="warehouse-picking.html">Warehouse picking</a></li>
+          <li><a class="active" href="fulfillment-delays.html">Fulfillment delays</a></li>
         </ul>
         <div class="side-title">On this page</div>
         <div class="toc" data-toc></div>
@@ -38,24 +39,35 @@
 
       <section class="lesson">
         <div class="lesson-header">
-          <div class="eyebrow">Project 01</div>
-          <h1>Promotion impact and staffing</h1>
+          <div class="eyebrow">Dataset</div>
+          <h1>Fulfillment delays</h1>
           <p class="lead">
-            Estimate the causal impact of a promotion on sales while controlling for staffing and
-            demand signals.
+            Order-level data to explore delay risk, lead time performance, and operational tradeoffs.
           </p>
           <div class="dataset-actions">
-            <a class="btn primary" href="../data/coffee_chain_weekly.csv" download>Download data</a>
-            <a class="btn ghost" href="./project-01/analysis.do" download>Download do-file</a>
+            <a class="btn primary" href="../data/fulfillment_delays.csv" download>Download CSV</a>
+            <a class="btn ghost" href="../modules/03-limited-outcomes.html">Use in module 03</a>
           </div>
         </div>
 
-        <article class="lesson-content" data-md="../content/project-01.md"></article>
+        <section class="dataset-preview">
+          <div class="dataset-preview-header">
+            <h2>Quick preview</h2>
+            <p>Peek at the first rows and summary statistics.</p>
+          </div>
+          <div
+            class="data-preview"
+            data-csv-preview="../data/fulfillment_delays.csv"
+            data-preview-rows="6"
+          ></div>
+        </section>
+
+        <article class="lesson-content" data-md="../content/fulfillment-delays.md"></article>
       </section>
     </main>
 
     <footer class="site-footer">
-      <div>STATAverse | Project 01</div>
+      <div>STATAverse | Fulfillment delays dataset</div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
