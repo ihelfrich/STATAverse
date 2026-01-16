@@ -1,6 +1,6 @@
 *******************************************************************************
 * METHOD SELECTOR: Choosing the Right Econometric Approach
-* Course Alignment: MGTO 80430 Sessions 2-11 (All Methods)
+* Curriculum Alignment: graduate econometrics topics (all methods)
 * Purpose: Intelligent decision support for method selection
 * Author: STATAverse / Dr. Ian Helfrich
 * Last updated: 2026-01-15
@@ -14,7 +14,7 @@
 *   - Kennedy Ch 1-3 (OLS foundations)
 *   - Cameron & Trivedi Ch 3-17 (Implementation)
 *   - Angrist & Pischke Ch 1-4 (Causal inference)
-*   - Course-specific papers cited throughout
+*   - Methodological papers cited throughout
 *******************************************************************************
 
 clear all

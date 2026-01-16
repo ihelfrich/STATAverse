@@ -179,17 +179,17 @@ We've taken your TRY → PREDICT → CHECK → REFLECT approach and added:
 
 ---
 
-## 🎓 Alignment with MGTO 80430
+## 🎓 Alignment with graduate econometrics curriculum
 
 This code library directly supports the syllabus:
 
 | Course Topic | Our Module | Innovation |
 |-------------|-----------|------------|
-| Endogeneity & IV (Sessions 7-8) | `01_endogeneity_simulator.do` | Visual demonstration of bias |
-| Limited DVs (Sessions 4, 6) | `02_method_decision_tree.do` + anti-patterns | Decision support + common mistakes |
-| Panel Data (Sessions 10-11) | `04_assumption_checker.do` | Complete FE/RE diagnostics |
-| Moderation (Session 3) | `05_moderation_mastery.do` | Marginal effects approach |
-| Methods Reporting (Session 12) | All modules | Publication templates |
+| Endogeneity & IV (Modules 7-8) | `01_endogeneity_simulator.do` | Visual demonstration of bias |
+| Limited DVs (Modules 4, 6) | `02_method_decision_tree.do` + anti-patterns | Decision support + common mistakes |
+| Panel Data (Modules 10-11) | `04_assumption_checker.do` | Complete FE/RE diagnostics |
+| Moderation (Module 3) | `05_moderation_mastery.do` | Marginal effects approach |
+| Methods Reporting (Module 12) | All modules | Publication templates |
 
 ### Assignment Support
 - **Assignment 1 & 2**: Use method selector + assumption checker
@@ -314,7 +314,7 @@ We've built something genuinely innovative:
 ✅ **Decision support tools** for method selection
 ✅ **Publication-ready code** researchers can use immediately
 ✅ **Complete diagnostic workflows** with reporting guidance
-✅ **Aligned with PhD coursework** (MGTO 80430)
+✅ **Aligned with PhD coursework** (graduate econometrics curriculum)
 ✅ **Tested and working** (Stata 18 MP)
 
 This is more than a tutorial collection—it's a **research methodology platform** that supports the entire lifecycle from learning to publication.
@@ -338,7 +338,6 @@ This is more than a tutorial collection—it's a **research methodology platform
 │   ├── 03_anti_patterns.do               # ✅ Tested
 │   ├── 04_assumption_checker.do          # ✅ Tested
 │   └── 05_moderation_mastery.do          # ✅ Tested
-├── mgto80430/                            # Course-aligned path
 │   ├── README.md
 │   └── modules/
 │       ├── 00-foundations.md

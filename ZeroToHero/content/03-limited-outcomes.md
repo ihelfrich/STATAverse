@@ -50,16 +50,16 @@ interpret models for binary and count outcomes using the Fulfillment Delays data
 ## Step 2: Binary outcomes with logit
 We model the probability of delay as a function of operations variables.
 
-\[P(delay = 1 | X) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \cdots)}}\]
+\\\\[P(delay = 1 | X) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \cdots)}}\\\\]
 
 <details class="math-toggle algebra">
   <summary>Show algebra details</summary>
   <div class="math-block">
     The logit model maps predictors to log-odds:
 
-    \[\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 x_1 + \cdots\]
+    \\\\[\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 x_1 + \cdots\\\\]
 
-    A one-unit change in \(x\) changes the log-odds by \(\beta\).
+    A one-unit change in \\\\(x\\\\) changes the log-odds by \\\\(\beta\\\\).
   </div>
 </details>
 
@@ -68,11 +68,11 @@ We model the probability of delay as a function of operations variables.
   <div class="math-block">
     In vector form the linear predictor is:
 
-    \[\eta = \mathbf{X}\beta\]
+    \\\\[\eta = \mathbf{X}\beta\\\\]
 
     and the probability uses the logistic link:
 
-    \[p = \frac{1}{1 + e^{-\eta}}\]
+    \\\\[p = \frac{1}{1 + e^{-\eta}}\\\\]
   </div>
 </details>
 
@@ -102,7 +102,7 @@ variance. If variance is larger, consider negative binomial.
   <div class="math-block">
     The Poisson mean is:
 
-    \[E(y|X) = \exp(\mathbf{X}\beta)\]
+    \\\\[E(y|X) = \exp(\mathbf{X}\beta)\\\\]
 
     If the variance exceeds the mean, overdispersion is present.
   </div>
@@ -113,9 +113,9 @@ variance. If variance is larger, consider negative binomial.
   <div class="math-block">
     The Poisson log-likelihood sums over observations:
 
-    \[\ell(\beta) = \sum_i (y_i \log \mu_i - \mu_i - \log(y_i!))\]
+    \\\\[\ell(\beta) = \sum_i (y_i \log \mu_i - \mu_i - \log(y_i!))\\\\]
 
-    where \(\mu_i = \exp(\mathbf{X}_i\beta)\).
+    where \\\\(\mu_i = \exp(\mathbf{X}_i\beta)\\\\).
   </div>
 </details>
 

@@ -41,19 +41,19 @@ Build the **world's foremost STATA resource** for applied econometrics—nuanced
 
 ### 2. Course Alignment Matrix
 
-Every module maps to MGTO 80430 sessions:
+Every module maps to graduate econometrics curriculum sessions:
 
-| Session | Topic | STATAverse Modules | Books Referenced |
+| Module | Topic | STATAverse Modules | Books Referenced |
 |---------|-------|-------------------|------------------|
 | 1 | Intro, Trends, Replication | `00_foundations.md` | Angrist & Pischke Ch 1 |
 | 2 | DGP, Regression, Causality | `01_regression_deep_dive.do` | Kennedy Ch 1-3, Cameron Ch 3 |
 | 3 | Controls, Moderation, Nonlinear | `02_moderation_masterclass.do` | Busenbark et al. 2022 ORM |
 | 4 | Binary, Count, Qualitative DVs | `03_limited_dvs_part1.do` | Cameron Ch 14-17, Kennedy Ch 16-17 |
-| 5 | **Assignment 1 Work Session** | Assignment 1 template + solutions | Hoetker 2007 |
+| 5 | **Assignment 1 Work Module** | Assignment 1 template + solutions | Hoetker 2007 |
 | 6 | Non-normal, Ratios, PSM | `04_limited_dvs_part2.do` | Certo et al. 2020 ORM |
 | 7 | Endogeneity Sources | `05_endogeneity_diagnosis.do` | Hill et al. 2021 JOM |
 | 8 | IV, 2SLS, Identification | `06_instrumental_variables.do` | Angrist & Pischke Ch 4 |
-| 9 | **Assignment 2 Work Session** | Assignment 2 template + solutions | Semadeni et al. 2014 |
+| 9 | **Assignment 2 Work Module** | Assignment 2 template + solutions | Semadeni et al. 2014 |
 | 10 | Panel FE/RE | `07_panel_data_part1.do` | Kennedy Ch 18, Cameron Ch 8 |
 | 11 | Hybrid, GEE, Variance Decomp | `08_panel_data_part2.do` | Certo et al. 2017 SMJ |
 | 12 | Publication Process | `09_publication_toolkit.do` | Bliese et al. 2024 AMJ |
@@ -131,7 +131,7 @@ Every `.do` file follows this structure:
 ```stata
 *******************************************************************************
 * MODULE [XX]: [TITLE]
-* Course Alignment: MGTO 80430 Session [X]
+* Course Alignment: graduate econometrics curriculum Module [X]
 * Reading: [Key papers from syllabus]
 * Learning Objectives:
 *   1. [Objective 1]
@@ -184,9 +184,9 @@ display "═══════════════════════�
 
 ---
 
-## Core Modules (Aligned with MGTO 80430)
+## Core Modules (Aligned with graduate econometrics curriculum)
 
-### **Session 2: Regression Foundations**
+### **Module 2: Regression Foundations**
 **File**: `01_regression_deep_dive.do`
 - **Level 1**: Coffee shop pricing example
 - **Level 2**: OLS algebra, BLUE properties, Gauss-Markov theorem
@@ -197,7 +197,7 @@ display "═══════════════════════�
 - Cameron & Trivedi Ch 3-4
 - Angrist & Pischke Ch 2
 
-### **Session 3: Moderation & Non-Linearity**
+### **Module 3: Moderation & Non-Linearity**
 **File**: `02_moderation_masterclass.do`
 - **Level 1**: Why advertising works differently for different products
 - **Level 2**: Marginal effects approach (Busenbark et al. 2022)
@@ -210,7 +210,7 @@ display "═══════════════════════�
 - Haans et al. 2016 (SMJ) - U-shaped relationships
 - Edwards & Parry 1993 - Polynomial regression
 
-### **Session 4: Limited DVs Part 1**
+### **Module 4: Limited DVs Part 1**
 **File**: `03_limited_dvs_part1.do`
 - **Level 1**: Why can't we use OLS for yes/no decisions?
 - **Level 2**: Logit, probit, count models (Hoetker 2007)
@@ -221,7 +221,7 @@ display "═══════════════════════�
 - Cameron & Trivedi Ch 14-17
 - Kennedy Ch 16-17
 
-### **Session 6: Limited DVs Part 2**
+### **Module 6: Limited DVs Part 2**
 **File**: `04_limited_dvs_part2.do`
 - **Level 1**: What's wrong with ratios? (The "divided we fall" problem)
 - **Level 2**: Quantile regression, fractional response models
@@ -232,7 +232,7 @@ display "═══════════════════════�
 - Villadsen & Wulff 2021 (SO) - Fractional response
 - Li 2013 (ORM) - PSM guide
 
-### **Session 7: Endogeneity Diagnosis**
+### **Module 7: Endogeneity Diagnosis**
 **File**: `05_endogeneity_diagnosis.do`
 - **Level 1**: Ice cream and shark attacks story
 - **Level 2**: Sources of endogeneity (Hill et al. 2021)
@@ -243,7 +243,7 @@ display "═══════════════════════�
 - Busenbark et al. 2022 (JOM) - ITCV
 - Oster 2019 - Coefficient stability
 
-### **Session 8: Instrumental Variables**
+### **Module 8: Instrumental Variables**
 **File**: `06_instrumental_variables.do`
 - **Level 1**: Finding a "randomizer" in observational data
 - **Level 2**: 2SLS, weak instrument tests, overidentification
@@ -254,7 +254,7 @@ display "═══════════════════════�
 - Semadeni et al. 2014 (SMJ) - Simulation warnings
 - Cameron & Trivedi Ch 6
 
-### **Session 10: Panel Data Part 1**
+### **Module 10: Panel Data Part 1**
 **File**: `07_panel_data_part1.do`
 - **Level 1**: Why following the same people matters
 - **Level 2**: Fixed effects, random effects, Hausman test
@@ -265,7 +265,7 @@ display "═══════════════════════�
 - Cameron & Trivedi Ch 8
 - Certo & Semadeni 2006 (JOM)
 
-### **Session 11: Panel Data Part 2**
+### **Module 11: Panel Data Part 2**
 **File**: `08_panel_data_part2.do`
 - **Level 1**: Within vs. between variation explained
 - **Level 2**: Hybrid models (Certo et al. 2017), GEE (Ballinger 2004)
@@ -276,7 +276,7 @@ display "═══════════════════════�
 - Ballinger 2004 (ORM) - GEE
 - Quigley & Graffin 2016 (SMJ) - Variance decomposition
 
-### **Session 12: Publication Toolkit**
+### **Module 12: Publication Toolkit**
 **File**: `09_publication_toolkit.do`
 - Automated regression tables (esttab, estout)
 - Figure generation matching journal standards
@@ -422,16 +422,16 @@ After completing STATAverse, students should be able to:
 
 ## Development Roadmap
 
-### Phase 1: Core Sessions (Priority)
-- [x] Session 2: Regression foundations
-- [ ] Session 3: Moderation masterclass
-- [ ] Session 4: Limited DVs Part 1
-- [ ] Session 6: Limited DVs Part 2
-- [ ] Session 7: Endogeneity diagnosis
-- [ ] Session 8: Instrumental variables
-- [ ] Session 10: Panel data Part 1
-- [ ] Session 11: Panel data Part 2
-- [ ] Session 12: Publication toolkit
+### Phase 1: Core Modules (Priority)
+- [x] Module 2: Regression foundations
+- [ ] Module 3: Moderation masterclass
+- [ ] Module 4: Limited DVs Part 1
+- [ ] Module 6: Limited DVs Part 2
+- [ ] Module 7: Endogeneity diagnosis
+- [ ] Module 8: Instrumental variables
+- [ ] Module 10: Panel data Part 1
+- [ ] Module 11: Panel data Part 2
+- [ ] Module 12: Publication toolkit
 
 ### Phase 2: Assignment Support
 - [ ] Assignment 1 template + solutions
@@ -468,4 +468,4 @@ After completing STATAverse, students should be able to:
 
 **Version**: 2.0
 **Last Updated**: 2026-01-15
-**Status**: Active Development - Priority on MGTO 80430 alignment
+**Status**: Active Development - Priority on graduate econometrics curriculum alignment

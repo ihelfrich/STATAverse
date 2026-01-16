@@ -12,13 +12,16 @@
     />
     <link rel="stylesheet" href="../assets/css/site.css" />
   </head>
-  <body>
+  <body class="page-zero">
     <header class="site-header">
       <nav class="nav">
         <a class="brand" href="../index.html">STATAverse</a>
         <div class="nav-links">
           <a href="../ScriptLibrary/">Scripts</a>
           <a href="../Search/">Search</a>
+          <a href="../Topics/">Topics</a>
+          <a href="../Readings/">Readings</a>
+          <a href="../Workspace/">Workspace</a>
           <a href="./" class="active">Code Library</a>
           <a href="../ZeroToHero/">Zero-to-Hero</a>
           <a href="../STATAForBusiness/">Stata for Business</a>
@@ -26,17 +29,37 @@
       </nav>
     </header>
 
-    <main class="container">
-      <section class="hero">
-        <h1>Publication-Ready Code Library</h1>
-        <p class="lead">
-          World-class Stata modules for advanced applied econometrics. Each script is tested,
-          documented, and aligned with PhD-level coursework (MGTO 80430).
-        </p>
+    <main>
+      <section class="hero hero-compact">
+        <div class="hero-copy">
+          <span class="eyebrow">Code library</span>
+          <h1>Publication-ready Stata modules</h1>
+          <p class="lead">
+            World-class Stata scripts for applied econometrics. Each module is tested,
+            documented, and aligned with doctoral-level methods expectations.
+          </p>
+        </div>
+        <div class="hero-panel">
+          <div class="panel-card">
+            <div class="panel-title">How to use</div>
+            <ol class="panel-steps">
+              <li>Pick a module</li>
+              <li>Run the .do file</li>
+              <li>Review the diagnostics</li>
+              <li>Adapt for your data</li>
+            </ol>
+            <div class="panel-note">
+              Each script includes interpretation notes and reporting guidance.
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="section">
-        <h2>📚 Core Philosophy</h2>
+        <div class="section-heading">
+          <h2>Core philosophy</h2>
+          <p>Start with intuition, then build implementation and publication-ready rigor.</p>
+        </div>
         <div class="card-grid">
           <article class="card">
             <h3>Three-Level Learning</h3>
@@ -58,10 +81,13 @@
       </section>
 
       <section class="section">
-        <h2>🎯 Module Index (Aligned with MGTO 80430)</h2>
+        <div class="section-heading">
+          <h2>Module index</h2>
+          <p>Aligned with graduate-level applied econometrics topics.</p>
+        </div>
 
         <article class="card">
-          <div class="card-tag">Session 2 - Foundations</div>
+          <div class="card-tag">Foundations</div>
           <h3>00. Regression in Plain English</h3>
           <p>
             Build intuition for what regression ACTUALLY tells you. Zero jargon.
@@ -81,7 +107,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">Sessions 2-11 - All Methods</div>
+          <div class="card-tag">Method selection</div>
           <h3>02. Method Decision Tree</h3>
           <p>
             Intelligent decision support for choosing the right econometric method.
@@ -110,7 +136,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">Sessions 7-8 - Endogeneity</div>
+          <div class="card-tag">Endogeneity</div>
           <h3>01. Endogeneity Simulator</h3>
           <p>
             Simulation-based learning for endogeneity and instrumental variables.
@@ -128,7 +154,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">Sessions 7-8 - Endogeneity</div>
+          <div class="card-tag">Endogeneity</div>
           <h3>01b. Endogeneity Intuition (Beginner Version)</h3>
           <p>
             The ice cream and shark attacks story. Explains confounding variables using
@@ -140,7 +166,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">All Sessions - Reference</div>
+          <div class="card-tag">Reference</div>
           <h3>03. Anti-Patterns Library</h3>
           <p>
             Learn from common mistakes with working examples where you KNOW the truth.
@@ -160,7 +186,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">All Sessions - Diagnostics</div>
+          <div class="card-tag">Diagnostics</div>
           <h3>04. Assumption Checker</h3>
           <p>
             Complete diagnostic workflows for major methods. Not just "run this test" but
@@ -177,7 +203,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">Session 3 - Moderation</div>
+          <div class="card-tag">Moderation</div>
           <h3>05. Moderation Mastery</h3>
           <p>
             Implements cutting-edge guidance from Busenbark et al. (2022, ORM).
@@ -196,7 +222,7 @@
         </article>
 
         <article class="card">
-          <div class="card-tag">Sessions 10-11 - Panel Data</div>
+          <div class="card-tag">Panel data</div>
           <h3>06. Panel Data Toolkit</h3>
           <p>
             Comprehensive panel data guide covering FE, RE, hybrid models, GEE, and
@@ -239,55 +265,56 @@
       </section>
 
       <section class="section">
-        <h2>🎓 Course Alignment: MGTO 80430</h2>
-        <p>
-          These modules are designed to support <strong>Advanced Applied Econometrics</strong>
-          (MGTO 80430) at Notre Dame's Mendoza College of Business, taught by Prof. John Busenbark.
-          However, the methods apply to all disciplines seeking rigorous hypothesis testing.
-        </p>
+        <div class="section-heading">
+          <h2>Curriculum alignment</h2>
+          <p>
+            These modules map to core graduate econometrics skills across disciplines, from
+            specification and limited outcomes to endogeneity and panel methods.
+          </p>
+        </div>
 
         <table>
           <thead>
             <tr>
-              <th>Session</th>
-              <th>Topic</th>
-              <th>STATAverse Module</th>
+              <th>Topic cluster</th>
+              <th>Focus</th>
+              <th>STATAverse module</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>2</td>
-              <td>Regression, Causality</td>
+              <td>Regression + interpretation</td>
+              <td>Plain-language foundations, diagnostics, reporting</td>
               <td>00_regression_plain_english.do</td>
             </tr>
             <tr>
-              <td>3</td>
-              <td>Moderation, Non-linearity</td>
+              <td>Moderation + nonlinearity</td>
+              <td>Interactions, marginal effects, interpretation</td>
               <td>05_moderation_mastery.do</td>
             </tr>
             <tr>
-              <td>4</td>
-              <td>Binary, Count DVs</td>
+              <td>Limited outcomes</td>
+              <td>Binary, count, and fractional outcomes</td>
               <td>02_method_decision_tree_v2.do (logit/count sections)</td>
             </tr>
             <tr>
-              <td>7-8</td>
-              <td>Endogeneity, IV</td>
+              <td>Endogeneity + IV</td>
+              <td>Bias, instruments, diagnostics</td>
               <td>01_endogeneity_simulator.do, 01b_endogeneity_intuition.do</td>
             </tr>
             <tr>
-              <td>10-11</td>
-              <td>Panel Data</td>
+              <td>Panel data</td>
+              <td>FE/RE, hybrid models, GEE</td>
               <td>06_panel_data_toolkit.do</td>
             </tr>
             <tr>
-              <td>All</td>
-              <td>Method Selection</td>
+              <td>Method selection</td>
+              <td>Estimator choice and diagnostics</td>
               <td>02_method_decision_tree_v2.do</td>
             </tr>
             <tr>
-              <td>All</td>
               <td>Diagnostics</td>
+              <td>Assumptions, checks, reporting</td>
               <td>04_assumption_checker.do</td>
             </tr>
           </tbody>

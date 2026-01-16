@@ -82,6 +82,7 @@ pages = [
     ("STATAverse Home", "index.html", ["home"]),
     ("Zero-to-Hero Overview", "ZeroToHero/index.html", ["overview"]),
     ("Script Library", "ScriptLibrary/index.html", ["scripts"]),
+    ("Code Library", "CodeLibrary/index.html", ["code", "library", "scripts"]),
     ("Script Builder", "ScriptLibrary/builder.html", ["scripts", "builder"]),
     ("Site Search", "Search/index.html", ["search"]),
     ("Workspace", "Workspace/index.html", ["workspace"]),

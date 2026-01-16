@@ -33,45 +33,33 @@ Built for PhD students, applied researchers, and econometrics instructors.
 
 ## 📦 Core Components
 
-### 1. **Code Library** (`code_library/`)
+### 1. **Code Library** (`scripts/`)
 Production-ready, tested Stata scripts:
 
-- **[Endogeneity Simulator](code_library/01_endogeneity_simulator.do)** - See bias with your own eyes
-- **[Method Decision Tree](code_library/02_method_decision_tree.do)** - "What method should I use?"
-- **[Anti-Pattern Library](code_library/03_anti_patterns.do)** - Learn what NOT to do
-- **[Assumption Checker](code_library/04_assumption_checker.do)** - Complete diagnostic workflows
-- **[Moderation Mastery](code_library/05_moderation_mastery.do)** - Marginal effects approach
+- **[Endogeneity Simulator](scripts/01_endogeneity_simulator.do)** - See bias with your own eyes
+- **[Method Decision Tree](scripts/02_method_decision_tree.do)** - "What method should I use?"
+- **[Anti-Pattern Library](scripts/03_anti_patterns.do)** - Learn what NOT to do
+- **[Assumption Checker](scripts/04_assumption_checker.do)** - Complete diagnostic workflows
+- **[Moderation Mastery](scripts/05_moderation_mastery.do)** - Marginal effects approach
 
-See the full [Code Library README](code_library/README.md) for details.
-
-### 2. **Course-Aligned Modules** (`mgto80430/`)
-Graduate-level learning path aligned with advanced applied econometrics:
-- Foundations & workflow
-- Linear regression
-- Panel data methods
-- Endogeneity & IV
-- Limited dependent variables
-- Causal inference designs
-
-### 3. **Templates** (`templates/`)
-Authoring templates for creating new lessons and labs.
+See the full script inventory in `scripts/`.
 
 ---
 
 ## 🚀 Quick Start
 
 ```bash
-# Clone or navigate to STATAverse
-cd /Users/ian/gemini_playground/tutoring/STATA
+# Navigate to the Code Library
+cd /Users/ian/gemini_playground/STATAverse/CodeLibrary
 
 # Run any module (example: endogeneity simulator)
-stata-mp -b code_library/01_endogeneity_simulator.do
+stata-mp -b scripts/01_endogeneity_simulator.do
 
 # View output
-cat code_library/01_endogeneity_simulator.log
+cat scripts/01_endogeneity_simulator.log
 
 # Check generated graphs
-ls code_library/*.png
+ls scripts/*.png
 ```
 
 ---
@@ -122,14 +110,14 @@ ls code_library/*.png
 
 ---
 
-## 🎯 Alignment with PhD Training
+## 🎯 Curriculum Alignment
 
-Directly supports advanced econometrics courses like MGTO 80430:
-- ✅ Endogeneity & IV estimation (Sessions 7-8)
-- ✅ Panel data methods (Sessions 10-11)
-- ✅ Limited dependent variables (Sessions 4, 6)
-- ✅ Moderation/interaction (Session 3)
-- ✅ Methods reporting (Session 12)
+Designed to match graduate econometrics expectations:
+- ✅ Endogeneity & IV estimation
+- ✅ Panel data methods
+- ✅ Limited dependent variables
+- ✅ Moderation/interaction
+- ✅ Methods reporting and diagnostics
 
 ---
 
@@ -137,23 +125,13 @@ Directly supports advanced econometrics courses like MGTO 80430:
 
 ```
 STATAverse/
-├── code_library/          # Tested, ready-to-use scripts
-│   ├── 01_endogeneity_simulator.do
-│   ├── 02_method_decision_tree.do
-│   ├── 03_anti_patterns.do
-│   ├── 04_assumption_checker.do
-│   ├── 05_moderation_mastery.do
-│   └── README.md
-├── mgto80430/             # Course-aligned modules
-│   ├── modules/
-│   └── README.md
-├── templates/             # Authoring templates
-│   ├── lesson.md
-│   └── lab.md
-├── _testing/              # Testing framework
-│   └── test_runner.do
-├── README.md              # This file
-└── INNOVATION_SUMMARY.md  # Detailed innovation documentation
+├── CodeLibrary/
+│   ├── scripts/           # Tested, ready-to-use scripts
+│   ├── README.md
+│   ├── MASTER_ARCHITECTURE.md
+│   ├── INNOVATION_SUMMARY.md
+│   └── TRANSFORMATION_SUMMARY.md
+└── (site content)
 ```
 
 ---
@@ -181,15 +159,13 @@ STATAverse/
 ## 📖 Documentation
 
 - **[Innovation Summary](INNOVATION_SUMMARY.md)** - Detailed overview of what makes this different
-- **[Code Library README](code_library/README.md)** - Guide to all available scripts
-- **[MGTO 80430 README](mgto80430/README.md)** - Course-aligned learning path
+- **[Code Library README](README.md)** - Guide to all available scripts
 
 ---
 
 ## 🚀 Coming Soon
 
 Phase 2 modules in development:
-- Panel data toolkit (FE, RE, hybrid, GEE, variance decomposition)
 - Difference-in-differences (with recent advances)
 - Publication tables generator
 - Power analysis & sample size calculations
@@ -200,10 +176,10 @@ Phase 2 modules in development:
 ## 🤝 How to Use This
 
 ### For Students
-Start with the course-aligned modules (`mgto80430/`), then explore the code library for specific topics.
+Start with the intuition-first scripts, then explore advanced modules for specific topics.
 
 ### For Researchers
-Jump straight to the [Code Library](code_library/) - find your method or problem, run the code.
+Jump straight to the [Code Library](scripts/) - find your method or problem, run the code.
 
 ### For Instructors
 Use simulations for live demos, assign code library scripts as homework, adapt templates for new content.

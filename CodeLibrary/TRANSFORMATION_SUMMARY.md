@@ -27,7 +27,7 @@ local dv_type = 1  // 1=continuous, 2=binary...
 The new modules are:
 - ✅ **Three-level architecture**: Intuition → Implementation → Publication
 - ✅ **Plain language first**: Everyday examples before technical terms
-- ✅ **Course-aligned**: Every module maps to MGTO 80430 sessions
+- ✅ **Course-aligned**: Every module maps to graduate econometrics curriculum sessions
 - ✅ **Publication-ready**: AMJ/SMJ standards integrated
 - ✅ **Jargon translator**: Technical terms defined with analogies
 - ✅ **Beginner-accessible**: Can start with zero knowledge
@@ -84,9 +84,9 @@ correlated with unmeasured factors.
 
 ### 3. **Course Alignment Matrix**
 
-Every module now maps to specific MGTO 80430 sessions:
+Every module now maps to specific graduate econometrics curriculum sessions:
 
-| Session | Module | Key Papers |
+| Module | Module | Key Papers |
 |---------|---------|-----------|
 | 2 | Regression foundations | Kennedy 1-3, Angrist & Pischke 2 |
 | 3 | Moderation masterclass | **Busenbark et al. 2022 (ORM)** |
@@ -272,30 +272,30 @@ display "  • Bowen (2012, JOM)"
 
 ## Next Steps: Building Out the System
 
-### **Priority Modules** (Aligned with MGTO 80430)
+### **Priority Modules** (Aligned with graduate econometrics curriculum)
 
-1. **Session 3: Moderation Masterclass**
+1. **Module 3: Moderation Masterclass**
    - Implement Busenbark et al. (2022) ORM approach
    - Marginal effects (not just interaction coefficients!)
    - Johnson-Neyman regions of significance
    - Three-way interactions
 
-2. **Session 4: Limited DVs Part 1**
+2. **Module 4: Limited DVs Part 1**
    - Hoetker (2007) SMJ - binary DVs
    - Marginal effects in nonlinear models
    - Interaction handling (critical!)
 
-3. **Sessions 7-8: Endogeneity & IV**
+3. **Modules 7-8: Endogeneity & IV**
    - Hill et al. (2021) JOM - comprehensive review
    - ITCV sensitivity (Busenbark et al. 2022 JOM)
    - IV implementation (Semadeni et al. 2014 SMJ)
 
-4. **Sessions 10-11: Panel Data**
+4. **Modules 10-11: Panel Data**
    - Fixed effects (Kennedy Ch 18)
    - Hybrid models (Certo et al. 2017 SMJ)
    - Variance decomposition (Quigley & Graffin 2016)
 
-5. **Session 12: Publication Toolkit**
+5. **Module 12: Publication Toolkit**
    - Automated tables (esttab, estout)
    - Publication-quality figures
    - Robustness check batteries
@@ -443,4 +443,4 @@ Students should feel confident:
 
 **Version**: 2.0
 **Status**: Transformation Complete (Phase 1)
-**Next**: Build out Sessions 3-12 modules
+**Next**: Build out Modules 3-12 modules

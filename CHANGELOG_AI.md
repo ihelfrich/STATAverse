@@ -258,3 +258,30 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2026-01-15
+Author: Codex (GPT-5)
+Scope: Remove course references, fix math rendering, surface Code Library in site navigation.
+Summary
+- Removed course-specific references from CodeLibrary documentation and pages.
+- Updated ZeroToHero math delimiters for reliable KaTeX rendering in markdown.
+- Added Code Library to global navigation and homepage, plus search index updates.
+- Refined Code Library layout to match site styling and curriculum framing.
+
+Files modified
+- `CodeLibrary/index.html`
+- `CodeLibrary/README.md`
+- `CodeLibrary/INNOVATION_SUMMARY.md`
+- `CodeLibrary/MASTER_ARCHITECTURE.md`
+- `CodeLibrary/TRANSFORMATION_SUMMARY.md`
+- `CodeLibrary/scripts/02_method_decision_tree_v2.do`
+- `ZeroToHero/content/00-econometric-mindset.md`
+- `ZeroToHero/content/02-ols-intuition.md`
+- `ZeroToHero/content/03-limited-outcomes.md`
+- `tools/build_site_index.py`
+- `assets/data/site-index.json`
+- `index.html`
+- Various navigation headers across HTML pages
+
+Other AI contributions
+- None recorded in this log entry.

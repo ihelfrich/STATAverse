@@ -446,6 +446,18 @@
   },
   {
     "type": "page",
+    "title": "Code Library",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "code",
+      "library",
+      "scripts"
+    ],
+    "level": "All",
+    "path": "CodeLibrary/index.html"
+  },
+  {
+    "type": "page",
     "title": "Script Builder",
     "summary": "Primary navigation page.",
     "tags": [
