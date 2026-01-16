@@ -571,6 +571,10 @@
 
   function renderMath(container) {
     if (!window.renderMathInElement) {
+      // KaTeX not loaded yet, try again in a moment
+      setTimeout(function() {
+        renderMath(container);
+      }, 100);
       return;
     }
     window.renderMathInElement(container, {
@@ -1669,7 +1673,7 @@
             breaks: false,
           });
           enhanceLesson(container);
-          enhanceRoot(document);
+          enhanceRoot(container);
         })
         .catch(function () {
           container.textContent = "Could not load lesson content.";
