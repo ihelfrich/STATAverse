@@ -1676,7 +1676,7 @@
             breaks: false,
           });
           enhanceLesson(container);
-          enhanceRoot(container);
+          enhanceRoot(document);
         })
         .catch(function (err) {
           console.error("Error loading markdown:", err, "Path:", mdPath);
