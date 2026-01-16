@@ -772,6 +772,277 @@
       });
   }
 
+  function initSiteSearch() {
+    var page = document.querySelector("[data-search-page]");
+    if (!page) {
+      return;
+    }
+    var input = document.getElementById("site-search");
+    var filters = page.querySelector("[data-site-filters]");
+    var results = page.querySelector("[data-site-results]");
+    var indexSrc = page.getAttribute("data-index-src") || "assets/data/site-index.json";
+    var base = page.getAttribute("data-base") || "";
+    var activeFilter = "all";
+    var items = [];
+
+    function render(list) {
+      results.innerHTML = "";
+      if (!list.length) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "No results found.";
+        results.appendChild(empty);
+        return;
+      }
+
+      list.forEach(function (item) {
+        var card = document.createElement("article");
+        card.className = "script-card";
+
+        var tagRow = document.createElement("div");
+        tagRow.className = "script-tags";
+
+        var typeTag = document.createElement("span");
+        typeTag.className = "script-tag";
+        typeTag.textContent = item.type;
+        tagRow.appendChild(typeTag);
+
+        (item.tags || []).forEach(function (tag) {
+          var span = document.createElement("span");
+          span.className = "script-tag";
+          span.textContent = tag;
+          tagRow.appendChild(span);
+        });
+
+        var title = document.createElement("h3");
+        title.textContent = item.title;
+
+        var summary = document.createElement("p");
+        summary.className = "muted";
+        summary.textContent = item.summary || "";
+
+        var meta = document.createElement("span");
+        meta.className = "pill";
+        meta.textContent = item.level || "All";
+
+        var link = document.createElement("a");
+        link.className = "text-link";
+        link.href = base + item.path;
+        link.textContent = "Open";
+
+        card.appendChild(tagRow);
+        card.appendChild(title);
+        card.appendChild(summary);
+        card.appendChild(meta);
+        card.appendChild(link);
+
+        results.appendChild(card);
+      });
+    }
+
+    function filterItems() {
+      var query = input ? input.value.trim().toLowerCase() : "";
+      var filtered = items.filter(function (item) {
+        var matchesType = activeFilter === "all" || item.type === activeFilter;
+        if (!matchesType) {
+          return false;
+        }
+        if (!query) {
+          return true;
+        }
+        var haystack = [item.title, item.summary, item.level, (item.tags || []).join(" ")]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+      render(filtered);
+    }
+
+    if (filters) {
+      filters.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!target.matches("[data-filter]")) {
+          return;
+        }
+        activeFilter = target.getAttribute("data-filter") || "all";
+        filters.querySelectorAll(".filter-chip").forEach(function (chip) {
+          chip.classList.toggle("active", chip === target);
+        });
+        filterItems();
+      });
+    }
+
+    if (input) {
+      input.addEventListener("input", filterItems);
+    }
+
+    fetch(indexSrc)
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load search index");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        items = data;
+        filterItems();
+      })
+      .catch(function () {
+        results.innerHTML = "";
+        var error = document.createElement("p");
+        error.className = "muted";
+        error.textContent = "Search index unavailable.";
+        results.appendChild(error);
+      });
+  }
+
+  function initWorkspace() {
+    var page = document.querySelector("[data-workspace]");
+    if (!page) {
+      return;
+    }
+    var nameInput = document.getElementById("workspace-name");
+    var roleInput = document.getElementById("workspace-role");
+    var focusInput = document.getElementById("workspace-focus");
+    var exportButton = page.querySelector("[data-export-notes]");
+    var importInput = document.getElementById("workspace-import");
+    var clearButton = page.querySelector("[data-clear-notes]");
+    var modulesCount = page.querySelector("[data-modules-count]");
+    var tasksCount = page.querySelector("[data-tasks-count]");
+    var notesCount = page.querySelector("[data-notes-count]");
+    var progressDetail = page.querySelector("[data-progress-detail]");
+
+    function loadProfile() {
+      try {
+        var profile = JSON.parse(localStorage.getItem("stataverse:user") || "{}");
+        if (nameInput) nameInput.value = profile.name || "";
+        if (roleInput) roleInput.value = profile.role || "";
+        if (focusInput) focusInput.value = profile.focus || "";
+      } catch (err) {
+        return;
+      }
+    }
+
+    function saveProfile() {
+      var profile = {
+        name: nameInput ? nameInput.value.trim() : "",
+        role: roleInput ? roleInput.value.trim() : "",
+        focus: focusInput ? focusInput.value.trim() : "",
+      };
+      localStorage.setItem("stataverse:user", JSON.stringify(profile));
+    }
+
+    function collectProgress() {
+      var keys = Object.keys(localStorage).filter(function (key) {
+        return key.indexOf("stataverse:progress:") === 0;
+      });
+      var taskTotal = 0;
+      var noteTotal = 0;
+      keys.forEach(function (key) {
+        try {
+          var value = JSON.parse(localStorage.getItem(key) || "{}");
+          if (Array.isArray(value.checks)) {
+            taskTotal += value.checks.filter(Boolean).length;
+          }
+          if (value.notes) {
+            noteTotal += Object.keys(value.notes).length;
+          }
+        } catch (err) {
+          return;
+        }
+      });
+      modulesCount.textContent = keys.length;
+      tasksCount.textContent = taskTotal;
+      notesCount.textContent = noteTotal;
+      if (progressDetail) {
+        progressDetail.textContent = keys.length
+          ? "Progress stored for " + keys.length + " module(s)."
+          : "No module progress saved yet.";
+      }
+      return keys;
+    }
+
+    function exportWorkspace() {
+      var payload = {
+        profile: JSON.parse(localStorage.getItem("stataverse:user") || "{}"),
+        progress: {},
+      };
+      Object.keys(localStorage).forEach(function (key) {
+        if (key.indexOf("stataverse:progress:") === 0) {
+          payload.progress[key] = localStorage.getItem(key);
+        }
+      });
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = "stataverse-workspace.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importWorkspace(file) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(reader.result);
+          if (data.profile) {
+            localStorage.setItem("stataverse:user", JSON.stringify(data.profile));
+          }
+          if (data.progress) {
+            Object.keys(data.progress).forEach(function (key) {
+              localStorage.setItem(key, data.progress[key]);
+            });
+          }
+          loadProfile();
+          collectProgress();
+        } catch (err) {
+          return;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    if (nameInput) nameInput.addEventListener("input", saveProfile);
+    if (roleInput) roleInput.addEventListener("input", saveProfile);
+    if (focusInput) focusInput.addEventListener("input", saveProfile);
+    if (exportButton) exportButton.addEventListener("click", exportWorkspace);
+    if (importInput) {
+      importInput.addEventListener("change", function () {
+        if (importInput.files && importInput.files[0]) {
+          importWorkspace(importInput.files[0]);
+          importInput.value = "";
+        }
+      });
+    }
+    if (clearButton) {
+      clearButton.addEventListener("click", function () {
+        Object.keys(localStorage).forEach(function (key) {
+          if (key.indexOf("stataverse:progress:") === 0 || key === "stataverse:user") {
+            localStorage.removeItem(key);
+          }
+        });
+        loadProfile();
+        collectProgress();
+      });
+    }
+
+    loadProfile();
+    collectProgress();
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+    var parts = window.location.pathname.split("/").filter(Boolean);
+    var base = "/";
+    if (parts.length) {
+      base += parts[0] + "/";
+    }
+    navigator.serviceWorker.register(base + "service-worker.js").catch(function () {});
+  }
+
   function enhanceLesson(container) {
     wrapCallouts(container);
     wrapAnswerKeys(container);
@@ -825,7 +1096,10 @@
   document.addEventListener("DOMContentLoaded", function () {
     initScriptPage();
     initScriptLibrary();
+    initSiteSearch();
+    initWorkspace();
     renderMarkdownLessons();
     enhanceRoot(document);
+    registerServiceWorker();
   });
 })();

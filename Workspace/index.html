@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workspace | STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+  <body class="page-zero" data-workspace>
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="../ScriptLibrary/">Scripts</a>
+          <a href="../Search/">Search</a>
+          <a href="../ZeroToHero/">Zero-to-Hero</a>
+          <a href="../STATAForBusiness/">Stata for Business</a>
+          <a href="./index.html">Workspace</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero hero-compact">
+        <div class="hero-copy">
+          <span class="eyebrow">Workspace</span>
+          <h1>Your local learning workspace</h1>
+          <p class="lead">
+            Save your profile, track progress, and export or import notes. Everything is local-first
+            and stored in your browser.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="workspace-grid">
+          <article class="workspace-card">
+            <h3>Profile</h3>
+            <p class="muted">Personalize your learning space.</p>
+            <label class="field-label" for="workspace-name">Name</label>
+            <input id="workspace-name" class="field-input" type="text" placeholder="Your name" />
+
+            <label class="field-label" for="workspace-role">Role</label>
+            <input id="workspace-role" class="field-input" type="text" placeholder="Student, researcher, analyst" />
+
+            <label class="field-label" for="workspace-focus">Focus area</label>
+            <input id="workspace-focus" class="field-input" type="text" placeholder="Econometrics, policy, ops" />
+          </article>
+
+          <article class="workspace-card">
+            <h3>Progress snapshot</h3>
+            <p class="muted">A quick view of saved module progress.</p>
+            <div class="workspace-stats" data-progress-summary>
+              <div class="summary-card"><strong>Modules</strong><span data-modules-count>0</span></div>
+              <div class="summary-card"><strong>Tasks completed</strong><span data-tasks-count>0</span></div>
+              <div class="summary-card"><strong>Notes saved</strong><span data-notes-count>0</span></div>
+            </div>
+            <p class="muted" data-progress-detail></p>
+          </article>
+
+          <article class="workspace-card">
+            <h3>Export or import</h3>
+            <p class="muted">Move your notes between browsers or devices.</p>
+            <div class="workspace-actions">
+              <button class="btn primary" type="button" data-export-notes>Export workspace</button>
+              <label class="btn ghost" for="workspace-import">Import workspace</label>
+              <input id="workspace-import" class="file-input" type="file" accept="application/json" />
+            </div>
+            <button class="btn ghost" type="button" data-clear-notes>Clear local data</button>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>STATAverse | Workspace</div>
+    </footer>
+
+    <script src="../assets/js/site.js"></script>
+  </body>
+</html>

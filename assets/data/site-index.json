@@ -1,0 +1,355 @@
+[
+  {
+    "type": "script",
+    "title": "Project setup and log",
+    "summary": "Create standard folders, set session defaults, and start a log file.",
+    "tags": [
+      "workflow",
+      "logging",
+      "setup"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=project-setup-log"
+  },
+  {
+    "type": "script",
+    "title": "Import a CSV file",
+    "summary": "Load a CSV with headers, then quickly inspect and save as DTA.",
+    "tags": [
+      "import",
+      "data"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=import-csv"
+  },
+  {
+    "type": "script",
+    "title": "Import an Excel sheet",
+    "summary": "Read a specific worksheet from an Excel file and save to DTA.",
+    "tags": [
+      "import",
+      "data"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=import-excel"
+  },
+  {
+    "type": "script",
+    "title": "Standardize variable names",
+    "summary": "Convert names to lowercase and remove spaces or symbols.",
+    "tags": [
+      "cleaning",
+      "transform"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=standardize-variable-names"
+  },
+  {
+    "type": "script",
+    "title": "Missingness report",
+    "summary": "Summarize missing values and flag rows with any missing data.",
+    "tags": [
+      "cleaning",
+      "quality"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=missingness-report"
+  },
+  {
+    "type": "script",
+    "title": "Encode categorical strings",
+    "summary": "Convert string categories into labeled numeric codes.",
+    "tags": [
+      "cleaning",
+      "transform"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=encode-categorical"
+  },
+  {
+    "type": "script",
+    "title": "Grouped summaries",
+    "summary": "Compute means by group and produce a collapsed dataset.",
+    "tags": [
+      "summary",
+      "transform"
+    ],
+    "level": "Beginner",
+    "path": "ScriptLibrary/script.html?id=group-summaries"
+  },
+  {
+    "type": "script",
+    "title": "Merge 1:1 datasets",
+    "summary": "Merge two datasets by a unique identifier and keep matched rows.",
+    "tags": [
+      "merge",
+      "data"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=merge-1-1"
+  },
+  {
+    "type": "script",
+    "title": "Append multiple files",
+    "summary": "Stack datasets with identical columns using a loop.",
+    "tags": [
+      "append",
+      "data"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=append-files"
+  },
+  {
+    "type": "script",
+    "title": "Reshape wide to long",
+    "summary": "Convert repeated columns into a tidy long format.",
+    "tags": [
+      "reshape",
+      "transform"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=reshape-wide-long"
+  },
+  {
+    "type": "script",
+    "title": "Panel setup with xtset",
+    "summary": "Declare panel structure and inspect panel balance.",
+    "tags": [
+      "panel",
+      "workflow"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=panel-setup"
+  },
+  {
+    "type": "script",
+    "title": "OLS with robust SEs and diagnostics",
+    "summary": "Run OLS, test heteroskedasticity, and inspect residuals.",
+    "tags": [
+      "model",
+      "ols",
+      "diagnostics"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=ols-robust-diagnostics"
+  },
+  {
+    "type": "script",
+    "title": "Logit with marginal effects",
+    "summary": "Estimate a binary outcome model and interpret marginal effects.",
+    "tags": [
+      "model",
+      "binary"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=logit-margins"
+  },
+  {
+    "type": "script",
+    "title": "Poisson vs negative binomial",
+    "summary": "Compare count models and test for overdispersion.",
+    "tags": [
+      "model",
+      "count"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=poisson-nb-overdispersion"
+  },
+  {
+    "type": "script",
+    "title": "Loop import ACS HHI files",
+    "summary": "Import multiple ACS median household income CSVs and stack them.",
+    "tags": [
+      "import",
+      "loop",
+      "acs"
+    ],
+    "level": "Advanced",
+    "path": "ScriptLibrary/script.html?id=loop-acs-hhi"
+  },
+  {
+    "type": "script",
+    "title": "Export regression table",
+    "summary": "Use esttab to export results to RTF or CSV.",
+    "tags": [
+      "export",
+      "model"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=export-regression-table"
+  },
+  {
+    "type": "module",
+    "title": "Zero-to-Hero: Econometric mindset",
+    "summary": "Graduate-ready module in the Zero-to-Hero path.",
+    "tags": [
+      "concepts",
+      "design"
+    ],
+    "level": "Graduate",
+    "path": "ZeroToHero/modules/00-econometric-mindset.html"
+  },
+  {
+    "type": "module",
+    "title": "Zero-to-Hero: Stata foundations",
+    "summary": "Graduate-ready module in the Zero-to-Hero path.",
+    "tags": [
+      "workflow",
+      "stata"
+    ],
+    "level": "Graduate",
+    "path": "ZeroToHero/modules/01-stata-foundations.html"
+  },
+  {
+    "type": "module",
+    "title": "Zero-to-Hero: OLS intuition",
+    "summary": "Graduate-ready module in the Zero-to-Hero path.",
+    "tags": [
+      "ols",
+      "math"
+    ],
+    "level": "Graduate",
+    "path": "ZeroToHero/modules/02-ols-intuition.html"
+  },
+  {
+    "type": "module",
+    "title": "Zero-to-Hero: Limited outcomes",
+    "summary": "Graduate-ready module in the Zero-to-Hero path.",
+    "tags": [
+      "binary",
+      "count"
+    ],
+    "level": "Graduate",
+    "path": "ZeroToHero/modules/03-limited-outcomes.html"
+  },
+  {
+    "type": "dataset",
+    "title": "Coffee chain weekly",
+    "summary": "Clean dataset with documentation and starter code.",
+    "tags": [
+      "dataset",
+      "panel",
+      "retail"
+    ],
+    "level": "All",
+    "path": "ZeroToHero/datasets/coffee-chain.html"
+  },
+  {
+    "type": "dataset",
+    "title": "Warehouse picking",
+    "summary": "Clean dataset with documentation and starter code.",
+    "tags": [
+      "dataset",
+      "ops",
+      "productivity"
+    ],
+    "level": "All",
+    "path": "ZeroToHero/datasets/warehouse-picking.html"
+  },
+  {
+    "type": "dataset",
+    "title": "Fulfillment delays",
+    "summary": "Clean dataset with documentation and starter code.",
+    "tags": [
+      "dataset",
+      "logit",
+      "count"
+    ],
+    "level": "All",
+    "path": "ZeroToHero/datasets/fulfillment-delays.html"
+  },
+  {
+    "type": "project",
+    "title": "Project 01: Promo impact + staffing",
+    "summary": "Applied project with deliverables and Stata workflows.",
+    "tags": [
+      "project",
+      "ols"
+    ],
+    "level": "Graduate",
+    "path": "ZeroToHero/projects/project-01.html"
+  },
+  {
+    "type": "project",
+    "title": "Project 02: Delay risk + delay days",
+    "summary": "Applied project with deliverables and Stata workflows.",
+    "tags": [
+      "project",
+      "logit",
+      "count"
+    ],
+    "level": "Graduate",
+    "path": "ZeroToHero/projects/project-02.html"
+  },
+  {
+    "type": "module",
+    "title": "Stata for Business: Foundations and workflow",
+    "summary": "MGTO 80430 aligned module.",
+    "tags": [
+      "workflow",
+      "stata"
+    ],
+    "level": "Graduate",
+    "path": "STATAForBusiness/modules/00-foundations.html"
+  },
+  {
+    "type": "module",
+    "title": "Stata for Business: Linear regression basics",
+    "summary": "MGTO 80430 aligned module.",
+    "tags": [
+      "ols"
+    ],
+    "level": "Graduate",
+    "path": "STATAForBusiness/modules/01-linear-regression.html"
+  },
+  {
+    "type": "page",
+    "title": "STATAverse Home",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "home"
+    ],
+    "level": "All",
+    "path": "index.html"
+  },
+  {
+    "type": "page",
+    "title": "Zero-to-Hero Overview",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "overview"
+    ],
+    "level": "All",
+    "path": "ZeroToHero/index.html"
+  },
+  {
+    "type": "page",
+    "title": "Script Library",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "scripts"
+    ],
+    "level": "All",
+    "path": "ScriptLibrary/index.html"
+  },
+  {
+    "type": "page",
+    "title": "Site Search",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "search"
+    ],
+    "level": "All",
+    "path": "Search/index.html"
+  },
+  {
+    "type": "page",
+    "title": "Workspace",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "workspace"
+    ],
+    "level": "All",
+    "path": "Workspace/index.html"
+  }
+]

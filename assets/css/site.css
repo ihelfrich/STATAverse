@@ -1,11 +1,11 @@
 :root {
-  --ink: #1b1b19;
-  --paper: #f6f2ea;
-  --paper-deep: #efe6d6;
-  --accent: #0f7c7b;
-  --accent-2: #f2a43a;
-  --accent-3: #e36b5b;
-  --accent-4: #3d5a80;
+  --ink: #1b1b1b;
+  --paper: #fcfbf8;
+  --paper-deep: #dcdad5;
+  --accent: #575ecf;
+  --accent-2: #f858bc;
+  --accent-3: #fe3f21;
+  --accent-4: #fe7b02;
   --muted: #6c6b67;
   --white: #ffffff;
   --shadow: 0 18px 50px rgba(27, 27, 25, 0.12);
@@ -25,7 +25,7 @@ body {
   margin: 0;
   font-family: var(--font-body);
   color: var(--ink);
-  background: linear-gradient(135deg, #f6f2ea 0%, #f0e7da 45%, #e7f2f0 100%);
+  background: linear-gradient(135deg, #fcfbf8 0%, #f3f2f2 45%, #f8f1ff 100%);
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
@@ -44,13 +44,13 @@ body::after {
 }
 
 body::before {
-  background: radial-gradient(circle, #f2a43a 0%, rgba(242, 164, 58, 0) 70%);
+  background: radial-gradient(circle, #f858bc 0%, rgba(248, 88, 188, 0) 70%);
   top: -120px;
   right: -120px;
 }
 
 body::after {
-  background: radial-gradient(circle, #0f7c7b 0%, rgba(15, 124, 123, 0) 70%);
+  background: radial-gradient(circle, #575ecf 0%, rgba(87, 94, 207, 0) 70%);
   bottom: -160px;
   left: -160px;
 }
@@ -127,6 +127,15 @@ a:hover {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--accent);
+}
+
+.math-glyph {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 1.1rem;
+  color: var(--accent-2);
+  font-family: var(--font-display);
+  transform: translateY(1px);
 }
 
 .hero-actions {
@@ -685,10 +694,10 @@ a:hover {
 }
 
 body.page-zero {
-  --accent: #1f6f54;
-  --accent-2: #f0a53b;
-  --accent-3: #d86b49;
-  --accent-4: #285b7b;
+  --accent: #575ecf;
+  --accent-2: #f858bc;
+  --accent-3: #fe3f21;
+  --accent-4: #fe7b02;
 }
 
 .hero-compact {
@@ -919,6 +928,47 @@ body.page-zero {
 .script-meta .pill {
   background: rgba(61, 90, 128, 0.15);
   color: var(--accent-4);
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.6rem;
+}
+
+.workspace-card {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 1.6rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.field-label {
+  display: block;
+  margin-top: 0.8rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.field-input {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-small);
+  border: 1px solid rgba(27, 27, 25, 0.2);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+
+.workspace-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.file-input {
+  display: none;
 }
 
 .model-selector {

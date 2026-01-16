@@ -176,3 +176,30 @@ Files created
 Files modified
 - `index.html`
 - `assets/css/site.css`
+
+Entry: 2025-01-15 (cont)
+Author: Codex (GPT-5)
+Scope: Branding palette update, search, and workspace tooling.
+Summary
+- Updated the global color palette to match Fixed Point accents.
+- Added a math glyph motif in the homepage hero.
+- Built a site-wide search page with a generated search index.
+- Added a local-first Workspace page for profiles and note export/import.
+- Added a service worker for offline caching.
+- Added a build script to regenerate the search index.
+
+Files created
+- `Search/index.html`
+- `Workspace/index.html`
+- `assets/data/site-index.json`
+- `service-worker.js`
+- `tools/build_site_index.py`
+
+Files modified
+- `assets/css/site.css`
+- `assets/js/site.js`
+- `index.html`
+- Various navigation headers across HTML pages
+
+Other AI contributions
+- None recorded in this log entry.
