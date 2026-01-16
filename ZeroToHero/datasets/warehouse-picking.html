@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Warehouse Picking | STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../assets/css/site.css" />
+  </head>
+  <body class="page-zero">
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="../index.html">Zero-to-Hero</a>
+          <a href="./index.html">Datasets</a>
+          <a href="../projects/index.html">Projects</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="page dataset-page">
+      <aside class="side-nav">
+        <div class="side-title">Datasets</div>
+        <ul class="side-links">
+          <li><a href="./index.html">Library</a></li>
+          <li><a href="coffee-chain.html">Coffee chain weekly</a></li>
+          <li><a class="active" href="warehouse-picking.html">Warehouse picking</a></li>
+        </ul>
+        <div class="side-title">On this page</div>
+        <div class="toc" data-toc></div>
+      </aside>
+
+      <section class="lesson">
+        <div class="lesson-header">
+          <div class="eyebrow">Dataset</div>
+          <h1>Warehouse picking</h1>
+          <p class="lead">
+            Shift-level operations data to analyze productivity, training, and automation.
+          </p>
+          <div class="dataset-actions">
+            <a class="btn primary" href="../data/warehouse_picking.csv" download>Download CSV</a>
+            <a class="btn ghost" href="../projects/project-01.html">See project 01</a>
+          </div>
+        </div>
+
+        <section class="dataset-preview">
+          <div class="dataset-preview-header">
+            <h2>Quick preview</h2>
+            <p>Peek at the first rows and summary statistics.</p>
+          </div>
+          <div
+            class="data-preview"
+            data-csv-preview="../data/warehouse_picking.csv"
+            data-preview-rows="6"
+          ></div>
+        </section>
+
+        <article class="lesson-content" data-md="../content/warehouse-picking.md"></article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>STATAverse | Warehouse picking dataset</div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="../../assets/js/site.js"></script>
+  </body>
+</html>

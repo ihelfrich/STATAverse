@@ -1,0 +1,610 @@
+(function () {
+  "use strict";
+
+  var glossaryState = {
+    active: null,
+    bound: false,
+  };
+
+  function slugify(text) {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
+  function wrapCheckDetails(callout) {
+    var details = document.createElement("details");
+    details.className = "check-details";
+    var summary = document.createElement("summary");
+    summary.textContent = "Show expected";
+    details.appendChild(summary);
+
+    while (callout.children.length > 1) {
+      details.appendChild(callout.children[1]);
+    }
+
+    callout.appendChild(details);
+  }
+
+  function addNoteField(callout, key) {
+    var label = document.createElement("label");
+    label.className = "note-label";
+    label.textContent = "Your notes";
+
+    var textarea = document.createElement("textarea");
+    textarea.className = "note-field";
+    textarea.setAttribute("data-note", key);
+    textarea.setAttribute("placeholder", "Type your response here...");
+
+    label.appendChild(textarea);
+    callout.appendChild(label);
+  }
+
+  function wrapCallouts(container) {
+    var markers = new Set(["[TRY]", "[PREDICT]", "[CHECK]", "[REFLECT]"]);
+    var node = container.firstElementChild;
+    var noteIndex = 0;
+
+    while (node) {
+      var nextNode = node.nextElementSibling;
+      if (node.tagName === "P" && markers.has(node.textContent.trim())) {
+        var type = node.textContent.trim().slice(1, -1).toLowerCase();
+        var callout = document.createElement("section");
+        callout.className = "callout " + type;
+
+        var title = document.createElement("div");
+        title.className = "callout-title";
+        title.textContent = type.toUpperCase();
+        callout.appendChild(title);
+
+        var sibling = nextNode;
+        while (sibling) {
+          if (sibling.tagName === "P" && markers.has(sibling.textContent.trim())) {
+            break;
+          }
+          if (/^H[1-6]$/.test(sibling.tagName)) {
+            break;
+          }
+          var move = sibling;
+          sibling = sibling.nextElementSibling;
+          callout.appendChild(move);
+        }
+
+        if (type === "check") {
+          wrapCheckDetails(callout);
+        }
+        if (type === "predict" || type === "reflect") {
+          addNoteField(callout, type + "-" + noteIndex);
+          noteIndex += 1;
+        }
+
+        node.replaceWith(callout);
+        node = sibling;
+        continue;
+      }
+
+      node = nextNode;
+    }
+  }
+
+  function wrapAnswerKeys(container) {
+    var paragraphs = container.querySelectorAll("p");
+    paragraphs.forEach(function (para) {
+      var text = para.textContent.trim().toLowerCase();
+      if (!text.startsWith("answer key")) {
+        return;
+      }
+      var list = para.nextElementSibling;
+      if (!list || (list.tagName !== "UL" && list.tagName !== "OL")) {
+        return;
+      }
+      var details = document.createElement("details");
+      details.className = "answer-key";
+      var summary = document.createElement("summary");
+      summary.textContent = para.textContent.trim();
+      details.appendChild(summary);
+      details.appendChild(list);
+      para.replaceWith(details);
+    });
+  }
+
+  function addCopyButtons(container) {
+    var codes = container.querySelectorAll("pre > code");
+    codes.forEach(function (code) {
+      var pre = code.parentElement;
+      var wrapper = document.createElement("div");
+      wrapper.className = "code-block";
+      pre.parentNode.insertBefore(wrapper, pre);
+      wrapper.appendChild(pre);
+
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "copy-button";
+      button.textContent = "Copy";
+      button.addEventListener("click", function () {
+        var text = code.textContent;
+        if (!navigator.clipboard) {
+          return;
+        }
+        navigator.clipboard.writeText(text).then(function () {
+          button.textContent = "Copied";
+          setTimeout(function () {
+            button.textContent = "Copy";
+          }, 1500);
+        });
+      });
+
+      wrapper.appendChild(button);
+    });
+  }
+
+  function enableCheckboxes(container) {
+    var checkboxes = container.querySelectorAll("input[type=\"checkbox\"]");
+    checkboxes.forEach(function (checkbox) {
+      checkbox.removeAttribute("disabled");
+    });
+    return Array.from(checkboxes);
+  }
+
+  function initProgress(container, checkboxes) {
+    var progress = document.querySelector("[data-progress]");
+    if (!progress) {
+      return function () {};
+    }
+    var bar = progress.querySelector(".progress-bar");
+    var label = progress.querySelector(".progress-label");
+    var total = checkboxes.length;
+
+    function update() {
+      if (!total) {
+        label.textContent = "No tasks yet";
+        bar.style.width = "0%";
+        return;
+      }
+      var done = checkboxes.filter(function (cb) {
+        return cb.checked;
+      }).length;
+      var pct = Math.round((done / total) * 100);
+      bar.style.width = pct + "%";
+      label.textContent = done + "/" + total + " tasks";
+    }
+
+    update();
+    return update;
+  }
+
+  function bindPersistedInputs(container, checkboxes, updateProgress) {
+    var storageKey = "stataverse:progress:" + window.location.pathname;
+    var stored = null;
+    try {
+      stored = JSON.parse(window.localStorage.getItem(storageKey) || "null");
+    } catch (err) {
+      stored = null;
+    }
+
+    if (stored && Array.isArray(stored.checks)) {
+      checkboxes.forEach(function (checkbox, index) {
+        checkbox.checked = Boolean(stored.checks[index]);
+      });
+    }
+
+    var notes = container.querySelectorAll("textarea[data-note]");
+    if (stored && stored.notes) {
+      notes.forEach(function (note) {
+        if (stored.notes[note.dataset.note]) {
+          note.value = stored.notes[note.dataset.note];
+        }
+      });
+    }
+
+    function save() {
+      var payload = {
+        checks: checkboxes.map(function (cb) {
+          return cb.checked;
+        }),
+        notes: {},
+      };
+      notes.forEach(function (note) {
+        if (note.value.trim()) {
+          payload.notes[note.dataset.note] = note.value;
+        }
+      });
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      updateProgress();
+    }
+
+    checkboxes.forEach(function (checkbox) {
+      checkbox.addEventListener("change", save);
+    });
+
+    notes.forEach(function (note) {
+      note.addEventListener("input", save);
+    });
+
+    updateProgress();
+  }
+
+  function buildToc(container) {
+    var toc = document.querySelector("[data-toc]");
+    if (!toc) {
+      return;
+    }
+    var headings = Array.from(container.querySelectorAll("h2"));
+    if (!headings.length) {
+      toc.textContent = "No sections";
+      return;
+    }
+
+    var list = document.createElement("ul");
+    headings.forEach(function (heading) {
+      var id = slugify(heading.textContent || "section");
+      heading.id = id;
+      var item = document.createElement("li");
+      var link = document.createElement("a");
+      link.href = "#" + id;
+      link.textContent = heading.textContent;
+      item.appendChild(link);
+      list.appendChild(item);
+    });
+
+    toc.appendChild(list);
+  }
+
+  function initGlossary(container) {
+    var terms = container.querySelectorAll(".glossary-term");
+    if (!terms.length) {
+      return;
+    }
+
+    function closeBubble() {
+      if (!glossaryState.active) {
+        return;
+      }
+      glossaryState.active.button.setAttribute("aria-expanded", "false");
+      glossaryState.active.bubble.remove();
+      glossaryState.active = null;
+    }
+
+    terms.forEach(function (term) {
+      if (term.dataset.glossaryReady === "true") {
+        return;
+      }
+      term.dataset.glossaryReady = "true";
+      term.setAttribute("type", "button");
+      term.setAttribute("aria-expanded", "false");
+      term.addEventListener("click", function (event) {
+        event.stopPropagation();
+        var definition = term.getAttribute("data-definition");
+        if (!definition) {
+          return;
+        }
+        if (glossaryState.active && glossaryState.active.button === term) {
+          closeBubble();
+          return;
+        }
+        closeBubble();
+        var bubble = document.createElement("div");
+        bubble.className = "glossary-bubble";
+        bubble.textContent = definition;
+        document.body.appendChild(bubble);
+
+        var rect = term.getBoundingClientRect();
+        var top = window.scrollY + rect.bottom + 8;
+        var left = window.scrollX + rect.left;
+        var maxLeft = window.scrollX + document.documentElement.clientWidth - bubble.offsetWidth - 12;
+        if (left > maxLeft) {
+          left = maxLeft;
+        }
+        bubble.style.top = top + "px";
+        bubble.style.left = left + "px";
+
+        term.setAttribute("aria-expanded", "true");
+        glossaryState.active = { button: term, bubble: bubble };
+      });
+    });
+
+    if (!glossaryState.bound) {
+      document.addEventListener("click", function () {
+        closeBubble();
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeBubble();
+        }
+      });
+      glossaryState.bound = true;
+    }
+  }
+
+  function parseCsv(text) {
+    var lines = text.trim().split(/\r?\n/);
+    if (!lines.length) {
+      return { headers: [], rows: [] };
+    }
+    var headers = lines[0].split(",").map(function (header) {
+      return header.trim();
+    });
+    var rows = lines.slice(1).map(function (line) {
+      return line.split(",").map(function (cell) {
+        return cell.trim();
+      });
+    });
+    return { headers: headers, rows: rows };
+  }
+
+  function buildSummary(headers, rows) {
+    var summary = [];
+    headers.forEach(function (header, index) {
+      var values = rows.map(function (row) {
+        return parseFloat(row[index]);
+      });
+      var numeric = values.filter(function (value) {
+        return Number.isFinite(value);
+      });
+      if (!numeric.length) {
+        return;
+      }
+      var total = numeric.reduce(function (acc, value) {
+        return acc + value;
+      }, 0);
+      var mean = total / numeric.length;
+      var min = Math.min.apply(null, numeric);
+      var max = Math.max.apply(null, numeric);
+      summary.push({
+        name: header,
+        mean: mean,
+        min: min,
+        max: max,
+      });
+    });
+    return summary;
+  }
+
+  function renderDataPreview(container) {
+    var csvPath = container.getAttribute("data-csv-preview");
+    if (!csvPath || container.dataset.previewReady === "true") {
+      return;
+    }
+    container.dataset.previewReady = "true";
+    var previewRows = parseInt(container.getAttribute("data-preview-rows"), 10) || 5;
+
+    fetch(csvPath)
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load CSV");
+        }
+        return res.text();
+      })
+      .then(function (text) {
+        var parsed = parseCsv(text);
+        if (!parsed.headers.length) {
+          container.textContent = "No data found.";
+          return;
+        }
+
+        var meta = document.createElement("p");
+        meta.className = "muted";
+        meta.textContent = "Rows: " + parsed.rows.length + " | Columns: " + parsed.headers.length;
+        container.appendChild(meta);
+
+        var table = document.createElement("table");
+        var thead = document.createElement("thead");
+        var headRow = document.createElement("tr");
+        parsed.headers.forEach(function (header) {
+          var th = document.createElement("th");
+          th.textContent = header;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        var tbody = document.createElement("tbody");
+        parsed.rows.slice(0, previewRows).forEach(function (row) {
+          var tr = document.createElement("tr");
+          row.forEach(function (cell) {
+            var td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        container.appendChild(table);
+
+        var summaryData = buildSummary(parsed.headers, parsed.rows);
+        if (summaryData.length) {
+          var summaryGrid = document.createElement("div");
+          summaryGrid.className = "data-summary";
+          summaryData.slice(0, 6).forEach(function (stat) {
+            var card = document.createElement("div");
+            card.className = "summary-card";
+            card.innerHTML =
+              "<strong>" +
+              stat.name +
+              "</strong>Mean: " +
+              stat.mean.toFixed(2) +
+              "<br>Min: " +
+              stat.min.toFixed(2) +
+              "<br>Max: " +
+              stat.max.toFixed(2);
+            summaryGrid.appendChild(card);
+          });
+          container.appendChild(summaryGrid);
+        }
+      })
+      .catch(function () {
+        container.textContent = "Could not load data preview.";
+      });
+  }
+
+  function initDataPreviews(container) {
+    var previews = container.querySelectorAll("[data-csv-preview]");
+    previews.forEach(function (preview) {
+      renderDataPreview(preview);
+    });
+  }
+
+  function initCharts(container) {
+    if (!window.Chart) {
+      return;
+    }
+    var charts = container.querySelectorAll("canvas[data-chart]");
+    charts.forEach(function (canvas) {
+      if (canvas.dataset.chartReady === "true") {
+        return;
+      }
+      canvas.dataset.chartReady = "true";
+      var csvPath = canvas.getAttribute("data-csv");
+      var xKey = canvas.getAttribute("data-x");
+      var yKey = canvas.getAttribute("data-y");
+      var type = canvas.getAttribute("data-chart-type") || "scatter";
+      if (!csvPath || !xKey || !yKey) {
+        return;
+      }
+      fetch(csvPath)
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error("Failed to load chart data");
+          }
+          return res.text();
+        })
+        .then(function (text) {
+          var parsed = parseCsv(text);
+          var xIndex = parsed.headers.indexOf(xKey);
+          var yIndex = parsed.headers.indexOf(yKey);
+          if (xIndex === -1 || yIndex === -1) {
+            return;
+          }
+          var points = parsed.rows
+            .map(function (row) {
+              return {
+                x: parseFloat(row[xIndex]),
+                y: parseFloat(row[yIndex]),
+              };
+            })
+            .filter(function (point) {
+              return Number.isFinite(point.x) && Number.isFinite(point.y);
+            })
+            .slice(0, 120);
+
+          new window.Chart(canvas, {
+            type: type,
+            data: {
+              datasets: [
+                {
+                  label: yKey + " vs " + xKey,
+                  data: points,
+                  backgroundColor: "rgba(31, 111, 84, 0.6)",
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              scales: {
+                x: {
+                  title: {
+                    display: true,
+                    text: xKey,
+                  },
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: yKey,
+                  },
+                },
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+            },
+          });
+        })
+        .catch(function () {
+          canvas.insertAdjacentHTML("afterend", "<p class=\"muted\">Chart unavailable.</p>");
+        });
+    });
+  }
+
+  function renderMath(container) {
+    if (!window.renderMathInElement) {
+      return;
+    }
+    window.renderMathInElement(container, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\\\[", right: "\\\\]", display: true },
+        { left: "\\\\(", right: "\\\\)", display: false },
+      ],
+      ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+    });
+  }
+
+  function enhanceRoot(container) {
+    initGlossary(container);
+    initDataPreviews(container);
+    initCharts(container);
+    renderMath(container);
+  }
+
+  function enhanceLesson(container) {
+    wrapCallouts(container);
+    wrapAnswerKeys(container);
+    addCopyButtons(container);
+    var checkboxes = enableCheckboxes(container);
+    var updateProgress = initProgress(container, checkboxes);
+    buildToc(container);
+    bindPersistedInputs(container, checkboxes, updateProgress);
+    enhanceRoot(container);
+  }
+
+  function renderMarkdownLessons() {
+    var containers = document.querySelectorAll("[data-md]");
+    if (!containers.length) {
+      return;
+    }
+    if (!window.marked) {
+      containers.forEach(function (container) {
+        container.textContent = "Markdown renderer is not available.";
+      });
+      return;
+    }
+
+    containers.forEach(function (container) {
+      var mdPath = container.getAttribute("data-md");
+      if (!mdPath) {
+        container.textContent = "No lesson path found.";
+        return;
+      }
+
+      fetch(mdPath)
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error("Failed to load lesson");
+          }
+          return res.text();
+        })
+        .then(function (markdown) {
+          container.innerHTML = window.marked.parse(markdown, {
+            gfm: true,
+            breaks: false,
+          });
+          enhanceLesson(container);
+          enhanceRoot(document);
+        })
+        .catch(function () {
+          container.textContent = "Could not load lesson content.";
+        });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    renderMarkdownLessons();
+    enhanceRoot(document);
+  });
+})();
