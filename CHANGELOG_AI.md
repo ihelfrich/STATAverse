@@ -203,3 +203,34 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2025-01-15 (cont)
+Author: Codex (GPT-5)
+Scope: Remove MGTO references, expand script library depth, add builder.
+Summary
+- Removed MGTO 80430 references across the site and search index.
+- Expanded ScriptLibrary scripts with deeper code, options, and related concepts.
+- Added 10 advanced scripts for cleaning, panel, and causal workflows.
+- Added a Script Builder page with drag/drop ordering and combined .do export.
+- Updated search index to include Script Builder.
+
+Files created
+- `ScriptLibrary/builder.html`
+- New scripts under `ScriptLibrary/scripts/` and docs under `ScriptLibrary/content/`
+
+Files modified
+- `ScriptLibrary/scripts.json`
+- `ScriptLibrary/index.html`
+- `ScriptLibrary/script.html`
+- `assets/js/site.js`
+- `assets/css/site.css`
+- `tools/build_site_index.py`
+- `assets/data/site-index.json`
+- `index.html`
+- `STATAForBusiness/index.html`
+- `STATAForBusiness/modules/00-foundations.html`
+- `STATAForBusiness/modules/01-linear-regression.html`
+- `README.md`
+
+Other AI contributions
+- None recorded in this log entry.

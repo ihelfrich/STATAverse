@@ -9,7 +9,7 @@ business and operations research.
 
 ## Current sections
 - `ZeroToHero/` Econometrics & Stata Zero-to-Hero intro sequence
-- `STATAForBusiness/` MGTO 80430 aligned path
+- `STATAForBusiness/` Graduate methods aligned path
 
 ## Local preview
 Open `index.html` directly in a browser or run a local static server.

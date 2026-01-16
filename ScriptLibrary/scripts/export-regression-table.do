@@ -1,3 +1,5 @@
+* Export regression table
+
 capture which esttab
 if _rc {
     ssc install estout, replace

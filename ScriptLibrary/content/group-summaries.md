@@ -1,26 +1,34 @@
 ## Overview
-Compute means by group and produce a collapsed dataset.
+Compute group means and generate a collapsed dataset.
 
 ## When to use
-Compare outcomes across groups (e.g., regions, store types).
+Compare outcomes across groups or time.
 
 ## Inputs
 A dataset with a grouping variable.
 
 ## Outputs
-A collapsed dataset of group-level summaries.
+Collapsed dataset or group summaries.
+
+## Options
+- Use tabstat for compact tables.
+- Use collapse for group-level datasets.
+- Use statsby for bootstrapped summaries.
 
 ## Script
 ```stata
-preserve
+* Grouped summaries
 
 bysort region: summarize sales price
 
+tabstat sales price, by(region) stat(n mean sd min max)
+
+preserve
 collapse (mean) sales price (median) wait=avg_wait_time, by(region)
 list
-
 restore
 ```
 
-## Notes
-Use preserve/restore to avoid losing the original data.
+## Related concepts
+- encode-categorical
+- panel-setup

@@ -1031,6 +1031,299 @@
     collectProgress();
   }
 
+  function initScriptBuilder() {
+    var page = document.querySelector("[data-script-builder]");
+    if (!page) {
+      return;
+    }
+    var library = page.querySelector("[data-builder-library]");
+    var dropzone = page.querySelector("[data-builder-drop]");
+    var output = page.querySelector("[data-builder-output]");
+    var searchInput = page.querySelector("#builder-search");
+    var nameInput = page.querySelector("#builder-name");
+    var exportButton = page.querySelector("[data-builder-export]");
+    var copyButton = page.querySelector("[data-builder-copy]");
+    var clearButton = page.querySelector("[data-builder-clear]");
+    var scripts = [];
+    var scriptMap = {};
+    var builderList = [];
+    var scriptCache = {};
+
+    function renderLibrary(list) {
+      library.innerHTML = "";
+      if (!list.length) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "No scripts match your search.";
+        library.appendChild(empty);
+        return;
+      }
+      list.forEach(function (item) {
+        var card = document.createElement("div");
+        card.className = "builder-item";
+        card.setAttribute("draggable", "true");
+        card.dataset.scriptId = item.id;
+
+        card.addEventListener("dragstart", function (event) {
+          event.dataTransfer.setData("text/plain", item.id);
+        });
+
+        var title = document.createElement("h4");
+        title.textContent = item.title;
+
+        var summary = document.createElement("p");
+        summary.className = "muted";
+        summary.textContent = item.summary;
+
+        var tagRow = document.createElement("div");
+        tagRow.className = "script-tags";
+        item.tags.forEach(function (tag) {
+          var span = document.createElement("span");
+          span.className = "script-tag";
+          span.textContent = tag;
+          tagRow.appendChild(span);
+        });
+
+        var addButton = document.createElement("button");
+        addButton.className = "builder-button";
+        addButton.type = "button";
+        addButton.textContent = "Add";
+        addButton.addEventListener("click", function () {
+          addToBuilder(item.id);
+        });
+
+        card.appendChild(tagRow);
+        card.appendChild(title);
+        card.appendChild(summary);
+        card.appendChild(addButton);
+        library.appendChild(card);
+      });
+    }
+
+    function renderBuilder() {
+      dropzone.innerHTML = "";
+      if (!builderList.length) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "Drag scripts here or click \"Add\".";
+        dropzone.appendChild(empty);
+        updateOutput();
+        return;
+      }
+
+      builderList.forEach(function (id, index) {
+        var item = scriptMap[id];
+        if (!item) {
+          return;
+        }
+        var row = document.createElement("div");
+        row.className = "builder-entry";
+
+        var label = document.createElement("h4");
+        label.textContent = item.title;
+
+        var actions = document.createElement("div");
+        actions.className = "builder-entry-actions";
+
+        var up = document.createElement("button");
+        up.className = "builder-button";
+        up.type = "button";
+        up.textContent = "Up";
+        up.disabled = index === 0;
+        up.addEventListener("click", function () {
+          if (index === 0) return;
+          var temp = builderList[index - 1];
+          builderList[index - 1] = builderList[index];
+          builderList[index] = temp;
+          renderBuilder();
+        });
+
+        var down = document.createElement("button");
+        down.className = "builder-button";
+        down.type = "button";
+        down.textContent = "Down";
+        down.disabled = index === builderList.length - 1;
+        down.addEventListener("click", function () {
+          if (index === builderList.length - 1) return;
+          var temp = builderList[index + 1];
+          builderList[index + 1] = builderList[index];
+          builderList[index] = temp;
+          renderBuilder();
+        });
+
+        var remove = document.createElement("button");
+        remove.className = "builder-button";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", function () {
+          builderList.splice(index, 1);
+          renderBuilder();
+        });
+
+        actions.appendChild(up);
+        actions.appendChild(down);
+        actions.appendChild(remove);
+        row.appendChild(label);
+        row.appendChild(actions);
+        dropzone.appendChild(row);
+      });
+      updateOutput();
+    }
+
+    function addToBuilder(id) {
+      builderList.push(id);
+      renderBuilder();
+    }
+
+    function filterLibrary() {
+      var query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+      var filtered = scripts.filter(function (item) {
+        if (!query) {
+          return true;
+        }
+        var haystack = [item.title, item.summary, item.tags.join(" "), item.level]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+      renderLibrary(filtered);
+    }
+
+    function getScriptContent(id) {
+      if (scriptCache[id]) {
+        return Promise.resolve(scriptCache[id]);
+      }
+      return fetch("./scripts/" + id + ".do")
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error("Failed to load script");
+          }
+          return res.text();
+        })
+        .then(function (text) {
+          scriptCache[id] = text.trim();
+          return scriptCache[id];
+        })
+        .catch(function () {
+          return "* Missing script: " + id;
+        });
+    }
+
+    function buildCombined() {
+      var date = new Date().toISOString().slice(0, 10);
+      var filename = (nameInput && nameInput.value.trim()) || "stataverse-workflow.do";
+      if (nameInput && !nameInput.value.trim()) {
+        nameInput.value = filename;
+      }
+      var header = [
+        "* Generated by STATAverse Script Builder",
+        "* Date: " + date,
+        "* File: " + filename,
+        "",
+      ];
+
+      var chain = Promise.resolve(header.join("\\n"));
+      builderList.forEach(function (id) {
+        chain = chain.then(function (acc) {
+          return getScriptContent(id).then(function (content) {
+            var title = scriptMap[id] ? scriptMap[id].title : id;
+            var block = [
+              "",
+              "* ---- " + title + " ----",
+              content,
+            ].join("\\n");
+            return acc + block;
+          });
+        });
+      });
+      return chain;
+    }
+
+    function updateOutput() {
+      if (!output) {
+        return;
+      }
+      if (!builderList.length) {
+        output.value = "";
+        return;
+      }
+      buildCombined().then(function (text) {
+        output.value = text;
+      });
+    }
+
+    if (dropzone) {
+      dropzone.addEventListener("dragover", function (event) {
+        event.preventDefault();
+      });
+      dropzone.addEventListener("drop", function (event) {
+        event.preventDefault();
+        var id = event.dataTransfer.getData("text/plain");
+        if (id) {
+          addToBuilder(id);
+        }
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener("input", filterLibrary);
+    }
+
+    if (exportButton) {
+      exportButton.addEventListener("click", function () {
+        buildCombined().then(function (text) {
+          var filename = (nameInput && nameInput.value.trim()) || "stataverse-workflow.do";
+          var blob = new Blob([text], { type: "text/plain" });
+          var url = URL.createObjectURL(blob);
+          var link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          link.click();
+          URL.revokeObjectURL(url);
+        });
+      });
+    }
+
+    if (copyButton) {
+      copyButton.addEventListener("click", function () {
+        buildCombined().then(function (text) {
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+          }
+        });
+      });
+    }
+
+    if (clearButton) {
+      clearButton.addEventListener("click", function () {
+        builderList = [];
+        renderBuilder();
+      });
+    }
+
+    fetch("./scripts.json")
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Failed to load scripts");
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        scripts = data;
+        scripts.forEach(function (item) {
+          scriptMap[item.id] = item;
+        });
+        renderLibrary(scripts);
+      })
+      .catch(function () {
+        library.innerHTML = "";
+        var error = document.createElement("p");
+        error.className = "muted";
+        error.textContent = "Script library unavailable.";
+        library.appendChild(error);
+      });
+  }
+
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) {
       return;
@@ -1096,6 +1389,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     initScriptPage();
     initScriptLibrary();
+    initScriptBuilder();
     initSiteSearch();
     initWorkspace();
     renderMarkdownLessons();

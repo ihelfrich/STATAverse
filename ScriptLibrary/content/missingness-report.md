@@ -2,23 +2,37 @@
 Summarize missing values and flag rows with any missing data.
 
 ## When to use
-Quickly understand missing patterns.
+Diagnose missing patterns before modeling.
 
 ## Inputs
 A dataset loaded in memory.
 
 ## Outputs
-Summary tables and a row-level missing indicator.
+Missingness tables and a row-level indicator.
+
+## Options
+- Use misstable patterns for detailed patterns.
+- Create a percent-missing variable for filtering.
+- Report missingness by group using bysort.
 
 ## Script
 ```stata
+* Missingness report
+
 misstable summarize
+
+* Detailed patterns (can be large)
+* misstable patterns
 
 egen miss_any = rowmiss(_all)
 label variable miss_any "Row has missing data"
 
 tab miss_any
+
+* Optional: percent missing per row
+egen miss_pct = rowmean(missing(_all))
 ```
 
-## Notes
-Use misstable patterns for more detail.
+## Related concepts
+- group-summaries
+- ols-robust-diagnostics

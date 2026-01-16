@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Script Builder | STATAverse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+  </head>
+  <body class="page-zero" data-script-builder>
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="../index.html">STATAverse</a>
+        <div class="nav-links">
+          <a href="./index.html">Scripts</a>
+          <a href="../Search/">Search</a>
+          <a href="../ZeroToHero/">Zero-to-Hero</a>
+          <a href="../STATAForBusiness/">Stata for Business</a>
+          <a href="../Workspace/">Workspace</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero hero-compact">
+        <div class="hero-copy">
+          <span class="eyebrow">Script builder</span>
+          <h1>Build multi-step do-files by dragging scripts</h1>
+          <p class="lead">
+            Drag a script card into your builder lane to create a custom, multi-step workflow.
+            Reorder items and export a combined .do file.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="builder-grid">
+          <article class="builder-panel">
+            <div class="builder-header">
+              <h3>Script library</h3>
+              <input
+                id="builder-search"
+                class="search-input"
+                type="search"
+                placeholder="Search scripts"
+                aria-label="Search scripts"
+              />
+            </div>
+            <div class="builder-list" data-builder-library></div>
+          </article>
+
+          <article class="builder-panel">
+            <div class="builder-header">
+              <h3>Your build</h3>
+              <input
+                id="builder-name"
+                class="field-input"
+                type="text"
+                placeholder="workflow-name.do"
+                aria-label="Workflow filename"
+              />
+            </div>
+            <div class="builder-dropzone" data-builder-drop>
+              <p class="muted">Drag scripts here or click "Add".</p>
+            </div>
+            <div class="builder-actions">
+              <button class="btn primary" type="button" data-builder-export>Download .do</button>
+              <button class="btn ghost" type="button" data-builder-copy>Copy to clipboard</button>
+              <button class="btn ghost" type="button" data-builder-clear>Clear</button>
+            </div>
+            <textarea class="builder-output" data-builder-output readonly></textarea>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>STATAverse | Script Builder</div>
+    </footer>
+
+    <script src="../assets/js/site.js"></script>
+  </body>
+</html>

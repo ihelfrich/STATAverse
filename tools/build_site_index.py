@@ -72,7 +72,7 @@ for title, path, tags, typ in biz_modules:
     entries.append({
         "type": typ,
         "title": f"Stata for Business: {title}",
-        "summary": "MGTO 80430 aligned module.",
+        "summary": "Graduate methods aligned module.",
         "tags": tags,
         "level": "Graduate",
         "path": path,
@@ -82,6 +82,7 @@ pages = [
     ("STATAverse Home", "index.html", ["home"]),
     ("Zero-to-Hero Overview", "ZeroToHero/index.html", ["overview"]),
     ("Script Library", "ScriptLibrary/index.html", ["scripts"]),
+    ("Script Builder", "ScriptLibrary/builder.html", ["scripts", "builder"]),
     ("Site Search", "Search/index.html", ["search"]),
     ("Workspace", "Workspace/index.html", ["workspace"]),
 ]

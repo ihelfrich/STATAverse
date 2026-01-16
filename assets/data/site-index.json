@@ -1,8 +1,8 @@
 [
   {
     "type": "script",
-    "title": "Project setup and log",
-    "summary": "Create standard folders, set session defaults, and start a log file.",
+    "title": "Project setup and logging",
+    "summary": "Initialize a clean Stata session, create folders, and start a log.",
     "tags": [
       "workflow",
       "logging",
@@ -14,7 +14,7 @@
   {
     "type": "script",
     "title": "Import a CSV file",
-    "summary": "Load a CSV with headers, then quickly inspect and save as DTA.",
+    "summary": "Load a CSV file, inspect the schema, and save a working copy.",
     "tags": [
       "import",
       "data"
@@ -25,7 +25,7 @@
   {
     "type": "script",
     "title": "Import an Excel sheet",
-    "summary": "Read a specific worksheet from an Excel file and save to DTA.",
+    "summary": "Read a specific Excel sheet and save it as a .dta.",
     "tags": [
       "import",
       "data"
@@ -36,7 +36,7 @@
   {
     "type": "script",
     "title": "Standardize variable names",
-    "summary": "Convert names to lowercase and remove spaces or symbols.",
+    "summary": "Clean variable names for consistent merges and scripts.",
     "tags": [
       "cleaning",
       "transform"
@@ -69,7 +69,7 @@
   {
     "type": "script",
     "title": "Grouped summaries",
-    "summary": "Compute means by group and produce a collapsed dataset.",
+    "summary": "Compute group means and generate a collapsed dataset.",
     "tags": [
       "summary",
       "transform"
@@ -80,7 +80,7 @@
   {
     "type": "script",
     "title": "Merge 1:1 datasets",
-    "summary": "Merge two datasets by a unique identifier and keep matched rows.",
+    "summary": "Merge two datasets by a unique identifier with diagnostics.",
     "tags": [
       "merge",
       "data"
@@ -123,8 +123,8 @@
   },
   {
     "type": "script",
-    "title": "OLS with robust SEs and diagnostics",
-    "summary": "Run OLS, test heteroskedasticity, and inspect residuals.",
+    "title": "OLS with robust diagnostics",
+    "summary": "Run OLS with robust SEs and inspect diagnostics.",
     "tags": [
       "model",
       "ols",
@@ -158,7 +158,7 @@
   {
     "type": "script",
     "title": "Loop import ACS HHI files",
-    "summary": "Import multiple ACS median household income CSVs and stack them.",
+    "summary": "Import multiple ACS median HHI CSVs and stack them.",
     "tags": [
       "import",
       "loop",
@@ -177,6 +177,118 @@
     ],
     "level": "Intermediate",
     "path": "ScriptLibrary/script.html?id=export-regression-table"
+  },
+  {
+    "type": "script",
+    "title": "Duplicates audit and cleanup",
+    "summary": "Identify duplicate records and create a duplicate flag.",
+    "tags": [
+      "cleaning",
+      "quality"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=duplicates-audit"
+  },
+  {
+    "type": "script",
+    "title": "Parse dates from strings",
+    "summary": "Convert string date columns into Stata date formats.",
+    "tags": [
+      "cleaning",
+      "transform"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=parse-dates"
+  },
+  {
+    "type": "script",
+    "title": "Winsorize outliers",
+    "summary": "Cap extreme values using winsor2 or manual cutoffs.",
+    "tags": [
+      "cleaning",
+      "quality"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=winsorize-outliers"
+  },
+  {
+    "type": "script",
+    "title": "Merge many-to-one datasets",
+    "summary": "Merge a large dataset to a lookup table.",
+    "tags": [
+      "merge",
+      "data"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=merge-m-1"
+  },
+  {
+    "type": "script",
+    "title": "Import fixed-width files",
+    "summary": "Read fixed-width data with infix and save as .dta.",
+    "tags": [
+      "import",
+      "data"
+    ],
+    "level": "Advanced",
+    "path": "ScriptLibrary/script.html?id=import-fixed-width"
+  },
+  {
+    "type": "script",
+    "title": "Fixed effects panel model",
+    "summary": "Estimate a fixed effects model with clustered SEs.",
+    "tags": [
+      "panel",
+      "model"
+    ],
+    "level": "Advanced",
+    "path": "ScriptLibrary/script.html?id=fixed-effects"
+  },
+  {
+    "type": "script",
+    "title": "Difference-in-differences template",
+    "summary": "Estimate a DiD model with two-way fixed effects.",
+    "tags": [
+      "causal",
+      "panel",
+      "model"
+    ],
+    "level": "Advanced",
+    "path": "ScriptLibrary/script.html?id=difference-in-differences"
+  },
+  {
+    "type": "script",
+    "title": "Instrumental variables (2SLS)",
+    "summary": "Estimate a 2SLS model and test instrument strength.",
+    "tags": [
+      "causal",
+      "iv",
+      "model"
+    ],
+    "level": "Advanced",
+    "path": "ScriptLibrary/script.html?id=instrumental-variables-2sls"
+  },
+  {
+    "type": "script",
+    "title": "Summary report with tables and charts",
+    "summary": "Generate descriptive stats and simple visuals.",
+    "tags": [
+      "summary",
+      "visual"
+    ],
+    "level": "Intermediate",
+    "path": "ScriptLibrary/script.html?id=summary-report"
+  },
+  {
+    "type": "script",
+    "title": "Apply labels from metadata",
+    "summary": "Apply variable labels using a metadata CSV mapping.",
+    "tags": [
+      "cleaning",
+      "metadata"
+    ],
+    "level": "Advanced",
+    "path": "ScriptLibrary/script.html?id=label-from-metadata"
   },
   {
     "type": "module",
@@ -284,7 +396,7 @@
   {
     "type": "module",
     "title": "Stata for Business: Foundations and workflow",
-    "summary": "MGTO 80430 aligned module.",
+    "summary": "Graduate methods aligned module.",
     "tags": [
       "workflow",
       "stata"
@@ -295,7 +407,7 @@
   {
     "type": "module",
     "title": "Stata for Business: Linear regression basics",
-    "summary": "MGTO 80430 aligned module.",
+    "summary": "Graduate methods aligned module.",
     "tags": [
       "ols"
     ],
@@ -331,6 +443,17 @@
     ],
     "level": "All",
     "path": "ScriptLibrary/index.html"
+  },
+  {
+    "type": "page",
+    "title": "Script Builder",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "scripts",
+      "builder"
+    ],
+    "level": "All",
+    "path": "ScriptLibrary/builder.html"
   },
   {
     "type": "page",

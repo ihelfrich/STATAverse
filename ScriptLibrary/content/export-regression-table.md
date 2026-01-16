@@ -10,8 +10,15 @@ Stored estimates from regression models.
 ## Outputs
 An RTF or CSV table in output/.
 
+## Options
+- Use esttab for quick tables, outreg2 for detailed formats.
+- Add labels and stats with esttab options.
+- Export to CSV for custom formatting.
+
 ## Script
 ```stata
+* Export regression table
+
 capture which esttab
 if _rc {
     ssc install estout, replace
@@ -26,5 +33,6 @@ estimates store model2
 esttab model1 model2 using "output/reg_table.rtf", replace se label
 ```
 
-## Notes
-Requires estout (ssc install estout).
+## Related concepts
+- ols-robust-diagnostics
+- logit-margins

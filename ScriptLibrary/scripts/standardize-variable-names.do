@@ -1,3 +1,5 @@
+* Standardize variable names
+
 rename *, lower
 
 ds
@@ -7,3 +9,6 @@ foreach v of varlist `r(varlist)' {
         capture rename `v' `clean'
     }
 }
+
+* Check for duplicate names
+* describe
