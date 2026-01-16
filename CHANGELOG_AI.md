@@ -160,3 +160,19 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2025-01-15 (cont)
+Author: Codex (GPT-5)
+Scope: Added author branding and profile section.
+Summary
+- Added an About section with profile photo, bio, credentials, and focus areas.
+- Linked to Fixed Point and ianhelfrich.com.
+- Added Scripts and About links to the main navigation and updated the footer.
+- Added profile styles.
+
+Files created
+- `assets/img/ian-helfrich.png`
+
+Files modified
+- `index.html`
+- `assets/css/site.css`

@@ -569,6 +569,62 @@ a:hover {
   font-size: 0.9rem;
 }
 
+.profile-card {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 2rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow);
+  align-items: start;
+}
+
+.profile-photo {
+  width: 100%;
+  border-radius: var(--radius);
+  object-fit: cover;
+  aspect-ratio: 4 / 5;
+  box-shadow: var(--shadow-soft);
+}
+
+.profile-content h3 {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 1.6rem;
+}
+
+.profile-title {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0;
+}
+
+.profile-links {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 1.4rem;
+}
+
+.profile-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.profile-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.6;
+}
+
+.profile-list li {
+  margin-bottom: 0.4rem;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(14px);
@@ -613,6 +669,10 @@ a:hover {
 
   .lesson {
     padding: 1.4rem;
+  }
+
+  .profile-card {
+    grid-template-columns: 1fr;
   }
 }
 
