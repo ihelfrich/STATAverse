@@ -308,3 +308,26 @@ Files modified
 
 Other AI contributions
 - None recorded in this log entry.
+
+Entry: 2026-01-15
+Author: Codex (GPT-5)
+Scope: Normalize navigation and fix Code Library doc links.
+Summary
+- Standardized global navigation order across all pages.
+- Added HTML wrappers for Code Library documentation (architecture, innovation, transformation).
+- Updated Code Library index to link to rendered docs instead of raw markdown.
+- Extended site search index with new Code Library documentation pages.
+
+Files created
+- `CodeLibrary/architecture.html`
+- `CodeLibrary/innovation.html`
+- `CodeLibrary/transformation.html`
+
+Files modified
+- `CodeLibrary/index.html`
+- `assets/data/site-index.json`
+- `tools/build_site_index.py`
+- Various navigation headers across HTML pages
+
+Other AI contributions
+- None recorded in this log entry.

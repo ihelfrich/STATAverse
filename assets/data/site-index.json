@@ -458,6 +458,42 @@
   },
   {
     "type": "page",
+    "title": "Code Library Architecture",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "code",
+      "library",
+      "docs"
+    ],
+    "level": "All",
+    "path": "CodeLibrary/architecture.html"
+  },
+  {
+    "type": "page",
+    "title": "Code Library Innovation",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "code",
+      "library",
+      "docs"
+    ],
+    "level": "All",
+    "path": "CodeLibrary/innovation.html"
+  },
+  {
+    "type": "page",
+    "title": "Code Library Transformation",
+    "summary": "Primary navigation page.",
+    "tags": [
+      "code",
+      "library",
+      "docs"
+    ],
+    "level": "All",
+    "path": "CodeLibrary/transformation.html"
+  },
+  {
+    "type": "page",
     "title": "Method Lab",
     "summary": "Primary navigation page.",
     "tags": [
