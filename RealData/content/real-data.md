@@ -2,8 +2,15 @@
 
 You get real, sourced datasets plus a lab script you can run immediately. Each section tells you what the data are, why they’re useful, and gives you a short Stata routine with prompts.
 
+[TRY] Quick setup
+- [ ] Download the zip (or clone) and `cd` to `STATAverse/RealData`.
+- [ ] Open `base_lab.do` and choose one dataset block to uncomment.
+- [ ] Run it end-to-end; your log goes to `output/logs/realdata_lab.log`.
+
+[Resource] Starter do-file
+- `base_lab.do` (in this folder) creates `output/` and `output/logs/`, sets a log, and contains a block for each dataset. Uncomment one block at a time.
+
 [TRY]
-- [ ] `cd` to `STATAverse/RealData`.
 - [ ] Download at least one dataset below (click the file link).
 - [ ] Load it in Stata, run the snippet, and write one sentence about what you see.
 

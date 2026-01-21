@@ -604,5 +604,17 @@
     ],
     "level": "All",
     "path": "RealData/#dataset-4-daily-markets-and-rates-fred"
+  },
+  {
+    "type": "project",
+    "title": "Real Data base lab do-file",
+    "summary": "Plug-and-play Stata skeleton (base_lab.do) for RealData vault with logging and folder setup.",
+    "tags": [
+      "starter",
+      "workflow",
+      "lab"
+    ],
+    "level": "All",
+    "path": "RealData/base_lab.do"
   }
 ]

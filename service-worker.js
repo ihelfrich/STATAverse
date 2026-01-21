@@ -6,6 +6,7 @@ const CORE_ASSETS = [
   "assets/data/site-index.json",
   "RealData/index.html",
   "RealData/content/real-data.md",
+  "RealData/base_lab.do",
   "RealData/data/fred_markets_rates_daily.csv",
 ];
 
