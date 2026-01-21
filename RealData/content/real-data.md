@@ -1,23 +1,20 @@
-## What's here (and why it matters)
+## Downloads (one click)
 
-You get real, sourced datasets plus a lab script you can run immediately. Each section tells you what the data are, why they’re useful, and gives you a short Stata routine with prompts.
+- Full bundle (all data + starter do-file): [realdata_bundle.zip](./realdata_bundle.zip)
+- Starter do-file only: [base_lab.do](./base_lab.do)
+- Individual datasets:
+  - [worldbank_panel.csv](./data/worldbank_panel.csv)
+  - [fred_macro_monthly.csv](./data/fred_macro_monthly.csv)
+  - [usgs_earthquakes_us_2019_2023.csv](./data/usgs_earthquakes_us_2019_2023.csv)
+  - [fred_markets_rates_daily.csv](./data/fred_markets_rates_daily.csv)
 
-[TRY] Quick setup
-- [ ] Download the zip (or clone) and `cd` to `STATAverse/RealData`.
-- [ ] Open `base_lab.do` and choose one dataset block to uncomment.
-- [ ] Run it end-to-end; your log goes to `output/logs/realdata_lab.log`.
+## How to run (plug-and-play)
 
-[Resource] Starter do-file
-- `base_lab.do` (in this folder) creates `output/` and `output/logs/`, sets a log, and contains a block for each dataset. Uncomment one block at a time.
+1) Unzip and `cd` into `STATAverse/RealData`.  
+2) Open `base_lab.do` in Stata. Uncomment one dataset block.  
+3) Run the file. Logs go to `output/logs/realdata_lab.log`; figures and exports go to `output/`.
 
-[TRY]
-- [ ] Download at least one dataset below (click the file link).
-- [ ] Load it in Stata, run the snippet, and write one sentence about what you see.
-
-[CHECK]
-- `summarize` should run without errors.
-- Keys should pass `isid` where noted.
-- Graphs should render.
+Everything is already referenced with relative paths. No manual edits needed unless you move folders.
 
 ---
 
@@ -37,8 +34,7 @@ You get real, sourced datasets plus a lab script you can run immediately. Each s
 
 **Source:** World Bank Indicator API
 
-[TRY]
-Run a baseline FE regression and check whether higher capital formation is associated with GDP per capita. Then add year FE.
+**Lab snippet** (baseline FE; then add year FE)
 
 ```stata
 import delimited using "./data/worldbank_panel.csv", clear
@@ -52,12 +48,6 @@ gen ln_gdp_pc = ln(gdp_pc_const2015)
 * Fixed effects
 xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy, fe vce(cluster country_iso3)
 ```
-
-[PREDICT]
-What sign do you expect on `gross_capital_formation_pct_gdp`? Why?
-
-[CHECK]
-If the coefficient is negative or insignificant for some periods, that can signal convergence or measurement gaps. Try adding year FE.
 
 ```stata
 xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy i.year, fe vce(cluster country_iso3)
@@ -80,8 +70,7 @@ xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy i.year, fe vce(c
 
 **Source:** Federal Reserve Economic Data (FRED)
 
-[TRY]
-Plot unemployment and the federal funds rate together, then check correlations and run a quick AR(1).
+**Lab snippet** (plot + correlations + AR(1))
 
 ```stata
 import delimited using "./data/fred_macro_monthly.csv", clear
@@ -100,9 +89,6 @@ corr unemployment_rate fed_funds_rate cpi industrial_production
 * Simple AR(1) on unemployment
 arima unemployment_rate, arima(1,0,0)
 ```
-
-[CHECK]
-You should see the post-1980 policy regime shifts in the series. Try `corrgram` on unemployment.
 
 ```stata
 corrgram unemployment_rate
@@ -124,8 +110,7 @@ corrgram unemployment_rate
 
 **Source:** USGS Earthquake API
 
-[TRY]
-Aggregate events to a monthly series and analyze intensity. Then try a Poisson regression on counts.
+**Lab snippet** (monthly counts + Poisson)
 
 ```stata
 import delimited using "./data/usgs_earthquakes_us_2019_2023.csv", clear
@@ -147,12 +132,6 @@ line quake_count mdate
 * Poisson on counts with month fixed effects
 poisson quake_count i.month
 ```
-
-[PREDICT]
-Do you think quake counts trend upward or stay stable? Explain your expectation.
-
-[CHECK]
-If the series is spiky, try a rolling mean or log scale.
 
 ```stata
 tsline quake_count, lcolor(navy)
@@ -176,8 +155,7 @@ tsline quake_count, lcolor(navy)
 
 **Source:** FRED (daily series)
 
-[TRY]
-Build daily returns and run a quick beta regression of S&P on rates and VIX.
+**Lab snippet** (daily returns + rates/VIX)
 
 ```stata
 import delimited using "./data/fred_markets_rates_daily.csv", clear
@@ -193,23 +171,7 @@ gen r_sp500 = D.ln_sp500
 regress r_sp500 c.D.treasury_10y c.D.fed_funds c.D.t_bill_3m vix
 ```
 
-[PREDICT]
-What sign do you expect on rate changes for equity returns? Why?
-
-[CHECK]
 If coefficients look noisy, try weekly aggregation: `collapse (mean) sp500 vix treasury_10y fed_funds t_bill_3m, by(mdate_week)`.
-
----
-
-## Novel research angles (real + fresh)
-
-- **Earthquake intensity as shock:** Use monthly quake counts as an exogenous shock series and test macro sensitivity.
-- **Growth + health feedbacks:** In the World Bank panel, test whether health improvements precede or follow income growth.
-- **Policy regime shifts:** In the FRED series, identify breakpoints around the Volcker period and post-2008.
-- **Market stress tests:** In the daily markets data, test equity sensitivity to rate shocks and VIX spikes.
-
-[REFLECT]
-Which dataset do you trust most for causal inference, and why?
 
 ---
 
