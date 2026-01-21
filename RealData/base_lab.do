@@ -59,7 +59,7 @@ if "`dataset'" == "" {
 if "`dataset'" == "worldbank" {
     import delimited using "`data'/worldbank_panel.csv", clear
 
-    * Basic integrity checks
+    * Integrity checks
     isid country_iso3 year
     summarize gdp_pc_const2015 life_expectancy population
     assert gdp_pc_const2015 > 0
@@ -68,12 +68,15 @@ if "`dataset'" == "worldbank" {
     gen ln_gdp_pc = ln(gdp_pc_const2015)
     xtset country_iso3 year
 
-    * Baseline model
+    * Baseline FE model
     xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy, fe vce(cluster country_iso3)
 
-    * Optional additions
+    * Optional: year effects and extra controls
     // xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy i.year, fe vce(cluster country_iso3)
-    // esttab using "`out'/tables/worldbank_fe.rtf", replace
+    // gen ln_pop = ln(population)
+    // xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy ln_pop i.year, fe vce(cluster country_iso3)
+
+    * Optional: quick visualization (change ISO3)
     // twoway (line ln_gdp_pc year if country_iso3=="USA"), title("USA: log GDP per capita")
     // graph export "`out'/figures/worldbank_usa_ln_gdp.png", replace
 }
@@ -89,7 +92,7 @@ if "`dataset'" == "fred_macro" {
     * Quick audit
     summarize unemployment_rate cpi fed_funds_rate
 
-    * Baseline time series checks
+    * Baseline plots and correlations
     line unemployment_rate mdate || line fed_funds_rate mdate, legend(order(1 "Unemp" 2 "FedFunds"))
     corr unemployment_rate fed_funds_rate cpi industrial_production
 
@@ -98,7 +101,7 @@ if "`dataset'" == "fred_macro" {
 
     * Optional diagnostics
     // corrgram unemployment_rate
-    // estat ic
+    // dfuller unemployment_rate, lags(12)
     // graph export "`out'/figures/fred_unemp_fedfunds.png", replace
 }
 

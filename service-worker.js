@@ -1,4 +1,4 @@
-const CACHE_NAME = "stataverse-v5";
+const CACHE_NAME = "stataverse-v6";
 const CORE_ASSETS = [
   "index.html",
   "assets/css/site.css",
@@ -7,6 +7,7 @@ const CORE_ASSETS = [
   "RealData/index.html",
   "RealData/content/real-data.md",
   "RealData/base_lab.do",
+  "RealData/realdata_bundle.zip",
   "RealData/data/fred_markets_rates_daily.csv",
 ];
 

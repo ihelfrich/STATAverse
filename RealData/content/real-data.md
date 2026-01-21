@@ -1,12 +1,31 @@
 ## Downloads
 
-- Full bundle (all data + starter do-file): [realdata_bundle.zip](./realdata_bundle.zip)
-- Starter do-file only: [base_lab.do](./base_lab.do)
-- Individual datasets:
-  - [worldbank_panel.csv](./data/worldbank_panel.csv)
-  - [fred_macro_monthly.csv](./data/fred_macro_monthly.csv)
-  - [usgs_earthquakes_us_2019_2023.csv](./data/usgs_earthquakes_us_2019_2023.csv)
-  - [fred_markets_rates_daily.csv](./data/fred_markets_rates_daily.csv)
+<div class="download-grid">
+  <a class="download-card" href="./realdata_bundle.zip" download>
+    <div class="download-title">Full bundle (zip)</div>
+    <div class="download-note">All datasets + base_lab.do</div>
+  </a>
+  <a class="download-card" href="./base_lab.do" download>
+    <div class="download-title">base_lab.do</div>
+    <div class="download-note">Starter do-file only</div>
+  </a>
+  <a class="download-card" href="./data/worldbank_panel.csv" download>
+    <div class="download-title">worldbank_panel.csv</div>
+    <div class="download-note">Country-year panel</div>
+  </a>
+  <a class="download-card" href="./data/fred_macro_monthly.csv" download>
+    <div class="download-title">fred_macro_monthly.csv</div>
+    <div class="download-note">Monthly macro series</div>
+  </a>
+  <a class="download-card" href="./data/usgs_earthquakes_us_2019_2023.csv" download>
+    <div class="download-title">usgs_earthquakes_us_2019_2023.csv</div>
+    <div class="download-note">Event-level quakes</div>
+  </a>
+  <a class="download-card" href="./data/fred_markets_rates_daily.csv" download>
+    <div class="download-title">fred_markets_rates_daily.csv</div>
+    <div class="download-note">Daily markets & rates</div>
+  </a>
+</div>
 
 ## Quick start
 
@@ -174,7 +193,3 @@ regress r_sp500 c.D.treasury_10y c.D.fed_funds c.D.t_bill_3m vix
 If coefficients look noisy, try weekly aggregation: `collapse (mean) sp500 vix treasury_10y fed_funds t_bill_3m, by(mdate_week)`.
 
 ---
-
-## Sources
-
-World Bank, FRED, USGS.
