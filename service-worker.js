@@ -1,9 +1,11 @@
-const CACHE_NAME = "stataverse-v3";
+const CACHE_NAME = "stataverse-v4";
 const CORE_ASSETS = [
   "index.html",
   "assets/css/site.css",
   "assets/js/site.js",
   "assets/data/site-index.json",
+  "RealData/index.html",
+  "RealData/content/real-data.md",
 ];
 
 self.addEventListener("install", (event) => {
