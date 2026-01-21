@@ -175,10 +175,8 @@ If coefficients look noisy, try weekly aggregation: `collapse (mean) sp500 vix t
 
 ---
 
-## Data provenance and citations
+## Data sources
 
-- World Bank indicators: `https://api.worldbank.org/v2/`
-- FRED macro series: `https://fred.stlouisfed.org/`
-- USGS Earthquake API: `https://earthquake.usgs.gov/fdsnws/event/1/`
-
-If you want more real data, say the domain and I will add a new dataset with a full Stata lab.
+- World Bank indicator API
+- Federal Reserve Economic Data (FRED)
+- USGS Earthquake API
