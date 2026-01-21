@@ -1,4 +1,4 @@
-## Downloads (one click)
+## Downloads
 
 - Full bundle (all data + starter do-file): [realdata_bundle.zip](./realdata_bundle.zip)
 - Starter do-file only: [base_lab.do](./base_lab.do)
@@ -8,7 +8,7 @@
   - [usgs_earthquakes_us_2019_2023.csv](./data/usgs_earthquakes_us_2019_2023.csv)
   - [fred_markets_rates_daily.csv](./data/fred_markets_rates_daily.csv)
 
-## How to run (plug-and-play)
+## Quick start
 
 1) Unzip and `cd` into `STATAverse/RealData`.  
 2) Open `base_lab.do` in Stata. Uncomment one dataset block.  
@@ -23,7 +23,7 @@ Everything is already referenced with relative paths. No manual edits needed unl
 **File:** `RealData/data/worldbank_panel.csv`  
 **Download:** [worldbank_panel.csv](./data/worldbank_panel.csv)  
 **Unit:** country-year  
-**Use cases:** growth regressions, panel FE, convergence, IV ideas, cross-country heterogeneity.
+**Focus:** growth regressions, panel FE, cross-country heterogeneity.
 
 **Variables**
 - `gdp_pc_const2015` (GDP per capita, constant 2015 USD)
@@ -34,7 +34,7 @@ Everything is already referenced with relative paths. No manual edits needed unl
 
 **Source:** World Bank Indicator API
 
-**Lab snippet** (baseline FE; then add year FE)
+**Starter code** (baseline FE; then add year FE)
 
 ```stata
 import delimited using "./data/worldbank_panel.csv", clear
@@ -60,7 +60,7 @@ xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy i.year, fe vce(c
 **File:** `RealData/data/fred_macro_monthly.csv`  
 **Download:** [fred_macro_monthly.csv](./data/fred_macro_monthly.csv)  
 **Unit:** month  
-**Use cases:** time series diagnostics, ARIMA, policy analysis, macro forecasting.
+**Focus:** time series diagnostics, ARIMA, policy analysis.
 
 **Variables**
 - `unemployment_rate`
@@ -70,7 +70,7 @@ xtreg ln_gdp_pc gross_capital_formation_pct_gdp life_expectancy i.year, fe vce(c
 
 **Source:** Federal Reserve Economic Data (FRED)
 
-**Lab snippet** (plot + correlations + AR(1))
+**Starter code** (plot + correlations + AR(1))
 
 ```stata
 import delimited using "./data/fred_macro_monthly.csv", clear
@@ -101,7 +101,7 @@ corrgram unemployment_rate
 **File:** `RealData/data/usgs_earthquakes_us_2019_2023.csv`  
 **Download:** [usgs_earthquakes_us_2019_2023.csv](./data/usgs_earthquakes_us_2019_2023.csv)  
 **Unit:** event  
-**Use cases:** count models, event studies, risk economics, shock identification.
+**Focus:** count models, event studies, shock identification.
 
 **Variables**
 - `magnitude`, `depth_km`, `significance`
@@ -110,7 +110,7 @@ corrgram unemployment_rate
 
 **Source:** USGS Earthquake API
 
-**Lab snippet** (monthly counts + Poisson)
+**Starter code** (monthly counts + Poisson)
 
 ```stata
 import delimited using "./data/usgs_earthquakes_us_2019_2023.csv", clear
@@ -144,7 +144,7 @@ tsline quake_count, lcolor(navy)
 **File:** `RealData/data/fred_markets_rates_daily.csv`  
 **Download:** [fred_markets_rates_daily.csv](./data/fred_markets_rates_daily.csv)  
 **Unit:** day  
-**Use cases:** finance labs—market/risk series, rate shocks, simple factor regressions.
+**Focus:** market risk, rate shocks, simple factor regressions.
 
 **Variables**
 - `sp500` (index level)
@@ -155,7 +155,7 @@ tsline quake_count, lcolor(navy)
 
 **Source:** FRED (daily series)
 
-**Lab snippet** (daily returns + rates/VIX)
+**Starter code** (daily returns + rates/VIX)
 
 ```stata
 import delimited using "./data/fred_markets_rates_daily.csv", clear
@@ -175,8 +175,6 @@ If coefficients look noisy, try weekly aggregation: `collapse (mean) sp500 vix t
 
 ---
 
-## Data sources
+## Sources
 
-- World Bank indicator API
-- Federal Reserve Economic Data (FRED)
-- USGS Earthquake API
+World Bank, FRED, USGS.
