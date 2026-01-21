@@ -556,5 +556,41 @@
     ],
     "level": "All",
     "path": "Readings/index.html"
+  },
+  {
+    "type": "dataset",
+    "title": "World Bank country-year panel",
+    "summary": "Country-year panel with GDP per capita, life expectancy, literacy, population, and capital formation.",
+    "tags": [
+      "panel",
+      "macro",
+      "growth"
+    ],
+    "level": "All",
+    "path": "RealData/#dataset-1-world-bank-country-year-panel"
+  },
+  {
+    "type": "dataset",
+    "title": "FRED US macro monthly series",
+    "summary": "Monthly US macro series: unemployment, CPI, federal funds rate, industrial production.",
+    "tags": [
+      "time series",
+      "macro",
+      "forecasting"
+    ],
+    "level": "All",
+    "path": "RealData/#dataset-2-fred-us-macro-time-series"
+  },
+  {
+    "type": "dataset",
+    "title": "USGS earthquake events (US, 2019-2023)",
+    "summary": "Event-level earthquake data for the US with magnitude, depth, and timestamps.",
+    "tags": [
+      "events",
+      "shocks",
+      "risk"
+    ],
+    "level": "All",
+    "path": "RealData/#dataset-3-usgs-earthquake-events-us-2019-2023"
   }
 ]
