@@ -592,5 +592,17 @@
     ],
     "level": "All",
     "path": "RealData/#dataset-3-usgs-earthquake-events-us-2019-2023"
+  },
+  {
+    "type": "dataset",
+    "title": "Daily markets and rates (FRED)",
+    "summary": "Daily SP500, VIX, 10Y, fed funds, and 3M T-bill for finance labs.",
+    "tags": [
+      "markets",
+      "rates",
+      "finance"
+    ],
+    "level": "All",
+    "path": "RealData/#dataset-4-daily-markets-and-rates-fred"
   }
 ]
