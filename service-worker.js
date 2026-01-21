@@ -1,4 +1,4 @@
-const CACHE_NAME = "stataverse-v6";
+const CACHE_NAME = "stataverse-v7";
 const CORE_ASSETS = [
   "index.html",
   "assets/css/site.css",
