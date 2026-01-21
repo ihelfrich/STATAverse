@@ -72,7 +72,14 @@ a:hover {
 }
 
 .site-header {
-  padding: 1.5rem 6vw 0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 1rem 6vw;
+  background: rgba(252, 251, 248, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(27, 27, 25, 0.06);
 }
 
 .nav {
@@ -91,8 +98,21 @@ a:hover {
 
 .nav-links {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.6rem;
   font-weight: 500;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.nav-links a:hover {
+  background: rgba(87, 94, 207, 0.12);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .hero {
