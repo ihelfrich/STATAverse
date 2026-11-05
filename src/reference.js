@@ -119,7 +119,7 @@ export const REFERENCE = [
       ],
       [
         'import delimited using "study.csv", clear',
-        "Loads a built-in dataset: study.csv, wages.csv or clinic.csv. Arbitrary imports require Stata.",
+        "Reloads a built-in dataset or a reviewed file from your local import library. Use Import your data to add CSV/TSV text; a command cannot read arbitrary disk paths or URLs. Exported imports explicitly declare the reviewed column types.",
       ],
       [
         "* comment\n// comment\n/* comment */\n/// continuation",

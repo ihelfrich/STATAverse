@@ -44,7 +44,16 @@ test("workspace imports and exports both reading and practice work", async ({
   const downloaded = JSON.parse(
     await fs.readFile(await (await waiting).path(), "utf8"),
   );
-  expect(downloaded).toEqual(backup);
+  expect(downloaded).toEqual({
+    ...backup,
+    practice: {
+      ...backup.practice,
+      version: 3,
+      imports: {},
+      mode: "guided",
+      activeDataset: "study",
+    },
+  });
   await page.goto("/Learn/");
   await expect(page.locator("#student-notes")).toHaveValue("Rows are students");
   await expect(page.locator("#results")).toContainText("describe");

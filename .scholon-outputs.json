@@ -278,6 +278,31 @@
       ],
       "status": "candidate_tested",
       "depends_on": []
+    },
+    {
+      "id": "stataverse.csv-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/csv-reference.json",
+      "kind": "results",
+      "title": "Independent delimited-text parsing fixtures",
+      "summary": "Thirty synthetic comma, tab and semicolon cases generated and round-tripped with Python csv",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Finite parser fixtures; native Stata import remains unverified because Java is unavailable"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "tools/csv-reference.py",
+        "tests/csv.test.mjs",
+        "tests/browser/import.spec.js",
+        "docs/red-team-review.md"
+      ]
     }
   ]
 }

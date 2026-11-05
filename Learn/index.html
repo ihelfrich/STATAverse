@@ -63,6 +63,9 @@
           <span>Open practice</span><span aria-hidden="true">↗</span
           ><small>Choose data and write your own commands.</small>
         </button>
+        <button type="button" id="import-open" class="quiet-button import-open">
+          Import your data
+        </button>
         <div class="sidebar-foot">
           <span class="status-dot" aria-hidden="true"></span
           ><span id="save-status">Progress saved on this device</span>
@@ -135,7 +138,9 @@
         </div>
         <div class="dataset-meta">
           <span id="dataset-count"></span><span id="dataset-unit"></span
-          ><span class="synthetic-badge">Synthetic data</span>
+          ><span id="dataset-origin" class="synthetic-badge"
+            >Synthetic data</span
+          >
           <span id="preserve-status" class="preserve-status" hidden></span>
         </div>
         <div class="view-tabs" role="tablist" aria-label="Observation views">
@@ -184,6 +189,11 @@
           tabindex="0"
         >
           <div id="data-table" class="data-table-wrap"></div>
+          <nav
+            id="data-pagination"
+            aria-label="Data browser pages"
+            hidden
+          ></nav>
           <div id="variable-detail" class="variable-detail">
             Select a column name to inspect its type, label and missing values.
           </div>
@@ -274,13 +284,15 @@
       <p>
         Practice with three synthetic datasets, a supported set of commands,
         ordinary numeric missing values, and linear regression with conventional
-        or HC1 robust standard errors.
+        or HC1 robust standard errors. Import your own UTF-8 CSV, TSV or
+        semicolon-delimited text after reviewing its variable names and types.
       </p>
       <p>
         The full Stata language requires Stata. This workspace does not
-        implement arbitrary file imports, macros, loops, factor variables,
-        weighted estimation, clustered inference, panel estimators, merges,
-        reshape or user-written commands. Unsupported syntax produces an error.
+        implement arbitrary disk paths, Excel or Stata binary files, macros,
+        loops, factor variables, weighted estimation, clustered inference, panel
+        estimators, merges, reshape or user-written commands. Unsupported syntax
+        produces an error.
       </p>
       <p>
         Browser numeric variables use double precision. Data-changing commands
@@ -296,13 +308,85 @@
         permanent file backup.
       </p>
       <p>
-        A session retains up to 500 successful commands, the last 50 undo states
-        and 100 variables. The Results view retains the last 200 entries. Graphs
-        and regressions require absolute values no greater than 1e100. Rescale
-        larger values. Your progress and notes are stored in this browser when
-        storage is available. They are not uploaded. Clearing browser data
-        removes them; export a copy you want to keep.
+        A session retains up to 500 successful commands and up to 50 undo states
+        and 100 variables. The Results view retains up to 200 entries; larger
+        outputs retain fewer entries to limit memory use. Long list and
+        frequency tables show their first 200 rows, with complete retained
+        tables in the results download. Graphs and regressions require absolute
+        values no greater than 1e100. Rescale larger values. Your progress and
+        notes are stored in this browser when storage is available. They are not
+        uploaded. Clearing browser data removes them; export a copy you want to
+        keep.
       </p>
+      <p>
+        Each import is limited to 1 MB, 5,000 observations, 50 columns and
+        100,000 cells. Keep up to three imports, with at most 1.5 MB of original
+        source text in total. Larger datasets retain fewer undo states to limit
+        memory use. The data browser displays 50 rows per page; calculations use
+        the full applicable sample.
+      </p>
+    </dialog>
+    <dialog id="import-dialog" aria-labelledby="import-title">
+      <div class="dialog-header">
+        <h2 id="import-title">Import a dataset</h2>
+        <button type="button" class="quiet-button" data-close>Close ×</button>
+      </div>
+      <p>
+        Preview a CSV, TSV or semicolon-delimited file. It stays in this browser
+        and is not uploaded.
+      </p>
+      <details class="csv-limits helper">
+        <summary>File requirements and storage limits</summary>
+        <p>
+          Use UTF-8 text, up to 1 MB, 5,000 observations, 50 columns and 100,000
+          cells per file. Keep up to three imported datasets, with original
+          sources totaling 1.5 MB. Your source and import decisions remain
+          available for export.
+        </p>
+      </details>
+      <label class="file-label" for="csv-file"
+        >Choose a text data file<input
+          id="csv-file"
+          type="file"
+          accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"
+      /></label>
+      <div id="csv-settings" hidden>
+        <div class="csv-settings-grid">
+          <label
+            >Delimiter<select id="csv-delimiter">
+              <option value="auto">Detect automatically</option>
+              <option value=",">Comma</option>
+              <option value="tab">Tab</option>
+              <option value=";">Semicolon</option>
+            </select></label
+          >
+          <label class="csv-checkbox"
+            ><input type="checkbox" id="csv-header" checked />First record
+            contains headings</label
+          >
+          <label
+            >Missing-value markers<input
+              type="text"
+              id="csv-missing"
+              maxlength="300"
+              placeholder="Optional: NA, N/A"
+              aria-describedby="csv-missing-help"
+          /></label>
+        </div>
+        <p id="csv-missing-help" class="helper">
+          Separate markers with commas; they match exactly in every column.
+          Blank numeric fields and numeric dots are missing by default.
+        </p>
+      </div>
+      <p id="csv-details" class="csv-details"></p>
+      <p id="csv-status" class="csv-status" role="status"></p>
+      <div id="csv-preview" class="csv-preview"></div>
+      <div id="csv-columns" class="csv-columns"></div>
+      <div class="import-footer">
+        <button type="button" id="csv-confirm" class="primary-button" disabled>
+          Import into open practice
+        </button>
+      </div>
     </dialog>
     <dialog id="export-dialog" aria-labelledby="export-title">
       <div class="dialog-header">
@@ -325,11 +409,21 @@
         ><button type="button" class="quiet-button" id="download-notes">
           Results and notes (.txt)
         </button>
+        <button type="button" class="quiet-button" id="download-source" hidden>
+          Original imported source (.txt)
+        </button>
       </div>
       <p class="helper">
         The original CSV is the starting data. The current CSV includes your
         changes. Failed commands are excluded from the do-file and retained in
         the results download.
+      </p>
+      <p id="import-export-note" class="helper" hidden>
+        For imported data, the starting CSV contains your reviewed names and
+        types. The complete ZIP also retains the untouched source text and
+        import decisions. It includes only imported sources used by this
+        session. The Stata do-file declares numeric and string columns
+        explicitly.
       </p>
       <p id="export-status" role="status"></p>
     </dialog>

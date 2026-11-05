@@ -68,6 +68,17 @@ try {
     path: "docs/verification/screenshots/curriculum-desktop.png",
     fullPage: true,
   });
+  await page.locator("#import-open").click();
+  await page
+    .locator("#csv-file")
+    .setInputFiles("tests/fixtures/import-demo.csv");
+  await page.locator("#csv-missing").fill("NA");
+  await page.locator("#csv-missing").press("Tab");
+  await page.screenshot({
+    path: "docs/verification/screenshots/import-desktop.png",
+    fullPage: false,
+  });
+  await page.locator("#import-dialog [data-close]").click();
   await page.goto(root + "Labs/");
   await page.locator("#coefficient-comparison tbody tr").first().waitFor();
   await page.screenshot({
@@ -140,6 +151,17 @@ try {
     path: "docs/verification/screenshots/curriculum-mobile.png",
     fullPage: false,
   });
+  await phone.locator("#import-open").click();
+  await phone
+    .locator("#csv-file")
+    .setInputFiles("tests/fixtures/import-demo.csv");
+  await phone.locator("#csv-missing").fill("NA");
+  await phone.locator("#csv-missing").press("Tab");
+  await phone.screenshot({
+    path: "docs/verification/screenshots/import-mobile.png",
+    fullPage: false,
+  });
+  await phone.locator("#import-dialog [data-close]").click();
   await phone.goto(root + "Labs/");
   await phone.locator('[data-lab-jump="plots"]').click();
   assert.ok(

@@ -2,6 +2,7 @@ import { DATASETS, createDataset } from "./datasets.js";
 import { StataError, compileExpression } from "./expression.js";
 import { commandBlocks } from "./do-file.js";
 import { dataChanges } from "./data-changes.js";
+import { nativeImportOptions } from "./import-library.js";
 import { missing, summarize, regress, correlation } from "./statistics.js";
 export { StataError };
 const aliases = {
@@ -204,11 +205,21 @@ function newVariable(name, data) {
     );
 }
 export class PracticeSession {
-  constructor(dataset = "study") {
+  constructor(dataset = "study", customDatasets = {}) {
+    this.customDatasets = customDatasets;
     this.load(dataset);
   }
+  originalDataset(id) {
+    if (Object.hasOwn(DATASETS, id)) return createDataset(id);
+    if (Object.hasOwn(this.customDatasets, id))
+      return clone(this.customDatasets[id].data);
+    throw new StataError(
+      "This dataset is not available in the local practice library.",
+      601,
+    );
+  }
   load(dataset) {
-    this.data = createDataset(dataset);
+    this.data = this.originalDataset(dataset);
     this.model = null;
     this.graph = null;
     this.history = [];
@@ -265,7 +276,22 @@ export class PracticeSession {
     try {
       const result = this.dispatch(command);
       this.undoStack.push(before);
-      if (this.undoStack.length > 50) this.undoStack.shift();
+      // Keep the small teaching-data limit while bounding copies of larger imports.
+      const cellCost = (snapshot) =>
+        snapshot.data.rows.length * Math.max(1, snapshot.data.columns.length) +
+        (snapshot.preservedData
+          ? snapshot.preservedData.rows.length *
+            Math.max(1, snapshot.preservedData.columns.length)
+          : 0);
+      let retainedCells = this.undoStack.reduce(
+        (total, snapshot) => total + cellCost(snapshot),
+        0,
+      );
+      while (
+        this.undoStack.length > 1 &&
+        (this.undoStack.length > 50 || retainedCells > 750000)
+      )
+        retainedCells -= cellCost(this.undoStack.shift());
       this.history.push(command);
       this.last = {
         ...result,
@@ -343,19 +369,29 @@ export class PracticeSession {
     }
     if (verb === "import") {
       const m = body.match(/^delimited\s+using\s+"([A-Za-z0-9_-]+\.csv)"$/);
-      if (!m || options !== "clear")
+      if (!m)
         throw new StataError(
           'Use import delimited using "study.csv", clear (or wages.csv or clinic.csv).',
           198,
-          "Browser practice loads only its three built-in teaching datasets. Exported do-files import the downloaded CSV in Stata.",
+          "Browser commands load built-in or locally imported datasets from this workspace. Choose Import data to add a file; a command cannot read an arbitrary disk path or URL.",
         );
-      const entry = Object.values(DATASETS).find((d) => d.file === m[1]);
+      const entry = [
+        ...Object.values(DATASETS),
+        ...Object.values(this.customDatasets),
+      ].find((d) => d.file === m[1]);
       if (!entry)
         throw new StataError(
           `Dataset ${m[1]} is not available in browser practice.`,
           601,
         );
-      this.data = createDataset(entry.id);
+      const original = this.originalDataset(entry.id);
+      if (options !== "clear" && options !== nativeImportOptions(original))
+        throw new StataError(
+          "These import options do not match the supported local dataset schema.",
+          198,
+          "Use the clear option to reload the agreed local import, or the exact import command supplied in its Stata export. Change column decisions in the import preview.",
+        );
+      this.data = original;
       this.model = null;
       this.graph = null;
       return {

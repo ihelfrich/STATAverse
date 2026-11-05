@@ -4,6 +4,7 @@ import { LESSONS, TRACKS, assessStep } from "../src/lessons.js";
 import { assessAnswer } from "../src/lesson-schema.js";
 import { PracticeSession } from "../src/engine.js";
 import { explainCoefficient, resultHTML } from "../src/render.js";
+import { nativeImportCommand } from "../src/import-library.js";
 
 test("curriculum responses agree with computed results and every mistake has useful feedback", () => {
   assert.equal(new Set(LESSONS.map((l) => l.id)).size, LESSONS.length);
@@ -95,6 +96,9 @@ test("reproducibility and restoration checks reject a matching answer without th
   const s = new PracticeSession();
   let result = s.run("count if !missing(score, hours, attendance)").at(-1);
   assert.equal(assessStep(doFile, 3, s, result).passed, false);
+  s.run(nativeImportCommand("study.csv", s.data));
+  result = s.run("count if !missing(score, hours, attendance)").at(-1);
+  assert.equal(assessStep(doFile, 3, s, result).passed, true);
   const preserved = LESSONS.find((l) => l.id === "temporary-samples");
   s.run(
     'keep if group == "A"\npreserve\nimport delimited using "study.csv", clear',

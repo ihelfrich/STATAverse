@@ -12,9 +12,21 @@ import {
 import { renderGraph } from "./graph.js";
 import { zipSync, strToU8 } from "fflate";
 import { registerOffline } from "./offline.js";
-import { PRACTICE_KEY, emptyStore, parseStore } from "./persistence.js";
+import {
+  PRACTICE_KEY,
+  MAX_STORE_BYTES,
+  emptyStore,
+  parseStore,
+} from "./persistence.js";
+import {
+  importCatalog,
+  validateImportLibrary,
+  nativeImportCommand,
+} from "./import-library.js";
+import { setupImportDialog } from "./import-ui.js";
 import { createCommandEditor } from "./editor.js";
 import { changeSummary } from "./data-changes.js";
+import { historyReceipt, retainResults } from "./output-history.js";
 const $ = (selector) => document.querySelector(selector);
 const STORAGE = PRACTICE_KEY;
 let saved = emptyStore(),
@@ -33,7 +45,15 @@ try {
     "Browser storage is unavailable or saved practice data could not be read. Any saved copy has been left in place. You can still practice; export work you want to keep.",
   );
 }
-let mode = "guided",
+let customDatasets = importCatalog(saved.imports);
+const catalog = () => ({ ...DATASETS, ...customDatasets });
+const originalData = (id) =>
+  Object.hasOwn(DATASETS, id)
+    ? createDataset(id)
+    : structuredClone(customDatasets[id].data);
+let mode = LESSONS.some((l) => l.id === location.hash.slice(1))
+    ? "guided"
+    : saved.mode,
   lesson =
     LESSONS.find((l) => l.id === location.hash.slice(1)) ||
     LESSONS.find((l) => l.id === saved.current) ||
@@ -46,7 +66,8 @@ let stepIndex = 0,
   answerPassed = false,
   activeTab = "data",
   selectedAnswer = null,
-  initialDataset = lesson.dataset;
+  initialDataset = mode === "guided" ? lesson.dataset : saved.activeDataset,
+  dataPage = 0;
 let selectedTrack = lesson.track,
   hintCount = 0,
   lessonFinished = false;
@@ -81,9 +102,14 @@ function persist() {
     saved.free ??= {};
     saved.free[initialDataset] = data;
   }
+  saved.mode = mode;
+  if (mode === "free") saved.activeDataset = initialDataset;
   if (!storageOK) return;
   try {
-    localStorage.setItem(STORAGE, JSON.stringify(saved));
+    const text = JSON.stringify(saved);
+    if (new TextEncoder().encode(text).length > MAX_STORE_BYTES)
+      throw new Error("Storage size limit");
+    localStorage.setItem(STORAGE, text);
     $("#save-status").textContent = "Progress saved on this device";
   } catch {
     storageWarning(
@@ -93,7 +119,8 @@ function persist() {
 }
 function loadSession() {
   const record = entry();
-  session = new PracticeSession(initialDataset);
+  session = new PracticeSession(initialDataset, customDatasets);
+  dataPage = 0;
   results = [];
   timeline = [];
   stepIndex =
@@ -110,8 +137,8 @@ function loadSession() {
   ) {
     for (const command of record.history) {
       const output = session.run(command);
-      results.push(...output);
-      timeline.push(...output);
+      results = retainResults([...results, ...output]);
+      timeline.push(...output.map(historyReceipt));
       if (output.some((r) => r.kind === "error")) {
         storageWarning(
           "Some saved commands could not be replayed. Practice stopped at the first error; inspect Results before continuing.",
@@ -183,7 +210,7 @@ function renderLesson() {
   if (free) {
     $("#lesson-content").innerHTML =
       `<div class="lesson-topline"><span>Open practice</span><span>At your own pace</span></div><h2 id="lesson-title">Work through your own questions.</h2><p class="lesson-explanation">Choose a dataset, write commands and inspect the results. Your data stay in this browser. Command help lists the syntax supported here.</p><label for="dataset-select" class="eyebrow">Practice dataset</label><select id="dataset-select" class="dataset-select">${Object.values(
-        DATASETS,
+        catalog(),
       )
         .map(
           (d) =>
@@ -191,12 +218,14 @@ function renderLesson() {
         )
         .join(
           "",
-        )}</select><div class="task-card"><strong>A place to begin</strong><p>Inspect the data with <code>describe</code>, then choose a summary, graph or model. Use Undo to inspect the effect of a change.</p></div>`;
+        )}</select>${customDatasets[initialDataset] ? '<button type="button" id="remove-import" class="text-button remove-import">Remove this imported dataset</button>' : ""}<div class="task-card"><strong>A place to begin</strong><p>Inspect the data with <code>describe</code>, then choose a summary, graph or model. Use Undo to inspect the effect of a change.</p></div>`;
     $("#dataset-select").addEventListener("change", (e) => {
       persist();
       initialDataset = e.target.value;
       loadSession();
+      persist();
     });
+    $("#remove-import")?.addEventListener("click", removeImport);
     return;
   }
   const step = lesson.steps[stepIndex],
@@ -278,7 +307,7 @@ function renderData() {
         c,
       ]),
     ),
-    metadata = DATASETS[data.id],
+    metadata = catalog()[data.id],
     selected = new Set(
       results.at(-1)?.kind === "count" ? results.at(-1).selected : [],
     ),
@@ -289,9 +318,39 @@ function renderData() {
   $("#dataset-count").textContent =
     `${data.rows.length} observations · ${data.columns.length} variables`;
   $("#dataset-unit").textContent = metadata.unit;
+  $("#dataset-origin").textContent =
+    metadata.synthetic === false ? "Imported locally" : "Synthetic data";
+  $("#download-source").hidden = !customDatasets[initialDataset];
+  $("#import-export-note").hidden = !usedImports().length;
   $("#data-description").textContent = metadata.description;
+  const pages = Math.max(1, Math.ceil(data.rows.length / 50));
+  dataPage = Math.min(dataPage, pages - 1);
+  $("#data-pagination").hidden = data.rows.length <= 50;
+  $("#data-pagination").innerHTML =
+    `<button type="button" id="data-prev" class="quiet-button" ${dataPage === 0 ? "disabled" : ""}>Previous rows</button><label>Page <input id="data-page" type="number" min="1" max="${pages}" value="${dataPage + 1}" aria-label="Data page"></label><span>of ${pages} · rows ${dataPage * 50 + 1}–${Math.min((dataPage + 1) * 50, data.rows.length)} of ${data.rows.length}</span><button type="button" id="data-next" class="quiet-button" ${dataPage === pages - 1 ? "disabled" : ""}>Next rows</button>`;
+  $("#data-prev").addEventListener("click", () => {
+    dataPage--;
+    renderData();
+  });
+  $("#data-next").addEventListener("click", () => {
+    dataPage++;
+    renderData();
+  });
+  $("#data-page").addEventListener("change", (event) => {
+    const page = Number(event.target.value);
+    if (Number.isInteger(page) && page >= 1 && page <= pages)
+      dataPage = page - 1;
+    renderData();
+  });
   $("#data-table").innerHTML = data.columns.length
-    ? `<table class="data-table"><caption class="sr-only">${h(metadata.title)}. A dot indicates a numeric missing value.</caption><thead><tr><th scope="col">Obs.</th>${data.columns.map((c) => `<th scope="col" class="${c.name === newColumn ? "new-column" : ""}"><button type="button" data-variable="${h(c.name)}" aria-label="Inspect variable ${h(c.name)}">${h(c.name)}</button></th>`).join("")}</tr></thead><tbody>${data.rows.map((r, i) => `<tr class="${selected.has(i) ? "highlighted" : ""}"><td>${i + 1}</td>${data.columns.map((c) => `<td class="${changedCells.has(`${i + 1}:${c.name}`) ? "changed-cell " : ""}${r[c.name] === null || r[c.name] === "" ? "missing" : c.name === newColumn ? "new-column" : ""}">${r[c.name] === null ? '<span aria-label="missing">.</span>' : typeof r[c.name] === "number" ? fmt(r[c.name]) : h(r[c.name])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+    ? `<table class="data-table"><caption class="sr-only">${h(metadata.title)}. A dot indicates a numeric missing value.</caption><thead><tr><th scope="col">Obs.</th>${data.columns.map((c) => `<th scope="col" class="${c.name === newColumn ? "new-column" : ""}"><button type="button" data-variable="${h(c.name)}" aria-label="Inspect variable ${h(c.name)}">${h(c.name)}</button></th>`).join("")}</tr></thead><tbody>${data.rows
+        .map((r, i) => ({ r, i }))
+        .slice(dataPage * 50, (dataPage + 1) * 50)
+        .map(
+          ({ r, i }) =>
+            `<tr class="${selected.has(i) ? "highlighted" : ""}"><td>${i + 1}</td>${data.columns.map((c) => `<td class="${changedCells.has(`${i + 1}:${c.name}`) ? "changed-cell " : ""}${r[c.name] === null || r[c.name] === "" ? "missing" : c.name === newColumn ? "new-column" : ""}">${r[c.name] === null ? '<span aria-label="missing">.</span>' : typeof r[c.name] === "number" ? fmt(r[c.name]) : h(r[c.name])}</td>`).join("")}</tr>`,
+        )
+        .join("")}</tbody></table>`
     : '<div class="empty-state">No data in memory. Import a practice dataset or use Undo.</div>';
   $("#data-table")
     .querySelectorAll("[data-variable]")
@@ -423,11 +482,15 @@ function run(scope = "all") {
     updateCheck("The editor is empty. Type a command or load the example.");
     return;
   }
-  results.push(...output);
-  timeline.push(...output);
+  results = retainResults([...results, ...output]);
+  timeline.push(...output.map(historyReceipt));
   if (timeline.length > 500) timeline = timeline.slice(-500);
-  if (results.length > 200) results = results.slice(-200);
   const last = output.at(-1);
+  if (last.kind === "count" && last.selected.length)
+    dataPage = Math.floor(last.selected[0] / 50);
+  else if (last.effect?.cells.length)
+    dataPage = Math.floor((last.effect.cells[0].observation - 1) / 50);
+  else if (last.changed) dataPage = 0;
   if (last.source)
     editor.mark(last.source.from, last.source.to, last.kind === "error");
   if (scope === "current" && !range?.selection && last.kind !== "error")
@@ -575,8 +638,10 @@ document.querySelectorAll("[data-workspace-jump]").forEach((button) =>
 $("#free-mode").addEventListener("click", () => {
   persist();
   mode = "free";
-  initialDataset = "study";
+  initialDataset = saved.activeDataset;
+  history.replaceState(null, "", "#practice");
   loadSession();
+  persist();
   announce("Open practice. Choose a dataset and write your own commands.");
 });
 $("#restart").addEventListener("click", () => {
@@ -668,10 +733,81 @@ for (const name of ["data", "results", "graph", "history"]) {
     }
   });
 }
-for (const name of ["help", "limits", "export"])
+for (const name of ["help", "limits", "export", "import"])
   $(`#${name}-open`).addEventListener("click", () =>
     $(`#${name}-dialog`).showModal(),
   );
+function usedImports() {
+  const used = new Set(customDatasets[initialDataset] ? [initialDataset] : []);
+  for (const command of session.history) {
+    const file = command.match(/^import\s+delimited\s+using\s+"([^"]+)"/)?.[1];
+    const entry = Object.values(customDatasets).find(
+      (dataset) => dataset.file === file,
+    );
+    if (entry) used.add(entry.id);
+  }
+  return [...used].map((id) => customDatasets[id]);
+}
+function removeImport() {
+  const id = initialDataset,
+    dataset = customDatasets[id];
+  if (!dataset) return;
+  const references = [
+    ...Object.entries(saved.lessons),
+    ...Object.entries(saved.free).filter(([key]) => key !== id),
+  ].filter(([, record]) =>
+    record.history?.some((command) => command.includes(`"${dataset.file}"`)),
+  );
+  if (references.length) {
+    announce(
+      "This source is used in other saved sessions. Export and reset those sessions before removing their input file.",
+    );
+    $("#remove-import").textContent =
+      "Used by other sessions — export and reset them first";
+    return;
+  }
+  if (
+    !confirm(
+      `Remove ${dataset.title} and its saved open-practice commands and notes from this browser? Export its complete Stata project first if you want to keep a copy.`,
+    )
+  )
+    return;
+  persist();
+  delete saved.imports[id];
+  delete saved.free[id];
+  customDatasets = importCatalog(saved.imports);
+  initialDataset = "study";
+  saved.activeDataset = "study";
+  loadSession();
+  persist();
+  announce(
+    "Imported dataset removed from this browser. Other work remains available.",
+  );
+}
+setupImportDialog($("#import-dialog"), (record) => {
+  persist();
+  let id;
+  do {
+    id = "local_" + crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+  } while (Object.hasOwn(saved.imports, id));
+  const imports = validateImportLibrary({ ...saved.imports, [id]: record });
+  if (
+    new TextEncoder().encode(JSON.stringify({ ...saved, imports })).length >
+    MAX_STORE_BYTES
+  )
+    throw new Error(
+      "This import would exceed the 4 MB saved-work limit. Export and remove older imported work first.",
+    );
+  saved.imports = imports;
+  customDatasets = importCatalog(imports);
+  mode = "free";
+  initialDataset = id;
+  history.replaceState(null, "", "#practice");
+  loadSession();
+  editor.setValue("describe");
+  persist();
+  announce(`Imported ${record.filename}. Review the data, then run a command.`);
+});
 document
   .querySelectorAll("[data-close]")
   .forEach((button) =>
@@ -695,16 +831,26 @@ function download(filename, text, type = "text/plain;charset=utf-8") {
     `Prepared ${filename}. Check your browser downloads.`;
 }
 function doFile() {
+  const dataset = catalog()[initialDataset];
+  const history = session.history.map((command) => {
+    const file = command.match(/^import\s+delimited\s+using\s+"([^"]+)"/)?.[1];
+    const entry = Object.values(catalog()).find((d) => d.file === file);
+    return entry
+      ? nativeImportCommand(entry.file, originalData(entry.id))
+      : command;
+  });
   return [
-    "* STATAverse browser practice — synthetic teaching data",
+    "* STATAverse browser practice",
+    "* study.csv, wages.csv and clinic.csv are synthetic teaching data.",
+    "* Any local_*.csv files contain your supplied data with reviewed import decisions.",
     "* Put this do-file beside the downloaded original CSV files.",
     "* In Stata, cd to that folder before running this file.",
     "* Browser practice is a subset; output formatting may differ.",
     "clear all",
     "set more off",
-    `import delimited using "${DATASETS[initialDataset].file}", clear`,
+    nativeImportCommand(dataset.file, originalData(initialDataset)),
     "",
-    ...session.history,
+    ...history,
     ...(session.preservedData
       ? [
           "",
@@ -720,14 +866,14 @@ function notesText() {
   return [
     "STATAverse practice",
     mode === "guided" ? lesson.title : "Open practice",
-    `Dataset: ${DATASETS[initialDataset].title}`,
+    `Dataset: ${catalog()[initialDataset].title}`,
     "",
     "Notes",
     $("#student-notes").value,
     "",
     "Results (including errors)",
     ...results.map((r) =>
-      resultHTML(r, 0)
+      resultHTML(r, 0, { complete: true })
         .replace(/<[^>]+>/g, " ")
         .replaceAll("&lt;", "<")
         .replaceAll("&gt;", ">")
@@ -737,11 +883,20 @@ function notesText() {
 }
 $("#download-original").addEventListener("click", () =>
   download(
-    DATASETS[initialDataset].file,
-    toCSV(createDataset(initialDataset)),
+    catalog()[initialDataset].file,
+    toCSV(originalData(initialDataset)),
     "text/csv;charset=utf-8",
   ),
 );
+$("#download-source").addEventListener("click", () => {
+  const dataset = customDatasets[initialDataset];
+  if (dataset)
+    download(
+      `${dataset.id}-source.txt`,
+      dataset.record.source,
+      "text/plain;charset=utf-8",
+    );
+});
 $("#download-current").addEventListener("click", () =>
   download("current-data.csv", toCSV(session.data), "text/csv;charset=utf-8"),
 );
@@ -764,11 +919,19 @@ zipButton.addEventListener("click", () => {
     "current-data.csv": strToU8(toCSV(session.data)),
     "editor-draft.do": strToU8(editor.getValue()),
     "README.txt": strToU8(
-      "STATAverse synthetic practice project\n\nExtract this ZIP. In Stata, change the working directory to this folder and run analysis.do.\nThe three named CSV files are original practice datasets; current-data.csv contains your final browser data.\nThe do-file begins with the original dataset and repeats successful commands. Failed commands are recorded in notes.txt. editor-draft.do preserves the current editor text, including comments and commands that may not have run.\nAll data are synthetic. No causal or population claims are implied.\n",
+      "STATAverse practice project\n\nExtract this ZIP. In Stata, change the working directory to this folder and run analysis.do.\nThe study.csv, wages.csv and clinic.csv files are synthetic teaching datasets. Any local_*.csv files are your supplied data after the recorded import decisions; they have not been independently verified. current-data.csv contains the final working data.\nFor each imported source used by this session, a -source.txt file retains its untouched UTF-8 text and a -import.json file records the original filename, delimiter, headings, missing-value markers, variable names and types. The normalized starting CSV is used by analysis.do. Other imported datasets in your library are excluded.\nThe do-file repeats successful commands, with explicit numeric/string import columns. Failed commands are recorded in notes.txt. editor-draft.do preserves the current editor text, including comments and commands that may not have run. If a preserved copy is active, the do-file discards that temporary copy at completion to retain the working data.\nStata CSV import depends on its installed runtime; browser preview does not establish native import success on every installation. Original header labels are recorded in the import metadata and source, rather than injected as executable Stata code.\n",
     ),
   };
   for (const dataset of Object.values(DATASETS))
     files[dataset.file] = strToU8(toCSV(createDataset(dataset.id)));
+  for (const dataset of usedImports()) {
+    files[dataset.file] = strToU8(toCSV(dataset.data));
+    files[`${dataset.id}-source.txt`] = strToU8(dataset.record.source);
+    const { source, ...metadata } = dataset.record;
+    files[`${dataset.id}-import.json`] = strToU8(
+      JSON.stringify(metadata, null, 2) + "\n",
+    );
+  }
   download(
     "stataverse-project.zip",
     zipSync(files, { level: 6 }),

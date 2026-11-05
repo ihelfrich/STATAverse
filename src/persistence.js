@@ -1,10 +1,15 @@
 import { LESSONS } from "./lessons.js";
 import { DATASETS } from "./datasets.js";
+import { validateImportLibrary } from "./import-library.js";
 export const PRACTICE_KEY = "stataverse:practice:v2";
+export const MAX_STORE_BYTES = 4000000;
 export const emptyStore = () => ({
-  version: 2,
+  version: 3,
   lessons: {},
   free: {},
+  imports: {},
+  mode: "guided",
+  activeDataset: "study",
   current: LESSONS[0].id,
 });
 const object = (value) =>
@@ -48,27 +53,41 @@ function record(value, stepCount) {
 export function validateStore(value) {
   if (
     !object(value) ||
-    value.version !== 2 ||
+    ![2, 3].includes(value.version) ||
     !object(value.lessons) ||
     !object(value.free ?? {})
   )
     throw new Error("The practice backup has an unsupported format.");
   const result = emptyStore();
+  result.imports = validateImportLibrary(value.imports ?? {});
   for (const lesson of LESSONS)
     if (Object.hasOwn(value.lessons, lesson.id))
       result.lessons[lesson.id] = record(
         value.lessons[lesson.id],
         lesson.steps.length,
       );
-  for (const id of Object.keys(DATASETS))
+  for (const id of [...Object.keys(DATASETS), ...Object.keys(result.imports)])
     if (Object.hasOwn(value.free ?? {}, id))
       result.free[id] = record(value.free[id], 1);
   if (LESSONS.some((l) => l.id === value.current))
     result.current = value.current;
+  if (value.mode === "free") result.mode = "free";
+  if (
+    Object.hasOwn(DATASETS, value.activeDataset) ||
+    Object.hasOwn(result.imports, value.activeDataset)
+  )
+    result.activeDataset = value.activeDataset;
+  if (new TextEncoder().encode(JSON.stringify(result)).length > MAX_STORE_BYTES)
+    throw new Error(
+      "The saved practice data exceed the 4 MB limit. Export individual projects before removing older work.",
+    );
   return result;
 }
 export function parseStore(text) {
-  if (typeof text !== "string" || text.length > 2000000)
+  if (
+    typeof text !== "string" ||
+    new TextEncoder().encode(text).length > MAX_STORE_BYTES
+  )
     throw new Error("The saved practice data exceed the supported size.");
   return validateStore(JSON.parse(text));
 }

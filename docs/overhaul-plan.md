@@ -42,3 +42,9 @@ The existing native Stata archive, legacy routes and browser progress remain mig
 The practice path now has 16 lessons and 68 steps organized into four selectable tracks. The original lesson IDs and step positions remain stable. New work covers observation order, do-files, temporary samples, group comparisons, estimation/prediction sample accounting, log and quadratic specifications, interaction terms and diagnosis of deliberately flawed drafts. Each step has two stages of help; 15 steps require a numerical result rather than selecting a displayed answer. Worked repairs adapt when the flawed draft has already created its variables.
 
 Native verification covers every canonical lesson sequence and a separate preserve/restore behavior sequence. The next major implementation work remains richer local data handling and additional advanced interactive methods. This increment does not complete the active five-million-token goal.
+
+## Local import increment
+
+Local CSV/TSV and semicolon-delimited data now enter through an explicit preview with type, name and missing-value decisions. Sources are retained, saved-work schema v3 migrates older work, and project exports include only the imported sources used by the current session. Larger data use a paged browser and bounded output/undo retention. Verification includes independent CSV fixtures and real browser import, recovery, export, removal and keyboard paths.
+
+The next advanced increment develops repeated-sampling inference under independent, heteroskedastic and clustered errors. The design must distinguish one realized interval from its repeated-sample coverage, show Monte Carlo uncertainty, preserve seeded reproducibility and cancellation, and compare calculations with independent R/native Stata references. The bounded prior-work lookup for this capability timed out; that is incomplete catalog coverage, not evidence of absence.

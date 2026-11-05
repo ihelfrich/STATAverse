@@ -19,7 +19,7 @@ const value = (v) => (typeof v === "number" ? fmt(v) : v === null ? "." : h(v));
 export function table(headers, rows) {
   return `<div class="result-table-wrap"><table class="result-table"><thead><tr>${headers.map((x) => `<th scope="col">${h(x)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((x) => `<td>${x}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
-export function resultHTML(result, index) {
+export function resultHTML(result, index, { complete = false } = {}) {
   const r = result;
   let body = "";
   if (r.kind === "error")
@@ -30,10 +30,17 @@ export function resultHTML(result, index) {
       r.columns.map((c) => [h(c.name), h(c.type), h(c.label)]),
     )}`;
   else if (r.kind === "list")
-    body = table(
-      ["Obs.", ...r.names],
-      r.rows.map((row) => [row.position, ...row.values.map(value)]),
-    );
+    body =
+      table(
+        ["Obs.", ...r.names],
+        (complete ? r.rows : r.rows.slice(0, 200)).map((row) => [
+          row.position,
+          ...row.values.map(value),
+        ]),
+      ) +
+      (!complete && r.rows.length > 200
+        ? `<p class="result-annotation">Showing the first 200 of ${r.rows.length} listed observations. Use an in range to inspect another section, or download Results and notes for the complete retained output.</p>`
+        : "");
   else if (r.kind === "summarize")
     body =
       table(
@@ -56,13 +63,17 @@ export function resultHTML(result, index) {
     body =
       table(
         [r.name, "Frequency", "Percent", "Cumulative"],
-        r.entries.map((e) => [
+        (complete ? r.entries : r.entries.slice(0, 200)).map((e) => [
           value(e.value),
           e.count,
           fmt(e.percent, 2),
           fmt(e.cumulative, 2),
         ]),
-      ) + `<p class="result-text">Total observations included: ${r.n}.</p>`;
+      ) +
+      `<p class="result-text">Total observations included: ${r.n}.</p>` +
+      (!complete && r.entries.length > 200
+        ? `<p class="result-annotation">Showing the first 200 of ${r.entries.length} categories. Percentages use all included observations. Download Results and notes for the complete retained table.</p>`
+        : "");
   else if (r.kind === "codebook")
     body = r.variables
       .map(

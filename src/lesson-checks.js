@@ -160,7 +160,7 @@ export function assessStep(lesson, index, session, result) {
     step.requireReload &&
     !session.history.some((command) =>
       new RegExp(
-        `^import\\s+delimited\\s+using\\s+"${step.requireReload.replaceAll(".", "\\.")}"\\s*,\\s*clear$`,
+        `^import\\s+delimited\\s+using\\s+"${step.requireReload.replaceAll(".", "\\.")}"\\s*,\\s*clear(?:\\s|$)`,
       ).test(command),
     )
   )

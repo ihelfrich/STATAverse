@@ -1985,3 +1985,230 @@ dialog .reference-group {
     font-size: 10px;
   }
 }
+
+/* Local data review and larger dataset navigation. */
+.import-open {
+  margin: 12px 0;
+  width: 100%;
+}
+.remove-import {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: left;
+}
+#import-dialog {
+  width: min(1000px, calc(100vw - 32px));
+}
+.file-label {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+  font-weight: 600;
+}
+.file-label input {
+  font: inherit;
+  max-width: 100%;
+}
+.csv-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) 1fr 1.4fr;
+  gap: 16px;
+  align-items: end;
+}
+.csv-settings-grid label,
+.csv-column label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #334c60;
+}
+.csv-settings-grid input,
+.csv-settings-grid select,
+.csv-column input,
+.csv-column select {
+  min-height: 40px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #aab8c4;
+  background: #fff;
+  color: #183044;
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+}
+.csv-settings-grid .csv-checkbox {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+}
+.csv-checkbox input {
+  width: 18px;
+}
+.csv-details {
+  font-weight: 600;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.csv-status {
+  color: #235c52;
+  font-size: 13px;
+}
+.csv-status.error,
+.csv-conversion-error {
+  color: #982c25;
+}
+.csv-columns {
+  border-top: 1px solid #d5dfe7;
+  margin-top: 20px;
+}
+.csv-limits summary {
+  cursor: pointer;
+}
+.csv-limits p {
+  margin: 8px 0;
+}
+.csv-columns:empty {
+  border: 0;
+}
+.csv-column {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(130px, 1fr) minmax(
+      160px,
+      1fr
+    );
+  gap: 10px 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid #d5dfe7;
+}
+.csv-source-name {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.csv-source-name span {
+  font-size: 11px;
+  color: #506473;
+}
+.csv-column-reason,
+.csv-conversion-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.csv-column-reason {
+  color: #506473;
+}
+.csv-preview {
+  overflow: auto;
+  max-height: 360px;
+  margin-top: 20px;
+  border: 1px solid #d5dfe7;
+}
+.csv-preview:empty {
+  display: none;
+}
+.csv-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+}
+.csv-preview th,
+.csv-preview td {
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid #d5dfe7;
+  white-space: pre-wrap;
+  min-width: 100px;
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+.csv-preview th {
+  background: #f1f5f8;
+}
+.csv-preview small {
+  display: block;
+  color: #506473;
+  font:
+    11px/1.6 system-ui,
+    sans-serif;
+}
+.csv-preview caption {
+  padding: 12px;
+  text-align: left;
+  font:
+    600 13px/1.5 system-ui,
+    sans-serif;
+}
+.csv-preview .invalid-cell {
+  background: #fff0ec;
+  color: #982c25;
+}
+.empty-cell {
+  color: #576a77;
+  font-style: italic;
+}
+.import-footer {
+  position: sticky;
+  bottom: -24px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  border-top: 1px solid #d5dfe7;
+  background: #fff;
+  padding: 16px 0;
+  margin-top: 20px;
+}
+.import-footer span {
+  font-size: 12px;
+  color: #506473;
+}
+#data-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  font-size: 12px;
+  color: #385368;
+}
+#data-pagination input {
+  width: 55px;
+  padding: 6px;
+  border: 1px solid #aab8c4;
+  border-radius: 4px;
+  font: inherit;
+}
+@media (max-width: 1000px) {
+  .import-open {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+}
+@media (max-width: 720px) {
+  .csv-settings-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .csv-column {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .csv-source-name {
+    grid-column: 1 / -1;
+  }
+  .import-footer {
+    display: grid;
+    bottom: -20px;
+  }
+  .import-footer .primary-button {
+    width: 100%;
+  }
+}

@@ -67,12 +67,27 @@ Native receipts cover default settings of nine advanced scripts, both applied pr
 
 ## Remaining limits
 
-- This is a browser subset, with no licensed Stata backend or arbitrary uploads. Formatting, histogram bins, storage types, collinearity omission and post-mutation estimation-state behavior differ from native Stata.
+- This is a browser subset, with no licensed Stata backend. Bounded local delimited-text imports are available; arbitrary disk/URL reads and other Stata formats are unsupported. Formatting, histogram bins, storage types, collinearity omission and post-mutation estimation-state behavior differ from native Stata.
 - Installed Stata lacks Java. Numerical/scalar checks use native `input`; applied-project checks disclose substitution of `insheet` for `import delimited`. Ten PNG exports reported environment failures. Graph construction and numerical execution completed, but an unmodified exported project has not completed an end-to-end Java-backed import/export run here.
 - Work is local browser storage. Exported backups provide portable recovery. Clearing storage without a backup removes saved work. Progress is learning assistance, not an authenticated assessment record.
 - Numerical fixtures bound observed discrepancies, not global floating-point error. Probability routines are approximate; tolerances are in the numerical contract.
 - Automated accessibility checks and visual inspection do not replace testing with students, screen readers and varied assistive technology. No learning-effect claim is made.
 - Local changes are reviewable on the working branch. No push, public deployment or live-site verification has occurred.
+
+### Continuing overhaul: local imports and larger samples
+
+Students can now review and import bounded UTF-8 delimited files, use their own data in open practice, resume commands after reloading and export the original source alongside the reviewed starting data. The implementation retains all three synthetic teaching datasets.
+
+- **Silent coercion:** leading-zero identifiers and unsafe integer literals remain text by default. Explicit numeric conversion identifies invalid values by source line and blocks confirmation. Missing-value markers require an explicit decision. Tests cover overflow, underflow, mixed values and prototype/reserved names.
+- **Malformed files:** ambiguous separators require selection; ragged records, unmatched quotes, invalid UTF-8 and resource limits leave the working dataset and editor intact. Thirty independent Python CSV fixtures exercise valid quoting, delimiters and newlines.
+- **Source loss or overbroad export:** source bytes, including BOM and line endings, are checked directly in exported ZIPs. Project exports exclude unrelated imported datasets; complete workspace backups deliberately include the library. A first test decoded the source with a BOM-stripping helper, producing a false failure; its assertion was corrected to compare bytes.
+- **Removal dependencies:** an imported source referenced by another saved session cannot be removed. Removal requires confirmation, can be canceled, and frees a slot only after removing the selected source and its own open-practice work. Browser checks cover this and the three-file limit.
+- **Keyboard focus:** replacing column controls after each edit discarded focus and interrupted Tab navigation. The importer now updates existing controls in place. A browser case edits a name, tabs to its type, changes the type and tabs to the next name.
+- **Mobile reading order:** the first layout buried data beneath introductory text and all column controls. Requirements now sit in a disclosure, the converted-data preview precedes the column decisions, and the footer no longer repeats a retention message.
+- **Larger datasets:** pagination changes the view, not the calculation sample. Tests count across page boundaries and verify highlights. Long result tables disclose truncation, while complete retained results can be exported. Separate lightweight receipts and estimated cell budgets limit history/undo accumulation.
+- **Migration and recovery:** schema v3 migrates existing v2 work under the same key. Imported sources and decisions reconstruct through validation; workspace round trips retain the selected dataset, successful commands and original text.
+
+Verification: 62 unit tests, 78 desktop/mobile browser cases, 567 local links and project-prefix/offline/cache checks passed. Formatting and whitespace checks passed. Screenshots cover the import preview on both screen sizes. Native CSV import is still blocked by the installed Java runtime; explicit Stata import options were checked against the official manual, not misrepresented as a successful native run. No classroom or manual screen-reader validation is claimed.
 
 ### Continuing overhaul: curriculum, diagnosis and temporary data
 

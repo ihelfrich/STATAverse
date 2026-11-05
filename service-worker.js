@@ -1,6 +1,6 @@
 const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
-const CACHE_NAME = CACHE_PREFIX + "v12";
+const CACHE_NAME = CACHE_PREFIX + "v13";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
