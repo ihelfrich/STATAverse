@@ -1,4 +1,10 @@
 import { PRACTICE_KEY, parseStore, validateBackup } from "./persistence.js";
+import {
+  LAB_PROGRESS_KEY,
+  parseLabProgress,
+  withLabProgressLock,
+} from "./lab-progress.js";
+import { DATA_INVESTIGATIONS } from "./labs/data-investigations.js";
 const $ = (selector) => document.querySelector(selector);
 const fields = ["name", "role", "focus"];
 const status = $("#workspace-status");
@@ -11,11 +17,13 @@ function keys() {
     (key) =>
       key === "stataverse:user" ||
       key === PRACTICE_KEY ||
+      key === LAB_PROGRESS_KEY ||
       key.startsWith("stataverse:progress:"),
   );
 }
 function collect() {
   const raw = localStorage.getItem(PRACTICE_KEY);
+  const labs = localStorage.getItem(LAB_PROGRESS_KEY);
   return validateBackup({
     profile: JSON.parse(localStorage.getItem("stataverse:user") || "{}"),
     progress: Object.fromEntries(
@@ -24,6 +32,7 @@ function collect() {
         .map((key) => [key, localStorage.getItem(key)]),
     ),
     ...(raw ? { practice: parseStore(raw) } : {}),
+    ...(labs !== null ? { labs: parseLabProgress(labs) } : {}),
   });
 }
 function refresh() {
@@ -33,11 +42,14 @@ function refresh() {
       $(`#workspace-${field}`).value = data.profile[field];
     const legacy = Object.values(data.progress).map(JSON.parse),
       guided = Object.values(data.practice?.lessons || {}),
+      labs = Object.entries(data.labs?.completed || {}),
       free = Object.values(data.practice?.free || {});
-    $("[data-modules-count]").textContent = legacy.length + guided.length;
+    $("[data-modules-count]").textContent =
+      legacy.length + guided.length + labs.length;
     $("[data-tasks-count]").textContent =
       legacy.reduce((n, item) => n + item.checks.filter(Boolean).length, 0) +
-      guided.reduce((n, item) => n + item.completed.length, 0);
+      guided.reduce((n, item) => n + item.completed.length, 0) +
+      labs.reduce((n, [, steps]) => n + steps.length, 0);
     $("[data-notes-count]").textContent =
       legacy.reduce(
         (n, item) =>
@@ -45,7 +57,15 @@ function refresh() {
         0,
       ) + [...guided, ...free].filter((item) => item.note.trim()).length;
     $("[data-progress-detail]").textContent =
-      `${guided.length} practice lessons, ${free.length} open datasets and ${legacy.length} reading modules saved on this device. Reading checkboxes are self-reported; practice steps require command and interpretation checks.`;
+      `${guided.length} practice lessons, ${free.length} open datasets, ${labs.length} lab investigations and ${legacy.length} reading modules saved on this device. Reading checkboxes are self-reported; practice and investigation tasks use supported checks rather than secure assessments.`;
+    $("#lab-resume-links").replaceChildren();
+    for (const [id, steps] of labs) {
+      const guide = DATA_INVESTIGATIONS.find((g) => g.id === id),
+        link = document.createElement("a");
+      link.href = `../Labs/Data/#investigation=${id}`;
+      link.textContent = `${guide.title}: ${steps.length}/${guide.steps.length} tasks checked`;
+      $("#lab-resume-links").append(link);
+    }
   } catch (error) {
     report(
       `Saved work could not be read: ${error.message} Existing data have been left in place.`,
@@ -128,6 +148,7 @@ $("#workspace-import").addEventListener("change", async (event) => {
       ["stataverse:user", JSON.stringify(data.profile)],
       ...Object.entries(data.progress),
       ...(data.practice ? [[PRACTICE_KEY, JSON.stringify(data.practice)]] : []),
+      ...(data.labs ? [[LAB_PROGRESS_KEY, JSON.stringify(data.labs)]] : []),
     ];
     const overwrites = changes.filter(
       ([key]) => localStorage.getItem(key) !== null,
@@ -141,16 +162,16 @@ $("#workspace-import").addEventListener("change", async (event) => {
       report("Import canceled. Your saved work is unchanged.");
       return;
     }
-    writeAtomically(changes);
+    await withLabProgressLock(() => writeAtomically(changes));
     refresh();
     report(
-      "Backup imported. Reload any open practice tab to use the imported work.",
+      "Backup imported. Reload any open practice or lab tab to use the imported work.",
     );
   } catch (error) {
     report(`Import failed: ${error.message}`, true);
   }
 });
-$("[data-clear-notes]").addEventListener("click", () => {
+$("[data-clear-notes]").addEventListener("click", async () => {
   if (
     !confirm(
       "Clear all STATAverse practice, notes and profile on this device? Export a backup first if you want to keep them.",
@@ -158,7 +179,9 @@ $("[data-clear-notes]").addEventListener("click", () => {
   )
     return;
   try {
-    writeAtomically(keys().map((key) => [key, null]));
+    await withLabProgressLock(() =>
+      writeAtomically(keys().map((key) => [key, null])),
+    );
     refresh();
     report(
       "STATAverse saved work cleared on this device. Reload any open practice tab.",

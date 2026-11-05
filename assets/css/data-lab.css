@@ -609,3 +609,219 @@
   overflow-wrap: anywhere;
   color: #263f5e;
 }
+
+.investigation-bar {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(220px, 350px) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 20px;
+  padding: 14px 0 20px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.investigation-bar > label {
+  font-weight: 650;
+  color: #34516f;
+}
+.investigation-bar select,
+.investigation-task select {
+  background: white;
+  color: #304e75;
+  border: 1px solid #bbc9dc;
+  padding: 9px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+.investigation-bar p {
+  margin: 0;
+  color: #52677f;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.investigation-bar .investigation-warning {
+  grid-column: 1 / -1;
+  color: #783d1c;
+  background: #fff2e6;
+  padding: 12px;
+  border-left: 3px solid #ac5424;
+}
+.investigation-task {
+  grid-column: 1 / -1;
+  margin: -3px 0 24px;
+  padding: 18px 22px;
+  background: #edf3ff;
+  border-left: 3px solid #2453cc;
+  scroll-margin-top: 20px;
+}
+.investigation-task-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-bottom: 14px;
+}
+.investigation-task-head p {
+  margin: 0;
+  font-size: 11px;
+  color: #476185;
+}
+.investigation-task-head select {
+  max-width: 460px;
+}
+.investigation-task-head .text-button {
+  margin-left: auto;
+  font-size: 12px;
+}
+.investigation-task h2 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.investigation-task > p {
+  max-width: 920px;
+  font-size: 13px;
+  line-height: 1.8;
+  margin-bottom: 10px;
+  color: #344e70;
+}
+.investigation-task details {
+  font-size: 12px;
+  color: #415b7c;
+}
+.investigation-task summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.investigation-task details p {
+  margin: 9px 0;
+  max-width: 850px;
+  line-height: 1.75;
+}
+.investigation-answer-link {
+  font-size: 12px;
+  color: #1d479f;
+  padding: 10px 0 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.investigation-answer {
+  margin-top: 22px;
+  background: white;
+  border: 1px solid #c7d5e9;
+  border-top: 3px solid #2453cc;
+  border-radius: 4px;
+  padding: 20px;
+  scroll-margin-top: 20px;
+}
+.investigation-answer h2 {
+  font-size: 17px;
+  margin-bottom: 16px;
+}
+.investigation-answer fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.investigation-answer legend {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 13px;
+  padding: 0;
+}
+#investigation-inputs label:not(.sr-only) {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 13px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+#investigation-inputs input[type="radio"] {
+  accent-color: #2453cc;
+  flex-shrink: 0;
+}
+#investigation-number {
+  width: 180px;
+  border: 1px solid #a8bad2;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font: 14px var(--mono);
+}
+.investigation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 17px;
+}
+.investigation-actions button {
+  font-size: 12px;
+  min-height: 40px;
+}
+#investigation-feedback {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #784223;
+  margin: 16px 0 0;
+}
+#investigation-feedback:empty {
+  display: none;
+}
+#investigation-feedback.answer-passed {
+  color: #254f51;
+  border-left: 3px solid #367b7f;
+  padding-left: 12px;
+}
+#investigation-finished {
+  font-size: 13px;
+  line-height: 1.8;
+  padding: 13px;
+  background: #f0f5fc;
+  margin: 16px 0 0;
+}
+@media (max-width: 1050px) {
+  .investigation-bar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .investigation-bar > p {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 800px) {
+  .investigation-bar {
+    display: block;
+  }
+  .investigation-bar > label {
+    display: block;
+    margin-bottom: 8px;
+  }
+  .investigation-bar select {
+    width: 100%;
+    font-size: 14px;
+  }
+  .investigation-bar > p {
+    margin-top: 10px;
+  }
+  .investigation-task {
+    padding: 16px;
+  }
+  .investigation-task-head {
+    gap: 10px;
+  }
+  .investigation-task-head select {
+    width: 100%;
+    font-size: 13px;
+    order: 3;
+  }
+  .investigation-task-head p {
+    max-width: 55%;
+  }
+  .investigation-task h2 {
+    font-size: 17px;
+  }
+  .investigation-answer {
+    padding: 16px;
+  }
+}

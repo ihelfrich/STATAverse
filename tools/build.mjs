@@ -1,6 +1,7 @@
 import { build } from "esbuild";
 import fs from "node:fs/promises";
 import { LESSONS } from "../src/lessons.js";
+import { DATA_INVESTIGATIONS } from "../src/labs/data-investigations.js";
 const home = await fs.readFile("index.html", "utf8");
 await fs.writeFile(
   "index.html",
@@ -9,6 +10,14 @@ await fs.writeFile(
     .replace(
       /(data-curriculum="steps">)\d+/,
       `$1${LESSONS.reduce((n, lesson) => n + lesson.steps.length, 0)}`,
+    )
+    .replace(
+      /(data-curriculum="investigations">)\d+/,
+      `$1${DATA_INVESTIGATIONS.length}`,
+    )
+    .replace(
+      /(data-curriculum="lab-tasks">)\d+/,
+      `$1${DATA_INVESTIGATIONS.reduce((n, g) => n + g.steps.length, 0)}`,
     ),
 );
 await build({
@@ -39,6 +48,21 @@ await build({
   legalComments: "linked",
 });
 await fs.mkdir("assets/vendor/katex", { recursive: true });
+await fs.writeFile(
+  "assets/data/lab-investigations.json",
+  JSON.stringify(
+    DATA_INVESTIGATIONS.map((g) => ({
+      id: g.id,
+      title: g.title,
+      summary: g.summary,
+      level: g.level,
+      minutes: g.minutes,
+      steps: g.steps.length,
+    })),
+    null,
+    2,
+  ) + "\n",
+);
 await fs.copyFile(
   "node_modules/katex/dist/katex.min.css",
   "assets/vendor/katex/katex.min.css",

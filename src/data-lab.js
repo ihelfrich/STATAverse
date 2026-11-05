@@ -1,3 +1,4 @@
+import { initializeInvestigations } from "./data-investigation-ui.js";
 import { zipSync, strToU8 } from "fflate";
 import { escapeHTML as h } from "./render.js";
 import {
@@ -22,6 +23,8 @@ const missing = (value) => value === null || value === "";
 const joinValues = (values) => values.map(valueText).join(", ");
 const plural = (n, singular, multiple = singular + "s") =>
   `${n} ${n === 1 ? singular : multiple}`;
+let investigations = null,
+  traceTouched = false;
 let mode = "merge",
   sources,
   result,
@@ -230,6 +233,8 @@ function renderMethod() {
       : `<h3>Identifiers, indexes and stubs</h3><p><code>i(id)</code> identifies the student; <code>j(term)</code> identifies the repeated measurement. In a wide table, score1 and score2 belong to the <code>score</code> stub. Reshaping long separates the suffix into term and puts both measurements in score.</p><p>Reshaping wide needs a unique student–term pair and constant values within a student for variables outside the stubs. If group changes over time, including it as a stub preserves that change in group1 and group2. Decide whether the change is valid before using this as a repair.</p><p>A larger row count after reshaping long does not mean more independent students. A missing source column or absent student–term record creates missing result cells; an observed missing value is also preserved. Select the cell to distinguish these cases.</p>`;
 }
 function render() {
+  traceTouched = false;
+  investigations?.changed();
   result = null;
   failure = null;
   selected = { row: 0, column: 0 };
@@ -345,11 +350,14 @@ function selectOutput(row, column, focus = false) {
 }
 $("#output-table").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-output-row]");
-  if (button)
+  if (button) {
+    traceTouched = true;
+    investigations?.changed();
     selectOutput(
       Number(button.dataset.outputRow),
       Number(button.dataset.outputColumn),
     );
+  }
 });
 $("#output-table").addEventListener("keydown", (event) => {
   if (
@@ -375,6 +383,8 @@ $("#output-table").addEventListener("keydown", (event) => {
     else column = lastColumn;
   } else return;
   event.preventDefault();
+  traceTouched = true;
+  investigations?.changed();
   selectOutput(row, column, true);
   event.target
     .closest(".data-table-wrap")
@@ -396,9 +406,10 @@ for (const id of ["merge", "reshape"])
     history.replaceState(null, "", `#${id}`);
     setMode(id);
   });
-window.addEventListener("hashchange", () =>
-  setMode(location.hash === "#reshape" ? "reshape" : "merge"),
-);
+window.addEventListener("hashchange", () => {
+  if (["", "#merge", "#reshape"].includes(location.hash))
+    setMode(location.hash === "#reshape" ? "reshape" : "merge");
+});
 $("#merge-controls").addEventListener("change", (event) => {
   if (event.target.id === "merge-example") chooseExample();
   if (event.target.id === "merge-reverse") {
@@ -434,6 +445,11 @@ $("#export-data").addEventListener("click", () => {
       strToU8(text),
     ]),
   );
+  const investigation = investigations?.record();
+  if (investigation)
+    files["investigation.json"] = strToU8(
+      JSON.stringify(investigation, null, 2),
+    );
   const url = URL.createObjectURL(
       new Blob([zipSync(files)], { type: "application/zip" }),
     ),
@@ -456,5 +472,46 @@ $$("[data-jump]").forEach((button) =>
 chooseExample();
 syncDirection();
 setMode(location.hash === "#reshape" ? "reshape" : "merge");
+investigations = initializeInvestigations({
+  snapshot: () => ({
+    settings:
+      mode === "merge"
+        ? {
+            mode,
+            example: $("#merge-example").value,
+            ...mergeOptions(),
+            reverse: $("#merge-reverse").checked,
+            duplicate: $("#merge-duplicate").checked,
+            missing: $("#merge-missing").checked,
+          }
+        : { mode, ...reshapeOptions(), issue: $("#reshape-issue").value },
+    result,
+    selected,
+    traceTouched,
+  }),
+  applySettings: (settings) => {
+    if (settings.mode === "merge") {
+      $("#merge-example").value = settings.example;
+      chooseExample();
+      for (const id of ["type", "keep", "overlap"])
+        $("#merge-" + id).value = settings[id];
+      for (const id of ["reverse", "duplicate", "missing"])
+        $("#merge-" + id).checked = settings[id];
+      $$("#merge-keys input").forEach(
+        (input) => (input.checked = settings.keys.includes(input.value)),
+      );
+      $(".data-experiments").open =
+        settings.reverse || settings.duplicate || settings.missing;
+    } else {
+      $("#reshape-direction").value = settings.direction;
+      $("#reshape-issue").value = settings.issue;
+      $$("#reshape-controls input").forEach(
+        (input) => (input.checked = settings.stubs.includes(input.value)),
+      );
+      syncDirection();
+    }
+    setMode(settings.mode);
+  },
+});
 if ("serviceWorker" in navigator)
   navigator.serviceWorker.register("../../service-worker.js").catch(() => {});

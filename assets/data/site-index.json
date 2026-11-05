@@ -268,6 +268,48 @@
     "path": "Learn/#independent-analysis"
   },
   {
+    "type": "module",
+    "title": "Guided investigation: Matching records",
+    "summary": "Identify a key, trace matches and decide which records belong in the result.",
+    "tags": [
+      "practice",
+      "interactive",
+      "merge",
+      "reshape",
+      "data preparation"
+    ],
+    "level": "Beginner",
+    "path": "Labs/Data/#investigation=matching-records"
+  },
+  {
+    "type": "module",
+    "title": "Guided investigation: Reshaping repeated measurements",
+    "summary": "Follow values between wide and long layouts and distinguish different sources of missingness.",
+    "tags": [
+      "practice",
+      "interactive",
+      "merge",
+      "reshape",
+      "data preparation"
+    ],
+    "level": "Beginner to intermediate",
+    "path": "Labs/Data/#investigation=repeated-measurements"
+  },
+  {
+    "type": "module",
+    "title": "Guided investigation: Conflicting values and sample decisions",
+    "summary": "Compare master retention, update and replacement, then examine what an altered key excludes.",
+    "tags": [
+      "practice",
+      "interactive",
+      "merge",
+      "reshape",
+      "data preparation"
+    ],
+    "level": "Intermediate",
+    "path": "Labs/Data/#investigation=merge-decisions"
+  },
+  {
     "type": "script",
     "title": "Project setup and logging",
     "summary": "Initialize a clean Stata session, create folders, and start a log.",

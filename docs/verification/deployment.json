@@ -9,6 +9,7 @@
   "offlinePractice": true,
   "dataLabProjectPathAndOffline": true,
   "dataLabMobileNavigation": true,
+  "offlineDataInvestigation": true,
   "foreignCachePreserved": true,
   "foreignCacheNotRead": true,
   "searchPracticeLinked": true,

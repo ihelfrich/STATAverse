@@ -426,6 +426,34 @@
         "tests/data-lab.test.mjs",
         "docs/verification/data-native.json"
       ]
+    },
+    {
+      "id": "stataverse.data-investigations",
+      "project": "stataverse",
+      "path": "src/labs/data-investigations.js",
+      "kind": "curriculum",
+      "title": "Guided Stata merge and reshape investigations",
+      "summary": "Seventeen tasks linking configuration, source inspection and interpretation with verified native merge/reshape fixtures",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Supported practice with visible hints and results, not secure assessment",
+        "Only the synthetic cases implemented by the visual data lab",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [
+        "stataverse.data-native"
+      ],
+      "evidence": [
+        "tests/data-investigations.test.mjs",
+        "tests/browser/data-investigations.spec.js",
+        "docs/red-team-review.md"
+      ]
     }
   ]
 }

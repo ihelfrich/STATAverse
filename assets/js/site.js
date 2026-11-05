@@ -864,7 +864,6 @@
         });
 
         var title = document.createElement("h3");
-        title.textContent = item.title;
 
         var summary = document.createElement("p");
         summary.className = "muted";
@@ -875,16 +874,16 @@
         meta.textContent = item.level || "All";
 
         var link = document.createElement("a");
-        link.className = "text-link";
+        link.className = "search-result-title";
         link.href = base + item.path;
-        link.textContent = "Open";
+        link.textContent = item.title;
         link.setAttribute("aria-label", "Open " + item.title);
+        title.appendChild(link);
 
         card.appendChild(tagRow);
         card.appendChild(title);
         card.appendChild(summary);
         card.appendChild(meta);
-        card.appendChild(link);
 
         results.appendChild(card);
       });

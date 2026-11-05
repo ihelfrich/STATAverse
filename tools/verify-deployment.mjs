@@ -120,6 +120,11 @@ try {
   assert.equal(await page.locator("#output-table tbody tr").count(), 8);
   await page.locator("#mode-reshape").click();
   assert.equal(await page.locator("#output-table tbody tr").count(), 6);
+  await page.locator("#investigation-select").selectOption("matching-records");
+  await page.locator("#investigation-number").fill("5");
+  await page.locator("#investigation-number").press("Enter");
+  await page.locator("#investigation-feedback.answer-passed").waitFor();
+  assert.ok(await page.locator("#investigation-next").isEnabled());
   await context.setOffline(false);
   await page.goto(root + "Learn/");
   await page.evaluate(async () => {
@@ -259,6 +264,7 @@ try {
     offlinePractice: true,
     dataLabProjectPathAndOffline: true,
     dataLabMobileNavigation: true,
+    offlineDataInvestigation: true,
     foreignCachePreserved: true,
     foreignCacheNotRead: true,
     searchPracticeLinked: true,

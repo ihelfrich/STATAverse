@@ -1,6 +1,7 @@
 import { LESSONS } from "./lessons.js";
 import { DATASETS } from "./datasets.js";
 import { validateImportLibrary } from "./import-library.js";
+import { validateLabProgress } from "./lab-progress.js";
 export const PRACTICE_KEY = "stataverse:practice:v2";
 export const MAX_STORE_BYTES = 4000000;
 export const emptyStore = () => ({
@@ -94,6 +95,7 @@ export function parseStore(text) {
 export function validateBackup(value) {
   if (
     !object(value) ||
+    ![undefined, 1, 2, 3].includes(value.version) ||
     !object(value.progress ?? {}) ||
     !object(value.profile ?? {})
   )
@@ -136,5 +138,13 @@ export function validateBackup(value) {
   }
   const practice =
     value.practice === undefined ? undefined : validateStore(value.practice);
-  return { version: 2, profile, progress, ...(practice ? { practice } : {}) };
+  const labs =
+    value.labs === undefined ? undefined : validateLabProgress(value.labs);
+  return {
+    version: labs ? 3 : 2,
+    profile,
+    progress,
+    ...(practice ? { practice } : {}),
+    ...(labs ? { labs } : {}),
+  };
 }

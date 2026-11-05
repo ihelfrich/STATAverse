@@ -46,6 +46,17 @@
           >Begin with keys and duplicate records in guided practice →</a
         >
       </header>
+      <section class="investigation-bar" aria-label="Guided investigations">
+        <label for="investigation-select">Guided investigations</label>
+        <select id="investigation-select"></select>
+        <p id="investigation-summary"></p>
+        <p
+          id="investigation-storage"
+          class="investigation-warning"
+          role="status"
+          hidden
+        ></p>
+      </section>
       <div class="operation-switch" role="group" aria-label="Data operation">
         <button id="mode-merge" type="button" aria-pressed="true">
           Merge two tables</button
@@ -53,6 +64,36 @@
           Reshape one table
         </button>
       </div>
+      <section
+        id="investigation-task"
+        class="investigation-task"
+        aria-labelledby="investigation-title"
+        tabindex="-1"
+        hidden
+      >
+        <div class="investigation-task-head">
+          <p id="investigation-progress"></p>
+          <label class="sr-only" for="investigation-steps"
+            >Investigation task</label
+          ><select id="investigation-steps"></select
+          ><button type="button" id="investigation-reset" class="text-button">
+            Reset this case
+          </button>
+        </div>
+        <h2 id="investigation-title"></h2>
+        <p id="investigation-instruction"></p>
+        <details id="investigation-help">
+          <summary>Show a hint</summary>
+          <p id="investigation-hint"></p>
+        </details>
+        <button
+          type="button"
+          data-jump="investigation-answer"
+          class="investigation-answer-link"
+        >
+          Go to the answer check ↓
+        </button>
+      </section>
       <aside
         class="data-controls"
         id="data-settings"
@@ -220,6 +261,43 @@
             </div>
           </div>
         </section>
+        <section
+          id="investigation-answer"
+          class="investigation-answer"
+          aria-labelledby="investigation-answer-title"
+          tabindex="-1"
+          hidden
+        >
+          <h2 id="investigation-answer-title">Interpret this result</h2>
+          <fieldset>
+            <legend id="investigation-question"></legend>
+            <div id="investigation-inputs"></div>
+          </fieldset>
+          <div class="investigation-actions">
+            <button
+              type="button"
+              id="investigation-check"
+              class="primary-button"
+            >
+              Check this task</button
+            ><button
+              type="button"
+              id="investigation-previous"
+              class="quiet-button"
+            >
+              Previous task</button
+            ><button
+              type="button"
+              id="investigation-next"
+              class="quiet-button"
+              disabled
+            >
+              Next task →
+            </button>
+          </div>
+          <p id="investigation-feedback" role="status"></p>
+          <p id="investigation-finished" role="status" hidden></p>
+        </section>
         <details class="data-method">
           <summary>Stata commands, interpretation and scope</summary>
           <div id="method-content"></div>
@@ -254,6 +332,14 @@
       ></p>
     </main>
     <nav class="data-mobile-nav" aria-label="Data lab sections">
+      <button
+        type="button"
+        id="investigation-jump"
+        data-jump="investigation-task"
+        hidden
+      >
+        Task
+      </button>
       <button type="button" data-jump="data-settings">Settings</button
       ><button type="button" data-jump="data-sources">Sources</button
       ><button type="button" data-jump="data-result">Result</button

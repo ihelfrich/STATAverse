@@ -67,3 +67,8 @@ The bounded Scholon lookup for grouped teaching procedures timed out after twent
 `Labs/Data/` now provides visual merge and reshape operations with source-row/cell traces, explicit key requirements, conflicting-value rules, invalid-state recovery and reproducible project exports. The guided command path remains 18 lessons and 80 steps; these visual labs supplement it. Further work should connect the lab to structured investigations and continue advanced methods and navigation improvements.
 
 The bounded Scholon lookup for relational preparation timed out after twenty seconds. The project-recall matches (highball, laborscope and learnscope) did not supply a Stata relational-data capability. The existing STATAverse implementation and native Stata manuals were used. These limited searches do not establish absence elsewhere.
+
+
+## Guided relational investigations
+
+Three investigations and seventeen tasks now provide a checked path through the visual data lab. They reuse the existing native fixtures and connect to the homepage, search and Saved work. Stable IDs, explicit trace requirements, targeted feedback, resume links and guarded progress writes support continued work. The command curriculum remains eighteen lessons/eighty steps; investigation tasks are counted separately. Next work should deepen advanced statistical methods and improve navigation across the older materials rather than merely multiply near-identical exercises.

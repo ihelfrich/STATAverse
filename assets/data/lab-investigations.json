@@ -1,0 +1,26 @@
+[
+  {
+    "id": "matching-records",
+    "title": "Matching records",
+    "summary": "Identify a key, trace matches and decide which records belong in the result.",
+    "level": "Beginner",
+    "minutes": 15,
+    "steps": 6
+  },
+  {
+    "id": "repeated-measurements",
+    "title": "Reshaping repeated measurements",
+    "summary": "Follow values between wide and long layouts and distinguish different sources of missingness.",
+    "level": "Beginner to intermediate",
+    "minutes": 15,
+    "steps": 6
+  },
+  {
+    "id": "merge-decisions",
+    "title": "Conflicting values and sample decisions",
+    "summary": "Compare master retention, update and replacement, then examine what an altered key excludes.",
+    "level": "Intermediate",
+    "minutes": 15,
+    "steps": 5
+  }
+]
