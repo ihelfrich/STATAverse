@@ -1,376 +1,193 @@
-*******************************************************************************
-* Interactive Method Decision Tree
-* Purpose: Help researchers choose the right estimation method
-* Author: STATAverse
-* Last updated: 2026-01-15
-*
-* This program asks questions about your data and research design,
-* then recommends appropriate methods with Stata code examples.
-*******************************************************************************
+* STATAverse: method reference
+* Generated from assets/data/method-lab.json by tools/build-method-guides.mjs.
+* Revised 5 November 2026. The legacy filename remains for existing links.
+* This file prints guidance and template commands. It does not change your data.
+* Optional argument: one topic below; omit it to print all topics.
+* Topics: ols, logit, count, fractional, hazard, panel, iv, did, diagnostics, reporting, lpm, panelCount
+version 16.0
+args topic
+if "`topic'" == "" local topic "all"
+local found = 0
+display as text "STATAverse: method reference"
+    display as text `"An outcome model, a research design and an inference method are distinct choices. These"'
+    display as text `"templates do not select a validated estimator or establish a causal interpretation."'
+    display as text `"For a comparison that records outcome, observation structure, design and dependence, use"'
+    display as text `"https://ihelfrich.github.io/learn/stata/MethodLab/."'
+    display as text `"Replace placeholder variable names and justify the covariance before running any printed"'
+    display as text `"command. The robust templates below require independent observations. For xtreg, fe and"'
+    display as text `"xtpoisson, fe, vce(robust) instead allows dependence within each panel and requires"'
+    display as text `"independent panels. Complex survey designs require estimator-specific support."'
 
-clear all
-set more off
-
-display _n(3) "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}         STATA METHOD SELECTOR - INTERACTIVE DECISION TREE"
-display "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}Answer a few questions about your data and research question,"
-display "{txt}and we'll recommend the appropriate econometric method."
-display "{txt}═════════════════════════════════════════════════════════════════"
-
-*******************************************************************************
-* Q1: What is your dependent variable type?
-*******************************************************************************
-
-display _n(2) "{txt}Q1: What type is your DEPENDENT VARIABLE?"
-display "{txt}─────────────────────────────────────────────────────────────────"
-display "{txt}  1 = Continuous (e.g., sales, profits, wages)"
-display "{txt}  2 = Binary (e.g., adopt/don't adopt, fail/survive)"
-display "{txt}  3 = Count (e.g., number of patents, acquisitions)"
-display "{txt}  4 = Ordered categorical (e.g., Likert scale 1-5)"
-display "{txt}  5 = Unordered categorical (e.g., entry mode choice)"
-display "{txt}  6 = Duration/Time-to-event (e.g., time until exit)"
-display "{txt}  7 = Proportion/Fraction (e.g., market share 0-1)"
-display ""
-
-* For non-interactive demo, set default
-local dv_type = 1  // Change this for testing
-
-display "{result}→ Selected: `dv_type'"
-
-*******************************************************************************
-* Q2: Data structure
-*******************************************************************************
-
-display _n(2) "{txt}Q2: What is your DATA STRUCTURE?"
-display "{txt}─────────────────────────────────────────────────────────────────"
-display "{txt}  1 = Cross-sectional (one observation per unit)"
-display "{txt}  2 = Panel (same units observed over time)"
-display "{txt}  3 = Time series (single unit over many periods)"
-display "{txt}  4 = Repeated cross-sections (different units each wave)"
-display ""
-
-local data_structure = 2  // Change for testing
-display "{result}→ Selected: `data_structure'"
-
-*******************************************************************************
-* Q3: Endogeneity concerns
-*******************************************************************************
-
-display _n(2) "{txt}Q3: Do you have ENDOGENEITY concerns?"
-display "{txt}─────────────────────────────────────────────────────────────────"
-display "{txt}  (Reverse causality, omitted variables, simultaneity)"
-display "{txt}  1 = No endogeneity concerns"
-display "{txt}  2 = Yes, and I have valid instrument(s)"
-display "{txt}  3 = Yes, but no instruments (need alternative approach)"
-display "{txt}  4 = Sample selection / non-random attrition"
-display ""
-
-local endogeneity = 1  // Change for testing
-display "{result}→ Selected: `endogeneity'"
-
-*******************************************************************************
-* Q4: Panel data specifics (if applicable)
-*******************************************************************************
-
-if `data_structure' == 2 {
-    display _n(2) "{txt}Q4: PANEL DATA follow-up questions:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display "{txt}  a) Are your units (firms, individuals) likely to have"
-    display "{txt}     time-invariant unobserved characteristics that matter?"
-    display "{txt}     1 = Yes (→ Fixed effects)"
-    display "{txt}     2 = No / Uncertain"
+if inlist("`topic'", "all", "ols") {
+    local found = 1
     display ""
-
-    local panel_fe = 1
-    display "{result}→ Selected: `panel_fe'"
-
-    display _n "{txt}  b) Do you care about both WITHIN-unit and BETWEEN-unit effects?"
-    display "{txt}     1 = Yes, I want to separate them (→ Hybrid model)"
-    display "{txt}     2 = No, just overall effect"
-    display ""
-
-    local hybrid_interest = 1
-    display "{result}→ Selected: `hybrid_interest'"
+    display as result `"Linear regression"'
+    display as text `"A linear conditional-mean model or descriptive linear projection for a specified sample."'
+    display as text `"A linear conditional mean or a descriptive linear projection, in the stated outcome units."'
+    display as text `"Condition: A causal slope needs a separate identification argument; a fitted regression"'
+    display as text `"does not supply one."'
+    display as text `"Condition: Inspect functional form and the observations contributing to each estimate."'
+    display as text `"Limit: Ignoring nonlinearity or omitted variables."'
 }
 
-*******************************************************************************
-* DECISION LOGIC & RECOMMENDATIONS
-*******************************************************************************
-
-display _n(3) "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}                         RECOMMENDATION"
-display "{txt}═════════════════════════════════════════════════════════════════"
-
-*** CASE 1: Continuous DV + Cross-sectional + No endogeneity
-if `dv_type' == 1 & `data_structure' == 1 & `endogeneity' == 1 {
-    display _n "{txt}Recommended method: {result}OLS REGRESSION with robust SEs"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-
-    display _n "{txt}Why this works:"
-    display "{txt}  • Continuous outcome → OLS appropriate"
-    display "{txt}  • Cross-sectional data → No clustering needed"
-    display "{txt}  • No endogeneity → Causal interpretation plausible"
-    display "{txt}  • Robust SEs → Protection against heteroskedasticity"
-
-    display _n "{txt}Stata code example:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display `"{result}* Basic specification"'
-    display `"{result}regress y x1 x2 control1 control2, vce(robust)"'
+if inlist("`topic'", "all", "logit") {
+    local found = 1
     display ""
-    display `"{result}* With interaction term"'
-    display `"{result}regress y c.x1##c.x2 control1 control2, vce(robust)"'
-    display `"{result}margins, dydx(x1) at(x2 = (0(1)10))"'
-    display `"{result}marginsplot"'
-    display ""
-    display `"{result}* Check assumptions"'
-    display `"{result}predict resid, residuals"'
-    display `"{result}rvfplot  // Check heteroskedasticity"'
-    display `"{result}estat hettest"'
-
-    display _n "{txt}Key diagnostics to report:"
-    display "{txt}  □ F-statistic (overall model fit)"
-    display "{txt}  □ R-squared (explanatory power)"
-    display "{txt}  □ Robust standard errors"
-    display "{txt}  □ Residual plots (assumption checks)"
-
-    display _n "{txt}Common extensions:"
-    display "{txt}  → Clustered SEs: vce(cluster clustervar)"
-    display "{txt}  → Weighted regression: [aweight = weightvar]"
-    display "{txt}  → Quantile regression: qreg y x1 x2"
+    display as result `"Logit"'
+    display as text `"Models binary outcomes with probabilities constrained to 0-1."'
+    display as text `"The log-odds index is linear; the fitted response probability is nonlinear and bounded."'
+    display as text `"Condition: Specify the conditional probability model and inspect separation and support."'
+    display as text `"Condition: A logit coefficient is a log-odds change. Average marginal effects and"'
+    display as text `"probabilities answer different questions."'
+    display as text `"Limit: Reading log-odds coefficients as probability-point changes, or treating fitted"'
+    display as text `"associations as causal."'
 }
 
-*** CASE 2: Continuous DV + Panel + No endogeneity + FE needed
-if `dv_type' == 1 & `data_structure' == 2 & `endogeneity' == 1 & `panel_fe' == 1 {
-    display _n "{txt}Recommended method: {result}FIXED EFFECTS REGRESSION"
-
-    if `hybrid_interest' == 1 {
-        display "{txt}                   + {result}HYBRID (WITHIN-BETWEEN) MODEL"
-    }
-
-    display "{txt}─────────────────────────────────────────────────────────────────"
-
-    display _n "{txt}Why this works:"
-    display "{txt}  • Panel data → Exploit within-unit variation"
-    display "{txt}  • Time-invariant confounders → FE removes them"
-    display "{txt}  • Controls for all stable unobserved heterogeneity"
-
-    display _n "{txt}Stata code example (Standard FE):"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display `"{result}* Declare panel structure"'
-    display `"{result}xtset firm_id year"'
+if inlist("`topic'", "all", "count") {
+    local found = 1
     display ""
-    display `"{result}* Fixed effects model"'
-    display `"{result}xtreg y x1 x2 time_varying_controls, fe vce(cluster firm_id)"'
-    display ""
-    display `"{result}* Test whether FE needed"'
-    display `"{result}quietly xtreg y x1 x2, re"'
-    display `"{result}estimates store re"'
-    display `"{result}quietly xtreg y x1 x2, fe"'
-    display `"{result}estimates store fe"'
-    display `"{result}hausman fe re"'
-
-    if `hybrid_interest' == 1 {
-        display _n(2) "{txt}Stata code example (Hybrid/Within-Between):"
-        display "{txt}─────────────────────────────────────────────────────────────────"
-        display `"{result}* Create between (firm mean) and within (deviation) components"'
-        display `"{result}bysort firm_id: egen x1_between = mean(x1)"'
-        display `"{result}generate x1_within = x1 - x1_between"'
-        display ""
-        display `"{result}* Hybrid model - separates effects"'
-        display `"{result}xtreg y x1_within x1_between controls, fe vce(cluster firm_id)"'
-        display ""
-        display `"{txt}Interpretation:"'
-        display `"{txt}  • x1_within  = effect of CHANGE within firm over time"'
-        display `"{txt}  • x1_between = effect of DIFFERENCES across firms"'
-    }
-
-    display _n "{txt}Key diagnostics to report:"
-    display "{txt}  □ Within R-squared"
-    display "{txt}  □ Number of units and time periods"
-    display "{txt}  □ Hausman test (FE vs RE)"
-    display "{txt}  □ Clustered standard errors"
-
-    display _n "{txt}Important notes:"
-    display "{txt}  ⚠ FE removes time-invariant variables (gender, birth country)"
-    display "{txt}  ⚠ Need sufficient within-unit variation in X"
-    display "{txt}  ✓ Robust to omitted variable bias from stable factors"
+    display as result `"Poisson and negative binomial"'
+    display as text `"Poisson models a nonnegative exponential conditional mean; negative binomial adds a"'
+    display as text `"particular dispersion structure."'
+    display as text `"Both model an exponential conditional mean; negative binomial adds a particular dispersion"'
+    display as text `"model."'
+    display as text `"Condition: Define exposure and the process that produces zeros."'
+    display as text `"Condition: Poisson quasi-likelihood with a correctly specified mean and appropriate"'
+    display as text `"covariance does not require conditional mean–variance equality."'
+    display as text `"Limit: Choosing NB from the unconditional variance alone, or treating many zeros as proof"'
+    display as text `"of a separate zero-generating process."'
 }
 
-*** CASE 3: Continuous DV + Panel + Endogeneity with IV
-if `dv_type' == 1 & `data_structure' == 2 & `endogeneity' == 2 {
-    display _n "{txt}Recommended method: {result}PANEL IV / FE-2SLS"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-
-    display _n "{txt}Why this works:"
-    display "{txt}  • Panel + IV → Control for both FE and endogeneity"
-    display "{txt}  • Most demanding but most credible"
-
-    display _n "{txt}Stata code example:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display `"{result}* Panel structure"'
-    display `"{result}xtset firm_id year"'
+if inlist("`topic'", "all", "fractional") {
+    local found = 1
     display ""
-    display `"{result}* FE-IV estimation"'
-    display `"{result}xtivreg y (x_endog = z1 z2) x_exog controls, fe vce(cluster firm_id)"'
-    display ""
-    display `"{result}* First stage diagnostics"'
-    display `"{result}xtivreg y (x_endog = z1 z2) x_exog controls, fe first"'
-    display `"{result}estat firststage  // Check instrument strength"'
-    display ""
-    display `"{result}* Test for endogeneity (is IV needed?)"'
-    display `"{result}estat endogenous"'
-    display ""
-    display `"{result}* If multiple instruments, test overidentification"'
-    display `"{result}estat overid"'
-
-    display _n "{txt}Critical requirements:"
-    display "{txt}  ✓ Instrument relevance: F-stat > 10 (preferably > 20)"
-    display "{txt}  ✓ Instrument exogeneity: Corr(Z, u) = 0 (requires theory)"
-    display "{txt}  ✓ Instrument variation: Must vary within units over time"
-
-    display _n "{txt}Common mistakes:"
-    display "{txt}  ✗ Weak identification; a universal first-stage cutoff is insufficient"
-    display "{txt}  ✗ Claiming exogeneity without theoretical justification"
-    display "{txt}  ✗ Treating an endogeneity test as proof of valid instruments or exogeneity"
+    display as result `"Fractional logit"'
+    display as text `"Handles proportions between 0 and 1 without impossible predictions."'
+    display as text `"A conditional-mean model for responses in [0,1], including zero and one."'
+    display as text `"Condition: State the denominator and whether observations are aggregates of different"'
+    display as text `"sizes."'
+    display as text `"Condition: A bounded nonlinear mean is a modeling choice; a linear projection is not"'
+    display as text `"automatically invalid."'
+    display as text `"Limit: Ignoring boundary values, the denominator or the sampling structure; a linear model"'
+    display as text `"is not automatically invalid."'
 }
 
-*** CASE 4: Binary DV + Cross-sectional
-if `dv_type' == 2 & `data_structure' == 1 {
-    display _n "{txt}Recommended method: {result}LOGISTIC REGRESSION"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-
-    display _n "{txt}Why this works:"
-    display "{txt}  • Binary outcome (0/1) → Logit appropriate"
-    display "{txt}  • Models probability P(Y=1|X)"
-    display "{txt}  • Bounded predictions [0,1]"
-
-    display _n "{txt}Stata code example:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display `"{result}* Logistic regression"'
-    display `"{result}logit y x1 x2 controls, vce(robust)"'
+if inlist("`topic'", "all", "hazard") {
+    local found = 1
     display ""
-    display `"{result}* Get odds ratios (often preferred for interpretation)"'
-    display `"{result}logit y x1 x2 controls, vce(robust) or"'
-    display ""
-    display `"{result}* Predicted probabilities (MOST USEFUL)"'
-    display `"{result}margins, dydx(x1) atmeans"'
-    display `"{result}margins, at(x1 = (0(1)10))"'
-    display `"{result}marginsplot"'
-
-    display _n "{txt}CRITICAL INTERPRETATION RULES:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display "{txt}  ⚠ Coefficients ≠ marginal effects!"
-    display "{txt}  ⚠ Must calculate marginal effects or probabilities"
-    display "{txt}  ⚠ For interactions, ALWAYS use margins"
-    display ""
-    display `"{result}* For moderation/interaction"'
-    display `"{result}logit y c.x1##c.x2 controls, vce(robust)"'
-    display `"{result}margins, dydx(x1) at(x2 = (-1(1)1))"'
-    display ""
-    display `"{result}* Visualization"'
-    display `"{result}marginsplot, recast(line) recastci(rarea)"'
-
-    display _n "{txt}Alternative: Probit regression"
-    display `"{result}probit y x1 x2 controls, vce(robust)"'
-    display "{txt}  (Results usually very similar to logit)"
-
-    display _n "{txt}Key diagnostics to report:"
-    display "{txt}  □ Pseudo R-squared"
-    display "{txt}  □ Classification accuracy"
-    display "{txt}  □ Average marginal effects with SEs"
-    display "{txt}  □ Predicted probability plots"
-
-    display _n "{txt}Common mistakes:"
-    display "{txt}  ✗ Reporting raw logit coefficients as if they're effects"
-    display "{txt}  ✗ Using OLS for binary DV (can predict outside [0,1])"
-    display "{txt}  ✗ Not showing predicted probabilities"
+    display as result `"Cox proportional-hazards model"'
+    display as text `"Captures time-to-event outcomes and censoring."'
+    display as text `"A hazard model with a common multiplicative covariate effect; a hazard ratio is not a"'
+    display as text `"probability difference."'
+    display as text `"Condition: Define risk entry, event coding, censoring and time scale before fitting."'
+    display as text `"Condition: Assess proportional hazards and whether censoring is plausibly independent"'
+    display as text `"conditional on the model."'
+    display as text `"Limit: Ignoring censoring or duration dependence."'
 }
 
-*** CASE 5: Count DV
-if `dv_type' == 3 {
-    display _n "{txt}Recommended method: {result}POISSON or NEGATIVE BINOMIAL"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-
-    display _n "{txt}Why this works:"
-    display "{txt}  • Count data (0, 1, 2, 3, ...) → Special distribution"
-    display "{txt}  • Non-negative predictions"
-    display "{txt}  • Overdispersion often present → Negative binomial"
-
-    display _n "{txt}Stata code example:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display `"{result}* Start with Poisson"'
-    display `"{result}poisson y x1 x2 controls, vce(robust)"'
+if inlist("`topic'", "all", "panel") {
+    local found = 1
     display ""
-    display `"{result}* Incident rate ratios (easier interpretation)"'
-    display `"{result}poisson y x1 x2 controls, irr vce(robust)"'
-    display ""
-    display `"{result}* Check for overdispersion"'
-    display `"{result}estat gof"'
-    display ""
-    display `"{result}* Consider NB when its conditional variance specification is defensible"'
-    display `"{result}nbreg y x1 x2 controls, vce(robust)"'
-    display ""
-    display `"{result}* Calculate meaningful effects"'
-    display `"{result}margins, dydx(*) atmeans"'
-
-    display _n "{txt}Decision rule:"
-    display "{txt}  Study the conditional mean, exposure and dispersion structure"
-    display "{txt}  An unconditional variance-mean comparison does not select the estimator"
-
-    display _n "{txt}Extensions:"
-    display `"{result}* Zero-inflated models (if many zeros)"'
-    display `"{result}zip y x1 x2 controls"'
-    display `"{result}zinb y x1 x2 controls"'
+    display as result `"Linear unit and time fixed effects"'
+    display as text `"Linear unit fixed effects remove additive, time-invariant unit heterogeneity. They do not"'
+    display as text `"remove time-varying confounding."'
+    display as text `"An alternative linear specification using within-unit changes after removing additive unit"'
+    display as text `"and time effects."'
+    display as text `"Condition: Strict exogeneity of the idiosyncratic error with respect to the regressor"'
+    display as text `"history is a maintained condition of this static model."'
+    display as text `"Condition: Time-varying confounding, feedback and heterogeneous trends can remain."'
+    display as text `"Time-invariant coefficients are not identified by within-unit changes."'
+    display as text `"Limit: Treating unit FE as a general identification strategy, or clustering mechanically"'
+    display as text `"without considering the assignment and sampling design."'
 }
 
-*** CASE 6: Proportion/Fraction DV
-if `dv_type' == 7 {
-    display _n "{txt}Recommended method: {result}FRACTIONAL LOGIT"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-
-    display _n "{txt}Why this works:"
-    display "{txt}  • Proportion/fraction (0 to 1) → Bounded outcome"
-    display "{txt}  • Better than OLS (which can predict outside [0,1])"
-    display "{txt}  • Better than logit of ratio (see Certo et al. 2020)"
-
-    display _n "{txt}Stata code example:"
-    display "{txt}─────────────────────────────────────────────────────────────────"
-    display `"{result}* Fractional response model"'
-    display `"{result}fracreg logit y x1 x2 controls, vce(robust)"'
+if inlist("`topic'", "all", "iv") {
+    local found = 1
     display ""
-    display `"{result}* Calculate average marginal effects"'
-    display `"{result}margins, dydx(*)"'
-    display ""
-    display `"{result}* Predicted proportions"'
-    display `"{result}margins, at(x1 = (0(1)10))"'
-
-    display _n "{txt}DO NOT:"
-    display "{txt}  ✗ Use OLS on proportions/percentages"
-    display "{txt}  ✗ Logit-transform the ratio (creates other problems)"
-    display "{txt}  ✗ Treat as binary when it's truly continuous 0-1"
+    display as result `"Linear instrumental variables"'
+    display as text `"A candidate only when relevant excluded instruments and a credible exclusion/exogeneity"'
+    display as text `"argument are available."'
+    display as text `"This is a linear IV specification, not an instrumented logit, count or hazard model."'
+    display as text `"Condition: The excluded instrument must supply relevant variation and satisfy a defensible"'
+    display as text `"exclusion/exogeneity restriction."'
+    display as text `"Condition: Under heterogeneous effects, define the target and any additional conditions"'
+    display as text `"needed for its interpretation."'
+    display as text `"Limit: Treating a statistical test as proof of instrument validity or claiming"'
+    display as text `"finite-sample unbiasedness for 2SLS."'
 }
 
-*******************************************************************************
-* GENERAL ADVICE & RESOURCES
-*******************************************************************************
+if inlist("`topic'", "all", "did") {
+    local found = 1
+    display ""
+    display as result `"Two-group, two-period difference-in-differences"'
+    display as text `"A candidate design for treatment and comparison groups observed before and after adoption,"'
+    display as text `"under an appropriate parallel-trends assumption."'
+    display as text `"A simple comparison of changes in the outcome mean. Binary outcomes are measured in"'
+    display as text `"probability points; count outcomes remain in count units."'
+    display as text `"Condition: Parallel untreated mean trends, no anticipation and an appropriate"'
+    display as text `"no-interference condition are required for the intended treatment effect."'
+    display as text `"Condition: Treatment timing, composition changes and staggered adoption can require a"'
+    display as text `"different estimator or estimand."'
+    display as text `"Limit: Applying the simple two-period specification to staggered adoption with"'
+    display as text `"heterogeneous effects without checking the estimand."'
+}
 
-display _n(3) "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}                    ADDITIONAL RESOURCES"
-display "{txt}═════════════════════════════════════════════════════════════════"
+if inlist("`topic'", "all", "diagnostics") {
+    local found = 1
+    display ""
+    display as result `"Model-specific diagnostics"'
+    display as text `"Checks can reveal contradictions and misspecification; no checklist certifies"'
+    display as text `"identification."'
+    display as text `"These commands illustrate OLS postestimation only; they are not an all-model checklist."'
+    display as text `"Condition: A test of a maintained model restriction is not a test of every identifying"'
+    display as text `"assumption."'
+    display as text `"Limit: Using passing tests as proof of exogeneity, normality, valid instruments or the"'
+    display as text `"correct functional form."'
+}
 
-display _n "{txt}For deeper understanding:"
-display "{txt}  • Kennedy: A Guide to Econometrics (conceptual)"
-display "{txt}  • Cameron & Trivedi: Microeconometrics Using Stata (practical)"
-display "{txt}  • Angrist & Pischke: Mostly Harmless Econometrics (causal)"
+if inlist("`topic'", "all", "reporting") {
+    local found = 1
+    display ""
+    display as result `"Reporting the comparison"'
+    display as text `"Translate estimates into plain-language results and tables."'
+    display as text `"State the estimand, units, estimation sample and covariance alongside the coefficient."'
+    display as text `"Condition: Separate what the data show from the assumptions needed to interpret it."'
+    display as text `"Limit: Only reporting p-values without effect size context."'
+}
 
-display _n "{txt}Key methodological papers:"
-display "{txt}  • Endogeneity: Hill et al. (2021, JOM)"
-display "{txt}  • Panel data: Certo et al. (2017, SMJ)"
-display "{txt}  • Binary DVs: Hoetker (2007, SMJ)"
-display "{txt}  • Ratios: Certo et al. (2020, ORM)"
-display "{txt}  • Moderation: Busenbark et al. (2022, ORM)"
+if inlist("`topic'", "all", "lpm") {
+    local found = 1
+    display ""
+    display as result `"Linear probability model"'
+    display as text `"OLS can be used with a binary outcome. Its slopes describe probability-point differences"'
+    display as text `"under a linear mean specification, or coefficients of a linear projection."'
+    display as text `"A 0/1 outcome does not prohibit OLS. Predictions can leave [0,1], and a linear slope"'
+    display as text `"imposes a particular approximation."'
+    display as text `"Condition: Probability-point interpretation concerns a change in a conditional mean or"'
+    display as text `"linear projection; it is not automatically a causal effect."'
+    display as text `"Condition: With a nonconstant response probability, binary-outcome errors are generally"'
+    display as text `"heteroskedastic."'
+    display as text `"Limit: Rejecting every linear model solely because the outcome is binary, or ignoring"'
+    display as text `"implausible extrapolation."'
+}
 
-display _n(2) "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}Questions? Check STATAverse modules for detailed tutorials!"
-display "{txt}═════════════════════════════════════════════════════════════════"
+if inlist("`topic'", "all", "panelCount") {
+    local found = 1
+    display ""
+    display as result `"Poisson with unit effects"'
+    display as text `"An exponential mean can include unit effects instead of treating repeated counts as a"'
+    display as text `"pooled sample. Conditional fixed-effects Poisson and a Poisson fit with unit indicators"'
+    display as text `"provide two implementations."'
+    display as text `"Within-unit variation identifies time-varying slopes. A unit-indicator fit may be costly"'
+    display as text `"with many units."'
+    display as text `"Condition: The conditional-mean and exogeneity restrictions must hold. Unit effects do not"'
+    display as text `"remove time-varying confounding."'
+    display as text `"Condition: Inspect units with no events, exposure and the effective estimation sample."'
+    display as text `"Limit: Treating a count-model fixed effect or a cluster adjustment as a general remedy for"'
+    display as text `"endogeneity."'
+}
+
+if !`found' {
+    display as error "Unknown topic. See the topic names in this file header."
+    exit 198
+}

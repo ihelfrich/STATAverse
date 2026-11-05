@@ -1,6 +1,6 @@
 {
   "checkedAt": "2026-11-05T07:56:59.750Z",
-  "status": "locally_verified_release_candidate",
+  "status": "publicly_verified_increment",
   "guides": 3,
   "tasks": 16,
   "unitTests": 108,
@@ -38,5 +38,7 @@
       "bytes": 162658,
       "gzipBytes": 52887
     }
-  ]
+  ],
+  "publicVerification": "public-site.json",
+  "publicSourceCommit": "e7fbd2106c91ff638cae1380758603bc042dcc50"
 }

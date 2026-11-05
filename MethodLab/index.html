@@ -4,60 +4,173 @@
     <script src="../assets/js/legacy-location.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Method Lab | STATAverse</title>
-    <link rel="stylesheet" href="../assets/css/site.css" />
+    <meta
+      name="description"
+      content="Compare Stata outcome models, proposed research designs and covariance assumptions. Retain the qualifications when you save or share your comparison."
+    />
+    <title>Method comparison · STATAverse</title>
+    <link rel="stylesheet" href="../assets/css/learn.css" />
+    <link rel="stylesheet" href="../assets/css/method-lab.css" />
+    <noscript
+      ><style>
+        #method-loading {
+          display: none;
+        }
+      </style></noscript
+    >
   </head>
-  <body class="page-zero">
-    <a class="skip-link" href="#main">Skip to content</a>
-    <header class="site-header">
-            <nav class="nav" aria-label="Main navigation"><a class="brand" href="../index.html">STATAverse</a><div class="nav-links"><a href="../Learn/">Practice</a><a href="../ZeroToHero/">Applied lessons</a><a href="../ScriptLibrary/">Scripts</a><a href="../Glossary/">Concepts</a><a href="../Search/">Search</a><a href="../index.html#reference-title">All resources</a></div></nav>
+  <body class="method-page">
+    <a class="skip-link" href="#main">Skip to method comparison</a>
+    <header class="app-header">
+      <a href="../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../Learn/">Practice</a><a href="../Labs/">Analysis labs</a
+        ><a href="../ScriptLibrary/" aria-current="true">Reference</a
+        ><a href="../Workspace/">Saved work</a>
+      </nav>
+      <a href="../CodeLibrary/" class="quiet-button">Worked Stata examples →</a>
     </header>
-
-    <main id="main">
-      <section class="hero hero-compact">
-        <div class="hero-copy">
-          <span class="eyebrow">Method lab</span>
-          <h1>Compare candidate methods</h1>
-          <p class="lead">
-            A starting point for comparing estimators. Outcome type and data structure narrow the options; they do not establish identification or select a valid model.
+    <main id="main" class="method-layout" tabindex="-1">
+      <header class="method-heading">
+        <p class="eyebrow">Methods and research design</p>
+        <h1>Statistical method comparison</h1>
+        <p>
+          An outcome model, an identification argument and a covariance choice
+          answer different questions. Specify your setup to examine the
+          distinctions, relevant Stata syntax and the assumptions still
+          requiring evidence.
+        </p>
+      </header>
+      <aside class="method-setup" aria-labelledby="setup-title">
+        <h2 id="setup-title" tabindex="-1">Your setup</h2>
+        <p id="method-loading" role="status">
+          Loading the comparison controls… <a href="">Reload</a>
+        </p>
+        <form id="method-form">
+          <fieldset id="method-fields" disabled>
+            <legend class="sr-only">
+              Outcome, observations, research design and dependence
+            </legend>
+            <div id="method-questions"></div>
+          </fieldset>
+          <button type="reset" class="text-button" id="method-reset" disabled>
+            Clear selections
+          </button>
+        </form>
+        <a
+          id="method-jump"
+          class="method-task-link"
+          href="#comparison-title"
+          hidden
+          >View comparison ↓</a
+        >
+        <p class="method-storage-note">
+          The page address retains these selections. No dataset is uploaded or
+          model fitted here.
+        </p>
+        <a class="method-task-link" href="../Labs/"
+          >Explore a model with data →</a
+        >
+      </aside>
+      <section class="method-reading" aria-labelledby="comparison-title">
+        <div class="method-result-heading">
+          <h2 id="comparison-title" tabindex="-1">Your comparison</h2>
+          <a class="method-change" href="#setup-title">Change setup ↑</a>
+          <p id="method-status" role="status">
+            Choose an outcome, observation structure, purpose and dependence
+            assumption.
           </p>
         </div>
-        <div class="hero-panel">
-          <div class="panel-card">
-            <div class="panel-title">What you get</div>
-            <ul class="panel-list">
-              <li>Candidate methods with assumptions and limitations.</li>
-              <li>Stata starter code and a diagnostics checklist.</li>
-              <li>Links to scripts, modules, and readings.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-heading">
-          <h2>Method finder</h2>
-          <p>Select your setup, then examine the conditions attached to each candidate.</p>
-        </div>
-        <div class="method-lab" data-method-lab data-method-lab-src="../assets/data/method-lab.json">
-          <div class="lab-grid" data-lab-steps></div>
-          <div class="lab-summary">
-            <div class="summary-card" data-lab-summary>
-              <h3>Your draft plan</h3>
-              <p class="muted">Select options to generate a set of candidate methods.</p>
+        <div id="method-empty" class="method-empty">
+          <p class="method-number" aria-hidden="true">01 / 02 / 03</p>
+          <h3>Three distinct decisions</h3>
+          <dl>
+            <div>
+              <dt>Outcome model</dt>
+              <dd>
+                What relationship or distribution does the specification
+                describe?
+              </dd>
             </div>
-            <button class="btn ghost" type="button" data-copy-plan disabled>Copy plan</button>
-            <div class="copy-note" data-copy-note aria-live="polite"></div>
-          </div>
-          <div class="method-grid" data-method-results></div>
+            <div>
+              <dt>Research design</dt>
+              <dd>What evidence would allow a causal interpretation?</dd>
+            </div>
+            <div>
+              <dt>Inference</dt>
+              <dd>Which observations can be treated as independent?</dd>
+            </div>
+          </dl>
+          <p>
+            “Causal design unresolved” and “Not established yet” are valid
+            selections. They leave the unresolved assumptions visible.
+          </p>
         </div>
+        <div id="method-results" hidden>
+          <div id="method-notices"></div>
+          <nav
+            id="method-index"
+            aria-label="Specifications in this comparison"
+          ></nav>
+          <div id="method-cards"></div>
+          <section class="method-reporting" aria-labelledby="reporting-title">
+            <h3 id="reporting-title">What to report</h3>
+            <p>
+              State the estimand, units, sample restrictions, covariance,
+              identifying assumptions and material limitations. Distinguish a
+              conditional association from a causal claim. None of these
+              selections validates a model.
+            </p>
+          </section>
+        </div>
+        <div class="method-actions">
+          <button
+            id="method-copy"
+            class="primary-button"
+            type="button"
+            disabled
+          >
+            Copy comparison</button
+          ><button
+            id="method-download"
+            class="quiet-button"
+            type="button"
+            disabled
+          >
+            Download comparison</button
+          ><a
+            href="../CodeLibrary/scripts/02_method_decision_tree_v2.do"
+            download
+            >Stata method reference (.do)</a
+          >
+        </div>
+        <p id="method-action-status" role="status"></p>
+        <label for="method-copy-fallback" id="method-copy-label" hidden
+          >Comparison text</label
+        ><textarea
+          id="method-copy-fallback"
+          readonly
+          rows="9"
+          hidden
+        ></textarea>
+        <noscript
+          ><p>
+            The comparison controls require JavaScript. Read the
+            <a href="../ZeroToHero/modules/02-ols-intuition.html"
+              >regression lesson</a
+            >,
+            <a href="../ZeroToHero/modules/03-limited-outcomes.html"
+              >binary and count models</a
+            >, or download the Stata method reference above.
+          </p></noscript
+        >
       </section>
     </main>
-
-    <footer class="site-footer">
-      <div>STATAverse | Method Lab</div>
-    </footer>
-
-    <script src="../assets/js/site.js"></script>
+    <script type="module" src="../assets/js/method-lab.js"></script>
+    <script src="../assets/js/site.js" defer></script>
   </body>
 </html>

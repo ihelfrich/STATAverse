@@ -233,6 +233,46 @@ try {
   receipt.checks.push(
     "IV lab at the canonical nested route, shared navigation, checked weak-instrument investigation offline, and restored task response, experiment and note after reload",
   );
+  await page.goto(root + "MethodLab/");
+  for (const [name, value] of Object.entries({
+    outcome: "binary",
+    structure: "panel",
+    design: "unresolved",
+    dependence: "clustered",
+  }))
+    await page.locator(`#method-${name}`).selectOption(value);
+  assert.equal(await page.locator("#method-cards article").count(), 3);
+  assert.equal(
+    await page.locator("#method-card-iv, #method-card-did").count(),
+    0,
+  );
+  assert.match(
+    await page.locator("#method-notices").innerText(),
+    /causal interpretation is unresolved/,
+  );
+  await context.setOffline(true);
+  await page.reload();
+  await page.locator("#method-card-panel").waitFor();
+  assert.equal(await page.locator("#method-design").inputValue(), "unresolved");
+  const comparisonDownload = page.waitForEvent("download");
+  await page.locator("#method-download").click();
+  const comparisonText = await fs.readFile(
+    await (await comparisonDownload).path(),
+    "utf8",
+  );
+  assert.match(comparisonText, /Strict exogeneity/);
+  assert.match(comparisonText, /Limit:/);
+  assert.ok(comparisonText.split("\n").length > 50);
+  await context.setOffline(false);
+  assert.equal((await new AxeBuilder({ page }).analyze()).violations.length, 0);
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({
+    path: "docs/verification/screenshots/site-method-desktop.png",
+    fullPage: false,
+  });
+  receipt.checks.push(
+    "method comparison retains selected choices offline at a new query URL, exports its conditions and limitations, and does not infer a causal design from unresolved endogeneity",
+  );
   assert.deepEqual(errors, []);
   assert.deepEqual(external, []);
   receipt.checks.push(
@@ -266,6 +306,17 @@ try {
   assert.ok(
     ivMatches.some((url) => url.endsWith("/learn/stata/Labs/IV/")),
     "IV lab is discoverable in the site-wide search",
+  );
+  const methodMatches = await page.evaluate(async () => {
+    const p = await import("/pagefind/pagefind.js");
+    const results = await p.search("method comparison");
+    return Promise.all(
+      results.results.slice(0, 30).map(async (item) => (await item.data()).url),
+    );
+  });
+  assert.ok(
+    methodMatches.some((url) => url.endsWith("/learn/stata/MethodLab/")),
+    "Method comparison is discoverable in site-wide search",
   );
   const sitemap = await (
     await context.request.get(origin + "/sitemap.xml")
@@ -344,6 +395,8 @@ try {
     "inference-lab",
     "inference-worker",
     "iv-lab",
+    "iv-investigation-ui",
+    "method-lab",
   ]) {
     const assetPath = "assets/js/" + name + ".js";
     const response = await context.request.get(root + assetPath);
@@ -358,6 +411,9 @@ try {
   }
   assert.ok(
     receipt.payloads.find((x) => x.asset === "home.js").gzipBytes < 5000,
+  );
+  assert.ok(
+    receipt.payloads.find((x) => x.asset === "method-lab.js").gzipBytes < 14000,
   );
   const workerText = await (
     await context.request.get(root + "service-worker.js")

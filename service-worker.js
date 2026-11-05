@@ -2,7 +2,7 @@ const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
 const LEGACY_SCOPE =
   new URL(self.registration.scope).pathname === "/STATAverse/";
-const CACHE_NAME = CACHE_PREFIX + "v24";
+const CACHE_NAME = CACHE_PREFIX + "v25";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
@@ -13,6 +13,9 @@ const CORE_ASSETS = [
   "assets/css/iv.css",
   "assets/js/iv-lab.js",
   "assets/js/iv-investigation-ui.js",
+  "MethodLab/",
+  "assets/css/method-lab.css",
+  "assets/js/method-lab.js",
   "assets/css/data-lab.css",
   "assets/js/data-lab.js",
   "assets/css/inference.css",
@@ -89,7 +92,20 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(async () => {
-        const cached = await (await caches.open(CACHE_NAME)).match(request);
+        const cache = await caches.open(CACHE_NAME);
+        let cached = await cache.match(request);
+        // Method choices live in the query string and are read by the client.
+        // replaceState does not fetch that URL; reuse its static shell offline.
+        const methodURL = new URL("MethodLab/", self.registration.scope);
+        if (
+          !cached &&
+          request.mode === "navigate" &&
+          [methodURL.pathname, methodURL.pathname + "index.html"].includes(
+            url.pathname,
+          )
+        ) {
+          cached = await cache.match(methodURL.href);
+        }
         return (
           cached ||
           new Response(

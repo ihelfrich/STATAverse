@@ -18,7 +18,9 @@ The existing site contains useful lessons and scripts, but browser exercises mai
 
 ## Execution state
 
-Repository cloned from ihelfrich/STATAverse; migration archive identified and preserved. Agent Log claimed. The initial bounded prior-work lookup timed out; no conclusion about catalog coverage. Dr. Helfrich subsequently expanded the goal to full integration into his public website, including navigation and efficient browser execution. The integration is being prepared and verified locally before publication.
+The canonical app is live at `https://ihelfrich.github.io/learn/stata/`, with site-wide navigation, Teaching links, search and sitemap integration. The old `/STATAverse/` address forwards to it while retaining paths, queries, fragments and browser notes. The current command path has eighteen lessons and eighty steps, supplemented by four visual analysis labs and guided data investigations. Release-specific publication evidence belongs in `docs/verification/public-release.json`; local checks and public checks are separate receipts.
+
+The migration archive remains preserved. The initial bounded prior-work lookup timed out; it established no conclusion about catalog coverage. Later selected procedures and verification outputs are registered through the project's existing Scholon manifest. The same Agent Log claim owns the continuing work.
 
 The first increment is committed as `c7450d5`. Its verification and registration receipts are recorded under `docs/verification/` and `docs/red-team-review.md`. Dr. Helfrich explicitly rejected stopping at that increment. On 5 November he reduced the work budget from 5,000,000 to **2,500,000 tokens total**. The goal API still reports the older configured limit and exposes no budget-edit operation; the later user limit governs the remaining work. At the correction, 2,004,510 tokens had been recorded. Priorities within the remainder are verified public releases, student usability, statistical correctness and integration at `ihelfrich.github.io/learn/stata/`.
 
@@ -33,11 +35,11 @@ The current work targets mixed levels, with a clear beginner path and substantia
 5. **Coherent design.** Integrate practice, analysis labs, projects and reference. Reduce mobile scrolling between an action and its result, keep the next task visible, and make dense numerical work readable. Test actual tasks, keyboard use, narrow layouts and zoom, in addition to automated accessibility checks.
 6. **Repeated adversarial review.** Reproduce statistical, parser, persistence, export and usability failures. Review student-facing wording and design on real screens after each substantial stage. Record limits and unresolved defects rather than treating a passing suite as complete assurance.
 
-The existing native Stata archive, legacy routes and browser progress remain migration constraints. No public deployment has occurred. No paid external model generation is needed.
+The existing native Stata archive, legacy routes and browser progress remain migration constraints. Public increments are released through pinned source commits and verified at their destination. No paid external model generation is needed.
 
 ## Main-site integration and efficiency
 
-The 5 November UTC scope addition makes website integration and browser efficiency explicit acceptance criteria for the continuing five-million-token goal. The main Astro site is `/Users/ian/Developer/ihelfrich.github.io`; integration work is isolated in `/Users/ian/Developer/agent-playground/stataverse-site-integration` on `codex/stataverse-site-integration`. Its shared navigation registry remains authoritative. The intended mount is `/learn/stata/`, with versioned source selection and a static student-facing package rather than a second independently edited implementation.
+The 5 November UTC scope addition makes website integration and browser efficiency explicit acceptance criteria for the continuing goal. The main Astro site is `/Users/ian/Developer/ihelfrich.github.io`; integration work is isolated in `/Users/ian/Developer/agent-playground/stataverse-site-integration` on `codex/stataverse-site-integration`. Its shared navigation registry remains authoritative. The intended mount is `/learn/stata/`, with versioned source selection and a static student-facing package rather than a second independently edited implementation.
 
 The bounded reuse lookup returned advisory website design reviews, not an implemented integration. The project recall matches were unrelated. The existing website, navigation registry and STATAverse build are the reused capabilities. Integration checks must cover nested URLs, return links, search discovery, service-worker scope, saved-work preservation, offline behavior and asset sizes. Further advanced methods and design/voice review remain part of the original objective.
 
@@ -49,7 +51,7 @@ The bounded reuse lookup returned advisory website design reviews, not an implem
 
 The practice path now has 16 lessons and 68 steps organized into four selectable tracks. The original lesson IDs and step positions remain stable. New work covers observation order, do-files, temporary samples, group comparisons, estimation/prediction sample accounting, log and quadratic specifications, interaction terms and diagnosis of deliberately flawed drafts. Each step has two stages of help; 15 steps require a numerical result rather than selecting a displayed answer. Worked repairs adapt when the flawed draft has already created its variables.
 
-Native verification covers every canonical lesson sequence and a separate preserve/restore behavior sequence. The next major implementation work remains richer local data handling and additional advanced interactive methods. This increment does not complete the active five-million-token goal.
+Native verification covers every canonical lesson sequence and a separate preserve/restore behavior sequence. The next major implementation work remains richer local data handling and additional advanced interactive methods. This increment does not complete the active goal.
 
 ## Local import increment
 
@@ -83,6 +85,8 @@ Three investigations and seventeen tasks now provide a checked path through the 
 
 ## Instrumental variables
 
-The fourth analysis lab links first stages, reduced forms and structural fits on one synthetic sample. Students can vary relevance, endogeneity and exclusion, compare OLS and correctly calculated 2SLS, inspect the incorrect manual second-stage standard error, and invert Anderson–Rubin tests without forcing an unbounded set into a finite interval. Four checked comparisons connect the calculations to interpretation. Exact sample exports and native Stata do-files support work beyond the browser. These comparisons are local exercises, not yet part of the persistent investigation progress catalogue.
+The fourth analysis lab links first stages, reduced forms and structural fits on one synthetic sample. Students can vary relevance, endogeneity and exclusion, compare OLS and correctly calculated 2SLS, inspect the incorrect manual second-stage standard error, and invert Anderson–Rubin tests without forcing an unbounded set into a finite interval. Three investigations now provide sixteen tasks, replacing the four transient comparisons. Each visited task retains its experiment and response, with shared notes, task-level restoration, Workspace backups and honest storage-failure behavior. Exact sample exports and native Stata do-files support work beyond the browser.
 
 The implementation uses independent R and native Stata reference checks, a bounded 2,000-row population and at most 300 rendered observations. It joins the existing `/learn/stata/` integration, navigation, search and offline package. The IV-specific Scholon lookup timed out; project recall returned no selected-description matches. Existing code and official Stata documentation supplied the reusable foundations. This is a bounded addition to the continuing goal, not completion of the overhaul.
+
+The saved-investigation release passed 108 unit tests, 158 desktop/mobile browser cases, 660 link checks and eleven independent R/native IV cases. Public checks verified the exact source pin, an offline IV task and its response/settings/note after reload, beginner practice, navigation, search, sitemap, old URLs and saved-work compatibility. Its core offline package measures 496,750 bytes gzip from public response bodies. The remaining work within the revised budget should prioritize the student journey across advanced materials, voice/design consistency and meaningful adversarial cases over adding repetitive exercise counts.

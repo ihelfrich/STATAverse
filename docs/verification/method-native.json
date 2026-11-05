@@ -1,0 +1,686 @@
+{
+  "checkedAt": "2026-11-05T08:32:23.708Z",
+  "method": "Native Stata generated method templates and printable reference topics",
+  "limits": [
+    "Deterministic synthetic data; execution is not evidence of identification or empirical suitability.",
+    "Outcome/structure/code combinations deduplicated; all native reference topics and unknown-topic handling exercised.",
+    "Blocked survey and unresolved-inference commands are deliberately not executed.",
+    "Raw license-bearing logs stay outside the repository."
+  ],
+  "cases": [
+    {
+      "case": "continuous-cross-ols-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-cross-ols-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-cross-iv-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-cross-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-cross-did-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-cross-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-panel-panel-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-panel-ols-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-panel-panel-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-panel-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "continuous-panel-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-lpm-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-logit-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-lpm-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-logit-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-iv-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-did-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-cross-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-panel-panel-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-panel-lpm-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-panel-logit-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-panel-panel-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-panel-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "binary-panel-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-cross-count-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-cross-count-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-cross-iv-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-cross-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-cross-did-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-cross-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-panel-panelCount-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-panel-count-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-panel-panelCount-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-panel-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "count-panel-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-cross-fractional-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-cross-fractional-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-cross-iv-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-cross-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-cross-did-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-cross-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-panel-panel-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-panel-fractional-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-panel-panel-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-panel-iv-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "fraction-panel-did-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "duration-cross-hazard-independent",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "duration-cross-hazard-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "duration-panel-hazard-clustered",
+      "returnCode": "0",
+      "checks": [
+        "actual generated template executes",
+        "nonempty estimation sample",
+        "finite coefficient covariance"
+      ]
+    },
+    {
+      "case": "reference:default",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:ols",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:logit",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:count",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:fractional",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:hazard",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:panel",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:iv",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:did",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:diagnostics",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:reporting",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:lpm",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:panelCount",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference:unknown-topic",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:default",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:ols",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:logit",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:count",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:fractional",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:hazard",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:panel",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:iv",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:did",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:diagnostics",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:reporting",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:lpm",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:panelCount",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    },
+    {
+      "case": "reference_v2:unknown-topic",
+      "returnCode": "0",
+      "checks": [
+        "topic return code",
+        "existing data, sort order and labels preserved"
+      ]
+    }
+  ]
+}
