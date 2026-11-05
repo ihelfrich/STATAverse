@@ -33,12 +33,28 @@ function clearActions() {
   $("#example-copy-fallback").hidden = true;
   $("#example-copy-text").value = "";
 }
+function setPageHeading(reader) {
+  for (const [selector, active] of [
+    ["#library-title", !reader],
+    ["#example-title", reader],
+  ]) {
+    const old = $(selector);
+    const tag = active ? "H1" : "H2";
+    if (old.tagName === tag) continue;
+    const heading = document.createElement(tag);
+    for (const attribute of old.attributes)
+      heading.setAttribute(attribute.name, attribute.value);
+    heading.textContent = old.textContent;
+    old.replaceWith(heading);
+  }
+}
 function showLibrary() {
   generation++;
   controller?.abort();
   state = null;
   $("#example-library").hidden = false;
   $("#example-reader").hidden = true;
+  setPageHeading(false);
   document.title = "Worked Stata examples · STATAverse";
   clearActions();
 }
@@ -261,6 +277,7 @@ async function readLocation({ focus = false, retry = false } = {}) {
   const example = exampleById(id);
   $("#example-library").hidden = true;
   $("#example-reader").hidden = false;
+  setPageHeading(true);
   $("#example-content").hidden = true;
   $("#example-retry").hidden = true;
   clearActions();

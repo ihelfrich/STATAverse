@@ -10,9 +10,13 @@ test("all seven examples expose their real sections and return to the library", 
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/CodeLibrary/");
   await expect(page.locator(".example-list-row")).toHaveCount(7);
+  await expect(page.locator("h1")).toHaveCount(1);
+  await expect(page.locator("h1")).toHaveText("Worked Stata examples");
   for (const example of WORKED_EXAMPLES) {
     await page.locator(`#example-${example.id} h2 a`).click();
     await expect(page.locator("#example-title")).toHaveText(example.title);
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.locator("h1")).toHaveText(example.title);
     await expect(page.locator("#example-source")).toContainText("clear");
     await expect(page.locator("#example-sections a")).toHaveCount(
       example.sections.length,
@@ -24,6 +28,8 @@ test("all seven examples expose their real sections and return to the library", 
     await expect(page.locator("#example-next")).toBeDisabled();
     await page.locator("#example-back").click();
     await expect(page.locator("#library-title")).toBeFocused();
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.locator("h1")).toHaveText("Worked Stata examples");
   }
   expect(errors).toEqual([]);
 });
@@ -260,6 +266,7 @@ test("unknown example URLs cannot request arbitrary paths, and no-script downloa
     plain = await context.newPage();
   await plain.goto("http://127.0.0.1:4173/CodeLibrary/?example=panel");
   await expect(plain.locator("#example-panel a[download]")).toBeVisible();
+  await expect(plain.locator("h1")).toHaveCount(1);
   await expect(
     plain.getByText(
       /section reader and interpretation checks require JavaScript/,
