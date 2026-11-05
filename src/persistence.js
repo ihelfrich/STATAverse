@@ -2,6 +2,7 @@ import { LESSON_CATALOG } from "./lesson-catalog.js";
 import { DATASETS } from "./datasets.js";
 import { validateImportLibrary } from "./import-library.js";
 import { validateLabProgress } from "./lab-progress.js";
+import { validateBuilder } from "./do-builder-model.js";
 export const PRACTICE_KEY = "stataverse:practice:v2";
 export const MAX_STORE_BYTES = 4000000;
 export const emptyStore = () => ({
@@ -95,7 +96,7 @@ export function parseStore(text) {
 export function validateBackup(value) {
   if (
     !object(value) ||
-    ![undefined, 1, 2, 3].includes(value.version) ||
+    ![undefined, 1, 2, 3, 4].includes(value.version) ||
     !object(value.progress ?? {}) ||
     !object(value.profile ?? {})
   )
@@ -140,11 +141,14 @@ export function validateBackup(value) {
     value.practice === undefined ? undefined : validateStore(value.practice);
   const labs =
     value.labs === undefined ? undefined : validateLabProgress(value.labs);
+  const builder =
+    value.builder === undefined ? undefined : validateBuilder(value.builder);
   return {
-    version: labs ? 3 : 2,
+    version: builder ? 4 : labs ? 3 : 2,
     profile,
     progress,
     ...(practice ? { practice } : {}),
     ...(labs ? { labs } : {}),
+    ...(builder ? { builder } : {}),
   };
 }

@@ -115,6 +115,7 @@ const bundleResult = await build({
   metafile: true,
   entryPoints: [
     "src/learn.js",
+    "src/practice-worker.js",
     "src/home.js",
     "src/workspace.js",
     "src/regression-lab.js",
@@ -124,6 +125,7 @@ const bundleResult = await build({
     "src/iv-lab.js",
     "src/iv-investigation-ui.js",
     "src/method-lab.js",
+    "src/do-builder.js",
     "src/worked-reader.js",
   ],
   bundle: true,
@@ -139,6 +141,15 @@ await fs.writeFile(
   ".build/metafile.json",
   JSON.stringify(bundleResult.metafile),
 );
+await build({
+  entryPoints: ["src/site.js"],
+  bundle: true,
+  format: "iife",
+  outfile: "assets/js/site.js",
+  minify: true,
+  target: ["es2022"],
+  legalComments: "linked",
+});
 await build({
   entryPoints: ["src/legacy-vendor.js"],
   bundle: true,

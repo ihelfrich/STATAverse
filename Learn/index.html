@@ -21,6 +21,7 @@
       >
       <nav aria-label="Main navigation">
         <a href="./" aria-current="page">Practice</a
+        ><a href="../ScriptLibrary/builder.html">Do-file builder</a
         ><a href="../Labs/">Analysis labs</a
         ><a href="../ScriptLibrary/">Reference</a
         ><a href="../Workspace/">Saved work</a>
@@ -32,7 +33,7 @@
     <div class="workspace-heading">
       <div>
         <p class="eyebrow">The practice workspace</p>
-        <h1>Stata, one command at a time.</h1>
+        <h1>Stata practice</h1>
       </div>
       <p class="scope-note">
         Runs in your browser. A guided Stata subset.<br /><button
@@ -52,7 +53,7 @@
     <main id="main" class="workspace-grid" tabindex="-1" aria-busy="true" inert>
       <aside class="learning-sidebar" aria-label="Learning path">
         <div class="sidebar-title">
-          <span class="eyebrow">Your learning path</span
+          <span class="eyebrow">Learning path</span
           ><span id="path-count" class="small-count"></span>
         </div>
         <label for="track-select" class="track-label">Learning track</label>
@@ -101,7 +102,14 @@
             >
               Load worked command</button
             ><button id="undo" type="button" class="quiet-button">Undo</button>
+            <button id="stop-run" type="button" class="quiet-button" hidden>
+              Stop run
+            </button>
+            <button id="retry-replay" type="button" class="quiet-button" hidden>
+              Retry restoration
+            </button>
           </div>
+          <p id="run-status" class="helper" role="status" hidden></p>
           <p id="editor-description" class="helper">
             Run the command at your cursor, select several lines, or run the
             full editor. Execution stops at an error. Tab leaves the editor;

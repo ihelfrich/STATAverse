@@ -2,7 +2,7 @@ const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
 const LEGACY_SCOPE =
   new URL(self.registration.scope).pathname === "/STATAverse/";
-const CACHE_NAME = CACHE_PREFIX + "v28";
+const CACHE_NAME = CACHE_PREFIX + "v29";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
@@ -30,6 +30,10 @@ const CORE_ASSETS = [
   "assets/css/home.css",
   "assets/css/site.css",
   "assets/js/learn.js",
+  "assets/js/practice-worker.js",
+  "ScriptLibrary/builder.html",
+  "assets/css/do-builder.css",
+  "assets/js/do-builder.js",
   "assets/js/home.js",
   "assets/js/site.js",
   "assets/js/legacy-location.js",

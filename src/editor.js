@@ -1,4 +1,10 @@
-import { EditorState, StateEffect, StateField, Prec } from "@codemirror/state";
+import {
+  EditorState,
+  StateEffect,
+  StateField,
+  Prec,
+  Compartment,
+} from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -120,9 +126,11 @@ export function createCommandEditor(
   { onChange, onRun, variables, announce },
 ) {
   let replacing = false;
+  const readOnly = new Compartment();
   const view = new EditorView({
     parent,
     extensions: [
+      readOnly.of(EditorState.readOnly.of(false)),
       lineNumbers(),
       highlightActiveLine(),
       highlightActiveLineGutter(),
@@ -245,6 +253,14 @@ export function createCommandEditor(
     ],
   });
   return {
+    setReadOnly(value) {
+      view.dispatch({
+        effects: readOnly.reconfigure([
+          EditorState.readOnly.of(value),
+          EditorView.contentAttributes.of({ "aria-readonly": String(value) }),
+        ]),
+      });
+    },
     getValue: () => view.state.doc.toString(),
     setValue(value) {
       replacing = true;

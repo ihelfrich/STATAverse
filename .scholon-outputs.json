@@ -13,17 +13,29 @@
       "path": "docs/numerical-contract.md",
       "kind": "specification",
       "title": "Browser Stata numerical contract",
-      "summary": "Supported browser numerical and do-file semantics, operation limits, scoped locals, loops, replay and explicit compatibility boundaries",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "summary": "Browser numerical and do-file semantics, cancelable execution and worker recovery, guided native do-file authoring, replay and compatibility boundaries",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
-      "limits": ["Bounded educational subset; no full Stata equivalence"],
+      "limits": [
+        "Bounded educational subset; no full Stata equivalence"
+      ],
       "depends_on": [],
       "evidence": [
         "docs/red-team-review.md",
         "docs/verification/program-native.json",
         "tests/program.test.mjs",
         "tests/browser/programming.spec.js",
-        "docs/browser-runtime-plan.md"
+        "docs/browser-runtime-plan.md",
+        "docs/verification/builder-native.json",
+        "tests/practice-worker.test.mjs",
+        "tests/browser/practice-worker.spec.js",
+        "tests/do-builder.test.mjs",
+        "tests/browser/do-builder.spec.js"
       ]
     },
     {
@@ -33,11 +45,20 @@
       "kind": "review",
       "title": "STATAverse student overhaul red-team review",
       "summary": "Reproduced defects, repairs and remaining verification limits",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
-      "limits": ["Implementation-agent review; no independent human review"],
+      "limits": [
+        "Implementation-agent review; no independent human review"
+      ],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md"]
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
     },
     {
       "id": "stataverse.native-checks",
@@ -46,13 +67,20 @@
       "kind": "receipt",
       "title": "Native Stata teaching-script execution",
       "summary": "Return codes for advanced scripts, projects and template assertions",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Default guide settings only; Java PNG export failures; project CSV importer substituted"
       ],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md"]
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
     },
     {
       "id": "stataverse.numerical-reference",
@@ -61,13 +89,20 @@
       "kind": "results",
       "title": "Independent R OLS and HC1 reference fixture",
       "summary": "Six model/covariance combinations on synthetic practice data",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Fixture-specific numerical checks, not a global error guarantee"
       ],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md"]
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
     },
     {
       "id": "stataverse.native-scalar-reference",
@@ -76,13 +111,20 @@
       "kind": "results",
       "title": "Native Stata scalar-semantic fixture",
       "summary": "Executed missing-value, exponent and function cases",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Twelve scalar cases do not establish complete parser equivalence"
       ],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md"]
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
     },
     {
       "id": "stataverse.worked-examples",
@@ -91,7 +133,12 @@
       "kind": "procedure",
       "title": "Worked Stata source reader and panel maintenance",
       "summary": "Canonical source, version checks, offline behavior, native panel assertions and remaining review boundaries",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Constructed examples and implementation review; not empirical identification or classroom validation"
@@ -109,13 +156,20 @@
       "kind": "source-check",
       "title": "Stata teaching source checks",
       "summary": "Official documentation pointers and distinctions used in revision",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Targeted documentation checks, not validation of all legacy reading material"
       ],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md"]
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
     },
     {
       "id": "stataverse.regression-lab-reference",
@@ -124,7 +178,12 @@
       "kind": "results",
       "title": "Independent regression-lab reference calculations",
       "summary": "Four synthetic model, partial-regression and influence checks using R lm and sandwich",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Four fixed cases; no global numerical or inferential guarantee"
@@ -143,13 +202,21 @@
       "kind": "receipt",
       "title": "Native Stata regression-lab export verification",
       "summary": "Four exported workflows with native assertions for coefficients, covariance and influence",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Native double input substitutes for Java-dependent CSV import; no PNG export checked"
       ],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md", "tools/check-lab-native.mjs"]
+      "evidence": [
+        "docs/red-team-review.md",
+        "tools/check-lab-native.mjs"
+      ]
     },
     {
       "id": "stataverse.panel-native",
@@ -158,7 +225,12 @@
       "kind": "receipt",
       "title": "Native panel specification verification",
       "summary": "Full script execution, within/FE comparisons, estimable between coefficients and separate dynamic-panel checks",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Constructed examples and implementation review; not empirical identification or classroom validation"
@@ -184,7 +256,12 @@
         "docs/red-team-review.md"
       ],
       "project": "stataverse",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "depends_on": []
     },
@@ -203,7 +280,12 @@
         "docs/numerical-contract.md"
       ],
       "project": "stataverse",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "depends_on": []
     },
@@ -214,7 +296,12 @@
       "kind": "results",
       "title": "Independent delimited-text parsing fixtures",
       "summary": "Thirty synthetic comma, tab and semicolon cases generated and round-tripped with Python csv",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Finite parser fixtures; native Stata import remains unverified because Java is unavailable"
@@ -242,7 +329,12 @@
         "docs/numerical-contract.md"
       ],
       "project": "stataverse",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "depends_on": []
     },
@@ -260,7 +352,12 @@
         "docs/red-team-review.md"
       ],
       "project": "stataverse",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "depends_on": []
     },
@@ -271,7 +368,12 @@
       "kind": "results",
       "title": "Native panel reference coefficients",
       "summary": "Seventeen coefficients and standard errors matched to the downloadable source hash",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Constructed examples and implementation review; not empirical identification or classroom validation"
@@ -289,7 +391,12 @@
       "kind": "reference",
       "title": "Native Stata grouped and row-statistic fixtures",
       "summary": "Twenty-five native egen/collapse cases covering missing keys, empty samples, totals, row functions and casewise deletion",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Finite synthetic cases; no weights, by prefixes, extended missing values or general egen expressions",
@@ -310,7 +417,12 @@
       "kind": "reference",
       "title": "Native Stata merge and reshape reference cases",
       "summary": "Thirty-two native cases covering keyed matches, overlap updates, missingness, empty samples and reshaping failures and repairs",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Finite synthetic integer/string cases; not full Stata equivalence",
@@ -332,14 +444,21 @@
       "kind": "curriculum",
       "title": "Guided Stata merge and reshape investigations",
       "summary": "Seventeen tasks linking configuration, source inspection and interpretation with verified native merge/reshape fixtures",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Supported practice with visible hints and results, not secure assessment",
         "Only the synthetic cases implemented by the visual data lab",
         "No classroom or manual assistive-technology validation"
       ],
-      "depends_on": ["stataverse.data-native"],
+      "depends_on": [
+        "stataverse.data-native"
+      ],
       "evidence": [
         "tests/data-investigations.test.mjs",
         "tests/browser/data-investigations.spec.js",
@@ -353,7 +472,13 @@
       "kind": "receipt",
       "title": "STATAverse integrated website browser checks",
       "summary": "Nested-path execution, saved-work compatibility, offline worker scope, main-site discovery and browser asset sizes",
-      "facets": ["Stata", "teaching", "browser", "website", "verification"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "browser",
+        "website",
+        "verification"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Local assembled website only; not publicly deployed",
@@ -361,7 +486,9 @@
         "Targeted accessibility checks; no classroom or manual assistive-technology validation",
         "Legacy and public deployment are verified separately in public-site.json and legacy-transition.json"
       ],
-      "depends_on": ["stataverse.data-investigations"],
+      "depends_on": [
+        "stataverse.data-investigations"
+      ],
       "evidence": [
         "tools/verify-site-integration.mjs",
         "docs/site-integration.md",
@@ -374,7 +501,7 @@
       "path": "docs/iv-lab-contract.md",
       "kind": "specification",
       "title": "Instrumental-variables browser model contract",
-      "summary": "Population assumptions, 2SLS covariance, analytic Anderson\u2013Rubin inversion and numerical limits",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
       "facets": [
         "Stata",
         "teaching",
@@ -495,13 +622,20 @@
       "kind": "receipt",
       "title": "Legacy STATAverse browser upgrade verification",
       "summary": "Actual v7 worker upgrade, deep-link preservation, saved notes, scoped cache retirement and canonical offline execution",
-      "facets": ["Stata", "browser", "website", "verification"],
+      "facets": [
+        "Stata",
+        "browser",
+        "website",
+        "verification"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Local browser reconstruction of the public v7 worker; public deployment remains a separate verification",
         "An already open older page changes on its next navigation or reload"
       ],
-      "depends_on": ["stataverse.site-integration"],
+      "depends_on": [
+        "stataverse.site-integration"
+      ],
       "evidence": [
         "tools/verify-legacy-transition.mjs",
         "service-worker.js",
@@ -515,14 +649,21 @@
       "kind": "receipt",
       "title": "Public STATAverse website browser verification",
       "summary": "Public origin and pinned runtime verification, beginner execution, saved work, advanced labs, offline use and main-site discovery",
-      "facets": ["Stata", "browser", "website", "verification"],
+      "facets": [
+        "Stata",
+        "browser",
+        "website",
+        "verification"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Point-in-time public browser checks with synthetic examples",
         "No full Stata equivalence or classroom validation",
         "Computed gzip sizes are not measured network transfer times"
       ],
-      "depends_on": ["stataverse.site-integration"],
+      "depends_on": [
+        "stataverse.site-integration"
+      ],
       "evidence": [
         "tools/verify-site-integration.mjs",
         "docs/site-integration.md",
@@ -535,18 +676,28 @@
       "path": "docs/verification/public-release.json",
       "kind": "receipt",
       "title": "STATAverse public deployment and legacy-route receipts",
-      "summary": "Verified main-site and project Pages deployments, pinned source, public browser evidence and continuing-work limits",
-      "facets": ["Stata", "website", "deployment", "verification"],
+      "summary": "Published browser-only programming increment with 19 lessons, 86 steps and verified main-site integration; broader compatibility remains open",
+      "facets": [
+        "Stata",
+        "website",
+        "deployment",
+        "verification"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Point-in-time public deployment verification",
         "Full overhaul and saved IV investigations remain active"
       ],
-      "depends_on": ["stataverse.public-site", "stataverse.legacy-transition"],
+      "depends_on": [
+        "stataverse.public-site",
+        "stataverse.legacy-transition"
+      ],
       "evidence": [
         "docs/verification/public-site.json",
         "docs/verification/legacy-transition.json",
-        "docs/site-integration.md"
+        "docs/site-integration.md",
+        "docs/verification/public-programming-legacy.json",
+        "docs/verification/program-native.json"
       ]
     },
     {
@@ -556,7 +707,12 @@
       "kind": "teaching-material",
       "title": "Saved IV investigations",
       "summary": "Sixteen checked tasks on two-stage estimation, weak instruments and exclusion failure",
-      "facets": ["Stata", "teaching", "instrumental-variables", "verification"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Public release is recorded separately in public-release.json",
@@ -578,7 +734,12 @@
       "kind": "receipt",
       "title": "IV investigation browser and persistence verification",
       "summary": "Curriculum execution, saved task restoration and reproduced concurrent-clear repair",
-      "facets": ["Stata", "teaching", "instrumental-variables", "verification"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Public release is recorded separately in public-release.json",
@@ -607,7 +768,12 @@
         "tests/browser/method-lab.spec.js"
       ],
       "project": "stataverse",
-      "facets": ["Stata", "teaching", "verification", "synthetic-data"],
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
       "status": "candidate_tested",
       "limits": [
         "Implementation-agent review; no independent classroom or human acceptance",

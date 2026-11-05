@@ -1,0 +1,124 @@
+{
+  "checkedAt": "2026-11-05T18:42:13.999Z",
+  "method": "Actual generated do-files run against constructed .dta input; output files, model covariance and selected preparation identities checked.",
+  "limits": [
+    "Execution checks do not establish identification, empirical suitability or full Stata compatibility.",
+    "Native test runs on macOS; Windows path normalization is covered by JavaScript and browser tests, not a Windows Stata run.",
+    "CSV and Excel import syntax follows official manuals; these native cases use .dta input.",
+    "Raw native logs remain outside the repository."
+  ],
+  "cases": [
+    {
+      "case": "describe-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "scatter-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "ols-conventional",
+      "returnCode": "0"
+    },
+    {
+      "case": "ols-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "ols-cluster",
+      "returnCode": "0"
+    },
+    {
+      "case": "ttest-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "logit-conventional",
+      "returnCode": "0"
+    },
+    {
+      "case": "logit-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "logit-cluster",
+      "returnCode": "0"
+    },
+    {
+      "case": "poisson-conventional",
+      "returnCode": "0"
+    },
+    {
+      "case": "poisson-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "poisson-cluster",
+      "returnCode": "0"
+    },
+    {
+      "case": "iv-conventional",
+      "returnCode": "0"
+    },
+    {
+      "case": "iv-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "iv-cluster",
+      "returnCode": "0"
+    },
+    {
+      "case": "fe-conventional",
+      "returnCode": "0"
+    },
+    {
+      "case": "fe-robust",
+      "returnCode": "0"
+    },
+    {
+      "case": "fe-cluster",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-rename",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-log",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-square",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-center",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-encode",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-destring",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-missing",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-filter",
+      "returnCode": "0"
+    },
+    {
+      "case": "prepare-dropmissing",
+      "returnCode": "0"
+    },
+    {
+      "case": "factor-interaction",
+      "returnCode": "0"
+    }
+  ]
+}

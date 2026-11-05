@@ -29,10 +29,16 @@ import { createCommandEditor } from "./editor.js";
 import { changeSummary } from "./data-changes.js";
 import { historyReceipt, retainResults } from "./output-history.js";
 import { RESOURCE_LIMITS } from "./resource-limits.js";
+import { createPracticeRunner } from "./practice-runner.js";
+import {
+  executionInputs,
+  offsetExecutionSources,
+} from "./practice-execution.js";
 const $ = (selector) => document.querySelector(selector);
 const STORAGE = PRACTICE_KEY;
 let saved = emptyStore(),
-  storageOK = true;
+  storageOK = true,
+  storedText = null;
 window.addEventListener("storage", (event) => {
   if (event.key === STORAGE || event.key === null)
     storageWarning(
@@ -41,6 +47,7 @@ window.addEventListener("storage", (event) => {
 });
 try {
   const raw = localStorage.getItem(STORAGE);
+  storedText = raw;
   if (raw) saved = parseStore(raw);
 } catch {
   storageWarning(
@@ -73,6 +80,65 @@ let stepIndex = 0,
 let selectedTrack = lesson.track,
   hintCount = 0,
   lessonFinished = false;
+const practiceRunner = createPracticeRunner();
+let pendingJob = null,
+  replayIncomplete = false,
+  disabledBeforeRun = null;
+
+function executionStatus(message, error = false) {
+  $("#run-status").hidden = !message;
+  $("#run-status").textContent = message;
+  $("#run-status").classList.toggle("execution-problem", error);
+}
+function executionBusy(value, replay = false) {
+  if (value) {
+    if (!disabledBeforeRun)
+      disabledBeforeRun = new Map(
+        [
+          ...document.querySelectorAll(
+            "#run, #run-line, #insert-example, #undo, #next-step, #import-open, #export-open, #dataset-select, #remove-import, #interpretation input, #interpretation button, [data-reuse-command]" +
+              (replay ? ", #student-notes" : ""),
+          ),
+        ].map((control) => [control, control.disabled]),
+      );
+    for (const control of disabledBeforeRun.keys()) control.disabled = true;
+  } else if (disabledBeforeRun) {
+    for (const [control, disabled] of disabledBeforeRun)
+      if (control.isConnected) control.disabled = disabled;
+    disabledBeforeRun = null;
+  }
+  editor.setReadOnly(value);
+  $("#stop-run").hidden = !value;
+  $("#stop-run").textContent = replay ? "Stop restoration" : "Stop run";
+  $("#retry-replay").hidden = true;
+  $(".observation-pane").setAttribute("aria-busy", String(value));
+  $("#data-table").hidden = value && replay;
+  if (value && replay)
+    $("#dataset-count").textContent = "Restoring saved data…";
+}
+function stopExecution(navigating = false) {
+  const wasReplay = pendingJob?.task === "replay";
+  const hadJob = pendingJob !== null;
+  pendingJob = null;
+  practiceRunner.cancel();
+  if (wasReplay && !navigating) {
+    replayIncomplete = true;
+    $("#stop-run").hidden = true;
+    $("#retry-replay").hidden = false;
+    $(".observation-pane").setAttribute("aria-busy", "false");
+    $("#dataset-count").textContent = "Saved data have not been restored";
+    executionStatus(
+      "Restoration stopped. Your saved work is unchanged. Retry restoration, or open another dataset or lesson.",
+      true,
+    );
+  } else {
+    executionBusy(false);
+    if (hadJob && !navigating)
+      executionStatus(
+        "Stopped. No commands from this run were applied; your earlier work remains available.",
+      );
+  }
+}
 function storageWarning(message) {
   storageOK = false;
   $("#storage-warning").hidden = false;
@@ -88,6 +154,7 @@ function entry() {
     : saved.free?.[initialDataset];
 }
 function persist() {
+  if (pendingJob?.task === "replay" || replayIncomplete) return;
   const previous = entry() || {};
   const data = {
     ...previous,
@@ -108,10 +175,19 @@ function persist() {
   if (mode === "free") saved.activeDataset = initialDataset;
   if (!storageOK) return;
   try {
+    // Storage events are asynchronous. A completed worker must not overwrite
+    // an import merely because its event has not reached this tab yet.
+    if (localStorage.getItem(STORAGE) !== storedText) {
+      storageWarning(
+        "Saved practice changed in another tab. Automatic saving in this tab has stopped. Export this work before reloading to read the saved copy.",
+      );
+      return;
+    }
     const text = JSON.stringify(saved);
     if (new TextEncoder().encode(text).length > MAX_STORE_BYTES)
       throw new Error("Storage size limit");
     localStorage.setItem(STORAGE, text);
+    storedText = text;
     $("#save-status").textContent = "Progress saved on this device";
   } catch {
     storageWarning(
@@ -120,6 +196,9 @@ function persist() {
   }
 }
 function loadSession() {
+  stopExecution(true);
+  replayIncomplete = false;
+  executionStatus("");
   const record = entry();
   session = new PracticeSession(initialDataset, customDatasets);
   dataPage = 0;
@@ -132,30 +211,6 @@ function loadSession() {
           Math.max(0, Number.isInteger(record?.step) ? record.step : 0),
         )
       : 0;
-  if (
-    Array.isArray(record?.history) &&
-    record.history.length <= 500 &&
-    record.history.every((c) => typeof c === "string" && c.length <= 50000)
-  ) {
-    for (const command of record.history) {
-      const output = session.run(command);
-      results = retainResults([...results, ...output]);
-      timeline = retainResults(
-        [...timeline, ...(output.receipts || output.map(historyReceipt))],
-        {
-          entries: 500,
-          cells: Infinity,
-          bytes: RESOURCE_LIMITS.timelineBytes,
-        },
-      );
-      if (output.some((r) => r.kind === "error")) {
-        storageWarning(
-          "Some saved commands could not be replayed. The original saved history has been left unchanged. Inspect Results, and export a backup from Saved work before resetting this session.",
-        );
-        break;
-      }
-    }
-  }
   commandPassed = false;
   answerPassed = false;
   selectedAnswer = null;
@@ -180,6 +235,58 @@ function loadSession() {
         ? `Restored ${session.history.length} successful commands. ${session.data.rows.length} observations are in memory.`
         : "The dataset is loaded. Run your first command to inspect it.";
   setTab("data");
+  if (Array.isArray(record?.history) && record.history.length)
+    restoreHistory(record.history);
+}
+async function restoreHistory(commands) {
+  const job = { task: "replay", session };
+  pendingJob = job;
+  executionBusy(true, true);
+  executionStatus(`Restoring ${commands.length} saved commands…`);
+  try {
+    const response = await practiceRunner.run(
+      {
+        ...executionInputs(session, initialDataset),
+        task: "replay",
+        commands,
+      },
+      (progress) => {
+        if (pendingJob === job)
+          executionStatus(
+            `Restoring saved commands: ${progress.commands} of ${commands.length}.${progress.mode === "cooperative" ? " Stop is available between commands." : ""}`,
+          );
+      },
+    );
+    if (pendingJob !== job || session !== job.session) return;
+    session.acceptExecution(response.state, response.undo);
+    results = response.results;
+    timeline = response.receipts;
+    pendingJob = null;
+    executionBusy(false);
+    if (response.replayFailed)
+      storageWarning(
+        "Some saved commands could not be replayed. The original saved history has been left unchanged. Inspect Results, and export a backup from Saved work before resetting this session.",
+      );
+    renderAll();
+    const message = response.replayFailed
+      ? `Replay stopped: ${results.at(-1).message}`
+      : `Restored ${session.history.length} successful commands. ${session.data.rows.length} observations are in memory.`;
+    $("#activity-note").textContent = message;
+    executionStatus(message, response.replayFailed);
+    persist();
+  } catch (error) {
+    if (pendingJob !== job) return;
+    pendingJob = null;
+    replayIncomplete = true;
+    $("#stop-run").hidden = true;
+    $("#retry-replay").hidden = false;
+    $(".observation-pane").setAttribute("aria-busy", "false");
+    $("#dataset-count").textContent = "Saved data have not been restored";
+    executionStatus(
+      `Saved work could not be restored. The stored original is unchanged. ${error.message}`,
+      true,
+    );
+  }
 }
 function renderSidebar() {
   const completedCount = LESSONS.filter(
@@ -229,7 +336,7 @@ function renderLesson() {
   $("#exercise-check").hidden = free;
   if (free) {
     $("#lesson-content").innerHTML =
-      `<div class="lesson-topline"><span>Open practice</span><span>At your own pace</span></div><h2 id="lesson-title">Work through your own questions.</h2><p class="lesson-explanation">Choose a dataset, write commands and inspect the results. Your data stay in this browser. Command help lists the syntax supported here.</p><label for="dataset-select" class="eyebrow">Practice dataset</label><select id="dataset-select" class="dataset-select">${Object.values(
+      `<div class="lesson-topline"><span>Open practice</span><span>Dataset workspace</span></div><h2 id="lesson-title">Open practice</h2><p class="lesson-explanation">Choose a dataset, write commands and inspect the results. Your data stay in this browser. Command help lists the syntax supported here.</p><label for="dataset-select" class="eyebrow">Practice dataset</label><select id="dataset-select" class="dataset-select">${Object.values(
         catalog(),
       )
         .map(
@@ -238,7 +345,7 @@ function renderLesson() {
         )
         .join(
           "",
-        )}</select>${customDatasets[initialDataset] ? '<button type="button" id="remove-import" class="text-button remove-import">Remove this imported dataset</button>' : ""}<div class="task-card"><strong>A place to begin</strong><p>Inspect the data with <code>describe</code>, then choose a summary, graph or model. Use Undo to inspect the effect of a change.</p></div>`;
+        )}</select>${customDatasets[initialDataset] ? '<button type="button" id="remove-import" class="text-button remove-import">Remove this imported dataset</button>' : ""}<div class="task-card"><strong>Data inspection</strong><p>Inspect the data with <code>describe</code>, then choose a summary, graph or model. Use Undo to inspect the effect of a change.</p></div>`;
     $("#dataset-select").addEventListener("change", (e) => {
       persist();
       initialDataset = e.target.value;
@@ -251,7 +358,7 @@ function renderLesson() {
   const step = lesson.steps[stepIndex],
     completed = entry()?.completed || [];
   $("#lesson-content").innerHTML =
-    `<div class="lesson-topline"><span>${h(lesson.level)}</span><span>Step ${stepIndex + 1} of ${lesson.steps.length}</span></div><div class="step-progress" role="img" aria-label="Step ${stepIndex + 1} of ${lesson.steps.length}">${lesson.steps.map((_, i) => `<span class="${i === stepIndex ? "active" : completed.includes(i) ? "done" : ""}"></span>`).join("")}</div><h2 id="lesson-title">${h(step.title)}</h2><p class="lesson-explanation">${h(step.explanation)}</p><div class="task-card"><strong>${step.starter ? "Repair the draft" : "Your task"}</strong><p>${h(step.task)}</p></div><div class="lesson-help"><button type="button" id="show-hint" class="text-button" aria-controls="task-hints" aria-expanded="false">Show a hint</button><ol id="task-hints" class="task-hints" aria-live="polite"></ol></div>`;
+    `<div class="lesson-topline"><span>${h(lesson.level)}</span><span>Step ${stepIndex + 1} of ${lesson.steps.length}</span></div><div class="step-progress" role="img" aria-label="Step ${stepIndex + 1} of ${lesson.steps.length}">${lesson.steps.map((_, i) => `<span class="${i === stepIndex ? "active" : completed.includes(i) ? "done" : ""}"></span>`).join("")}</div><h2 id="lesson-title">${h(step.title)}</h2><p class="lesson-explanation">${h(step.explanation)}</p><div class="task-card"><strong>${step.starter ? "Repair the draft" : "Exercise"}</strong><p>${h(step.task)}</p></div><div class="lesson-help"><button type="button" id="show-hint" class="text-button" aria-controls="task-hints" aria-expanded="false">Show a hint</button><ol id="task-hints" class="task-hints" aria-live="polite"></ol></div>`;
   renderHints();
   $("#show-hint").addEventListener("click", () => {
     hintCount++;
@@ -304,6 +411,15 @@ function renderHints() {
 }
 function updateCheck(message = "") {
   const box = $("#exercise-check");
+  if (pendingJob) {
+    box.className = "exercise-check";
+    box.textContent =
+      pendingJob.task === "replay"
+        ? "Restoring the saved commands before you continue."
+        : "Running your commands. The task will be checked when this run finishes.";
+    updateNext();
+    return;
+  }
   box.className =
     "exercise-check" + (commandPassed ? " success" : message ? " error" : "");
   box.textContent = commandPassed
@@ -313,7 +429,11 @@ function updateCheck(message = "") {
   updateNext();
 }
 function updateNext() {
-  $("#next-step").disabled = lessonFinished || !(commandPassed && answerPassed);
+  $("#next-step").disabled =
+    Boolean(pendingJob) ||
+    replayIncomplete ||
+    lessonFinished ||
+    !(commandPassed && answerPassed);
 }
 function renderData() {
   $("#preserve-status").hidden = !session.preservedData;
@@ -472,8 +592,9 @@ function setTab(name, focus = false) {
   }
   if (focus) $(`#tab-${name}`).focus();
 }
-function run(scope = "all") {
-  let output, range;
+async function run(scope = "all") {
+  if (pendingJob || replayIncomplete) return;
+  let output, range, job;
   const fullSource = editor.getValue();
   try {
     range =
@@ -484,17 +605,56 @@ function run(scope = "all") {
       announce("There is no command at or after the cursor.");
       return;
     }
-    output = session.run(range.text);
-    for (const result of output)
-      if (result.source)
-        result.source = {
-          ...result.source,
-          from: result.source.from + range.from,
-          to: result.source.to + range.from,
-          line: result.source.line + range.line - 1,
-          endLine: result.source.endLine + range.line - 1,
-        };
+    job = { task: "run", session, startingCommands: session.history.length };
+    pendingJob = job;
+    executionBusy(true);
+    updateCheck();
+    executionStatus("Running… Stop discards this run's changes.");
+    const response = await practiceRunner.run(
+      {
+        ...executionInputs(session, initialDataset),
+        task: "run",
+        source: range.text,
+      },
+      (progress) => {
+        if (pendingJob === job)
+          executionStatus(
+            `Running: ${progress.commands} commands completed.${progress.mode === "cooperative" ? " Stop is available between commands." : " Stop discards this run's changes."}`,
+          );
+      },
+    );
+    if (pendingJob !== job || session !== job.session) return;
+    output = response.results;
+    Object.defineProperty(output, "receipts", { value: response.receipts });
+    offsetExecutionSources(
+      [
+        ...output,
+        ...response.undo
+          .filter((state) => state.history.length > job.startingCommands)
+          .map((state) => state.last)
+          .filter(Boolean),
+      ],
+      response.receipts,
+      range,
+    );
+    session.acceptExecution(response.state, response.undo);
+    pendingJob = null;
+    executionBusy(false);
+    executionStatus(
+      output.at(-1)?.kind === "error"
+        ? "Stopped at a command error. Earlier successful commands from this run were applied."
+        : `${session.history.length - job.startingCommands} commands completed.`,
+    );
   } catch (e) {
+    if (job && pendingJob !== job) return;
+    pendingJob = null;
+    executionBusy(false);
+    if (!e.code) {
+      executionStatus(e.message, true);
+      updateCheck();
+      announce(e.message);
+      return;
+    }
     output = [
       {
         kind: "error",
@@ -505,6 +665,7 @@ function run(scope = "all") {
               from: e.source.from + (range?.from || 0),
               to: e.source.to + (range?.from || 0),
               line: e.source.line + (range?.line || 1) - 1,
+              endLine: e.source.endLine + (range?.line || 1) - 1,
             }
           : undefined,
         message: e.message,
@@ -594,8 +755,18 @@ const editor = createCommandEditor($("#code-editor"), {
 });
 $("#run").addEventListener("click", () => run("all"));
 $("#run-line").addEventListener("click", () => run("current"));
+$("#stop-run").addEventListener("click", () => {
+  stopExecution();
+  updateCheck();
+  if (replayIncomplete) $("#retry-replay").focus();
+  else editor.focus();
+});
+$("#retry-replay").addEventListener("click", loadSession);
 $("#student-notes").addEventListener("input", scheduleSave);
-window.addEventListener("pagehide", persist);
+window.addEventListener("pagehide", () => {
+  stopExecution();
+  persist();
+});
 $("#insert-example").addEventListener("click", () => {
   const step = lesson.steps[stepIndex];
   const repair = step.repairWhen;
@@ -985,9 +1156,9 @@ zipButton.addEventListener("click", () => {
     "application/zip",
   );
 });
-loadSession();
 for (const id of ["run", "run-line", "insert-example"])
   $("#" + id).disabled = false;
+loadSession();
 $("#main").removeAttribute("inert");
 $("#main").setAttribute("aria-busy", "false");
 $("#practice-loading").hidden = true;

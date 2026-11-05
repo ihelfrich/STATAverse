@@ -4,72 +4,425 @@
     <script src="../assets/js/legacy-location.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Script Builder | STATAverse</title>
-    <link rel="stylesheet" href="../assets/css/site.css" />
+    <meta
+      name="description"
+      content="Prepare a Stata do-file with guided project paths, data import, preparation steps and analysis options."
+    />
+    <title>Do-file builder · STATAverse</title>
+    <link rel="stylesheet" href="../assets/css/learn.css" />
+    <link rel="stylesheet" href="../assets/css/do-builder.css" />
   </head>
-  <body class="page-zero" data-script-builder>
+  <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <header class="site-header">
-            <nav class="nav" aria-label="Main navigation"><a class="brand" href="../index.html">STATAverse</a><div class="nav-links"><a href="../Learn/">Practice</a><a href="../ZeroToHero/">Applied lessons</a><a href="../ScriptLibrary/">Scripts</a><a href="../Glossary/">Concepts</a><a href="../Search/">Search</a><a href="../index.html#reference-title">All resources</a></div></nav>
+    <header class="app-header">
+      <a href="../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../Learn/">Practice</a
+        ><a href="builder.html" aria-current="page">Do-file builder</a
+        ><a href="../Labs/">Analysis labs</a
+        ><a href="../Workspace/">Saved work</a><a href="../Search/">Search</a>
+      </nav>
     </header>
-
-    <main id="main">
-      <section class="hero hero-compact">
-        <div class="hero-copy">
-          <span class="eyebrow">Script builder</span>
-          <h1>Build multi-step do-files by dragging scripts</h1>
-          <p class="lead">
-            Drag a script card into your builder lane to create a custom, multi-step workflow.
-            Reorder items and export a combined .do file.
+    <main id="main" class="builder-main">
+      <div class="builder-heading">
+        <div>
+          <p class="eyebrow">STATAverse / Code authoring</p>
+          <h1>Do-file builder</h1>
+          <p>
+            Choose the files, variables and analysis. The code updates as the
+            plan takes shape; download the finished do-file to run in Stata.
           </p>
         </div>
-      </section>
-
-      <section class="section">
-        <div class="builder-grid">
-          <article class="builder-panel">
-            <div class="builder-header">
-              <h3>Script library</h3>
-              <input
-                id="builder-search"
-                class="search-input"
-                type="search"
-                placeholder="Search scripts"
-                aria-label="Search scripts"
-              />
-            </div>
-            <div class="builder-list" data-builder-library></div>
-          </article>
-
-          <article class="builder-panel">
-            <div class="builder-header">
-              <h3>Your build</h3>
-              <input
-                id="builder-name"
-                class="field-input"
-                type="text"
-                placeholder="workflow-name.do"
-                aria-label="Workflow filename"
-              />
-            </div>
-            <div class="builder-dropzone" data-builder-drop>
-              <p class="muted">Drag scripts here or click "Add".</p>
-            </div>
-            <div class="builder-actions">
-              <button class="btn primary" type="button" data-builder-export>Download .do</button>
-              <button class="btn ghost" type="button" data-builder-copy>Copy to clipboard</button>
-              <button class="btn ghost" type="button" data-builder-clear>Clear</button>
-            </div>
-            <textarea class="builder-output" data-builder-output readonly></textarea>
-          </article>
+        <div class="builder-level">
+          <label for="level">Options shown</label
+          ><select id="level">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option></select
+          ><span>Changing this view preserves existing choices.</span>
         </div>
-      </section>
+      </div>
+      <p id="builder-storage" class="builder-storage" role="status"></p>
+      <nav class="builder-flow" aria-label="Do-file stages">
+        <ol>
+          <li>
+            <button type="button" data-stage="0" aria-current="step">
+              <span>01</span>Project
+            </button>
+          </li>
+          <li>
+            <button type="button" data-stage="1"><span>02</span>Data</button>
+          </li>
+          <li>
+            <button type="button" data-stage="2">
+              <span>03</span>Preparation
+            </button>
+          </li>
+          <li>
+            <button type="button" data-stage="3">
+              <span>04</span>Analysis
+            </button>
+          </li>
+          <li>
+            <button type="button" data-stage="4">
+              <span>05</span>Review &amp; export
+            </button>
+          </li>
+        </ol>
+      </nav>
+      <div class="builder-mobile-switch">
+        <a href="#builder-form">Plan</a><a href="#builder-code">Code preview</a>
+      </div>
+      <div class="builder-layout">
+        <form id="builder-form" novalidate>
+          <section data-panel="0" aria-labelledby="project-heading">
+            <h2 id="project-heading" tabindex="-1">Project folder</h2>
+            <p>
+              The project folder is Stata’s working directory. Relative paths in
+              the do-file start here.
+            </p>
+            <label for="os">Operating system</label
+            ><select id="os">
+              <option value="mac">Mac</option>
+              <option value="windows">Windows</option>
+            </select>
+            <div class="path-instructions" id="mac-path">
+              <h3>Finding a path on Mac</h3>
+              <ol>
+                <li>Open the project folder in Finder.</li>
+                <li>Choose <strong>View → Show Path Bar</strong>.</li>
+                <li>
+                  Control-click the folder in the path bar and choose
+                  <strong>Copy as Pathname</strong>. Paste the path below.
+                </li>
+              </ol>
+              <a href="https://support.apple.com/guide/mac-help/mchlp1774/mac"
+                >Apple’s Finder instructions</a
+              >
+            </div>
+            <div class="path-instructions" id="windows-path" hidden>
+              <h3>Finding a path on Windows</h3>
+              <ol>
+                <li>Find the project folder in File Explorer.</li>
+                <li>
+                  Hold Shift and right-click the folder, then choose
+                  <strong>Copy as path</strong>. In Windows 11, it may appear in
+                  the first context menu.
+                </li>
+                <li>
+                  Paste the path below. Surrounding double quotes are removed,
+                  and backslashes are converted to forward slashes for Stata.
+                </li>
+              </ol>
+              <p>
+                Alternatively, open the folder, click the address bar to reveal
+                its full path, then copy it.
+              </p>
+            </div>
+            <label for="project">Full project folder path</label
+            ><input
+              id="project"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="/Users/name/Documents/course-project"
+              aria-describedby="project-help"
+            />
+            <p id="project-help" class="field-help">
+              Use an existing folder. Paths are saved in this browser with the
+              plan; the website cannot check whether a folder exists on your
+              computer.
+            </p>
+            <details>
+              <summary>Data and output folders</summary>
+              <p>
+                A simple arrangement keeps the original data in a
+                <code>data</code> folder, do-files in a <code>code</code> folder
+                and results in an <code>output</code> folder, all inside the
+                project. Create those folders in Finder or File Explorer if you
+                use this arrangement.
+              </p>
+              <pre>
+course-project/
+  data/    survey.csv
+  code/    analysis.do
+  output/</pre>
+              <p>
+                The builder also accepts full paths when files are stored
+                elsewhere. A browser file chooser does not disclose the full
+                local path; copy it from Finder or File Explorer.
+              </p>
+            </details>
+          </section>
+          <section data-panel="1" aria-labelledby="data-heading" hidden>
+            <h2 id="data-heading" tabindex="-1">Data file</h2>
+            <p>
+              Choose the format and enter the file’s location. The generated
+              import command reads it when the do-file runs in Stata.
+            </p>
+            <label for="format">File format</label
+            ><select id="format">
+              <option value="csv">CSV / delimited text</option>
+              <option value="excel">Excel (.xlsx or .xls)</option>
+              <option value="dta">Stata (.dta)</option></select
+            ><label for="file">Data file path</label
+            ><input
+              id="file"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="data/survey.csv"
+              aria-describedby="file-help"
+            />
+            <p id="file-help" class="field-help">
+              Enter a path relative to the project folder, such as
+              <code>data/survey.csv</code>, or paste the full file path. Include
+              its extension.
+            </p>
+            <div data-formats="csv excel">
+              <label class="check-label"
+                ><input id="header" type="checkbox" checked /> First row
+                contains variable names</label
+              >
+            </div>
+            <div data-formats="excel" hidden>
+              <label for="sheet">Worksheet name</label
+              ><input id="sheet" placeholder="First worksheet if left blank" />
+              <p class="field-help">
+                Stata uses the first worksheet when this field is blank.
+              </p>
+            </div>
+            <div data-formats="csv">
+              <label for="stringcols">Columns to keep as text (optional)</label
+              ><input
+                id="stringcols"
+                placeholder="For example: 1 3"
+                spellcheck="false"
+              />
+              <p class="field-help">
+                Column numbers start at 1. Keep identifiers with leading zeros
+                as text. Other columns use Stata’s type detection.
+              </p>
+            </div>
+            <details>
+              <summary>Checking variable names after import</summary>
+              <p>
+                The do-file includes <code>describe</code> and
+                <code>count</code> immediately after import. Stata can change
+                headings that contain spaces or punctuation. Use the names
+                printed by <code>describe</code> in the next stages.
+              </p>
+              <p>
+                When the names are unfamiliar, choose
+                <strong>Summary statistics</strong> with no variable list. Run
+                that first do-file, inspect the names, then return to add
+                preparation and analysis.
+              </p>
+            </details>
+          </section>
+          <section data-panel="2" aria-labelledby="preparation-heading" hidden>
+            <h2 id="preparation-heading" tabindex="-1">Data preparation</h2>
+            <p>
+              Add the operations the analysis needs, in the order they should
+              run. Each step refers to the variable names available at that
+              point.
+            </p>
+            <div class="step-add">
+              <label for="operation">Operation</label
+              ><select id="operation"></select
+              ><button type="button" id="add-operation">Add step</button>
+            </div>
+            <div id="preparation-steps"></div>
+            <p id="preparation-empty">
+              No preparation steps. Continue if the data are already ready for
+              analysis.
+            </p>
+            <p class="field-help">
+              Filters exclude missing values explicitly. Logarithms stop on
+              nonpositive values so an invalid transformation cannot silently
+              change the sample. Original files are not modified.
+            </p>
+          </section>
+          <section data-panel="3" aria-labelledby="analysis-heading" hidden>
+            <h2 id="analysis-heading" tabindex="-1">Analysis specification</h2>
+            <p>
+              Select the analysis and assign variable roles. The choices here
+              determine syntax; the research question and design determine
+              whether the specification is appropriate.
+            </p>
+            <label for="method">Analysis</label
+            ><select id="method"></select>
+            <p id="method-note" class="field-help"></p>
+            <div data-role="outcome">
+              <label for="outcome">Outcome variable</label
+              ><input id="outcome" spellcheck="false" placeholder="score" />
+            </div>
+            <div data-role="predictors">
+              <label for="predictors" id="predictors-label"
+                >Variables (optional)</label
+              ><input
+                id="predictors"
+                spellcheck="false"
+                placeholder="hours attendance"
+              />
+              <p id="predictors-help" class="field-help"></p>
+            </div>
+            <div data-role="group" hidden>
+              <label for="group">Two-group variable</label
+              ><input id="group" spellcheck="false" placeholder="treatment" />
+            </div>
+            <div data-role="iv" hidden>
+              <label for="endogenous">Endogenous predictor</label
+              ><input
+                id="endogenous"
+                spellcheck="false"
+                placeholder="education"
+              /><label for="instruments">Excluded instruments</label
+              ><input
+                id="instruments"
+                spellcheck="false"
+                placeholder="distance"
+              />
+            </div>
+            <div data-role="panel" hidden>
+              <label for="panel">Panel identifier</label
+              ><input
+                id="panel"
+                spellcheck="false"
+                placeholder="person_id"
+              /><label for="time">Time variable</label
+              ><input id="time" spellcheck="false" placeholder="year" />
+              <p class="field-help">
+                The identifier–time pair must uniquely identify observations.
+                Time must be numeric and coded in Stata’s time units; convert
+                text dates before declaring the panel.
+              </p>
+            </div>
+            <div data-role="inference">
+              <label for="vce">Standard errors</label
+              ><select id="vce">
+                <option value="robust">Robust</option>
+                <option value="conventional">Conventional model-based</option>
+                <option value="cluster">Clustered</option>
+              </select>
+              <p class="field-help">
+                Robust standard errors address variance misspecification under
+                independent observations. Use clustering when observations are
+                dependent within sampling or treatment groups.
+              </p>
+            </div>
+            <div data-role="cluster" hidden>
+              <label for="cluster">Cluster variable</label
+              ><input id="cluster" spellcheck="false" placeholder="school_id" />
+            </div>
+            <p class="builder-related">
+              For identification assumptions and alternative specifications, see
+              <a href="../MethodLab/">Method comparison</a>.
+            </p>
+          </section>
+          <section data-panel="4" aria-labelledby="review-heading" hidden>
+            <h2 id="review-heading" tabindex="-1">Output and review</h2>
+            <label for="output">Existing output folder</label
+            ><input id="output" value="." spellcheck="false" />
+            <p class="field-help">
+              A single dot uses the project folder. Use <code>output</code> for
+              an existing subfolder, or paste a full folder path.
+            </p>
+            <label for="stem">Output filename prefix</label
+            ><input id="stem" value="analysis" spellcheck="false" />
+            <p class="field-help">
+              For example, <code>assignment1</code> produces
+              <code>assignment1.do</code>, a log when selected, and model or
+              graph files for the selected analysis.
+            </p>
+            <label class="check-label"
+              ><input id="log" type="checkbox" checked /> Record commands and
+              results in a text log</label
+            ><label class="check-label"
+              ><input id="saveData" type="checkbox" /> Save the prepared dataset
+              as a separate .dta file</label
+            ><label class="check-label"
+              ><input id="replace" type="checkbox" /> Allow replacement of
+              existing output files with these names</label
+            >
+            <div id="plan-notes"></div>
+            <h3>Running the do-file in Stata</h3>
+            <ol>
+              <li>
+                Download the <code>.do</code> file. Open it in Stata’s Do-file
+                Editor.
+              </li>
+              <li>
+                Check the paths and variable names. Save any data currently held
+                in Stata before running: the import replaces the data in memory.
+              </li>
+              <li>
+                Run the whole file using the editor’s
+                <strong>Do</strong> action. The local path definitions must run
+                with the commands that use them.
+              </li>
+              <li>
+                If Stata stops, read the first error. Confirm the file location
+                with Finder or File Explorer, and use <code>describe</code> to
+                check variable names and types.
+              </li>
+            </ol>
+            <p>
+              Code is assembled entirely in this browser. These do-files target
+              installed Stata 16 or later; the browser practice engine supports
+              a smaller command set.
+            </p>
+          </section>
+          <div id="plan-errors" role="status"></div>
+          <div class="builder-paging">
+            <button id="previous-stage" type="button">Previous</button
+            ><span id="stage-position">1 of 5</span
+            ><button id="next-stage" type="button">Next: Data →</button>
+          </div>
+        </form>
+        <aside class="builder-code" aria-labelledby="code-heading">
+          <div class="code-heading">
+            <div>
+              <p class="eyebrow">Generated Stata code</p>
+              <h2 id="code-heading">analysis.do</h2>
+            </div>
+            <button type="button" id="edit-code">Edit code</button>
+          </div>
+          <p id="code-state">Complete the required fields to export.</p>
+          <label class="sr-only" for="builder-code">Do-file code</label
+          ><textarea
+            id="builder-code"
+            readonly
+            spellcheck="false"
+            wrap="off"
+            aria-describedby="code-state"
+          ></textarea>
+          <div class="code-actions">
+            <button id="download-do" type="button">Download .do</button
+            ><button id="copy-do" type="button">Copy code</button
+            ><button id="regenerate-code" type="button" hidden>
+              Use generated code
+            </button>
+          </div>
+          <p id="builder-action" role="status"></p>
+          <p class="code-note">
+            The plan and any code edits are saved on this device.
+            <a href="../Workspace/">Saved work</a> includes them in a workspace
+            backup.
+          </p>
+        </aside>
+      </div>
+      <noscript
+        ><p>
+          This tool requires JavaScript to assemble the do-file. The
+          <a href="./">script library</a> contains downloadable examples.
+        </p></noscript
+      >
     </main>
-
-    <footer class="site-footer">
-      <div>STATAverse | Script Builder</div>
-    </footer>
-
+    <script type="module" src="../assets/js/do-builder.js"></script>
     <script src="../assets/js/site.js"></script>
   </body>
 </html>

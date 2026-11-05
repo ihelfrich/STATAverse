@@ -372,6 +372,18 @@ test("clearing an empty workspace invalidates an IV save already waiting behind 
     .toBe(true);
   workspace.once("dialog", (dialog) => dialog.accept());
   await workspace.getByRole("button", { name: "Clear local data" }).click();
+  // Confirm the clear request is actually queued before creating a second
+  // writer; accepting a dialog and queuing its callback are separate events.
+  await expect
+    .poll(() =>
+      workspace.evaluate(
+        async () =>
+          (await navigator.locks.query()).pending.filter(
+            (lock) => lock.name === "stataverse:lab-progress",
+          ).length,
+      ),
+    )
+    .toBeGreaterThan(0);
   const lab = await context.newPage();
   await lab.goto("/Labs/IV/#investigation=iv-stages");
   await expect(lab.locator("#iv-guide-title")).toHaveText(

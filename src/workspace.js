@@ -1,4 +1,5 @@
 import { PRACTICE_KEY, parseStore, validateBackup } from "./persistence.js";
+import { BUILDER_KEY, validateBuilder } from "./do-builder-model.js";
 import {
   LAB_PROGRESS_KEY,
   parseLabProgress,
@@ -18,12 +19,14 @@ function keys() {
     (key) =>
       key === "stataverse:user" ||
       key === PRACTICE_KEY ||
+      key === BUILDER_KEY ||
       key === LAB_PROGRESS_KEY ||
       key.startsWith("stataverse:progress:"),
   );
 }
 function collect() {
   const raw = localStorage.getItem(PRACTICE_KEY);
+  const builder = localStorage.getItem(BUILDER_KEY);
   const labs = localStorage.getItem(LAB_PROGRESS_KEY);
   const labProgress = labs !== null ? parseLabProgress(labs) : null;
   if (labProgress) delete labProgress.generation;
@@ -39,6 +42,7 @@ function collect() {
         .map((key) => [key, localStorage.getItem(key)]),
     ),
     ...(raw ? { practice: parseStore(raw) } : {}),
+    ...(builder ? { builder: validateBuilder(JSON.parse(builder)) } : {}),
     ...(hasLabWork ? { labs: labProgress } : {}),
   });
 }
@@ -74,6 +78,12 @@ function refresh() {
     $("[data-progress-detail]").textContent =
       `${guided.length} practice lessons, ${free.length} open datasets, ${labs.length} lab investigations and ${legacy.length} reading modules saved on this device. Reading checkboxes are self-reported; practice and investigation tasks use supported checks rather than secure assessments.`;
     $("#lab-resume-links").replaceChildren();
+    if (data.builder) {
+      const link = document.createElement("a");
+      link.href = "../ScriptLibrary/builder.html";
+      link.textContent = "Do-file builder: resume saved plan";
+      $("#lab-resume-links").append(link);
+    }
     for (const [id, steps] of labs) {
       const guide = INVESTIGATION_CATALOG.find((g) => g.id === id),
         link = document.createElement("a");
@@ -164,6 +174,7 @@ $("#workspace-import").addEventListener("change", async (event) => {
       ["stataverse:user", JSON.stringify(data.profile)],
       ...Object.entries(data.progress),
       ...(data.practice ? [[PRACTICE_KEY, JSON.stringify(data.practice)]] : []),
+      ...(data.builder ? [[BUILDER_KEY, JSON.stringify(data.builder)]] : []),
       ...(data.labs
         ? [[LAB_PROGRESS_KEY, JSON.stringify(renewLabProgress(data.labs))]]
         : []),
@@ -217,6 +228,7 @@ window.addEventListener("storage", (event) => {
   if (
     event.key === null ||
     event.key === PRACTICE_KEY ||
+    event.key === BUILDER_KEY ||
     event.key?.startsWith("stataverse:")
   )
     refresh();

@@ -159,6 +159,7 @@ test("workspace backup restores the imported source, commands and selected datas
   await importSource(page);
   await replaceEditor(page, "summarize Score");
   await page.locator("#run").click();
+  await expect(page.locator("#results")).toContainText("summarize Score");
   await page.goto("/Workspace/");
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export workspace" }).click();
