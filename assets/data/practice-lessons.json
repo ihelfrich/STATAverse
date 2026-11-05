@@ -48,12 +48,76 @@
     "steps": 3
   },
   {
+    "id": "observation-order",
+    "title": "Observation order and identifiers",
+    "summary": "Distinguish a row’s position from its identifier, and make ordering explicit.",
+    "level": "Data work",
+    "minutes": 15,
+    "steps": 4
+  },
+  {
+    "id": "do-files",
+    "title": "A reproducible do-file",
+    "summary": "Run a script in sections, diagnose a stopped command and begin from a known input.",
+    "level": "Data work",
+    "minutes": 20,
+    "steps": 4
+  },
+  {
+    "id": "temporary-samples",
+    "title": "Temporary samples with preserve",
+    "summary": "Keep a recoverable copy, examine a subset and restore all observations.",
+    "level": "Data work",
+    "minutes": 18,
+    "steps": 5
+  },
+  {
     "id": "data-quality",
     "title": "Investigate data quality",
     "summary": "Find duplicates, missing fields and impossible values before modeling.",
     "level": "Data preparation",
     "minutes": 18,
     "steps": 4
+  },
+  {
+    "id": "group-comparisons",
+    "title": "Group means and regression",
+    "summary": "Connect a binary predictor, group means and an adjusted comparison.",
+    "level": "Model specification",
+    "minutes": 22,
+    "steps": 5
+  },
+  {
+    "id": "sample-accounting",
+    "title": "Estimation and prediction samples",
+    "summary": "Keep estimation availability separate from the rows that can receive a prediction.",
+    "level": "Model specification",
+    "minutes": 20,
+    "steps": 5
+  },
+  {
+    "id": "functional-forms",
+    "title": "Logs, units and curvature",
+    "summary": "Interpret a log outcome and distinguish a polynomial coefficient from a slope.",
+    "level": "Model specification",
+    "minutes": 25,
+    "steps": 5
+  },
+  {
+    "id": "interactions",
+    "title": "Different slopes across groups",
+    "summary": "Build an interaction, choose a useful reference point and interpret both group slopes.",
+    "level": "Model specification",
+    "minutes": 25,
+    "steps": 5
+  },
+  {
+    "id": "debugging",
+    "title": "Diagnose and repair an analysis",
+    "summary": "Repair syntax, a missing-value classification, reversed variables and a residual sign.",
+    "level": "Independent practice",
+    "minutes": 25,
+    "steps": 5
   },
   {
     "id": "independent-analysis",

@@ -55,6 +55,14 @@ export const REFERENCE = [
       ],
       ["drop minutes", "Remove a variable. Also supports drop if expression."],
       [
+        'preserve\nkeep if group == "A"\nrestore',
+        "Keep one temporary copy of the data, change the sample, then recover the copy. Browser practice keeps that copy across Run actions; native Stata also restores automatically when its enclosing do-file or program ends.",
+      ],
+      [
+        "restore, preserve\nrestore, not",
+        "restore, preserve recovers the original data and retains the copy. restore, not discards the copy while keeping current data. Nested preserve and preserve, changed are not supported here.",
+      ],
+      [
         "duplicates report id",
         "Report repeated identifiers; does not delete records.",
       ],
@@ -78,7 +86,7 @@ export const REFERENCE = [
       ],
       [
         "regress score hours attendance [, vce(robust)]",
-        "OLS with an intercept. Optional HC1 covariance and t-based inference. No factor variables, weights, interactions or clustering.",
+        "OLS with an intercept. Optional HC1 covariance and t-based inference. Construct interaction columns with generate. Factor-variable syntax, weights and clustering are not supported.",
       ],
       [
         "predict double fitted [, xb]",

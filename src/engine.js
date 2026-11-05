@@ -32,6 +32,8 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "sort",
   "drop",
   "keep",
+  "preserve",
+  "restore",
   "assert",
   "isid",
   "duplicates",
@@ -212,6 +214,7 @@ export class PracticeSession {
     this.history = [];
     this.undoStack = [];
     this.last = null;
+    this.preservedData = null;
   }
   snapshot() {
     return clone({
@@ -220,6 +223,7 @@ export class PracticeSession {
       graph: this.graph,
       history: this.history,
       last: this.last,
+      preservedData: this.preservedData,
     });
   }
   undo() {
@@ -266,7 +270,13 @@ export class PracticeSession {
       this.last = {
         ...result,
         command,
-        effect: dataChanges(before.data, this.data, result.kind),
+        effect: dataChanges(
+          before.data,
+          this.data,
+          result.kind === "restore" && !result.changed
+            ? "message"
+            : result.kind,
+        ),
       };
       return this.last;
     } catch (error) {
@@ -275,7 +285,7 @@ export class PracticeSession {
     }
   }
   dispatch(command) {
-    const match = command.match(/^(\S+)(?:\s+([\s\S]*))?$/);
+    const match = command.match(/^([^\s,]+)\s*([\s\S]*)$/);
     if (!match) throw new StataError("Enter a command.");
     const verb = aliases[match[1]] || match[1],
       rest = match[2] || "";
@@ -287,6 +297,50 @@ export class PracticeSession {
         message:
           "Open Command help for the browser-supported subset. In Stata, help command opens the full reference.",
       };
+    if (verb === "preserve") {
+      noOptions(options);
+      if (body) throw new StataError("Use preserve without arguments.");
+      if (this.preservedData)
+        throw new StataError(
+          "Data are already preserved.",
+          621,
+          "Use restore to recover the preserved data, or restore, not to discard that copy before preserving again.",
+        );
+      this.preservedData = clone(data);
+      return {
+        kind: "preserve",
+        message: `Preserved ${data.rows.length} observations and ${data.columns.length} variables. Use restore to recover this copy. Browser practice keeps it across Run actions until you restore or restart.`,
+      };
+    }
+    if (verb === "restore") {
+      if (body || !["", "not", "preserve"].includes(options))
+        throw new StataError(
+          "Use restore, restore, preserve, or restore, not.",
+        );
+      if (!this.preservedData)
+        throw new StataError(
+          "Nothing to restore.",
+          622,
+          "Run preserve before making temporary changes. Undo may still recover an earlier command.",
+        );
+      if (options === "not") {
+        this.preservedData = null;
+        return {
+          kind: "restore",
+          message:
+            "Discarded the preserved copy. The current data remain in memory.",
+        };
+      }
+      this.data = clone(this.preservedData);
+      if (options !== "preserve") this.preservedData = null;
+      this.model = null;
+      this.graph = null;
+      return {
+        kind: "restore",
+        changed: true,
+        message: `Restored ${this.data.rows.length} observations and ${this.data.columns.length} variables.${options === "preserve" ? " The preserved copy is still available." : " The preserved copy has been released."} Rerun regress before predicting in browser practice.`,
+      };
+    }
     if (verb === "import") {
       const m = body.match(/^delimited\s+using\s+"([A-Za-z0-9_-]+\.csv)"$/);
       if (!m || options !== "clear")
@@ -543,7 +597,7 @@ export class PracticeSession {
           109,
         );
       if (verb === "generate") {
-        data.columns.push({ name, label: "", type });
+        data.columns.push({ name, label: "", type, origin: { command } });
         for (const r of data.rows) r[name] = type === "string" ? "" : null;
       }
       let changed = 0;
@@ -551,6 +605,10 @@ export class PracticeSession {
         if (r[name] !== values[i]) changed++;
         r[name] = values[i];
       });
+      if (verb === "replace") {
+        const column = data.columns.find((c) => c.name === name);
+        column.origin = { ...(column.origin || {}), edited: true };
+      }
       this.model = null;
       this.graph = null;
       return {
@@ -706,6 +764,11 @@ export class PracticeSession {
         throw new StataError(e.message, 498);
       }
       this.model = model;
+      model.columnOrigins = Object.fromEntries(
+        data.columns
+          .filter((c) => names.includes(c.name) && c.origin)
+          .map((c) => [c.name, clone(c.origin)]),
+      );
       this.graph =
         x.length === 1
           ? {

@@ -1,8 +1,8 @@
 {
   "date": "2026-11-04",
   "status": "local_candidate_in_progress",
-  "unit_tests": 38,
-  "browser_tests": 50,
+  "unit_tests": 46,
+  "browser_tests": 60,
   "local_links": 567,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
@@ -14,5 +14,11 @@
     "No push or public deployment",
     "Native CSV import substituted with double input because Java is unavailable",
     "No classroom or manual assistive-technology validation"
-  ]
+  ],
+  "browser_run_scope": "58-case full suite; added lesson-link cases and changed curriculum/mobile paths passed focused reruns",
+  "lessons": 16,
+  "lesson_steps": 68,
+  "numeric_responses": 15,
+  "native_Stata_curriculum_sequences": 16,
+  "native_Stata_preserve_commands": 20
 }

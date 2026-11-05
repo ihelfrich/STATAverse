@@ -230,6 +230,54 @@
         "docs/red-team-review.md",
         "tests/fixtures/regression-lab/cases.json"
       ]
+    },
+    {
+      "id": "stataverse.curriculum-native",
+      "path": "docs/verification/curriculum-native.json",
+      "kind": "receipt",
+      "title": "Native Stata curriculum verification",
+      "summary": "Sixteen canonical lesson sequences, fifteen numeric responses and final dataset checks",
+      "limits": [
+        "Native input substitutes Java-backed CSV import; canonical commands are not every possible student solution"
+      ],
+      "evidence": [
+        "tools/check-curriculum-native.mjs",
+        "tests/curriculum.test.mjs",
+        "docs/red-team-review.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.preserve-native",
+      "path": "docs/verification/preserve-native.json",
+      "kind": "receipt",
+      "title": "Native Stata preserve and restore behavior checks",
+      "summary": "Twenty-command sequence covering copy options, errors, data clearing, ordering and labels",
+      "limits": [
+        "One explicit command sequence; browser Run scope is interactive and differs from native do-file termination"
+      ],
+      "evidence": [
+        "tools/check-preserve-native.mjs",
+        "tests/preserve.test.mjs",
+        "docs/numerical-contract.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
     }
   ]
 }

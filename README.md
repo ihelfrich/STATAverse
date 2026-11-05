@@ -4,13 +4,13 @@ An interactive Stata learning site for mixed levels, with a clear beginner path.
 
 ## Learning paths
 
-- **Practice (`Learn/`)**: eight lessons and 30 checked exercises, from first commands through regression, uncertainty and an independent analysis. Open practice uses three small synthetic datasets.
+- **Practice (`Learn/`)**: 16 lessons and 68 checked exercises across a beginner path, data/do-files, model specification and independent practice. Two-stage hints, numerical responses, specific feedback and deliberately flawed drafts support work beyond copying an example. Open practice uses three small synthetic datasets.
 - **Analysis lab (`Labs/`)**: a seeded regression experiment with adjustable structural coefficients, correlation and noise; linked raw/partial-regression plots; an exact omitted-variable decomposition; influence diagnostics and one-observation sensitivity. Export the actual observations and a native Stata do-file.
 - **Applied lessons (`ZeroToHero/`)**: longer worked examples, constructed business datasets and two downloadable Stata projects.
 - **Reference**: concepts, short command templates, native Stata simulations and a method-comparison guide. Advanced materials remain accessible.
 - **Saved work (`Workspace/`)**: local progress, notes and command-history backups. No account or server is required. Backups move work between browsers; no automatic synchronization occurs.
 
-The browser workspace implements a documented **subset**, not Stata itself. It supports data inspection, basic transformations, missing-value conditions, frequency tables, graphs, OLS and HC1 robust inference. Unsupported commands stop with an explanation. Full Stata is needed for macros, loops, arbitrary files, factor variables, merges, panel estimators and other advanced analysis. See [the numerical contract](docs/numerical-contract.md).
+The browser workspace implements a documented **subset**, not Stata itself. It supports data inspection, transformations, missing-value conditions, temporary samples with preserve/restore, frequency tables, graphs, OLS and HC1 robust inference. Interactions and polynomial terms use explicitly generated columns. Unsupported commands stop with an explanation. Full Stata is needed for macros, loops, arbitrary files, factor-variable syntax, merges, panel estimators and other advanced analysis. See [the numerical contract](docs/numerical-contract.md).
 
 ## Local development
 
@@ -40,6 +40,8 @@ npm audit
 Browser checks use installed Google Chrome through Playwright. The deployment check accepts `BROWSER_CHANNEL` for a different installed Chromium channel. `npm run check` builds and runs the engine, link, browser and deployment checks.
 
 Independent numerical fixtures come from R `lm`/`sandwich` and native Stata. See `tools/reference.R`, `tools/stata-reference.do` and `tools/stata-expressions.do`. The regression lab adds `tools/prepare-lab-reference.mjs`, `tools/lab-reference.R` and `tools/check-lab-native.mjs`; the native lab check explicitly substitutes double-precision input for Java-dependent CSV import. Native library checks use `tools/audit_stata.py`; scripts run in disposable folders, return codes are recorded, and license-bearing logs stay outside the repository. The runners never install packages or change global Stata configuration.
+
+`tools/check-curriculum-native.mjs` checks every canonical lesson, its numerical answers and final data in native Stata. `tools/check-preserve-native.mjs` checks preservation errors, restoration options and recovery of order/labels. Browser Run actions retain a persistent interactive preservation scope; the native scope distinction and export behavior are documented in the workspace.
 
 [The red-team report](docs/red-team-review.md) records reproduced defects, corrections and limits. [Verification receipts](docs/verification/) include native execution, dependency audit, deployment checks and screenshots. Passing these checks does not establish full Stata equivalence or replace classroom testing.
 

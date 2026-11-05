@@ -110,7 +110,8 @@ export function resultHTML(result, index) {
     );
     body += `<div class="result-annotation" data-annotation="${index}">Select a variable name for an interpretation. ${r.omitted} selected row(s) were excluded for missing model variables. R-squared describes in-sample fit, not causal validity.</div>`;
   }
-  if (r.message) body += `<p class="result-text">${h(r.message)}</p>`;
+  if (r.message && r.kind !== "error")
+    body += `<p class="result-text">${h(r.message)}</p>`;
   return `<article class="result-card">${r.source ? `<span class="result-source">Line ${r.source.line}${r.source.endLine > r.source.line ? `–${r.source.endLine}` : ""}</span>` : ""}<pre class="result-command ${r.kind === "error" ? "error" : ""}">. ${h(r.command)}</pre>${body}</article>`;
 }
 export function explainCoefficient(model, name) {
@@ -119,5 +120,19 @@ export function explainCoefficient(model, name) {
   if (name === "_cons")
     return `The intercept (${fmt(c.b)}) is the fitted ${model.dependent} when every included predictor is zero. That combination may lie outside the observed data and may not be substantively meaningful.`;
   const others = model.predictors.filter((x) => x !== name);
+  const constructed = model.predictors.filter(
+    (x) => model.columnOrigins?.[x]?.command,
+  );
+  if (constructed.length) {
+    const origins = constructed
+      .map(
+        (x) =>
+          `${x}: ${model.columnOrigins[x].command}${model.columnOrigins[x].edited ? " (subsequently edited)" : ""}`,
+      )
+      .join("; ");
+    return `The fitted equation includes ${fmt(c.b)} × ${name}. Its 95% confidence interval is [${fmt(c.lo)}, ${fmt(c.hi)}]. This coefficient multiplies a model column. With squared terms or interactions, changing an underlying variable changes more than one column; combine all affected terms to obtain its fitted change. Constructed predictors: ${origins}. These commands record how the columns were created; later edits to their inputs do not automatically recalculate them. ${model.columnOrigins?.[model.dependent]?.command ? `The outcome was created with ${model.columnOrigins[model.dependent].command}; interpret the fitted equation on that transformed scale. ` : ""}The coefficient is not by itself a causal effect.`;
+  }
+  if (model.columnOrigins?.[model.dependent]?.command)
+    return `A one-unit increase in ${name} changes fitted ${model.dependent} by ${fmt(c.b)} units${others.length ? `, holding ${others.join(" and ")} fixed` : ""}. The outcome was created with ${model.columnOrigins[model.dependent].command}${model.columnOrigins[model.dependent].edited ? " and subsequently edited" : ""}. Read the coefficient on that outcome scale; a log outcome is not measured in the original outcome’s units. Its 95% confidence interval is [${fmt(c.lo)}, ${fmt(c.hi)}]. This fitted association does not identify a causal effect.`;
   return `A one-unit increase in ${name} is associated with ${fmt(Math.abs(c.b))} ${c.b >= 0 ? "more" : "fewer"} units of fitted ${model.dependent}${others.length ? `, holding ${others.join(" and ")} fixed` : ""}. The 95% confidence interval is [${fmt(c.lo)}, ${fmt(c.hi)}]. The standard error measures estimated sampling uncertainty under this covariance specification; it is not the spread of the raw observations. A small p-value tests a zero coefficient under the model assumptions and does not establish a causal effect.`;
 }

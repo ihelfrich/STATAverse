@@ -45,7 +45,13 @@ export function tokenize(source) {
     } else if ((m = tail.match(/^(==|!=|~=|<=|>=|[+\-*/^<>&|!~(),])/))) {
       tokens.push({ type: "op", value: m[0] });
       i += m[0].length;
-    } else
+    } else if (source[i] === "=")
+      throw new StataError(
+        "Use == to test equality in an expression.",
+        198,
+        'A single = assigns a value in generate or replace. In an if condition, compare values with ==, for example group == "A".',
+      );
+    else
       throw new StataError(
         `Unexpected character: ${source[i]}`,
         198,

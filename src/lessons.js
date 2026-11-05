@@ -1,23 +1,7 @@
-const step = (
-  title,
-  explanation,
-  task,
-  command,
-  question,
-  answers,
-  correct,
-  feedback,
-) => ({
-  title,
-  explanation,
-  task,
-  command,
-  question,
-  answers,
-  correct,
-  feedback,
-});
-export const LESSONS = [
+import { step } from "./lesson-schema.js";
+import { EXTENDED_LESSONS } from "./extended-lessons.js";
+import { enrichFoundations } from "./lesson-support.js";
+const FOUNDATIONS = [
   {
     id: "first-commands",
     title: "Your first Stata commands",
@@ -72,8 +56,8 @@ export const LESSONS = [
         "How should the two groups be described?",
         [
           "Each group contains 12 observations, or 50% of this sample",
-          "Group A causes half of the scores",
-          "The groups have identical score distributions",
+          "The groups must have the same mean score because their sizes are equal",
+          "Each group has 50 observations because its percentage is 50",
         ],
         0,
         "The frequency table describes group sizes. It does not compare scores or establish any group effect.",
@@ -223,7 +207,7 @@ export const LESSONS = [
         [
           "The mean score",
           "The number of observed scores in that interval",
-          "A causal effect of the score",
+          "The probability density within that interval",
         ],
         1,
         "The heights count observations. Bin choices affect appearance; the underlying observed scores remain the same.",
@@ -300,7 +284,7 @@ export const LESSONS = [
         [
           "The fitted value is 3 points below the observed score",
           "The observed score is 3 points below the fitted value",
-          "Study hours are negative",
+          "The student studied three fewer hours than predicted",
         ],
         1,
         "Residual = observed − fitted. The sign describes the direction of a prediction error, in score points.",
@@ -338,8 +322,8 @@ export const LESSONS = [
         "What changes relative to the model with hours alone?",
         [
           "Both the set of controls and the available estimation sample",
-          "Only the title of the output",
-          "The observational data become a randomized experiment",
+          "Only the estimation sample; the comparison stays unadjusted",
+          "Only the set of controls; the estimation sample is unchanged",
         ],
         0,
         "The sample falls from 22 to 21 because attendance is missing in an additional row. Comparing coefficients across specifications can therefore combine a control change with a sample change.",
@@ -353,7 +337,7 @@ export const LESSONS = [
         [
           "The coefficient estimates",
           "Every standard error",
-          "The assumptions needed for causal interpretation disappear",
+          "The number of observations increases",
         ],
         0,
         "The coefficients remain approximately 3.177 for hours and 0.656 for attendance. The covariance calculation changes; robust standard errors can be larger or smaller.",
@@ -456,7 +440,11 @@ export const LESSONS = [
         "Summarize wage, education and experience.",
         "summarize wage education experience",
         "What unit should a wage coefficient be interpreted in?",
-        ["Dollars per hour of pay", "Total lifetime income", "A probability"],
+        [
+          "Dollars per hour of pay",
+          "Dollars of annual earnings",
+          "Log dollars per hour of pay",
+        ],
         0,
         "The outcome is hourly wage. A coefficient describes a fitted difference in that hourly amount per unit of its predictor.",
       ),
@@ -468,7 +456,7 @@ export const LESSONS = [
         "What is one limitation of this graph?",
         [
           "It cannot separate education from differences in experience or other factors",
-          "It contains no information about wage",
+          "It already holds experience fixed",
           "It proves the return to education",
         ],
         0,
@@ -497,7 +485,7 @@ export const LESSONS = [
         [
           "The original CSV and the do-file with the executed commands",
           "Only a screenshot of the coefficient table",
-          "Only the final p-value",
+          "Only the final transformed dataset, without the commands",
         ],
         0,
         "The export provides the original input data and successful commands in order. Results and notes are separate downloads. Stata must be installed to execute the full do-file there.",
@@ -506,4 +494,53 @@ export const LESSONS = [
   },
 ];
 
+export const TRACKS = [
+  {
+    id: "beginner",
+    title: "Beginner path",
+    description:
+      "Start with the dataset, then connect commands, graphs and models.",
+  },
+  {
+    id: "data",
+    title: "Data and do-files",
+    description:
+      "Work safely with samples, observation order and reproducible commands.",
+  },
+  {
+    id: "models",
+    title: "Model specification",
+    description:
+      "Compare samples and groups, then work with logs, curvature and interactions.",
+  },
+  {
+    id: "independent",
+    title: "Independent practice",
+    description:
+      "Diagnose mistakes and transfer the workflow to a different dataset.",
+  },
+];
+const foundations = enrichFoundations(FOUNDATIONS);
+const byId = new Map(
+  [...foundations, ...EXTENDED_LESSONS].map((l) => [l.id, l]),
+);
+const order = [
+  "first-commands",
+  "missing-values",
+  "transformations",
+  "graphs",
+  "regression",
+  "inference",
+  "observation-order",
+  "do-files",
+  "temporary-samples",
+  "data-quality",
+  "group-comparisons",
+  "sample-accounting",
+  "functional-forms",
+  "interactions",
+  "debugging",
+  "independent-analysis",
+];
+export const LESSONS = order.map((id) => byId.get(id));
 export { checkStep, assessStep } from "./lesson-checks.js";

@@ -15,3 +15,5 @@ Primary documentation consulted during the overhaul:
 - [jStat distributions](https://jstat.github.io/distributions.html): Student-t distribution functions. Numerical accuracy is checked against independent fixtures, rather than inferred from the API documentation.
 
 The Stata manuals were retrieved through the local Spider provenance store. Native Stata execution supplies additional evidence for scalar semantics and numerical values. Documentary descriptions, finite fixtures and executable checks remain separate kinds of evidence; none certifies the entire Stata language or all legacy reading material.
+
+The expanded data-work curriculum also uses [Stata preserve/restore](https://www.stata.com/manuals/ppreserve.pdf), printed pp. 1–2, for restoration options and automatic restoration when an enclosing do-file or program ends. The interface explicitly distinguishes its persistent interactive Run scope. Canonical curriculum commands and numeric answers were then executed in native Stata rather than accepted from documentation alone; receipts are `docs/verification/curriculum-native.json` and `docs/verification/preserve-native.json`.

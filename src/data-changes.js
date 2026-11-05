@@ -8,7 +8,7 @@ export function dataChanges(before, after, kind) {
   let changedCells = 0;
   const comparable =
     before.rows.length === after.rows.length &&
-    !["sort", "import", "rename"].includes(kind);
+    !["sort", "import", "restore", "rename"].includes(kind);
   if (comparable) {
     for (let i = 0; i < after.rows.length; i++) {
       for (const name of newNames.filter((n) => oldNames.includes(n))) {
@@ -43,7 +43,7 @@ export function dataChanges(before, after, kind) {
     cells,
     labels,
     reordered: kind === "sort",
-    reloaded: kind === "import",
+    reloaded: ["import", "restore"].includes(kind),
   };
 }
 

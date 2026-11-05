@@ -90,6 +90,42 @@
   },
   {
     "type": "module",
+    "title": "Browser practice: Observation order and identifiers",
+    "summary": "Distinguish a row\u2019s position from its identifier, and make ordering explicit.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Data work",
+    "path": "Learn/#observation-order"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: A reproducible do-file",
+    "summary": "Run a script in sections, diagnose a stopped command and begin from a known input.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Data work",
+    "path": "Learn/#do-files"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Temporary samples with preserve",
+    "summary": "Keep a recoverable copy, examine a subset and restore all observations.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Data work",
+    "path": "Learn/#temporary-samples"
+  },
+  {
+    "type": "module",
     "title": "Browser practice: Investigate data quality",
     "summary": "Find duplicates, missing fields and impossible values before modeling.",
     "tags": [
@@ -99,6 +135,66 @@
     ],
     "level": "Data preparation",
     "path": "Learn/#data-quality"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Group means and regression",
+    "summary": "Connect a binary predictor, group means and an adjusted comparison.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Model specification",
+    "path": "Learn/#group-comparisons"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Estimation and prediction samples",
+    "summary": "Keep estimation availability separate from the rows that can receive a prediction.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Model specification",
+    "path": "Learn/#sample-accounting"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Logs, units and curvature",
+    "summary": "Interpret a log outcome and distinguish a polynomial coefficient from a slope.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Model specification",
+    "path": "Learn/#functional-forms"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Different slopes across groups",
+    "summary": "Build an interaction, choose a useful reference point and interpret both group slopes.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Model specification",
+    "path": "Learn/#interactions"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Diagnose and repair an analysis",
+    "summary": "Repair syntax, a missing-value classification, reversed variables and a residual sign.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Independent practice",
+    "path": "Learn/#debugging"
   },
   {
     "type": "module",

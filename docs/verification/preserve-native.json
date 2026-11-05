@@ -1,0 +1,130 @@
+{
+  "method": "Native Stata checks of return codes, row counts, order, labels and removed temporary columns",
+  "returnCode": "0",
+  "cases": [
+    {
+      "command": "restore",
+      "expectedReturnCode": 622,
+      "observations": 24,
+      "preserved": false
+    },
+    {
+      "command": "preserve",
+      "expectedReturnCode": 0,
+      "observations": 24,
+      "preserved": true
+    },
+    {
+      "command": "preserve",
+      "expectedReturnCode": 621,
+      "observations": 24,
+      "preserved": true
+    },
+    {
+      "command": "keep if group == \"A\"",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "restore, preserve",
+      "expectedReturnCode": 0,
+      "observations": 24,
+      "preserved": true
+    },
+    {
+      "command": "keep if group == \"B\"",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "restore, not",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": false
+    },
+    {
+      "command": "restore",
+      "expectedReturnCode": 622,
+      "observations": 12,
+      "preserved": false
+    },
+    {
+      "command": "preserve",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "clear",
+      "expectedReturnCode": 0,
+      "observations": 0,
+      "preserved": true
+    },
+    {
+      "command": "restore",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": false
+    },
+    {
+      "command": "preserve",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "clear all",
+      "expectedReturnCode": 0,
+      "observations": 0,
+      "preserved": true
+    },
+    {
+      "command": "restore",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": false
+    },
+    {
+      "command": "label variable hours \"Before copy\"",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": false
+    },
+    {
+      "command": "preserve",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "label variable hours \"Temporary\"",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "sort score",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "generate double minutes = hours * 60",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": true
+    },
+    {
+      "command": "restore",
+      "expectedReturnCode": 0,
+      "observations": 12,
+      "preserved": false
+    }
+  ],
+  "limits": [
+    "Checks the stated sequence in one native do-file. Browser Run actions retain an explicit interactive preserve scope.",
+    "Preserve options outside the documented browser subset remain unsupported."
+  ]
+}

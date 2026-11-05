@@ -1824,7 +1824,8 @@ dialog .reference-group {
   .mobile-workflow {
     position: fixed;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     bottom: 0;
     left: 0;
     right: 0;
@@ -1855,5 +1856,132 @@ dialog .reference-group {
   .mobile-workflow,
   .lesson-switch {
     display: none;
+  }
+}
+
+/* Curriculum navigation and graduated help. */
+.track-label {
+  display: block;
+  margin: 15px 0 6px;
+  font-size: 12px;
+  color: var(--ink, #172a3a);
+  font-weight: 650;
+}
+.track-select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #b9c5ce;
+  border-radius: 5px;
+  background: #fff;
+  color: #203648;
+  padding: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.lesson-help {
+  margin: 12px 0 18px;
+}
+.lesson-help .text-button {
+  min-height: 36px;
+  text-align: left;
+}
+.lesson-help .text-button:disabled {
+  color: #526474;
+  cursor: default;
+}
+.task-hints {
+  margin: 8px 0 0;
+  padding-left: 22px;
+  color: #384f61;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.task-hints:empty {
+  display: none;
+}
+.task-hints li + li {
+  margin-top: 9px;
+}
+.answer-choices {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+#check-answer {
+  margin-top: 12px;
+}
+.numeric-label {
+  display: block;
+  color: #455b6c;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.numeric-answer {
+  display: block;
+  width: min(100%, 260px);
+  min-height: 46px;
+  padding: 9px 12px;
+  border: 1px solid #9cabb7;
+  border-radius: 5px;
+  background: #fff;
+  color: #132b3e;
+  font:
+    500 18px/1.5 ui-monospace,
+    monospace;
+}
+.numeric-answer:focus-visible,
+.track-select:focus-visible {
+  outline: 3px solid #176ca2;
+  outline-offset: 3px;
+}
+.preserve-status {
+  padding: 4px 7px;
+  border: 1px solid #8aadb9;
+  border-radius: 4px;
+  background: #edf7f9;
+  color: #294c5c;
+  font-size: 11px;
+}
+@media (max-width: 850px) {
+  .track-label {
+    margin-top: 8px;
+  }
+  .track-select {
+    max-width: 100%;
+  }
+  .learning-sidebar #track-description {
+    display: block;
+    margin: 8px 0;
+  }
+  .task-hints {
+    font-size: 14px;
+  }
+}
+@media (max-width: 1000px) {
+  .learning-sidebar .track-label,
+  .learning-sidebar .track-select,
+  .learning-sidebar #track-description,
+  .learning-sidebar .save-status {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 720px) {
+  .learning-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .learning-sidebar .lesson-switch {
+    grid-column: 1;
+  }
+  .learning-sidebar #track-description {
+    display: none;
+  }
+  .mobile-workflow button {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  #mobile-output-state {
+    display: block;
+    font-size: 10px;
   }
 }

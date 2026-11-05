@@ -51,9 +51,9 @@
           <span class="eyebrow">Your learning path</span
           ><span id="path-count" class="small-count"></span>
         </div>
-        <p class="sidebar-intro">
-          Start with the basics, then bring the pieces together.
-        </p>
+        <label for="track-select" class="track-label">Learning track</label>
+        <select id="track-select" class="track-select"></select>
+        <p id="track-description" class="sidebar-intro"></p>
         <nav id="lesson-list" aria-label="Practice lessons"></nav>
         <label for="lesson-switch" class="sr-only"
           >Choose a practice lesson</label
@@ -87,7 +87,7 @@
             <button id="run" type="button" class="primary-button">
               Run all</button
             ><button id="insert-example" type="button" class="quiet-button">
-              Load example</button
+              Load worked command</button
             ><button id="undo" type="button" class="quiet-button">Undo</button>
           </div>
           <p id="editor-description" class="helper">
@@ -136,6 +136,7 @@
         <div class="dataset-meta">
           <span id="dataset-count"></span><span id="dataset-unit"></span
           ><span class="synthetic-badge">Synthetic data</span>
+          <span id="preserve-status" class="preserve-status" hidden></span>
         </div>
         <div class="view-tabs" role="tablist" aria-label="Observation views">
           <button
@@ -263,6 +264,7 @@
       <button type="button" data-workspace-jump="output">
         Output <span id="mobile-output-state"></span>
       </button>
+      <button type="button" data-workspace-jump="check">Check</button>
     </nav>
     <dialog id="limits-dialog" aria-labelledby="limits-title">
       <div class="dialog-header">
@@ -285,6 +287,13 @@
         clear the fitted model here; rerun the regression before predicting.
         Histogram bins and output formatting can differ from Stata. Collinear
         models are rejected rather than automatically omitting variables.
+      </p>
+      <p>
+        preserve keeps one temporary data copy across Run actions. Use restore
+        explicitly when you need it back. Native Stata also restores preserved
+        data when the enclosing do-file or program ends; this workspace does not
+        execute nested do-files or program scopes. A preserved copy is not a
+        permanent file backup.
       </p>
       <p>
         A session retains up to 500 successful commands, the last 50 undo states

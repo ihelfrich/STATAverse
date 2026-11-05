@@ -1,6 +1,16 @@
 import { build } from "esbuild";
 import fs from "node:fs/promises";
 import { LESSONS } from "../src/lessons.js";
+const home = await fs.readFile("index.html", "utf8");
+await fs.writeFile(
+  "index.html",
+  home
+    .replace(/(data-curriculum="lessons">)\d+/, `$1${LESSONS.length}`)
+    .replace(
+      /(data-curriculum="steps">)\d+/,
+      `$1${LESSONS.reduce((n, lesson) => n + lesson.steps.length, 0)}`,
+    ),
+);
 await build({
   entryPoints: [
     "src/learn.js",

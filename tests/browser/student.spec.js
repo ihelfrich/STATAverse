@@ -131,17 +131,18 @@ test("complete the first lesson, retain progress, and prevent premature advancem
     await page.locator("#next-step").click();
   }
   await expect(page.locator(".completed-panel")).toBeVisible();
-  await expect(page.locator("#path-count")).toHaveText("1/8");
+  await expect(page.locator("#path-count")).toHaveText(`1/${LESSONS.length}`);
   await page.reload();
-  await expect(page.locator("#path-count")).toHaveText("1/8");
+  await expect(page.locator("#path-count")).toHaveText(`1/${LESSONS.length}`);
   expect(errors).toEqual([]);
 });
 test("all lessons can be completed through actual controls", async ({
   page,
 }) => {
-  test.setTimeout(120000);
+  test.setTimeout(240000);
   await page.goto("/Learn/");
   for (const lesson of LESSONS.slice(1)) {
+    await page.locator("#track-select").selectOption(lesson.track);
     if (await page.locator("#lesson-switch").isVisible())
       await page.locator("#lesson-switch").selectOption(lesson.id);
     else await page.locator(`[data-lesson="${lesson.id}"]`).click();
@@ -151,9 +152,14 @@ test("all lessons can be completed through actual controls", async ({
       await expect(page.locator("#exercise-check")).toContainText(
         "expected result",
       );
-      await page
-        .locator(`input[name="interpretation"][value="${step.correct}"]`)
-        .check();
+      if (step.response?.kind === "number")
+        await page
+          .locator("#numeric-answer")
+          .fill(String(step.response.expected));
+      else
+        await page
+          .locator(`input[name="interpretation"][value="${step.correct}"]`)
+          .check();
       await page.locator("#check-answer").click();
       await page.locator("#next-step").click();
     }

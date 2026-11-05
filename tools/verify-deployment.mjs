@@ -57,6 +57,17 @@ try {
     path: "docs/verification/screenshots/practice-desktop.png",
     fullPage: true,
   });
+  await page.goto(root + "Learn/#debugging");
+  assert.equal(
+    await page.locator("#lesson-title").innerText(),
+    "A condition that will not run",
+  );
+  await page.locator("#run").click();
+  await page.locator("#show-hint").click();
+  await page.screenshot({
+    path: "docs/verification/screenshots/curriculum-desktop.png",
+    fullPage: true,
+  });
   await page.goto(root + "Labs/");
   await page.locator("#coefficient-comparison tbody tr").first().waitFor();
   await page.screenshot({
@@ -115,6 +126,19 @@ try {
   await phone.screenshot({
     path: "docs/verification/screenshots/practice-mobile.png",
     fullPage: true,
+  });
+  await phone.goto(root + "Learn/#do-files");
+  assert.equal(
+    await phone.locator("#lesson-title").innerText(),
+    "Run a short section",
+  );
+  await phone.locator("#show-hint").click();
+  await phone.locator("#insert-example").click();
+  await phone.locator("#run").click();
+  await phone.locator('[data-workspace-jump="editor"]').click();
+  await phone.screenshot({
+    path: "docs/verification/screenshots/curriculum-mobile.png",
+    fullPage: false,
   });
   await phone.goto(root + "Labs/");
   await phone.locator('[data-lab-jump="plots"]').click();

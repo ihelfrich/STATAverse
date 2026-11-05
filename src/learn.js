@@ -1,6 +1,7 @@
 import { PracticeSession } from "./engine.js";
 import { DATASETS, createDataset, toCSV } from "./datasets.js";
-import { LESSONS, assessStep } from "./lessons.js";
+import { LESSONS, TRACKS, assessStep } from "./lessons.js";
+import { assessAnswer } from "./lesson-schema.js";
 import { REFERENCE } from "./reference.js";
 import {
   escapeHTML as h,
@@ -46,6 +47,9 @@ let stepIndex = 0,
   activeTab = "data",
   selectedAnswer = null,
   initialDataset = lesson.dataset;
+let selectedTrack = lesson.track,
+  hintCount = 0,
+  lessonFinished = false;
 function storageWarning(message) {
   storageOK = false;
   $("#storage-warning").hidden = false;
@@ -119,12 +123,16 @@ function loadSession() {
   commandPassed = false;
   answerPassed = false;
   selectedAnswer = null;
+  hintCount = 0;
+  lessonFinished = false;
   editor.setValue(
     typeof record?.code === "string"
       ? record.code.slice(0, 50000)
       : mode === "guided" && stepIndex === 0 && lesson.id === "first-commands"
         ? "describe"
-        : "",
+        : mode === "guided"
+          ? lesson.steps[stepIndex].starter || ""
+          : "",
   );
   $("#student-notes").value =
     typeof record?.note === "string" ? record.note.slice(0, 50000) : "";
@@ -136,14 +144,30 @@ function renderSidebar() {
     (l) => saved.lessons[l.id]?.completed?.length === l.steps.length,
   ).length;
   $("#path-count").textContent = `${completedCount}/${LESSONS.length}`;
-  $("#lesson-list").innerHTML = LESSONS.map((l, i) => {
-    const done = saved.lessons[l.id]?.completed?.length === l.steps.length;
-    return `<button type="button" class="lesson-link" data-lesson="${l.id}" ${mode === "guided" && l.id === lesson.id ? 'aria-current="step"' : ""}><span class="lesson-number">${done ? "✓" : String(i + 1).padStart(2, "0")}</span><strong>${h(l.title)}</strong><small>${h(l.level)} · ${l.minutes} min${done ? " · complete" : ""}</small></button>`;
-  }).join("");
-  $("#lesson-switch").innerHTML = LESSONS.map(
-    (l, i) =>
-      `<option value="${l.id}" ${l.id === lesson.id ? "selected" : ""}>${i + 1}. ${h(l.title)}</option>`,
-  ).join("");
+  $("#track-select").innerHTML = [
+    ...TRACKS,
+    { id: "all", title: "All lessons" },
+  ]
+    .map(
+      (track) =>
+        `<option value="${track.id}" ${selectedTrack === track.id ? "selected" : ""}>${h(track.title)}</option>`,
+    )
+    .join("");
+  $("#track-description").textContent =
+    TRACKS.find((t) => t.id === selectedTrack)?.description ||
+    "Every lesson is available. Choose a topic or follow the beginner path.";
+  const visibleLessons = LESSONS.filter(
+    (l) => selectedTrack === "all" || l.track === selectedTrack,
+  );
+  $("#lesson-list").innerHTML = visibleLessons
+    .map((l) => {
+      const i = LESSONS.indexOf(l);
+      const done = saved.lessons[l.id]?.completed?.length === l.steps.length;
+      return `<button type="button" class="lesson-link" data-lesson="${l.id}" ${mode === "guided" && l.id === lesson.id ? 'aria-current="step"' : ""}><span class="lesson-number">${done ? "✓" : String(i + 1).padStart(2, "0")}</span><strong>${h(l.title)}</strong><small>${h(l.level)} · ${l.minutes} min${done ? " · complete" : ""}</small></button>`;
+    })
+    .join("");
+  $("#lesson-switch").innerHTML =
+    `${visibleLessons.some((l) => l.id === lesson.id) ? "" : '<option value="" selected disabled>Choose a lesson in this track</option>'}${visibleLessons.map((l) => `<option value="${l.id}" ${l.id === lesson.id ? "selected" : ""}>${LESSONS.indexOf(l) + 1}. ${h(l.title)}</option>`).join("")}`;
   $("#free-mode").setAttribute("aria-pressed", String(mode === "free"));
 }
 function renderLesson() {
@@ -154,6 +178,7 @@ function renderLesson() {
     ? "Reset this practice dataset"
     : "Restart this lesson";
   $("#interpretation").hidden = free;
+  $('[data-workspace-jump="check"]').hidden = free;
   $("#exercise-check").hidden = free;
   if (free) {
     $("#lesson-content").innerHTML =
@@ -177,29 +202,33 @@ function renderLesson() {
   const step = lesson.steps[stepIndex],
     completed = entry()?.completed || [];
   $("#lesson-content").innerHTML =
-    `<div class="lesson-topline"><span>${h(lesson.level)}</span><span>Step ${stepIndex + 1} of ${lesson.steps.length}</span></div><div class="step-progress" role="img" aria-label="Step ${stepIndex + 1} of ${lesson.steps.length}">${lesson.steps.map((_, i) => `<span class="${i === stepIndex ? "active" : completed.includes(i) ? "done" : ""}"></span>`).join("")}</div><h2 id="lesson-title">${h(step.title)}</h2><p class="lesson-explanation">${h(step.explanation)}</p><div class="task-card"><strong>Your task</strong><p>${h(step.task)}</p></div>`;
+    `<div class="lesson-topline"><span>${h(lesson.level)}</span><span>Step ${stepIndex + 1} of ${lesson.steps.length}</span></div><div class="step-progress" role="img" aria-label="Step ${stepIndex + 1} of ${lesson.steps.length}">${lesson.steps.map((_, i) => `<span class="${i === stepIndex ? "active" : completed.includes(i) ? "done" : ""}"></span>`).join("")}</div><h2 id="lesson-title">${h(step.title)}</h2><p class="lesson-explanation">${h(step.explanation)}</p><div class="task-card"><strong>${step.starter ? "Repair the draft" : "Your task"}</strong><p>${h(step.task)}</p></div><div class="lesson-help"><button type="button" id="show-hint" class="text-button" aria-controls="task-hints" aria-expanded="false">Show a hint</button><ol id="task-hints" class="task-hints" aria-live="polite"></ol></div>`;
+  renderHints();
+  $("#show-hint").addEventListener("click", () => {
+    hintCount++;
+    renderHints();
+  });
+  const numeric = step.response?.kind === "number";
+  const responseMarkup = numeric
+    ? `<label for="numeric-answer" class="numeric-label">${step.response.decimals ? `Enter at least ${step.response.decimals} decimal places` : "Enter a whole number"} · ${h(step.response.unit || "value")}</label><input id="numeric-answer" type="text" inputmode="decimal" autocomplete="off" maxlength="50" aria-describedby="answer-feedback" class="numeric-answer" placeholder="Your result">`
+    : `<fieldset class="answer-choices"><legend class="sr-only">${h(step.question)}</legend>${step.answers.map((a, i) => `<label class="answer-option"><input type="radio" name="interpretation" value="${i}"><span>${h(a)}</span></label>`).join("")}</fieldset>`;
   $("#interpretation").innerHTML =
-    `<h3>${h(step.question)}</h3><fieldset style="border:0;padding:0;margin:0"><legend class="sr-only">${h(step.question)}</legend>${step.answers.map((a, i) => `<label class="answer-option"><input type="radio" name="interpretation" value="${i}"><span>${h(a)}</span></label>`).join("")}</fieldset><button type="button" id="check-answer" class="quiet-button" style="margin-top:9px">Check understanding</button><p class="answer-feedback" role="status"></p>`;
+    `<h3>${h(step.question)}</h3>${responseMarkup}<button type="button" id="check-answer" class="quiet-button">Check understanding</button><p id="answer-feedback" class="answer-feedback" role="status"></p>`;
   $("#interpretation")
     .querySelectorAll("input")
     .forEach((input) =>
-      input.addEventListener("change", () => {
-        selectedAnswer = Number(input.value);
+      input.addEventListener(numeric ? "input" : "change", () => {
+        selectedAnswer = numeric ? input.value : Number(input.value);
         answerPassed = false;
         $(".answer-feedback").textContent = "";
         updateNext();
       }),
     );
   $("#check-answer").addEventListener("click", () => {
-    if (selectedAnswer === null) {
-      $(".answer-feedback").textContent = "Choose an answer first.";
-      return;
-    }
-    answerPassed = selectedAnswer === step.correct;
+    const assessment = assessAnswer(step, selectedAnswer);
+    answerPassed = assessment.passed;
     $(".answer-feedback").classList.toggle("incorrect", !answerPassed);
-    $(".answer-feedback").textContent = answerPassed
-      ? step.feedback
-      : "That interpretation does not follow from this command. Revisit the explanation and inspect the result, then try again.";
+    $(".answer-feedback").textContent = assessment.message;
     updateNext();
   });
   $("#next-step").innerHTML =
@@ -208,6 +237,22 @@ function renderLesson() {
       : 'Next step <span aria-hidden="true">→</span>';
   updateCheck();
 }
+function renderHints() {
+  const hints = lesson.steps[stepIndex].hints || [];
+  $("#task-hints").innerHTML = hints
+    .slice(0, hintCount)
+    .map((hint) => `<li>${h(hint)}</li>`)
+    .join("");
+  const button = $("#show-hint");
+  button.textContent =
+    hintCount === 0
+      ? "Show a hint"
+      : hintCount >= hints.length
+        ? "All hints shown · worked command below"
+        : "Show the syntax hint";
+  button.disabled = hintCount >= hints.length;
+  button.setAttribute("aria-expanded", String(hintCount > 0));
+}
 function updateCheck(message = "") {
   const box = $("#exercise-check");
   box.className =
@@ -215,13 +260,17 @@ function updateCheck(message = "") {
   box.textContent = commandPassed
     ? "✓ Your command produced the expected result. Check your interpretation to continue."
     : message ||
-      "Run a command that completes the task. Load the example if you need a starting point.";
+      "Run a command that completes the task. A hint or worked command is available if you need help.";
   updateNext();
 }
 function updateNext() {
-  $("#next-step").disabled = !(commandPassed && answerPassed);
+  $("#next-step").disabled = lessonFinished || !(commandPassed && answerPassed);
 }
 function renderData() {
+  $("#preserve-status").hidden = !session.preservedData;
+  $("#preserve-status").textContent = session.preservedData
+    ? `Preserved copy: ${session.preservedData.rows.length} observations`
+    : "";
   const data = session.data,
     changedCells = new Map(
       (results.at(-1)?.effect?.cells || []).map((c) => [
@@ -403,6 +452,7 @@ function run(scope = "all") {
           "drop",
           "keep",
           "sort",
+          "restore",
         ].includes(last.kind)
       ? "data"
       : "results";
@@ -439,10 +489,17 @@ $("#run-line").addEventListener("click", () => run("current"));
 $("#student-notes").addEventListener("input", scheduleSave);
 window.addEventListener("pagehide", persist);
 $("#insert-example").addEventListener("click", () => {
-  editor.setValue(lesson.steps[stepIndex].command);
+  const step = lesson.steps[stepIndex];
+  const repair = step.repairWhen;
+  const isRepair = repair?.variables.every((name) =>
+    session.data.columns.some((c) => c.name === name),
+  );
+  editor.setValue(isRepair ? repair.command : step.command);
   editor.focus();
   persist();
-  announce("Example loaded into the editor. It has not run.");
+  announce(
+    `${isRepair ? "Repair" : "Worked command"} loaded into the editor. It has not run.`,
+  );
 });
 $("#undo").addEventListener("click", () => {
   if (session.undo()) {
@@ -467,6 +524,7 @@ function openLesson(id) {
   persist();
   mode = "guided";
   lesson = selected;
+  selectedTrack = selected.track;
   initialDataset = lesson.dataset;
   history.replaceState(null, "", "#" + lesson.id);
   loadSession();
@@ -480,6 +538,21 @@ $("#lesson-list").addEventListener("click", (e) => {
 $("#lesson-switch").addEventListener("change", (event) =>
   openLesson(event.target.value),
 );
+window.addEventListener("hashchange", () => {
+  const id = location.hash.slice(1);
+  if (
+    LESSONS.some((candidate) => candidate.id === id) &&
+    (mode !== "guided" || lesson.id !== id)
+  )
+    openLesson(id);
+});
+$("#track-select").addEventListener("change", (event) => {
+  selectedTrack = event.target.value;
+  renderSidebar();
+  announce(
+    `Showing ${selectedTrack === "all" ? "all lessons" : TRACKS.find((t) => t.id === selectedTrack).title}. Your current work is still open.`,
+  );
+});
 document.querySelectorAll("[data-workspace-jump]").forEach((button) =>
   button.addEventListener("click", () => {
     const target = button.dataset.workspaceJump;
@@ -488,7 +561,9 @@ document.querySelectorAll("[data-workspace-jump]").forEach((button) =>
         ? $("#lesson-content")
         : target === "editor"
           ? $(".editor-section")
-          : $(".observation-pane");
+          : target === "check"
+            ? $("#interpretation")
+            : $(".observation-pane");
     element.scrollIntoView({ block: "start" });
     if (target === "editor") editor.focus();
     else {
@@ -521,11 +596,12 @@ $("#restart").addEventListener("click", () => {
   announce("Practice restarted with the original data.");
 });
 $("#next-step").addEventListener("click", () => {
-  if (!(commandPassed && answerPassed)) return;
+  if (lessonFinished || !(commandPassed && answerPassed)) return;
   persist();
   const record = entry();
   record.completed = [...new Set([...record.completed, stepIndex])];
   if (stepIndex === lesson.steps.length - 1) {
+    lessonFinished = true;
     persist();
     renderSidebar();
     $("#lesson-content").insertAdjacentHTML(
@@ -543,6 +619,7 @@ $("#next-step").addEventListener("click", () => {
       b.addEventListener("click", () => {
         persist();
         lesson = next;
+        selectedTrack = next.track;
         initialDataset = lesson.dataset;
         history.replaceState(null, "", "#" + lesson.id);
         loadSession();
@@ -557,7 +634,8 @@ $("#next-step").addEventListener("click", () => {
   commandPassed = false;
   answerPassed = false;
   selectedAnswer = null;
-  editor.setValue("");
+  hintCount = 0;
+  editor.setValue(lesson.steps[stepIndex].starter || "");
   renderLesson();
   persist();
   announce(`Step ${stepIndex + 1}: ${lesson.steps[stepIndex].title}`);
@@ -627,6 +705,14 @@ function doFile() {
     `import delimited using "${DATASETS[initialDataset].file}", clear`,
     "",
     ...session.history,
+    ...(session.preservedData
+      ? [
+          "",
+          "* Keep the current working data at do-file completion, matching the browser.",
+          "* The earlier preserved copy is temporary and is not part of this final dataset.",
+          "restore, not",
+        ]
+      : []),
     "",
   ].join("\n");
 }

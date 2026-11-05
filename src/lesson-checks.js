@@ -127,12 +127,25 @@ export function assessStep(lesson, index, session, result) {
     let output;
     for (let i = 0; i <= index; i++)
       output = model.run(lesson.steps[i].command).at(-1);
-    reference.set(index, { data: structuredClone(model.data), result: output });
+    reference.set(index, {
+      data: structuredClone(model.data),
+      result: output,
+      preservedData: structuredClone(model.preservedData),
+    });
   }
   const target = reference.get(index);
   if (!result)
     return { passed: false, message: "Run a command to check this task." };
   const names = target.data.columns.map((c) => c.name);
+  if (
+    ["preserve", "restore"].includes(target.result.kind) &&
+    !equal(session.preservedData, target.preservedData)
+  )
+    return {
+      passed: false,
+      message:
+        "The preserved copy does not match this task. Check whether you need to retain, restore or discard the copy.",
+    };
   const missing = names.filter(
     (name) => !session.data.columns.some((c) => c.name === name),
   );
@@ -141,7 +154,21 @@ export function assessStep(lesson, index, session, result) {
       passed: false,
       message: `This task needs ${missing.join(", ")} in memory. Create the required variable, or undo its removal.`,
     };
-  const ordered = ["list", "sort"].includes(target.result.kind);
+  const step = lesson.steps[index];
+  const ordered = step.ordered || ["list", "sort"].includes(target.result.kind);
+  if (
+    step.requireReload &&
+    !session.history.some((command) =>
+      new RegExp(
+        `^import\\s+delimited\\s+using\\s+"${step.requireReload.replaceAll(".", "\\.")}"\\s*,\\s*clear$`,
+      ).test(command),
+    )
+  )
+    return {
+      passed: false,
+      message:
+        "This task asks for a reproducible start. Load the original teaching CSV before running the sample count.",
+    };
   if (
     !equal(
       dataProjection(session.data, names, ordered),

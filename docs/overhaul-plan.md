@@ -36,3 +36,9 @@ The existing native Stata archive, legacy routes and browser progress remain mig
 ## First-increment verification
 
 27 engine/persistence tests and 36 desktop/mobile browser cases passed. All 558 checked local links resolve. Project-path, cache isolation and offline checks passed. Nine native teaching scripts, two applied projects and sixteen template cases completed their numerical checks; Java-dependent import/PNG export limitations are recorded separately. Seven selected reusable assets were registered in Scholon. Changes remain local on the review branch.
+
+## Curriculum increment
+
+The practice path now has 16 lessons and 68 steps organized into four selectable tracks. The original lesson IDs and step positions remain stable. New work covers observation order, do-files, temporary samples, group comparisons, estimation/prediction sample accounting, log and quadratic specifications, interaction terms and diagnosis of deliberately flawed drafts. Each step has two stages of help; 15 steps require a numerical result rather than selecting a displayed answer. Worked repairs adapt when the flawed draft has already created its variables.
+
+Native verification covers every canonical lesson sequence and a separate preserve/restore behavior sequence. The next major implementation work remains richer local data handling and additional advanced interactive methods. This increment does not complete the active five-million-token goal.

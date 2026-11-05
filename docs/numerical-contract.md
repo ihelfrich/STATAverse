@@ -41,3 +41,13 @@ Leverage is the full-model hat diagonal. Standardized residuals divide residuals
 ## Native runtime limitation
 
 The installed Stata command-line runtime initially returned `r(5004): Java installation not found` on `import delimited`. Numerical verification therefore uses Stata's native `input` statement with the same values. No global Java or Stata configuration was changed. Native estimation and scalar parity are checked; an end-to-end `import delimited` rerun of the exported project is not established by those checks.
+
+## Temporary data copies and curriculum checks
+
+`preserve` stores one data copy, including values, columns, labels and ordering. `restore` recovers and releases it; `restore, preserve` recovers it while retaining the copy; `restore, not` discards the copy and retains the working data. Nested preservation returns r(621), and restoration without a copy returns r(622). Unsupported options fail before any state change. Undo and successful-history replay include the copy state. Restoring data clears the browser's fitted model, consistently with its existing mutation contract.
+
+Browser Run actions use a persistent interactive scope. They do not implement native do-file/program scope unwinding. Native Stata automatically restores a remaining preserved copy when an enclosing do-file ends. Consequently, an exported successful-history do-file adds a documented `restore, not` if a copy is still active, retaining the final working dataset represented in `current-data.csv`. The temporary alternate copy is not exported as a second dataset.
+
+`tools/check-preserve-native.mjs` verifies a 20-command native sequence: error codes, retained/discarded copies, clear/clear all, ordering, labels and removal of temporary columns. `tools/check-curriculum-native.mjs` executes all 16 canonical lesson sequences, checks 15 numerical responses to 1e-9 and final dataset values to 1e-8. It substitutes explicit native input for Java-backed CSV import. Interactive command-by-command repairs are also tested in the browser; canonical-script execution alone does not establish every possible repair path.
+
+Numeric responses accept finite decimal or scientific-notation numbers, with stated rounding tolerances. Empty strings, partial parses, formulas and unit suffixes do not pass. Task checks and interpretation checks remain separate. Lesson IDs and the positions of the original 30 steps are retained, so existing v2 progress remains attached to its original work. These are learning aids, not secure assessment records.
