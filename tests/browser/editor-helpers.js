@@ -4,6 +4,7 @@ import { expect } from "@playwright/test";
 // raw Playwright fill can append to a pending DOM update under load.
 export async function replaceEditor(page, text) {
   const editor = page.locator("#command-editor");
+  await expect(editor).not.toHaveAttribute("aria-readonly", "true");
   await editor.press("ControlOrMeta+A");
   await page.keyboard.insertText(text);
   await expect(editor).toHaveText(text, { useInnerText: true });

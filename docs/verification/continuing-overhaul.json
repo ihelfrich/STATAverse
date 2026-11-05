@@ -1,9 +1,9 @@
 {
   "date": "2026-11-05",
-  "status": "published_programming_increment_broader_work_open",
-  "unit_tests": 136,
-  "browser_tests": 202,
-  "local_links": 663,
+  "status": "worker_recovery_and_builder_verified_locally_publication_pending",
+  "unit_tests": 151,
+  "browser_tests": 226,
+  "local_links": 702,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
   "native_Stata_lab_cases": 4,
@@ -11,11 +11,11 @@
   "deployment": "deployment.json",
   "limits": [
     "Browser-only independent interpreter; full Stata command, ado and Mata compatibility remains unfinished.",
-    "Practice execution remains synchronous, with explicit operation and output-retention bounds. Cancelable background execution is the next performance task.",
+    "Worker execution with cooperative browser-only recovery; a single command cannot be interrupted midway through the fallback.",
     "Native comparisons use the installed executable; unmodified licensed vendor provenance is not established.",
     "No classroom or manual assistive-technology validation."
   ],
-  "browser_run_scope": "Final full 202-case desktop/mobile suite, 136 unit tests, links, format and deployment checks passed. Public checks verified the pinned source, new programming lesson and loops offline, replay, site navigation/search, legacy links and retained lab/reader workflows.",
+  "browser_run_scope": "Full 224-case desktop/mobile suite plus two new storage-event-suppression regression cases; 151 unit tests, format, links and deployment checks. Public release verification is pending.",
   "lessons": 19,
   "lesson_steps": 86,
   "numeric_responses": 18,
@@ -54,7 +54,10 @@
   "public_release": "public-release.json",
   "public_browser_verification": "public-site.json",
   "public_browser_checks": 11,
-  "delayed_module_viewports": [1440, 390],
+  "delayed_module_viewports": [
+    1440,
+    390
+  ],
   "legacy_worker_migration_checks": 3,
   "payload_basis": "HTTP response bodies from the tested origin; gzip sizes computed locally",
   "iv_investigations": 3,
@@ -93,5 +96,9 @@
   "workspace_script_gzip_bytes": 9415,
   "user_requested_additional_token_allowance": 1000000,
   "goal_api_status": "blocked",
-  "prior_user_total_token_limit": 2500000
+  "prior_user_total_token_limit": 2500000,
+  "workspace_backup_version_with_builder": 4,
+  "builder_analysis_families": 8,
+  "builder_preparation_operations": 9,
+  "native_Stata_builder_cases": 28
 }

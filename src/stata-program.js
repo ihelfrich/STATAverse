@@ -154,11 +154,17 @@ function literalContents(text) {
 }
 
 /** Interpret control flow around the existing command engine. */
-export function runProgram(source, session, resolveVariables) {
+function* programSteps(
+  source,
+  session,
+  resolveVariables,
+  { onProgress = () => {} } = {},
+) {
   const program = parseProgram(source),
     locals = Object.create(null);
   let results = [],
     receipts = [];
+  const startingCommands = session.history.length;
   const append = (result) => {
     results = retainResults([...results, result]);
     receipts = retainResults([...receipts, historyReceipt(result)], {
@@ -166,6 +172,7 @@ export function runProgram(source, session, resolveVariables) {
       cells: Infinity,
       bytes: RESOURCE_LIMITS.timelineBytes,
     });
+    onProgress({ commands: session.history.length - startingCommands });
   };
   let operations = 0,
     current = null,
@@ -180,7 +187,7 @@ export function runProgram(source, session, resolveVariables) {
         901,
       );
   };
-  function execute(nodes) {
+  function* execute(nodes) {
     for (const node of nodes) {
       current = node;
       currentCommand = node.command;
@@ -241,7 +248,7 @@ export function runProgram(source, session, resolveVariables) {
             "The if command requires a numeric condition.",
             109,
           );
-        execute(
+        yield* execute(
           value === null || Boolean(value) ? node.body : node.otherwise || [],
         );
       } else {
@@ -272,17 +279,19 @@ export function runProgram(source, session, resolveVariables) {
             currentCommand = node.command;
             tick();
             locals[name] = item;
-            execute(node.body);
+            yield* execute(node.body);
+            yield;
           }
         } finally {
           // Stata removes the loop macro, including a pre-existing value.
           delete locals[name];
         }
       }
+      yield;
     }
   }
   try {
-    execute(program);
+    yield* execute(program);
   } catch (error) {
     append({
       kind: "error",
@@ -324,4 +333,38 @@ export function runProgram(source, session, resolveVariables) {
   // Keep lightweight command history even when earlier full output is released.
   Object.defineProperty(results, "receipts", { value: receipts });
   return results;
+}
+
+export function runProgram(...args) {
+  const steps = programSteps(...args);
+  let next;
+  do next = steps.next();
+  while (!next.done);
+  return next.value;
+}
+
+/** Same interpreter, yielding between operations when a Worker is unavailable. */
+export async function runProgramAsync(
+  source,
+  session,
+  resolveVariables,
+  { signal, ...options } = {},
+) {
+  const steps = programSteps(source, session, resolveVariables, options);
+  let checkpoint = performance.now();
+  try {
+    // Give the page a chance to paint and receive Stop before any command runs.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    for (;;) {
+      signal?.throwIfAborted();
+      const next = steps.next();
+      if (next.done) return next.value;
+      if (performance.now() - checkpoint >= 8) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        checkpoint = performance.now();
+      }
+    }
+  } finally {
+    steps.return();
+  }
 }

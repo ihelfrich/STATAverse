@@ -1,7 +1,7 @@
 import { DATASETS, createDataset } from "./datasets.js";
 import { StataError, compileExpression } from "./expression.js";
 import { commandBlocks } from "./do-file.js";
-import { runProgram } from "./stata-program.js";
+import { runProgram, runProgramAsync } from "./stata-program.js";
 import { dataChanges } from "./data-changes.js";
 import { nativeImportOptions } from "./import-library.js";
 import { egenColumn, collapseDataset } from "./grouped-data.js";
@@ -243,14 +243,48 @@ export class PracticeSession {
     this.preservedData = null;
   }
   snapshot() {
-    return clone({
+    return clone(this.executionState());
+  }
+  executionState() {
+    return {
       data: this.data,
       model: this.model,
       graph: this.graph,
       history: this.history,
       last: this.last,
       preservedData: this.preservedData,
-    });
+    };
+  }
+  acceptExecution(state, undo = []) {
+    for (const key of Object.keys(this.executionState()))
+      this[key] = state[key];
+    this.undoStack.push(...undo);
+    this.trimUndo();
+  }
+  trimUndo() {
+    const cellCost = (snapshot) =>
+      snapshot.data.rows.length * Math.max(1, snapshot.data.columns.length) +
+      (snapshot.preservedData
+        ? snapshot.preservedData.rows.length *
+          Math.max(1, snapshot.preservedData.columns.length)
+        : 0);
+    const byteCost = (snapshot) => {
+      if (!snapshotSizes.has(snapshot))
+        snapshotSizes.set(snapshot, estimatedBytes(snapshot));
+      return snapshotSizes.get(snapshot);
+    };
+    let cells = this.undoStack.reduce((sum, state) => sum + cellCost(state), 0);
+    let bytes = this.undoStack.reduce((sum, state) => sum + byteCost(state), 0);
+    while (
+      this.undoStack.length > 1 &&
+      (this.undoStack.length > 50 ||
+        cells > 750000 ||
+        bytes > RESOURCE_LIMITS.undoBytes)
+    ) {
+      const released = this.undoStack.shift();
+      cells -= cellCost(released);
+      bytes -= byteCost(released);
+    }
   }
   undo() {
     const old = this.undoStack.pop();
@@ -258,9 +292,20 @@ export class PracticeSession {
     Object.assign(this, old);
     return true;
   }
-  run(source) {
-    return runProgram(source, this, (text, data) =>
-      variables(text, data, { preserveDuplicates: true }),
+  run(source, options) {
+    return runProgram(
+      source,
+      this,
+      (text, data) => variables(text, data, { preserveDuplicates: true }),
+      options,
+    );
+  }
+  runAsync(source, options) {
+    return runProgramAsync(
+      source,
+      this,
+      (text, data) => variables(text, data, { preserveDuplicates: true }),
+      options,
     );
   }
   execute(command) {
@@ -285,32 +330,7 @@ export class PracticeSession {
         if (resourceError) throw new StataError(resourceError, 901);
       }
       this.undoStack.push(before);
-      snapshotSizes.set(before, estimatedBytes(before));
-      // Keep the small teaching-data limit while bounding copies of larger imports.
-      const cellCost = (snapshot) =>
-        snapshot.data.rows.length * Math.max(1, snapshot.data.columns.length) +
-        (snapshot.preservedData
-          ? snapshot.preservedData.rows.length *
-            Math.max(1, snapshot.preservedData.columns.length)
-          : 0);
-      let retainedCells = this.undoStack.reduce(
-        (total, snapshot) => total + cellCost(snapshot),
-        0,
-      );
-      let retainedBytes = this.undoStack.reduce(
-        (total, state) => total + (snapshotSizes.get(state) || 0),
-        0,
-      );
-      while (
-        this.undoStack.length > 1 &&
-        (this.undoStack.length > 50 ||
-          retainedCells > 750000 ||
-          retainedBytes > RESOURCE_LIMITS.undoBytes)
-      ) {
-        const released = this.undoStack.shift();
-        retainedCells -= cellCost(released);
-        retainedBytes -= snapshotSizes.get(released) || 0;
-      }
+      this.trimUndo();
       this.history.push(command);
       this.last = {
         ...result,

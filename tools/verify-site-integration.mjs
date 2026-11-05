@@ -100,6 +100,35 @@ try {
   receipt.checks.push(
     "nested-path command execution, saved practice and scoped service worker",
   );
+  await page
+    .getByRole("link", { name: "Do-file builder", exact: true })
+    .click();
+  assert.equal(
+    new URL(page.url()).pathname,
+    "/learn/stata/ScriptLibrary/builder.html",
+  );
+  await page.locator("#project").fill("/Users/student/Course project");
+  await page.locator('[data-stage="1"]').click();
+  await page.locator("#file").fill("data/survey.dta");
+  await page.locator("#format").selectOption("dta");
+  await page.locator('[data-stage="3"]').click();
+  await page.locator("#method").selectOption("ols");
+  await page.locator("#outcome").fill("score");
+  await page.locator("#predictors").fill("hours attendance");
+  assert.equal(await page.locator("#download-do").isEnabled(), true);
+  assert.match(
+    await page.locator("#builder-code").inputValue(),
+    /regress score hours attendance, vce\(robust\)/,
+  );
+  await page.reload();
+  assert.match(
+    await page.locator("#builder-code").inputValue(),
+    /regress score hours attendance/,
+  );
+  assert.equal((await new AxeBuilder({ page }).analyze()).violations.length, 0);
+  receipt.checks.push(
+    "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
+  );
   await page.goto(root + "Labs/Data/#investigation=matching-records");
   await page.locator("#investigation-number").fill("5");
   await page.locator("#investigation-number").press("Enter");

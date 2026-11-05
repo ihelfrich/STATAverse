@@ -1644,6 +1644,15 @@ dialog .reference-group {
 .editor-actions #run:hover {
   background: #edf2fc;
 }
+#run-status {
+  padding: 9px 11px;
+  border-left: 2px solid var(--green);
+  background: #f4f6fa;
+}
+#run-status.execution-problem {
+  border-color: #a63d29;
+  color: #7c2d21;
+}
 .editor-actions.run-together #run {
   background: var(--green);
   color: #fff;

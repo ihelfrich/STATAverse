@@ -115,6 +115,7 @@ const bundleResult = await build({
   metafile: true,
   entryPoints: [
     "src/learn.js",
+    "src/practice-worker.js",
     "src/home.js",
     "src/workspace.js",
     "src/regression-lab.js",
@@ -124,6 +125,7 @@ const bundleResult = await build({
     "src/iv-lab.js",
     "src/iv-investigation-ui.js",
     "src/method-lab.js",
+    "src/do-builder.js",
     "src/worked-reader.js",
   ],
   bundle: true,
