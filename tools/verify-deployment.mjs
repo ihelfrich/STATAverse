@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import assert from "node:assert/strict";
 import { chromium, devices } from "@playwright/test";
 const server = spawn(process.execPath, ["tools/serve.mjs"], {
-  env: { ...process.env, PORT: "4174", BASE_PATH: "/STATAverse/" },
+  env: { ...process.env, PORT: "4174", BASE_PATH: "/learn/stata/" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let browser;
@@ -32,7 +32,7 @@ try {
     page = await context.newPage(),
     errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const root = "http://127.0.0.1:4174/STATAverse/";
+  const root = "http://127.0.0.1:4174/learn/stata/";
   await fs.mkdir("docs/verification/screenshots", { recursive: true });
   await page.goto(root);
   await page.locator('[data-preview="regress"]').click();
@@ -131,7 +131,7 @@ try {
   await page.evaluate(async () => {
     const cache = await caches.open("unrelated-application");
     await cache.put(
-      location.origin + "/STATAverse/not-a-page",
+      location.origin + "/learn/stata/not-a-page",
       new Response("unrelated response"),
     );
   });

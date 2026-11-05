@@ -596,6 +596,33 @@
         "tests/iv-lab.test.mjs",
         "tests/browser/iv-lab.spec.js"
       ]
+    },
+    {
+      "id": "stataverse.legacy-transition",
+      "project": "stataverse",
+      "path": "docs/verification/legacy-transition.json",
+      "kind": "receipt",
+      "title": "Legacy STATAverse browser upgrade verification",
+      "summary": "Actual v7 worker upgrade, deep-link preservation, saved notes, scoped cache retirement and canonical offline execution",
+      "facets": [
+        "Stata",
+        "browser",
+        "website",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Local browser reconstruction of the public v7 worker; public deployment remains a separate verification",
+        "An already open older page changes on its next navigation or reload"
+      ],
+      "depends_on": [
+        "stataverse.site-integration"
+      ],
+      "evidence": [
+        "tools/verify-legacy-transition.mjs",
+        "service-worker.js",
+        "assets/js/legacy-location.js"
+      ]
     }
   ]
 }

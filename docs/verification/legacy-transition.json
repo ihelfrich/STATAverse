@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-11-05T07:03:22.141Z",
+  "previousCommit": "c569c03aa41fafd633487906fe72dc78558d98fd",
+  "checks": [
+    "fresh legacy links preserve the path, encoded query and lesson fragment",
+    "v7 worker upgrade retires its cache and preserves other app caches and saved notes",
+    "returning navigation reaches the canonical lesson and runs under its own offline worker"
+  ]
+}
