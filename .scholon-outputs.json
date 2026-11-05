@@ -676,7 +676,7 @@
       "path": "docs/verification/public-release.json",
       "kind": "receipt",
       "title": "STATAverse public deployment and legacy-route receipts",
-      "summary": "Published browser-only programming increment with 19 lessons, 86 steps and verified main-site integration; broader compatibility remains open",
+      "summary": "Published guided do-file builder and cancelable browser execution with local worker recovery; verified main-site navigation, saved work, public downloads and bounded offline transfer",
       "facets": [
         "Stata",
         "website",
@@ -697,7 +697,9 @@
         "docs/verification/legacy-transition.json",
         "docs/site-integration.md",
         "docs/verification/public-programming-legacy.json",
-        "docs/verification/program-native.json"
+        "docs/verification/program-native.json",
+        "docs/verification/public-builder-legacy.json",
+        "docs/verification/builder-native.json"
       ]
     },
     {

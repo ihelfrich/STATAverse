@@ -129,6 +129,44 @@ try {
   receipt.checks.push(
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
   );
+  const recoveryContext = await browser.newContext();
+  await recoveryContext.addInitScript(() => {
+    window.Worker = class {
+      constructor() {
+        throw new Error("Worker unavailable in recovery verification");
+      }
+    };
+  });
+  const recoveryPage = await recoveryContext.newPage();
+  recoveryPage.on("pageerror", (error) => errors.push(error.message));
+  await recoveryPage.goto(root + "Learn/");
+  await recoveryPage.locator("#free-mode").click();
+  await replaceEditor(
+    recoveryPage,
+    "generate double recovery_check=hours+1\ncount",
+  );
+  await recoveryPage.locator("#run").click();
+  await recoveryPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await recoveryPage.locator("#dataset-count").innerText(),
+    /6 variables/,
+  );
+  await recoveryPage.reload();
+  await recoveryPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await recoveryPage.locator("#dataset-count").innerText(),
+    /6 variables/,
+  );
+  await recoveryPage.locator("#undo").click();
+  await recoveryPage.locator("#undo").click();
+  assert.match(
+    await recoveryPage.locator("#dataset-count").innerText(),
+    /5 variables/,
+  );
+  await recoveryContext.close();
+  receipt.checks.push(
+    "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
+  );
   await page.goto(root + "Labs/Data/#investigation=matching-records");
   await page.locator("#investigation-number").fill("5");
   await page.locator("#investigation-number").press("Enter");
