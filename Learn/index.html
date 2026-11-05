@@ -301,15 +301,19 @@
       <p>
         Practice with three synthetic datasets, a supported set of commands,
         ordinary numeric missing values, and linear regression with conventional
-        or HC1 robust standard errors. Import your own UTF-8 CSV, TSV or
-        semicolon-delimited text after reviewing its variable names and types.
+        or HC1 robust standard errors. Regression accepts categorical variables
+        (<code>i.group</code>) and interactions: <code>c.x##c.z</code> includes
+        both continuous predictors and their product. Bare variables in
+        <code>#</code> and <code>##</code> are categorical. Import your own
+        UTF-8 CSV, TSV or semicolon-delimited text after reviewing its variable
+        names and types.
       </p>
       <p>
         The full Stata language requires Stata. This workspace does not
         implement arbitrary disk paths, Excel or Stata binary files, global
-        macros, user-defined programs, factor variables, weighted estimation,
-        clustered inference, panel estimators, merges, reshape or user-written
-        commands. Unsupported syntax produces an error.
+        macros, user-defined programs, time-series operators, weighted
+        estimation, clustered inference, panel estimators, merges, reshape or
+        user-written commands. Unsupported syntax produces an error.
       </p>
       <p>
         Local macros, foreach lists, integer forvalues loops and nested if/else

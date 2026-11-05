@@ -11,6 +11,7 @@ import {
   dataResourceError,
 } from "./resource-limits.js";
 import { missing, summarize, regress, correlation } from "./statistics.js";
+import { factorRegression, termValue } from "./factor-variables.js";
 export { StataError };
 const aliases = {
   sum: "summarize",
@@ -189,7 +190,7 @@ function variables(
       throw new StataError(
         `Variable ${name} not found.`,
         111,
-        "Check spelling and capitalization in the data browser. Factor variables (i.var), interactions and time-series operators require Stata.",
+        "Check spelling and capitalization in the data browser. Factor-variable notation is supported in regress; time-series operators require installed Stata.",
       );
     if (numeric && col.type !== "numeric")
       throw new StataError(
@@ -848,16 +849,32 @@ export class PracticeSession {
       if (options && !["robust", "vce(robust)"].includes(options))
         noOptions(options);
       const rawNames = q.main.split(/\s+/);
-      if (new Set(rawNames).size !== rawNames.length)
+      const factors = /[.#()]/.test(q.main);
+      if (!factors && new Set(rawNames).size !== rawNames.length)
         throw new StataError(
           "A variable is repeated in the model. Use distinct predictors and do not regress an outcome on itself.",
         );
-      const names = variables(q.main, data, { numeric: true });
-      const [y, ...x] = names;
+      let names, y, x;
       let model;
       try {
-        model = regress(rows, y, x, Boolean(options));
+        if (factors) {
+          model = factorRegression(
+            q.main,
+            data,
+            rows,
+            Boolean(options),
+            (text) => variables(text, data, { numeric: true }),
+          );
+          y = model.dependent;
+          x = model.predictors;
+          names = [y, ...model.sourceVariables];
+        } else {
+          names = variables(q.main, data, { numeric: true });
+          [y, ...x] = names;
+          model = regress(rows, y, x, Boolean(options));
+        }
       } catch (e) {
+        if (e instanceof StataError) throw e;
         throw new StataError(e.message, 498);
       }
       this.model = model;
@@ -867,7 +884,7 @@ export class PracticeSession {
           .map((c) => [c.name, clone(c.origin)]),
       );
       this.graph =
-        x.length === 1
+        !factors && x.length === 1
           ? {
               kind: "scatter",
               x: x[0],
@@ -886,7 +903,11 @@ export class PracticeSession {
         model,
         omitted: rows.length - model.n,
         message:
-          "OLS describes a conditional association. Robust standard errors change uncertainty, not the coefficients or the identification assumptions.",
+          model.df === 0
+            ? "This model uses all available degrees of freedom. Coefficients and fitted values are shown, but standard errors, confidence intervals and tests cannot be estimated. In # and ##, an unprefixed variable is categorical; use c. if you intend a continuous predictor."
+            : factors
+              ? "The table shows the expanded model terms. Select a term to see what it represents. With ##, the component terms are included as well as their interaction."
+              : "OLS describes a conditional association. Robust standard errors change uncertainty, not the coefficients or the identification assumptions.",
       };
     }
     if (verb === "predict") {
@@ -912,12 +933,23 @@ export class PracticeSession {
       });
       for (const r of data.rows) r[name] = null;
       for (const { r } of q.selected) {
-        if (model.predictors.some((p) => missing(r[p]))) continue;
+        if (
+          (model.sourceVariables || model.predictors).some((p) => missing(r[p]))
+        )
+          continue;
+        const values = model.factorTerms
+          ? model.factorTerms.map((term) => termValue(term, r))
+          : model.predictors.map((p) => r[p]);
         const fit =
           model.coefficients.at(-1).b +
-          model.predictors.reduce(
-            (s, p, j) => s + r[p] * model.coefficients[j].b,
+          values.reduce(
+            (s, value, j) => s + value * model.coefficients[j].b,
             0,
+          );
+        if (!Number.isFinite(fit))
+          throw new StataError(
+            "A prediction exceeds the supported numerical range. Rescale the predictors.",
+            498,
           );
         r[name] = residual
           ? missing(r[model.dependent])

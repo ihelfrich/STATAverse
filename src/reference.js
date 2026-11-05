@@ -131,8 +131,8 @@ export const REFERENCE = [
         "Frequency histogram with browser-selected bins. Density and Stata’s other bin options are not implemented.",
       ],
       [
-        "regress score hours attendance [, vce(robust)]",
-        "OLS with an intercept. Optional HC1 covariance and t-based inference. Construct interaction columns with generate. Factor-variable syntax, weights and clustering are not supported.",
+        "regress score hours attendance [, vce(robust)]\nregress hours c.attendance##c.score\nregress score i.attendance##c.hours",
+        "OLS with an intercept and optional HC1 covariance. Use c. for continuous predictors and i. for categories. # adds an interaction; ## also includes its component terms. Bare variables inside # or ## are categorical. ib2.group sets category 2 as the reference. Weights and clustered inference require installed Stata.",
       ],
       [
         "predict double fitted [, xb]",

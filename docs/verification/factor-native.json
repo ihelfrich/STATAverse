@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-11-05T19:27:39.088Z",
+  "cases": 69,
+  "checks": [
+    "N and residual degrees of freedom",
+    "coefficients by expanded term name",
+    "full covariance for retained terms when df > 0",
+    "SSE and R-squared",
+    "predict and residuals, including observations outside estimation sample"
+  ],
+  "source": "https://www.stata.com/manuals/u11.pdf",
+  "limits": [
+    "Selected fixtures only, not all factor-variable syntax or collinearity patterns.",
+    "Native startup logs remain in a private temporary folder.",
+    "Saturated fits have no inference in browser output."
+  ],
+  "fixtureSha256": "ff8610b4e8e8e95f320798896e326d15276f44037ced320072308434ad39624a"
+}
