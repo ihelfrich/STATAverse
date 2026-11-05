@@ -160,7 +160,8 @@ marginsplot, ///
     recast(line) recastci(rarea) ///
     ciopts(color(navy%20))
 
-graph export "moderation_marginal_effects.png", replace width(1200)
+capture noisily graph export "moderation_marginal_effects.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n "{txt}✓ This plot shows:"
 display "{txt}  • The effect of firm size at every level of competition"
@@ -180,10 +181,11 @@ local size_vals = "`r(min)' 0 `r(max)'"
 summarize comp_c
 local comp_vals = "`r(min)' 0 `r(max)'"
 
-margins, at(firm_size_c = (`r(min)'(50)`r(max)') ///
+margins, at(firm_size_c = (`size_vals') ///
             comp_c = (`comp_low' 0 `comp_high'))
 
 marginsplot, ///
+    xdimension(firm_size_c) plotdimension(comp_c) ///
     title("Simple Slopes: Firm Size × Competitive Intensity") ///
     subtitle("Predicted Performance") ///
     ytitle("Predicted Performance") ///
@@ -197,7 +199,8 @@ marginsplot, ///
     ci2opts(color(orange%20)) ///
     ci3opts(color(red%20))
 
-graph export "moderation_simple_slopes.png", replace width(1200)
+capture noisily graph export "moderation_simple_slopes.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n "{txt}✓ This plot shows:"
 display "{txt}  • Different slopes for low/medium/high competition"
@@ -296,7 +299,8 @@ graph combine g_low g_high, ///
     title("Three-Way Interaction Decomposition") ///
     subtitle("How dynamism changes the Size×Competition interaction")
 
-graph export "moderation_threeway.png", replace width(1400)
+capture noisily graph export "moderation_threeway.png", replace width(1400)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 *******************************************************************************
 * PART 7: Common Pitfalls & Solutions

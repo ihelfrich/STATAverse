@@ -1,0 +1,10 @@
+{
+  "scope": "http://127.0.0.1:4174/STATAverse/",
+  "projectPath": true,
+  "offlinePractice": true,
+  "foreignCachePreserved": true,
+  "foreignCacheNotRead": true,
+  "searchPracticeLinked": true,
+  "mobileNoOverflow": true,
+  "pageErrors": []
+}

@@ -1,5 +1,101 @@
 [
   {
+    "type": "module",
+    "title": "Browser practice: Your first Stata commands",
+    "summary": "Read a dataset, run commands and understand the Results window.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Start here",
+    "path": "Learn/#first-commands"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Samples and missing values",
+    "summary": "Understand if, observation counts and Stata\u2019s numeric missing values.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Foundations",
+    "path": "Learn/#missing-values"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Create and inspect variables",
+    "summary": "Make transformations, preserve missing values and understand changes to data.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Foundations",
+    "path": "Learn/#transformations"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: See distributions and relationships",
+    "summary": "Connect graph axes and individual points to the data.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Foundations",
+    "path": "Learn/#graphs"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Read and work through a regression",
+    "summary": "Connect coefficients, the fitted line and residuals to observations.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Core analysis",
+    "path": "Learn/#regression"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Controls and uncertainty",
+    "summary": "Separate fitted associations, standard errors and identification.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Core analysis",
+    "path": "Learn/#inference"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Investigate data quality",
+    "summary": "Find duplicates, missing fields and impossible values before modeling.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Data preparation",
+    "path": "Learn/#data-quality"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: An independent analysis",
+    "summary": "Explore a second dataset and prepare a reproducible Stata handoff.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Apply your skills",
+    "path": "Learn/#independent-analysis"
+  },
+  {
     "type": "script",
     "title": "Project setup and logging",
     "summary": "Initialize a clean Stata session, create folders, and start a log.",
@@ -556,65 +652,5 @@
     ],
     "level": "All",
     "path": "Readings/index.html"
-  },
-  {
-    "type": "dataset",
-    "title": "World Bank country-year panel",
-    "summary": "Country-year panel with GDP per capita, life expectancy, literacy, population, and capital formation.",
-    "tags": [
-      "panel",
-      "macro",
-      "growth"
-    ],
-    "level": "All",
-    "path": "RealData/#dataset-1-world-bank-country-year-panel"
-  },
-  {
-    "type": "dataset",
-    "title": "FRED US macro monthly series",
-    "summary": "Monthly US macro series: unemployment, CPI, federal funds rate, industrial production.",
-    "tags": [
-      "time series",
-      "macro",
-      "forecasting"
-    ],
-    "level": "All",
-    "path": "RealData/#dataset-2-fred-us-macro-time-series"
-  },
-  {
-    "type": "dataset",
-    "title": "USGS earthquake events (US, 2019-2023)",
-    "summary": "Event-level earthquake data for the US with magnitude, depth, and timestamps.",
-    "tags": [
-      "events",
-      "shocks",
-      "risk"
-    ],
-    "level": "All",
-    "path": "RealData/#dataset-3-usgs-earthquake-events-us-2019-2023"
-  },
-  {
-    "type": "dataset",
-    "title": "Daily markets and rates (FRED)",
-    "summary": "Daily SP500, VIX, 10Y, fed funds, and 3M T-bill for finance labs.",
-    "tags": [
-      "markets",
-      "rates",
-      "finance"
-    ],
-    "level": "All",
-    "path": "RealData/#dataset-4-daily-markets-and-rates-fred"
-  },
-  {
-    "type": "project",
-    "title": "Real Data base lab do-file",
-    "summary": "Plug-and-play Stata skeleton (base_lab.do) for RealData vault with logging and folder setup.",
-    "tags": [
-      "starter",
-      "workflow",
-      "lab"
-    ],
-    "level": "All",
-    "path": "RealData/base_lab.do"
   }
 ]

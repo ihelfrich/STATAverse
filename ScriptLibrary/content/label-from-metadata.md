@@ -22,6 +22,7 @@ Labeled variables in memory.
 * metadata.csv columns: varname, label
 preserve
 import delimited using "data/metadata.csv", clear varnames(1)
+isid varname
 
 tempfile meta
 save `meta', replace
@@ -39,7 +40,8 @@ foreach v of local vars {
     keep if varname == "`v'"
     local lbl = label[1]
     restore
-    capture label variable `v' "`lbl'"
+    confirm variable `v'
+    label variable `v' `"`lbl'"'
 }
 ```
 

@@ -1,0 +1,89 @@
+{
+  "method": "Native Stata batch, one processor; each script in a disposable directory",
+  "limits": [
+    "Decision-tree scripts exercise their default settings.",
+    "Successful execution does not certify every explanatory claim or estimator assumption.",
+    "Graph-export warnings are counted separately from completed numerical analysis.",
+    "Raw logs remain outside the repository because Stata prints license information."
+  ],
+  "results": [
+    {
+      "script": "CodeLibrary/scripts/00_regression_plain_english.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/01_endogeneity_simulator.do",
+      "return_code": "0",
+      "graph_export_failures": 3,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/01b_endogeneity_intuition.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/02_method_decision_tree.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/02_method_decision_tree_v2.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/03_anti_patterns.do",
+      "return_code": "0",
+      "graph_export_failures": 2,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/04_assumption_checker.do",
+      "return_code": "0",
+      "graph_export_failures": 2,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/05_moderation_mastery.do",
+      "return_code": "0",
+      "graph_export_failures": 3,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/06_panel_data_toolkit.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "ZeroToHero/projects/project-01/analysis.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": [
+        "data_dir resolved to repository teaching CSV directory",
+        "insheet substituted for Java-dependent import delimited"
+      ]
+    },
+    {
+      "script": "ZeroToHero/projects/project-02/analysis.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": [
+        "data_dir resolved to repository teaching CSV directory",
+        "insheet substituted for Java-dependent import delimited"
+      ]
+    },
+    {
+      "script": "tools/stata-snippets.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    }
+  ]
+}

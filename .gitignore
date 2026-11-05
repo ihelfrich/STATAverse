@@ -1,3 +1,13 @@
 .DS_Store
 **/.DS_Store
 EconometricsBooks/
+.DS_Store
+node_modules/
+test-results/
+playwright-report/
+/stata-reference.log
+/stata-expressions.log
+tests/fixtures/*.dta
+
+*.log
+*.smcl

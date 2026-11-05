@@ -4,6 +4,16 @@ Purpose
 - Track changes made by Codex and other AI assistants.
 - Record scope, files touched, and notes for auditing.
 
+
+Entry: 2026-11-04
+Author: Codex
+Scope: Mixed-level student practice overhaul and adversarial review.
+- Added eight guided lessons, 30 command/interpretation checks, three synthetic datasets, a bounded Stata-syntax engine, linked data/results/graphs, undo and Stata project export.
+- Rebuilt the homepage and navigation; combined practice/reading backups with validated imports, rollback and cross-tab protection.
+- Rewrote the ten concepts, corrected native simulations/templates and removed unsupported inference claims.
+- Bundled rendering assets locally, repaired scoped offline caching and added engine, browser, deployment and native-reference checks.
+- Native Java import/PNG export limitations remain explicit. No public publication occurred. See docs/red-team-review.md for findings and verification scope.
+
 Entry: 2025-01-15
 Author: Codex (GPT-5)
 Scope: Build Zero-to-Hero section, datasets, interactivity, and site wiring.

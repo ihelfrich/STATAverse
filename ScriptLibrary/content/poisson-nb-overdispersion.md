@@ -12,19 +12,23 @@ Poisson and NB estimates with diagnostics.
 
 ## Options
 - Use estat gof after poisson.
-- Test alpha after nbreg for overdispersion.
-- Consider zero-inflated models for excess zeros.
+- The conventional NB output reports a boundary test of alpha = 0; a Wald test of lnalpha = 0 is a different null.
+- Consider a separate zero process only when the data-generating mechanism supports it.
 
 ## Script
 ```stata
 * Poisson vs negative binomial
 
-poisson delay_days expedited backlog_index distance_km i.supplier_tier
+* The supplied supplier_tier variable is a string.
+encode supplier_tier, generate(supplier_id)
+
+poisson delay_days i.expedited backlog_index distance_km i.supplier_id
 estat gof
 
-nbreg delay_days expedited backlog_index distance_km i.supplier_tier
-* Test alpha = 0 (Poisson nested in NB)
-* test [lnalpha]_cons = 0
+nbreg delay_days i.expedited backlog_index distance_km i.supplier_id
+* alpha = 0 is a boundary null. Testing lnalpha = 0 instead tests alpha = 1.
+* For conventional maximum likelihood, examine the reported boundary LR test.
+* Do not use that LR comparison after robust/cluster VCE as a robust test.
 ```
 
 ## Related concepts

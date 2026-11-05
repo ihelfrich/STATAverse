@@ -1,4 +1,6 @@
 ## Overview
+<div class="practice-entry"><a href="../../Learn/#regression">Work through a regression in the browser</a><p>Move the fitted line, inspect residuals and read each coefficient before continuing with this installed-Stata example.</p></div>
+
 OLS is the workhorse of applied econometrics. In this module you will see OLS visually, connect
 it to the loss function, and implement it in Stata using the Coffee Chain Weekly data.
 
@@ -31,7 +33,7 @@ We start with a scatterplot of price and sales. Every point is a store-week.
 - [ ] Should the slope be positive or negative? Why?
 
 [CHECK]
-- Expected: Negative; higher prices usually reduce sales.
+- In the supplied 144-row teaching dataset, the simple fitted slope is negative. A scatterplot describes the observed association; a causal demand response requires an identification argument about pricing and demand shocks.
 
 [REFLECT]
 - Write a one-sentence business interpretation of the slope.
@@ -77,7 +79,7 @@ regress sales price
 - [ ] What sign do you expect for price?
 
 [CHECK]
-- Expected: Negative coefficient on price.
+- The supplied CSV gives a price coefficient of approximately −59.407 and an intercept of 436.147. A one-dollar higher price is associated with about 59.4 fewer weekly units sold under this fitted line. These are descriptive results from the teaching data.
 
 [REFLECT]
 - Interpret the price coefficient in plain language.
@@ -95,7 +97,7 @@ regress sales price foot_traffic labor_hours
 - [ ] Will the price coefficient shrink or grow? Why?
 
 [CHECK]
-- Expected: It often shrinks as demand drivers are added.
+- In this supplied dataset, the price coefficient becomes approximately −37.386 after adding foot traffic and labor hours. There is no general rule that controls shrink a coefficient. Both models here use all 144 rows; in other data, check whether adding controls also changes the sample.
 
 [REFLECT]
 - What story does the updated coefficient tell?
@@ -119,8 +121,8 @@ estat hettest
 - When would you report robust standard errors?
 
 ## Step 6: The language of assumptions
-<button class="glossary-term" data-definition="The error term is uncorrelated with the regressors; otherwise estimates are biased.">Exogeneity</button>
-means the predictors are unrelated to the error term. When this fails, you face
+<button class="glossary-term" data-definition="An orthogonality or conditional-mean restriction relating regressors to model errors; the exact restriction depends on the estimator and target.">Exogeneity</button>
+requires the relevant restrictions between predictors and the structural error. A causal interpretation needs a defensible account of those restrictions. When they fail, you can face
 <button class="glossary-term" data-definition="A predictor is correlated with the error term, often due to omitted variables, measurement error, or simultaneity.">endogeneity</button>.
 
 [TRY]
@@ -130,7 +132,7 @@ means the predictors are unrelated to the error term. When this fails, you face
 - [ ] How would endogeneity bias the price estimate?
 
 [CHECK]
-- Expected: If price responds to expected demand, the price coefficient may be biased toward zero.
+- If an omitted positive demand shock raises both prices and sales, the omitted-variable term can push an otherwise negative price coefficient upward. Whether that moves the estimate toward zero, beyond zero or in another direction depends on the model and correlations; the general sign is not established by the plot.
 
 [REFLECT]
 - Why does this matter for decision-making?
@@ -142,5 +144,5 @@ means the predictors are unrelated to the error term. When this fails, you face
 
 Answer key (short)
 - Q1: The sum of squared residuals.
-- Q2: Controls hold other drivers constant, refining the price effect.
+- Q2: The coefficient becomes a fitted price association conditional on the included controls. Their inclusion alone does not identify a causal price effect.
 - Q3: Fan-shaped residual plot or significant hettest.

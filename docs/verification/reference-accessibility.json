@@ -1,0 +1,33 @@
+{
+  "method": "axe-core automated WCAG 2 A/AA and 2.1 AA checks; not a manual assistive-technology audit",
+  "results": [
+    {
+      "path": "/Workspace/",
+      "violations": []
+    },
+    {
+      "path": "/CodeLibrary/",
+      "violations": []
+    },
+    {
+      "path": "/Search/",
+      "violations": []
+    },
+    {
+      "path": "/MethodLab/",
+      "violations": []
+    },
+    {
+      "path": "/ZeroToHero/",
+      "violations": []
+    },
+    {
+      "path": "/Glossary/concept.html?id=endogeneity",
+      "violations": []
+    },
+    {
+      "path": "/ZeroToHero/modules/02-ols-intuition.html",
+      "violations": []
+    }
+  ]
+}

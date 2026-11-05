@@ -53,7 +53,8 @@ scatter resid fitted, yline(0) ///
     title("Residuals vs Fitted Values") ///
     subtitle("Check for non-linear patterns") ///
     note("Horizontal band = good; curved pattern = non-linearity")
-graph export "ols_resid_fitted.png", replace
+capture noisily graph export "ols_resid_fitted.png", replace
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n `"{result}* Component-plus-residual plots"'
 display `"{result}acprplot mpg"'
@@ -91,9 +92,9 @@ quietly regress price mpg weight
 estat vif
 
 display _n "{txt}Rule of thumb:"
-display "{txt}  VIF < 5:  No concern"
-display "{txt}  VIF 5-10: Moderate concern"
-display "{txt}  VIF > 10: Serious multicollinearity"
+display "{txt}  VIF summarizes variance inflation relative to orthogonal predictors"
+display "{txt}  A large VIF can reduce precision; there is no universal cutoff"
+display "{txt}  Do not drop a needed control solely to reduce its VIF"
 
 display _n "{txt}If VIF is high:"
 display "{txt}  → Drop redundant variables"
@@ -110,7 +111,8 @@ display `"{result}qnorm resid"'
 
 qnorm resid, title("Q-Q Plot") ///
     note("Points should fall on diagonal line")
-graph export "ols_qqplot.png", replace
+capture noisily graph export "ols_qqplot.png", replace
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n `"{result}* Shapiro-Wilk test (use with caution for large samples)"'
 display `"{result}swilk resid"'
@@ -124,7 +126,7 @@ else {
 }
 
 display _n "{txt}If violated:"
-display "{txt}  → Usually OK with large N (Central Limit Theorem)"
+display "{txt}  → Large-sample inference needs appropriate moment and dependence conditions"
 display "{txt}  → Use robust/bootstrap standard errors"
 display "{txt}  → Transform variables (log, square root)"
 display "{txt}  → Consider quantile regression"
@@ -239,8 +241,8 @@ estimates store fe
 hausman fe re
 
 display _n "{txt}Interpretation:"
-display "{txt}  p > 0.05: RE is consistent → use RE (more efficient)"
-display "{txt}  p < 0.05: RE is inconsistent → use FE"
+display "{txt}  Nonrejection does not establish RE consistency; assess its assumptions"
+display "{txt}  Rejection raises a discrepancy under maintained test assumptions"
 
 display _n(2) "{txt}ASSUMPTION 4: Sufficient within-unit variation"
 display "{txt}───────────────────────────────────────────────────────────────"
@@ -287,9 +289,9 @@ ivregress 2sls y (x = z), first
 estat firststage
 
 display _n "{txt}Rule of thumb (Stock & Yogo):"
-display "{txt}  F > 10:  Instrument is strong enough"
-display "{txt}  F < 10:  Weak instrument (biased toward OLS)"
-display "{txt}  F > 20:  Ideal (minimal bias)"
+display "{txt}  F > 10: a historical heuristic, not a general strength guarantee"
+display "{txt}  A small first-stage statistic raises a weak-identification concern"
+display "{txt}  Use diagnostics and critical values appropriate to the covariance model"
 
 display _n "{txt}If F < 10:"
 display "{txt}  → Find stronger instrument(s)"
@@ -313,7 +315,7 @@ estat overid
 
 display _n "{txt}Interpretation:"
 display "{txt}  p > 0.05: Cannot reject that all instruments are valid"
-display "{txt}  p < 0.05: At least one instrument is likely invalid"
+display "{txt}  Rejection challenges the joint moment restrictions and maintained model"
 display "{txt}  Note: This test has low power!"
 
 display _n "{txt}Best practice:"
@@ -331,11 +333,11 @@ quietly ivregress 2sls y (x = z)
 estat endogenous
 
 display _n "{txt}Interpretation:"
-display "{txt}  p > 0.05: X may be exogenous → OLS is consistent and efficient"
-display "{txt}  p < 0.05: Endogeneity confirmed → IV is necessary"
+display "{txt}  Nonrejection does not establish exogeneity or OLS consistency"
+display "{txt}  Rejection is conditional on valid instruments and the maintained model"
 
 display _n "{txt}Best practice:"
-display "{txt}  → Always test for endogeneity"
+display "{txt}  → State the identification argument; a test requires maintained instrument validity"
 display "{txt}  → Report both OLS and IV for comparison"
 display "{txt}  → Discuss magnitude of bias"
 

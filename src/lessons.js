@@ -1,0 +1,550 @@
+import { PracticeSession } from "./engine.js";
+const step = (
+  title,
+  explanation,
+  task,
+  command,
+  question,
+  answers,
+  correct,
+  feedback,
+) => ({
+  title,
+  explanation,
+  task,
+  command,
+  question,
+  answers,
+  correct,
+  feedback,
+});
+export const LESSONS = [
+  {
+    id: "first-commands",
+    title: "Your first Stata commands",
+    level: "Start here",
+    minutes: 12,
+    dataset: "study",
+    summary: "Read a dataset, run commands and understand the Results window.",
+    steps: [
+      step(
+        "What is in memory?",
+        "Stata works on the dataset currently in memory. Each row is an observation; each column is a variable. Here, a row represents one fictional student.",
+        "Inspect the variable names and the number of observations.",
+        "describe",
+        "What does one observation represent?",
+        ["One fictional student", "One variable", "The entire class"],
+        0,
+        "Each of the 24 rows represents one fictional student. The columns describe that student.",
+      ),
+      step(
+        "Read individual observations",
+        "list displays values without changing them. The in qualifier selects observation positions in the current ordering.",
+        "Display id, hours and score for the first five observations.",
+        "list id hours score in 1/5",
+        "What does in 1/5 select?",
+        [
+          "ID values 1 through 5, regardless of ordering",
+          "The first five observation positions",
+          "Students with scores between 1 and 5",
+        ],
+        1,
+        "in refers to positions. If you sort the data, the first five observations may be different people.",
+      ),
+      step(
+        "Read a summary table",
+        "summarize reports a count of nonmissing values for each variable, followed by its mean, sample standard deviation, minimum and maximum.",
+        "Summarize hours and score. Compare each count with the 24 rows in memory.",
+        "summarize hours score",
+        "Why does the table report 23 observations for each variable?",
+        [
+          "There are only 23 rows in memory",
+          "Stata removed the same student from every calculation",
+          "Each variable has one missing value; the missing rows can differ",
+        ],
+        2,
+        "The dataset still has 24 rows. hours and score are missing in different rows; summarize uses the available values of each variable separately.",
+      ),
+      step(
+        "Count categories",
+        "String values need double quotes in expressions. tabulate shows a frequency table; its percentages use the nonmissing observations unless you request missing.",
+        "Count how many observations fall in each tutorial group.",
+        "tabulate group",
+        "How should the two groups be described?",
+        [
+          "Each group contains 12 observations, or 50% of this sample",
+          "Group A causes half of the scores",
+          "The groups have identical score distributions",
+        ],
+        0,
+        "The frequency table describes group sizes. It does not compare scores or establish any group effect.",
+      ),
+    ],
+  },
+  {
+    id: "missing-values",
+    title: "Samples and missing values",
+    level: "Foundations",
+    minutes: 15,
+    dataset: "study",
+    summary:
+      "Understand if, observation counts and Stata’s numeric missing values.",
+    steps: [
+      step(
+        "Select observations with if",
+        "The if qualifier evaluates a condition for each observation. This changes the sample used by the command without removing rows from memory.",
+        "Count students in tutorial group A.",
+        'count if group == "A"',
+        "Does count if delete observations outside group A?",
+        [
+          "Yes, they must be reimported",
+          "No, it only restricts this calculation",
+          "Only when the condition uses strings",
+        ],
+        1,
+        "The data browser still contains all 24 observations. A qualifier restricts the current calculation.",
+      ),
+      step(
+        "A missing-value trap",
+        "Stata orders numeric missing (.) above every finite number. Consequently, hours > 5 includes the row with missing hours. This is a common source of incorrect filters.",
+        "Count rows satisfying hours > 5, and inspect the highlighted rows.",
+        "count if hours > 5",
+        "Does this condition include the row whose hours are missing?",
+        [
+          "No; missing always means false",
+          "Yes; numeric missing is larger than any finite value",
+          "Only when there are no observed values",
+        ],
+        1,
+        "The count is 12. Eleven rows have observed hours above 5, and one additional row has missing hours.",
+      ),
+      step(
+        "Write the intended condition",
+        "missing(hours) is true when hours is missing. ! means not, and & means both conditions must hold. You can also write hours < . to exclude numeric missing.",
+        "Count only observed study hours above 5.",
+        "count if hours > 5 & !missing(hours)",
+        "How many observations satisfy the intended condition?",
+        ["12", "11", "23"],
+        1,
+        "There are 11 observed values above 5. The explicit missing-value check removes the extra row from the calculation.",
+      ),
+      step(
+        "Check a complete-case sample",
+        "A model with several variables uses observations where all required model variables are observed. A univariate summary can therefore have more observations than a regression.",
+        "Count rows with hours, attendance and score all observed.",
+        "count if !missing(hours, attendance, score)",
+        "How many observations could enter a regression using these three variables?",
+        ["24", "23", "21"],
+        2,
+        "Three different rows are missing one of the required variables, leaving 21 complete observations. This count describes availability, not whether excluding those rows is substantively defensible.",
+      ),
+    ],
+  },
+  {
+    id: "transformations",
+    title: "Create and inspect variables",
+    level: "Foundations",
+    minutes: 15,
+    dataset: "study",
+    summary:
+      "Make transformations, preserve missing values and understand changes to data.",
+    steps: [
+      step(
+        "Create a new column",
+        "generate creates a variable. double explicitly requests double precision in Stata. The original variable remains available.",
+        "Convert study hours to minutes. Watch the new column appear.",
+        "generate double minutes = hours * 60",
+        "What happens to the row with missing hours?",
+        [
+          "minutes is also missing",
+          "minutes becomes zero",
+          "The row is removed",
+        ],
+        0,
+        "Arithmetic with numeric missing produces missing. Creating minutes changes the columns, not the number of observations.",
+      ),
+      step(
+        "Inspect the units",
+        "A summary is a quick check that a transformation has the intended scale. Multiplication by 60 changes both the mean and standard deviation by a factor of 60.",
+        "Compare the summaries of hours and minutes.",
+        "summarize hours minutes",
+        "Which statement is consistent with this transformation?",
+        [
+          "Both means should be identical",
+          "The minutes mean is 60 times the hours mean",
+          "The number of nonmissing values doubles",
+        ],
+        1,
+        "The units change from hours to minutes. The 23 observed values remain the same observations.",
+      ),
+      step(
+        "Keep unknown values unknown",
+        "A logical comparison returns 0 or 1, but a missing input should not silently become a known category. Apply the comparison only where hours is observed.",
+        "Create high_study for at least six hours, preserving missing hours.",
+        "generate double high_study = hours >= 6 if !missing(hours)",
+        "Why use if !missing(hours)?",
+        [
+          "To keep an unknown study time from being classified as high study",
+          "To remove all zero values",
+          "To change six hours into six minutes",
+        ],
+        0,
+        "The excluded row receives a missing value in the new variable. Without the qualifier, its missing hours would compare greater than 6 and become 1.",
+      ),
+      step(
+        "Audit the new variable",
+        "The missing option includes missing values as a category, so the displayed total accounts for every observation.",
+        "Inspect the indicator, including the missing category.",
+        "tabulate high_study, missing",
+        "What should you see in the table?",
+        [
+          "Only the values 0 and 1, with a total of 23",
+          "The values 0, 1 and ., with a total of 24",
+          "A different number of rows in the data browser",
+        ],
+        1,
+        "The table includes 12 zeros, 11 ones and one numeric missing value. No observations were deleted.",
+      ),
+    ],
+  },
+  {
+    id: "graphs",
+    title: "See distributions and relationships",
+    level: "Foundations",
+    minutes: 12,
+    dataset: "study",
+    summary: "Connect graph axes and individual points to the data.",
+    steps: [
+      step(
+        "A distribution of scores",
+        "A histogram groups observed values into intervals. With frequency, the vertical axis counts observations in each interval. Missing scores are not plotted.",
+        "Draw a frequency histogram of score.",
+        "histogram score, frequency",
+        "What does the height of a bar represent?",
+        [
+          "The mean score",
+          "The number of observed scores in that interval",
+          "A causal effect of the score",
+        ],
+        1,
+        "The heights count observations. Bin choices affect appearance; the underlying observed scores remain the same.",
+      ),
+      step(
+        "A scatterplot of two variables",
+        "Stata puts the first variable on the vertical axis and the second on the horizontal axis: scatter y x. Every point links values from the same observation.",
+        "Plot score against hours. Select a point to inspect its coordinates.",
+        "scatter score hours",
+        "Which axis shows study hours?",
+        ["The horizontal axis", "The vertical axis", "Neither axis"],
+        0,
+        "The syntax is scatter outcome predictor. Rows missing either variable are excluded, so the plot contains 22 points.",
+      ),
+      step(
+        "Summarize the association",
+        "correlate reports linear association on a scale from −1 to 1. Its sign follows the overall direction of the cloud, while its magnitude depends on how closely points follow a line.",
+        "Calculate the correlation between score and hours.",
+        "correlate score hours",
+        "What can this correlation establish on its own?",
+        [
+          "The effect of assigning an extra hour of study",
+          "A positive linear association in these observed data",
+          "That no relevant variables are omitted",
+        ],
+        1,
+        "The correlation is descriptive. Differences in preparation, attendance or other factors could contribute to the association.",
+      ),
+    ],
+  },
+  {
+    id: "regression",
+    title: "Read and work through a regression",
+    level: "Core analysis",
+    minutes: 20,
+    dataset: "study",
+    summary:
+      "Connect coefficients, the fitted line and residuals to observations.",
+    steps: [
+      step(
+        "Fit the line",
+        "regress score hours fits score as a linear function of hours, including an intercept. OLS chooses the line that minimizes the sum of squared residuals.",
+        "Estimate the model and inspect the hours row in the coefficient table.",
+        "regress score hours",
+        "How should the coefficient of approximately 5.28 be read?",
+        [
+          "An additional study hour is associated with about 5.28 more score points in this sample",
+          "An extra hour is guaranteed to raise any student’s score by 5.28",
+          "The average exam score is 5.28",
+        ],
+        0,
+        "The coefficient is a fitted difference in score points per hour. The data do not establish that an intervention increasing study time would produce that change.",
+      ),
+      step(
+        "Create fitted values",
+        "predict calculates fitted values from the last model. A prediction is the value on the fitted line, not a replacement for the observed outcome.",
+        "Create a column named fitted.",
+        "predict double fitted",
+        "Can a fitted value be calculated where score is missing but hours is observed?",
+        [
+          "No; prediction always requires the observed outcome",
+          "Yes; the fitted equation needs the predictor value",
+          "Only if the missing score is replaced by zero",
+        ],
+        1,
+        "A fitted value uses the coefficient estimates and the predictors. A residual additionally needs the observed outcome.",
+      ),
+      step(
+        "Create residuals",
+        "A residual is observed score minus fitted score. A positive residual places a point above the line; a negative residual places it below.",
+        "Create a column named residual.",
+        "predict double residual, residuals",
+        "What does a residual of −3 mean?",
+        [
+          "The fitted value is 3 points below the observed score",
+          "The observed score is 3 points below the fitted value",
+          "Study hours are negative",
+        ],
+        1,
+        "Residual = observed − fitted. The sign describes the direction of a prediction error, in score points.",
+      ),
+      step(
+        "Inspect a residual plot",
+        "A residual plot can reveal curvature, changing spread or unusual observations. It cannot by itself establish exogeneity or causal identification.",
+        "Plot residual against fitted.",
+        "scatter residual fitted",
+        "What can this plot help you examine?",
+        [
+          "Whether prediction errors show a systematic pattern",
+          "Whether all confounding has been removed",
+          "Whether the data were randomly assigned",
+        ],
+        0,
+        "Patterns can suggest model misspecification or changing error variance. A featureless plot does not establish the assumptions needed for a causal interpretation.",
+      ),
+    ],
+  },
+  {
+    id: "inference",
+    title: "Controls and uncertainty",
+    level: "Core analysis",
+    minutes: 20,
+    dataset: "study",
+    summary:
+      "Separate fitted associations, standard errors and identification.",
+    steps: [
+      step(
+        "Add an observed covariate",
+        "Adding attendance changes the comparison: the hours coefficient now describes the fitted score difference holding attendance fixed. Adding a variable can also change the estimation sample.",
+        "Regress score on hours and attendance.",
+        "regress score hours attendance",
+        "What changes relative to the model with hours alone?",
+        [
+          "Both the set of controls and the available estimation sample",
+          "Only the title of the output",
+          "The observational data become a randomized experiment",
+        ],
+        0,
+        "The sample falls from 22 to 21 because attendance is missing in an additional row. Comparing coefficients across specifications can therefore combine a control change with a sample change.",
+      ),
+      step(
+        "Use heteroskedasticity-robust standard errors",
+        "vce(robust) uses an HC1 covariance estimate in this OLS example. It leaves the estimated coefficients unchanged. Robust standard errors do not repair endogeneity, selection bias or arbitrary dependence between observations.",
+        "Refit the same model with vce(robust).",
+        "regress score hours attendance, vce(robust)",
+        "Which part should stay unchanged?",
+        [
+          "The coefficient estimates",
+          "Every standard error",
+          "The assumptions needed for causal interpretation disappear",
+        ],
+        0,
+        "The coefficients remain approximately 3.177 for hours and 0.656 for attendance. The covariance calculation changes; robust standard errors can be larger or smaller.",
+      ),
+      step(
+        "Compare on a common sample",
+        "To separate a control change from a sample change, first estimate the smaller model using the sample available to the larger model.",
+        "Refit score on hours, requiring observed attendance as well.",
+        "regress score hours if !missing(attendance)",
+        "Why require observed attendance in this smaller model?",
+        [
+          "To compare both specifications on the same 21 observations",
+          "To make the hours coefficient causal",
+          "To force the coefficient to stay the same",
+        ],
+        0,
+        "Both models now use observations with score, hours and attendance observed. A coefficient difference can no longer be attributed merely to those models using different rows.",
+      ),
+    ],
+  },
+  {
+    id: "data-quality",
+    title: "Investigate data quality",
+    level: "Data preparation",
+    minutes: 18,
+    dataset: "clinic",
+    summary:
+      "Find duplicates, missing fields and impossible values before modeling.",
+    steps: [
+      step(
+        "Inspect the metadata",
+        "A data audit begins with variable types, missing counts and the range of observed values. The clinic example deliberately contains problems.",
+        "Inspect age and wait.",
+        "codebook age wait",
+        "What should happen before analyzing these records?",
+        [
+          "Inspect missing and implausible values and understand the recording process",
+          "Replace every missing value with zero",
+          "Delete any observation that changes a regression coefficient",
+        ],
+        0,
+        "Missing values and impossible ages require investigation. Neither zero-filling nor outcome-driven deletion is an appropriate default.",
+      ),
+      step(
+        "Find duplicate identifiers",
+        "A unique identifier must distinguish observations at the stated unit of analysis. A duplicate ID may be a recording error, a repeated visit, or evidence that the proposed key is incomplete.",
+        "Report duplicate id values.",
+        "duplicates report id",
+        "Does a repeated ID automatically justify deleting a row?",
+        [
+          "Yes, the second occurrence is always wrong",
+          "No; first establish the intended unit and source of the duplication",
+          "Yes, if the sample is small",
+        ],
+        1,
+        "Two rows share id 5 in this constructed example. The table reports their surplus; deciding what to do requires information about how records were created.",
+      ),
+      step(
+        "Make a check fail visibly",
+        "assert stops when the stated condition is false. A failed assertion is useful evidence: it prevents a questionable assumption from quietly entering the analysis.",
+        "Check that every observed age lies between 0 and 120. This assertion should fail.",
+        "assert inrange(age, 0, 120) if !missing(age)",
+        "What does the failed assertion tell you?",
+        [
+          "At least one observed age violates the proposed range",
+          "All observations should be removed",
+          "The command did not run",
+        ],
+        0,
+        "The assertion identifies one contradiction. The failing record has age 210. The source would need review before a correction in real work.",
+      ),
+      step(
+        "Locate the problematic record",
+        "list with a condition lets you inspect the full context of a problem. The missing-value exclusion matters because missing numeric ages also compare greater than 120.",
+        "Display id, age and clinic for observed ages above 120.",
+        "list id age clinic if age > 120 & !missing(age)",
+        "Which record needs review?",
+        [
+          "ID 6, with age 210",
+          "Every record from the South clinic",
+          "The observation with missing age",
+        ],
+        0,
+        "ID 6 records age 210 in the South clinic. This example supplies no basis for inferring the intended age or deleting other records.",
+      ),
+    ],
+  },
+  {
+    id: "independent-analysis",
+    title: "An independent analysis",
+    level: "Apply your skills",
+    minutes: 25,
+    dataset: "wages",
+    summary:
+      "Explore a second dataset and prepare a reproducible Stata handoff.",
+    steps: [
+      step(
+        "Inspect a new dataset",
+        "Transfer the workflow to a new dataset before choosing a model. Each row is a fictional worker; wage is an hourly amount in dollars.",
+        "Summarize wage, education and experience.",
+        "summarize wage education experience",
+        "What unit should a wage coefficient be interpreted in?",
+        ["Dollars per hour of pay", "Total lifetime income", "A probability"],
+        0,
+        "The outcome is hourly wage. A coefficient describes a fitted difference in that hourly amount per unit of its predictor.",
+      ),
+      step(
+        "Examine the relationship",
+        "A graph helps check the scale, variation and broad shape before estimation. It also exposes observations that a single coefficient can conceal.",
+        "Plot wage against education.",
+        "scatter wage education",
+        "What is one limitation of this graph?",
+        [
+          "It cannot separate education from differences in experience or other factors",
+          "It contains no information about wage",
+          "It proves the return to education",
+        ],
+        0,
+        "The graph compares wages and education without adjusting for experience or establishing why education differs.",
+      ),
+      step(
+        "Estimate and interpret",
+        "Use both available covariates and a heteroskedasticity-robust covariance estimate. Report the coefficient’s units and keep the observational interpretation explicit.",
+        "Estimate wage on education and experience with robust standard errors.",
+        "regress wage education experience, vce(robust)",
+        "Which is a defensible interpretation?",
+        [
+          "A fitted wage difference by education, conditional on experience, in these synthetic data",
+          "A causal return to an additional year of schooling",
+          "An estimate representative of all workers",
+        ],
+        0,
+        "These synthetic observations illustrate the workflow. Neither population representativeness nor causal identification follows from this regression.",
+      ),
+      step(
+        "Prepare work that can be rerun",
+        "A reproducible handoff needs the input data and the commands that produced the analysis. Use Export work to download the original CSV and the do-file, then run the do-file from their folder in Stata.",
+        "Check that the worker ID is unique before exporting your work.",
+        "isid id",
+        "What should you keep together for a Stata rerun?",
+        [
+          "The original CSV and the do-file with the executed commands",
+          "Only a screenshot of the coefficient table",
+          "Only the final p-value",
+        ],
+        0,
+        "The export provides the original input data and successful commands in order. Results and notes are separate downloads. Stata must be installed to execute the full do-file there.",
+      ),
+    ],
+  },
+];
+
+const normalize = (x) => {
+  if (typeof x === "number")
+    return Number.isFinite(x) ? Number(x.toPrecision(10)) : null;
+  if (Array.isArray(x)) return x.map(normalize);
+  if (x && typeof x === "object")
+    return Object.fromEntries(
+      Object.entries(x)
+        .filter(
+          ([k]) =>
+            ![
+              "command",
+              "message",
+              "hint",
+              "selected",
+              "changedCells",
+            ].includes(k),
+        )
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => [k, normalize(v)]),
+    );
+  return x;
+};
+const expected = new Map();
+export function checkStep(lesson, index, session, result) {
+  const key = `${lesson.id}:${index}`;
+  if (!expected.has(key)) {
+    const reference = new PracticeSession(lesson.dataset);
+    let output;
+    for (let i = 0; i <= index; i++)
+      output = reference.run(lesson.steps[i].command).at(-1);
+    expected.set(key, {
+      data: normalize(reference.data),
+      result: normalize(output),
+    });
+  }
+  const target = expected.get(key);
+  return (
+    JSON.stringify(normalize(session.data)) === JSON.stringify(target.data) &&
+    JSON.stringify(normalize(result)) === JSON.stringify(target.result)
+  );
+}

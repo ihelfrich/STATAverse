@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  // Resolve correctly under both a project Pages URL and a root domain.
+  var siteRoot = new URL("../../", document.currentScript.src);
+
   var glossaryState = {
     active: null,
     bound: false,
@@ -114,6 +117,9 @@
     var codes = container.querySelectorAll("pre > code");
     codes.forEach(function (code) {
       var pre = code.parentElement;
+      pre.tabIndex = 0;
+      pre.setAttribute("role", "region");
+      pre.setAttribute("aria-label", "Stata code; scroll horizontally if needed");
       var wrapper = document.createElement("div");
       wrapper.className = "code-block";
       pre.parentNode.insertBefore(wrapper, pre);
@@ -126,6 +132,7 @@
       button.addEventListener("click", function () {
         var text = code.textContent;
         if (!navigator.clipboard) {
+          button.textContent = "Select code to copy";
           return;
         }
         navigator.clipboard.writeText(text).then(function () {
@@ -133,7 +140,7 @@
           setTimeout(function () {
             button.textContent = "Copy";
           }, 1500);
-        });
+        }).catch(function(){button.textContent="Copy failed — select code";});
       });
 
       wrapper.appendChild(button);
@@ -144,6 +151,8 @@
     var checkboxes = container.querySelectorAll("input[type=\"checkbox\"]");
     checkboxes.forEach(function (checkbox) {
       checkbox.removeAttribute("disabled");
+      var item=checkbox.closest("li");
+      if(item&&!checkbox.closest("label"))checkbox.setAttribute("aria-label",item.textContent.trim());
     });
     return Array.from(checkboxes);
   }
@@ -211,7 +220,18 @@
           payload.notes[note.dataset.note] = note.value;
         }
       });
-      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      } catch (err) {
+        var warning = container.querySelector("[data-save-warning]");
+        if (!warning) {
+          warning = document.createElement("p");
+          warning.dataset.saveWarning = "true";
+          warning.setAttribute("role", "status");
+          container.prepend(warning);
+        }
+        warning.textContent = "This browser could not save your notes. Copy them before leaving this page.";
+      }
       updateProgress();
     }
 
@@ -487,8 +507,21 @@
             })
             .filter(function (point) {
               return Number.isFinite(point.x) && Number.isFinite(point.y);
-            })
-            .slice(0, 120);
+            });
+
+          canvas.setAttribute("role", "img");
+          canvas.setAttribute("aria-label", points.length + " observations: " + yKey + " against " + xKey);
+          var alternative = document.createElement("details");
+          var caption = document.createElement("summary");
+          caption.textContent = "Read all " + points.length + " plotted observations as a table";
+          alternative.appendChild(caption);
+          var table = document.createElement("table");
+          var header = table.createTHead().insertRow();
+          [xKey,yKey].forEach(function(name){var cell=document.createElement("th");cell.scope="col";cell.textContent=name;header.appendChild(cell);});
+          var body = table.createTBody();
+          points.forEach(function(point){var row=body.insertRow();[point.x,point.y].forEach(function(value){row.insertCell().textContent=value;});});
+          alternative.appendChild(table);
+          canvas.insertAdjacentElement("afterend",alternative);
 
           new window.Chart(canvas, {
             type: type,
@@ -571,10 +604,6 @@
 
   function renderMath(container) {
     if (!window.renderMathInElement) {
-      // KaTeX not loaded yet, try again in a moment
-      setTimeout(function() {
-        renderMath(container);
-      }, 100);
       return;
     }
     window.renderMathInElement(container, {
@@ -585,7 +614,7 @@
       ],
       ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
       throwOnError: false,
-      trust: true,
+      trust: false,
     });
   }
 
@@ -849,6 +878,7 @@
         link.className = "text-link";
         link.href = base + item.path;
         link.textContent = "Open";
+        link.setAttribute("aria-label", "Open " + item.title);
 
         card.appendChild(tagRow);
         card.appendChild(title);
@@ -914,141 +944,6 @@
         error.textContent = "Search index unavailable.";
         results.appendChild(error);
       });
-  }
-
-  function initWorkspace() {
-    var page = document.querySelector("[data-workspace]");
-    if (!page) {
-      return;
-    }
-    var nameInput = document.getElementById("workspace-name");
-    var roleInput = document.getElementById("workspace-role");
-    var focusInput = document.getElementById("workspace-focus");
-    var exportButton = page.querySelector("[data-export-notes]");
-    var importInput = document.getElementById("workspace-import");
-    var clearButton = page.querySelector("[data-clear-notes]");
-    var modulesCount = page.querySelector("[data-modules-count]");
-    var tasksCount = page.querySelector("[data-tasks-count]");
-    var notesCount = page.querySelector("[data-notes-count]");
-    var progressDetail = page.querySelector("[data-progress-detail]");
-
-    function loadProfile() {
-      try {
-        var profile = JSON.parse(localStorage.getItem("stataverse:user") || "{}");
-        if (nameInput) nameInput.value = profile.name || "";
-        if (roleInput) roleInput.value = profile.role || "";
-        if (focusInput) focusInput.value = profile.focus || "";
-      } catch (err) {
-        return;
-      }
-    }
-
-    function saveProfile() {
-      var profile = {
-        name: nameInput ? nameInput.value.trim() : "",
-        role: roleInput ? roleInput.value.trim() : "",
-        focus: focusInput ? focusInput.value.trim() : "",
-      };
-      localStorage.setItem("stataverse:user", JSON.stringify(profile));
-    }
-
-    function collectProgress() {
-      var keys = Object.keys(localStorage).filter(function (key) {
-        return key.indexOf("stataverse:progress:") === 0;
-      });
-      var taskTotal = 0;
-      var noteTotal = 0;
-      keys.forEach(function (key) {
-        try {
-          var value = JSON.parse(localStorage.getItem(key) || "{}");
-          if (Array.isArray(value.checks)) {
-            taskTotal += value.checks.filter(Boolean).length;
-          }
-          if (value.notes) {
-            noteTotal += Object.keys(value.notes).length;
-          }
-        } catch (err) {
-          return;
-        }
-      });
-      modulesCount.textContent = keys.length;
-      tasksCount.textContent = taskTotal;
-      notesCount.textContent = noteTotal;
-      if (progressDetail) {
-        progressDetail.textContent = keys.length
-          ? "Progress stored for " + keys.length + " module(s)."
-          : "No module progress saved yet.";
-      }
-      return keys;
-    }
-
-    function exportWorkspace() {
-      var payload = {
-        profile: JSON.parse(localStorage.getItem("stataverse:user") || "{}"),
-        progress: {},
-      };
-      Object.keys(localStorage).forEach(function (key) {
-        if (key.indexOf("stataverse:progress:") === 0) {
-          payload.progress[key] = localStorage.getItem(key);
-        }
-      });
-      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement("a");
-      link.href = url;
-      link.download = "stataverse-workspace.json";
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importWorkspace(file) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        try {
-          var data = JSON.parse(reader.result);
-          if (data.profile) {
-            localStorage.setItem("stataverse:user", JSON.stringify(data.profile));
-          }
-          if (data.progress) {
-            Object.keys(data.progress).forEach(function (key) {
-              localStorage.setItem(key, data.progress[key]);
-            });
-          }
-          loadProfile();
-          collectProgress();
-        } catch (err) {
-          return;
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    if (nameInput) nameInput.addEventListener("input", saveProfile);
-    if (roleInput) roleInput.addEventListener("input", saveProfile);
-    if (focusInput) focusInput.addEventListener("input", saveProfile);
-    if (exportButton) exportButton.addEventListener("click", exportWorkspace);
-    if (importInput) {
-      importInput.addEventListener("change", function () {
-        if (importInput.files && importInput.files[0]) {
-          importWorkspace(importInput.files[0]);
-          importInput.value = "";
-        }
-      });
-    }
-    if (clearButton) {
-      clearButton.addEventListener("click", function () {
-        Object.keys(localStorage).forEach(function (key) {
-          if (key.indexOf("stataverse:progress:") === 0 || key === "stataverse:user") {
-            localStorage.removeItem(key);
-          }
-        });
-        loadProfile();
-        collectProgress();
-      });
-    }
-
-    loadProfile();
-    collectProgress();
   }
 
   function initScriptBuilder() {
@@ -1431,6 +1326,9 @@
 
       if (method.stata) {
         var code = document.createElement("pre");
+        code.tabIndex = 0;
+        code.setAttribute("role", "region");
+        code.setAttribute("aria-label", method.title + " Stata syntax");
         code.textContent = method.stata;
         card.appendChild(code);
       }
@@ -1621,12 +1519,7 @@
     if (!("serviceWorker" in navigator)) {
       return;
     }
-    var parts = window.location.pathname.split("/").filter(Boolean);
-    var base = "/";
-    if (parts.length) {
-      base += parts[0] + "/";
-    }
-    navigator.serviceWorker.register(base + "service-worker.js").catch(function () {});
+    navigator.serviceWorker.register(new URL("service-worker.js", siteRoot).href).catch(function () {});
   }
 
   function enhanceLesson(container) {
@@ -1854,7 +1747,6 @@
     initScriptLibrary();
     initScriptBuilder();
     initSiteSearch();
-    initWorkspace();
     initMethodLab();
     initGlossaryIndex();
     initConceptPage();

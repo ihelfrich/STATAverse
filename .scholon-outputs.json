@@ -1,0 +1,165 @@
+{
+  "projects": [
+    {
+      "id": "stataverse",
+      "root": "/Users/ian/Developer/STATAverse",
+      "description": "Mixed-level Stata teaching site with browser practice and native examples"
+    }
+  ],
+  "assets": [
+    {
+      "id": "stataverse.numerical-contract",
+      "project": "stataverse",
+      "path": "docs/numerical-contract.md",
+      "kind": "specification",
+      "title": "Browser Stata numerical contract",
+      "summary": "Explicit supported syntax, OLS/HC1 definitions, missing behavior and numerical tolerances",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded educational subset; no full Stata equivalence"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.redteam",
+      "project": "stataverse",
+      "path": "docs/red-team-review.md",
+      "kind": "review",
+      "title": "STATAverse student overhaul red-team review",
+      "summary": "Reproduced defects, repairs and remaining verification limits",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Implementation-agent review; no independent human review"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.native-checks",
+      "project": "stataverse",
+      "path": "docs/verification/stata-script-audit.json",
+      "kind": "receipt",
+      "title": "Native Stata teaching-script execution",
+      "summary": "Return codes for advanced scripts, projects and template assertions",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Default guide settings only; Java PNG export failures; project CSV importer substituted"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.numerical-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/r-reference.json",
+      "kind": "results",
+      "title": "Independent R OLS and HC1 reference fixture",
+      "summary": "Six model/covariance combinations on synthetic practice data",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Fixture-specific numerical checks, not a global error guarantee"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.native-scalar-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/stata-expressions.json",
+      "kind": "results",
+      "title": "Native Stata scalar-semantic fixture",
+      "summary": "Executed missing-value, exponent and function cases",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Twelve scalar cases do not establish complete parser equivalence"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.reference-procedure",
+      "project": "stataverse",
+      "path": "tools/reference.R",
+      "kind": "procedure",
+      "title": "R verification of browser regression",
+      "summary": "Independent lm and sandwich HC1 calculations for synthetic fixtures",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Requires R and sandwich; no real student data"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.source-checks",
+      "project": "stataverse",
+      "path": "docs/teaching-source-checks.md",
+      "kind": "source-check",
+      "title": "Stata teaching source checks",
+      "summary": "Official documentation pointers and distinctions used in revision",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Targeted documentation checks, not validation of all legacy reading material"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    }
+  ]
+}

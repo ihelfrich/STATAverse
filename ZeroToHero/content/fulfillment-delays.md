@@ -1,3 +1,5 @@
+> **Teaching data.** This repository supplies a constructed example, not verified records from an identified business. Use it to learn the workflow; do not report its estimates as evidence about real firms.
+
 ## Overview
 Order-level data from a regional fulfillment network. Use it to model on-time delivery,
 understand sources of delay, and connect operational choices (expedited shipping, supplier tier)
@@ -29,9 +31,11 @@ to customer outcomes.
 ## Stata starter code
 ```stata
 import delimited using "data/fulfillment_delays.csv", clear
+* The supplied supplier tiers are strings; factor variables need numeric codes.
+encode supplier_tier, generate(supplier_id)
 summarize delay delay_days backlog_index distance_km
-logit delay expedited distance_km backlog_index i.supplier_tier
-poisson delay_days expedited distance_km backlog_index i.supplier_tier
+logit delay i.expedited distance_km backlog_index i.supplier_id
+poisson delay_days i.expedited distance_km backlog_index i.supplier_id
 ```
 
 ## Notes

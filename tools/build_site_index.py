@@ -8,6 +8,15 @@ assets_data.mkdir(parents=True, exist_ok=True)
 
 entries = []
 
+practice_path = assets_data / "practice-lessons.json"
+if practice_path.exists():
+    for item in json.loads(practice_path.read_text()):
+        entries.append({
+            "type": "module", "title": f"Browser practice: {item['title']}",
+            "summary": item["summary"], "tags": ["practice", "interactive", "stata"],
+            "level": item["level"], "path": f"Learn/#{item['id']}",
+        })
+
 scripts_path = root / "ScriptLibrary" / "scripts.json"
 if scripts_path.exists():
     scripts = json.loads(scripts_path.read_text())

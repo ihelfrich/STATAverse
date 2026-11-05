@@ -1,15 +1,49 @@
 # STATAverse
 
-A modular, hands-on Stata and econometrics learning site designed for graduate-level
-business and operations research.
+An interactive Stata learning site for mixed levels, with a clear beginner path. Students run commands, inspect data and output, change a fitted line, check interpretations and export their work to Stata.
 
-## GitHub Pages
-- Deploy from the `main` branch, root directory.
-- `.nojekyll` is included so static assets load cleanly.
+## Learning paths
 
-## Current sections
-- `ZeroToHero/` Econometrics & Stata Zero-to-Hero intro sequence
-- `STATAForBusiness/` Graduate methods aligned path
+- **Practice (`Learn/`)**: eight lessons and 30 checked exercises, from first commands through regression, uncertainty and an independent analysis. Open practice uses three small synthetic datasets.
+- **Applied lessons (`ZeroToHero/`)**: longer worked examples, constructed business datasets and two downloadable Stata projects.
+- **Reference**: concepts, short command templates, native Stata simulations and a method-comparison guide. Advanced materials remain accessible.
+- **Saved work (`Workspace/`)**: local progress, notes and command-history backups. No account or server is required. Backups move work between browsers; no automatic synchronization occurs.
 
-## Local preview
-Open `index.html` directly in a browser or run a local static server.
+The browser workspace implements a documented **subset**, not Stata itself. It supports data inspection, basic transformations, missing-value conditions, frequency tables, graphs, OLS and HC1 robust inference. Unsupported commands stop with an explanation. Full Stata is needed for macros, loops, arbitrary files, factor variables, merges, panel estimators and other advanced analysis. See [the numerical contract](docs/numerical-contract.md).
+
+## Local development
+
+Use a current Node installation; this candidate was checked with Node 24.20.0.
+
+```sh
+npm ci
+npm run build
+npm run dev
+```
+
+Open `http://127.0.0.1:4173/`. Use an HTTP server: opening HTML through `file://` does not support fetched lessons or offline registration.
+
+Author JavaScript in `src/`; `npm run build` creates the checked-in bundles and copies local vendor assets. Teaching content remains in the section `content/` directories. After changing titles or lesson metadata, refresh the search index with `python3 tools/build_site_index.py` (standard library only).
+
+## Verification
+
+```sh
+npm test                 # engine, numerical references and persistence
+npm run test:browser     # desktop and mobile workflows
+npm run test:deployment  # project paths, cache isolation and screenshots
+npm run check:links
+npm run format:check
+npm audit
+```
+
+Browser checks use installed Google Chrome through Playwright. The deployment check accepts `BROWSER_CHANNEL` for a different installed Chromium channel. `npm run check` builds and runs the engine, link, browser and deployment checks.
+
+Independent numerical fixtures come from R `lm`/`sandwich` and native Stata. See `tools/reference.R`, `tools/stata-reference.do` and `tools/stata-expressions.do`. Native library checks use `tools/audit_stata.py`; scripts run in disposable folders, return codes are recorded, and license-bearing logs stay outside the repository. The runner never installs packages or changes global Stata configuration.
+
+[The red-team report](docs/red-team-review.md) records reproduced defects, corrections and limits. [Verification receipts](docs/verification/) include native execution, dependency audit, deployment checks and screenshots. Passing these checks does not establish full Stata equivalence or replace classroom testing.
+
+## Static hosting
+
+Serve the repository root or a project subpath such as `/STATAverse/`. Built assets are included for the existing GitHub Pages arrangement; `.nojekyll` remains in place. Deployment is a separate action. This local candidate has not been pushed or published.
+
+Vendor notices are retained under `assets/vendor/`. The application contains no telemetry or remote execution service. New practice data are explicitly synthetic; the older business datasets are constructed teaching examples, not verified business records.

@@ -50,7 +50,7 @@ label variable y "Outcome variable"
 
 display _n "{txt}TRUE parameter values:"
 display "{txt}  β (effect of X on Y) = 2.0"
-display "{txt}  Correlation(X, u)    = 0.6  ← This creates bias!"
+display "{txt}  Loading of u in X  = 0.6; this is not itself Corr(X,u)"
 display "{txt}  Correlation(Z, u)    = 0.0  ← Valid instrument"
 
 * Verify correlations
@@ -138,7 +138,8 @@ twoway (scatter y x, msize(tiny) mcolor(gs12)) ///
        ytitle("Outcome (Y)") xtitle("Endogenous X") ///
        note("Note: Unobserved confounder creates upward bias in naive OLS")
 
-graph export "endogeneity_bias.png", replace width(1200)
+capture noisily graph export "endogeneity_bias.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 * Show relationship between Z and X (first stage)
 twoway (scatter x z, msize(small) mcolor(navy%50)) ///
@@ -148,7 +149,8 @@ twoway (scatter x z, msize(small) mcolor(navy%50)) ///
        legend(order(2 "First stage regression")) ///
        ytitle("Endogenous X") xtitle("Instrument Z")
 
-graph export "first_stage.png", replace width(1200)
+capture noisily graph export "first_stage.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n "{txt}✓ Graphs saved: endogeneity_bias.png, first_stage.png"
 
@@ -202,13 +204,14 @@ twoway (line beta_ols rho_xu, lcolor(red) lwidth(thick)) ///
        title("Sensitivity to Confounding Strength") ///
        subtitle("How endogeneity severity affects estimates") ///
        ytitle("Estimated coefficient") ///
-       xtitle("Correlation between X and unobserved confounder") ///
-       legend(order(1 "Naive OLS (biased)" 2 "IV/2SLS (unbiased)" ///
+       xtitle("Loading of unobserved confounder in X") ///
+       legend(order(1 "Naive OLS (biased)" 2 "IV/2SLS (consistent under this DGP)" ///
                     3 "True value (2.0)")) ///
        ylabel(0(1)5) xlabel(0(0.2)1) ///
-       note("Even small correlations create substantial bias")
+       note("Each point is one simulation draw, not a Monte Carlo bias estimate")
 
-graph export "sensitivity_analysis.png", replace width(1200)
+capture noisily graph export "sensitivity_analysis.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n "{txt}✓ Sensitivity analysis complete"
 display "{txt}  Graph saved: sensitivity_analysis.png"
@@ -224,7 +227,7 @@ display "{txt}1. Endogeneity creates BIAS, not just efficiency loss"
 display "{txt}2. The bias can go in either direction"
 display "{txt}3. Even 'small' correlations (ρ=0.3) create large bias"
 display "{txt}4. IV estimation recovers true parameter (if valid)"
-display "{txt}5. First stage F-stat must be strong (F > 10 minimum)"
+display "{txt}5. Assess weak identification; no universal F > 10 certification applies"
 display _n "{txt}═══════════════════════════════════════════════════════════"
 
 display _n "{txt}Next steps:"

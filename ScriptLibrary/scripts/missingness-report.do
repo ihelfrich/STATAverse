@@ -5,10 +5,18 @@ misstable summarize
 * Detailed patterns (can be large)
 * misstable patterns
 
-egen miss_any = rowmiss(_all)
-label variable miss_any "Row has missing data"
+* Capture the original columns before adding audit variables.
+unab audit_vars : _all
+local n_vars : word count `audit_vars'
+generate long miss_count = 0
+foreach variable of local audit_vars {
+    replace miss_count = miss_count + missing(`variable')
+}
+generate byte miss_any = miss_count > 0
+label variable miss_any "At least one original field is missing"
 
 tab miss_any
 
-* Optional: percent missing per row
-egen miss_pct = rowmean(missing(_all))
+* Numeric dots and empty strings both count as missing.
+generate double miss_pct = 100 * miss_count / `n_vars'
+label variable miss_pct "Percent of original fields missing"

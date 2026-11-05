@@ -118,24 +118,24 @@ display _n "{txt}What this means:"
 display "{txt}  'Our estimate could easily be off by ±" %5.1f (2*`se') "'"
 display "{txt}  (We use roughly 2 × standard error as margin of error)"
 
-display _n "{txt}So the true effect is probably between:"
+display _n "{txt}Approximate 95% interval (coverage refers to repeated sampling):"
 display "{txt}  " %6.2f (`coef' - 2*`se') " and " %6.2f (`coef' + 2*`se') " cups per dollar"
 
-display _n(2) "{txt}THE 'IS IT REAL?' CHECK: P-value"
+display _n(2) "{txt}Testing a zero coefficient: p-value"
 display "{txt}─────────────────────────────────────────────────────────────────"
 display "{txt}  P-value: " %6.4f `pval'
 
 display _n "{txt}What this means:"
-display "{txt}  Rule of thumb: If p < 0.05, the effect is probably real"
-display "{txt}                 If p > 0.05, it might just be random chance"
+display "{txt}  Under a zero-coefficient null and the model assumptions,"
+display "{txt}                 the p-value measures how extreme this test statistic is."
 
 if `pval' < 0.05 {
     display _n "{txt}  ✓ Our p-value is " %5.3f `pval' " (less than 0.05)"
-    display "{txt}    → We're confident price DOES affect sales"
+    display "{txt}    Reject the zero-coefficient null at the 5% level; causality needs a design."
 }
 else {
     display _n "{txt}  ✗ Our p-value is " %5.3f `pval' " (more than 0.05)"
-    display "{txt}    → The relationship might just be random"
+    display "{txt}    Do not reject at 5%. This does not establish a zero coefficient."
 }
 
 display _n(2) "{txt}THE 'HOW WELL DOES IT WORK?' MEASURE: R-squared"
@@ -146,8 +146,8 @@ display _n "{txt}What this means:"
 display "{txt}  '" %4.1f (100*e(r2)) "% of the variation in sales is explained by price'"
 
 display _n "{txt}Think of it like:"
-display "{txt}  • R² = 0.00 means price tells you NOTHING about sales"
-display "{txt}  • R² = 1.00 means price PERFECTLY predicts sales"
+display "{txt}  • R² = 0.00: this linear fit explains none of the sample variation"
+display "{txt}  • R² = 1.00: perfect in-sample fit, not a future prediction guarantee"
 display "{txt}  • R² = 0.70 means price explains a lot (70%), but not everything"
 
 display _n "{txt}The remaining " %4.1f (100*(1-e(r2))) "% comes from other factors:"
@@ -208,7 +208,7 @@ display "{txt}  Just because X and Y move together doesn't mean X causes Y!"
 display "{txt}  Example: Ice cream sales and shark attacks (both caused by heat)"
 
 display _n "{txt}❌ MISTAKE #2: P-value Isn't Everything"
-display "{txt}  p < 0.05 means 'probably real', NOT 'definitely important'"
+display "{txt}  A p-value is not a probability that an effect exists or is important."
 display "{txt}  A tiny, meaningless effect can be statistically significant!"
 display "{txt}  Example: Price effect of 0.1 cups (p<0.001) vs 30 cups (p<0.001)"
 display "{txt}           Both significant, but very different importance!"
@@ -254,7 +254,7 @@ display "{txt}   Smaller = more confident, Larger = less confident"
 
 display _n "{txt}📖 P-VALUE"
 display "{txt}   Plain English: 'What's the chance this is just random?'"
-display "{txt}   Low (< 0.05) = probably real, High (> 0.05) = might be random"
+display "{txt}   The tail probability assumes the null and model; it is not P(effect exists)."
 
 display _n "{txt}📖 R-SQUARED"
 display "{txt}   Plain English: 'How much of the pattern do we explain?'"
@@ -318,7 +318,7 @@ display _n "{txt}1. THE COEFFICIENT tells you:"
 display "{txt}   'When X increases by 1 unit, Y typically changes by ___ units'"
 
 display _n "{txt}2. THE P-VALUE tells you:"
-display "{txt}   'Is this pattern probably real (< 0.05) or maybe just random (> 0.05)?'"
+display "{txt}   'How incompatible is this statistic with the null under our assumptions?'"
 
 display _n "{txt}3. THE R-SQUARED tells you:"
 display "{txt}   'How much of the variation in Y does our model explain?'"

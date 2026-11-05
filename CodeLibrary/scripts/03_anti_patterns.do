@@ -73,7 +73,8 @@ twoway (scatter y x, msize(tiny) mcolor(gs13)) ///
               position(6)) ///
        note("Marginal effect of X varies across X values!")
 
-graph export "antipattern_logit_coef.png", replace width(1200)
+capture noisily graph export "antipattern_logit_coef.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 restore
 
 display _n "{txt}Key lesson: ALWAYS use margins for logit/probit models!"
@@ -108,7 +109,7 @@ local wrong_beta = _b[x]
 display _n "{err}⚠ Estimated effect of X: " %5.3f `wrong_beta'
 display "{err}  True effect:            2.000"
 display "{err}  Bias:                   " %5.3f (`wrong_beta' - 2)
-display _n "{err}  Why? Controlling for Z (caused by Y) blocks part of X's effect!"
+display _n "{err}  Z is a descendant of Y; conditioning on it changes the estimand and can induce bias."
 display "{err}  This is called 'collider bias' or 'post-treatment bias'"
 
 display _n(2) "{txt}✓ CORRECT: Don't control for post-treatment variables"
@@ -160,10 +161,10 @@ display _n(2) "{err}❌ WRONG: Use ratio as dependent variable"
 display "{txt}─────────────────────────────────────────────────────────────────"
 regress ratio x
 
-if _b[x] != 0 & ttail(e(df_r), abs(_b[x]/_se[x])) < 0.05 {
+if _b[x] != 0 & 2*ttail(e(df_r), abs(_b[x]/_se[x])) < 0.05 {
     display _n "{err}⚠ We found a 'significant' relationship!"
-    display "{err}  But X is UNRELATED to both numerator and denominator!"
-    display "{err}  This is a SPURIOUS FINDING caused by the ratio."
+    display "{err}  The construction makes X independent of the numerator and denominator."
+    display "{err}  An occasional rejection can occur under the null; the ratio did not cause it."
 }
 
 display _n(2) "{txt}✓ CORRECT: Model numerator and denominator separately"
@@ -182,7 +183,7 @@ display "{txt}(See Certo et al. 2020, ORM and Villadsen & Wulff 2021, SO)"
 display _n "{txt}Key lesson:"
 display "{txt}  • Ratios create spurious correlations"
 display "{txt}  • Can lead to Type I errors (false positives)"
-display "{txt}  • Almost always better to model numerator/denominator"
+display "{txt}  • Choose the outcome from the estimand; denominator behavior matters"
 
 *******************************************************************************
 * ANTI-PATTERN #4: Pooled OLS when you should use fixed effects
@@ -292,7 +293,7 @@ display "{txt}  • Valid inference"
 
 display _n "{txt}Key lesson:"
 display "{txt}  • ALWAYS report first-stage F-statistic"
-display "{txt}  • Weak IV (F<10) is worse than OLS"
+display "{txt}  • Weak IV can make conventional inference unreliable; no universal ranking follows"
 display "{txt}  • Consider reporting both OLS and IV as robustness"
 
 *******************************************************************************
@@ -331,7 +332,8 @@ marginsplot, recast(line) recastci(rarea) ///
     ytitle("Effect of X1 on Y") xtitle("Moderator X2") ///
     note("This shows the actual interaction pattern")
 
-graph export "antipattern_interaction.png", replace width(1200)
+capture noisily graph export "antipattern_interaction.png", replace width(1200)
+if _rc display as error "Graph export failed; inspect the graph in Stata and check the graphics/Java installation."
 
 display _n "{txt}Key lesson (from Busenbark et al. 2022, ORM):"
 display "{txt}  • Interaction coefficient ≠ interaction effect"

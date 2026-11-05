@@ -1,0 +1,66 @@
+[
+  {
+    "id": "first-commands",
+    "title": "Your first Stata commands",
+    "summary": "Read a dataset, run commands and understand the Results window.",
+    "level": "Start here",
+    "minutes": 12,
+    "steps": 4
+  },
+  {
+    "id": "missing-values",
+    "title": "Samples and missing values",
+    "summary": "Understand if, observation counts and Stata’s numeric missing values.",
+    "level": "Foundations",
+    "minutes": 15,
+    "steps": 4
+  },
+  {
+    "id": "transformations",
+    "title": "Create and inspect variables",
+    "summary": "Make transformations, preserve missing values and understand changes to data.",
+    "level": "Foundations",
+    "minutes": 15,
+    "steps": 4
+  },
+  {
+    "id": "graphs",
+    "title": "See distributions and relationships",
+    "summary": "Connect graph axes and individual points to the data.",
+    "level": "Foundations",
+    "minutes": 12,
+    "steps": 3
+  },
+  {
+    "id": "regression",
+    "title": "Read and work through a regression",
+    "summary": "Connect coefficients, the fitted line and residuals to observations.",
+    "level": "Core analysis",
+    "minutes": 20,
+    "steps": 4
+  },
+  {
+    "id": "inference",
+    "title": "Controls and uncertainty",
+    "summary": "Separate fitted associations, standard errors and identification.",
+    "level": "Core analysis",
+    "minutes": 20,
+    "steps": 3
+  },
+  {
+    "id": "data-quality",
+    "title": "Investigate data quality",
+    "summary": "Find duplicates, missing fields and impossible values before modeling.",
+    "level": "Data preparation",
+    "minutes": 18,
+    "steps": 4
+  },
+  {
+    "id": "independent-analysis",
+    "title": "An independent analysis",
+    "summary": "Explore a second dataset and prepare a reproducible Stata handoff.",
+    "level": "Apply your skills",
+    "minutes": 25,
+    "steps": 4
+  }
+]

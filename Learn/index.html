@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Learn Stata through guided commands, visible data changes, interactive graphs and checked exercises. Export your work to Stata."
+    />
+    <title>Stata practice workspace · STATAverse</title>
+    <link rel="stylesheet" href="../assets/css/learn.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to workspace</a>
+    <header class="app-header">
+      <a href="../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="./" aria-current="page">Practice</a
+        ><a href="../ZeroToHero/">Lessons</a
+        ><a href="../ScriptLibrary/">Reference</a
+        ><a href="../Workspace/">Saved work</a>
+      </nav>
+      <button type="button" id="help-open" class="quiet-button">
+        Command help <span aria-hidden="true">?</span>
+      </button>
+    </header>
+    <div class="workspace-heading">
+      <div>
+        <p class="eyebrow">The practice workspace</p>
+        <h1>Understand what each command does.</h1>
+      </div>
+      <p class="scope-note">
+        Runs in your browser. A guided Stata subset.<br /><button
+          type="button"
+          id="limits-open"
+          class="text-button"
+        >
+          What works here?
+        </button>
+        No account needed.
+      </p>
+    </div>
+    <div id="storage-warning" class="notice warning" role="status" hidden></div>
+    <main id="main" class="workspace-grid" tabindex="-1">
+      <aside class="learning-sidebar" aria-label="Learning path">
+        <div class="sidebar-title">
+          <span class="eyebrow">Your learning path</span
+          ><span id="path-count" class="small-count"></span>
+        </div>
+        <p class="sidebar-intro">
+          Start with the basics, then bring the pieces together.
+        </p>
+        <nav id="lesson-list" aria-label="Practice lessons"></nav>
+        <button type="button" id="free-mode" class="explore-button">
+          <span>Open practice</span><span aria-hidden="true">↗</span
+          ><small>Choose data and write your own commands.</small>
+        </button>
+        <div class="sidebar-foot">
+          <span class="status-dot" aria-hidden="true"></span
+          ><span id="save-status">Progress saved on this device</span>
+        </div>
+      </aside>
+      <section class="lesson-pane" aria-labelledby="lesson-title">
+        <div id="lesson-content"></div>
+        <section class="editor-section" aria-labelledby="editor-heading">
+          <div class="pane-heading">
+            <h2 id="editor-heading">Command editor</h2>
+            <span class="shortcut">⌘ / Ctrl + Enter</span>
+          </div>
+          <div class="editor-wrap">
+            <span class="command-prompt" aria-hidden="true">.</span
+            ><label class="sr-only" for="command-editor">Stata commands</label
+            ><textarea
+              id="command-editor"
+              maxlength="50000"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              aria-describedby="editor-description"
+            ></textarea>
+          </div>
+          <div class="editor-actions">
+            <button id="run" type="button" class="primary-button">
+              <span aria-hidden="true">▶</span> Run commands</button
+            ><button id="insert-example" type="button" class="quiet-button">
+              Load example</button
+            ><button id="undo" type="button" class="quiet-button">Undo</button>
+          </div>
+          <p id="editor-description" class="helper">
+            Run the editor in order. Execution stops at the first error. Undo
+            steps back one successful command.
+          </p>
+        </section>
+        <div
+          id="exercise-check"
+          class="exercise-check"
+          aria-live="polite"
+        ></div>
+        <section id="interpretation" class="interpretation"></section>
+        <div class="lesson-footer">
+          <button type="button" id="restart" class="text-button">
+            Restart this lesson</button
+          ><button type="button" id="next-step" class="primary-button" disabled>
+            Next step <span aria-hidden="true">→</span>
+          </button>
+        </div>
+        <details class="notes-section">
+          <summary>Your notes</summary>
+          <label for="student-notes"
+            >Write an interpretation, question or observation.</label
+          ><textarea
+            id="student-notes"
+            maxlength="50000"
+            placeholder="What changed? What still needs checking?"
+          ></textarea>
+          <p class="helper">
+            Saved in this browser. Use Export work for a portable copy.
+          </p>
+        </details>
+      </section>
+      <section class="observation-pane" aria-label="Data and results">
+        <div class="dataset-heading">
+          <div>
+            <p class="eyebrow">Data in memory</p>
+            <h2 id="dataset-title"></h2>
+          </div>
+          <button type="button" id="export-open" class="quiet-button">
+            Export work <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <div class="dataset-meta">
+          <span id="dataset-count"></span><span id="dataset-unit"></span
+          ><span class="synthetic-badge">Synthetic data</span>
+        </div>
+        <div class="view-tabs" role="tablist" aria-label="Observation views">
+          <button
+            type="button"
+            id="tab-data"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-data"
+          >
+            Data browser</button
+          ><button
+            type="button"
+            id="tab-results"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-results"
+            tabindex="-1"
+          >
+            Results <span id="result-count"></span></button
+          ><button
+            type="button"
+            id="tab-graph"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-graph"
+            tabindex="-1"
+          >
+            Graph
+          </button>
+        </div>
+        <section
+          id="panel-data"
+          role="tabpanel"
+          aria-labelledby="tab-data"
+          tabindex="0"
+        >
+          <div id="data-table" class="data-table-wrap"></div>
+          <div id="variable-detail" class="variable-detail">
+            Select a column name to inspect its type, label and missing values.
+          </div>
+          <p id="data-description" class="data-description"></p>
+        </section>
+        <section
+          id="panel-results"
+          role="tabpanel"
+          aria-labelledby="tab-results"
+          tabindex="0"
+          hidden
+        >
+          <div class="results-heading">
+            <span>Results from your commands</span
+            ><button type="button" id="clear-results" class="text-button">
+              Clear display
+            </button>
+          </div>
+          <div id="results" class="results-list"></div>
+        </section>
+        <section
+          id="panel-graph"
+          role="tabpanel"
+          aria-labelledby="tab-graph"
+          tabindex="0"
+          hidden
+        >
+          <div id="graph"></div>
+        </section>
+        <div class="workbench-note">
+          <span aria-hidden="true">↳</span>
+          <p id="activity-note">
+            The dataset is loaded. Run your first command to inspect it.
+          </p>
+        </div>
+      </section>
+    </main>
+    <footer class="app-footer">
+      <span>STATAverse · A learning project by Dr. Ian Helfrich</span
+      ><a href="../ScriptLibrary/">Continue with the Stata reference →</a>
+    </footer>
+    <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <div class="dialog-header">
+        <h2 id="help-title">Commands available here</h2>
+        <button class="quiet-button" type="button" data-close>Close ×</button>
+      </div>
+      <p>
+        This workspace implements a small teaching subset of Stata. Calculations
+        use the data in memory. It does not run Stata itself.
+      </p>
+      <div id="command-reference"></div>
+      <p>
+        <a href="https://www.stata.com/manuals/"
+          >Open the official Stata manuals ↗</a
+        >
+      </p>
+    </dialog>
+    <dialog id="limits-dialog" aria-labelledby="limits-title">
+      <div class="dialog-header">
+        <h2 id="limits-title">Browser practice and Stata</h2>
+        <button type="button" class="quiet-button" data-close>Close ×</button>
+      </div>
+      <p>
+        Practice with three synthetic datasets, a supported set of commands,
+        ordinary numeric missing values, and linear regression with conventional
+        or HC1 robust standard errors.
+      </p>
+      <p>
+        The full Stata language requires Stata. This workspace does not
+        implement arbitrary file imports, macros, loops, factor variables,
+        weighted estimation, clustered inference, panel estimators, merges,
+        reshape or user-written commands. Unsupported syntax produces an error.
+      </p>
+      <p>
+        Browser numeric variables use double precision. Data-changing commands
+        clear the fitted model here; rerun the regression before predicting.
+        Histogram bins and output formatting can differ from Stata. Collinear
+        models are rejected rather than automatically omitting variables.
+      </p>
+      <p>
+        A session retains up to 500 successful commands, the last 50 undo states
+        and 100 variables. The Results view retains the last 200 entries. Graphs
+        and regressions require absolute values no greater than 1e100. Rescale
+        larger values. Your progress and notes are stored in this browser when
+        storage is available. They are not uploaded. Clearing browser data
+        removes them; export a copy you want to keep.
+      </p>
+    </dialog>
+    <dialog id="export-dialog" aria-labelledby="export-title">
+      <div class="dialog-header">
+        <h2 id="export-title">Continue your work in Stata</h2>
+        <button type="button" class="quiet-button" data-close>Close ×</button>
+      </div>
+      <p>
+        Download the original data and your do-file into the same folder. In
+        Stata, change the working directory to that folder, then run the
+        do-file. It imports the original CSV and repeats your successful
+        commands.
+      </p>
+      <div class="export-grid">
+        <button type="button" class="primary-button" id="download-original">
+          1. Original dataset (.csv)</button
+        ><button type="button" class="primary-button" id="download-do">
+          2. Your commands (.do)</button
+        ><button type="button" class="quiet-button" id="download-current">
+          Current data (.csv)</button
+        ><button type="button" class="quiet-button" id="download-notes">
+          Results and notes (.txt)
+        </button>
+      </div>
+      <p class="helper">
+        The original CSV is the starting data. The current CSV includes your
+        changes. Failed commands are excluded from the do-file and retained in
+        the results download.
+      </p>
+      <p id="export-status" role="status"></p>
+    </dialog>
+    <noscript
+      ><p class="notice">
+        The practice workspace needs JavaScript. You can still read the
+        <a href="../ZeroToHero/">lesson pages</a> and download
+        <a href="../ScriptLibrary/">Stata scripts</a>.
+      </p></noscript
+    >
+    <script type="module" src="../assets/js/learn.js"></script>
+  </body>
+</html>

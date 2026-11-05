@@ -1,3 +1,5 @@
+> **Teaching data.** This repository supplies a constructed example, not verified records from an identified business. Use it to learn the workflow; do not report its estimates as evidence about real firms.
+
 ## Overview
 Shift-level operations data for a distribution center. Use it to study productivity, training,
 automation, and quality outcomes.
