@@ -207,7 +207,7 @@ export const EXTENDED_LESSONS = [
           "How many complete observations are available after reloading the original data?",
         response: { expected: 21, unit: "observations", resultPath: ["n"] },
         feedback:
-          "The original dataset again supplies 21 complete observations. A saved editor draft preserves comments; the executed history records successful commands.",
+          "The original dataset again supplies 21 complete observations. A saved editor draft preserves comments; the executed history records commands and captured errors.",
         hints: [
           "The import needs a quoted filename and the clear option.",
           'Start with import delimited using "study.csv", clear after clearing memory; finish with the complete-case count.',

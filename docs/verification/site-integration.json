@@ -1,10 +1,11 @@
 {
   "origin": "http://127.0.0.1:4176",
-  "checkedAt": "2026-11-05T19:01:33.281Z",
+  "checkedAt": "2026-11-05T19:30:17.037Z",
   "base": "/learn/stata/",
   "checks": [
     "nested-path command execution, saved practice and scoped service worker",
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
+    "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
     "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
@@ -25,18 +26,18 @@
     },
     {
       "asset": "learn.js",
-      "bytes": 719446,
-      "gzipBytes": 231908
+      "bytes": 539151,
+      "gzipBytes": 176077
     },
     {
       "asset": "practice-worker.js",
-      "bytes": 171593,
-      "gzipBytes": 53532
+      "bytes": 604,
+      "gzipBytes": 328
     },
     {
       "asset": "do-builder.js",
       "bytes": 21512,
-      "gzipBytes": 8206
+      "gzipBytes": 8205
     },
     {
       "asset": "workspace.js",
@@ -46,12 +47,12 @@
     {
       "asset": "data-lab.js",
       "bytes": 130110,
-      "gzipBytes": 46162
+      "gzipBytes": 46160
     },
     {
       "asset": "inference-lab.js",
       "bytes": 92629,
-      "gzipBytes": 34241
+      "gzipBytes": 34239
     },
     {
       "asset": "inference-worker.js",
@@ -60,13 +61,13 @@
     },
     {
       "asset": "iv-lab.js",
-      "bytes": 93664,
-      "gzipBytes": 35318
+      "bytes": 93666,
+      "gzipBytes": 35324
     },
     {
       "asset": "iv-investigation-ui.js",
       "bytes": 34837,
-      "gzipBytes": 11513
+      "gzipBytes": 11514
     },
     {
       "asset": "method-lab.js",
@@ -81,13 +82,13 @@
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "077d273a9aa8dc2a40c722d81e90c7ea3b253bab",
+    "commit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
-    "files": 35,
-    "bytes": 1886870,
-    "gzipBytes": 599144
+    "files": 36,
+    "bytes": 1724595,
+    "gzipBytes": 550028
   }
 }

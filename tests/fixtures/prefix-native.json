@@ -1,0 +1,497 @@
+{
+  "dataset": {
+    "id": "prefixes",
+    "name": "Invented prefix fixture",
+    "columns": [
+      { "name": "hours", "label": "hours", "type": "numeric" },
+      { "name": "attendance", "label": "attendance", "type": "numeric" },
+      { "name": "score", "label": "score", "type": "numeric" }
+    ],
+    "rows": [
+      { "hours": 1, "attendance": 60, "score": 20 },
+      { "hours": 2, "attendance": 70, "score": 31 },
+      { "hours": 3, "attendance": 80, "score": 35 },
+      { "hours": 4, "attendance": 90, "score": 49 }
+    ]
+  },
+  "cases": [
+    {
+      "id": "direct-loop-stop",
+      "source": "generate double first=0\ngenerate double skipped=0\ncap forvalues j=1/3 {\nreplace first=first+1\nerror 459\nreplace skipped=skipped+1\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "first", "values": [1, 1, 1, 1] },
+        { "name": "skipped", "values": [0, 0, 0, 0] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "captured-foreach",
+      "source": "capture foreach v in hours attendance {\ngenerate double once=1\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "once", "values": [1, 1, 1, 1] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "block-around-loop",
+      "source": "capture {\nforvalues j=1/3 {\ngenerate double once=`j'\n}\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "once", "values": [1, 1, 1, 1] },
+        { "name": "marker", "values": [110, 110, 110, 110] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "noisy-in-capture",
+      "source": "capture {\nnoisily display \"__SV_VISIBLE_captured\"\nerror 459\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [459, 459, 459, 459] }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_captured"]
+    },
+    {
+      "id": "nested-quiet-blocks",
+      "source": "quietly {\nnoisily {\ndisplay \"__SV_VISIBLE_nested\"\n}\ndisplay \"__SV_VISIBLE_hidden\"\n}",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_nested"]
+    },
+    {
+      "id": "exit-rc",
+      "source": "capture drop absent\ncapture exit _rc\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "empty-capture",
+      "source": "capture drop absent\ncapture if 0 {\ndrop hours\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "capture-local-in-block",
+      "source": "capture {\nlocal amount=2\ngenerate double value=`amount'\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "value", "values": [2, 2, 2, 2] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "quoted-rc",
+      "source": "capture drop absent\ndisplay \"__SV_VISIBLE_literal_rc\"\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_literal_rc"]
+    },
+    {
+      "id": "missing-drop",
+      "source": "capture drop absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "repeatable",
+      "source": "cap drop result\ngenerate double result=1\ncap drop result\ngenerate double result=2",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "result", "values": [2, 2, 2, 2] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "atomic-drop",
+      "source": "capture drop hours absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "rc-persists",
+      "source": "cap drop absent\nlocal first=_rc\nqui count\nlocal second=_rc\ndi _rc\ngenerate double marker=`first'+`second'+_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [333, 333, 333, 333] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "nested-prefix",
+      "source": "cap cap drop absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "noisy-error",
+      "source": "capture noisily drop absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "quiet-regression",
+      "source": "quietly regress score hours\nquietly predict double fitted\nnoisily display \"__SV_VISIBLE_regression\"",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        {
+          "name": "fitted",
+          "values": [20.099999999999998, 29.2, 38.3, 47.400000000000006]
+        }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_regression"]
+    },
+    {
+      "id": "confirm-numeric",
+      "source": "cap confirm numeric variable hours attendance\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "confirm-new",
+      "source": "cap confirm new variable hours\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [110, 110, 110, 110] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "confirm-new-valid",
+      "source": "cap confirm new variable created\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "confirm-string-mismatch",
+      "source": "capture confirm string variable hours\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [7, 7, 7, 7] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "confirm-missing",
+      "source": "capture confirm variable absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "partial-block",
+      "source": "capture {\ngenerate double first=1\ndrop absent\ngenerate double skipped=2\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "first", "values": [1, 1, 1, 1] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "nested-block",
+      "source": "capture {\ncapture drop absent\ngenerate double inner=_rc\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "inner", "values": [111, 111, 111, 111] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "noisy-in-quiet",
+      "source": "quietly {\ndisplay \"__SV_VISIBLE_hidden\"\nnoisily display \"__SV_VISIBLE_shown\"\n}\ndisplay \"__SV_VISIBLE_after\"",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_shown", "__SV_VISIBLE_after"]
+    },
+    {
+      "id": "quiet-in-noisy",
+      "source": "noisily {\nquietly display \"__SV_VISIBLE_hidden\"\ndisplay \"__SV_VISIBLE_shown\"\n}",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_shown"]
+    },
+    {
+      "id": "quiet-then-noisy",
+      "source": "qui noi di \"__SV_VISIBLE_order\"",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] }
+      ],
+      "returnCode": 0,
+      "visible": ["__SV_VISIBLE_order"]
+    },
+    {
+      "id": "noisy-then-quiet",
+      "source": "noi qui di \"__SV_VISIBLE_order\"",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "colon-prefix",
+      "source": "cap: noi: confirm variable absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "captured-loop",
+      "source": "cap forvalues j=1/3 {\ngenerate double once=`j'\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "once", "values": [1, 1, 1, 1] },
+        { "name": "marker", "values": [0, 0, 0, 0] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "captured-if",
+      "source": "capture if 1 {\ngenerate double first=1\nerror 459\ngenerate double skipped=2\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "first", "values": [1, 1, 1, 1] },
+        { "name": "marker", "values": [459, 459, 459, 459] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "rc-condition",
+      "source": "cap drop absent\nif _rc==111 {\ngenerate double found=_rc\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "found", "values": [111, 111, 111, 111] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "capture-local",
+      "source": "capture local foo=absent\ngenerate double marker=_rc\ncapture local foo=2\ngenerate double value=`foo'",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] },
+        { "name": "value", "values": [2, 2, 2, 2] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "error-command",
+      "source": "generate double first=1\nerror 459\ngenerate double skipped=2",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "first", "values": [1, 1, 1, 1] }
+      ],
+      "returnCode": 459,
+      "visible": []
+    },
+    {
+      "id": "exit-error",
+      "source": "capture exit 459\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [459, 459, 459, 459] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "exit-zero",
+      "source": "generate double first=1\nexit 0\ngenerate double skipped=2",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "first", "values": [1, 1, 1, 1] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "exit-zero-in-capture",
+      "source": "capture {\ngenerate double first=1\nexit\ngenerate double skipped=2\n}\ngenerate double after=3",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "first", "values": [1, 1, 1, 1] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "block-rc",
+      "source": "capture drop absent\nquietly {\ngenerate double inside=_rc\n}\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "inside", "values": [111, 111, 111, 111] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "capture-expression",
+      "source": "capture generate double invalid=absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    },
+    {
+      "id": "prefix-macro",
+      "source": "local prefix cap\n`prefix' drop absent\ngenerate double marker=_rc",
+      "columns": [
+        { "name": "hours", "values": [1, 2, 3, 4] },
+        { "name": "attendance", "values": [60, 70, 80, 90] },
+        { "name": "score", "values": [20, 31, 35, 49] },
+        { "name": "marker", "values": [111, 111, 111, 111] }
+      ],
+      "returnCode": 0,
+      "visible": []
+    }
+  ]
+}

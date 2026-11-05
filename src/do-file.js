@@ -1,4 +1,5 @@
 import { StataError } from "./expression.js";
+import { commandPrefixes } from "./command-prefixes.js";
 
 /** Split executable commands while retaining their original editor locations. */
 export function commandBlocks(source) {
@@ -115,11 +116,24 @@ export function parseProgram(source) {
       }
       if (text.startsWith("}"))
         fail("Put a closing brace on its own line.", line);
-      const header = text.match(
+      const { command: bodyText, prefixes } = commandPrefixes(text);
+      const header = bodyText.match(
         /^(foreach|forvalues|forv|if|else)\b([\s\S]*?)\s*\{$/,
       );
+      if (prefixes.length && bodyText === "{") {
+        const { nodes: body, close } = sequence(depth + 1, line);
+        nodes.push({
+          ...line,
+          type: "prefix",
+          prefixes,
+          body,
+          to: close.to,
+          endLine: close.endLine,
+        });
+        continue;
+      }
       if (!header) {
-        if (/^(foreach|forvalues|forv|else)\b/.test(text))
+        if (/^(foreach|forvalues|forv|else)\b/.test(bodyText))
           fail(
             "Put the opening brace at the end of the control statement, and start its commands on the next line.",
             line,
@@ -132,12 +146,15 @@ export function parseProgram(source) {
       const node = {
         ...line,
         type: kind,
+        prefixes,
         header: header[2].trim(),
         body,
         to: close.to,
         endLine: close.endLine,
       };
       if (kind === "else") {
+        if (prefixes.length)
+          fail("Put the prefix on the if block, not on else.", line);
         const previous = nodes.at(-1);
         if (node.header || previous?.type !== "if" || previous.otherwise)
           fail(

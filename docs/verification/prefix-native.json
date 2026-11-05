@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-05T20:21:54.645Z",
+  "cases": 39,
+  "checks": [
+    "return code",
+    "dataset columns and values",
+    "quiet/noisy visible output sentinels",
+    "saved-history replay and captured return code"
+  ],
+  "references": [
+    "https://www.stata.com/manuals/pcapture.pdf",
+    "https://www.stata.com/manuals/pquietly.pdf"
+  ],
+  "limits": [
+    "Selected examples only; installed executable provenance is not certified as an unmodified licensed vendor binary.",
+    "Native logs remain outside the project.",
+    "Browser limits, cancellation and malformed structural input are not swallowed by capture."
+  ],
+  "fixtureSha256": "361ce14d94277e6f887ae1eaa07fa1c728f82bc30268a366493b47c22f87ad80"
+}

@@ -1,31 +1,34 @@
 {
-  "checkedAt": "2026-11-05T19:06:52.573Z",
-  "status": "published_builder_and_execution_recovery_broader_work_open",
+  "checkedAt": "2026-11-05T19:41:22.339Z",
+  "status": "published_factor_regression_repair_broader_work_open",
   "canonical": "https://ihelfrich.github.io/learn/stata/",
   "builder": "https://ihelfrich.github.io/learn/stata/ScriptLibrary/builder.html",
-  "sourceCommit": "077d273a9aa8dc2a40c722d81e90c7ea3b253bab",
+  "sourceCommit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
   "mainSite": {
-    "commit": "c2aaf112374ee8f7eec3d64bec984d4dfc37e1ee",
+    "commit": "5279ceeb88c787e9f7c515f92d6f28e58af9e9b5",
     "pullRequests": [
-      "https://github.com/ihelfrich/ihelfrich.github.io/pull/28"
+      "https://github.com/ihelfrich/ihelfrich.github.io/pull/29",
+      "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
     ],
-    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42089574403",
+    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42095414232",
     "conclusion": "success"
   },
   "legacy": {
     "url": "https://ihelfrich.github.io/STATAverse/",
-    "commit": "147d682d15ba4871ca0684102d9a0775b85dcccc",
-    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/6",
-    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42090423978",
+    "commit": "e64ef121f5100c6b4ceee1694033a0eea998fedb",
+    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/7",
+    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42094698099",
     "conclusion": "success",
-    "pagesBuildUpdatedAt": "2026-11-05T19:05:19Z",
-    "deepLinks": "Post-deployment builder path, encoded query and fragment reach the canonical route; the public download contains the generated code."
+    "pagesBuildUpdatedAt": "2026-11-05T19:32:41Z",
+    "deepLinks": "Post-deployment public verification preserves the Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
   },
   "evidence": [
     "docs/verification/public-site.json",
-    "docs/verification/public-builder-legacy.json",
-    "docs/verification/builder-native.json",
-    "docs/browser-runtime-plan.md"
+    "docs/verification/factor-native.json",
+    "tests/factor-variables.test.mjs",
+    "tests/browser/factor-variables.spec.js",
+    "docs/numerical-contract.md",
+    "docs/red-team-review.md"
   ],
   "limits": [
     "Browser-only independent interpreter; full Stata command, ado and Mata compatibility remains unfinished.",
@@ -35,23 +38,39 @@
     "No classroom or manual assistive-technology validation."
   ],
   "previousRelease": {
-    "sourceCommit": "f5e9476e643551aed51b57ea49695288d74cdcc4",
+    "sourceCommit": "077d273a9aa8dc2a40c722d81e90c7ea3b253bab",
     "mainSite": {
-      "commit": "a76816dbc17893f0e172b0361dbe7f8cca3bf0b9",
+      "commit": "c2aaf112374ee8f7eec3d64bec984d4dfc37e1ee",
       "pullRequests": [
-        "https://github.com/ihelfrich/ihelfrich.github.io/pull/27"
+        "https://github.com/ihelfrich/ihelfrich.github.io/pull/28"
       ],
-      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42075827476",
+      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42089574403",
       "conclusion": "success"
     },
     "legacy": {
       "url": "https://ihelfrich.github.io/STATAverse/",
-      "commit": "480b3fb93f0307fab6cbacb2da6c75ef1e2ac747",
-      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/5",
-      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42076903280",
+      "commit": "147d682d15ba4871ca0684102d9a0775b85dcccc",
+      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/6",
+      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42090423978",
       "conclusion": "success",
-      "pagesBuildUpdatedAt": "2026-11-05T17:40:42Z",
-      "deepLinks": "Post-deployment public check preserves the encoded query and programming-lesson fragment, and runs that lesson at the canonical route."
+      "pagesBuildUpdatedAt": "2026-11-05T19:05:19Z",
+      "deepLinks": "Post-deployment builder path, encoded query and fragment reach the canonical route; the public download contains the generated code."
     }
+  },
+  "factorRegression": {
+    "nativeComparisonCases": 69,
+    "unitTests": 156,
+    "browserTests": 232,
+    "publicCommand": "reg hours attendance##score",
+    "continuousCommand": "reg hours c.attendance##c.score, robust",
+    "predictionReplayUndo": "verified on public site",
+    "coreOfflineGzipBytes": 550028
+  },
+  "deploymentRepair": {
+    "failedWorkflow": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42094661290",
+    "cause": "Unrelated identity test sent a scalar answer to a randomly selected multipart question. Forced multipart fixture reproduced the failure.",
+    "repair": "The test now constructs the correct answer shape and checks both sampled and forced-multipart questions. No application logic changed.",
+    "localEconomicsTests": 226,
+    "pullRequest": "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
   }
 }

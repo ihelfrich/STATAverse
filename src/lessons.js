@@ -490,7 +490,7 @@ const FOUNDATIONS = [
           "Only the final transformed dataset, without the commands",
         ],
         0,
-        "The export provides the original input data and successful commands in order. Results and notes are separate downloads. Stata must be installed to execute the full do-file there.",
+        "The export provides the original input data and executed history in order, including captured errors. Results and notes are separate downloads. Stata must be installed to execute the full do-file there.",
       ),
     ],
   },

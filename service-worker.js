@@ -2,7 +2,7 @@ const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
 const LEGACY_SCOPE =
   new URL(self.registration.scope).pathname === "/STATAverse/";
-const CACHE_NAME = CACHE_PREFIX + "v30";
+const CACHE_NAME = CACHE_PREFIX + "v31";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
@@ -38,7 +38,7 @@ const CORE_ASSETS = [
   "assets/js/site.js",
   "assets/js/legacy-location.js",
   "assets/data/site-index.json",
-  "assets/js/practice-shared-SBQZOPRG.js",
+  "assets/js/practice-shared-E2DGAB3V.js",
 ];
 const CORE_URLS = new Set(
   CORE_ASSETS.map((file) => new URL(file, self.registration.scope).href),

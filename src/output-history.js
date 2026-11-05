@@ -8,8 +8,23 @@ export function historyReceipt({
   effect,
   code,
   message,
+  suppressed,
+  silent,
+  captured,
+  returnCode,
 }) {
-  return { kind, command, source, effect, code, message };
+  return {
+    kind,
+    command,
+    source,
+    effect,
+    code,
+    message,
+    suppressed,
+    silent,
+    captured,
+    returnCode,
+  };
 }
 function cost(result) {
   return (

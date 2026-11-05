@@ -1,5 +1,34 @@
 export const REFERENCE = [
   [
+    "Handle errors and control output",
+    [
+      [
+        "capture drop temporary\ngenerate double temporary = hours * 60",
+        "capture lets the do-file continue after an error and suppresses the command's output. cap is its abbreviation. Inspect History for the captured return code.",
+      ],
+      [
+        "capture confirm variable attendance\nif _rc == 0 {\n  summarize attendance\n}",
+        "_rc is the last captured return code: zero means success. Ordinary successful commands leave it unchanged. Save it with local rc = _rc before another capture if you need it later.",
+      ],
+      [
+        "quietly {\n  regress score hours\n  noisily summarize hours\n}",
+        "quietly (qui) suppresses ordinary output but does not catch errors. noisily (noi) shows output within a quiet block. The fitted model remains available to predict.",
+      ],
+      [
+        "capture noisily {\n  confirm numeric variable hours\n  regress score hours\n}",
+        "A capture block stops at its first uncaught error, then continues after the closing brace. Earlier changes in the block remain. Undo restores a prefixed block as one unit.",
+      ],
+      [
+        "confirm new variable fitted",
+        "confirm checks existing, numeric, string or new variable names without changing the data. A failed check raises a return code that capture can inspect.",
+      ],
+      [
+        "exit 0",
+        "End this do-file run and keep the data in memory. A nonzero exit code raises an error; error 459 does the same without a successful exit. Browser resource limits and Stop cannot be overridden by capture.",
+      ],
+    ],
+  ],
+  [
     "Do-file programming",
     [
       [

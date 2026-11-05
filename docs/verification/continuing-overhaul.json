@@ -1,8 +1,8 @@
 {
   "date": "2026-11-05",
-  "status": "published_builder_and_execution_recovery_broader_work_open",
-  "unit_tests": 151,
-  "browser_tests": 226,
+  "status": "published_factor_regression_repair_broader_work_open",
+  "unit_tests": 156,
+  "browser_tests": 232,
   "local_links": 702,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
@@ -16,7 +16,7 @@
     "Native comparisons use the installed executable; unmodified licensed vendor provenance is not established.",
     "No classroom or manual assistive-technology validation."
   ],
-  "browser_run_scope": "Final full 226-case desktop/mobile suite, 151 unit tests, formatting, 702 links and deployment checks passed. Public checks verify the pinned release, builder code and persistence, blocked-worker recovery and undo, offline work, navigation, search and legacy links.",
+  "browser_run_scope": "232 desktop/mobile Chrome cases, 156 unit tests, 69 installed-native factor regression comparisons, formatting, 702 links and offline/subdirectory checks passed. Public verification confirms reported factor commands, predictions, explanations, reload/undo, builder persistence, worker recovery, advanced labs, navigation and legacy routes.",
   "lessons": 19,
   "lesson_steps": 86,
   "numeric_responses": 18,
@@ -44,17 +44,17 @@
   "website_style_pages": 185,
   "landing_script_bytes": 4151,
   "landing_script_gzip_bytes": 2035,
-  "core_offline_gzip_bytes": 599144,
+  "core_offline_gzip_bytes": 550028,
   "independent_R_iv_cases": 11,
   "native_Stata_iv_cases": 11,
   "iv_bundle_bytes": 93664,
   "iv_bundle_gzip_bytes": 35318,
   "offline_iv_lab": true,
-  "core_offline_assets": 35,
-  "website_release_source_commit": "077d273a9aa8dc2a40c722d81e90c7ea3b253bab",
+  "core_offline_assets": 36,
+  "website_release_source_commit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
   "public_release": "public-release.json",
   "public_browser_verification": "public-site.json",
-  "public_browser_checks": 13,
+  "public_browser_checks": 14,
   "delayed_module_viewports": [
     1440,
     390
@@ -76,7 +76,7 @@
   "offline_method_comparison": true,
   "method_verification": "method-native.json",
   "last_recorded_goal_usage": 2508411,
-  "next_gate": "Move longer Practice runs to cancelable background execution, then expand language and command families with documented behavioral fixtures. Complete Stata compatibility remains unproven.",
+  "next_gate": "Continue expanding command families and postestimation with behavioral fixtures. Full Stata compatibility remains unproven.",
   "worked_examples": 7,
   "panel_interpretation_checks": 8,
   "panel_native_reference_rows": 17,
@@ -101,5 +101,7 @@
   "workspace_backup_version_with_builder": 4,
   "builder_analysis_families": 8,
   "builder_preparation_operations": 9,
-  "native_Stata_builder_cases": 28
+  "native_Stata_builder_cases": 28,
+  "native_factor_regression_cases": 69,
+  "factor_regression_verification": "factor-native.json"
 }
