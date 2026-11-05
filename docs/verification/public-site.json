@@ -1,10 +1,12 @@
 {
   "origin": "https://ihelfrich.github.io",
-  "checkedAt": "2026-11-05T17:39:18.796Z",
+  "checkedAt": "2026-11-05T19:04:29.394Z",
   "base": "/learn/stata/",
   "checks": [
     "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
     "nested-path command execution, saved practice and scoped service worker",
+    "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
+    "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
     "programming lesson, local substitution, integer loops and saved replay execute entirely offline at the canonical mount",
@@ -24,13 +26,23 @@
     },
     {
       "asset": "learn.js",
-      "bytes": 711738,
-      "gzipBytes": 229238
+      "bytes": 719446,
+      "gzipBytes": 231908
+    },
+    {
+      "asset": "practice-worker.js",
+      "bytes": 171593,
+      "gzipBytes": 53532
+    },
+    {
+      "asset": "do-builder.js",
+      "bytes": 21512,
+      "gzipBytes": 8206
     },
     {
       "asset": "workspace.js",
-      "bytes": 25468,
-      "gzipBytes": 9415
+      "bytes": 29597,
+      "gzipBytes": 10820
     },
     {
       "asset": "data-lab.js",
@@ -70,13 +82,13 @@
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "f5e9476e643551aed51b57ea49695288d74cdcc4",
+    "commit": "077d273a9aa8dc2a40c722d81e90c7ea3b253bab",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
-    "files": 31,
-    "bytes": 1686007,
-    "gzipBytes": 530795
+    "files": 35,
+    "bytes": 1886870,
+    "gzipBytes": 599144
   }
 }

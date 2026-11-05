@@ -129,6 +129,90 @@ try {
   receipt.checks.push(
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
   );
+  const factorContext = await browser.newContext();
+  const factorPage = await factorContext.newPage();
+  factorPage.on("pageerror", (error) => errors.push(error.message));
+  await factorPage.goto(root + "Learn/");
+  await factorPage.locator("#free-mode").click();
+  await replaceEditor(factorPage, "reg hours attendance##score");
+  await factorPage.locator("#run").click();
+  await factorPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await factorPage.locator("#results").innerText(),
+    /uses all available degrees of freedom/,
+  );
+  await replaceEditor(
+    factorPage,
+    "reg hours c.attendance##c.score, robust\npredict double fitted",
+  );
+  await factorPage.locator("#run").click();
+  await factorPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await factorPage.locator("#dataset-count").innerText(),
+    /6 variables/,
+  );
+  await factorPage.locator("#tab-results").click();
+  const term = factorPage.locator('[data-coefficient="c.attendance#c.score"]');
+  await term.click();
+  assert.match(
+    await factorPage
+      .locator(`[data-annotation="${await term.getAttribute("data-result")}"]`)
+      .innerText(),
+    /attendance multiplied by score/,
+  );
+  await factorPage.reload();
+  await factorPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await factorPage.locator("#dataset-count").innerText(),
+    /6 variables/,
+  );
+  await factorPage.locator("#undo").click();
+  assert.match(
+    await factorPage.locator("#dataset-count").innerText(),
+    /5 variables/,
+  );
+  await factorContext.close();
+  receipt.checks.push(
+    "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
+  );
+  const recoveryContext = await browser.newContext();
+  await recoveryContext.addInitScript(() => {
+    window.Worker = class {
+      constructor() {
+        throw new Error("Worker unavailable in recovery verification");
+      }
+    };
+  });
+  const recoveryPage = await recoveryContext.newPage();
+  recoveryPage.on("pageerror", (error) => errors.push(error.message));
+  await recoveryPage.goto(root + "Learn/");
+  await recoveryPage.locator("#free-mode").click();
+  await replaceEditor(
+    recoveryPage,
+    "generate double recovery_check=hours+1\ncount",
+  );
+  await recoveryPage.locator("#run").click();
+  await recoveryPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await recoveryPage.locator("#dataset-count").innerText(),
+    /6 variables/,
+  );
+  await recoveryPage.reload();
+  await recoveryPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await recoveryPage.locator("#dataset-count").innerText(),
+    /6 variables/,
+  );
+  await recoveryPage.locator("#undo").click();
+  await recoveryPage.locator("#undo").click();
+  assert.match(
+    await recoveryPage.locator("#dataset-count").innerText(),
+    /5 variables/,
+  );
+  await recoveryContext.close();
+  receipt.checks.push(
+    "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
+  );
   await page.goto(root + "Labs/Data/#investigation=matching-records");
   await page.locator("#investigation-number").fill("5");
   await page.locator("#investigation-number").press("Enter");

@@ -133,6 +133,7 @@ export function resultHTML(result, index, { complete = false } = {}) {
   else if (r.kind === "regress") {
     const m = r.model;
     body = `<p class="output-label">Outcome: ${h(m.dependent)} · ${m.robust ? "HC1 robust" : "Conventional OLS"} standard errors</p><div class="result-metrics"><div class="result-metric">Observations<strong>${m.n}</strong></div><div class="result-metric">R-squared<strong>${fmt(m.r2)}</strong></div><div class="result-metric">Root MSE<strong>${fmt(m.rmse)}</strong></div><div class="result-metric">Residual df<strong>${m.df}</strong></div></div>`;
+    if (r.message) body += `<p class="result-text">${h(r.message)}</p>`;
     body += table(
       [
         "Variable",
@@ -153,9 +154,14 @@ export function resultHTML(result, index, { complete = false } = {}) {
         fmt(c.hi),
       ]),
     );
+    if (m.omittedTerms?.length)
+      body += `<details class="result-annotation"><summary>${m.omittedTerms.length} reference, empty or redundant term(s)</summary><p>These terms have coefficient zero. Reference terms set the comparison category; empty terms have no observations in this sample; redundant terms are already represented by the other columns.</p>${table(
+        ["Term", "Reason"],
+        m.omittedTerms.map((t) => [h(t.name), h(t.omitted)]),
+      )}</details>`;
     body += `<div class="result-annotation" data-annotation="${index}">Select a variable name for an interpretation. ${r.omitted} selected row(s) were excluded for missing model variables. R-squared describes in-sample fit, not causal validity.</div>`;
   }
-  if (r.message && r.kind !== "error")
+  if (r.message && r.kind !== "error" && r.kind !== "regress")
     body += `<p class="result-text">${h(r.message)}</p>`;
   const original = r.originalCommand
     ? `<details class="result-substitution"><summary>Original do-file line</summary><pre class="result-command">${h(r.originalCommand)}</pre><p class="helper">The command below shows the text after local substitution for this execution.</p></details>`
@@ -203,6 +209,23 @@ export function groupInspectionHTML(result, index) {
 export function explainCoefficient(model, name) {
   const c = model.coefficients.find((c) => c.name === name);
   if (!c) return "";
+  if (model.factorTerms) {
+    const uncertainty =
+      c.se === null
+        ? "This model has no residual degrees of freedom, so it cannot estimate uncertainty."
+        : `Its 95% confidence interval is [${fmt(c.lo)}, ${fmt(c.hi)}].`;
+    if (name === "_cons")
+      return `The intercept (${fmt(c.b)}) is fitted ${model.dependent} when all displayed model columns are zero. For categories, that usually means the reference combination; continuous predictors are set to zero. Check whether that combination occurs in the data. ${uncertainty}`;
+    const term = model.factorTerms.find((t) => t.name === name);
+    const definition = term.components
+      .map((a) =>
+        a.type === "continuous"
+          ? a.variable
+          : `an indicator equal to 1 when ${a.variable} = ${a.level}, and 0 otherwise`,
+      )
+      .join(" multiplied by ");
+    return `${name} is ${definition}. Its coefficient is ${fmt(c.b)}. When a variable also appears in another term, changing it changes each of those terms; combine their contributions to find the change in fitted ${model.dependent}. ${uncertainty} This fitted association is not by itself a causal effect.`;
+  }
   if (name === "_cons")
     return `The intercept (${fmt(c.b)}) is the fitted ${model.dependent} when every included predictor is zero. That combination may lie outside the observed data and may not be substantively meaningful.`;
   const others = model.predictors.filter((x) => x !== name);

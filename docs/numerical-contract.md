@@ -26,13 +26,23 @@ Successful expanded commands enter replay and analysis exports. The current orig
 
 ## Ordinary least squares
 
-For the complete-case sample, the design matrix contains the listed predictors followed by an intercept. `n` is the sample size, `k` the number of estimated coefficients, and residual degrees of freedom are `n-k`. An intercept is always present. The browser rejects constant or collinear predictors and models without positive residual degrees of freedom; it does not emulate Stata's automatic omission behavior.
+For the complete-case sample, the design matrix contains the listed predictors followed by an intercept. `n` is the sample size, `k` the number of estimated coefficients, and residual degrees of freedom are `n-k`. An intercept is always present. Plain variable lists retain their existing rejection of constant/collinear predictors and models without positive residual degrees of freedom. Factor specifications select independent columns as described below.
 
 Predictors are centered and scaled. `ml-matrix` QR solves the least-squares problem on that scale. A linear transformation maps coefficients and covariance back to the original units. The inverse of the QR upper-triangular factor supplies the covariance bread without forming unscaled normal equations. A singular-value check rejects ill-conditioned standardized designs above a condition-number threshold of 1e10.
 
 Conventional covariance is `SSE/(n-k) × (X'X)^-1`. Robust covariance is HC1: `n/(n-k) × bread × sum(x_i x_i' e_i²) × bread`. Student-t inference uses `n-k` degrees of freedom. Coefficients, standard errors, t statistics, two-sided p-values and 95% intervals are displayed; no unsupported F statistic is fabricated.
 
 Fitted values use the observed predictors even for observations outside the estimation sample. Residuals also require an observed outcome. Browser data-changing commands clear the fitted model; this deliberate simplification is stated in the interface.
+
+### Factor variables and interactions
+
+Regression supports `i.`, `c.`, `#`, `##`, numeric level selectors such as `2.group`, `ibN.`/`bN.`, `ib(first).`, `ib(last).`, `ib(freq).`, `ibn.`, and grouped lists such as `i.group##c.(x z)`. Bare variables inside an interaction are categorical, as in Stata; plain variables elsewhere are continuous. Categories must be nonnegative integers. Numeric source variables are validated before fitting. The expansion uses levels in the complete-case estimation sample. Source columns remain unchanged; fitted model terms contain serializable component metadata for prediction, worker transfer and replay.
+
+The expansion is bounded at 256 columns, eight factors per interaction and 500,000 design cells. Reference terms are separated from fitted terms. Twice-reorthogonalized modified Gram–Schmidt identifies redundant columns at relative residual norm below 1e-12, preferring nonreference columns within each term. The retained design still passes the existing SVD conditioning check and QR fit. Empty and redundant columns are disclosed. Selected native fixtures establish the coefficient parameterization for those cases, not every rank-deficient design. Saturated factor fits display coefficients and predictions with residual df zero; covariance, standard errors, tests, confidence limits and RMSE are unavailable, rather than fabricated from a zero denominator.
+
+`tools/check-factor-native.mjs` independently executes 69 fits, including the reported `reg hours attendance##score` and `reg hours c.attendance##c.score`, conventional and HC1 inference, categorical cell indicators, group-specific slopes, three-way interactions, powers, custom/absent reference categories, grouped lists, missing values and qualifiers. Numerical fixtures compare coefficients by term name, full retained covariance, N, residual df, SSE, R-squared and all-observation predictions/residuals at 2e-8 relative/unit-absolute tolerance. Native logs remain outside the project. Browser tests cover worker and cooperative execution, interpretation, reload, undo and exported do-files. `fvset`, omitted-level operators, arbitrary level ranges and time-series operators remain unsupported.
+
+Semantics reference: [Stata User's Guide, section 11.4.3](https://www.stata.com/manuals/u11.pdf). Practice and its worker now import one content-hashed shared interpreter chunk, included in the offline cache; the 600,000-byte gzip offline-core gate is unchanged.
 
 ## Independent references and tolerances
 

@@ -13,7 +13,7 @@
       "path": "docs/numerical-contract.md",
       "kind": "specification",
       "title": "Browser Stata numerical contract",
-      "summary": "Browser numerical and do-file semantics, cancelable execution and worker recovery, guided native do-file authoring, replay and compatibility boundaries",
+      "summary": "Browser numerical and do-file semantics, factor-variable regression with native comparisons, worker recovery, guided do-file authoring and compatibility boundaries",
       "facets": [
         "Stata",
         "teaching",
@@ -35,7 +35,10 @@
         "tests/practice-worker.test.mjs",
         "tests/browser/practice-worker.spec.js",
         "tests/do-builder.test.mjs",
-        "tests/browser/do-builder.spec.js"
+        "tests/browser/do-builder.spec.js",
+        "docs/verification/factor-native.json",
+        "tests/factor-variables.test.mjs",
+        "tests/browser/factor-variables.spec.js"
       ]
     },
     {
@@ -501,7 +504,7 @@
       "path": "docs/iv-lab-contract.md",
       "kind": "specification",
       "title": "Instrumental-variables browser model contract",
-      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson\u2013Rubin inversion and numerical limits",
       "facets": [
         "Stata",
         "teaching",
@@ -676,7 +679,7 @@
       "path": "docs/verification/public-release.json",
       "kind": "receipt",
       "title": "STATAverse public deployment and legacy-route receipts",
-      "summary": "Published browser-only programming increment with 19 lessons, 86 steps and verified main-site integration; broader compatibility remains open",
+      "summary": "Published guided do-file builder and cancelable browser execution with local worker recovery; verified main-site navigation, saved work, public downloads and bounded offline transfer",
       "facets": [
         "Stata",
         "website",
@@ -697,7 +700,9 @@
         "docs/verification/legacy-transition.json",
         "docs/site-integration.md",
         "docs/verification/public-programming-legacy.json",
-        "docs/verification/program-native.json"
+        "docs/verification/program-native.json",
+        "docs/verification/public-builder-legacy.json",
+        "docs/verification/builder-native.json"
       ]
     },
     {

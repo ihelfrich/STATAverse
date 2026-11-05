@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-11-05T19:05:58.330Z",
+  "url": "https://ihelfrich.github.io/learn/stata/ScriptLibrary/builder.html?course=fall%202026#paths",
+  "download": "analysis.do",
+  "sha256": "960966caebb6b6bac20dc247225a9e2185dafd0852ba22ffc499acf685011d61",
+  "bytes": 584,
+  "checks": [
+    "legacy builder path, encoded query and fragment preserved",
+    "canonical builder produces the requested paths",
+    "public .do download contains the generated code"
+  ],
+  "limits": [
+    "Constructed paths; a browser cannot verify local file existence. Native generated-code evidence is separate."
+  ]
+}

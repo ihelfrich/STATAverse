@@ -57,7 +57,13 @@ export function correlation(a, b) {
 
 // Parameter order is predictors followed by the constant, as displayed by Stata.
 // Center/scale before QR; transform coefficients and covariance back to original units.
-export function regress(rows, dependent, predictors, robust = false) {
+export function regress(
+  rows,
+  dependent,
+  predictors,
+  robust = false,
+  { allowSaturated = false } = {},
+) {
   const names = [...predictors, "_cons"];
   const sample = rows.filter((r) =>
     [dependent, ...predictors].every(
@@ -67,7 +73,7 @@ export function regress(rows, dependent, predictors, robust = false) {
   const n = sample.length,
     k = names.length,
     df = n - k;
-  if (df <= 0)
+  if (df < 0 || (df === 0 && !allowSaturated))
     throw new Error(
       `Only ${n} complete observations for ${k} coefficients. More observations are needed for inference.`,
     );
@@ -118,7 +124,8 @@ export function regress(rows, dependent, predictors, robust = false) {
   const ri = inverse(qr.upperTriangularMatrix);
   const bread = ri.mmul(ri.transpose());
   let covariance;
-  if (robust) {
+  if (df === 0) covariance = Matrix.zeros(k, k);
+  else if (robust) {
     const meat = Matrix.zeros(k, k);
     for (let i = 0; i < n; i++)
       for (let a = 0; a < k; a++)
@@ -142,8 +149,10 @@ export function regress(rows, dependent, predictors, robust = false) {
     throw new Error(
       "Numerical overflow in regression. Rescale the variables before estimating.",
     );
-  const critical = jStat.studentt.inv(0.975, df);
+  const critical = df > 0 ? jStat.studentt.inv(0.975, df) : null;
   const coefficients = names.map((name, i) => {
+    if (df === 0)
+      return { name, b: b[i], se: null, t: null, p: null, lo: null, hi: null };
     const se = Math.sqrt(Math.max(0, covariance.get(i, i)));
     const t = se > 0 ? b[i] / se : null;
     const p =
@@ -168,11 +177,14 @@ export function regress(rows, dependent, predictors, robust = false) {
     df,
     robust,
     coefficients,
-    covariance: covariance.to2DArray(),
+    covariance:
+      df > 0
+        ? covariance.to2DArray()
+        : Array.from({ length: k }, () => Array(k).fill(null)),
     sse,
     tss,
     r2: tss > 0 ? 1 - sse / tss : null,
-    rmse: Math.sqrt(sse / df),
+    rmse: df > 0 ? Math.sqrt(sse / df) : null,
     sample,
     fitted,
     residuals,

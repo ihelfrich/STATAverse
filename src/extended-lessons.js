@@ -809,7 +809,7 @@ export const EXTENDED_LESSONS = [
       {
         title: "Construct the product",
         explanation:
-          "Multiplying centered hours by the indicator gives zero for observed group A hours and hours_c for group B. Include both constituent predictors when estimating the model. Native Stata also offers factor-variable syntax; this workspace uses explicit columns.",
+          "Multiplying centered hours by the indicator gives zero for observed group A hours and hours_c for group B. Include both constituent predictors when estimating the model. You can also write c.hours_c##i.group_b in regress; this lesson creates the columns so you can inspect their values.",
         task: "Create hours_b as hours_c multiplied by group_b.",
         command: "generate double hours_b = hours_c * group_b",
         question:

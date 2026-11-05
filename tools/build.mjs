@@ -111,11 +111,53 @@ await fs.writeFile(
       `$1${DATA_INVESTIGATIONS.reduce((n, g) => n + g.steps.length, 0)}`,
     ),
 );
-const bundleResult = await build({
+const bundleOptions = {
   metafile: true,
+  bundle: true,
+  minify: true,
+  format: "esm",
+  outdir: "assets/js",
+  sourcemap: true,
+  target: ["es2022"],
+  legalComments: "linked",
+};
+// Practice and its worker use the same interpreter. Ship it once, with a
+// content-hashed URL, and include that dependency in the offline cache.
+for (const file of await fs.readdir("assets/js"))
+  if (/^practice-shared-[A-Z0-9]+\.js(?:\.map|\.LEGAL\.txt)?$/.test(file))
+    await fs.rm(`assets/js/${file}`);
+const practiceBundle = await build({
+  ...bundleOptions,
+  entryPoints: ["src/learn.js", "src/practice-worker.js"],
+  splitting: true,
+  chunkNames: "practice-shared-[hash]",
+});
+const sharedAssets = Object.keys(practiceBundle.metafile.outputs).filter(
+  (name) => /^assets\/js\/practice-shared-.*\.js$/.test(name),
+);
+const workerSource = await fs.readFile("service-worker.js", "utf8");
+await fs.writeFile(
+  "service-worker.js",
+  await format(
+    workerSource.replace(
+      /const CORE_ASSETS = \[([\s\S]*?)\];/,
+      (_all, entries) => {
+        const files = [...entries.matchAll(/"([^"]+)"/g)]
+          .map((m) => m[1])
+          .filter((file) => !file.includes("practice-shared-"));
+        return (
+          "const CORE_ASSETS = " +
+          JSON.stringify([...files, ...sharedAssets], null, 2) +
+          ";"
+        );
+      },
+    ),
+    { parser: "babel" },
+  ),
+);
+const bundleResult = await build({
+  ...bundleOptions,
   entryPoints: [
-    "src/learn.js",
-    "src/practice-worker.js",
     "src/home.js",
     "src/workspace.js",
     "src/regression-lab.js",
@@ -128,18 +170,20 @@ const bundleResult = await build({
     "src/do-builder.js",
     "src/worked-reader.js",
   ],
-  bundle: true,
-  minify: true,
-  format: "esm",
-  outdir: "assets/js",
-  sourcemap: true,
-  target: ["es2022"],
-  legalComments: "linked",
 });
 await fs.mkdir(".build", { recursive: true });
 await fs.writeFile(
   ".build/metafile.json",
-  JSON.stringify(bundleResult.metafile),
+  JSON.stringify({
+    inputs: {
+      ...bundleResult.metafile.inputs,
+      ...practiceBundle.metafile.inputs,
+    },
+    outputs: {
+      ...bundleResult.metafile.outputs,
+      ...practiceBundle.metafile.outputs,
+    },
+  }),
 );
 await build({
   entryPoints: ["src/site.js"],
