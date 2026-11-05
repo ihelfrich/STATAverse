@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-04",
+  "status": "local_candidate",
+  "engine_and_persistence_tests": {
+    "passed": 27,
+    "failed": 0,
+    "command": "npm test"
+  },
+  "browser_workflows": {
+    "passed": 36,
+    "failed": 0,
+    "command": "npm run test:browser",
+    "coverage": [
+      "desktop Chrome",
+      "iPhone 13 viewport in Chrome",
+      "all 30 guided steps",
+      "offline",
+      "backup and conflict recovery"
+    ]
+  },
+  "extended_reference_accessibility": {
+    "desktop": "passed",
+    "mobile": "passed",
+    "pages": 7,
+    "method": "axe-core WCAG 2 A/AA and 2.1 AA; tested in the browser suite"
+  },
+  "local_links": {
+    "checked": 558,
+    "broken": 0
+  },
+  "native_execution": "stata-script-audit.json",
+  "deployment": "deployment.json",
+  "dependency_audit": "dependency-audit.json",
+  "reusable_assets_registered": 7,
+  "source_fingerprints": {
+    "src/engine.js": "8af2f2ead2fe10eb1286d054e0692b091f13b64347d330dd66c093efc2f38fb8",
+    "src/expression.js": "3b6deb6a5fef658169400e1e5199073f80f94d01706ae1430e6b4569f9f1fd00",
+    "src/statistics.js": "f8d9963801e76595009a480fe9ed06776e10b0864cacc33da73c9b641aaed607",
+    "src/lessons.js": "558b690aafeb973059c2805bca92d0e7b0a2f3ea5594324f235b2b3273cacb1e",
+    "src/persistence.js": "e1f6fab43aa4dd41d4719b7d2edbc186c528898042568a56b9fd3b34b4f304e7",
+    "package-lock.json": "e9501adcb2593c97a15eea8c214c077efc0d7cae2e8ce0d952e822d98eb3d0ca",
+    "tests/fixtures/r-reference.json": "009ba15fb3c9572e4f8bcf14e9eefce1d3302393e8ae2d0bf07ad314edfd3d75",
+    "tests/fixtures/stata-reference.csv": "21a3b49cd145ff494b457dc73d469e880902872bd21209b54a2185a5072ebbd1"
+  },
+  "limits": [
+    "No deployment or push",
+    "Browser subset, not full Stata",
+    "Native Java import and PNG export unavailable",
+    "No classroom or manual assistive-technology audit"
+  ],
+  "verification_note": "An earlier browser pass was interrupted by restarting the local preview server; a fresh uninterrupted run passed all 36 tests."
+}

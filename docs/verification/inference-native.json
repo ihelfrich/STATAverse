@@ -1,0 +1,132 @@
+{
+  "method": "Native Stata exported inference workflow with explicit input substitution",
+  "limits": [
+    "Five synthetic cases; not general equivalence",
+    "Java-backed CSV import remains unverified"
+  ],
+  "results": [
+    {
+      "case": "independent",
+      "returnCode": "0",
+      "methods": [
+        "conventional",
+        "hc1",
+        "cluster"
+      ],
+      "assertions": [
+        "coefficient",
+        "standard error",
+        "residual degrees of freedom",
+        "confidence endpoints",
+        "two-sided null-test p-value"
+      ],
+      "temporarySubstitution": "Native double input replaces Java-dependent CSV import; remaining exported commands execute unchanged."
+    },
+    {
+      "case": "heteroskedastic",
+      "returnCode": "0",
+      "methods": [
+        "conventional",
+        "hc1",
+        "cluster"
+      ],
+      "assertions": [
+        "coefficient",
+        "standard error",
+        "residual degrees of freedom",
+        "confidence endpoints",
+        "two-sided null-test p-value"
+      ],
+      "temporarySubstitution": "Native double input replaces Java-dependent CSV import; remaining exported commands execute unchanged."
+    },
+    {
+      "case": "clustered",
+      "returnCode": "0",
+      "methods": [
+        "conventional",
+        "hc1",
+        "cluster"
+      ],
+      "assertions": [
+        "coefficient",
+        "standard error",
+        "residual degrees of freedom",
+        "confidence endpoints",
+        "two-sided null-test p-value"
+      ],
+      "temporarySubstitution": "Native double input replaces Java-dependent CSV import; remaining exported commands execute unchanged."
+    },
+    {
+      "case": "few-clusters",
+      "returnCode": "0",
+      "methods": [
+        "conventional",
+        "hc1",
+        "cluster"
+      ],
+      "assertions": [
+        "coefficient",
+        "standard error",
+        "residual degrees of freedom",
+        "confidence endpoints",
+        "two-sided null-test p-value"
+      ],
+      "temporarySubstitution": "Native double input replaces Java-dependent CSV import; remaining exported commands execute unchanged."
+    },
+    {
+      "case": "many-groups",
+      "returnCode": "0",
+      "methods": [
+        "conventional",
+        "hc1",
+        "cluster"
+      ],
+      "assertions": [
+        "coefficient",
+        "standard error",
+        "residual degrees of freedom",
+        "confidence endpoints",
+        "two-sided null-test p-value"
+      ],
+      "temporarySubstitution": "Native double input replaces Java-dependent CSV import; remaining exported commands execute unchanged."
+    }
+  ],
+  "simulationRuns": [
+    {
+      "case": "independent",
+      "repetitions": 50,
+      "returnCode": "0",
+      "substitution": "None; generated simulation.do executed directly",
+      "checks": [
+        "all returned quantities observed",
+        "positive standard errors",
+        "intervals centered on common coefficient",
+        "coverage and rejection decisions agree with intervals"
+      ]
+    },
+    {
+      "case": "heteroskedastic",
+      "repetitions": 50,
+      "returnCode": "0",
+      "substitution": "None; generated simulation.do executed directly",
+      "checks": [
+        "all returned quantities observed",
+        "positive standard errors",
+        "intervals centered on common coefficient",
+        "coverage and rejection decisions agree with intervals"
+      ]
+    },
+    {
+      "case": "clustered",
+      "repetitions": 50,
+      "returnCode": "0",
+      "substitution": "None; generated simulation.do executed directly",
+      "checks": [
+        "all returned quantities observed",
+        "positive standard errors",
+        "intervals centered on common coefficient",
+        "coverage and rejection decisions agree with intervals"
+      ]
+    }
+  ]
+}

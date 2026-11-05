@@ -135,7 +135,7 @@ regress performance training_hours
 local biased = _b[training_hours]
 display _n "{err}❌ We estimated: Training → +" %5.2f `biased' " points per hour"
 display "{txt}   True effect:   Training → +2.00 points per hour"
-display "{txt}   Bias:          " %+5.2f (`biased' - 2)
+display "{txt}   Estimation error in this draw:          " %5.2f (`biased' - 2)
 display _n "{err}   We're giving training TOO MUCH credit!"
 display "{err}   Some of that 'effect' is really the manager's quality."
 
@@ -192,8 +192,10 @@ generate training_policy = rbinomial(1, 0.5)  // Random policy exposure
 
 * Policy affects training, but NOT through manager quality
 replace training_hours = training_hours + 20*training_policy
+* Preserve the stated outcome equation after the policy changes training.
+replace performance = performance + 40*training_policy
 
-display _n "{txt}Now we can use this 'instrument' to get the TRUE effect:"
+display _n "{txt}The simulated policy identifies the structural effect under this construction:"
 
 * Two-stage process (we'll explain this more later)
 * Stage 1: How does policy affect training?
@@ -201,12 +203,12 @@ quietly regress training_hours training_policy
 predict training_predicted
 
 * Stage 2: How does PREDICTED training affect performance?
-quietly regress performance training_predicted
+quietly ivregress 2sls performance (training_hours = training_policy)
 
-local iv_estimate = _b[training_predicted]
+local iv_estimate = _b[training_hours]
 display _n "{txt}✓ WITH INSTRUMENT: Training → +" %5.2f `iv_estimate' " points per hour"
 display "{txt}  True effect:        Training → +2.00 points per hour"
-display "{txt}  Bias:               " %+5.2f (`iv_estimate' - 2)
+display "{txt}  Estimation error in this draw:               " %5.2f (`iv_estimate' - 2)
 display _n "{txt}  Much closer to the truth!"
 
 *******************************************************************************

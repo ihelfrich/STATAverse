@@ -1,0 +1,136 @@
+{
+  "method": "Native Stata execution of all canonical lesson commands, numeric answers and final data checks",
+  "limits": [
+    "Native input substitutes Java-backed CSV import on this machine.",
+    "Does not validate every alternative student command, accessibility or mastery.",
+    "Preserve is explicitly restored within one enclosing native do-file; browser Run actions use a persistent interactive scope."
+  ],
+  "results": [
+    {
+      "lesson": "first-commands",
+      "steps": 4,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "missing-values",
+      "steps": 4,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "transformations",
+      "steps": 4,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "graphs",
+      "steps": 3,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "regression",
+      "steps": 4,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "inference",
+      "steps": 3,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "observation-order",
+      "steps": 4,
+      "numericChecks": 1,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "do-files",
+      "steps": 4,
+      "numericChecks": 2,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "temporary-samples",
+      "steps": 5,
+      "numericChecks": 2,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "data-quality",
+      "steps": 4,
+      "numericChecks": 0,
+      "finalRows": 12,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "group-statistics",
+      "steps": 6,
+      "numericChecks": 2,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "collapse-samples",
+      "steps": 6,
+      "numericChecks": 1,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "group-comparisons",
+      "steps": 5,
+      "numericChecks": 3,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "sample-accounting",
+      "steps": 5,
+      "numericChecks": 3,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "functional-forms",
+      "steps": 5,
+      "numericChecks": 2,
+      "finalRows": 30,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "interactions",
+      "steps": 5,
+      "numericChecks": 1,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "debugging",
+      "steps": 5,
+      "numericChecks": 1,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "independent-analysis",
+      "steps": 4,
+      "numericChecks": 0,
+      "finalRows": 30,
+      "returnCode": "0"
+    }
+  ]
+}

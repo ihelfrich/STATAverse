@@ -1,4 +1,6 @@
 ## Overview
+<div class="practice-entry"><a href="../../Learn/#regression">Open the guided regression workspace</a><p>Use the browser to connect coefficients, fitted values and residuals. This lesson then uses Stata's automobile example.</p></div>
+
 Estimate and interpret OLS models in Stata, then layer in controls and robustness checks.
 
 ## Learning goals
@@ -88,14 +90,18 @@ summarize price_hat resid
 - [ ] Run:
 ```stata
 rvfplot
+* The conventional heteroskedasticity test follows a conventional OLS fit.
+regress price mpg weight
 estat hettest
+* Restore the covariance specification used for reporting.
+regress price mpg weight, vce(robust)
 ```
 
 [PREDICT]
 - [ ] What pattern in rvfplot suggests heteroskedasticity?
 
 [CHECK]
-- Expected: A fan or cone shape indicates heteroskedasticity. estat hettest provides a formal test.
+- A fan-shaped residual plot is consistent with changing error variance, although mean misspecification or unusual observations can also create patterns. `estat hettest` tests its stated restriction under maintained assumptions. Nonrejection does not prove homoskedasticity.
 
 [REFLECT]
 - If heteroskedasticity is present, what would you report or change?

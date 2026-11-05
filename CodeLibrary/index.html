@@ -1,375 +1,203 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
+    <script src="../assets/js/legacy-location.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Code Library - STATAverse</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="../assets/css/site.css" />
   </head>
   <body class="page-zero">
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
-            <nav class="nav">
+      <nav class="nav" aria-label="Main navigation">
         <a class="brand" href="../index.html">STATAverse</a>
         <div class="nav-links">
-          <a href="../ScriptLibrary/">Scripts</a>
-          <a href="../CodeLibrary/">Code Library</a>
-          <a href="../MethodLab/">Method Lab</a>
-          <a href="../Topics/">Topics</a>
-          <a href="../RealData/">Real Data</a>
-          <a href="../Readings/">Readings</a>
-          <a href="../Search/">Search</a>
-          <a href="../Workspace/">Workspace</a>
-          <a href="../ZeroToHero/">Zero-to-Hero</a>
-          <a href="../STATAForBusiness/">Stata for Business</a>
-          <a href="../index.html#about">About</a>
+          <a href="../Learn/">Practice</a
+          ><a href="../ZeroToHero/">Applied lessons</a
+          ><a href="../ScriptLibrary/">Scripts</a
+          ><a href="../Glossary/">Concepts</a><a href="../Search/">Search</a
+          ><a href="../index.html#reference-title">All resources</a>
         </div>
       </nav>
     </header>
 
-    <main>
+    <main id="main">
       <section class="hero hero-compact">
         <div class="hero-copy">
-          <span class="eyebrow">Code library</span>
-          <h1>Stata modules you can run and trust</h1>
+          <span class="eyebrow">Continue in Stata</span>
+          <h1>Work through complete examples.</h1>
           <p class="lead">
-            Tested Stata scripts for applied econometrics. Each module is documented and built
-            to hold up under review.
+            These downloadable do-files extend the browser lessons into
+            simulation, diagnostics and panel methods. Read the data-generating
+            process, run the commands and inspect the results before adapting a
+            specification.
           </p>
-        </div>
-        <div class="hero-panel">
-          <div class="panel-card">
-            <div class="panel-title">How to use</div>
-            <ol class="panel-steps">
-              <li>Pick a module</li>
-              <li>Run the .do file</li>
-              <li>Review the diagnostics</li>
-              <li>Adapt for your data</li>
-            </ol>
-            <div class="panel-note">
-              Each script includes interpretation notes and reporting guidance.
-            </div>
-          </div>
+          <a class="btn primary" href="../Learn/"
+            >Start with guided browser practice</a
+          >
         </div>
       </section>
-
       <section class="section">
         <div class="section-heading">
-          <h2>Core philosophy</h2>
-          <p>Start with intuition, then build implementation and defensible results.</p>
+          <h2>Running the examples</h2>
+          <p>
+            Save your current Stata work first: these teaching scripts clear
+            data in memory. Run them in a separate folder so their figures stay
+            together. They use constructed data, apart from the bundled Stata
+            auto example used for diagnostics.
+          </p>
+        </div>
+        <p>
+          Full Stata is required. A successful command does not establish causal
+          identification. If a figure cannot export, the script reports the
+          failure and leaves the graph available in Stata.
+        </p>
+      </section>
+      <section class="section">
+        <div class="section-heading">
+          <h2>Teaching modules</h2>
+          <p>
+            Choose a topic after completing the core regression path, or begin
+            with the regression example if you already have Stata open.
+          </p>
         </div>
         <div class="card-grid">
           <article class="card">
-            <h3>Three-Level Learning</h3>
-            <p><strong>Level 1: Intuition</strong> - Plain language, everyday examples</p>
-            <p><strong>Level 2: Implementation</strong> - Tested Stata code, diagnostics</p>
-            <p><strong>Level 3: Reporting</strong> - Clear tables, diagnostics, and write-ups</p>
+            <h3>Reading a regression</h3>
+            <p>
+              Simulate a coffee-sales example, inspect coefficients and
+              uncertainty, and distinguish sample fit from causal
+              interpretation.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/00_regression_plain_english.do"
+              download
+              >Download do-file</a
+            >
           </article>
           <article class="card">
-            <h3>Jargon-Free Start</h3>
-            <p>Every technical term is defined with everyday analogies before use.
-               You can start with zero econometrics background.</p>
+            <h3>Confounding and an instrument</h3>
+            <p>
+              Compare a confounded training association with a deliberately
+              constructed instrument. The policy and outcome equations are
+              explicit.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/01b_endogeneity_intuition.do"
+              download
+              >Download do-file</a
+            >
           </article>
           <article class="card">
-            <h3>Reporting-ready</h3>
-            <p>Code generates tables, figures, and diagnostics that are easy to defend and cite.</p>
+            <h3>Endogeneity simulation</h3>
+            <p>
+              Compare OLS and IV under a known data-generating process.
+              Sensitivity plots show individual simulated draws, not a Monte
+              Carlo proof of unbiasedness.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/01_endogeneity_simulator.do"
+              download
+              >Download do-file</a
+            >
+          </article>
+          <article class="card">
+            <h3>Method comparison guide</h3>
+            <p>
+              Edit the settings near the top to explore candidate estimators.
+              The guide cannot establish identification or replace examination
+              of your data.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/02_method_decision_tree_v2.do"
+              download
+              >Download do-file</a
+            >
+          </article>
+          <article class="card">
+            <h3>Common specification mistakes</h3>
+            <p>
+              Examine probability scales, post-outcome controls, ratios, pooled
+              data and weak instruments through constructed examples.
+            </p>
+            <a class="btn ghost" href="./scripts/03_anti_patterns.do" download
+              >Download do-file</a
+            >
+          </article>
+          <article class="card">
+            <h3>Diagnostic workflows</h3>
+            <p>
+              Run OLS, panel and IV diagnostics. Each test has maintained
+              assumptions; nonrejection is not certification.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/04_assumption_checker.do"
+              download
+              >Download do-file</a
+            >
+          </article>
+          <article class="card">
+            <h3>Interactions and conditional predictions</h3>
+            <p>
+              Use factor-variable notation, marginal effects, prediction grids
+              and confidence intervals to study two- and three-way interactions.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/05_moderation_mastery.do"
+              download
+              >Download do-file</a
+            >
+          </article>
+          <article class="card">
+            <h3>Panel-data comparisons</h3>
+            <p>
+              Compare fixed effects, random effects and within-between models.
+              Examine within-unit variation and clustered inference.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/06_panel_data_toolkit.do"
+              download
+              >Download do-file</a
+            >
+          </article>
+          <article class="card">
+            <h3>Compact method guide</h3>
+            <p>
+              A shorter configurable guide for reviewing outcome type, data
+              structure and identification concerns.
+            </p>
+            <a
+              class="btn ghost"
+              href="./scripts/02_method_decision_tree.do"
+              download
+              >Download do-file</a
+            >
           </article>
         </div>
       </section>
-
       <section class="section">
-        <div class="section-heading">
-          <h2>Module index</h2>
-          <p>Aligned with graduate-level applied econometrics topics.</p>
-        </div>
-
-        <article class="card">
-          <div class="card-tag">Foundations</div>
-          <h3>00. Regression in Plain English</h3>
-          <p>
-            Build intuition for what regression ACTUALLY tells you. Zero jargon.
-            Coffee shop example with realistic numbers. Covers coefficients, p-values,
-            R-squared in everyday language.
-          </p>
-          <ul>
-            <li>✓ Beginner-friendly (no statistics background)</li>
-            <li>✓ Visual intuition before formulas</li>
-            <li>✓ Common mistakes flagged</li>
-          </ul>
-          <a href="./scripts/00_regression_plain_english.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-          <a href="https://github.com/ihelfrich/STATAverse/blob/main/CodeLibrary/scripts/00_regression_plain_english.do"
-             class="text-link" target="_blank">View on GitHub</a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Method selection</div>
-          <h3>02. Method Decision Tree</h3>
-          <p>
-            A decision guide for choosing the right econometric method. Answer questions about
-            data structure, outcome type, and endogeneity risk to get a clear recommendation.
-          </p>
-          <ul>
-            <li>✓ Three-level architecture (Intuition → Implementation → Reporting)</li>
-            <li>✓ Comprehensive glossary (15+ terms defined)</li>
-            <li>✓ Cites Kennedy, Cameron &amp; Trivedi, Angrist &amp; Pischke</li>
-          </ul>
-          <strong>Methods Covered:</strong>
-          <ul>
-            <li>OLS regression (cross-section and panel)</li>
-            <li>Fixed effects and hybrid models</li>
-            <li>Logistic regression (binary outcomes)</li>
-            <li>Count models (Poisson, negative binomial)</li>
-            <li>Fractional response models</li>
-            <li>Instrumental variables (IV/2SLS)</li>
-          </ul>
-          <a href="./scripts/02_method_decision_tree_v2.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-          <a href="https://github.com/ihelfrich/STATAverse/blob/main/CodeLibrary/scripts/02_method_decision_tree_v2.do"
-             class="text-link" target="_blank">View on GitHub</a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Endogeneity</div>
-          <h3>01. Endogeneity Simulator</h3>
-          <p>
-            Simulation-based learning for endogeneity and instrumental variables. Generate data
-            with known bias and compare naive OLS vs. IV/2SLS side-by-side.
-          </p>
-          <ul>
-            <li>✓ Visual demonstration of bias</li>
-            <li>✓ Sensitivity analysis (ρ = 0 to 1)</li>
-            <li>✓ Clear graphs with diagnostics</li>
-          </ul>
-          <a href="./scripts/01_endogeneity_simulator.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Endogeneity</div>
-          <h3>01b. Endogeneity Intuition (Beginner Version)</h3>
-          <p>
-            The ice cream and shark attacks story. Explains confounding using everyday examples
-            before technical terms.
-          </p>
-          <a href="./scripts/01b_endogeneity_intuition.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Reference</div>
-          <h3>03. Anti-Patterns Library</h3>
-          <p>
-            Learn from common mistakes using working examples where the ground truth is known.
-            Shows how errors create bias and how to fix them.
-          </p>
-          <strong>Mistakes Covered:</strong>
-          <ul>
-            <li>❌ Interpreting raw logit coefficients</li>
-            <li>❌ The "control variable illusion" (post-treatment bias)</li>
-            <li>❌ Using ratios as dependent variables</li>
-            <li>❌ Pooled OLS when fixed effects needed</li>
-            <li>❌ Weak instruments (worse than OLS!)</li>
-          </ul>
-          <a href="./scripts/03_anti_patterns.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Diagnostics</div>
-          <h3>04. Assumption Checker</h3>
-          <p>
-            Complete diagnostic workflows for major methods. Includes what to check, how to
-            interpret the output, and what to do if assumptions fail.
-          </p>
-          <ul>
-            <li>✓ OLS: Linearity, heteroskedasticity, multicollinearity, endogeneity</li>
-            <li>✓ Panel: Strict exogeneity, serial correlation, FE vs RE</li>
-            <li>✓ IV: Instrument relevance, exogeneity, weak IV tests</li>
-          </ul>
-          <a href="./scripts/04_assumption_checker.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Moderation</div>
-          <h3>05. Moderation Mastery</h3>
-          <p>
-            Implements cutting-edge guidance from Busenbark et al. (2022, ORM).
-            Shows why interaction coefficients ≠ interaction effects. Demonstrates proper
-            marginal effects calculation, creates clean margins plots.
-          </p>
-          <ul>
-            <li>✓ 2-way and 3-way interactions</li>
-            <li>✓ Johnson-Neyman regions of significance</li>
-            <li>✓ Complete reporting template</li>
-          </ul>
-          <strong>Key Reading:</strong> Busenbark et al. (2022, ORM) - Marginal effects approach
-          <a href="./scripts/05_moderation_mastery.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-        </article>
-
-        <article class="card">
-          <div class="card-tag">Panel data</div>
-          <h3>06. Panel Data Toolkit</h3>
-          <p>
-            Comprehensive panel data guide covering FE, RE, hybrid models, GEE, and
-            variance decomposition. Generates realistic panel data with known properties.
-          </p>
-          <ul>
-            <li>✓ Fixed effects, random effects</li>
-            <li>✓ Hybrid (within-between) models</li>
-            <li>✓ Generalized Estimating Equations (GEE)</li>
-            <li>✓ Variance decomposition (Quigley & Graffin 2016)</li>
-          </ul>
-          <a href="./scripts/06_panel_data_toolkit.do" class="btn ghost" download>
-            Download Script (.do)
-          </a>
-        </article>
-      </section>
-
-      <section class="section">
-        <h2>📖 Documentation</h2>
-        <div class="card-grid">
-          <article class="card outline">
-            <h3>Master Architecture</h3>
-            <p>Complete system design document explaining the three-level learning approach,
-               course alignment matrix, and pedagogical principles.</p>
-            <a href="./architecture.html" class="text-link">Read Documentation</a>
-          </article>
-          <article class="card outline">
-            <h3>Innovation Summary</h3>
-            <p>What makes STATAverse different from textbooks, Stata manuals, and online tutorials.
-               Impact potential for students, researchers, and instructors.</p>
-            <a href="./innovation.html" class="text-link">Read Summary</a>
-          </article>
-          <article class="card outline">
-            <h3>Transformation Summary</h3>
-            <p>Before/after analysis showing how we built a rigorous library:
-               intuition-first, jargon-managed, and reporting-focused throughout.</p>
-            <a href="./transformation.html" class="text-link">Read Analysis</a>
-          </article>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-heading">
-          <h2>Curriculum alignment</h2>
-          <p>
-            These modules map to core graduate econometrics skills across disciplines, from
-            specification and limited outcomes to endogeneity and panel methods.
-          </p>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Topic cluster</th>
-              <th>Focus</th>
-              <th>STATAverse module</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Regression + interpretation</td>
-              <td>Plain-language foundations, diagnostics, reporting</td>
-              <td>00_regression_plain_english.do</td>
-            </tr>
-            <tr>
-              <td>Moderation + nonlinearity</td>
-              <td>Interactions, marginal effects, interpretation</td>
-              <td>05_moderation_mastery.do</td>
-            </tr>
-            <tr>
-              <td>Limited outcomes</td>
-              <td>Binary, count, and fractional outcomes</td>
-              <td>02_method_decision_tree_v2.do (logit/count sections)</td>
-            </tr>
-            <tr>
-              <td>Endogeneity + IV</td>
-              <td>Bias, instruments, diagnostics</td>
-              <td>01_endogeneity_simulator.do, 01b_endogeneity_intuition.do</td>
-            </tr>
-            <tr>
-              <td>Panel data</td>
-              <td>FE/RE, hybrid models, GEE</td>
-              <td>06_panel_data_toolkit.do</td>
-            </tr>
-            <tr>
-              <td>Method selection</td>
-              <td>Estimator choice and diagnostics</td>
-              <td>02_method_decision_tree_v2.do</td>
-            </tr>
-            <tr>
-              <td>Diagnostics</td>
-              <td>Assumptions, checks, reporting</td>
-              <td>04_assumption_checker.do</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section class="section">
-        <h2>Key features</h2>
-        <ul>
-          <li><strong>Tested Code</strong>: Every script runs without errors in Stata 18 MP</li>
-          <li><strong>Reporting-ready</strong>: Generates clear tables and figures</li>
-          <li><strong>Heavily Commented</strong>: Every section explained in plain language</li>
-          <li><strong>Modular Design</strong>: Copy what you need, ignore the rest</li>
-          <li><strong>Theory-Integrated</strong>: Cites key methodological papers</li>
-          <li><strong>Beginner-Accessible</strong>: Start with zero econometrics background</li>
-          <li><strong>Rigor</strong>: Scales to publishable analysis</li>
-        </ul>
-      </section>
-
-      <section class="section">
-        <h2>Getting started</h2>
-        <ol>
-          <li><strong>Download</strong> the script you need (click "Download Script" buttons above)</li>
-          <li><strong>Open</strong> in Stata (16, 17, or 18)</li>
-          <li><strong>Run</strong> the script: <code>do scriptname.do</code></li>
-          <li><strong>Adapt</strong> to your own data and research question</li>
-        </ol>
-
-        <h3>Recommended Learning Path</h3>
-        <ol>
-          <li>Start with <strong>00_regression_plain_english.do</strong> (intuition building)</li>
-          <li>Use <strong>02_method_decision_tree_v2.do</strong> (choose your method)</li>
-          <li>Learn from <strong>03_anti_patterns.do</strong> (avoid common mistakes)</li>
-          <li>Master diagnostics with <strong>04_assumption_checker.do</strong></li>
-          <li>Dive deep into specific methods as needed</li>
-        </ol>
-      </section>
-
-      <section class="section">
-        <h2>📚 Key Readings Referenced</h2>
-        <ul>
-          <li>Kennedy, P. (2008). <em>A Guide to Econometrics</em>, 6th Edition. MIT Press.</li>
-          <li>Cameron, A. C. & Trivedi, P. K. (2022). <em>Microeconometrics Using Stata</em>, 2nd Edition. Stata Press.</li>
-          <li>Angrist, J.D. & Pischke, J. (2009). <em>Mostly Harmless Econometrics</em>. Princeton University Press.</li>
-          <li>Busenbark et al. (2022). "A marginal effects approach to interpreting main effects and moderation." <em>ORM</em>.</li>
-          <li>Hoetker (2007). "The use of logit and probit models in strategic management research." <em>SMJ</em>.</li>
-          <li>Certo et al. (2017). "A tale of two effects: Using longitudinal data." <em>SMJ</em>.</li>
-          <li>Hill et al. (2021). "Endogeneity: A review and agenda." <em>JOM</em>.</li>
-        </ul>
+        <h2>Related resources</h2>
+        <p>
+          <a href="../ScriptLibrary/">Short command templates</a> ·
+          <a href="../Glossary/">Econometric concepts</a> ·
+          <a href="../MethodLab/">Method comparison</a> ·
+          <a href="./architecture.html">Earlier curriculum design notes</a>
+        </p>
       </section>
     </main>
 
     <footer class="site-footer">
       <div>
-        STATAverse Code Library by Dr. Ian Helfrich. All code tested and documented.
+        STATAverse Code Library by Dr. Ian Helfrich. All code tested and
+        documented.
       </div>
     </footer>
 

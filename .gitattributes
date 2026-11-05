@@ -1,0 +1,4 @@
+# Store numerical fixtures consistently; browser CSV downloads retain RFC-style CRLF.
+tests/fixtures/*.csv text eol=lf
+# Vendor assets and license notices are copied verbatim from pinned packages.
+assets/vendor/** -whitespace

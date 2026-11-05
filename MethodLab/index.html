@@ -1,52 +1,32 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script src="../assets/js/legacy-location.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Method Lab | STATAverse</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="../assets/css/site.css" />
   </head>
   <body class="page-zero">
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
-            <nav class="nav">
-        <a class="brand" href="../index.html">STATAverse</a>
-        <div class="nav-links">
-          <a href="../ScriptLibrary/">Scripts</a>
-          <a href="../CodeLibrary/">Code Library</a>
-          <a href="../MethodLab/">Method Lab</a>
-          <a href="../Topics/">Topics</a>
-          <a href="../RealData/">Real Data</a>
-          <a href="../Readings/">Readings</a>
-          <a href="../Search/">Search</a>
-          <a href="../Workspace/">Workspace</a>
-          <a href="../ZeroToHero/">Zero-to-Hero</a>
-          <a href="../STATAForBusiness/">Stata for Business</a>
-          <a href="../index.html#about">About</a>
-        </div>
-      </nav>
+            <nav class="nav" aria-label="Main navigation"><a class="brand" href="../index.html">STATAverse</a><div class="nav-links"><a href="../Learn/">Practice</a><a href="../ZeroToHero/">Applied lessons</a><a href="../ScriptLibrary/">Scripts</a><a href="../Glossary/">Concepts</a><a href="../Search/">Search</a><a href="../index.html#reference-title">All resources</a></div></nav>
     </header>
 
-    <main>
+    <main id="main">
       <section class="hero hero-compact">
         <div class="hero-copy">
           <span class="eyebrow">Method lab</span>
-          <h1>Pick a model you can defend</h1>
+          <h1>Compare candidate methods</h1>
           <p class="lead">
-            A guided decision tool that turns your research setup into defensible
-            econometric choices. Start with intuition, then add diagnostics.
+            A starting point for comparing estimators. Outcome type and data structure narrow the options; they do not establish identification or select a valid model.
           </p>
         </div>
         <div class="hero-panel">
           <div class="panel-card">
             <div class="panel-title">What you get</div>
             <ul class="panel-list">
-              <li>Method recommendations with plain-language justification.</li>
+              <li>Candidate methods with assumptions and limitations.</li>
               <li>Stata starter code and a diagnostics checklist.</li>
               <li>Links to scripts, modules, and readings.</li>
             </ul>
@@ -57,14 +37,14 @@
       <section class="section">
         <div class="section-heading">
           <h2>Method finder</h2>
-          <p>Answer three questions. Get a clean modeling plan.</p>
+          <p>Select your setup, then examine the conditions attached to each candidate.</p>
         </div>
         <div class="method-lab" data-method-lab data-method-lab-src="../assets/data/method-lab.json">
           <div class="lab-grid" data-lab-steps></div>
           <div class="lab-summary">
             <div class="summary-card" data-lab-summary>
               <h3>Your draft plan</h3>
-              <p class="muted">Select options to generate a tailored recommendation.</p>
+              <p class="muted">Select options to generate a set of candidate methods.</p>
             </div>
             <button class="btn ghost" type="button" data-copy-plan disabled>Copy plan</button>
             <div class="copy-note" data-copy-note aria-live="polite"></div>

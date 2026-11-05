@@ -230,9 +230,9 @@ if `dv_type' == 1 & `data_structure' == 2 & `endogeneity' == 2 {
     display "{txt}  ✓ Instrument variation: Must vary within units over time"
 
     display _n "{txt}Common mistakes:"
-    display "{txt}  ✗ Weak instruments (F < 10)"
+    display "{txt}  ✗ Weak identification; a universal first-stage cutoff is insufficient"
     display "{txt}  ✗ Claiming exogeneity without theoretical justification"
-    display "{txt}  ✗ Not testing endogeneity (maybe IV isn't needed!)"
+    display "{txt}  ✗ Treating an endogeneity test as proof of valid instruments or exogeneity"
 }
 
 *** CASE 4: Binary DV + Cross-sectional
@@ -308,15 +308,15 @@ if `dv_type' == 3 {
     display `"{result}* Check for overdispersion"'
     display `"{result}estat gof"'
     display ""
-    display `"{result}* If overdispersed, use negative binomial"'
+    display `"{result}* Consider NB when its conditional variance specification is defensible"'
     display `"{result}nbreg y x1 x2 controls, vce(robust)"'
     display ""
     display `"{result}* Calculate meaningful effects"'
     display `"{result}margins, dydx(*) atmeans"'
 
     display _n "{txt}Decision rule:"
-    display "{txt}  IF Variance ≈ Mean → Use Poisson"
-    display "{txt}  IF Variance >> Mean → Use Negative Binomial"
+    display "{txt}  Study the conditional mean, exposure and dispersion structure"
+    display "{txt}  An unconditional variance-mean comparison does not select the estimator"
 
     display _n "{txt}Extensions:"
     display `"{result}* Zero-inflated models (if many zeros)"'

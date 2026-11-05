@@ -1,0 +1,17 @@
+{
+  "source": "Executed tools/stata-expressions.do with installed Stata; native scalar results only, no global installation changes.",
+  "cases": [
+    { "expression": "-2^2", "expected": -4 },
+    { "expression": "2^3^2", "expected": 64 },
+    { "expression": "round(-1.5)", "expected": -1 },
+    { "expression": "round(1.4,0)", "expected": 1.4 },
+    { "expression": "inrange(5,.,10)", "expected": 1 },
+    { "expression": "inrange(5,1,.)", "expected": 1 },
+    { "expression": "inrange(.,1,.)", "expected": 0 },
+    { "expression": "!.", "expected": 0 },
+    { "expression": "!2==1", "expected": 0 },
+    { "expression": "0*.", "expected": null },
+    { "expression": ".==.", "expected": 1 },
+    { "expression": "(-2)^2", "expected": 4 }
+  ]
+}

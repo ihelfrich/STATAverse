@@ -1,3 +1,5 @@
+> **Teaching data.** This repository supplies a constructed example, not verified records from an identified business. Use it to learn the workflow; do not report its estimates as evidence about real firms.
+
 ## Overview
 A store-week panel for a mid-size coffee chain. Use it to practice pricing models, promotion
 impact, staffing decisions, and basic panel-style reasoning.

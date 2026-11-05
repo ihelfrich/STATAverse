@@ -1,0 +1,19 @@
+{
+  "method": "Native Stata executes the exported operation with explicit input substituted only for Java-backed CSV import",
+  "cases": 32,
+  "allExpectedReturnCodes": true,
+  "allValuesAndMissingnessMatch": true,
+  "comparison": "Exact canonical row values and missingness in these integer/string fixtures; display ordering is ignored",
+  "coverage": [
+    "1:1, m:1 and 1:m; composite, string and missing keys",
+    "Unmatched rows, empty retained samples and empty master data",
+    "Duplicate-key and type failures",
+    "Default overlap, update and update replace with conflict precedence",
+    "Long/wide reshape, missing columns/records, varying nonstub attributes and repaired string stubs"
+  ],
+  "limits": [
+    "Synthetic finite fixtures, not complete Stata equivalence",
+    "Native Java-backed CSV import remains unverified on this machine",
+    "Extended missing values, m:m merges, string reshape indexes and additional syntax are unsupported"
+  ]
+}

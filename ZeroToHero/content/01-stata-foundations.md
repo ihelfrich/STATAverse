@@ -1,4 +1,6 @@
 ## Overview
+<div class="practice-entry"><a href="../../Learn/#first-commands">Practice your first commands in the browser</a><p>The guided workspace shows commands, data and output together. The workflow below continues in installed Stata.</p></div>
+
 This module establishes the Stata workflow you will use in every project: clean setup, clear logs,
 transparent data steps, and reliable outputs.
 
@@ -28,14 +30,15 @@ set more off
 capture mkdir data
 capture mkdir do
 capture mkdir output
-log using "output/01-stata-foundations.log", replace
+capture log close
+log using "output/01-stata-foundations.log", text replace
 ```
 
 [PREDICT]
-- [ ] What happens if you run the log command twice without `replace`?
+- [ ] What happens if you try to open another default log while this log is still open? What if the log is closed but the destination file already exists?
 
 [CHECK]
-- Expected: Stata will refuse to overwrite the existing log.
+- An open default log must be closed before opening another one. If no log is open but the destination file already exists, Stata requires `replace` to overwrite it or `append` to add to it. The commands above close an open log and deliberately replace this project's output log.
 
 [REFLECT]
 - Why do logs matter for reproducibility?

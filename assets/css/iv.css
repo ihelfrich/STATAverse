@@ -1,0 +1,421 @@
+@import url("./labs.css");
+.iv-work {
+  min-width: 0;
+}
+.iv-app .control-title h2 {
+  font-size: 15px;
+}
+#iv-controls-disclosure > summary {
+  display: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #23415b;
+}
+.iv-app .lab-fit.secondary {
+  stroke: #98602b;
+  stroke-dasharray: 6 4;
+}
+.iv-app {
+  background: #f5f6f7;
+}
+.iv-app .lab-heading {
+  align-items: flex-start;
+}
+.iv-app h2 {
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+.iv-work p {
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 82ch;
+  color: #42546a;
+}
+.iv-work code {
+  font-size: 0.95em;
+}
+.iv-app .experiment-controls {
+  background: #fdfdfc;
+}
+#iv-form > label,
+.iv-settings > label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 15px 0 7px;
+}
+.iv-equations {
+  font: 13px/1.8 var(--mono);
+  padding: 14px 0;
+  border-block: 1px solid #d6dee3;
+}
+.iv-equations span {
+  display: block;
+}
+.iv-app .lab-control {
+  margin-block: 18px;
+}
+.iv-app .lab-control small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #536277;
+}
+.iv-settings {
+  border-top: 1px solid #d6dee3;
+  padding-block: 16px;
+}
+.iv-settings summary,
+.iv-explanation summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #244d79;
+}
+#iv-new-sample {
+  width: 100%;
+}
+#iv-status {
+  font-size: 12px;
+  color: #9c3225;
+}
+.iv-assumptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  padding-bottom: 15px;
+  font-size: 12px;
+  color: #365746;
+}
+.iv-assumptions .failed {
+  color: #9c3225;
+  font-weight: 600;
+}
+.iv-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 2px solid #23415b;
+  margin-bottom: 24px;
+}
+.iv-stage {
+  padding: 18px 20px 18px 0;
+  min-width: 0;
+}
+.iv-stage + .iv-stage {
+  border-left: 1px solid #ccd6dd;
+  padding-left: 20px;
+}
+.iv-stage span {
+  display: block;
+  font-size: 11px;
+  color: #536277;
+}
+.iv-stage strong {
+  display: block;
+  font: 500 clamp(22px, 2.5vw, 34px)/1.4 var(--mono);
+  color: #203f5b;
+  letter-spacing: -1px;
+  overflow-wrap: anywhere;
+}
+.iv-stage code {
+  font-size: 11px;
+  background: transparent;
+  padding: 0;
+  line-height: 1.7;
+}
+.iv-tabs {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid #ccd6dd;
+  margin-bottom: 24px;
+}
+.iv-tabs button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #4f6070;
+  font: 600 12px/1.5 var(--sans);
+  padding: 12px 0;
+  cursor: pointer;
+}
+.iv-tabs button[aria-selected="true"] {
+  border-color: #2453cc;
+  color: #173f92;
+}
+.iv-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-block: 22px 12px;
+}
+.iv-section-title h2 {
+  margin: 0;
+}
+.iv-work label {
+  font-size: 11px;
+  color: #42546a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.iv-work select,
+.iv-work input {
+  border: 1px solid #aebfca;
+  border-radius: 3px;
+  background: #fff;
+  min-height: 36px;
+  font: 12px var(--sans);
+  padding: 7px;
+  color: #203f5b;
+  min-width: 0;
+  max-width: 100%;
+}
+.iv-work input[type="number"] {
+  width: 105px;
+  font-family: var(--mono);
+}
+.iv-plot-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 20px;
+  background: #fff;
+  border: 1px solid #d5dee4;
+  padding: 16px;
+}
+.iv-plot-layout > div {
+  min-width: 0;
+}
+.iv-inspector {
+  border-left: 1px solid #d5dee4;
+  padding-left: 18px;
+}
+.iv-inspector h3 {
+  font-size: 13px;
+  margin: 10px 0 15px;
+}
+.iv-inspector label {
+  align-items: flex-start;
+  flex-direction: column;
+}
+.iv-inspector p,
+.iv-work .iv-note {
+  font-size: 11px;
+  color: #536277;
+  line-height: 1.65;
+}
+.iv-inspector dl {
+  font: 12px/1.7 var(--mono);
+}
+.iv-inspector dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.iv-inspector dd {
+  margin: 0;
+}
+.iv-table-wrap {
+  overflow-x: auto;
+}
+.iv-table-wrap table {
+  border-collapse: collapse;
+  width: 100%;
+  font: 12px var(--mono);
+}
+.iv-table-wrap caption {
+  text-align: left;
+  font: 12px var(--sans);
+  color: #536277;
+  margin-bottom: 10px;
+}
+.iv-table-wrap th,
+.iv-table-wrap td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #d5dee4;
+  text-align: right;
+  white-space: nowrap;
+}
+.iv-table-wrap th:first-child {
+  text-align: left;
+  font-family: var(--sans);
+}
+.iv-table-wrap thead th {
+  font: 11px var(--sans);
+  background: #eaf0f3;
+}
+.iv-explanation {
+  padding: 18px 0;
+  border-block: 1px solid #ccd6dd;
+  margin-top: 22px;
+}
+.iv-work .iv-kicker {
+  font: 10px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: #536277;
+  margin: 0 0 8px;
+}
+.iv-confidence-summary {
+  border-left: 3px solid #337865;
+  padding: 15px 20px;
+  margin: 22px 0;
+  background: #edf3ef;
+}
+.iv-confidence-summary span {
+  display: block;
+  font-size: 12px;
+}
+.iv-confidence-summary strong {
+  display: block;
+  font: 500 clamp(20px, 2.4vw, 29px)/1.7 var(--mono);
+  overflow-wrap: anywhere;
+}
+.iv-confidence-summary p {
+  margin: 5px 0 0;
+}
+.iv-candidate-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+}
+#iv-ar-plot svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 15px;
+}
+.iv-ar-axis {
+  stroke: #8b9da9;
+  stroke-width: 1;
+}
+.iv-ar-accepted {
+  fill: #dbeae2;
+}
+.iv-ar-curve {
+  stroke: #264d99;
+  fill: none;
+  stroke-width: 2;
+}
+.iv-ar-critical {
+  stroke: #9b4f35;
+  stroke-dasharray: 5 4;
+}
+.iv-ar-candidate {
+  stroke: #244d79;
+  stroke-dasharray: 3 3;
+}
+.iv-ar-truth {
+  stroke: #38765c;
+  stroke-width: 2;
+}
+#iv-ar-plot text {
+  font: 11px var(--mono);
+  fill: #42546a;
+}
+.iv-test-result {
+  border-block: 1px solid #ccd6dd;
+  padding-block: 10px;
+  font-size: 13px;
+}
+#iv-code {
+  padding: 22px;
+  background: #172d40;
+  color: #e2edf2;
+  overflow-x: auto;
+  font: 12px/1.8 var(--mono);
+  border-radius: 3px;
+}
+.iv-investigation {
+  border-top: 2px solid #23415b;
+  margin-top: 36px;
+  padding-top: 6px;
+}
+#iv-answer-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+#iv-answer {
+  width: 220px;
+}
+#iv-feedback {
+  min-height: 22px;
+}
+#iv-feedback[data-correct="true"] {
+  color: #285c44;
+}
+#iv-feedback[data-correct="false"] {
+  color: #9c3225;
+}
+@media (max-width: 1100px) {
+  .iv-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .iv-plot-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .iv-inspector {
+    border-left: 0;
+    border-top: 1px solid #d5dee4;
+    padding-left: 0;
+  }
+  .iv-inspector dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 25px;
+  }
+  .iv-inspector label {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+@media (max-width: 850px) {
+  #iv-controls-disclosure > summary {
+    display: list-item;
+  }
+  #iv-controls-disclosure[open] > summary {
+    margin-bottom: 20px;
+  }
+  .iv-app .experiment-controls {
+    display: block;
+  }
+  .iv-app .lab-layout {
+    padding: 18px;
+  }
+  .iv-work {
+    margin-top: 22px;
+  }
+  .iv-tabs {
+    gap: 16px;
+  }
+  .iv-tabs button {
+    font-size: 11px;
+  }
+  .iv-stage {
+    padding: 12px 10px 12px 0;
+  }
+  .iv-stage + .iv-stage {
+    padding-left: 10px;
+  }
+  .iv-stage strong {
+    font-size: 21px;
+  }
+  .iv-stage span {
+    min-height: 3em;
+  }
+  .iv-stage code {
+    font-size: 10px;
+  }
+  .iv-section-title label {
+    flex-wrap: wrap;
+  }
+  .iv-plot-layout {
+    padding: 8px;
+  }
+}

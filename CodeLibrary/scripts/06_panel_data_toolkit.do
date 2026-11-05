@@ -53,7 +53,8 @@ bysort firm_id: replace firm_quality = firm_quality[1]
 label variable firm_quality "Firm quality (unobserved)"
 
 * Generate time-varying predictors
-generate experience = year - 2010  // Grows with time
+generate experience = 5 + 0.5*(year-2010) + 0.1*firm_quality + runiform(0, 2)
+* Experience varies within firms and is correlated with omitted firm quality.
 generate competition = runiform(1, 10) + 0.3*year  // Trend
 generate innovation = rbinomial(1, 0.3)  // Binary shock
 
@@ -170,11 +171,17 @@ display _n "{txt}Hausman test logic:"
 display "{txt}  H0: RE is consistent (firm effects uncorrelated with X)"
 display "{txt}  HA: RE is inconsistent (correlation exists) → use FE"
 
-hausman fe_model re_model, sigmamore
+* Classical Hausman requires conventional covariance estimates.
+quietly xtreg performance experience competition innovation, fe
+estimates store fe_classical
+quietly xtreg performance experience competition innovation, re
+estimates store re_classical
+hausman fe_classical re_classical, sigmamore
+* Retain cluster-robust fits for the reported comparisons above.
 
 display _n "{txt}Interpretation:"
-display "{txt}  If p < 0.05: Reject H0 → Use Fixed Effects"
-display "{txt}  If p > 0.05: Cannot reject H0 → RE is efficient"
+display "{txt}  Rejection challenges the RE restrictions under this test's assumptions"
+display "{txt}  Nonrejection does not validate RE or establish its efficiency"
 
 display _n "{txt}Practical advice:"
 display "{txt}  • In applied work, FE is usually safer choice"
@@ -270,12 +277,12 @@ display "{txt}  • Time trends (temporal variance)?"
 display "{txt}  • Residual noise (within variance)?"
 
 * Null model (no predictors)
-quietly mixed performance || firm_id: || year:
+quietly mixed performance i.year || firm_id:
 estat icc
 
 display _n "{txt}This tells you:"
 display "{txt}  • Intraclass correlation (ICC) at firm level"
-display "{txt}  • ICC at year level"
+display "{txt}  • Year indicators absorb common time shifts"
 display "{txt}  • How much clustering exists in your data"
 
 display _n "{txt}Applications (Quigley & Graffin 2016, SMJ):"
@@ -285,12 +292,12 @@ display "{txt}  • Year effects vs persistent differences"
 
 * Variance decomposition with predictors
 display _n "{txt}With predictors included:"
-quietly mixed performance experience competition innovation || firm_id: || year:
+quietly mixed performance experience competition innovation i.year || firm_id:
 
 display _n "{txt}This shows:"
 display "{txt}  • How much variance predictors explain"
 display "{txt}  • Remaining firm-level variance"
-display "{txt}  • Remaining year-level variance"
+display "{txt}  • Time effects are fixed coefficients, not a separate random variance"
 
 *******************************************************************************
 * PART 9: Dynamic Panel Data (Preview)
@@ -376,8 +383,8 @@ display _n(2) "{txt}Diagnostic 3: Test for time effects"
 display "{txt}─────────────────────────────────────────────────────────────────"
 
 * Add year fixed effects
-quietly xi: xtreg performance experience competition innovation i.year, fe
-testparm _Iyear*
+quietly xtreg performance experience competition innovation i.year, fe vce(cluster firm_id)
+testparm i.year
 
 display _n "{txt}If year effects significant:"
 display "{txt}  → Include year fixed effects in model"

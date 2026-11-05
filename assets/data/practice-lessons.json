@@ -1,0 +1,146 @@
+[
+  {
+    "id": "first-commands",
+    "title": "Your first Stata commands",
+    "summary": "Read a dataset, run commands and understand the Results window.",
+    "level": "Start here",
+    "minutes": 12,
+    "steps": 4
+  },
+  {
+    "id": "missing-values",
+    "title": "Samples and missing values",
+    "summary": "Understand if, observation counts and Stata’s numeric missing values.",
+    "level": "Foundations",
+    "minutes": 15,
+    "steps": 4
+  },
+  {
+    "id": "transformations",
+    "title": "Create and inspect variables",
+    "summary": "Make transformations, preserve missing values and understand changes to data.",
+    "level": "Foundations",
+    "minutes": 15,
+    "steps": 4
+  },
+  {
+    "id": "graphs",
+    "title": "See distributions and relationships",
+    "summary": "Connect graph axes and individual points to the data.",
+    "level": "Foundations",
+    "minutes": 12,
+    "steps": 3
+  },
+  {
+    "id": "regression",
+    "title": "Read and work through a regression",
+    "summary": "Connect coefficients, the fitted line and residuals to observations.",
+    "level": "Core analysis",
+    "minutes": 20,
+    "steps": 4
+  },
+  {
+    "id": "inference",
+    "title": "Controls and uncertainty",
+    "summary": "Separate fitted associations, standard errors and identification.",
+    "level": "Core analysis",
+    "minutes": 20,
+    "steps": 3
+  },
+  {
+    "id": "observation-order",
+    "title": "Observation order and identifiers",
+    "summary": "Distinguish a row’s position from its identifier, and make ordering explicit.",
+    "level": "Data work",
+    "minutes": 15,
+    "steps": 4
+  },
+  {
+    "id": "do-files",
+    "title": "A reproducible do-file",
+    "summary": "Run a script in sections, diagnose a stopped command and begin from a known input.",
+    "level": "Data work",
+    "minutes": 20,
+    "steps": 4
+  },
+  {
+    "id": "temporary-samples",
+    "title": "Temporary samples with preserve",
+    "summary": "Keep a recoverable copy, examine a subset and restore all observations.",
+    "level": "Data work",
+    "minutes": 18,
+    "steps": 5
+  },
+  {
+    "id": "data-quality",
+    "title": "Investigate data quality",
+    "summary": "Find duplicates, missing fields and impossible values before modeling.",
+    "level": "Data preparation",
+    "minutes": 18,
+    "steps": 4
+  },
+  {
+    "id": "group-statistics",
+    "title": "Group statistics within individual data",
+    "summary": "Attach group means, inspect their source observations and distinguish assignment from contribution.",
+    "level": "Data work",
+    "minutes": 22,
+    "steps": 6
+  },
+  {
+    "id": "collapse-samples",
+    "title": "Collapse and common calculation samples",
+    "summary": "Change the observational unit, compare variablewise and casewise summaries, and restore the individual data.",
+    "level": "Data work",
+    "minutes": 20,
+    "steps": 6
+  },
+  {
+    "id": "group-comparisons",
+    "title": "Group means and regression",
+    "summary": "Connect a binary predictor, group means and an adjusted comparison.",
+    "level": "Model specification",
+    "minutes": 22,
+    "steps": 5
+  },
+  {
+    "id": "sample-accounting",
+    "title": "Estimation and prediction samples",
+    "summary": "Keep estimation availability separate from the rows that can receive a prediction.",
+    "level": "Model specification",
+    "minutes": 20,
+    "steps": 5
+  },
+  {
+    "id": "functional-forms",
+    "title": "Logs, units and curvature",
+    "summary": "Interpret a log outcome and distinguish a polynomial coefficient from a slope.",
+    "level": "Model specification",
+    "minutes": 25,
+    "steps": 5
+  },
+  {
+    "id": "interactions",
+    "title": "Different slopes across groups",
+    "summary": "Build an interaction, choose a useful reference point and interpret both group slopes.",
+    "level": "Model specification",
+    "minutes": 25,
+    "steps": 5
+  },
+  {
+    "id": "debugging",
+    "title": "Diagnose and repair an analysis",
+    "summary": "Repair syntax, a missing-value classification, reversed variables and a residual sign.",
+    "level": "Independent practice",
+    "minutes": 25,
+    "steps": 5
+  },
+  {
+    "id": "independent-analysis",
+    "title": "An independent analysis",
+    "summary": "Explore a second dataset and prepare a reproducible Stata handoff.",
+    "level": "Apply your skills",
+    "minutes": 25,
+    "steps": 4
+  }
+]

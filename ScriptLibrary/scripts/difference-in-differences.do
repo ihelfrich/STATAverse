@@ -1,6 +1,9 @@
 * Difference-in-differences template
 
 * Variables: treated (0/1), post (0/1), outcome
+* This is the basic two-group, two-period design. State parallel trends,
+* no anticipation and relevant spillover assumptions before interpreting it.
+* Staggered adoption and heterogeneous effects require a separate estimand review.
 
 gen did = treated * post
 

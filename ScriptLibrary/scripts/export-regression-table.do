@@ -2,7 +2,8 @@
 
 capture which esttab
 if _rc {
-    ssc install estout, replace
+    display as error "This template requires esttab from estout. Install it deliberately, then rerun."
+    exit 199
 }
 
 regress sales price promo foot_traffic labor_hours

@@ -1,0 +1,656 @@
+{
+  "projects": [
+    {
+      "id": "stataverse",
+      "root": "/Users/ian/Developer/STATAverse",
+      "description": "Mixed-level Stata teaching site with browser practice and native examples"
+    }
+  ],
+  "assets": [
+    {
+      "id": "stataverse.numerical-contract",
+      "project": "stataverse",
+      "path": "docs/numerical-contract.md",
+      "kind": "specification",
+      "title": "Browser Stata numerical contract",
+      "summary": "Explicit supported syntax, OLS/HC1 definitions, missing behavior and numerical tolerances",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded educational subset; no full Stata equivalence"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.redteam",
+      "project": "stataverse",
+      "path": "docs/red-team-review.md",
+      "kind": "review",
+      "title": "STATAverse student overhaul red-team review",
+      "summary": "Reproduced defects, repairs and remaining verification limits",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Implementation-agent review; no independent human review"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.native-checks",
+      "project": "stataverse",
+      "path": "docs/verification/stata-script-audit.json",
+      "kind": "receipt",
+      "title": "Native Stata teaching-script execution",
+      "summary": "Return codes for advanced scripts, projects and template assertions",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Default guide settings only; Java PNG export failures; project CSV importer substituted"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.numerical-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/r-reference.json",
+      "kind": "results",
+      "title": "Independent R OLS and HC1 reference fixture",
+      "summary": "Six model/covariance combinations on synthetic practice data",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Fixture-specific numerical checks, not a global error guarantee"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.native-scalar-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/stata-expressions.json",
+      "kind": "results",
+      "title": "Native Stata scalar-semantic fixture",
+      "summary": "Executed missing-value, exponent and function cases",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Twelve scalar cases do not establish complete parser equivalence"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.reference-procedure",
+      "project": "stataverse",
+      "path": "tools/reference.R",
+      "kind": "procedure",
+      "title": "R verification of browser regression",
+      "summary": "Independent lm and sandwich HC1 calculations for synthetic fixtures",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Requires R and sandwich; no real student data"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.source-checks",
+      "project": "stataverse",
+      "path": "docs/teaching-source-checks.md",
+      "kind": "source-check",
+      "title": "Stata teaching source checks",
+      "summary": "Official documentation pointers and distinctions used in revision",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Targeted documentation checks, not validation of all legacy reading material"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.regression-lab-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/regression-lab/reference.json",
+      "kind": "results",
+      "title": "Independent regression-lab reference calculations",
+      "summary": "Four synthetic model, partial-regression and influence checks using R lm and sandwich",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Four fixed cases; no global numerical or inferential guarantee"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md",
+        "tools/lab-reference.R",
+        "tests/fixtures/regression-lab/cases.json"
+      ]
+    },
+    {
+      "id": "stataverse.regression-lab-native",
+      "project": "stataverse",
+      "path": "docs/verification/regression-lab-native.json",
+      "kind": "receipt",
+      "title": "Native Stata regression-lab export verification",
+      "summary": "Four exported workflows with native assertions for coefficients, covariance and influence",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Native double input substitutes for Java-dependent CSV import; no PNG export checked"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md",
+        "tools/check-lab-native.mjs"
+      ]
+    },
+    {
+      "id": "stataverse.regression-lab-procedure",
+      "project": "stataverse",
+      "path": "tools/lab-reference.R",
+      "kind": "procedure",
+      "title": "Independent regression-lab R verification procedure",
+      "summary": "Recomputes models, residualization and classical influence diagnostics on exported synthetic observations",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Requires R jsonlite and sandwich; no private or empirical data"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md",
+        "tests/fixtures/regression-lab/cases.json"
+      ]
+    },
+    {
+      "id": "stataverse.curriculum-native",
+      "path": "docs/verification/curriculum-native.json",
+      "kind": "receipt",
+      "title": "Native Stata curriculum verification",
+      "summary": "Eighteen canonical lesson sequences, eighteen numeric responses and final dataset checks",
+      "limits": [
+        "Native input substitutes Java-backed CSV import; canonical commands are not every possible student solution"
+      ],
+      "evidence": [
+        "tools/check-curriculum-native.mjs",
+        "tests/curriculum.test.mjs",
+        "docs/red-team-review.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.preserve-native",
+      "path": "docs/verification/preserve-native.json",
+      "kind": "receipt",
+      "title": "Native Stata preserve and restore behavior checks",
+      "summary": "Twenty-command sequence covering copy options, errors, data clearing, ordering and labels",
+      "limits": [
+        "One explicit command sequence; browser Run scope is interactive and differs from native do-file termination"
+      ],
+      "evidence": [
+        "tools/check-preserve-native.mjs",
+        "tests/preserve.test.mjs",
+        "docs/numerical-contract.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.csv-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/csv-reference.json",
+      "kind": "results",
+      "title": "Independent delimited-text parsing fixtures",
+      "summary": "Thirty synthetic comma, tab and semicolon cases generated and round-tripped with Python csv",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Finite parser fixtures; native Stata import remains unverified because Java is unavailable"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "tools/csv-reference.py",
+        "tests/csv.test.mjs",
+        "tests/browser/import.spec.js",
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.inference-reference",
+      "path": "tests/fixtures/inference-lab/reference.json",
+      "kind": "results",
+      "title": "Independent inference-lab covariance references",
+      "summary": "Five R lm/sandwich comparisons covering conventional HC1 and one-way clustered covariance",
+      "limits": [
+        "Five synthetic samples; confidence and p-value approximations checked at stated tolerances"
+      ],
+      "evidence": [
+        "tools/inference-reference.R",
+        "tests/inference-lab.test.mjs",
+        "docs/numerical-contract.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.inference-native",
+      "path": "docs/verification/inference-native.json",
+      "kind": "receipt",
+      "title": "Native Stata inference and simulation verification",
+      "summary": "Five sample workflows under three covariance methods and three directly executed fifty-repetition simulations",
+      "limits": [
+        "Native sample CSV import substituted with input; simulation programs run without substitution; finite settings only"
+      ],
+      "evidence": [
+        "tools/check-inference-native.mjs",
+        "docs/red-team-review.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.inference-procedure",
+      "path": "tools/inference-reference.R",
+      "kind": "procedure",
+      "title": "R verification of conventional HC1 and clustered inference",
+      "summary": "Independent lm vcovHC vcovCL t-interval and null-test calculations from explicit synthetic CSVs",
+      "limits": [
+        "Requires R jsonlite and sandwich; synthetic data only"
+      ],
+      "evidence": [
+        "tests/fixtures/inference-lab/cases.json",
+        "tests/inference-lab.test.mjs"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.grouped-native",
+      "project": "stataverse",
+      "path": "tests/fixtures/grouped-data/native.json",
+      "kind": "reference",
+      "title": "Native Stata grouped and row-statistic fixtures",
+      "summary": "Twenty-five native egen/collapse cases covering missing keys, empty samples, totals, row functions and casewise deletion",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Finite synthetic cases; no weights, by prefixes, extended missing values or general egen expressions",
+        "Browser double storage and string collation limits documented separately"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "tests/fixtures/grouped-data/cases.json",
+        "tools/check-grouped-native.mjs",
+        "tests/grouped-data.test.mjs",
+        "docs/verification/grouped-native.json"
+      ]
+    },
+    {
+      "id": "stataverse.data-native",
+      "project": "stataverse",
+      "path": "tests/fixtures/data-lab/native.json",
+      "kind": "reference",
+      "title": "Native Stata merge and reshape reference cases",
+      "summary": "Thirty-two native cases covering keyed matches, overlap updates, missingness, empty samples and reshaping failures and repairs",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Finite synthetic integer/string cases; not full Stata equivalence",
+        "Native Java-backed CSV import substituted with explicit data setup",
+        "No extended missing values, m:m merge or string reshape indexes"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "tools/data-reference-cases.mjs",
+        "tools/check-data-native.mjs",
+        "tests/data-lab.test.mjs",
+        "docs/verification/data-native.json"
+      ]
+    },
+    {
+      "id": "stataverse.data-investigations",
+      "project": "stataverse",
+      "path": "src/labs/data-investigations.js",
+      "kind": "curriculum",
+      "title": "Guided Stata merge and reshape investigations",
+      "summary": "Seventeen tasks linking configuration, source inspection and interpretation with verified native merge/reshape fixtures",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Supported practice with visible hints and results, not secure assessment",
+        "Only the synthetic cases implemented by the visual data lab",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [
+        "stataverse.data-native"
+      ],
+      "evidence": [
+        "tests/data-investigations.test.mjs",
+        "tests/browser/data-investigations.spec.js",
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.site-integration",
+      "project": "stataverse",
+      "path": "docs/verification/site-integration.json",
+      "kind": "receipt",
+      "title": "STATAverse integrated website browser checks",
+      "summary": "Nested-path execution, saved-work compatibility, offline worker scope, main-site discovery and browser asset sizes",
+      "facets": [
+        "Stata",
+        "teaching",
+        "browser",
+        "website",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Local assembled website only; not publicly deployed",
+        "Computed gzip sizes, not production transfer measurements",
+        "Targeted accessibility checks; no classroom or manual assistive-technology validation",
+        "Old project URL compatibility still requires publication work"
+      ],
+      "depends_on": [
+        "stataverse.data-investigations"
+      ],
+      "evidence": [
+        "tools/verify-site-integration.mjs",
+        "docs/site-integration.md",
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.iv-contract",
+      "project": "stataverse",
+      "path": "docs/iv-lab-contract.md",
+      "kind": "specification",
+      "title": "Instrumental-variables browser model contract",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.iv-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/iv-lab/reference.json",
+      "kind": "results",
+      "title": "Independent R instrumental-variables references",
+      "summary": "Nine synthetic cases with matrix 2SLS and transformed-outcome AR tests",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.iv-native",
+      "project": "stataverse",
+      "path": "docs/verification/iv-native.json",
+      "kind": "receipt",
+      "title": "Native Stata IV and weak-instrument inference checks",
+      "summary": "Nine exported workflows with full covariance and analytic confidence-set endpoint checks",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.iv-verification",
+      "project": "stataverse",
+      "path": "tools/check-iv-native.mjs",
+      "kind": "procedure",
+      "title": "Reproduce native Stata IV reference checks",
+      "summary": "Bounded native runner preserving raw logs in private temporary folders",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.legacy-transition",
+      "project": "stataverse",
+      "path": "docs/verification/legacy-transition.json",
+      "kind": "receipt",
+      "title": "Legacy STATAverse browser upgrade verification",
+      "summary": "Actual v7 worker upgrade, deep-link preservation, saved notes, scoped cache retirement and canonical offline execution",
+      "facets": [
+        "Stata",
+        "browser",
+        "website",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Local browser reconstruction of the public v7 worker; public deployment remains a separate verification",
+        "An already open older page changes on its next navigation or reload"
+      ],
+      "depends_on": [
+        "stataverse.site-integration"
+      ],
+      "evidence": [
+        "tools/verify-legacy-transition.mjs",
+        "service-worker.js",
+        "assets/js/legacy-location.js"
+      ]
+    },
+    {
+      "id": "stataverse.public-site",
+      "project": "stataverse",
+      "path": "docs/verification/public-site.json",
+      "kind": "receipt",
+      "title": "Public STATAverse website browser verification",
+      "summary": "Public origin and pinned runtime verification, beginner execution, saved work, advanced labs, offline use and main-site discovery",
+      "facets": [
+        "Stata",
+        "browser",
+        "website",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Point-in-time public browser checks with synthetic examples",
+        "No full Stata equivalence or classroom validation",
+        "Computed gzip sizes are not measured network transfer times"
+      ],
+      "depends_on": [
+        "stataverse.site-integration"
+      ],
+      "evidence": [
+        "tools/verify-site-integration.mjs",
+        "docs/site-integration.md",
+        "docs/red-team-review.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+[
+  {
+    "id": "independent",
+    "options": {
+      "groups": 30,
+      "perGroup": 10,
+      "seed": 2026,
+      "beta": 1,
+      "sigma": 1,
+      "errorICC": 0,
+      "xICC": 0,
+      "heterogeneity": 0,
+      "confidence": 0.95,
+      "nullValue": 0,
+      "repetitions": 500
+    },
+    "replication": 0
+  },
+  {
+    "id": "heteroskedastic",
+    "options": {
+      "groups": 30,
+      "perGroup": 10,
+      "seed": 2026,
+      "beta": -1,
+      "sigma": 1,
+      "errorICC": 0,
+      "xICC": 0,
+      "heterogeneity": 1.5,
+      "confidence": 0.9,
+      "nullValue": -0.5,
+      "repetitions": 500
+    },
+    "replication": 12
+  },
+  {
+    "id": "clustered",
+    "options": {
+      "groups": 50,
+      "perGroup": 12,
+      "seed": 2026,
+      "beta": 1,
+      "sigma": 1,
+      "errorICC": 0.8,
+      "xICC": 0.9,
+      "heterogeneity": 0,
+      "confidence": 0.99,
+      "nullValue": 0,
+      "repetitions": 500
+    },
+    "replication": 7
+  },
+  {
+    "id": "few-clusters",
+    "options": {
+      "groups": 5,
+      "perGroup": 25,
+      "seed": 2026,
+      "beta": 0,
+      "sigma": 1,
+      "errorICC": 0.7,
+      "xICC": 0.8,
+      "heterogeneity": 0.5,
+      "confidence": 0.95,
+      "nullValue": 0,
+      "repetitions": 500
+    },
+    "replication": 2
+  },
+  {
+    "id": "many-groups",
+    "options": {
+      "groups": 100,
+      "perGroup": 2,
+      "seed": 2026,
+      "beta": 1,
+      "sigma": 1,
+      "errorICC": 0.9,
+      "xICC": 0.95,
+      "heterogeneity": 0,
+      "confidence": 0.95,
+      "nullValue": 0,
+      "repetitions": 500
+    },
+    "replication": 4
+  }
+]

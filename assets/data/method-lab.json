@@ -9,31 +9,41 @@
           "id": "continuous",
           "label": "Continuous",
           "hint": "Sales, profit, time, temperature",
-          "methods": ["ols"]
+          "methods": [
+            "ols"
+          ]
         },
         {
           "id": "binary",
           "label": "Binary",
           "hint": "Yes/No, adopted/not adopted",
-          "methods": ["logit"]
+          "methods": [
+            "logit"
+          ]
         },
         {
           "id": "count",
           "label": "Count",
           "hint": "0, 1, 2, 3... defects, events",
-          "methods": ["count"]
+          "methods": [
+            "count"
+          ]
         },
         {
           "id": "fraction",
           "label": "Fraction",
           "hint": "Rates or shares between 0 and 1",
-          "methods": ["fractional"]
+          "methods": [
+            "fractional"
+          ]
         },
         {
           "id": "duration",
           "label": "Time-to-event",
           "hint": "Time until exit, failure, churn",
-          "methods": ["hazard"]
+          "methods": [
+            "hazard"
+          ]
         }
       ]
     },
@@ -52,47 +62,63 @@
           "id": "panel",
           "label": "Panel",
           "hint": "Same units tracked over time",
-          "methods": ["panel"]
+          "methods": [
+            "panel"
+          ]
         }
       ]
     },
     {
       "id": "endogeneity",
       "title": "Endogeneity risk",
-      "subtitle": "Could X be tangled with unobservables?",
+      "subtitle": "What does the research design establish about the regressors?",
       "options": [
         {
           "id": "none",
           "label": "Low",
-          "hint": "Design is clean or randomized",
+          "hint": "A design-based argument must still be stated and examined",
           "methods": []
         },
         {
           "id": "maybe",
           "label": "Maybe",
-          "hint": "Some unobserved factors likely",
-          "methods": ["diagnostics"]
+          "hint": "Identify specific confounding or selection mechanisms",
+          "methods": [
+            "diagnostics"
+          ]
         },
         {
           "id": "yes",
           "label": "High",
-          "hint": "Selection, simultaneity, or omitted vars",
-          "methods": ["iv", "did"]
+          "hint": "Review identification designs; an estimator alone is not a remedy",
+          "methods": [
+            "iv",
+            "did"
+          ]
         }
       ]
     }
   ],
-  "always": ["diagnostics", "reporting"],
+  "always": [
+    "diagnostics",
+    "reporting"
+  ],
   "methods": {
     "ols": {
       "title": "OLS regression",
-      "why": "Baseline for continuous outcomes and clear interpretation.",
+      "why": "A linear conditional-mean model or descriptive linear projection for a specified sample.",
       "stata": "regress y x1 x2, vce(robust)",
-      "diagnostic": "Check residual plots, leverage, and heteroskedasticity.",
+      "diagnostic": "Inspect functional form, influential observations and the covariance structure. Residual plots cannot establish exogeneity.",
       "pitfall": "Ignoring nonlinearity or omitted variables.",
       "links": [
-        {"label": "OLS intuition module", "href": "../ZeroToHero/modules/02-ols-intuition.html"},
-        {"label": "Diagnostics script", "href": "../ScriptLibrary/script.html?id=ols-robust-diagnostics"}
+        {
+          "label": "OLS intuition module",
+          "href": "../ZeroToHero/modules/02-ols-intuition.html"
+        },
+        {
+          "label": "Diagnostics script",
+          "href": "../ScriptLibrary/script.html?id=ols-robust-diagnostics"
+        }
       ]
     },
     "logit": {
@@ -100,20 +126,29 @@
       "why": "Models binary outcomes with probabilities constrained to 0-1.",
       "stata": "logit y x1 x2\nmargins, dydx(*)",
       "diagnostic": "Report marginal effects and predicted probabilities.",
-      "pitfall": "Interpreting raw coefficients as effects.",
+      "pitfall": "Reading log-odds coefficients as probability-point changes, or treating fitted associations as causal.",
       "links": [
-        {"label": "Limited outcomes module", "href": "../ZeroToHero/modules/03-limited-outcomes.html"},
-        {"label": "Logit script", "href": "../ScriptLibrary/script.html?id=logit-margins"}
+        {
+          "label": "Limited outcomes module",
+          "href": "../ZeroToHero/modules/03-limited-outcomes.html"
+        },
+        {
+          "label": "Logit script",
+          "href": "../ScriptLibrary/script.html?id=logit-margins"
+        }
       ]
     },
     "count": {
       "title": "Poisson / Negative binomial",
-      "why": "Counts need non-negative predictions and overdispersion checks.",
-      "stata": "poisson y x1 x2, vce(robust)\nestat gof\nnbreg y x1 x2, vce(robust)",
-      "diagnostic": "Check overdispersion and zero inflation.",
-      "pitfall": "Using OLS on skewed counts.",
+      "why": "Poisson models a nonnegative exponential conditional mean; negative binomial adds a particular dispersion structure.",
+      "stata": "poisson y x1 x2, vce(robust)\n* Compare conditional-mean specifications and fit.\nnbreg y x1 x2, vce(robust)",
+      "diagnostic": "Study conditional dispersion, exposure and the process generating zeros. Poisson with robust inference does not require equal conditional mean and variance.",
+      "pitfall": "Choosing NB from the unconditional variance alone, or treating many zeros as proof of a separate zero-generating process.",
       "links": [
-        {"label": "Count model script", "href": "../ScriptLibrary/script.html?id=poisson-nb-overdispersion"}
+        {
+          "label": "Count model script",
+          "href": "../ScriptLibrary/script.html?id=poisson-nb-overdispersion"
+        }
       ]
     },
     "fractional": {
@@ -121,9 +156,12 @@
       "why": "Handles proportions between 0 and 1 without impossible predictions.",
       "stata": "fracreg logit y x1 x2\nmargins, dydx(*)",
       "diagnostic": "Inspect fitted values for boundary issues.",
-      "pitfall": "Treating fractions as binary or using OLS.",
+      "pitfall": "Ignoring boundary values, the denominator or the sampling structure; a linear model is not automatically invalid.",
       "links": [
-        {"label": "Topics map", "href": "../Topics/"}
+        {
+          "label": "Topics map",
+          "href": "../Topics/"
+        }
       ]
     },
     "hazard": {
@@ -133,58 +171,79 @@
       "diagnostic": "Check proportional hazards assumptions.",
       "pitfall": "Ignoring censoring or duration dependence.",
       "links": [
-        {"label": "Topics map", "href": "../Topics/"}
+        {
+          "label": "Topics map",
+          "href": "../Topics/"
+        }
       ]
     },
     "panel": {
-      "title": "Panel FE/RE",
-      "why": "Controls for time-invariant unobserved factors in panel data.",
+      "title": "Panel models and fixed effects",
+      "why": "Linear unit fixed effects remove additive, time-invariant unit heterogeneity. They do not remove time-varying confounding.",
       "stata": "xtset id time\nxtreg y x1 x2, fe vce(cluster id)",
-      "diagnostic": "Compare FE vs RE and test for serial correlation.",
-      "pitfall": "Forgetting to cluster at the panel level.",
+      "diagnostic": "Check within-unit variation, time effects, strict-exogeneity assumptions and dependence. A nonrejection in a Hausman test does not validate RE.",
+      "pitfall": "Treating unit FE as a general identification strategy, or clustering mechanically without considering the assignment and sampling design.",
       "links": [
-        {"label": "Panel setup script", "href": "../ScriptLibrary/script.html?id=panel-setup"},
-        {"label": "Code Library panel toolkit", "href": "../CodeLibrary/"}
+        {
+          "label": "Panel setup script",
+          "href": "../ScriptLibrary/script.html?id=panel-setup"
+        },
+        {
+          "label": "Code Library panel toolkit",
+          "href": "../CodeLibrary/"
+        }
       ]
     },
     "iv": {
       "title": "Instrumental variables",
-      "why": "Corrects for endogeneity when a valid instrument exists.",
+      "why": "A candidate only when relevant excluded instruments and a credible exclusion/exogeneity argument are available.",
       "stata": "ivregress 2sls y (x1 = z1), vce(robust)",
-      "diagnostic": "Check first-stage strength and exclusion logic.",
-      "pitfall": "Weak instruments or implausible exclusion.",
+      "diagnostic": "Report the first stage and assess weak identification using procedures appropriate to the model and covariance. F > 10 is not a universal guarantee.",
+      "pitfall": "Treating a statistical test as proof of instrument validity or claiming finite-sample unbiasedness for 2SLS.",
       "links": [
-        {"label": "Endogeneity simulator", "href": "../CodeLibrary/"}
+        {
+          "label": "Endogeneity simulator",
+          "href": "../CodeLibrary/"
+        }
       ]
     },
     "did": {
       "title": "Difference-in-differences",
-      "why": "Causal design when a treatment shocks one group over time.",
-      "stata": "xtset id time\nxtreg y i.treated##i.post, fe vce(cluster id)",
-      "diagnostic": "Assess parallel trends with pre-trends.",
-      "pitfall": "Ignoring staggered adoption or pre-trend violations.",
+      "why": "A candidate design for treatment and comparison groups observed before and after adoption, under an appropriate parallel-trends assumption.",
+      "stata": "* Basic two-group, two-period example only:\nxtset id time\nxtreg y i.treated##i.post, fe vce(cluster id)",
+      "diagnostic": "Study assignment, anticipation, spillovers and untreated trends. Pre-trend nonrejection cannot establish parallel trends.",
+      "pitfall": "Applying the simple two-period specification to staggered adoption with heterogeneous effects without checking the estimand.",
       "links": [
-        {"label": "Topics map", "href": "../Topics/"}
+        {
+          "label": "Topics map",
+          "href": "../Topics/"
+        }
       ]
     },
     "diagnostics": {
-      "title": "Diagnostics checklist",
-      "why": "Assure assumptions before final interpretation.",
-      "stata": "estat hettest\nestat vif\nrvfplot",
-      "diagnostic": "Report diagnostics in an appendix or robustness section.",
-      "pitfall": "Skipping checks because the model looks significant.",
+      "title": "Model-specific checks",
+      "why": "Checks can reveal contradictions and misspecification; no checklist certifies identification.",
+      "stata": "* OLS example only: hettest requires conventional VCE.\nregress y x1 x2\nestat hettest\nestat vif\nrvfplot\n* Refit with the covariance justified by the design.",
+      "diagnostic": "Use postestimation commands documented for the fitted estimator. These OLS commands do not apply to every model above.",
+      "pitfall": "Using passing tests as proof of exogeneity, normality, valid instruments or the correct functional form.",
       "links": [
-        {"label": "Diagnostics script", "href": "../ScriptLibrary/script.html?id=ols-robust-diagnostics"}
+        {
+          "label": "Diagnostics script",
+          "href": "../ScriptLibrary/script.html?id=ols-robust-diagnostics"
+        }
       ]
     },
     "reporting": {
       "title": "Reporting standard",
       "why": "Translate estimates into plain-language results and tables.",
-      "stata": "esttab, se star(* 0.1 ** 0.05 *** 0.01)",
-      "diagnostic": "State assumptions, identification, and robustness clearly.",
+      "stata": "estimates table, b(%9.3f) se(%9.3f) stats(N)",
+      "diagnostic": "State units, sample restrictions, estimand, uncertainty, identification assumptions and material limitations.",
       "pitfall": "Only reporting p-values without effect size context.",
       "links": [
-        {"label": "Export tables", "href": "../ScriptLibrary/script.html?id=export-regression-table"}
+        {
+          "label": "Export tables",
+          "href": "../ScriptLibrary/script.html?id=export-regression-table"
+        }
       ]
     }
   }

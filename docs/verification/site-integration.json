@@ -1,0 +1,54 @@
+{
+  "base": "/learn/stata/",
+  "checks": [
+    "nested-path command execution, saved practice and scoped service worker",
+    "investigation persistence and Workspace resume at integrated path",
+    "existing project-path reading progress survives the new mount without a second copy",
+    "IV lab at the canonical nested route, shared navigation, local calculations and checked weak-instrument exercise offline",
+    "offline practice and worker simulation, navigation CSS cached, no external runtime requests",
+    "Teaching entry, site search indexing and no worker control outside STATAverse",
+    "mobile width, keyboard/native navigation, targeted accessibility and no-script site links"
+  ],
+  "payloads": [
+    {
+      "asset": "home.js",
+      "bytes": 4184,
+      "gzipBytes": 2060
+    },
+    {
+      "asset": "learn.js",
+      "bytes": 694620,
+      "gzipBytes": 223301
+    },
+    {
+      "asset": "workspace.js",
+      "bytes": 157141,
+      "gzipBytes": 51203
+    },
+    {
+      "asset": "data-lab.js",
+      "bytes": 124042,
+      "gzipBytes": 44275
+    },
+    {
+      "asset": "inference-lab.js",
+      "bytes": 92671,
+      "gzipBytes": 34268
+    },
+    {
+      "asset": "inference-worker.js",
+      "bytes": 60355,
+      "gzipBytes": 21607
+    },
+    {
+      "asset": "iv-lab.js",
+      "bytes": 92208,
+      "gzipBytes": 34800
+    }
+  ],
+  "coreOfflinePackage": {
+    "files": 24,
+    "bytes": 1528540,
+    "gzipBytes": 481009
+  }
+}

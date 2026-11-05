@@ -79,7 +79,7 @@ display _n(3) "{txt}════════════════════
 display "{txt}   Common Research Scenarios: Which Sounds Like Yours?"
 display "{txt}═════════════════════════════════════════════════════════════════════════════"
 
-display _n "{result}SCENARIO A: \"Does advertising increase sales?\""
+display _n `"{result}SCENARIO A: "Does advertising increase sales?""'
 display "{txt}────────────────────────────────────────────────────────────────────────────"
 display "{txt}  • Outcome: Sales (continuous, in dollars)"
 display "{txt}  • Data: Cross-section of firms"
@@ -88,7 +88,7 @@ display "{txt}            → X (advertising) is correlated with unmeasured dema
 display "{txt}  • Problem: ENDOGENEITY (omitted variable bias)"
 display "{txt}  {result}→ Method needed: OLS with controls, OR IV if you have an instrument"
 
-display _n "{result}SCENARIO B: \"Do firms with female CEOs perform better?\""
+display _n `"{result}SCENARIO B: "Do firms with female CEOs perform better?""'
 display "{txt}────────────────────────────────────────────────────────────────────────────"
 display "{txt}  • Outcome: Firm performance (continuous)"
 display "{txt}  • Data: PANEL - same firms over multiple years"
@@ -97,7 +97,7 @@ display "{txt}            → CEO gender might correlate with firm quality"
 display "{txt}  • Problem: OMITTED VARIABLE BIAS (firm-specific factors)"
 display "{txt}  {result}→ Method needed: FIXED EFFECTS regression (removes firm differences)"
 
-display _n "{result}SCENARIO C: \"What predicts whether a firm goes public?\""
+display _n `"{result}SCENARIO C: "What predicts whether a firm goes public?""'
 display "{txt}────────────────────────────────────────────────────────────────────────────"
 display "{txt}  • Outcome: IPO (yes/no = binary)"
 display "{txt}  • Data: Cross-section"
@@ -105,7 +105,7 @@ display "{txt}  • Concern: None (for now)"
 display "{txt}  • Problem: Binary outcome (can't use regular regression)"
 display "{txt}  {result}→ Method needed: LOGISTIC REGRESSION (models probabilities)"
 
-display _n "{result}SCENARIO D: \"Does R&D spending increase patent output?\""
+display _n `"{result}SCENARIO D: "Does R&D spending increase patent output?""'
 display "{txt}────────────────────────────────────────────────────────────────────────────"
 display "{txt}  • Outcome: Number of patents (count: 0, 1, 2, 3, ...)"
 display "{txt}  • Data: Panel"
@@ -131,7 +131,7 @@ display "{txt}   Examples: Sales, profit, whether a firm failed, number of acqui
 display _n "{result}INDEPENDENT VARIABLE (IV, X, Predictor, Covariate)"
 display "{txt}   Plain English: The factor you think might affect the outcome"
 display "{txt}   Examples: Advertising spend, CEO gender, firm age, industry"
-display "{txt}   NOTE: \"IV\" can also mean \"Instrumental Variable\" - confusing, we know!"
+display `"{txt}   NOTE: "IV" can also mean "Instrumental Variable" - confusing, we know!"'
 
 display _n "{result}CONTINUOUS VARIABLE"
 display "{txt}   Plain English: Can take any numeric value (including decimals)"
@@ -142,7 +142,7 @@ display "{txt}   Plain English: Only two values (usually 0 or 1)"
 display "{txt}   Examples: Adopt/don't adopt, male/female, public/private"
 
 display _n "{result}COUNT VARIABLE"
-display "{txt}   Plain English: Whole numbers representing \"how many\""
+display `"{txt}   Plain English: Whole numbers representing "how many""'
 display "{txt}   Examples: Number of patents (0,1,2,3,...), acquisitions, employees"
 display "{txt}   Key: Can't be negative, can't be fractional"
 
@@ -163,7 +163,7 @@ display "{txt}   Structure: Each firm appears multiple times (one row per year)"
 display "{txt}   Power: Can control for stable differences between units"
 
 display _n "{result}ENDOGENEITY (The Big Problem)"
-display "{txt}   Plain English: \"X is tangled up with things I didn't measure\""
+display `"{txt}   Plain English: "X is tangled up with things I didn't measure""'
 display "{txt}   Three main types:"
 display "{txt}     1. OMITTED VARIABLE BIAS: Something unmeasured affects both X and Y"
 display "{txt}        Example: Firm quality affects both R&D and performance"
@@ -175,20 +175,20 @@ display "{txt}   Why it matters: Your coefficient is BIASED (wrong!)"
 display "{txt}   Solutions: Fixed effects, instrumental variables, experiments"
 
 display _n "{result}HETEROSKEDASTICITY (het-er-oh-sked-ass-tiss-it-ee)"
-display "{txt}   Plain English: \"Prediction errors are bigger for some observations\""
+display `"{txt}   Plain English: "Prediction errors are bigger for some observations""'
 display "{txt}   Example: Easy to predict sales for small firms, hard for large firms"
 display "{txt}   Problem: Standard errors are wrong → t-stats are wrong → p-values wrong!"
 display "{txt}   Solution: Use ROBUST standard errors (add 'vce(robust)' to regressions)"
 
 display _n "{result}FIXED EFFECTS (FE)"
-display "{txt}   Plain English: \"Control for everything stable about each unit\""
+display `"{txt}   Plain English: "Control for everything stable about each unit""'
 display "{txt}   What it does: Removes all time-invariant differences between units"
 display "{txt}   Example: Controls for firm culture, founder effects, location (if stable)"
 display "{txt}   Trade-off: Can't estimate effects of things that don't change over time"
 
 display _n "{result}INSTRUMENTAL VARIABLE (IV, 2SLS)"
-display "{txt}   Plain English: \"Find something that affects X but not Y (except through X)\""
-display "{txt}   Idea: Use the IV to get the \"clean\" part of X that's NOT tangled with errors"
+display `"{txt}   Plain English: "Find something that affects X but not Y (except through X)""'
+display `"{txt}   Idea: Use the IV to get the "clean" part of X that's NOT tangled with errors"'
 display "{txt}   Example: Rain affects whether farmers use fertilizer, but not crop yield"
 display "{txt}            (except through fertilizer use)"
 display "{txt}   Requirements: (1) IV correlates with X, (2) IV doesn't correlate with error"
@@ -263,7 +263,7 @@ display "{result}→ For this demonstration: PANEL DATA (following same firms ov
 
 display _n(3) "{result}QUESTION 3: Do you have ENDOGENEITY concerns?"
 display "{txt}─────────────────────────────────────────────────────────────────────────────"
-display "{txt}Translation: Is your X variable \"tangled up\" with unmeasured factors?"
+display `"{txt}Translation: Is your X variable "tangled up" with unmeasured factors?"'
 display ""
 display "{txt}Ask yourself:"
 display "{txt}  • Could something unmeasured affect BOTH my X and my Y?"
@@ -302,7 +302,7 @@ if `data_structure' == 2 {
     display "{txt}  1 = YES → Use FIXED EFFECTS (removes stable differences)"
     display "{txt}  2 = NO / UNCERTAIN → Maybe pooled OLS or random effects"
     display ""
-    display "{txt}Default answer for strategy research: Almost always YES"
+    display "{txt}Assess whether additive unit effects match the research question and assumptions"
     display "{txt}(Firms differ in many unmeasurable ways!)"
 
     local panel_fe = 1  // Yes, use FE
@@ -349,7 +349,7 @@ if `dv_type' == 1 & `data_structure' == 1 & `endogeneity' == 1 {
     display "{txt}─────────────────────────────────────────────────────────────────────────────"
     display "{txt}  ✓ Continuous outcome → OLS is designed for this"
     display "{txt}  ✓ Cross-sectional data → No need to worry about time-series issues"
-    display "{txt}  ✓ No obvious endogeneity → Coefficients have causal interpretation"
+    display "{txt}  ✓ A causal interpretation requires a stated, defensible identification argument"
     display "{txt}  ✓ Robust SEs → Protection against heteroskedasticity (unequal variances)"
 
     display _n "{txt}WHAT YOU'RE ESTIMATING:"
@@ -377,7 +377,7 @@ if `dv_type' == 1 & `data_structure' == 1 & `endogeneity' == 1 {
     display `"{result}     predict resid, residuals"'
     display `"{result}     rvfplot  // Plot residuals vs. fitted values"'
     display `"{result}     estat hettest  // Breusch-Pagan test"'
-    display "{txt}     → If present, robust SEs fix inference (but not efficiency)"
+    display "{txt}     → HC covariance addresses heteroskedasticity under suitable asymptotics, not arbitrary dependence"
     display ""
     display "{txt}  3. MULTICOLLINEARITY: Are Xs too correlated with each other?"
     display `"{result}     estat vif  // Variance Inflation Factors"'
@@ -416,7 +416,7 @@ if `dv_type' == 1 & `data_structure' == 1 & `endogeneity' == 1 {
 
     display _n "{result}COMMON MISTAKES TO AVOID:"
     display "{txt}─────────────────────────────────────────────────────────────────────────────"
-    display "{txt}  ❌ Not using robust SEs (almost always use them!)"
+    display "{txt}  ❌ Choosing a covariance estimator without examining dependence and sample size"
     display "{txt}  ❌ Including 'bad controls' (variables affected by treatment)"
     display "{txt}     Reading: Carlson & Wu (2012, ORM)"
     display "{txt}  ❌ Claiming causation without addressing endogeneity"
@@ -427,7 +427,7 @@ if `dv_type' == 1 & `data_structure' == 1 & `endogeneity' == 1 {
     display _n "{result}NEXT STEPS IF THIS METHOD ISN'T ENOUGH:"
     display "{txt}─────────────────────────────────────────────────────────────────────────────"
     display "{txt}  • Worried about omitted variables? → Add fixed effects (if panel)"
-    display "{txt}  • Suspect reverse causality? → Need instrumental variables"
+    display "{txt}  • Suspect reverse causality? Revisit the design and candidate identification strategies"
     display "{txt}  • Non-linear relationship? → Add quadratic terms, interactions"
     display "{txt}  • Outliers dominating results? → Robust regression, quantile regression"
 
@@ -456,7 +456,7 @@ if `dv_type' == 1 & `data_structure' == 2 & `endogeneity' == 1 & `panel_fe' == 1
     display "{txt}─────────────────────────────────────────────────────────────────────────────"
     display "{txt}  ✓ Panel data → You observe change WITHIN units over time"
     display "{txt}  ✓ Unobserved heterogeneity → FE removes ALL stable firm differences"
-    display "{txt}  ✓ Cleaner causal inference → Controls for time-invariant confounders"
+    display "{txt}  ✓ Linear FE removes additive time-invariant heterogeneity only"
     display "{txt}  ✓ Within-variation → Identifies effect from changes, not levels"
 
     display _n "{txt}INTUITION: How Fixed Effects Work"
@@ -505,7 +505,7 @@ if `dv_type' == 1 & `data_structure' == 2 & `endogeneity' == 1 & `panel_fe' == 1
     display `"{result}xtreg y x1 x2, re"'
     display `"{result}estimates store re"'
     display `"{result}hausman fe re"'
-    display `"{result}* If p < 0.05 → Use FE (reject RE in favor of FE)"'
+    display `"{result}* Rejection questions RE restrictions; nonrejection does not validate RE"'
 
     if `hybrid_interest' == 1 {
         display _n(2) "{result}STATA CODE TEMPLATE (Hybrid/Within-Between Model):"
@@ -533,7 +533,7 @@ if `dv_type' == 1 & `data_structure' == 2 & `endogeneity' == 1 & `panel_fe' == 1
         display ""
         display `"{result}* Test whether within = between"'
         display `"{result}test x1_within = x1_between"'
-        display `"{result}* If p < 0.05 → Effects differ! Report both and explain why"'
+        display `"{result}* Interpret the estimated contrast and uncertainty under the maintained model"'
     }
 
     display _n "{result}KEY DIAGNOSTICS TO CHECK:"
@@ -670,7 +670,7 @@ if `dv_type' == 2 & `data_structure' == 1 {
     display ""
     display `"{result}* Step 3: Visualize predicted probabilities"'
     display `"{result}margins, at(x1 = (0(1)10))"'
-    display `"{result}marginsplot, recast(line) xlabel(0(1)10) \\"'
+    display ``"{result}marginsplot, recast(line) xlabel(0(1)10) \\"''
     display `"{result}  ytitle("Predicted Probability of Y=1") xtitle("X1")"'
     display ""
     display `"{result}* Alternative: Get odds ratios (multiplicative interpretation)"'

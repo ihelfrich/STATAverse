@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script src="../assets/js/legacy-location.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Regression and adjustment · STATAverse Analysis Labs</title>
+    <meta
+      name="description"
+      content="Change a simulated regression, inspect partial regression and influential observations, and export the exact data and Stata commands."
+    />
+    <link rel="stylesheet" href="../assets/css/labs.css" />
+  </head>
+  <body class="lab-app">
+    <a class="skip-link" href="#lab-main">Skip to analysis lab</a>
+    <header class="app-header">
+      <a href="../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../Learn/">Practice</a
+        ><a href="./" aria-current="page">Analysis labs</a
+        ><a href="../ScriptLibrary/">Reference</a
+        ><a href="../Workspace/">Saved work</a>
+      </nav>
+      <button type="button" id="export-lab" class="quiet-button">
+        Export experiment
+      </button>
+    </header>
+    <main id="lab-main" class="lab-layout" tabindex="-1">
+      <header class="lab-heading">
+        <div>
+          <nav class="lab-switcher" aria-label="Analysis labs">
+            <a href="./" aria-current="page">01 Regression &amp; adjustment</a
+            ><a href="Inference/">02 Uncertainty &amp; repeated samples</a
+            ><a href="Data/">03 Merge &amp; reshape</a
+            ><a href="IV/">04 Instrumental variables</a>
+          </nav>
+          <h1>Regression and adjustment</h1>
+          <p>
+            Change the relationships in the data. Follow the same observation
+            from the original scatterplot to its adjusted position.
+          </p>
+        </div>
+        <a href="../Learn/#regression" class="lab-prerequisite"
+          >New to regression? Begin with the guided lesson →</a
+        >
+      </header>
+      <aside class="experiment-controls" aria-labelledby="experiment-title">
+        <div class="control-title">
+          <h2 id="experiment-title">The experiment</h2>
+          <button type="button" id="reset-experiment" class="text-button">
+            Reset
+          </button>
+        </div>
+        <label for="scenario">Starting example</label
+        ><select id="scenario"></select>
+        <p id="scenario-description" class="control-description"></p>
+        <p
+          class="dgp-equation"
+          aria-label="y equals 2 plus beta times x plus gamma times z plus noise"
+        >
+          y = 2 + βx + γz + noise
+        </p>
+        <div class="lab-control">
+          <label for="parameter-beta">Direct effect of x <span>β</span></label>
+          <div>
+            <input
+              type="range"
+              id="parameter-beta"
+              min="-5"
+              max="5"
+              step="0.1"
+              value="1"
+            /><output for="parameter-beta" id="value-beta">1.0</output>
+          </div>
+        </div>
+        <div class="lab-control">
+          <label for="parameter-gamma">Direct effect of z <span>γ</span></label>
+          <div>
+            <input
+              type="range"
+              id="parameter-gamma"
+              min="-5"
+              max="5"
+              step="0.1"
+              value="2"
+            /><output for="parameter-gamma" id="value-gamma">2.0</output>
+          </div>
+        </div>
+        <div class="lab-control">
+          <label for="parameter-rho"
+            >Correlation of x and z <span>ρ</span></label
+          >
+          <div>
+            <input
+              type="range"
+              id="parameter-rho"
+              min="-0.95"
+              max="0.95"
+              step="0.05"
+              value="0.7"
+            /><output for="parameter-rho" id="value-rho">0.70</output>
+          </div>
+          <p>Population correlation. The sample will differ.</p>
+        </div>
+        <div class="lab-control">
+          <label for="parameter-sigma"
+            >Noise standard deviation <span>σ</span></label
+          >
+          <div>
+            <input
+              type="range"
+              id="parameter-sigma"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value="1.5"
+            /><output for="parameter-sigma" id="value-sigma">1.5</output>
+          </div>
+        </div>
+        <div class="control-pair">
+          <div>
+            <label for="sample-size">Observations</label
+            ><select id="sample-size">
+              <option>50</option>
+              <option selected>100</option>
+              <option>250</option>
+              <option>500</option>
+              <option>1000</option>
+            </select>
+          </div>
+          <div>
+            <label for="random-seed">Seed</label
+            ><input
+              id="random-seed"
+              type="number"
+              min="1"
+              max="4294967295"
+              step="1"
+              value="2026"
+            />
+          </div>
+        </div>
+        <button type="button" id="new-sample" class="quiet-button">
+          Draw another sample
+        </button>
+        <label class="lab-checkbox"
+          ><input id="robust-covariance" type="checkbox" />Use HC1 robust
+          standard errors</label
+        >
+        <p class="control-description">
+          Changing covariance affects standard errors, not fitted coefficients.
+          Sliders retain the same underlying random draws.
+        </p>
+        <p id="lab-error" class="lab-error" role="alert" hidden></p>
+        <details class="assumptions">
+          <summary>How these data are generated</summary>
+          <p>
+            Independent standard-normal draws z, u and ε generate x = ρz + √(1 −
+            ρ²)u, then y = 2 + βx + γz + σε. The known direct effect is β in
+            this constructed system. Both x and z have unit population variance.
+          </p>
+          <p>
+            The adjusted model has the correct specification here by
+            construction. Adding a variable to a real regression does not
+            establish that it is an appropriate control or remove all
+            confounding.
+          </p>
+          <p>
+            All observations are synthetic. The experiment stays in this
+            browser. Export it to retain a copy.
+          </p>
+        </details>
+      </aside>
+      <section class="lab-workspace" aria-label="Experiment results">
+        <div class="lab-tabs" role="tablist" aria-label="Analysis views">
+          <button
+            type="button"
+            id="lab-tab-overview"
+            role="tab"
+            aria-selected="true"
+            aria-controls="lab-panel-overview"
+          >
+            Relationships
+          </button>
+          <button
+            type="button"
+            id="lab-tab-partial"
+            role="tab"
+            aria-selected="false"
+            aria-controls="lab-panel-partial"
+            tabindex="-1"
+          >
+            Partial regression
+          </button>
+          <button
+            type="button"
+            id="lab-tab-influence"
+            role="tab"
+            aria-selected="false"
+            aria-controls="lab-panel-influence"
+            tabindex="-1"
+          >
+            Influence
+          </button>
+          <button
+            type="button"
+            id="lab-tab-stata"
+            role="tab"
+            aria-selected="false"
+            aria-controls="lab-panel-stata"
+            tabindex="-1"
+          >
+            Stata & data
+          </button>
+        </div>
+        <div id="modified-warning" class="modified-warning" hidden>
+          One observation has been manually changed. The known generator
+          describes the original sample.
+          <button type="button" id="remove-modification" class="text-button">
+            Restore the observation
+          </button>
+        </div>
+        <section
+          id="lab-panel-overview"
+          role="tabpanel"
+          aria-labelledby="lab-tab-overview"
+          tabindex="0"
+        >
+          <div class="plot-pair">
+            <figure class="lab-figure">
+              <figcaption>
+                <span class="figure-number">01</span>
+                <div>
+                  <h2>The observed relationship</h2>
+                  <p>How y varies with x before adjusting for z.</p>
+                </div>
+              </figcaption>
+              <div id="raw-plot"></div>
+              <div class="plot-legend">
+                <span class="line-key unadjusted">Unadjusted fit</span
+                ><span class="line-key adjusted">Adjusted fit at mean z</span>
+              </div>
+            </figure>
+            <figure class="lab-figure">
+              <figcaption>
+                <span class="figure-number">02</span>
+                <div>
+                  <h2>After removing the linear relation to z</h2>
+                  <p>
+                    Residual y against residual x. The slope is the adjusted
+                    coefficient.
+                  </p>
+                </div>
+              </figcaption>
+              <div id="partial-plot"></div>
+              <div class="plot-legend">
+                <span class="line-key adjusted">Partial-regression fit</span
+                ><span>Same observations in both views</span>
+              </div>
+            </figure>
+          </div>
+          <div class="observation-strip">
+            <label for="selected-observation">Observation</label
+            ><input
+              type="number"
+              id="selected-observation"
+              min="1"
+              max="100"
+              value="1"
+            />
+            <p id="selected-summary"></p>
+          </div>
+          <div id="coefficient-comparison" class="coefficient-comparison"></div>
+          <p class="lab-reading" id="experiment-reading"></p>
+        </section>
+        <section
+          id="lab-panel-partial"
+          role="tabpanel"
+          aria-labelledby="lab-tab-partial"
+          tabindex="0"
+          hidden
+        >
+          <div class="analysis-prose">
+            <p class="eyebrow">Frisch–Waugh–Lovell</p>
+            <h2>What “holding z fixed” does to the data</h2>
+            <p>
+              Fit x on z and save its residuals. Do the same for y. Regressing
+              those residuals on each other recovers the coefficient of x from
+              the full regression. All three steps use the same observations and
+              include an intercept when removing z.
+            </p>
+          </div>
+          <div id="residual-steps" class="residual-steps"></div>
+          <div id="fwl-equality" class="identity-display"></div>
+          <p class="lab-reading">
+            The slope identity does not transfer the residual regression’s
+            default standard error. The uncertainty shown here comes from the
+            full model, with n − 3 residual degrees of freedom and the selected
+            covariance estimator.
+          </p>
+          <div class="analysis-prose">
+            <h2>Where the unadjusted slope comes from</h2>
+            <p>
+              In this sample, the unadjusted slope equals the adjusted x
+              coefficient plus the fitted z coefficient multiplied by the slope
+              from regressing z on x. This is an exact least-squares
+              decomposition, including sampling variation.
+            </p>
+          </div>
+          <div id="ovb-identity" class="identity-display"></div>
+          <p id="population-comparison" class="lab-reading"></p>
+          <div id="variation-summary" class="variation-summary"></div>
+          <details>
+            <summary>Inspect every residualized observation</summary>
+            <div
+              id="partial-table"
+              class="lab-table-wrap"
+              tabindex="0"
+              role="region"
+              aria-label="Residualized observations"
+            ></div>
+          </details>
+        </section>
+        <section
+          id="lab-panel-influence"
+          role="tabpanel"
+          aria-labelledby="lab-tab-influence"
+          tabindex="0"
+          hidden
+        >
+          <div class="analysis-prose">
+            <h2>How much does one observation matter?</h2>
+            <p>
+              Leverage measures an unusual combination of x and z. A residual
+              measures distance from the fitted surface. An observation can have
+              one without the other; Cook’s distance combines both.
+            </p>
+          </div>
+          <div class="influence-layout">
+            <div>
+              <div id="influence-plot"></div>
+              <p class="plot-caption">
+                Select a point or use the observation control. Diagnostics use
+                the full x-and-z model.
+              </p>
+            </div>
+            <div class="influence-controls">
+              <label for="influence-observation">Inspect observation</label
+              ><input
+                id="influence-observation"
+                type="number"
+                min="1"
+                max="100"
+                value="1"
+              />
+              <div id="influence-values"></div>
+              <div class="lab-control">
+                <label for="modify-x">Move its x value</label>
+                <div>
+                  <input
+                    type="range"
+                    id="modify-x"
+                    min="-10"
+                    max="10"
+                    step="0.5"
+                    value="0"
+                  /><output for="modify-x" id="value-modify-x">0</output>
+                </div>
+              </div>
+              <div class="lab-control">
+                <label for="modify-y">Move its y value</label>
+                <div>
+                  <input
+                    type="range"
+                    id="modify-y"
+                    min="-20"
+                    max="20"
+                    step="0.5"
+                    value="0"
+                  /><output for="modify-y" id="value-modify-y">0</output>
+                </div>
+              </div>
+              <p class="control-description">
+                Offsets are relative to the original observation. Only one
+                observation is modified at a time; selecting another point does
+                not change the data.
+              </p>
+            </div>
+          </div>
+          <div id="deletion-comparison" class="coefficient-comparison"></div>
+          <p class="lab-reading">
+            The comparison temporarily omits the selected observation without
+            deleting it. A large diagnostic is a reason to investigate
+            measurement, specification and sensitivity. It is not a deletion
+            rule. Cook’s distance and standardized residuals use the
+            conventional residual variance, even when robust standard errors are
+            selected.
+          </p>
+        </section>
+        <section
+          id="lab-panel-stata"
+          role="tabpanel"
+          aria-labelledby="lab-tab-stata"
+          tabindex="0"
+          hidden
+        >
+          <div class="analysis-prose">
+            <h2>Reproduce this exact experiment</h2>
+            <p>
+              Export the CSV and do-file together. The file imports the
+              displayed observations, estimates both models, constructs the
+              partial-regression plot and computes influence diagnostics in
+              Stata.
+            </p>
+            <p>
+              The seed belongs to the browser generator. Using the same number
+              with Stata’s random-number generator would produce different data.
+            </p>
+          </div>
+          <div class="code-actions">
+            <button type="button" id="copy-lab-code" class="quiet-button">
+              Copy do-file</button
+            ><button type="button" id="download-lab-data" class="quiet-button">
+              Download data (.csv)
+            </button>
+          </div>
+          <pre
+            id="lab-code"
+            class="lab-code"
+            tabindex="0"
+            role="region"
+            aria-label="Stata do-file"
+          ></pre>
+          <details>
+            <summary>Inspect the current data</summary>
+            <div
+              id="lab-data-table"
+              class="lab-table-wrap"
+              tabindex="0"
+              role="region"
+              aria-label="Current simulated data"
+            ></div>
+          </details>
+        </section>
+        <p id="lab-status" class="lab-status" role="status"></p>
+        <footer class="lab-sources">
+          Methods:
+          <a
+            href="https://www.stata.com/manuals/rregress.pdf"
+            target="_blank"
+            rel="noopener"
+            >regress</a
+          >
+          ·
+          <a
+            href="https://www.stata.com/manuals/rregresspostestimationdiagnosticplots.pdf"
+            target="_blank"
+            rel="noopener"
+            >added-variable plots</a
+          >
+          ·
+          <a
+            href="https://www.stata.com/manuals/rregresspostestimation.pdf"
+            target="_blank"
+            rel="noopener"
+            >influence diagnostics</a
+          >. Numerical comparisons use independent R calculations.
+        </footer>
+      </section>
+    </main>
+    <nav class="lab-mobile-nav" aria-label="Lab shortcuts">
+      <button type="button" data-lab-jump="controls">Parameters</button>
+      <button type="button" data-lab-jump="plots">Plots</button>
+      <button type="button" data-lab-jump="estimates">Estimates</button>
+    </nav>
+    <noscript
+      ><p class="notice">
+        This lab needs JavaScript. The
+        <a href="../CodeLibrary/">Stata scripts</a> remain available to
+        download.
+      </p></noscript
+    >
+    <script type="module" src="../assets/js/regression-lab.js"></script>
+  </body>
+</html>

@@ -1,0 +1,289 @@
+{
+  "method": "Native Stata commands on explicit double-precision input; no CSV substitution or external packages",
+  "cases": [
+    {
+      "id": "group-mean",
+      "code": 0,
+      "rows": [
+        [1, 10],
+        [2, 10],
+        [3, 0],
+        [4, 0],
+        [5, null],
+        [6, null],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "group-sd",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, null],
+        [3, 7.0710678118654755],
+        [4, 7.0710678118654755],
+        [5, null],
+        [6, null],
+        [7, null]
+      ]
+    },
+    {
+      "id": "group-min",
+      "code": 0,
+      "rows": [
+        [1, 10],
+        [2, 10],
+        [3, -5],
+        [4, -5],
+        [5, null],
+        [6, null],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "group-max",
+      "code": 0,
+      "rows": [
+        [1, 10],
+        [2, 10],
+        [3, 5],
+        [4, 5],
+        [5, null],
+        [6, null],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "group-median",
+      "code": 0,
+      "rows": [
+        [1, 10],
+        [2, 10],
+        [3, 0],
+        [4, 0],
+        [5, null],
+        [6, null],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "group-count",
+      "code": 0,
+      "rows": [
+        [1, 1],
+        [2, 1],
+        [3, 2],
+        [4, 2],
+        [5, 0],
+        [6, 0],
+        [7, 1]
+      ]
+    },
+    {
+      "id": "string-count",
+      "code": 0,
+      "rows": [
+        [1, 2],
+        [2, 2],
+        [3, 2],
+        [4, 2],
+        [5, 2],
+        [6, 2],
+        [7, 0]
+      ]
+    },
+    {
+      "id": "total-default",
+      "code": 0,
+      "rows": [
+        [1, 10],
+        [2, 10],
+        [3, 0],
+        [4, 0],
+        [5, 0],
+        [6, 0],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "total-missing",
+      "code": 0,
+      "rows": [
+        [1, 10],
+        [2, 10],
+        [3, 0],
+        [4, 0],
+        [5, null],
+        [6, null],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "selected-group-mean",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, null],
+        [3, 0],
+        [4, 0],
+        [5, null],
+        [6, null],
+        [7, 7]
+      ]
+    },
+    {
+      "id": "position-group-mean",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, null],
+        [3, 0],
+        [4, 0],
+        [5, null],
+        [6, null],
+        [7, null]
+      ]
+    },
+    {
+      "id": "unselected-egen",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, null],
+        [3, null],
+        [4, null],
+        [5, null],
+        [6, null],
+        [7, null]
+      ]
+    },
+    {
+      "id": "row-mean",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, 30],
+        [3, 5],
+        [4, 2.5],
+        [5, null],
+        [6, null],
+        [7, 10.5]
+      ]
+    },
+    {
+      "id": "row-total",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, 30],
+        [3, 5],
+        [4, 5],
+        [5, 0],
+        [6, 0],
+        [7, 21]
+      ]
+    },
+    {
+      "id": "row-total-missing",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, 30],
+        [3, 5],
+        [4, 5],
+        [5, null],
+        [6, null],
+        [7, 21]
+      ]
+    },
+    {
+      "id": "row-missing",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, 1],
+        [3, 1],
+        [4, 0],
+        [5, 2],
+        [6, 2],
+        [7, 0]
+      ]
+    },
+    {
+      "id": "row-nonmissing",
+      "code": 0,
+      "rows": [
+        [1, null],
+        [2, 1],
+        [3, 1],
+        [4, 2],
+        [5, 0],
+        [6, 0],
+        [7, 2]
+      ]
+    },
+    {
+      "id": "collapse-default",
+      "code": 0,
+      "rows": [
+        [1, 10, 25, 1, 2],
+        [2, 0, 10, 2, 1],
+        [3, null, null, 0, 0],
+        [null, 7, 14, 1, 1]
+      ]
+    },
+    {
+      "id": "collapse-casewise",
+      "code": 0,
+      "rows": [
+        [1, 10, 20, 1, 1],
+        [2, -5, 10, 1, 1],
+        [null, 7, 14, 1, 1]
+      ]
+    },
+    {
+      "id": "collapse-statistics",
+      "code": 0,
+      "rows": [
+        [1, 10, null, 10, 10, 10, 10],
+        [2, 0, 7.0710678118654755, -5, 5, 0, 0],
+        [3, null, null, null, null, null, 0],
+        [null, 7, null, 7, 7, 7, 7]
+      ]
+    },
+    {
+      "id": "collapse-overall",
+      "code": 0,
+      "rows": [[4.25, 18.5, 4]]
+    },
+    {
+      "id": "collapse-string-key",
+      "code": 0,
+      "rows": [
+        ["", 7],
+        ["A", 10],
+        ["B", 0],
+        ["C", null]
+      ]
+    },
+    {
+      "id": "collapse-selected",
+      "code": 0,
+      "rows": [
+        [1, "A", null, 0],
+        [2, "B", 0, 2],
+        [3, "C", null, 0]
+      ]
+    },
+    {
+      "id": "collapse-no-observations",
+      "code": 2000,
+      "rows": []
+    },
+    {
+      "id": "collapse-no-complete-cases",
+      "code": 2000,
+      "rows": []
+    }
+  ]
+}

@@ -28,7 +28,7 @@ interpret models for binary and count outcomes using the Fulfillment Delays data
     </div>
     <div class="model-panel" data-model-panel="count">
       <h3>Count outcome</h3>
-      <p>Use Poisson when mean equals variance; use negative binomial when variance is higher.</p>
+      <p>Specify the conditional mean and investigate dispersion. Robust Poisson inference can remain useful without Poisson equidispersion; negative binomial adds a different variance model.</p>
       <p><strong>Typical models:</strong> Poisson, negative binomial, zero-inflated.</p>
     </div>
   </div>
@@ -80,22 +80,23 @@ We model the probability of delay as a function of operations variables.
 - [ ] Run:
 ```stata
 import delimited using "data/fulfillment_delays.csv", clear
-logit delay expedited distance_km backlog_index weather_disruption i.supplier_tier
-margins, dydx(expedited) atmeans
+* The supplied supplier tiers are strings; factor variables need numeric codes.
+encode supplier_tier, generate(supplier_id)
+logit delay i.expedited distance_km backlog_index weather_disruption i.supplier_id
+margins, dydx(expedited)
 ```
 
 [PREDICT]
 - [ ] Should expedited shipping reduce delay probability?
 
 [CHECK]
-- Expected: The marginal effect for expedited should be negative.
+- Inspect the estimated discrete change from expedited = 0 to expedited = 1. Its sign is an empirical result of these data and this model, not a conclusion implied by the variable name. Because expedited is entered with i., margins reports a discrete change, averaged over the estimation sample.
 
 [REFLECT]
 - Interpret the `margins` output in plain language.
 
 ## Step 3: Count outcomes with Poisson and NB
-Count models assume non-negative integers. The Poisson model assumes the mean equals the
-variance. If variance is larger, consider negative binomial.
+The Poisson distribution equates the conditional mean and variance. Poisson quasi-maximum likelihood with a correctly specified conditional mean and suitable robust inference does not require the full Poisson variance restriction. Negative binomial adds a variance specification; a larger unconditional sample variance does not by itself select the correct model.
 
 <details class="math-toggle algebra">
   <summary>Show Poisson form</summary>
@@ -104,7 +105,7 @@ variance. If variance is larger, consider negative binomial.
 
     \[E(y|X) = \exp(\mathbf{X}\beta)\]
 
-    If the variance exceeds the mean, overdispersion is present.
+    Dispersion is assessed conditional on the modeled covariates. An unconditional mean–variance comparison is not the same restriction.
   </div>
 </details>
 
@@ -122,16 +123,16 @@ variance. If variance is larger, consider negative binomial.
 [TRY]
 - [ ] Run:
 ```stata
-poisson delay_days expedited distance_km backlog_index weather_disruption i.supplier_tier
+poisson delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id
 estat gof
-nbreg delay_days expedited distance_km backlog_index weather_disruption i.supplier_tier
+nbreg delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id
 ```
 
 [PREDICT]
-- [ ] If variance exceeds the mean, which model should fit better?
+- [ ] Does an unconditional variance above the mean establish that NB is preferable?
 
 [CHECK]
-- Expected: Negative binomial should handle overdispersion better.
+- A negative-binomial specification can accommodate a particular form of conditional overdispersion. Compare the mean specification, diagnostics and predictive performance; a larger unconditional variance alone does not establish that it is preferable.
 
 [REFLECT]
 - When would you choose Poisson anyway?
@@ -159,7 +160,7 @@ A quick visual: backlog index vs delay outcome.
 - [ ] Should backlog have a positive effect on delay probability?
 
 [CHECK]
-- Expected: Higher backlog should increase delay risk.
+- Compare the plotted pattern with the estimated conditional association. A plausible operational hypothesis does not determine the sign in these data or establish a causal effect.
 
 [REFLECT]
 - How would you explain this to an operations manager?
@@ -167,7 +168,7 @@ A quick visual: backlog index vs delay outcome.
 ## Step 5: Communicate the model choice
 <button class="glossary-term" data-definition="A model mis-specification where the functional form or distribution does not match the outcome.">Misspecification</button>
 and
-<button class="glossary-term" data-definition="The variance is larger than the mean in count data, violating Poisson assumptions.">overdispersion</button>
+<button class="glossary-term" data-definition="Conditional variance exceeds the conditional mean. This challenges the Poisson distributional restriction, but not necessarily a Poisson conditional-mean model with robust inference.">overdispersion</button>
 are common issues in limited outcome models.
 
 [TRY]
@@ -189,5 +190,5 @@ are common issues in limited outcome models.
 
 Answer key (short)
 - Q1: Logit constrains predictions to 0-1; LPM does not.
-- Q2: Variance exceeds the mean, suggesting Poisson may be too restrictive.
+- Q2: Conditional overdispersion challenges Poisson equidispersion. It does not alone disqualify Poisson quasi-maximum likelihood or select NB.
 - Q3: Coefficients are in log-odds, so marginal effects are more interpretable.

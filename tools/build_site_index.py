@@ -6,7 +6,45 @@ root = Path(__file__).resolve().parents[1]
 assets_data = root / "assets" / "data"
 assets_data.mkdir(parents=True, exist_ok=True)
 
-entries = []
+entries = [{
+    "type": "module", "title": "Analysis lab: Regression and adjustment",
+    "summary": "Simulate omitted-variable bias, trace partial regression and investigate influential observations with exact Stata exports.",
+    "tags": ["interactive", "regression", "OLS", "FWL", "omitted variable bias", "influence", "leverage", "Cook"],
+    "level": "Intermediate and advanced", "path": "Labs/",
+}, {
+    "type": "module", "title": "Analysis lab: Uncertainty and repeated samples",
+    "summary": "Compare conventional, HC1 and clustered confidence intervals, simulate coverage with Monte Carlo uncertainty, and export the exact sample and Stata commands.",
+    "tags": ["interactive", "inference", "confidence intervals", "Monte Carlo", "heteroskedasticity", "clustering", "standard errors", "power"],
+    "level": "Intermediate and advanced", "path": "Labs/Inference/",
+}, {
+    "type": "module", "title": "Analysis lab: Merge and reshape",
+    "summary": "Trace source records and cells through merges and reshapes. Inspect duplicate keys, missing matches, conflicting values and retained samples; export a complete Stata project.",
+    "tags": ["interactive", "merge", "reshape", "keys", "duplicates", "data preparation", "panel", "wide", "long"],
+    "level": "Beginner to advanced", "path": "Labs/Data/",
+}, {
+    "type": "module", "title": "Analysis lab: Instrumental variables",
+    "summary": "Trace first stages and 2SLS, distinguish weak instruments from exclusion failures, inspect Anderson–Rubin confidence sets and export exact Stata commands.",
+    "tags": ["interactive", "IV", "2SLS", "instruments", "weak instruments", "Anderson Rubin", "endogeneity", "exclusion"],
+    "level": "Advanced", "path": "Labs/IV/",
+}]
+
+practice_path = assets_data / "practice-lessons.json"
+if practice_path.exists():
+    for item in json.loads(practice_path.read_text()):
+        entries.append({
+            "type": "module", "title": f"Browser practice: {item['title']}",
+            "summary": item["summary"], "tags": ["practice", "interactive", "stata"],
+            "level": item["level"], "path": f"Learn/#{item['id']}",
+        })
+
+investigation_path = assets_data / "lab-investigations.json"
+if investigation_path.exists():
+    for item in json.loads(investigation_path.read_text()):
+        entries.append({
+            "type": "module", "title": f"Guided investigation: {item['title']}",
+            "summary": item["summary"], "tags": ["practice", "interactive", "merge", "reshape", "data preparation"],
+            "level": item["level"], "path": f"Labs/Data/#investigation={item['id']}",
+        })
 
 scripts_path = root / "ScriptLibrary" / "scripts.json"
 if scripts_path.exists():

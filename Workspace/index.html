@@ -1,45 +1,36 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script src="../assets/js/legacy-location.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Workspace | STATAverse</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="../assets/css/site.css" />
   </head>
   <body class="page-zero" data-workspace>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
-            <nav class="nav">
+      <nav class="nav" aria-label="Main navigation">
         <a class="brand" href="../index.html">STATAverse</a>
         <div class="nav-links">
-          <a href="../ScriptLibrary/">Scripts</a>
-          <a href="../CodeLibrary/">Code Library</a>
-          <a href="../MethodLab/">Method Lab</a>
-          <a href="../Topics/">Topics</a>
-          <a href="../RealData/">Real Data</a>
-          <a href="../Readings/">Readings</a>
-          <a href="../Search/">Search</a>
-          <a href="../Workspace/">Workspace</a>
-          <a href="../ZeroToHero/">Zero-to-Hero</a>
-          <a href="../STATAForBusiness/">Stata for Business</a>
-          <a href="../index.html#about">About</a>
+          <a href="../Learn/">Practice</a
+          ><a href="../ZeroToHero/">Applied lessons</a
+          ><a href="../ScriptLibrary/">Scripts</a
+          ><a href="../Glossary/">Concepts</a><a href="../Search/">Search</a
+          ><a href="../index.html#reference-title">All resources</a>
         </div>
       </nav>
     </header>
 
-    <main>
+    <main id="main">
       <section class="hero hero-compact">
         <div class="hero-copy">
           <span class="eyebrow">Workspace</span>
           <h1>Your local learning workspace</h1>
           <p class="lead">
-            Save your profile, track progress, and export or import notes. Everything is local-first
-            and stored in your browser.
+            Back up your practice commands, lesson progress and notes. Saved
+            work belongs to this browser; it does not sync automatically between
+            devices. Export a copy before clearing browser data.
           </p>
         </div>
       </section>
@@ -47,38 +38,80 @@
       <section class="section">
         <div class="workspace-grid">
           <article class="workspace-card">
-            <h3>Profile</h3>
-            <p class="muted">Personalize your learning space.</p>
+            <h2>Profile</h2>
+            <p class="muted">Optional details, stored only on this device.</p>
             <label class="field-label" for="workspace-name">Name</label>
-            <input id="workspace-name" class="field-input" type="text" placeholder="Your name" />
+            <input
+              id="workspace-name"
+              class="field-input"
+              type="text"
+              maxlength="500"
+              placeholder="Your name"
+            />
 
             <label class="field-label" for="workspace-role">Role</label>
-            <input id="workspace-role" class="field-input" type="text" placeholder="Student, researcher, analyst" />
+            <input
+              id="workspace-role"
+              class="field-input"
+              type="text"
+              maxlength="500"
+              placeholder="Student, researcher, analyst"
+            />
 
             <label class="field-label" for="workspace-focus">Focus area</label>
-            <input id="workspace-focus" class="field-input" type="text" placeholder="Econometrics, policy, ops" />
+            <input
+              id="workspace-focus"
+              class="field-input"
+              type="text"
+              maxlength="500"
+              placeholder="Econometrics, policy, ops"
+            />
           </article>
 
           <article class="workspace-card">
-            <h3>Progress snapshot</h3>
+            <h2>Progress snapshot</h2>
             <p class="muted">A quick view of saved module progress.</p>
             <div class="workspace-stats" data-progress-summary>
-              <div class="summary-card"><strong>Modules</strong><span data-modules-count>0</span></div>
-              <div class="summary-card"><strong>Tasks completed</strong><span data-tasks-count>0</span></div>
-              <div class="summary-card"><strong>Notes saved</strong><span data-notes-count>0</span></div>
+              <div class="summary-card">
+                <strong>Modules</strong><span data-modules-count>0</span>
+              </div>
+              <div class="summary-card">
+                <strong>Tasks completed</strong><span data-tasks-count>0</span>
+              </div>
+              <div class="summary-card">
+                <strong>Notes saved</strong><span data-notes-count>0</span>
+              </div>
             </div>
             <p class="muted" data-progress-detail></p>
+            <div id="lab-resume-links" class="workspace-actions"></div>
           </article>
 
           <article class="workspace-card">
-            <h3>Export or import</h3>
-            <p class="muted">Move your notes between browsers or devices.</p>
+            <h2>Export or import</h2>
+            <p class="muted">
+              Move your saved learning work between browsers. Imports replace
+              matching saved sections after confirmation. Close other practice
+              tabs or reload them after importing.
+            </p>
             <div class="workspace-actions">
-              <button class="btn primary" type="button" data-export-notes>Export workspace</button>
-              <label class="btn ghost" for="workspace-import">Import workspace</label>
-              <input id="workspace-import" class="file-input" type="file" accept="application/json" />
+              <button class="btn primary" type="button" data-export-notes>
+                Export workspace
+              </button>
+              <label class="btn ghost" for="workspace-import"
+                >Import workspace</label
+              >
+              <input
+                id="workspace-import"
+                class="file-input"
+                type="file"
+                accept="application/json"
+              />
             </div>
-            <button class="btn ghost" type="button" data-clear-notes>Clear local data</button>
+            <button class="btn ghost" type="button" data-clear-notes>
+              Clear local data
+            </button>
+            <p id="workspace-status" role="status" aria-live="polite"></p>
+            <a class="text-link" href="../Learn/">Return to practice →</a>
           </article>
         </div>
       </section>
@@ -89,5 +122,6 @@
     </footer>
 
     <script src="../assets/js/site.js"></script>
+    <script type="module" src="../assets/js/workspace.js"></script>
   </body>
 </html>

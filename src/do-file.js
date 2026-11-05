@@ -1,0 +1,114 @@
+import { StataError } from "./expression.js";
+
+/** Split executable commands while retaining their original editor locations. */
+export function commandBlocks(source) {
+  if (typeof source !== "string" || source.length > 50000)
+    throw new StataError(
+      "This do-file exceeds the 50,000-character practice limit.",
+    );
+  const blocks = [];
+  let command = "",
+    from = -1,
+    to = 0,
+    quote = false,
+    block = false;
+  let quoteAt = 0,
+    blockAt = 0,
+    physicalStart = 0;
+  const lineAt = (position) => source.slice(0, position).split("\n").length;
+  const finish = () => {
+    if (command.trim())
+      blocks.push({
+        command: command.trim(),
+        from,
+        to,
+        line: lineAt(from),
+        endLine: lineAt(Math.max(from, to - 1)),
+      });
+    command = "";
+    from = -1;
+  };
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i],
+      next = source[i + 1];
+    if (c === "\n") physicalStart = i + 1;
+    if (block) {
+      if (c === "*" && next === "/") {
+        block = false;
+        i++;
+        command += " ";
+      } else if (c === "\n") command += " ";
+      continue;
+    }
+    if (!quote && c === "*" && !source.slice(physicalStart, i).trim()) {
+      while (i < source.length && source[i] !== "\n") i++;
+      physicalStart = i + 1;
+      continue;
+    }
+    if (!quote && c === "/" && next === "*") {
+      block = true;
+      blockAt = i;
+      i++;
+      continue;
+    }
+    if (!quote && c === "/" && next === "/") {
+      const continuation = source[i + 2] === "/";
+      while (i < source.length && source[i] !== "\n") i++;
+      physicalStart = i + 1;
+      if (continuation) command += " ";
+      else finish();
+      continue;
+    }
+    if (c === '"') {
+      if (!quote) quoteAt = i;
+      quote = !quote;
+    }
+    if (c === "\n" && !quote) finish();
+    else {
+      command += c;
+      if (!/\s/.test(c)) {
+        if (from < 0) from = i;
+        to = i + 1;
+      }
+    }
+  }
+  if (block || quote) {
+    const error = new StataError(
+      block
+        ? "A block comment is not closed. End it with */."
+        : "A double quote is not closed.",
+    );
+    error.source = {
+      from: block ? blockAt : quoteAt,
+      to: source.length,
+      line: lineAt(block ? blockAt : quoteAt),
+      endLine: lineAt(source.length),
+    };
+    throw error;
+  }
+  finish();
+  if (blocks.length > 200)
+    throw new StataError(
+      "Run at most 200 commands at a time in browser practice.",
+    );
+  return blocks;
+}
+
+/** A selection runs exactly its text; a cursor runs its whole logical command. */
+export function executionRange(source, from, to = from) {
+  if (from !== to)
+    return {
+      from,
+      to,
+      line: source.slice(0, from).split("\n").length,
+      text: source.slice(from, to),
+      selection: true,
+    };
+  const blocks = commandBlocks(source);
+  const block =
+    blocks.find((b) => from >= b.from && from <= b.to) ||
+    blocks.find((b) => b.from >= from);
+  return block
+    ? { ...block, text: source.slice(block.from, block.to), selection: false }
+    : null;
+}

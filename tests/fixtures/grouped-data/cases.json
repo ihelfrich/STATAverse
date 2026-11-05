@@ -1,0 +1,149 @@
+{
+  "columns": [
+    { "name": "id", "type": "numeric", "label": "" },
+    { "name": "g", "type": "numeric", "label": "" },
+    { "name": "x", "type": "numeric", "label": "" },
+    { "name": "y", "type": "numeric", "label": "" },
+    { "name": "s", "type": "string", "label": "" }
+  ],
+  "rows": [
+    { "id": 1, "g": 1, "x": 10, "y": 20, "s": "A" },
+    { "id": 2, "g": 1, "x": null, "y": 30, "s": "A" },
+    { "id": 3, "g": 2, "x": 5, "y": null, "s": "B" },
+    { "id": 4, "g": 2, "x": -5, "y": 10, "s": "B" },
+    { "id": 5, "g": 3, "x": null, "y": null, "s": "C" },
+    { "id": 6, "g": 3, "x": null, "y": null, "s": "C" },
+    { "id": 7, "g": null, "x": 7, "y": 14, "s": "" }
+  ],
+  "cases": [
+    {
+      "id": "group-mean",
+      "commands": ["egen double a = mean(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "group-sd",
+      "commands": ["egen double a = sd(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "group-min",
+      "commands": ["egen double a = min(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "group-max",
+      "commands": ["egen double a = max(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "group-median",
+      "commands": ["egen double a = median(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "group-count",
+      "commands": ["egen double a = count(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "string-count",
+      "commands": ["egen double a = count(s), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "total-default",
+      "commands": ["egen double a = total(x), by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "total-missing",
+      "commands": ["egen double a = total(x), by(g) missing"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "selected-group-mean",
+      "commands": ["egen double a = mean(x) if id != 1, by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "position-group-mean",
+      "commands": ["egen double a = mean(x) in 2/5, by(g s)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "unselected-egen",
+      "commands": ["egen double a = total(x) if id < 0, by(g)"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "row-mean",
+      "commands": ["egen double a = rowmean(x y) if id > 1"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "row-total",
+      "commands": ["egen double a = rowtotal(x y) if id > 1"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "row-total-missing",
+      "commands": ["egen double a = rowtotal(x y) if id > 1, missing"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "row-missing",
+      "commands": ["egen double a = rowmiss(x y) if id > 1"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "row-nonmissing",
+      "commands": ["egen double a = rownonmiss(x y) if id > 1"],
+      "columns": ["id", "a"]
+    },
+    {
+      "id": "collapse-default",
+      "commands": ["collapse (mean) a=x b=y (count) nx=x ny=y, by(g)"],
+      "columns": ["g", "a", "b", "nx", "ny"]
+    },
+    {
+      "id": "collapse-casewise",
+      "commands": ["collapse (mean) a=x b=y (count) nx=x ny=y, by(g) cw"],
+      "columns": ["g", "a", "b", "nx", "ny"]
+    },
+    {
+      "id": "collapse-statistics",
+      "commands": [
+        "collapse (mean) a=x (sd) b=x (min) c=x (max) d=x (median) e=x (sum) f=x, by(g)"
+      ],
+      "columns": ["g", "a", "b", "c", "d", "e", "f"]
+    },
+    {
+      "id": "collapse-overall",
+      "commands": ["collapse (mean) x y (count) n=x"],
+      "columns": ["x", "y", "n"]
+    },
+    {
+      "id": "collapse-string-key",
+      "commands": ["collapse (mean) a=x, by(s)"],
+      "columns": ["s", "a"]
+    },
+    {
+      "id": "collapse-selected",
+      "commands": ["collapse (mean) a=x (count) n=x if id > 1 in 1/6, by(g s)"],
+      "columns": ["g", "s", "a", "n"]
+    },
+    {
+      "id": "collapse-no-observations",
+      "commands": ["collapse (sum) a=x if id < 0, by(g)"],
+      "columns": [],
+      "code": 2000
+    },
+    {
+      "id": "collapse-no-complete-cases",
+      "commands": ["collapse x y if g == 3, cw"],
+      "columns": [],
+      "code": 2000
+    }
+  ]
+}
