@@ -273,6 +273,50 @@ try {
   receipt.checks.push(
     "method comparison retains selected choices offline at a new query URL, exports its conditions and limitations, and does not infer a causal design from unresolved endogeneity",
   );
+  await page.goto(root + "CodeLibrary/");
+  await page.locator("#example-panel h2 a").click();
+  await page.locator('#example-sections a[data-section="3"]').click();
+  await page.locator("#example-native-table table").waitFor();
+  assert.match(
+    await page.locator("#example-source").innerText(),
+    /estimates store hybrid/,
+  );
+  await context.setOffline(true);
+  await page.reload();
+  await page.locator("#example-native-table table").waitFor();
+  await page.locator('#example-options input[value="2"]').check();
+  await page.locator("#example-check").click();
+  await page.locator("#example-feedback.correct").waitFor();
+  const sourceDownload = page.waitForEvent("download");
+  await page.locator("#example-download").click();
+  const downloadedSource = await fs.readFile(
+    await (await sourceDownload).path(),
+    "utf8",
+  );
+  assert.equal(
+    downloadedSource,
+    await fs.readFile("CodeLibrary/scripts/06_panel_data_toolkit.do", "utf8"),
+  );
+  await context.setOffline(false);
+  await page.goto(root + "Search/");
+  await page.locator("#site-search").fill("Within-between decomposition");
+  await page
+    .getByText("Panel example: Within-between decomposition", { exact: true })
+    .click();
+  await page.locator("#example-native-table table").waitFor();
+  assert.equal(
+    await page.locator("#example-section-title").innerText(),
+    "Within-between decomposition",
+  );
+  assert.equal((await new AxeBuilder({ page }).analyze()).violations.length, 0);
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({
+    path: "docs/verification/screenshots/site-worked-desktop.png",
+    fullPage: false,
+  });
+  receipt.checks.push(
+    "worked panel source and matching native estimates reopen offline, an interpretation check runs, the complete download preserves source bytes, and app search opens the specific section",
+  );
   assert.deepEqual(errors, []);
   assert.deepEqual(external, []);
   receipt.checks.push(
@@ -317,6 +361,17 @@ try {
   assert.ok(
     methodMatches.some((url) => url.endsWith("/learn/stata/MethodLab/")),
     "Method comparison is discoverable in site-wide search",
+  );
+  const workedMatches = await page.evaluate(async () => {
+    const p = await import("/pagefind/pagefind.js");
+    const results = await p.search("Panel-data comparisons");
+    return Promise.all(
+      results.results.slice(0, 30).map(async (item) => (await item.data()).url),
+    );
+  });
+  assert.ok(
+    workedMatches.some((url) => url.includes("/learn/stata/CodeLibrary/")),
+    "Worked examples are discoverable in site-wide search",
   );
   const sitemap = await (
     await context.request.get(origin + "/sitemap.xml")
@@ -397,6 +452,7 @@ try {
     "iv-lab",
     "iv-investigation-ui",
     "method-lab",
+    "worked-reader",
   ]) {
     const assetPath = "assets/js/" + name + ".js";
     const response = await context.request.get(root + assetPath);
@@ -414,6 +470,10 @@ try {
   );
   assert.ok(
     receipt.payloads.find((x) => x.asset === "method-lab.js").gzipBytes < 14000,
+  );
+  assert.ok(
+    receipt.payloads.find((x) => x.asset === "worked-reader.js").gzipBytes <
+      16000,
   );
   const workerText = await (
     await context.request.get(root + "service-worker.js")

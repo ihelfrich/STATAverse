@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-11-05T08:54:16.304Z",
+  "sourceCommit": "2aeec9f",
+  "source": "CodeLibrary/scripts/06_panel_data_toolkit.do",
+  "sha256": "7b8bbad504eb725dbf2bc3b8d08f64c6bc29f74ce6293da6da07997b7160f3cd",
+  "returnCode": "0",
+  "finding": "The original within-between section fits xtreg, fe; competition_mean and innovation_mean both have omitted coefficients and zero standard errors. The following printed between-effect interpretation is not supported by that fit.",
+  "limits": [
+    "Executed prefix through the original hybrid fit; not a full content audit.",
+    "Raw license-bearing logs remain outside the repository."
+  ]
+}

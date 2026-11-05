@@ -370,6 +370,201 @@
   },
   {
     "type": "script",
+    "title": "Worked example: Reading a regression",
+    "summary": "Construct a coffee-sales dataset and read coefficients, fitted values and uncertainty in their stated units.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "regression"
+    ],
+    "level": "After the beginner path",
+    "path": "CodeLibrary/?example=regression"
+  },
+  {
+    "type": "script",
+    "title": "Worked example: Confounding and an instrument",
+    "summary": "Compare a misleading association with an explicitly constructed instrument in a training example.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "confounding"
+    ],
+    "level": "Intermediate",
+    "path": "CodeLibrary/?example=confounding"
+  },
+  {
+    "type": "script",
+    "title": "Worked example: Endogeneity simulation",
+    "summary": "Examine OLS and IV in one known process, then change the strength of confounding.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "iv-simulation"
+    ],
+    "level": "Intermediate",
+    "path": "CodeLibrary/?example=iv-simulation"
+  },
+  {
+    "type": "script",
+    "title": "Worked example: Specification and interpretation",
+    "summary": "Inspect probability scales, control timing, ratio outcomes, pooled comparisons and instrument relevance.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "specification"
+    ],
+    "level": "Intermediate",
+    "path": "CodeLibrary/?example=specification"
+  },
+  {
+    "type": "script",
+    "title": "Worked example: Model-specific diagnostics",
+    "summary": "Inspect OLS, panel and IV postestimation commands, their maintained assumptions and their limits.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "diagnostics"
+    ],
+    "level": "Intermediate",
+    "path": "CodeLibrary/?example=diagnostics"
+  },
+  {
+    "type": "script",
+    "title": "Worked example: Interactions and conditional predictions",
+    "summary": "Use factor variables, marginal effects and prediction grids to examine two- and three-way interactions.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "interactions"
+    ],
+    "level": "Intermediate to advanced",
+    "path": "CodeLibrary/?example=interactions"
+  },
+  {
+    "type": "script",
+    "title": "Worked example: Panel-data comparisons",
+    "summary": "Separate within- and between-firm variation, compare covariance assumptions and inspect a distinct dynamic-panel example.",
+    "tags": [
+      "Stata",
+      "do-file",
+      "worked example",
+      "panel"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: Data and known coefficients",
+    "summary": "Firm quality is deliberately visible to the simulation author and omitted from the fitted models. Experience depends on that quality. Errors share shocks within firms, while different firms remain independent. The known coefficients describe the constructed process; one fitted sample will not reproduce them exactly.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-1"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: Pooled, fixed-effects and random-effects fits",
+    "summary": "The three models use the same regressors and year indicators. Unit FE remove the additive firm effect from the linear equation. Firm-clustered covariance addresses dependence under the constructed independent-firm sampling structure; it does not remove omitted variables.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-2"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: Within-between decomposition",
+    "summary": "Each regressor is split into its firm mean and its deviation from that mean. The RE fit includes both parts for all regressors, so between coefficients can be estimated. The within slopes agree with FE in this balanced linear specification. An unrestricted unit-FE fit would instead absorb the firm means.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-3"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: A joint slope restriction",
+    "summary": "In the mean/deviation parameterization, the usual RE slope restriction equates the within and between coefficients. The joint Wald test uses the fitted clustered covariance. Its result concerns these restrictions within this linear model; it cannot certify exogeneity.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-4"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: GEE and working covariance",
+    "summary": "The exchangeable working correlation differs from the simulated AR(1) errors. Sandwich covariance can be useful despite working-correlation misspecification under suitable mean and exogeneity conditions. This pooled GEE mean still omits correlated firm quality.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-5"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: A working variance model",
+    "summary": "The random-intercept model attributes covariance to a firm component and an idiosyncratic component under its working model. The simulated serial correlation is richer than that specification. Its ICC is therefore a model-dependent summary, not a causal percentage of performance attributable to firms.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-6"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: A separate dynamic panel",
+    "summary": "This section temporarily replaces the data with a dynamic process whose lag coefficient is .5. Native Arellano-Bond estimation uses lagged outcome instruments under explicit serial-correlation and timing restrictions. The original static panel is restored afterward.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-7"
+  },
+  {
+    "type": "script",
+    "title": "Panel example: Reporting the fitted comparisons",
+    "summary": "The table and confidence interval come from actual fitted estimates. Report the sample, model, covariance, units and interpretation. The dynamic model uses a different sample and is not placed in the static comparison table.",
+    "tags": [
+      "panel",
+      "fixed effects",
+      "within-between",
+      "Stata"
+    ],
+    "level": "Advanced",
+    "path": "CodeLibrary/?example=panel&section=section-8"
+  },
+  {
+    "type": "script",
     "title": "Project setup and logging",
     "summary": "Initialize a clean Stata session, create folders, and start a log.",
     "tags": [
@@ -815,12 +1010,13 @@
   },
   {
     "type": "page",
-    "title": "Code Library",
+    "title": "Worked Stata examples",
     "summary": "Primary navigation page.",
     "tags": [
       "code",
       "library",
-      "scripts"
+      "scripts",
+      "panel"
     ],
     "level": "All",
     "path": "CodeLibrary/index.html"

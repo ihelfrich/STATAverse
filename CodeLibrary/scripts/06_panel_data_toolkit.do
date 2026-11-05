@@ -1,470 +1,171 @@
-*******************************************************************************
-* Panel Data Comprehensive Toolkit
-* Purpose: Complete workflows for analyzing panel/longitudinal data
-* Author: STATAverse
-* Last updated: 2026-01-15
-*
-* This module covers:
-* 1. Fixed Effects (FE) estimation
-* 2. Random Effects (RE) estimation
-* 3. Hybrid/Within-Between models
-* 4. Generalized Estimating Equations (GEE)
-* 5. Variance decomposition
-* 6. Dynamic panel data (Arellano-Bond)
-* 7. Diagnostic workflows
-*
-* Based on: Certo et al. (2017, SMJ), Allison (2009), McNeish & Kelley (2019)
-*******************************************************************************
-
+* Panel-data comparisons: constructed firms observed over time
+* STATAverse | revised 5 November 2026
+* Full Stata 16 or later. No user-written packages are required.
+* Save your current data first: this example clears data in memory.
+* Run the complete file. Sections share data, local macros and stored estimates.
+* The known data-generating process supports the stated comparisons only.
+version 16.0
 clear all
 set more off
+set rng mt64
 set seed 20260115
 
-display _n(3) "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}            PANEL DATA COMPREHENSIVE TOOLKIT"
-display "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}Master class in analyzing panel/longitudinal data with Stata"
-display "{txt}═════════════════════════════════════════════════════════════════"
-
-*******************************************************************************
-* PART 1: Generate Realistic Panel Data
-*******************************************************************************
-
-display _n(2) "{txt}PART 1: Generating Realistic Panel Data"
-display "{txt}─────────────────────────────────────────────────────────────────"
-
-* Create balanced panel: 200 firms × 10 years
-set obs 200
-generate firm_id = _n
-expand 10
-bysort firm_id: generate year = 2010 + _n - 1
-
-* Declare panel structure
+* SECTION 1: Data and known coefficients
+local firms = 200
+local periods = 10
+set obs `firms'
+generate long firm_id = _n
+expand `periods'
+bysort firm_id: generate int year = 2010 + _n - 1
+isid firm_id year
 xtset firm_id year
 
-display _n "{txt}Panel structure:"
-display "{txt}  • 200 firms"
-display "{txt}  • 10 years (2010-2019)"
-display "{txt}  • Balanced panel (2,000 total observations)"
-
-* Generate firm-specific unobserved heterogeneity (time-invariant)
-bysort firm_id: generate firm_quality = rnormal(50, 15) if _n == 1
+* Firm quality is visible to the simulation author but omitted from the fits.
+bysort firm_id: generate double firm_quality = rnormal(50,15) if _n == 1
 bysort firm_id: replace firm_quality = firm_quality[1]
-label variable firm_quality "Firm quality (unobserved)"
+generate double experience = 5 + .5*(year-2010) + .1*firm_quality + runiform(0,2)
+generate double competition = runiform(1,10) + .3*(year-2010)
+generate byte innovation = rbinomial(1,.3)
 
-* Generate time-varying predictors
-generate experience = 5 + 0.5*(year-2010) + 0.1*firm_quality + runiform(0, 2)
-* Experience varies within firms and is correlated with omitted firm quality.
-generate competition = runiform(1, 10) + 0.3*year  // Trend
-generate innovation = rbinomial(1, 0.3)  // Binary shock
+* Idiosyncratic errors follow AR(1) within firms and are independent across firms.
+* The full regressor histories are independent of these errors by construction.
+generate double shock = rnormal(0,5)
+bysort firm_id: replace shock = shock/sqrt(1-.5^2) if _n == 1
+bysort firm_id: replace shock = .5*shock[_n-1] + shock if _n > 1
+generate double year_effect = .8*(year-2010)
+generate double performance = firm_quality + 2*experience + ///
+    3*competition + 8*innovation + year_effect + shock
+label variable performance "Constructed performance"
+label variable experience "Experience"
+label variable competition "Competition"
+label variable innovation "Innovation indicator"
+label variable firm_quality "Quality omitted from fitted specifications"
+xtsum performance experience competition innovation
 
-* Add random variation
-generate temp_shock = rnormal(0, 5)
+display as text "The constructed slopes are 2 for experience, 3 for competition and 8 for innovation."
+display as text "Experience is correlated with omitted quality. Errors share within-firm shocks."
+display as text "A single sample estimate need not equal its population target."
 
-* Generate outcome with both firm FE and time-varying effects
-* TRUE MODEL: performance = firm_quality + 2*experience + 3*competition + 8*innovation + error
-generate performance = firm_quality + 2*experience + 3*competition + ///
-                       8*innovation + temp_shock
-label variable performance "Firm performance"
+* SECTION 2: Pooled, fixed-effects and random-effects specifications
+* All three fits include year indicators and use covariance clustered by firm.
+* Clustering is justified by independent firms and within-firm dependence here.
+* In other applications, assignment or sampling may require a different cluster.
+regress performance experience competition innovation i.year, vce(cluster firm_id)
+estimates store pooled
 
-display _n "{txt}TRUE data generating process:"
-display "{txt}  performance = firm_quality + 2*experience + 3*competition"
-display "{txt}                + 8*innovation + error"
-display "{txt}  Note: firm_quality is unobserved and time-invariant"
+xtreg performance experience competition innovation i.year, fe vce(cluster firm_id)
+estimates store fe
 
-*******************************************************************************
-* PART 2: Pooled OLS (WRONG - but instructive)
-*******************************************************************************
+xtreg performance experience competition innovation i.year, re vce(cluster firm_id)
+estimates store re
 
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  METHOD 1: Pooled OLS (ignores panel structure)"
-display "{txt}═══════════════════════════════════════════════════════════════"
+display as text "Pooled OLS mixes within- and between-firm variation and omits correlated quality."
+display as text "Unit FE remove additive, time-invariant quality; year indicators absorb common shifts."
+display as text "This static FE interpretation still needs strict exogeneity of the idiosyncratic error."
+display as text "FE do not remove time-varying confounding, feedback or heterogeneous trends."
+display as text "RE additionally restrict the relationship between firm effects and regressor histories."
+display as text "Neither clustering nor a model label establishes a causal interpretation."
 
-regress performance experience competition innovation, vce(robust)
+* SECTION 3: Within-between decomposition
+* Means vary between firms. Deviations vary within firms and sum to zero there.
+foreach v in experience competition innovation {
+    bysort firm_id: egen double `v'_mean = mean(`v')
+    generate double `v'_within = `v' - `v'_mean
+}
 
-display _n "{err}⚠ PROBLEM: Pooled OLS is BIASED"
-display "{txt}  Why? Firm-specific quality (unobserved) is correlated with"
-display "{txt}  predictors. We're violating the exogeneity assumption!"
+* Use RE here, with every regressor decomposed, so the firm means are estimable.
+* A unit-FE fit would absorb those means and could not estimate between slopes.
+xtreg performance experience_within competition_within innovation_within ///
+    experience_mean competition_mean innovation_mean i.year, re vce(cluster firm_id)
+estimates store hybrid
 
-* Store estimates
-estimates store pooled_ols
+display as text "Within coefficients compare changes within firms after common year effects."
+display as text "Between coefficients compare firms with different regressor averages."
+display as text "Between coefficients can retain confounding by firm quality; they are not causal effects."
+display as text "In this balanced linear specification, the within slopes equal the FE slopes."
+display as text "That algebraic agreement does not validate strict exogeneity or the between model."
 
-display _n "{txt}Note: These estimates mix two things:"
-display "{txt}  1. Within-firm changes over time"
-display "{txt}  2. Between-firm differences"
-display "{txt}  → Usually we want to separate these!"
+* SECTION 4: A joint restriction on within and between slopes
+* In this parameterization, the usual RE slope restriction equates each pair.
+* This Wald test uses the clustered covariance of the fitted within-between model.
+test (experience_mean = experience_within) ///
+     (competition_mean = competition_within) ///
+     (innovation_mean = innovation_within)
 
-*******************************************************************************
-* PART 3: Fixed Effects (FE) Estimation
-*******************************************************************************
+display as text "The test examines slope restrictions within this specified linear model."
+display as text "Nonrejection does not establish valid RE assumptions, and rejection does not validate FE."
+display as text "A classical Hausman comparison needs its own covariance and efficiency assumptions."
+display as text "Do not apply that test mechanically to a pair of clustered covariance estimates."
 
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  METHOD 2: Fixed Effects (within estimator)"
-display "{txt}═══════════════════════════════════════════════════════════════"
+* SECTION 5: GEE and working covariance
+* The exchangeable working correlation differs from the constructed AR(1) errors.
+* A sandwich covariance can tolerate working-correlation misspecification under
+* appropriate mean/exogeneity conditions and enough independent clusters.
+xtgee performance experience competition innovation i.year, ///
+    family(gaussian) link(identity) corr(exchangeable) vce(robust)
+estimates store gee
 
-display _n "{txt}What FE does:"
-display "{txt}  • Removes time-invariant firm characteristics"
-display "{txt}  • Estimates effect of X changes WITHIN firms over time"
-display "{txt}  • Robust to omitted variable bias from stable factors"
+display as text "This pooled GEE mean still omits correlated firm quality. Robust VCE does not repair that."
+display as text "Working correlation and conditional-mean specification are separate decisions."
+display as text "Few clusters challenge ordinary sandwich inference; switching labels is not a remedy."
 
-xtreg performance experience competition innovation, fe vce(cluster firm_id)
-
-display _n "{txt}✓ Fixed effects estimate:"
-local beta_exp_fe = _b[experience]
-display "{txt}  Effect of experience: " %5.3f `beta_exp_fe' " (true = 2.0)"
-local beta_comp_fe = _b[competition]
-display "{txt}  Effect of competition: " %5.3f `beta_comp_fe' " (true = 3.0)"
-local beta_innov_fe = _b[innovation]
-display "{txt}  Effect of innovation: " %5.3f `beta_innov_fe' " (true = 8.0)"
-
-* Store estimates
-estimates store fe_model
-
-display _n "{txt}Key output to report:"
-display "{txt}  □ Within R-squared (NOT overall R-squared)"
-display "{txt}  □ Number of groups (firms)"
-display "{txt}  □ Observations per group (time periods)"
-display "{txt}  □ Clustered standard errors by firm"
-
-display _n "{txt}Important notes:"
-display "{txt}  ✓ FE removes firm_quality automatically"
-display "{txt}  ✓ Cannot estimate effect of time-invariant variables"
-display "{txt}  ⚠ Requires sufficient within-firm variation in X"
-
-*******************************************************************************
-* PART 4: Random Effects (RE) Estimation
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  METHOD 3: Random Effects (GLS estimator)"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}What RE does:"
-display "{txt}  • Models firm-specific effects as random draws"
-display "{txt}  • Uses both within and between variation"
-display "{txt}  • More efficient than FE (if assumptions hold)"
-
-xtreg performance experience competition innovation, re vce(cluster firm_id)
-
-display _n "{txt}Random effects estimate:"
-local beta_exp_re = _b[experience]
-display "{txt}  Effect of experience: " %5.3f `beta_exp_re'
-local beta_comp_re = _b[competition]
-display "{txt}  Effect of competition: " %5.3f `beta_comp_re'
-
-* Store estimates
-estimates store re_model
-
-display _n "{txt}Key assumption:"
-display "{txt}  RE assumes firm effects are UNCORRELATED with predictors"
-display "{txt}  If this fails → RE is inconsistent, use FE"
-
-*******************************************************************************
-* PART 5: Hausman Test (FE vs RE)
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  DECISION: Fixed Effects vs Random Effects"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}Hausman test logic:"
-display "{txt}  H0: RE is consistent (firm effects uncorrelated with X)"
-display "{txt}  HA: RE is inconsistent (correlation exists) → use FE"
-
-* Classical Hausman requires conventional covariance estimates.
-quietly xtreg performance experience competition innovation, fe
-estimates store fe_classical
-quietly xtreg performance experience competition innovation, re
-estimates store re_classical
-hausman fe_classical re_classical, sigmamore
-* Retain cluster-robust fits for the reported comparisons above.
-
-display _n "{txt}Interpretation:"
-display "{txt}  Rejection challenges the RE restrictions under this test's assumptions"
-display "{txt}  Nonrejection does not validate RE or establish its efficiency"
-
-display _n "{txt}Practical advice:"
-display "{txt}  • In applied work, FE is usually safer choice"
-display "{txt}  • RE makes strong assumptions"
-display "{txt}  • When in doubt, report both!"
-
-*******************************************************************************
-* PART 6: Hybrid Model (Within-Between Decomposition)
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  METHOD 4: Hybrid/Within-Between Model"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}Motivation:"
-display "{txt}  FE gives WITHIN-firm effect"
-display "{txt}  But what about BETWEEN-firm differences?"
-display "{txt}  Hybrid model estimates BOTH simultaneously!"
-
-* Create between (firm mean) components
-bysort firm_id: egen competition_mean = mean(competition)
-bysort firm_id: egen innovation_mean = mean(innovation)
-
-* Create within (deviation from firm mean) components
-generate competition_within = competition - competition_mean
-generate innovation_within = innovation - innovation_mean
-
-label variable competition_mean "Competition (between firms)"
-label variable competition_within "Competition (within firm over time)"
-label variable innovation_mean "Innovation (between firms)"
-label variable innovation_within "Innovation (within firm over time)"
-
-display _n "{txt}Hybrid model specification:"
-xtreg performance experience competition_within competition_mean ///
-                   innovation_within innovation_mean, fe vce(cluster firm_id)
-
-display _n "{txt}✓ Interpretation:"
-display "{txt}  • competition_within  = Effect of firm changing its competition"
-display "{txt}  • competition_mean    = Effect of being high-competition firm"
-display "{txt}  → These can differ substantially!"
-
-display _n "{txt}Why this matters:"
-display "{txt}  Example: Does training improve performance?"
-display "{txt}  • Within effect: Does increasing training help a given firm?"
-display "{txt}  • Between effect: Do high-training firms perform better?"
-display "{txt}  → Different questions, different policy implications!"
-
-display _n "{txt}Key references:"
-display "{txt}  • Allison (2009): Fixed Effects Regression Models"
-display "{txt}  • Bell & Jones (2015): Explaining FE models to applied researchers"
-display "{txt}  • Certo et al. (2017, SMJ): A tale of two effects"
-
-*******************************************************************************
-* PART 7: Generalized Estimating Equations (GEE)
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  METHOD 5: Generalized Estimating Equations (GEE)"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}What GEE does:"
-display "{txt}  • Population-averaged estimates (vs FE's subject-specific)"
-display "{txt}  • Flexible correlation structures"
-display "{txt}  • Robust to misspecification"
-
-* GEE with exchangeable correlation (common choice)
-xtgee performance experience competition innovation, ///
-      family(gaussian) link(identity) corr(exchangeable) vce(robust)
-
-display _n "{txt}GEE correlation structures:"
-display "{txt}  • independent: No within-cluster correlation"
-display "{txt}  • exchangeable: Same correlation across time"
-display "{txt}  • ar1: Autoregressive (nearby times more correlated)"
-display "{txt}  • unstructured: Estimate all pairwise correlations"
-
-display _n "{txt}When to use GEE:"
-display "{txt}  ✓ Large number of clusters (firms)"
-display "{txt}  ✓ Want population-average effects"
-display "{txt}  ✓ Worried about correlation structure"
-display "{txt}  ✗ Small number of clusters (use FE or mixed models)"
-
-*******************************************************************************
-* PART 8: Variance Decomposition
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  BONUS: Variance Decomposition Analysis"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}Question: How much of performance variation is due to:"
-display "{txt}  • Firm differences (between variance)?"
-display "{txt}  • Time trends (temporal variance)?"
-display "{txt}  • Residual noise (within variance)?"
-
-* Null model (no predictors)
-quietly mixed performance i.year || firm_id:
+* SECTION 6: A working random-intercept variance model
+mixed performance i.year || firm_id:
 estat icc
+estimates store random_intercept
 
-display _n "{txt}This tells you:"
-display "{txt}  • Intraclass correlation (ICC) at firm level"
-display "{txt}  • Year indicators absorb common time shifts"
-display "{txt}  • How much clustering exists in your data"
+display as text "The ICC is conditional on this random-intercept working covariance model."
+display as text "The constructed errors also have serial dependence, which this fit does not model."
+display as text "Year indicators are fixed coefficients, not a separately estimated random variance."
+display as text "Variance components describe this specification; they do not measure a causal share."
 
-display _n "{txt}Applications (Quigley & Graffin 2016, SMJ):"
-display "{txt}  • How much do CEOs matter vs firms?"
-display "{txt}  • Industry vs firm effects on performance"
-display "{txt}  • Year effects vs persistent differences"
+* SECTION 7: A separate dynamic-panel example
+* The static example above has no lagged-outcome term. Construct a new process.
+* A burn-in reduces dependence on the arbitrary starting value; it is not a test.
+preserve
+clear
+set seed 20261105
+set obs 250
+generate long id = _n
+expand 30
+bysort id: generate int t = _n
+bysort id: generate double alpha = rnormal() if _n == 1
+bysort id: replace alpha = alpha[1]
+generate double x = .3*alpha + rnormal()
+generate double error = rnormal()
+generate double y = 0
+bysort id (t): replace y = .5*y[_n-1] + 2*x + alpha + error if _n > 1
+keep if t > 20
+xtset id t
 
-* Variance decomposition with predictors
-display _n "{txt}With predictors included:"
-quietly mixed performance experience competition innovation i.year || firm_id:
+* Native one-step Arellano-Bond; restrict the dependent-variable instrument lag range.
+* x is strictly exogenous with respect to the idiosyncratic errors by construction.
+xtabond y x, lags(1) maxldep(2) vce(robust)
+estimates store dynamic_ab
+estat abond
 
-display _n "{txt}This shows:"
-display "{txt}  • How much variance predictors explain"
-display "{txt}  • Remaining firm-level variance"
-display "{txt}  • Time effects are fixed coefficients, not a separate random variance"
+display as text "The constructed lag coefficient is .5 and the contemporaneous x coefficient is 2."
+display as text "The moment conditions require restrictions on error serial correlation and regressor timing."
+display as text "AR(1) in differenced errors is expected with uncorrelated errors in levels."
+display as text "Higher-order serial correlation can contradict the proposed moment conditions."
+display as text "Nonrejection does not prove valid instruments. Inspect instrument count and sensitivity."
+display as text "Lagged-outcome FE can have finite-T bias; Arellano-Bond is one conditional alternative."
+restore
 
-*******************************************************************************
-* PART 9: Dynamic Panel Data (Preview)
-*******************************************************************************
+* SECTION 8: Reporting the fitted comparisons
+* These are actual fitted estimates. No placeholder significance claims are inserted.
+estimates table pooled fe re hybrid, b(%9.3f) se(%9.3f) stats(N N_g)
+estimates restore fe
+lincom experience
 
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  ADVANCED: Dynamic Panel Data (Arellano-Bond)"
-display "{txt}═══════════════════════════════════════════════════════════════"
+display as text "Report the outcome units, sample, observations per firm, specification and covariance."
+display as text "State the maintained identification argument and distinguish within from between comparisons."
+display as text "Choose fit summaries that match the model and question; name the R-squared definition."
+display as text "The unit cluster is justified in this simulation. Reconsider it for a different design."
+display as text "The dynamic example uses a separate sample and should not enter this static comparison table."
+display as text "The original constructed panel is again in memory; all stored fits remain available."
 
-display _n "{txt}When to use dynamic panel:"
-display "{txt}  • Outcome depends on its lagged value: y(t) = ρ*y(t-1) + X + u"
-display "{txt}  • Persistence / state dependence matters"
-display "{txt}  • Example: Current performance predicts future performance"
-
-* Generate lagged DV
-generate performance_lag = L.performance
-
-display _n "{txt}Problem with FE + lagged DV:"
-display "{txt}  FE estimator is BIASED when DV includes lag"
-display "{txt}  → Need instrumental variables approach"
-
-display _n "{txt}Arellano-Bond solution:"
-display "{txt}  • Use deeper lags as instruments"
-display "{txt}  • GMM estimation"
-display "{txt}  • Requires: N (firms) large, T (time) small"
-
-display _n `"{result}* Arellano-Bond example (requires xtabond2 package):"'
-display `"{result}* ssc install xtabond2"'
-display `"{result}* xtabond2 performance L.performance experience competition,"'
-display `"{result}*           gmm(L.performance, lag(2 .)) iv(experience competition)"'
-display `"{result}*           robust"'
-
-display _n "{txt}Key tests:"
-display "{txt}  □ AR(1) and AR(2) tests for serial correlation"
-display "{txt}  □ Hansen/Sargan test for instrument validity"
-display "{txt}  □ Difference-in-Hansen test for subsets"
-
-*******************************************************************************
-* PART 10: Diagnostic Workflows
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  DIAGNOSTIC WORKFLOWS"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}Diagnostic 1: Check within-variation"
-display "{txt}─────────────────────────────────────────────────────────────────"
-
-quietly xtreg performance experience competition innovation, fe
-predict fe_resid, resid
-
-* Variance decomposition for predictor
-bysort firm_id: egen experience_mean_firm = mean(experience)
-generate experience_dev = experience - experience_mean_firm
-
-quietly summarize experience
-local total_var = r(Var)
-quietly summarize experience_mean_firm
-local between_var = r(Var)
-quietly summarize experience_dev
-local within_var = r(Var)
-
-display _n "{txt}Experience variable:"
-display "{txt}  Total variance:    " %8.2f `total_var'
-display "{txt}  Between variance:  " %8.2f `between_var' " (" %4.1f (100*`between_var'/`total_var') "%)"
-display "{txt}  Within variance:   " %8.2f `within_var' " (" %4.1f (100*`within_var'/`total_var') "%)"
-
-display _n "{txt}→ If within variance is very small, FE has little power"
-
-display _n(2) "{txt}Diagnostic 2: Test for serial correlation"
-display "{txt}─────────────────────────────────────────────────────────────────"
-
-* Wooldridge test (requires xtserial command)
-display _n "{txt}Wooldridge test for serial correlation:"
-display `"{result}* Install: ssc install xtserial"'
-display `"{result}* Then: xtserial performance experience competition innovation"'
-
-display _n "{txt}If serial correlation present:"
-display "{txt}  → Use cluster-robust SEs: vce(cluster firm_id)"
-display "{txt}  → Or Newey-West SEs for time-series correlation"
-
-display _n(2) "{txt}Diagnostic 3: Test for time effects"
-display "{txt}─────────────────────────────────────────────────────────────────"
-
-* Add year fixed effects
-quietly xtreg performance experience competition innovation i.year, fe vce(cluster firm_id)
-testparm i.year
-
-display _n "{txt}If year effects significant:"
-display "{txt}  → Include year fixed effects in model"
-display "{txt}  → Absorbs common shocks (recession, policy changes)"
-
-*******************************************************************************
-* PART 11: Publication-Ready Reporting Template
-*******************************************************************************
-
-display _n(3) "{txt}═══════════════════════════════════════════════════════════════"
-display "{txt}  HOW TO REPORT PANEL DATA ANALYSIS"
-display "{txt}═══════════════════════════════════════════════════════════════"
-
-display _n "{txt}In the methods section:"
-display "{txt}─────────────────────────────────────────────────────────────────"
-display `"{txt}  "Our panel data consists of [N] firms observed over [T] years"'
-display `"{txt}   ([N×T] total observations). We employ fixed effects regression"'
-display `"{txt}   to control for time-invariant firm characteristics. Standard"'
-display `"{txt}   errors are clustered at the firm level to account for"'
-display `"{txt}   within-firm correlation (Petersen, 2009). The Hausman test"'
-display `"{txt}   [χ²=X.XX, p<0.01] indicates fixed effects are preferred over"'
-display `"{txt}   random effects. We also report hybrid models to decompose"'
-display `"{txt}   within- and between-firm effects (Certo et al., 2017).""'
-
-display _n(2) "{txt}In the results section:"
-display "{txt}─────────────────────────────────────────────────────────────────"
-display `"{txt}  "Table X presents fixed effects estimates. Model 1 includes"'
-display `"{txt}   controls, Model 2 adds our focal predictor [X]. The coefficient"'
-display `"{txt}   on [X] (β=Y.YY, p<0.05) indicates that a one-unit increase in"'
-display `"{txt}   [X] is associated with a Y.YY increase in [outcome], holding"'
-display `"{txt}   firm-specific characteristics constant. This represents the"'
-display `"{txt}   effect of within-firm changes in [X] over time.""'
-
-display _n(2) "{txt}Model comparison table (minimal example):"
-display "{txt}─────────────────────────────────────────────────────────────────"
-display "{txt}  Variable          | Pooled OLS | Fixed Effects | Hybrid"
-display "{txt}  ─────────────────────────────────────────────────────────────"
-display "{txt}  Experience        |    X.XX**  |    2.XX**     |"
-display "{txt}  Competition       |    X.XX*** |    3.XX***    |"
-display "{txt}  (within)          |            |               |    3.XX***"
-display "{txt}  (between)         |            |               |    X.XX"
-display "{txt}  ─────────────────────────────────────────────────────────────"
-display "{txt}  Firm FE           |    No      |    Yes        |    Yes"
-display "{txt}  N firms           |    200     |    200        |    200"
-display "{txt}  N observations    |    2,000   |    2,000      |    2,000"
-display "{txt}  R² (within)       |    --      |    0.XX       |    0.XX"
-display "{txt}  ─────────────────────────────────────────────────────────────"
-
-display _n(2) "{txt}Key elements to always include:"
-display "{txt}  □ Declare panel structure (N units, T periods)"
-display "{txt}  □ Specify FE vs RE and justify choice"
-display "{txt}  □ Report clustered standard errors"
-display "{txt}  □ Report within R-squared (not overall)"
-display "{txt}  □ Mention time-invariant variables are absorbed"
-
-*******************************************************************************
-* SUMMARY
-*******************************************************************************
-
-display _n(3) "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}                    KEY TAKEAWAYS"
-display "{txt}═════════════════════════════════════════════════════════════════"
-display "{txt}1. Panel data = repeated observations on same units"
-display "{txt}2. Pooled OLS ignores panel structure → biased if unobserved heterogeneity"
-display "{txt}3. Fixed Effects removes time-invariant confounders"
-display "{txt}4. Random Effects more efficient but requires strong assumptions"
-display "{txt}5. Hausman test helps choose between FE and RE"
-display "{txt}6. Hybrid models decompose within vs between effects"
-display "{txt}7. Always cluster SEs at the panel unit level"
-display "{txt}8. Report within R-squared, not overall"
-display "{txt}9. FE cannot estimate time-invariant variables"
-display "{txt}10. Dynamic panels require special treatment (Arellano-Bond)"
-display _n "{txt}═════════════════════════════════════════════════════════════════"
-
-display _n "{txt}Essential references:"
-display "{txt}  • Allison (2009): Fixed Effects Regression Models"
-display "{txt}  • Cameron & Trivedi (2010): Microeconometrics Using Stata"
-display "{txt}  • Certo et al. (2017, SMJ): A tale of two effects"
-display "{txt}  • Wooldridge (2010): Econometric Analysis of Cross Section and Panel Data"
-display "{txt}  • Petersen (2009, RFS): Estimating standard errors in finance panels"
-display "{txt}  • Bell & Jones (2015): Explaining FE models to applied researchers"
-display "{txt}  • McNeish & Kelley (2019): Fixed effects models vs mixed effects models"
-display _n "{txt}═════════════════════════════════════════════════════════════════"
+* Official command references:
+* https://www.stata.com/manuals/xtxtreg.pdf
+* https://www.stata.com/manuals/xtxtgee.pdf
+* https://www.stata.com/manuals/xtxtabond.pdf

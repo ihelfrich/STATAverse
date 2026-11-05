@@ -2,7 +2,7 @@ const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
 const LEGACY_SCOPE =
   new URL(self.registration.scope).pathname === "/STATAverse/";
-const CACHE_NAME = CACHE_PREFIX + "v25";
+const CACHE_NAME = CACHE_PREFIX + "v26";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
@@ -16,6 +16,9 @@ const CORE_ASSETS = [
   "MethodLab/",
   "assets/css/method-lab.css",
   "assets/js/method-lab.js",
+  "CodeLibrary/",
+  "assets/css/worked-reader.css",
+  "assets/js/worked-reader.js",
   "assets/css/data-lab.css",
   "assets/js/data-lab.js",
   "assets/css/inference.css",
@@ -94,16 +97,16 @@ self.addEventListener("fetch", (event) => {
       .catch(async () => {
         const cache = await caches.open(CACHE_NAME);
         let cached = await cache.match(request);
-        // Method choices live in the query string and are read by the client.
-        // replaceState does not fetch that URL; reuse its static shell offline.
-        const methodURL = new URL("MethodLab/", self.registration.scope);
-        if (
-          !cached &&
-          request.mode === "navigate" &&
-          [methodURL.pathname, methodURL.pathname + "index.html"].includes(
-            url.pathname,
-          )
-        ) {
+        // These static readers interpret their query choices in the client.
+        // History changes do not fetch a URL; reuse the matching shell offline.
+        const methodURL = ["MethodLab/", "CodeLibrary/"]
+          .map((route) => new URL(route, self.registration.scope))
+          .find((route) =>
+            [route.pathname, route.pathname + "index.html"].includes(
+              url.pathname,
+            ),
+          );
+        if (!cached && request.mode === "navigate" && methodURL) {
           cached = await cache.match(methodURL.href);
         }
         return (

@@ -4,206 +4,350 @@
     <script src="../assets/js/legacy-location.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Code Library - STATAverse</title>
-    <link rel="stylesheet" href="../assets/css/site.css" />
+    <meta
+      name="description"
+      content="Read complete Stata examples by section, find commands in their source, inspect a verified panel comparison and connect the code to browser exercises."
+    />
+    <title>Worked Stata examples · STATAverse</title>
+    <link rel="stylesheet" href="../assets/css/learn.css" />
+    <link rel="stylesheet" href="../assets/css/worked-reader.css" />
   </head>
-  <body class="page-zero">
-    <a class="skip-link" href="#main">Skip to content</a>
-    <header class="site-header">
-      <nav class="nav" aria-label="Main navigation">
-        <a class="brand" href="../index.html">STATAverse</a>
-        <div class="nav-links">
-          <a href="../Learn/">Practice</a
-          ><a href="../ZeroToHero/">Applied lessons</a
-          ><a href="../ScriptLibrary/">Scripts</a
-          ><a href="../Glossary/">Concepts</a><a href="../Search/">Search</a
-          ><a href="../index.html#reference-title">All resources</a>
-        </div>
+  <body class="worked-page">
+    <a class="skip-link" href="#main">Skip to worked examples</a>
+    <header class="app-header">
+      <a href="../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../Learn/">Practice</a><a href="../Labs/">Analysis labs</a
+        ><a href="../ScriptLibrary/" aria-current="true">Reference</a
+        ><a href="../Workspace/">Saved work</a>
       </nav>
+      <a href="../MethodLab/" class="quiet-button">Method comparison →</a>
     </header>
-
-    <main id="main">
-      <section class="hero hero-compact">
-        <div class="hero-copy">
-          <span class="eyebrow">Continue in Stata</span>
-          <h1>Work through complete examples.</h1>
-          <p class="lead">
-            These downloadable do-files extend the browser lessons into
-            simulation, diagnostics and panel methods. Read the data-generating
-            process, run the commands and inspect the results before adapting a
-            specification.
+    <main id="main" class="worked-layout" tabindex="-1">
+      <section id="example-library" aria-labelledby="library-title">
+        <header class="worked-heading">
+          <p class="eyebrow">Code, interpretation and assumptions</p>
+          <h1 id="library-title" tabindex="-1">Worked Stata examples</h1>
+          <p>
+            Read the do-file alongside its explanation, then connect the
+            commands to the browser labs. Each example keeps its complete
+            downloadable source.
           </p>
-          <a class="btn primary" href="../Learn/"
-            >Start with guided browser practice</a
+        </header>
+        <div class="worked-introduction">
+          <p>
+            Reading here does not run the script.
+            <strong>Full Stata is required to execute these files.</strong> They
+            clear the active dataset, so save existing work before running one.
+            Use a separate folder for any exported figures.
+          </p>
+          <a href="../Learn/">Begin with guided browser practice →</a>
+        </div>
+        <div class="example-list">
+          <!-- WORKED-EXAMPLES:START -->
+          <article class="example-list-row" id="example-regression">
+            <span class="example-order" aria-hidden="true">01</span>
+            <div>
+              <p class="eyebrow">After the beginner path</p>
+              <h2><a href="?example=regression">Reading a regression</a></h2>
+              <p>
+                Construct a coffee-sales dataset and read coefficients, fitted
+                values and uncertainty in their stated units.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=regression">Read example →</a
+              ><a href="scripts/00_regression_plain_english.do" download
+                >Download .do</a
+              >
+            </div>
+          </article>
+          <article class="example-list-row" id="example-confounding">
+            <span class="example-order" aria-hidden="true">02</span>
+            <div>
+              <p class="eyebrow">Intermediate</p>
+              <h2>
+                <a href="?example=confounding">Confounding and an instrument</a>
+              </h2>
+              <p>
+                Compare a misleading association with an explicitly constructed
+                instrument in a training example.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=confounding">Read example →</a
+              ><a href="scripts/01b_endogeneity_intuition.do" download
+                >Download .do</a
+              >
+            </div>
+          </article>
+          <article class="example-list-row" id="example-iv-simulation">
+            <span class="example-order" aria-hidden="true">03</span>
+            <div>
+              <p class="eyebrow">Intermediate</p>
+              <h2>
+                <a href="?example=iv-simulation">Endogeneity simulation</a>
+              </h2>
+              <p>
+                Examine OLS and IV in one known process, then change the
+                strength of confounding.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=iv-simulation">Read example →</a
+              ><a href="scripts/01_endogeneity_simulator.do" download
+                >Download .do</a
+              >
+            </div>
+          </article>
+          <article class="example-list-row" id="example-specification">
+            <span class="example-order" aria-hidden="true">04</span>
+            <div>
+              <p class="eyebrow">Intermediate</p>
+              <h2>
+                <a href="?example=specification"
+                  >Specification and interpretation</a
+                >
+              </h2>
+              <p>
+                Inspect probability scales, control timing, ratio outcomes,
+                pooled comparisons and instrument relevance.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=specification">Read example →</a
+              ><a href="scripts/03_anti_patterns.do" download>Download .do</a>
+            </div>
+          </article>
+          <article class="example-list-row" id="example-diagnostics">
+            <span class="example-order" aria-hidden="true">05</span>
+            <div>
+              <p class="eyebrow">Intermediate</p>
+              <h2>
+                <a href="?example=diagnostics">Model-specific diagnostics</a>
+              </h2>
+              <p>
+                Inspect OLS, panel and IV postestimation commands, their
+                maintained assumptions and their limits.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=diagnostics">Read example →</a
+              ><a href="scripts/04_assumption_checker.do" download
+                >Download .do</a
+              >
+            </div>
+          </article>
+          <article class="example-list-row" id="example-interactions">
+            <span class="example-order" aria-hidden="true">06</span>
+            <div>
+              <p class="eyebrow">Intermediate to advanced</p>
+              <h2>
+                <a href="?example=interactions"
+                  >Interactions and conditional predictions</a
+                >
+              </h2>
+              <p>
+                Use factor variables, marginal effects and prediction grids to
+                examine two- and three-way interactions.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=interactions">Read example →</a
+              ><a href="scripts/05_moderation_mastery.do" download
+                >Download .do</a
+              >
+            </div>
+          </article>
+          <article class="example-list-row" id="example-panel">
+            <span class="example-order" aria-hidden="true">07</span>
+            <div>
+              <p class="eyebrow">Advanced</p>
+              <h2><a href="?example=panel">Panel-data comparisons</a></h2>
+              <p>
+                Separate within- and between-firm variation, compare covariance
+                assumptions and inspect a distinct dynamic-panel example.
+              </p>
+            </div>
+            <div class="example-list-actions">
+              <a href="?example=panel">Read example →</a
+              ><a href="scripts/06_panel_data_toolkit.do" download
+                >Download .do</a
+              >
+            </div>
+          </article>
+          <!-- WORKED-EXAMPLES:END -->
+        </div>
+        <section class="worked-references" aria-labelledby="reference-title">
+          <h2 id="reference-title">Method reference</h2>
+          <p>
+            <a href="../MethodLab/"
+              >Compare outcome models, proposed designs and inference
+              assumptions</a
+            >. The printable references describe their conditions without
+            changing Stata data.
+          </p>
+          <a href="scripts/02_method_decision_tree_v2.do" download
+            >Full method reference (.do)</a
           >
-        </div>
+          ·
+          <a href="scripts/02_method_decision_tree.do" download
+            >Compact reference (.do)</a
+          >
+        </section>
+        <noscript
+          ><p>
+            The section reader and interpretation checks require JavaScript. The
+            do-file downloads and browser-practice link remain available above.
+          </p></noscript
+        >
       </section>
-      <section class="section">
-        <div class="section-heading">
-          <h2>Running the examples</h2>
-          <p>
-            Save your current Stata work first: the worked examples clear data
-            in memory. The method reference only prints guidance. Run the
-            examples in a separate folder so their figures stay together. They
-            use constructed data, apart from the bundled Stata auto example used
-            for diagnostics.
-          </p>
+      <section id="example-reader" hidden aria-labelledby="example-title">
+        <header class="worked-heading">
+          <a id="example-back" href="./">← All worked examples</a>
+          <p class="eyebrow" id="example-level"></p>
+          <h1 id="example-title" tabindex="-1"></h1>
+          <p id="example-summary"></p>
+        </header>
+        <div class="example-top-actions">
+          <button
+            type="button"
+            id="example-download"
+            class="primary-button"
+            disabled
+          >
+            Download do-file</button
+          ><button
+            type="button"
+            id="example-copy"
+            class="quiet-button"
+            disabled
+          >
+            Copy complete script</button
+          ><a id="example-prerequisite"></a><a id="example-companion"></a>
         </div>
-        <p>
-          Full Stata is required. A successful command does not establish causal
-          identification. If a figure cannot export, the script reports the
-          failure and leaves the graph available in Stata.
+        <p class="example-run-note">
+          Full Stata is required to run this file. It clears the active dataset.
+          Run the complete file first; sections share data and local macros.
         </p>
-      </section>
-      <section class="section">
-        <div class="section-heading">
-          <h2>Teaching modules</h2>
-          <p>
-            Choose a topic after completing the core regression path, or begin
-            with the regression example if you already have Stata open.
-          </p>
+        <p id="example-action-status" role="status"></p>
+        <div id="example-copy-fallback" hidden>
+          <label for="example-copy-text">Complete script</label
+          ><textarea id="example-copy-text" rows="7" readonly></textarea>
         </div>
-        <div class="card-grid">
-          <article class="card">
-            <h3>Reading a regression</h3>
-            <p>
-              Simulate a coffee-sales example, inspect coefficients and
-              uncertainty, and distinguish sample fit from causal
-              interpretation.
+        <p id="example-load-status" role="status"></p>
+        <button id="example-retry" class="quiet-button" type="button" hidden>
+          Retry loading the example
+        </button>
+        <div id="example-content" class="example-reader-grid" hidden>
+          <aside class="example-outline" aria-labelledby="outline-title">
+            <h2 id="outline-title" tabindex="-1">In this file</h2>
+            <nav id="example-sections" aria-label="Do-file sections"></nav>
+            <label for="example-switch">Another example</label
+            ><select id="example-switch"></select>
+            <form id="example-search-form">
+              <label for="example-search">Find in do-file</label>
+              <div class="example-search-input">
+                <input
+                  id="example-search"
+                  type="search"
+                  maxlength="120"
+                  autocomplete="off"
+                /><button type="submit" class="quiet-button">Find</button>
+              </div>
+            </form>
+            <p id="example-search-status" role="status"></p>
+            <div id="example-matches"></div>
+            <p class="example-offline-note">
+              Previously viewed files can be reopened offline. Reconnect to load
+              an example you have not opened yet.
             </p>
-            <a
-              class="btn ghost"
-              href="./scripts/00_regression_plain_english.do"
-              download
-              >Download do-file</a
+          </aside>
+          <div class="example-section-content">
+            <div class="example-section-heading">
+              <p class="eyebrow" id="example-section-position"></p>
+              <h2 id="example-section-title" tabindex="-1"></h2>
+              <nav
+                class="example-section-links"
+                aria-label="Parts of this section"
+              >
+                <a href="#outline-title">Contents</a>
+                <a href="#example-source">Stata source</a
+                ><a id="example-output-jump" href="#native-output-title" hidden
+                  >Reference estimates</a
+                ><a id="example-question-jump" href="#example-question" hidden
+                  >Interpretation check</a
+                >
+              </nav>
+            </div>
+            <p id="example-scope" class="example-scope"></p>
+            <p id="example-explanation" hidden></p>
+
+            <div class="example-code-heading">
+              <h3>Do-file source</h3>
+              <p id="example-line-range"></p>
+            </div>
+            <pre
+              id="example-source"
+              tabindex="0"
+              role="region"
+              aria-label="Current do-file section"
+            ></pre>
+            <section
+              id="example-native-output"
+              hidden
+              aria-labelledby="native-output-title"
             >
-          </article>
-          <article class="card">
-            <h3>Confounding and an instrument</h3>
-            <p>
-              Compare a confounded training association with a deliberately
-              constructed instrument. The policy and outcome equations are
-              explicit.
-            </p>
-            <a
-              class="btn ghost"
-              href="./scripts/01b_endogeneity_intuition.do"
-              download
-              >Download do-file</a
+              <h3 id="native-output-title">
+                Reference estimates for this file
+              </h3>
+              <p>
+                Computed in native Stata from the bundled file and its fixed
+                seeds. These are reference results, not a model running in this
+                page.
+              </p>
+              <div
+                id="example-native-table"
+                tabindex="0"
+                role="region"
+                aria-label="Reference coefficient table"
+              ></div>
+            </section>
+            <fieldset id="example-question" tabindex="-1" hidden>
+              <legend id="example-question-title"></legend>
+              <div id="example-options"></div>
+              <button
+                id="example-check"
+                class="primary-button"
+                type="button"
+                disabled
+              >
+                Check interpretation
+              </button>
+              <p id="example-feedback" role="status"></p>
+              <p class="example-check-note">
+                These short checks reset when you reload the page.
+              </p>
+            </fieldset>
+            <nav
+              class="example-step-navigation"
+              aria-label="Move between do-file sections"
             >
-          </article>
-          <article class="card">
-            <h3>Endogeneity simulation</h3>
-            <p>
-              Compare OLS and IV under a known data-generating process.
-              Sensitivity plots show individual simulated draws, not a Monte
-              Carlo proof of unbiasedness.
-            </p>
-            <a
-              class="btn ghost"
-              href="./scripts/01_endogeneity_simulator.do"
-              download
-              >Download do-file</a
-            >
-          </article>
-          <article class="card">
-            <h3>Method comparison guide</h3>
-            <p>
-              Compare outcome models, proposed research designs and covariance
-              choices in the browser. The downloadable reference prints
-              assumptions and command templates without changing your data.
-            </p>
-            <a class="btn ghost" href="../MethodLab/">Open method comparison</a>
-            <a
-              class="btn ghost"
-              href="./scripts/02_method_decision_tree_v2.do"
-              download
-              >Download do-file</a
-            >
-          </article>
-          <article class="card">
-            <h3>Common specification mistakes</h3>
-            <p>
-              Examine probability scales, post-outcome controls, ratios, pooled
-              data and weak instruments through constructed examples.
-            </p>
-            <a class="btn ghost" href="./scripts/03_anti_patterns.do" download
-              >Download do-file</a
-            >
-          </article>
-          <article class="card">
-            <h3>Diagnostic workflows</h3>
-            <p>
-              Run OLS, panel and IV diagnostics. Each test has maintained
-              assumptions; nonrejection is not certification.
-            </p>
-            <a
-              class="btn ghost"
-              href="./scripts/04_assumption_checker.do"
-              download
-              >Download do-file</a
-            >
-          </article>
-          <article class="card">
-            <h3>Interactions and conditional predictions</h3>
-            <p>
-              Use factor-variable notation, marginal effects, prediction grids
-              and confidence intervals to study two- and three-way interactions.
-            </p>
-            <a
-              class="btn ghost"
-              href="./scripts/05_moderation_mastery.do"
-              download
-              >Download do-file</a
-            >
-          </article>
-          <article class="card">
-            <h3>Panel-data comparisons</h3>
-            <p>
-              Compare fixed effects, random effects and within-between models.
-              Examine within-unit variation and clustered inference.
-            </p>
-            <a
-              class="btn ghost"
-              href="./scripts/06_panel_data_toolkit.do"
-              download
-              >Download do-file</a
-            >
-          </article>
-          <article class="card">
-            <h3>Compact method guide</h3>
-            <p>
-              A shorter reference to outcome models, research designs and
-              maintained assumptions. Run it with an optional topic argument,
-              such as <code>lpm</code> or <code>panel</code>.
-            </p>
-            <a
-              class="btn ghost"
-              href="./scripts/02_method_decision_tree.do"
-              download
-              >Download do-file</a
-            >
-          </article>
+              <button type="button" id="example-previous" class="quiet-button">
+                ← Previous section</button
+              ><button type="button" id="example-next" class="primary-button">
+                Next section →
+              </button>
+            </nav>
+          </div>
         </div>
-      </section>
-      <section class="section">
-        <h2>Related resources</h2>
-        <p>
-          <a href="../ScriptLibrary/">Short command templates</a> ·
-          <a href="../Glossary/">Econometric concepts</a> ·
-          <a href="../MethodLab/">Method comparison</a> ·
-          <a href="./architecture.html">Earlier curriculum design notes</a>
-        </p>
       </section>
     </main>
-
-    <footer class="site-footer">
-      <div>
-        STATAverse Code Library by Dr. Ian Helfrich. Teaching examples with
-        constructed data and stated assumptions.
-      </div>
-    </footer>
-
-    <script src="../assets/js/site.js"></script>
+    <script type="module" src="../assets/js/worked-reader.js"></script>
+    <script src="../assets/js/site.js" defer></script>
   </body>
 </html>
