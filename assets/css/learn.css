@@ -1644,6 +1644,22 @@ dialog .reference-group {
 .editor-actions #run:hover {
   background: #edf2fc;
 }
+.editor-actions.run-together #run {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.editor-actions.run-together #run:hover {
+  background: var(--green-dark);
+}
+.editor-actions.run-together #run-line {
+  background: #fff;
+  color: #204cbb;
+  border-color: #aabbdc;
+}
+.editor-actions.run-together #run-line:hover {
+  background: #edf2fc;
+}
 .shortcut {
   font-size: 10px;
 }

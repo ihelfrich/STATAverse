@@ -1,0 +1,82 @@
+[
+  {
+    "id": "nested-names",
+    "source": "local k 2\nlocal x2 hours\ngenerate double copied = `x`k''",
+    "columns": ["copied"]
+  },
+  {
+    "id": "macro-list",
+    "source": "local vars hours attendance\nforeach v of local vars {\n generate double c_`v' = `v'\n}",
+    "columns": ["c_hours", "c_attendance"]
+  },
+  {
+    "id": "variable-range",
+    "source": "foreach v of varlist hours-attendance {\n generate double d_`v' = `v'*2\n}",
+    "columns": ["d_hours", "d_attendance"]
+  },
+  {
+    "id": "positive-powers",
+    "source": "forvalues i = 1/3 {\n generate double p`i' = hours^`i'\n local last `i'\n}\ngenerate double last = `last'",
+    "columns": ["p1", "p2", "p3", "last"]
+  },
+  {
+    "id": "descending",
+    "source": "forvalues i = 5(-2)1 {\n generate double v`i' = `i'\n}",
+    "columns": ["v5", "v3", "v1"]
+  },
+  {
+    "id": "alternate-increment",
+    "source": "forvalues i = 2 4 to 8 {\n generate double v`i' = `i'\n}",
+    "columns": ["v2", "v4", "v6", "v8"]
+  },
+  {
+    "id": "empty-loop",
+    "source": "forvalues i = 3/1 {\n generate double skipped = 1\n}\ngenerate double retained = hours",
+    "columns": ["retained"]
+  },
+  {
+    "id": "nested-conditions",
+    "source": "local n = 2\nforvalues i = 1/`n' {\n forvalues j = 1/2 {\n  if `i' == `j' {\n   generate double c`i'`j' = `i' + `j'\n  }\n  else {\n   generate double c`i'`j' = 0\n  }\n }\n}",
+    "columns": ["c11", "c12", "c21", "c22"]
+  },
+  {
+    "id": "first-observation-condition",
+    "source": "if hours == 1 {\n generate double reached = 1\n}\nif . {\n generate double missing_true = 1\n}",
+    "columns": ["reached", "missing_true"]
+  },
+  {
+    "id": "local-numeric-evaluation",
+    "source": "local ratio = 1/3\nlocal root = sqrt(2)\nlocal count = _N\ngenerate double ratio = `ratio'\ngenerate double root = `root'\ngenerate double count = `count'",
+    "columns": ["ratio", "root", "count"]
+  },
+  {
+    "id": "quoted-items",
+    "source": "foreach value in \"first group\" \"last group\" {\n local last \"`value'\"\n}\ngenerate chosen = \"`last'\"",
+    "columns": ["chosen"],
+    "strings": ["chosen"]
+  },
+  {
+    "id": "partial-state-after-error",
+    "source": "forvalues i = 1/3 {\n generate double repeated = `i'\n}\ngenerate double later = 1",
+    "columns": ["repeated"],
+    "returnCode": 110
+  },
+  {
+    "id": "loop-macro-cleanup",
+    "source": "local i 99\nforvalues i=1/2 {\n}\ngenerate after_for = \"`i'\"\nlocal j before\nforeach j in a b {\n}\ngenerate after_each = \"`j'\"\nforvalues i=1/1 {\n forvalues i=2/2 {\n }\n generate nested = \"`i'\"\n}",
+    "columns": ["hours", "after_for", "after_each", "nested"],
+    "strings": ["after_for", "after_each", "nested"]
+  },
+  {
+    "id": "repeated-varlist",
+    "source": "local n 0\nforeach v of varlist hours hours {\n local n = `n' + 1\n}\ngenerate double count = `n'",
+    "columns": ["count"]
+  },
+  {
+    "id": "empty-sample-macro",
+    "source": "preserve\nkeep if 0\nlocal value = hours\nlocal n = _N\nrestore\ngenerate double absent = `value'\ngenerate double count = `n'",
+    "columns": ["absent", "count"],
+    "browserReturnCode": 2000,
+    "boundary": "The installed executable evaluates hours after keep if 0 as the earlier first-row value (1), despite _N being 0. This behavior is not adopted as a portable contract. Browser control expressions that read variables from an empty sample fail explicitly; _N alone remains usable."
+  }
+]

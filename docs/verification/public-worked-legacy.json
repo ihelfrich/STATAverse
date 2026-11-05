@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-11-05T14:16:38.292Z",
+  "url": "https://ihelfrich.github.io/learn/stata/CodeLibrary/?example=panel&section=section-3#L78",
+  "legacySourceCommit": "3ab6c63f44b320cf7d400aa9ad87deb35d1b2639",
+  "checks": [
+    "new worked-example legacy link preserves example, section and source-line fragment",
+    "source and matching native output load at the canonical route",
+    "panel interpretation check succeeds through the public page"
+  ]
+}

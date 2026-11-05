@@ -1,6 +1,7 @@
 import { DATASETS, createDataset } from "./datasets.js";
 import { StataError, compileExpression } from "./expression.js";
 import { commandBlocks } from "./do-file.js";
+import { runProgram } from "./stata-program.js";
 import { dataChanges } from "./data-changes.js";
 import { nativeImportOptions } from "./import-library.js";
 import { egenColumn, collapseDataset } from "./grouped-data.js";
@@ -55,6 +56,11 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "set",
   "display",
   "help",
+  "local",
+  "foreach",
+  "forvalues",
+  "if",
+  "else",
   ...Object.keys(aliases),
 ]);
 const clone = (x) => structuredClone(x);
@@ -147,7 +153,7 @@ function qualify(source, dataset) {
 function variables(
   source,
   dataset,
-  { numeric = false, allowEmpty = false } = {},
+  { numeric = false, allowEmpty = false, preserveDuplicates = false } = {},
 ) {
   const names = source.trim()
     ? source.trim().split(/\s+/)
@@ -191,7 +197,7 @@ function variables(
         109,
       );
   }
-  return unique;
+  return preserveDuplicates ? expanded : unique;
 }
 const noOptions = (options) => {
   if (options)
@@ -253,28 +259,9 @@ export class PracticeSession {
     return true;
   }
   run(source) {
-    const commands = commandBlocks(source),
-      results = [];
-    for (const block of commands) {
-      const { command, ...location } = block;
-      try {
-        const result = this.execute(command);
-        result.source = location;
-        results.push(result);
-      } catch (error) {
-        results.push({
-          kind: "error",
-          source: location,
-          command,
-          message: error.message,
-          code: error.code || 498,
-          hint: error.hint || "Check the command and data, then try again.",
-          ...(error.evidence ? { evidence: error.evidence } : {}),
-        });
-        break;
-      }
-    }
-    return results;
+    return runProgram(source, this, (text, data) =>
+      variables(text, data, { preserveDuplicates: true }),
+    );
   }
   execute(command) {
     if (

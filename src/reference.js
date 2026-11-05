@@ -1,5 +1,26 @@
 export const REFERENCE = [
   [
+    "Do-file programming",
+    [
+      [
+        "local outcome score\nregress `outcome' hours",
+        "A local holds text. Reference it with a backtick and an apostrophe. Run the definition and its uses together: locals expire after each Run action. local n = _N evaluates an expression instead of storing its text.",
+      ],
+      [
+        "local measures hours attendance\nforeach v of local measures {\n summarize `v'\n}",
+        "Repeat a block for each item in a local list. Also supports foreach v in hours attendance and foreach v of varlist hours-attendance. The loop's index local is removed when the loop ends; other locals defined in the body remain until this run ends.",
+      ],
+      [
+        "forvalues p = 1/3 {\n generate double hours`p' = hours^`p'\n}",
+        "Repeat over integers. Ranges include 1/3, 3(-1)1 and 2 4 to 10. Put the opening brace at the end of the header and the closing brace on its own line. Run current command executes the whole enclosing block.",
+      ],
+      [
+        "if _N > 0 {\n summarize hours\n}\nelse {\n display 0\n}",
+        "Choose a block once for the whole program. An if qualifier such as summarize hours if hours > 5 instead selects individual observations. A data variable in a programming condition uses its first observation. Missing numeric values count as true; use an explicit missing-value check when needed.",
+      ],
+    ],
+  ],
+  [
     "Inspect data",
     [
       [

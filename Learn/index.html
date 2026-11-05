@@ -298,10 +298,19 @@
       </p>
       <p>
         The full Stata language requires Stata. This workspace does not
-        implement arbitrary disk paths, Excel or Stata binary files, macros,
-        loops, factor variables, weighted estimation, clustered inference, panel
-        estimators, merges, reshape or user-written commands. Unsupported syntax
-        produces an error.
+        implement arbitrary disk paths, Excel or Stata binary files, global
+        macros, user-defined programs, factor variables, weighted estimation,
+        clustered inference, panel estimators, merges, reshape or user-written
+        commands. Unsupported syntax produces an error.
+      </p>
+      <p>
+        Local macros, foreach lists, integer forvalues loops and nested if/else
+        blocks run here. Run a local's definition together with its uses: each
+        Run action starts a new local scope. Compound quotes, extended macro
+        functions and single-line programming if are not implemented. Each run
+        accepts up to 50,000 characters, 200 logical lines, 32 nested blocks and
+        1,000 operations. Commands completed before a runtime error remain in
+        memory; Undo reverses a data-changing command.
       </p>
       <p>
         Browser numeric variables use double precision. Data-changing commands
@@ -440,7 +449,10 @@
       <p class="helper">
         The original CSV is the starting data. The current CSV includes your
         changes. Failed commands are excluded from the do-file and retained in
-        the results download.
+        the results download. The complete ZIP includes editor-draft.do with
+        your original program. analysis.do records the successful expanded
+        commands, so it can reproduce the work without the original locals or
+        loops.
       </p>
       <p id="import-export-note" class="helper" hidden>
         For imported data, the starting CSV contains your reviewed names and

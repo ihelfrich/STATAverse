@@ -64,6 +64,14 @@
     "steps": 4
   },
   {
+    "id": "macros-loops",
+    "title": "Repeated work with macros and loops",
+    "summary": "Write reusable commands, inspect their substitutions and distinguish program decisions from row filters.",
+    "level": "Do-files",
+    "minutes": 25,
+    "steps": 6
+  },
+  {
     "id": "temporary-samples",
     "title": "Temporary samples with preserve",
     "summary": "Keep a recoverable copy, examine a subset and restore all observations.",

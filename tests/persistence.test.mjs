@@ -1,11 +1,32 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { LESSONS } from "../src/lessons.js";
+import { LESSON_CATALOG } from "../src/lesson-catalog.js";
 import {
   emptyStore,
   parseStore,
   validateStore,
   validateBackup,
 } from "../src/persistence.js";
+test("compact progress catalogue retains every lesson ID and exact step boundary", () => {
+  assert.deepEqual(
+    LESSON_CATALOG,
+    LESSONS.map(({ id, steps }) => ({ id, stepCount: steps.length })),
+  );
+  for (const lesson of LESSON_CATALOG) {
+    const state = emptyStore();
+    state.lessons[lesson.id] = {
+      step: lesson.stepCount - 1,
+      completed: [lesson.stepCount - 1],
+    };
+    assert.equal(
+      validateStore(state).lessons[lesson.id].step,
+      lesson.stepCount - 1,
+    );
+    state.lessons[lesson.id].step = lesson.stepCount;
+    assert.throws(() => validateStore(state));
+  }
+});
 test("valid practice state round-trips and keeps notes and executed commands", () => {
   const s = emptyStore();
   s.lessons["first-commands"] = {

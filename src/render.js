@@ -157,7 +157,10 @@ export function resultHTML(result, index, { complete = false } = {}) {
   }
   if (r.message && r.kind !== "error")
     body += `<p class="result-text">${h(r.message)}</p>`;
-  return `<article class="result-card">${r.source ? `<span class="result-source">Line ${r.source.line}${r.source.endLine > r.source.line ? `–${r.source.endLine}` : ""}</span>` : ""}<pre class="result-command ${r.kind === "error" ? "error" : ""}">. ${h(r.command)}</pre>${body}</article>`;
+  const original = r.originalCommand
+    ? `<details class="result-substitution"><summary>Original do-file line</summary><pre class="result-command">${h(r.originalCommand)}</pre><p class="helper">The command below shows the text after local substitution for this execution.</p></details>`
+    : "";
+  return `<article class="result-card">${r.source ? `<span class="result-source">Line ${r.source.line}${r.source.endLine > r.source.line ? `–${r.source.endLine}` : ""}</span>` : ""}${original}<pre class="result-command ${r.kind === "error" ? "error" : ""}">. ${h(r.command)}</pre>${body}</article>`;
 }
 function groupButton(result, index, keys) {
   return `<button type="button" class="text-button group-inspect-button" data-group-result="${result}" data-group-index="${index}" aria-label="Inspect source rows for group ${h(keys.length ? keys.map((key) => (key === "" ? "empty string" : key === null ? "." : key)).join(" / ") : "all selected")}">Inspect rows</button>`;
