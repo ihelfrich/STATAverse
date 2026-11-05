@@ -20,10 +20,13 @@ export function table(headers, rows, label = "") {
   return `<div class="result-table-wrap"${label ? ` tabindex="0" role="region" aria-label="${h(label)}"` : ""}><table class="result-table"><thead><tr>${headers.map((x) => `<th scope="col">${h(x)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((x) => `<td>${x}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 export function resultHTML(result, index, { complete = false } = {}) {
+  if (result.suppressed || result.silent) return "";
   const r = result;
   let body = "";
   if (r.kind === "error")
     body = `<p class="result-error">${h(r.message)} <code>r(${r.code});</code></p><p class="result-text">${h(r.hint)}</p>`;
+  else if (r.kind === "captured")
+    body = `<p class="result-text">${h(r.message)} <code>r(${r.code});</code></p><p class="result-annotation">capture handled this error. Execution continued.${r.hint ? " " + h(r.hint) : ""}</p>`;
   else if (r.kind === "describe")
     body = `<div class="result-metrics"><div class="result-metric">Observations<strong>${r.n}</strong></div><div class="result-metric">Variables shown<strong>${r.columns.length}</strong></div></div>${table(
       ["Variable", "Type", "Label"],
@@ -161,7 +164,7 @@ export function resultHTML(result, index, { complete = false } = {}) {
       )}</details>`;
     body += `<div class="result-annotation" data-annotation="${index}">Select a variable name for an interpretation. ${r.omitted} selected row(s) were excluded for missing model variables. R-squared describes in-sample fit, not causal validity.</div>`;
   }
-  if (r.message && r.kind !== "error" && r.kind !== "regress")
+  if (r.message && !["error", "regress", "captured"].includes(r.kind))
     body += `<p class="result-text">${h(r.message)}</p>`;
   const original = r.originalCommand
     ? `<details class="result-substitution"><summary>Original do-file line</summary><pre class="result-command">${h(r.originalCommand)}</pre><p class="helper">The command below shows the text after local substitution for this execution.</p></details>`

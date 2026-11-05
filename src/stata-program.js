@@ -2,6 +2,8 @@ import { StataError, compileExpression, tokenize } from "./expression.js";
 import { parseProgram } from "./do-file.js";
 import { historyReceipt, retainResults } from "./output-history.js";
 import { RESOURCE_LIMITS } from "./resource-limits.js";
+import { commandPrefixes, capturable } from "./command-prefixes.js";
+class EndRun extends Error {}
 
 const MAX_OPERATIONS = 1000;
 const MAX_TEXT = 50000;
@@ -123,7 +125,9 @@ export function forvaluesRange(text) {
 }
 
 function expression(text, session) {
-  const fn = compileExpression(text, session.data.columns);
+  const fn = compileExpression(text, session.data.columns, {
+    returnCode: session.returnCode,
+  });
   if (
     !session.data.rows.length &&
     tokenize(text).some(
@@ -187,60 +191,168 @@ function* programSteps(
         901,
       );
   };
-  function* execute(nodes) {
+  const location = (node) => ({
+    from: node.from,
+    to: node.to,
+    line: node.line,
+    endLine: node.endLine,
+  });
+  function* execute(nodes, context = { quiet: false }) {
+    for (const node of nodes) {
+      if (node.type === "command" || !node.prefixes?.length) {
+        yield* executeBody([node], context);
+        continue;
+      }
+      const prefix = commandPrefixes(
+        node.prefixes.join(" ") + " x",
+        context.quiet,
+      );
+      const before = session.snapshot(),
+        oldUndo = [...session.undoStack];
+      let failure = null,
+        stopped = null;
+      try {
+        yield* executeBody([node], { quiet: prefix.quiet });
+      } catch (error) {
+        if (error instanceof EndRun) stopped = error;
+        else if (prefix.captures && capturable(error)) failure = error;
+        else throw error;
+      }
+      const commands = session.history.slice(before.history.length);
+      if (failure)
+        commands.push(failure.replayCommand || `error ${failure.code}`);
+      const directLoop = ["foreach", "forvalues"].includes(node.type);
+      if (prefix.captures && !stopped)
+        session.returnCode =
+          failure && prefix.captures === 1 && !directLoop ? failure.code : 0;
+      // Save the executed path as one prefixed block. This preserves capture's
+      // scope, _rc, replay and undo without depending on expired local macros.
+      // Installed Stata's direct capture prefix on a loop returns zero after
+      // stopping its body at an error. A capture block around a loop retains
+      // the error code. Preserve that distinction in the flattened history.
+      const saved = `${failure && directLoop ? "capture " : ""}${node.prefixes.join(" ")} {\n${commands.join("\n")}\n}`;
+      try {
+        parseProgram(saved);
+      } catch {
+        Object.assign(session, before);
+        session.undoStack = oldUndo;
+        throw new StataError(
+          "This prefixed block expands beyond the saved do-file limits (200 lines or 50,000 characters). Run a smaller block; this block's data changes were rolled back.",
+          901,
+        );
+      }
+      const result = session.finishGroup(before, oldUndo, saved, {
+        kind: failure ? "captured" : "control",
+        captured: !!prefix.captures,
+        suppressed: failure
+          ? (failure.outputQuiet ?? prefix.quiet)
+          : prefix.quiet,
+        ...(failure ? { code: failure.code, hint: failure.hint } : {}),
+        returnCode: session.returnCode,
+        ...(stopped ? { stop: true } : {}),
+        message: failure
+          ? failure.message
+          : stopped
+            ? "Do-file ended. The data remain in memory."
+            : `${node.prefixes.join(" ")} block completed.`,
+        source: location(node),
+        originalCommand: source.slice(node.from, node.to),
+      });
+      append(result);
+      if (stopped) throw stopped;
+    }
+  }
+  function* executeBody(nodes, context) {
     for (const node of nodes) {
       current = node;
       currentCommand = node.command;
       undefinedLocals.clear();
       tick();
       if (node.type === "command") {
-        const command = expand(node.command);
+        const expanded = expand(node.command);
+        const prefix = commandPrefixes(expanded, context.quiet);
+        const command = prefix.command;
         currentCommand = command;
-        const local = command.match(
-          /^(?:local|loc)\s+([A-Za-z_][A-Za-z_0-9]{0,30})(?=\s|=|$)([\s\S]*)$/,
-        );
-        if (local) {
-          const name = local[1],
-            definition = local[2].trim();
-          if (definition.startsWith(":"))
-            throw new StataError(
-              "Extended macro functions are not implemented yet.",
-              133,
-            );
-          const value = definition.startsWith("=")
-            ? expression(definition.slice(1), session)
-            : literalContents(definition);
-          locals[name] = value === null ? "." : String(value);
-          if (
-            Object.values(locals).reduce((n, value) => n + value.length, 0) >
-            MAX_TEXT
-          )
-            throw new StataError(
-              "Local macro contents exceed 50,000 characters.",
-              901,
-            );
-          append({
-            kind: "macro",
-            command: node.command,
-            message: `Local ${name} defined for this run.`,
-            source: {
+        if (!command) throw new StataError("Put a command after the prefix.");
+        const historyCommand = (context.quiet ? "quietly " : "") + expanded;
+        try {
+          const local = command.match(
+            /^(?:local|loc)\s+([A-Za-z_][A-Za-z_0-9]{0,30})(?=\s|=|$)([\s\S]*)$/,
+          );
+          if (local) {
+            const name = local[1],
+              definition = local[2].trim();
+            if (definition.startsWith(":"))
+              throw new StataError(
+                "Extended macro functions are not implemented yet.",
+                133,
+              );
+            const value = definition.startsWith("=")
+              ? expression(definition.slice(1), session)
+              : literalContents(definition);
+            locals[name] = value === null ? "." : String(value);
+            if (
+              Object.values(locals).reduce((n, value) => n + value.length, 0) >
+              MAX_TEXT
+            )
+              throw new StataError(
+                "Local macro contents exceed 50,000 characters.",
+                901,
+              );
+            if (prefix.captures)
+              session.execute("error 0", {
+                captures: prefix.captures,
+                quiet: prefix.quiet,
+                historyCommand: "capture error 0",
+              });
+            append({
+              kind: "macro",
+              ...(prefix.quiet ? { suppressed: true } : {}),
+              command: node.command,
+              message: `Local ${name} defined for this run.`,
+              source: {
+                from: node.from,
+                to: node.to,
+                line: node.line,
+                endLine: node.endLine,
+              },
+            });
+          } else {
+            const result = session.execute(command, {
+              historyCommand,
+              captures: prefix.captures,
+              quiet: prefix.quiet,
+            });
+            result.source = {
               from: node.from,
               to: node.to,
               line: node.line,
               endLine: node.endLine,
-            },
+            };
+            if (expanded !== node.command)
+              result.originalCommand = node.command;
+            append(result);
+            if (result.stop) throw new EndRun();
+          }
+        } catch (error) {
+          error.outputQuiet ??= prefix.quiet;
+          error.replayCommand ??= historyCommand;
+          if (!prefix.captures || !capturable(error)) throw error;
+          const result = session.execute(`error ${error.code}`, {
+            captures: prefix.captures,
+            quiet: prefix.quiet,
+            historyCommand: `${"capture ".repeat(prefix.captures)}error ${error.code}`,
           });
-        } else {
-          const result = session.execute(command);
-          result.source = {
-            from: node.from,
-            to: node.to,
-            line: node.line,
-            endLine: node.endLine,
-          };
-          if (command !== node.command) result.originalCommand = node.command;
+          Object.assign(result, {
+            source: location(node),
+            originalCommand: node.command,
+            message: error.message,
+            hint: error.hint,
+          });
           append(result);
         }
+      } else if (node.type === "prefix") {
+        yield* execute(node.body, context);
       } else if (node.type === "if") {
         const value = expression(expand(node.header), session);
         if (typeof value === "string")
@@ -250,6 +362,7 @@ function* programSteps(
           );
         yield* execute(
           value === null || Boolean(value) ? node.body : node.otherwise || [],
+          context,
         );
       } else {
         const header = expand(node.header);
@@ -279,7 +392,7 @@ function* programSteps(
             currentCommand = node.command;
             tick();
             locals[name] = item;
-            yield* execute(node.body);
+            yield* execute(node.body, context);
             yield;
           }
         } finally {
@@ -293,27 +406,28 @@ function* programSteps(
   try {
     yield* execute(program);
   } catch (error) {
-    append({
-      kind: "error",
-      command: currentCommand,
-      ...(current && current.command !== currentCommand
-        ? { originalCommand: current.command }
-        : {}),
-      source: current
-        ? {
-            from: current.from,
-            to: current.to,
-            line: current.line,
-            endLine: current.endLine,
-          }
-        : undefined,
-      message: error.message,
-      code: error.code || 498,
-      hint: undefinedLocals.size
-        ? `Undefined local${undefinedLocals.size > 1 ? "s" : ""}: ${[...undefinedLocals].join(", ")}. Undefined locals substitute empty text. Run each definition together with its uses; locals expire after each Run action.`
-        : error.hint || "Check the command and data, then try again.",
-      ...(error.evidence ? { evidence: error.evidence } : {}),
-    });
+    if (!(error instanceof EndRun))
+      append({
+        kind: "error",
+        command: currentCommand,
+        ...(current && current.command !== currentCommand
+          ? { originalCommand: current.command }
+          : {}),
+        source: current
+          ? {
+              from: current.from,
+              to: current.to,
+              line: current.line,
+              endLine: current.endLine,
+            }
+          : undefined,
+        message: error.message,
+        code: error.code || 498,
+        hint: undefinedLocals.size
+          ? `Undefined local${undefinedLocals.size > 1 ? "s" : ""}: ${[...undefinedLocals].join(", ")}. Undefined locals substitute empty text. Run each definition together with its uses; locals expire after each Run action.`
+          : error.hint || "Check the command and data, then try again.",
+        ...(error.evidence ? { evidence: error.evidence } : {}),
+      });
   }
   if (!results.length && program.length) {
     const first = program[0];

@@ -12,6 +12,7 @@ import {
 } from "./resource-limits.js";
 import { missing, summarize, regress, correlation } from "./statistics.js";
 import { factorRegression, termValue } from "./factor-variables.js";
+import { capturable } from "./command-prefixes.js";
 export { StataError };
 const aliases = {
   sum: "summarize",
@@ -24,6 +25,8 @@ const aliases = {
   hist: "histogram",
   corr: "correlate",
   desc: "describe",
+  di: "display",
+  dis: "display",
   l: "list",
 };
 export const SUPPORTED_COMMANDS = Object.freeze([
@@ -62,6 +65,15 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "forvalues",
   "if",
   "else",
+  "capture",
+  "cap",
+  "quietly",
+  "qui",
+  "noisily",
+  "noi",
+  "confirm",
+  "error",
+  "exit",
   ...Object.keys(aliases),
 ]);
 const clone = (x) => structuredClone(x);
@@ -71,6 +83,7 @@ const cleanName = (name) =>
   ![
     "_n",
     "_N",
+    "_rc",
     "_all",
     "_cons",
     "__proto__",
@@ -99,7 +112,7 @@ export function splitDoFile(source) {
   return commandBlocks(source).map((block) => block.command);
 }
 
-function qualify(source, dataset) {
+function qualify(source, dataset, returnCode = 0) {
   let main = source,
     condition = "",
     range = "";
@@ -117,7 +130,7 @@ function qualify(source, dataset) {
     main = "";
   }
   const fn = condition
-    ? compileExpression(condition, dataset.columns)
+    ? compileExpression(condition, dataset.columns, { returnCode })
     : () => true;
   if (condition && fn.valueType === "string")
     throw new StataError(
@@ -242,6 +255,7 @@ export class PracticeSession {
     this.undoStack = [];
     this.last = null;
     this.preservedData = null;
+    this.returnCode = 0;
   }
   snapshot() {
     return clone(this.executionState());
@@ -254,11 +268,13 @@ export class PracticeSession {
       history: this.history,
       last: this.last,
       preservedData: this.preservedData,
+      returnCode: this.returnCode,
     };
   }
   acceptExecution(state, undo = []) {
     for (const key of Object.keys(this.executionState()))
       this[key] = state[key];
+    this.returnCode ??= 0;
     this.undoStack.push(...undo);
     this.trimUndo();
   }
@@ -309,7 +325,7 @@ export class PracticeSession {
       options,
     );
   }
-  execute(command) {
+  checkHistory(command) {
     if (
       this.history.reduce((sum, text) => sum + text.length, 0) +
         command.length >
@@ -321,8 +337,41 @@ export class PracticeSession {
       );
     if (this.history.length >= 500)
       throw new StataError(
-        "This practice session has reached 500 successful commands. Export your work and restart the dataset to continue.",
+        "This practice session has reached 500 saved actions. Export your work and restart the dataset to continue.",
+        901,
       );
+  }
+  record(command, result, before) {
+    this.checkHistory(command);
+    this.undoStack.push(before);
+    this.trimUndo();
+    this.history.push(command);
+    this.last = {
+      ...result,
+      command,
+      effect: dataChanges(
+        before.data,
+        this.data,
+        result.kind === "restore" && !result.changed ? "message" : result.kind,
+      ),
+    };
+    return this.last;
+  }
+  finishGroup(before, oldUndo, command, result) {
+    this.history = [...before.history];
+    this.undoStack = oldUndo;
+    try {
+      return this.record(command, result, before);
+    } catch (error) {
+      Object.assign(this, clone(before));
+      throw error;
+    }
+  }
+  execute(
+    command,
+    { historyCommand = command, captures = 0, quiet = false } = {},
+  ) {
+    this.checkHistory(historyCommand);
     const before = this.snapshot();
     try {
       const result = this.dispatch(command);
@@ -330,23 +379,35 @@ export class PracticeSession {
         const resourceError = dataResourceError(this.data);
         if (resourceError) throw new StataError(resourceError, 901);
       }
-      this.undoStack.push(before);
-      this.trimUndo();
-      this.history.push(command);
-      this.last = {
-        ...result,
-        command,
-        effect: dataChanges(
-          before.data,
-          this.data,
-          result.kind === "restore" && !result.changed
-            ? "message"
-            : result.kind,
-        ),
-      };
-      return this.last;
+      if (captures) this.returnCode = 0;
+      return this.record(
+        historyCommand,
+        {
+          ...result,
+          ...(quiet ? { suppressed: true } : {}),
+          ...(captures ? { captured: true, code: 0 } : {}),
+        },
+        before,
+      );
     } catch (error) {
-      Object.assign(this, before);
+      Object.assign(this, clone(before));
+      if (captures && capturable(error)) {
+        this.returnCode = captures > 1 ? 0 : error.code;
+        return this.record(
+          historyCommand,
+          {
+            kind: "captured",
+            captured: true,
+            suppressed: quiet,
+            code: error.code,
+            returnCode: this.returnCode,
+            message: error.message,
+            hint: error.hint,
+          },
+          before,
+        );
+      }
+      error.replayCommand = historyCommand;
       throw error;
     }
   }
@@ -357,6 +418,46 @@ export class PracticeSession {
       rest = match[2] || "";
     const [body, options] = splitTop(rest, ",");
     const data = this.data;
+    if (verb === "error" || verb === "exit") {
+      noOptions(options);
+      const code = body
+        ? compileExpression(body, data.columns, {
+            returnCode: this.returnCode,
+          })(data.rows[0] || {}, 0, data.rows.length)
+        : 0;
+      if (!Number.isInteger(code) || code < 0 || code > 65535)
+        throw new StataError("Use an integer return code between 0 and 65535.");
+      if (code) throw new StataError(`Command returned error ${code}.`, code);
+      return {
+        kind: "control",
+        ...(verb === "exit" ? { stop: true } : { silent: true }),
+        message:
+          verb === "exit"
+            ? "Do-file ended. The data remain in memory."
+            : "Return code 0.",
+      };
+    }
+    if (verb === "confirm") {
+      noOptions(options);
+      const match = body.match(/^(?:(numeric|string|new)\s+)?variable\s+(.+)$/);
+      if (!match)
+        throw new StataError(
+          "Use confirm [numeric | string | new] variable varlist.",
+        );
+      const [, type, names] = match;
+      if (type === "new")
+        for (const name of names.trim().split(/\s+/)) newVariable(name, data);
+      else
+        for (const name of variables(names, data)) {
+          if (type && data.columns.find((c) => c.name === name).type !== type)
+            throw new StataError(`${name} is not a ${type} variable.`, 7);
+        }
+      return {
+        kind: "confirm",
+        silent: true,
+        message: `Confirmed ${type ? type + " " : ""}variable ${names}.`,
+      };
+    }
     if (verb === "help")
       return {
         kind: "help",
@@ -462,7 +563,9 @@ export class PracticeSession {
     }
     if (verb === "display") {
       noOptions(options);
-      const fn = compileExpression(body, data.columns);
+      const fn = compileExpression(body, data.columns, {
+        returnCode: this.returnCode,
+      });
       return {
         kind: "display",
         value: fn(data.rows[0] || {}, 0, data.rows.length),
@@ -556,7 +659,7 @@ export class PracticeSession {
         changed: true,
       };
     }
-    const q = qualify(body, data),
+    const q = qualify(body, data, this.returnCode),
       rows = q.selected.map((x) => x.r);
     if (verb === "egen" || verb === "collapse") {
       const args = {
@@ -674,7 +777,9 @@ export class PracticeSession {
         );
       if (verb === "generate") newVariable(name, data);
       else variables(name, data);
-      const fn = compileExpression(expression, data.columns),
+      const fn = compileExpression(expression, data.columns, {
+          returnCode: this.returnCode,
+        }),
         values = q.selected.map(({ r, i }) => fn(r, i, data.rows.length));
       const string = fn.valueType === "string",
         numeric = fn.valueType === "numeric";
@@ -761,7 +866,9 @@ export class PracticeSession {
     }
     if (verb === "assert") {
       noOptions(options);
-      const fn = compileExpression(q.main, data.columns);
+      const fn = compileExpression(q.main, data.columns, {
+        returnCode: this.returnCode,
+      });
       const failed = q.selected.filter(
         ({ r, i }) => !truth(fn(r, i, data.rows.length)),
       ).length;

@@ -321,14 +321,19 @@
         Run action starts a new local scope. Compound quotes, extended macro
         functions and single-line programming if are not implemented. Each run
         accepts up to 50,000 characters, 200 logical lines, 32 nested blocks and
-        1,000 operations. Commands completed before a runtime error remain in
-        memory; Undo reverses a data-changing command.
+        1,000 operations. capture (cap), quietly (qui) and noisily (noi) work
+        with commands and brace-delimited blocks. Use _rc to check the last
+        captured return code, and confirm to check variable names and types.
+        Commands completed before a runtime error remain in memory; Undo
+        restores a prefixed block as one unit. Browser limits and Stop always
+        end the run, even inside capture.
       </p>
       <p>
         Browser numeric variables use double precision. Data-changing commands
         clear the fitted model here; rerun the regression before predicting.
-        Histogram bins and output formatting can differ from Stata. Collinear
-        models are rejected rather than automatically omitting variables.
+        Histogram bins and output formatting can differ from Stata. Plain
+        regression variable lists reject collinear models; factor specifications
+        identify reference, empty and redundant terms separately.
       </p>
       <p>
         preserve keeps one temporary data copy across Run actions. Use restore

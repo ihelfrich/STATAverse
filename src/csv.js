@@ -11,6 +11,7 @@ const numericPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 const reservedNames = new Set([
   "_n",
   "_N",
+  "_rc",
   "_all",
   "_cons",
   "__proto__",

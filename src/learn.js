@@ -232,7 +232,7 @@ function loadSession() {
     results.at(-1)?.kind === "error"
       ? `Replay stopped: ${results.at(-1).message}`
       : session.history.length
-        ? `Restored ${session.history.length} successful commands. ${session.data.rows.length} observations are in memory.`
+        ? `Restored ${session.history.length} saved actions. ${session.data.rows.length} observations are in memory.`
         : "The dataset is loaded. Run your first command to inspect it.";
   setTab("data");
   if (Array.isArray(record?.history) && record.history.length)
@@ -270,7 +270,7 @@ async function restoreHistory(commands) {
     renderAll();
     const message = response.replayFailed
       ? `Replay stopped: ${results.at(-1).message}`
-      : `Restored ${session.history.length} successful commands. ${session.data.rows.length} observations are in memory.`;
+      : `Restored ${session.history.length} saved actions. ${session.data.rows.length} observations are in memory.`;
     $("#activity-note").textContent = message;
     executionStatus(message, response.replayFailed);
     persist();
@@ -324,7 +324,7 @@ function renderLesson() {
   const runTogether = !free && lesson.runTogether;
   $(".editor-actions").classList.toggle("run-together", Boolean(runTogether));
   $("#editor-description").textContent = runTogether
-    ? "Use Run all to keep local definitions and their uses in the same run. Ctrl / ⌘ + Shift + Enter also runs the full editor. Execution stops at an error; earlier successful commands remain."
+    ? "Use Run all to keep local definitions and their uses in the same run. Ctrl / ⌘ + Shift + Enter also runs the full editor. An uncaptured error stops execution; earlier successful commands remain."
     : "Run the command at your cursor, select several lines, or run the full editor. Execution stops at an error. Tab leaves the editor; Ctrl + Space shows suggestions.";
   $("#insert-example").hidden = free;
   $("#next-step").hidden = free;
@@ -510,13 +510,16 @@ function renderData() {
     );
 }
 function renderResults() {
-  $("#result-count").textContent = results.length || "";
-  $("#results").innerHTML = results.length
+  const visible = results.filter((r) => !r.suppressed && !r.silent);
+  $("#result-count").textContent = visible.length || "";
+  $("#results").innerHTML = visible.length
     ? results
         .map((r, i) => resultHTML(r, i))
         .reverse()
         .join("")
-    : '<div class="empty-state"><h3>Your results will appear here.</h3><p>Run a command in the editor. Each result stays paired with the command that produced it.</p></div>';
+    : results.length
+      ? '<div class="empty-state"><h3>No output to display.</h3><p>The commands ran without visible output. History records what ran and any captured return codes. Use noisily to show output inside a quiet block.</p></div>'
+      : '<div class="empty-state"><h3>Your results will appear here.</h3><p>Run a command in the editor. Each result stays paired with the command that produced it.</p></div>';
   $("#results")
     .querySelectorAll("[data-coefficient]")
     .forEach((button) =>
@@ -553,7 +556,7 @@ function renderHistory() {
           return `<article class="history-entry ${result.kind === "error" ? "failed" : ""}">
       <div class="history-marker" aria-hidden="true">${String(i + 1).padStart(2, "0")}</div>
       <div class="history-body"><code>${h(result.command)}</code>
-      <p>${result.kind === "error" ? `Stopped with r(${result.code}): ${h(result.message)}` : h(changeSummary(effect))}</p>
+      <p>${result.kind === "error" ? `Stopped with r(${result.code}): ${h(result.message)}` : result.captured && result.code ? `Captured r(${result.code}): ${h(result.message)}. Execution continued.` : h(changeSummary(effect))}${result.suppressed ? " Output suppressed." : ""}</p>
       ${effect && result.kind !== "error" ? `<span class="history-dimensions">${effect.beforeRows} → ${effect.afterRows} observations · ${effect.beforeColumns} → ${effect.afterColumns} variables</span>` : ""}
       ${cells.length ? `<details class="change-details"><summary>Inspect ${effect.changedCells} changed value${effect.changedCells === 1 ? "" : "s"}</summary><div class="result-table-wrap" tabindex="0" role="region" aria-label="Changed values"><table class="result-table"><thead><tr><th scope="col">Obs.</th><th scope="col">Variable</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>${cells.map((c) => `<tr><td>${c.observation}</td><td>${h(c.name)}</td><td>${cellValue(c.before)}</td><td>${cellValue(c.after)}</td></tr>`).join("")}</tbody></table></div>${effect.changedCells > cells.length ? `<p>Showing the first ${cells.length} changes.</p>` : ""}${effect.shortenedValues ? "<p>Long text values are shortened to 160 characters in this history preview. The working data and data exports retain their full values.</p>" : ""}</details>` : ""}
       <button type="button" class="text-button" data-reuse-command="${i}">Load in editor</button>
@@ -793,7 +796,7 @@ $("#undo").addEventListener("click", () => {
     setTab("data");
     persist();
     announce(
-      "Undid the previous successful command. Data and fitted model were restored.",
+      "Undid the previous action. Data, fitted model and return code were restored.",
     );
   }
 });
@@ -1062,7 +1065,7 @@ function doFile() {
     "* Put this do-file beside the downloaded original CSV files.",
     "* In Stata, cd to that folder before running this file.",
     "* Browser practice is a subset; output formatting may differ.",
-    "* Local references and loops are expanded into the successful commands below.",
+    "* Local references and loops are expanded below; captured errors retain their scope.",
     "* The complete ZIP preserves your original editor text in editor-draft.do.",
     "clear all",
     "set more off",
@@ -1137,7 +1140,7 @@ zipButton.addEventListener("click", () => {
     "current-data.csv": strToU8(toCSV(session.data)),
     "editor-draft.do": strToU8(editor.getValue()),
     "README.txt": strToU8(
-      "STATAverse practice project\n\nExtract this ZIP. In Stata, change the working directory to this folder and run analysis.do.\nThe study.csv, wages.csv and clinic.csv files are synthetic teaching datasets. Any local_*.csv files are your supplied data after the recorded import decisions; they have not been independently verified. current-data.csv contains the final working data.\nFor each imported source used by this session, a -source.txt file retains its untouched UTF-8 text and a -import.json file records the original filename, delimiter, headings, missing-value markers, variable names and types. The normalized starting CSV is used by analysis.do. Other imported datasets in your library are excluded.\nThe do-file repeats successful commands, with explicit numeric/string import columns. Failed commands are recorded in notes.txt. editor-draft.do preserves the current editor text, including comments and commands that may not have run. If a preserved copy is active, the do-file discards that temporary copy at completion to retain the working data.\nStata CSV import depends on its installed runtime; browser preview does not establish native import success on every installation. Original header labels are recorded in the import metadata and source, rather than injected as executable Stata code.\n",
+      "STATAverse practice project\n\nExtract this ZIP. In Stata, change the working directory to this folder and run analysis.do.\nThe study.csv, wages.csv and clinic.csv files are synthetic teaching datasets. Any local_*.csv files are your supplied data after the recorded import decisions; they have not been independently verified. current-data.csv contains the final working data.\nFor each imported source used by this session, a -source.txt file retains its untouched UTF-8 text and a -import.json file records the original filename, delimiter, headings, missing-value markers, variable names and types. The normalized starting CSV is used by analysis.do. Other imported datasets in your library are excluded.\nThe do-file repeats the executed history, including captured errors, with explicit numeric/string import columns. Uncaptured failures are recorded in notes.txt. editor-draft.do preserves the current editor text, including comments and commands that may not have run. If a preserved copy is active, the do-file discards that temporary copy at completion to retain the working data.\nStata CSV import depends on its installed runtime; browser preview does not establish native import success on every installation. Original header labels are recorded in the import metadata and source, rather than injected as executable Stata code.\n",
     ),
   };
   for (const dataset of Object.values(DATASETS))

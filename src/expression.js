@@ -107,7 +107,7 @@ const functions = {
   inlist: { min: 2, max: 30, fn: (x, ...a) => Number(a.includes(x)) },
 };
 export const SUPPORTED_FUNCTIONS = Object.freeze(Object.keys(functions));
-export function compileExpression(source, columns) {
+export function compileExpression(source, columns, { returnCode = 0 } = {}) {
   const typed = (fn, valueType = "numeric") => Object.assign(fn, { valueType });
   const tokens = tokenize(source);
   let pos = 0;
@@ -191,6 +191,7 @@ export function compileExpression(source, columns) {
         });
       } else if (t.value === "_n") node = typed((_r, i) => i + 1);
       else if (t.value === "_N") node = typed((_r, _i, n) => n);
+      else if (t.value === "_rc") node = typed(() => returnCode);
       else {
         const column = columns.find((c) => c.name === t.value);
         if (!column)

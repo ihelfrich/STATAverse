@@ -2,7 +2,7 @@ import { PracticeSession } from "./engine.js";
 import { historyReceipt, retainResults } from "./output-history.js";
 import { RESOURCE_LIMITS } from "./resource-limits.js";
 
-export const PRACTICE_PROTOCOL = 1;
+export const PRACTICE_PROTOCOL = 2;
 
 /** The transport supplies a cloned request; commit only the completed result. */
 function* executionSteps(request, run, progress) {

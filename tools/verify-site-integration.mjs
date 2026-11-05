@@ -18,6 +18,51 @@ const receipt = {
     "HTTP response bodies from the tested origin; gzip sizes computed locally",
   payloads: [],
 };
+async function verifyPrefixes(page) {
+  await replaceEditor(
+    page,
+    "capture noisily {\n  generate double prefix_started=1\n  confirm variable prefix_absent\n  generate double prefix_skipped=1\n}\nquietly regress score hours attendance\ndisplay _rc",
+  );
+  await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await page.locator("#results").innerText(),
+    /Execution continued/,
+  );
+  assert.match(await page.locator("#results").innerText(), /111/);
+  await page.locator("#tab-history").click();
+  assert.match(
+    await page.locator("#command-history").innerText(),
+    /Captured r\(111\)/,
+  );
+  assert.match(
+    await page.locator("#command-history").innerText(),
+    /Output suppressed/,
+  );
+  assert.equal(
+    await page.locator('[data-variable="prefix_started"]').count(),
+    1,
+  );
+  assert.equal(
+    await page.locator('[data-variable="prefix_skipped"]').count(),
+    0,
+  );
+  await page.reload();
+  await page.locator("#run:not([disabled])").waitFor();
+  await replaceEditor(page, "display _rc");
+  await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await page.locator("#results .result-card").first().innerText(),
+    /111/,
+  );
+  for (let i = 0; i < 4; i++) await page.locator("#undo").click();
+  assert.equal(
+    await page.locator('[data-variable="prefix_started"]').count(),
+    0,
+  );
+  assert.match(await page.locator("#dataset-count").innerText(), /5 variables/);
+}
 try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1050 },
@@ -171,9 +216,13 @@ try {
     await factorPage.locator("#dataset-count").innerText(),
     /5 variables/,
   );
-  await factorContext.close();
   receipt.checks.push(
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
+  );
+  await verifyPrefixes(factorPage);
+  await factorContext.close();
+  receipt.checks.push(
+    "capture/noisily blocks, quietly, confirm and _rc run through the worker at the canonical address; partial changes, skipped commands, History, reload and grouped undo agree",
   );
   const recoveryContext = await browser.newContext();
   await recoveryContext.addInitScript(() => {
@@ -209,9 +258,13 @@ try {
     await recoveryPage.locator("#dataset-count").innerText(),
     /5 variables/,
   );
-  await recoveryContext.close();
   receipt.checks.push(
     "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
+  );
+  await verifyPrefixes(recoveryPage);
+  await recoveryContext.close();
+  receipt.checks.push(
+    "capture/noisily blocks and _rc also survive blocked-worker fallback, saved replay and undo at the canonical address",
   );
   await page.goto(root + "Labs/Data/#investigation=matching-records");
   await page.locator("#investigation-number").fill("5");
