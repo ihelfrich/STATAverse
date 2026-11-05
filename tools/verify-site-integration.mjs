@@ -8,7 +8,15 @@ import { LESSONS } from "../src/lessons.js";
 const origin = process.env.SITE_TEST_ORIGIN || "http://127.0.0.1:4176";
 const root = origin + "/learn/stata/";
 const browser = await chromium.launch({ channel: "chrome" });
-const receipt = { base: "/learn/stata/", checks: [], payloads: [] };
+const receipt = {
+  origin,
+  checkedAt: new Date().toISOString(),
+  base: "/learn/stata/",
+  checks: [],
+  payloadBasis:
+    "HTTP response bodies from the tested origin; gzip sizes computed locally",
+  payloads: [],
+};
 try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1050 },
@@ -16,6 +24,13 @@ try {
   const page = await context.newPage(),
     errors = [],
     external = [];
+  const releaseResponse = await context.request.get(root + "site-release.json");
+  assert.ok(releaseResponse.ok(), "Integrated release receipt must be public");
+  receipt.release = await releaseResponse.json();
+  assert.equal(receipt.release.development, false);
+  assert.equal(receipt.release.base, "/learn/stata/");
+  if (process.env.SITE_TEST_COMMIT)
+    assert.equal(receipt.release.commit, process.env.SITE_TEST_COMMIT);
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("request", (r) => {
     if (new URL(r.url()).origin !== origin && !r.url().startsWith("data:"))
@@ -45,8 +60,10 @@ try {
   await page
     .getByRole("link", { name: "Start with your first command" })
     .click();
+  await page.locator("#command-editor").waitFor();
   await page.locator("#insert-example").click();
   await page.locator("#run").click();
+  await page.locator("#exercise-check.success").waitFor();
   await page
     .locator(
       `input[name="interpretation"][value="${LESSONS[0].steps[0].correct}"]`,
@@ -282,6 +299,7 @@ try {
   receipt.checks.push(
     "mobile width, keyboard/native navigation, targeted accessibility and no-script site links",
   );
+  const measuredAssets = new Map();
   for (const name of [
     "home",
     "learn",
@@ -291,7 +309,11 @@ try {
     "inference-worker",
     "iv-lab",
   ]) {
-    const b = await fs.readFile("assets/js/" + name + ".js");
+    const assetPath = "assets/js/" + name + ".js";
+    const response = await context.request.get(root + assetPath);
+    assert.ok(response.ok(), assetPath);
+    const b = await response.body();
+    measuredAssets.set(assetPath, b);
     receipt.payloads.push({
       asset: name + ".js",
       bytes: b.length,
@@ -315,15 +337,18 @@ try {
     gzipBytes: 0,
   };
   for (const file of precacheFiles) {
-    const response = await context.request.get(root + file);
-    assert.ok(response.ok(), file);
-    const bytes = await response.body();
+    let bytes = measuredAssets.get(file);
+    if (!bytes) {
+      const response = await context.request.get(root + file);
+      assert.ok(response.ok(), file);
+      bytes = await response.body();
+    }
     receipt.coreOfflinePackage.bytes += bytes.length;
     receipt.coreOfflinePackage.gzipBytes += gzipSync(bytes).length;
   }
   assert.ok(receipt.coreOfflinePackage.gzipBytes < 600000);
   await fs.writeFile(
-    "docs/verification/site-integration.json",
+    process.env.SITE_TEST_RECEIPT || "docs/verification/site-integration.json",
     JSON.stringify(receipt, null, 2) + "\n",
   );
   console.log(JSON.stringify(receipt, null, 2));

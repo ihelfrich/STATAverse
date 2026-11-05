@@ -46,7 +46,10 @@
       </p>
     </div>
     <div id="storage-warning" class="notice warning" role="status" hidden></div>
-    <main id="main" class="workspace-grid" tabindex="-1">
+    <p id="practice-loading" class="notice" role="status">
+      Loading the practice workspace… <a href="">Reload this page</a>
+    </p>
+    <main id="main" class="workspace-grid" tabindex="-1" aria-busy="true" inert>
       <aside class="learning-sidebar" aria-label="Learning path">
         <div class="sidebar-title">
           <span class="eyebrow">Your learning path</span
@@ -85,12 +88,17 @@
             ><span id="editor-position">Line 1 · column 1</span>
           </div>
           <div class="editor-actions">
-            <button id="run-line" type="button" class="primary-button">
+            <button id="run-line" type="button" class="primary-button" disabled>
               Run current command
             </button>
-            <button id="run" type="button" class="primary-button">
+            <button id="run" type="button" class="primary-button" disabled>
               Run all</button
-            ><button id="insert-example" type="button" class="quiet-button">
+            ><button
+              id="insert-example"
+              type="button"
+              class="quiet-button"
+              disabled
+            >
               Load worked command</button
             ><button id="undo" type="button" class="quiet-button">Undo</button>
           </div>

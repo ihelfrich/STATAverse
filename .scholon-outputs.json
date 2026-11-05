@@ -623,6 +623,34 @@
         "service-worker.js",
         "assets/js/legacy-location.js"
       ]
+    },
+    {
+      "id": "stataverse.public-site",
+      "project": "stataverse",
+      "path": "docs/verification/public-site.json",
+      "kind": "receipt",
+      "title": "Public STATAverse website browser verification",
+      "summary": "Public origin and pinned runtime verification, beginner execution, saved work, advanced labs, offline use and main-site discovery",
+      "facets": [
+        "Stata",
+        "browser",
+        "website",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Point-in-time public browser checks with synthetic examples",
+        "No full Stata equivalence or classroom validation",
+        "Computed gzip sizes are not measured network transfer times"
+      ],
+      "depends_on": [
+        "stataverse.site-integration"
+      ],
+      "evidence": [
+        "tools/verify-site-integration.mjs",
+        "docs/site-integration.md",
+        "docs/red-team-review.md"
+      ]
     }
   ]
 }

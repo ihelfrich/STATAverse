@@ -973,4 +973,9 @@ zipButton.addEventListener("click", () => {
   );
 });
 loadSession();
+for (const id of ["run", "run-line", "insert-example"])
+  $("#" + id).disabled = false;
+$("#main").removeAttribute("inert");
+$("#main").setAttribute("aria-busy", "false");
+$("#practice-loading").hidden = true;
 registerOffline();

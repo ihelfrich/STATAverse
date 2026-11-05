@@ -14,7 +14,8 @@
     "format:check": "prettier --check src tests tools/*.mjs playwright.config.js Learn/index.html Labs/index.html Labs/Inference/index.html index.html Workspace/index.html CodeLibrary/index.html assets/css/home.css assets/css/learn.css assets/css/labs.css assets/css/inference.css service-worker.js Labs/Data/index.html assets/css/data-lab.css Labs/IV/index.html assets/css/iv.css",
     "package:site": "npm run build && node tools/package-site.mjs",
     "test:site": "node tools/verify-site-integration.mjs",
-    "test:legacy": "node tools/verify-legacy-transition.mjs"
+    "test:legacy": "node tools/verify-legacy-transition.mjs",
+    "test:loading": "node tools/verify-practice-loading.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",

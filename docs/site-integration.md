@@ -1,6 +1,6 @@
 # Website integration and browser performance
 
-Dr. Helfrich added full integration into `ihelfrich.github.io` and efficient browser execution to the continuing five-million-token overhaul on 5 November 2026 UTC. The canonical destination is `/learn/stata/`. The current integration is a local candidate; it has not been published.
+Dr. Helfrich added full integration into `ihelfrich.github.io` and efficient browser execution to the continuing five-million-token overhaul on 5 November 2026 UTC. The canonical destination is `/learn/stata/`. The canonical integration was first published on 5 November 2026 UTC. `docs/verification/public-site.json` records the tested public origin, pinned source and student-flow checks; the full overhaul remains active.
 
 ## Source and release ownership
 

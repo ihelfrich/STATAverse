@@ -68,5 +68,5 @@ For each imported source used by this session, a -source.txt file retains its un
 The do-file repeats successful commands, with explicit numeric/string import columns. Failed commands are recorded in notes.txt. editor-draft.do preserves the current editor text, including comments and commands that may not have run. If a preserved copy is active, the do-file discards that temporary copy at completion to retain the working data.
 Stata CSV import depends on its installed runtime; browser preview does not establish native import success on every installation. Original header labels are recorded in the import metadata and source, rather than injected as executable Stata code.
 `)};for(let e of Object.values(Ot))r[e.file]=yt(Yn(Pi(e.id)));for(let e of jp()){r[e.file]=yt(Yn(e.data)),r[`${e.id}-source.txt`]=yt(e.record.source);let{source:t,...n}=e.record;r[`${e.id}-import.json`]=yt(JSON.stringify(n,null,2)+`
-`)}Ii("stataverse-project.zip",Cu(r,{level:6}),"application/zip")});An();Su();
+`)}Ii("stataverse-project.zip",Cu(r,{level:6}),"application/zip")});An();for(let r of["run","run-line","insert-example"])O("#"+r).disabled=!1;O("#main").removeAttribute("inert");O("#main").setAttribute("aria-busy","false");O("#practice-loading").hidden=!0;Su();
 //# sourceMappingURL=learn.js.map
