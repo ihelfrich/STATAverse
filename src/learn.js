@@ -1,6 +1,6 @@
-import { PracticeSession, splitDoFile } from "./engine.js";
+import { PracticeSession } from "./engine.js";
 import { DATASETS, createDataset, toCSV } from "./datasets.js";
-import { LESSONS, checkStep } from "./lessons.js";
+import { LESSONS, assessStep } from "./lessons.js";
 import { REFERENCE } from "./reference.js";
 import {
   escapeHTML as h,
@@ -12,6 +12,8 @@ import { renderGraph } from "./graph.js";
 import { zipSync, strToU8 } from "fflate";
 import { registerOffline } from "./offline.js";
 import { PRACTICE_KEY, emptyStore, parseStore } from "./persistence.js";
+import { createCommandEditor } from "./editor.js";
+import { changeSummary } from "./data-changes.js";
 const $ = (selector) => document.querySelector(selector);
 const STORAGE = PRACTICE_KEY;
 let saved = emptyStore(),
@@ -38,6 +40,7 @@ let mode = "guided",
 let stepIndex = 0,
   session,
   results = [],
+  timeline = [],
   commandPassed = false,
   answerPassed = false,
   activeTab = "data",
@@ -63,7 +66,7 @@ function persist() {
     ...previous,
     step: stepIndex,
     history: session.history.slice(),
-    code: $("#command-editor").value,
+    code: editor.getValue(),
     note: $("#student-notes").value,
     completed: Array.isArray(previous.completed) ? previous.completed : [],
   };
@@ -88,6 +91,7 @@ function loadSession() {
   const record = entry();
   session = new PracticeSession(initialDataset);
   results = [];
+  timeline = [];
   stepIndex =
     mode === "guided"
       ? Math.min(
@@ -103,6 +107,7 @@ function loadSession() {
     for (const command of record.history) {
       const output = session.run(command);
       results.push(...output);
+      timeline.push(...output);
       if (output.some((r) => r.kind === "error")) {
         storageWarning(
           "Some saved commands could not be replayed. Practice stopped at the first error; inspect Results before continuing.",
@@ -114,12 +119,13 @@ function loadSession() {
   commandPassed = false;
   answerPassed = false;
   selectedAnswer = null;
-  $("#command-editor").value =
+  editor.setValue(
     typeof record?.code === "string"
       ? record.code.slice(0, 50000)
       : mode === "guided" && stepIndex === 0 && lesson.id === "first-commands"
         ? "describe"
-        : "";
+        : "",
+  );
   $("#student-notes").value =
     typeof record?.note === "string" ? record.note.slice(0, 50000) : "";
   renderAll();
@@ -134,6 +140,10 @@ function renderSidebar() {
     const done = saved.lessons[l.id]?.completed?.length === l.steps.length;
     return `<button type="button" class="lesson-link" data-lesson="${l.id}" ${mode === "guided" && l.id === lesson.id ? 'aria-current="step"' : ""}><span class="lesson-number">${done ? "✓" : String(i + 1).padStart(2, "0")}</span><strong>${h(l.title)}</strong><small>${h(l.level)} · ${l.minutes} min${done ? " · complete" : ""}</small></button>`;
   }).join("");
+  $("#lesson-switch").innerHTML = LESSONS.map(
+    (l, i) =>
+      `<option value="${l.id}" ${l.id === lesson.id ? "selected" : ""}>${i + 1}. ${h(l.title)}</option>`,
+  ).join("");
   $("#free-mode").setAttribute("aria-pressed", String(mode === "free"));
 }
 function renderLesson() {
@@ -213,6 +223,12 @@ function updateNext() {
 }
 function renderData() {
   const data = session.data,
+    changedCells = new Map(
+      (results.at(-1)?.effect?.cells || []).map((c) => [
+        `${c.observation}:${c.name}`,
+        c,
+      ]),
+    ),
     metadata = DATASETS[data.id],
     selected = new Set(
       results.at(-1)?.kind === "count" ? results.at(-1).selected : [],
@@ -226,7 +242,7 @@ function renderData() {
   $("#dataset-unit").textContent = metadata.unit;
   $("#data-description").textContent = metadata.description;
   $("#data-table").innerHTML = data.columns.length
-    ? `<table class="data-table"><caption class="sr-only">${h(metadata.title)}. A dot indicates a numeric missing value.</caption><thead><tr><th scope="col">Obs.</th>${data.columns.map((c) => `<th scope="col" class="${c.name === newColumn ? "new-column" : ""}"><button type="button" data-variable="${h(c.name)}" aria-label="Inspect variable ${h(c.name)}">${h(c.name)}</button></th>`).join("")}</tr></thead><tbody>${data.rows.map((r, i) => `<tr class="${selected.has(i) ? "highlighted" : ""}"><td>${i + 1}</td>${data.columns.map((c) => `<td class="${r[c.name] === null || r[c.name] === "" ? "missing" : c.name === newColumn ? "new-column" : ""}">${r[c.name] === null ? '<span aria-label="missing">.</span>' : typeof r[c.name] === "number" ? fmt(r[c.name]) : h(r[c.name])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+    ? `<table class="data-table"><caption class="sr-only">${h(metadata.title)}. A dot indicates a numeric missing value.</caption><thead><tr><th scope="col">Obs.</th>${data.columns.map((c) => `<th scope="col" class="${c.name === newColumn ? "new-column" : ""}"><button type="button" data-variable="${h(c.name)}" aria-label="Inspect variable ${h(c.name)}">${h(c.name)}</button></th>`).join("")}</tr></thead><tbody>${data.rows.map((r, i) => `<tr class="${selected.has(i) ? "highlighted" : ""}"><td>${i + 1}</td>${data.columns.map((c) => `<td class="${changedCells.has(`${i + 1}:${c.name}`) ? "changed-cell " : ""}${r[c.name] === null || r[c.name] === "" ? "missing" : c.name === newColumn ? "new-column" : ""}">${r[c.name] === null ? '<span aria-label="missing">.</span>' : typeof r[c.name] === "number" ? fmt(r[c.name]) : h(r[c.name])}</td>`).join("")}</tr>`).join("")}</tbody></table>`
     : '<div class="empty-state">No data in memory. Import a practice dataset or use Undo.</div>';
   $("#data-table")
     .querySelectorAll("[data-variable]")
@@ -261,17 +277,50 @@ function renderResults() {
       }),
     );
 }
+function renderHistory() {
+  $("#history-count").textContent = timeline.length || "";
+  $("#command-history").innerHTML = timeline.length
+    ? timeline
+        .map((result, i) => {
+          const effect = result.effect;
+          const cellValue = (value) =>
+            value === null ? ". (missing)" : h(value);
+          const cells = effect?.cells || [];
+          return `<article class="history-entry ${result.kind === "error" ? "failed" : ""}">
+      <div class="history-marker" aria-hidden="true">${String(i + 1).padStart(2, "0")}</div>
+      <div class="history-body"><code>${h(result.command)}</code>
+      <p>${result.kind === "error" ? `Stopped with r(${result.code}): ${h(result.message)}` : h(changeSummary(effect))}</p>
+      ${effect && result.kind !== "error" ? `<span class="history-dimensions">${effect.beforeRows} → ${effect.afterRows} observations · ${effect.beforeColumns} → ${effect.afterColumns} variables</span>` : ""}
+      ${cells.length ? `<details class="change-details"><summary>Inspect ${effect.changedCells} changed value${effect.changedCells === 1 ? "" : "s"}</summary><div class="result-table-wrap" tabindex="0" role="region" aria-label="Changed values"><table class="result-table"><thead><tr><th scope="col">Obs.</th><th scope="col">Variable</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>${cells.map((c) => `<tr><td>${c.observation}</td><td>${h(c.name)}</td><td>${cellValue(c.before)}</td><td>${cellValue(c.after)}</td></tr>`).join("")}</tbody></table></div>${effect.changedCells > cells.length ? `<p>Showing the first ${cells.length} changes.</p>` : ""}</details>` : ""}
+      <button type="button" class="text-button" data-reuse-command="${i}">Load in editor</button>
+      </div></article>`;
+        })
+        .reverse()
+        .join("")
+    : '<div class="empty-state"><h3>No commands yet.</h3><p>Each run will appear here with its effect on the data. Errors leave the data unchanged.</p></div>';
+  $("#command-history")
+    .querySelectorAll("[data-reuse-command]")
+    .forEach((button) =>
+      button.addEventListener("click", () => {
+        editor.setValue(timeline[Number(button.dataset.reuseCommand)].command);
+        editor.focus();
+        persist();
+        announce("Command loaded into the editor. It has not run.");
+      }),
+    );
+}
 function renderAll() {
   renderSidebar();
   renderLesson();
   renderData();
   renderResults();
+  renderHistory();
   renderGraph($("#graph"), session.graph);
   $("#undo").disabled = !session.undoStack.length;
 }
 function setTab(name, focus = false) {
   activeTab = name;
-  for (const tab of ["data", "results", "graph"]) {
+  for (const tab of ["data", "results", "graph", "history"]) {
     const button = $(`#tab-${tab}`);
     button.setAttribute("aria-selected", String(name === tab));
     button.tabIndex = name === tab ? 0 : -1;
@@ -279,15 +328,41 @@ function setTab(name, focus = false) {
   }
   if (focus) $(`#tab-${name}`).focus();
 }
-function run() {
-  let output;
+function run(scope = "all") {
+  let output, range;
+  const fullSource = editor.getValue();
   try {
-    output = session.run($("#command-editor").value);
+    range =
+      scope === "current"
+        ? editor.range()
+        : { from: 0, to: fullSource.length, line: 1, text: fullSource };
+    if (!range) {
+      announce("There is no command at or after the cursor.");
+      return;
+    }
+    output = session.run(range.text);
+    for (const result of output)
+      if (result.source)
+        result.source = {
+          ...result.source,
+          from: result.source.from + range.from,
+          to: result.source.to + range.from,
+          line: result.source.line + range.line - 1,
+          endLine: result.source.endLine + range.line - 1,
+        };
   } catch (e) {
     output = [
       {
         kind: "error",
-        command: $("#command-editor").value,
+        command: range?.text ?? fullSource,
+        source: e.source
+          ? {
+              ...e.source,
+              from: e.source.from + (range?.from || 0),
+              to: e.source.to + (range?.from || 0),
+              line: e.source.line + (range?.line || 1) - 1,
+            }
+          : undefined,
         message: e.message,
         code: e.code || 198,
         hint: e.hint || "Correct the do-file syntax and run again.",
@@ -300,20 +375,22 @@ function run() {
     return;
   }
   results.push(...output);
+  timeline.push(...output);
+  if (timeline.length > 500) timeline = timeline.slice(-500);
   if (results.length > 200) results = results.slice(-200);
   const last = output.at(-1);
+  if (last.source)
+    editor.mark(last.source.from, last.source.to, last.kind === "error");
+  if (scope === "current" && !range?.selection && last.kind !== "error")
+    editor.advance(range.to);
   if (mode === "guided") {
-    commandPassed = checkStep(lesson, stepIndex, session, last);
-    updateCheck(
-      commandPassed
-        ? ""
-        : last.kind === "error"
-          ? "The command stopped with an error. Read Results for the cause and a next step."
-          : "The command ran, but the result does not yet match this task. Check the variable names, sample and dataset state.",
-    );
+    const assessment = assessStep(lesson, stepIndex, session, last);
+    commandPassed = assessment.passed;
+    updateCheck(assessment.message);
   }
   renderData();
   renderResults();
+  renderHistory();
   renderGraph($("#graph"), session.graph);
   $("#undo").disabled = !session.undoStack.length;
   const view = ["scatter", "histogram"].includes(last.kind)
@@ -342,25 +419,28 @@ function run() {
       ? `Command stopped: ${last.message}`
       : `Command completed. ${view === "data" ? "Data browser updated." : view === "graph" ? "Graph updated." : "Results updated."}`,
   );
+  $("#mobile-output-state").textContent =
+    last.kind === "error" ? "· error" : "· updated";
   persist();
 }
-$("#run").addEventListener("click", run);
-$("#command-editor").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-    e.preventDefault();
-    run();
-  }
-});
 let saveTimer;
-for (const input of [$("#command-editor"), $("#student-notes")])
-  input.addEventListener("input", () => {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(persist, 250);
-  });
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persist, 250);
+}
+const editor = createCommandEditor($("#code-editor"), {
+  onChange: scheduleSave,
+  onRun: run,
+  variables: () => session?.data.columns || [],
+  announce,
+});
+$("#run").addEventListener("click", () => run("all"));
+$("#run-line").addEventListener("click", () => run("current"));
+$("#student-notes").addEventListener("input", scheduleSave);
 window.addEventListener("pagehide", persist);
 $("#insert-example").addEventListener("click", () => {
-  $("#command-editor").value = lesson.steps[stepIndex].command;
-  $("#command-editor").focus();
+  editor.setValue(lesson.steps[stepIndex].command);
+  editor.focus();
   persist();
   announce("Example loaded into the editor. It has not run.");
 });
@@ -371,6 +451,8 @@ $("#undo").addEventListener("click", () => {
     selectedAnswer = null;
     const undone = results.findLastIndex((result) => result.kind !== "error");
     if (undone >= 0) results = results.slice(0, undone);
+    const event = timeline.findLastIndex((result) => result.kind !== "error");
+    if (event >= 0) timeline = timeline.slice(0, event);
     renderAll();
     setTab("data");
     persist();
@@ -379,18 +461,42 @@ $("#undo").addEventListener("click", () => {
     );
   }
 });
-$("#lesson-list").addEventListener("click", (e) => {
-  const button = e.target.closest("[data-lesson]");
-  if (!button) return;
+function openLesson(id) {
+  const selected = LESSONS.find((l) => l.id === id);
+  if (!selected) return;
   persist();
   mode = "guided";
-  lesson = LESSONS.find((l) => l.id === button.dataset.lesson);
+  lesson = selected;
   initialDataset = lesson.dataset;
   history.replaceState(null, "", "#" + lesson.id);
   loadSession();
   persist();
   announce(`Opened ${lesson.title}.`);
+}
+$("#lesson-list").addEventListener("click", (e) => {
+  const button = e.target.closest("[data-lesson]");
+  if (button) openLesson(button.dataset.lesson);
 });
+$("#lesson-switch").addEventListener("change", (event) =>
+  openLesson(event.target.value),
+);
+document.querySelectorAll("[data-workspace-jump]").forEach((button) =>
+  button.addEventListener("click", () => {
+    const target = button.dataset.workspaceJump;
+    const element =
+      target === "task"
+        ? $("#lesson-content")
+        : target === "editor"
+          ? $(".editor-section")
+          : $(".observation-pane");
+    element.scrollIntoView({ block: "start" });
+    if (target === "editor") editor.focus();
+    else {
+      element.tabIndex = -1;
+      element.focus({ preventScroll: true });
+    }
+  }),
+);
 $("#free-mode").addEventListener("click", () => {
   persist();
   mode = "free";
@@ -451,7 +557,7 @@ $("#next-step").addEventListener("click", () => {
   commandPassed = false;
   answerPassed = false;
   selectedAnswer = null;
-  $("#command-editor").value = "";
+  editor.setValue("");
   renderLesson();
   persist();
   announce(`Step ${stepIndex + 1}: ${lesson.steps[stepIndex].title}`);
@@ -463,10 +569,10 @@ $("#clear-results").addEventListener("click", () => {
   renderResults();
   announce("Results display cleared. Data and command history are unchanged.");
 });
-for (const name of ["data", "results", "graph"]) {
+for (const name of ["data", "results", "graph", "history"]) {
   $(`#tab-${name}`).addEventListener("click", () => setTab(name));
   $(`#tab-${name}`).addEventListener("keydown", (e) => {
-    const tabs = ["data", "results", "graph"],
+    const tabs = ["data", "results", "graph", "history"],
       i = tabs.indexOf(name);
     if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
       e.preventDefault();
@@ -474,8 +580,11 @@ for (const name of ["data", "results", "graph"]) {
         e.key === "Home"
           ? "data"
           : e.key === "End"
-            ? "graph"
-            : tabs[(i + (e.key === "ArrowRight" ? 1 : 2)) % 3],
+            ? "history"
+            : tabs[
+                (i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) %
+                  tabs.length
+              ],
         true,
       );
     }
@@ -567,8 +676,9 @@ zipButton.addEventListener("click", () => {
     "analysis.do": strToU8(doFile()),
     "notes.txt": strToU8(notesText()),
     "current-data.csv": strToU8(toCSV(session.data)),
+    "editor-draft.do": strToU8(editor.getValue()),
     "README.txt": strToU8(
-      "STATAverse synthetic practice project\n\nExtract this ZIP. In Stata, change the working directory to this folder and run analysis.do.\nThe three named CSV files are original practice datasets; current-data.csv contains your final browser data.\nThe do-file begins with the original dataset and repeats successful commands. Failed commands are recorded in notes.txt.\nAll data are synthetic. No causal or population claims are implied.\n",
+      "STATAverse synthetic practice project\n\nExtract this ZIP. In Stata, change the working directory to this folder and run analysis.do.\nThe three named CSV files are original practice datasets; current-data.csv contains your final browser data.\nThe do-file begins with the original dataset and repeats successful commands. Failed commands are recorded in notes.txt. editor-draft.do preserves the current editor text, including comments and commands that may not have run.\nAll data are synthetic. No causal or population claims are implied.\n",
     ),
   };
   for (const dataset of Object.values(DATASETS))

@@ -142,7 +142,9 @@ test("all lessons can be completed through actual controls", async ({
   test.setTimeout(120000);
   await page.goto("/Learn/");
   for (const lesson of LESSONS.slice(1)) {
-    await page.locator(`[data-lesson="${lesson.id}"]`).click();
+    if (await page.locator("#lesson-switch").isVisible())
+      await page.locator("#lesson-switch").selectOption(lesson.id);
+    else await page.locator(`[data-lesson="${lesson.id}"]`).click();
     for (const step of lesson.steps) {
       await page.locator("#insert-example").click();
       await page.locator("#run").click();

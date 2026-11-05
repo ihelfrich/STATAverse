@@ -31,6 +31,22 @@ Reviewed on 4 November 2026. The implementation agent performed the adversarial 
 
 ## Verification scope
 
+### Continuing overhaul: editor and execution review
+
+The resumed goal extends the first increment; it is not a completed redesign. The next implementation adds an accessible CodeMirror editor, current-command and selection execution, source-line diagnostics, command history with bounded before/after cell changes, compact mobile navigation and more permissive task checks.
+
+- **Comment parsing:** an unmatched quote inside a full-line `*` comment could incorrectly stop execution. Comments now bypass string parsing. Tests cover comments, continued commands, selected ranges and source locations.
+- **False rejection of valid work:** whole-dataset equality rejected an extra helper column, an equivalent generate/replace workflow or a reordered summary. Checks now compare required data and task-relevant outputs. They retain sample-membership checks; two equal counts from different groups do not pass interchangeably.
+- **False completion through an unrelated error:** an arbitrary failed assertion could resemble the intended age-check failure. Failed assertions now carry checked and failing observation evidence. The exercise compares that evidence rather than accepting an error code alone.
+- **Misleading change displays:** sorting rows must not be described as editing every cell. Change receipts distinguish reordering, row removal, added/removed columns, variable labels and edits to existing values. At most 200 edited cells appear per receipt.
+- **Editor suggestions:** suggestions must come from the supported command/function catalogs. A review caught unsupported functions in the initial completion list; they were removed before acceptance.
+- **Accessibility:** the populated History view exposed insufficient contrast in its command numbers. The color was darkened and the desktop/mobile check rerun.
+- **Completion test timing:** the initial mobile test pressed Enter inside CodeMirror's deliberate 75 ms protection against accidental completion acceptance. The implementation retains that protection; the test selects the visible suggestion through its control.
+
+The unchanged v2 storage format retains existing progress and editor text. The ZIP now also includes `editor-draft.do`, preserving comments and unexecuted text separately from the reproducible successful-command history. Tests cover selection isolation, source locations, current-command advancement, editor exit with Tab, suggestions, draft persistence and history reuse.
+
+Limits at this stage: the required dataset projection still checks the supplied lesson's underlying values; it is not a general symbolic proof of equivalent Stata programs. History receipts are reconstructed for successful saved commands, while current-visit errors remain in the results/notes view. Full transcript persistence and more substantial curriculum changes remain further work.
+
 Engine tests cover supported syntax, invalid expressions, sample selection, missing values, rollback, undo, collinearity, row-order/unit invariance and independent numerical fixtures. Browser tests cover every lesson, interpretation gating, storage failures, backups, simultaneous tabs, graph controls, exports, keyboard navigation, mobile overflow and automated accessibility checks. Deployment uses a real local server under the GitHub Pages project prefix.
 
 Native receipts cover default settings of nine advanced scripts, both applied projects and sixteen small templates with assertions. Runtime success does not certify every branch, explanatory sentence or suitability for another dataset. Historical design notes are labeled as historical; their earlier validation claims are not evidence for this release.

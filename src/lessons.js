@@ -1,4 +1,3 @@
-import { PracticeSession } from "./engine.js";
 const step = (
   title,
   explanation,
@@ -507,44 +506,4 @@ export const LESSONS = [
   },
 ];
 
-const normalize = (x) => {
-  if (typeof x === "number")
-    return Number.isFinite(x) ? Number(x.toPrecision(10)) : null;
-  if (Array.isArray(x)) return x.map(normalize);
-  if (x && typeof x === "object")
-    return Object.fromEntries(
-      Object.entries(x)
-        .filter(
-          ([k]) =>
-            ![
-              "command",
-              "message",
-              "hint",
-              "selected",
-              "changedCells",
-            ].includes(k),
-        )
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([k, v]) => [k, normalize(v)]),
-    );
-  return x;
-};
-const expected = new Map();
-export function checkStep(lesson, index, session, result) {
-  const key = `${lesson.id}:${index}`;
-  if (!expected.has(key)) {
-    const reference = new PracticeSession(lesson.dataset);
-    let output;
-    for (let i = 0; i <= index; i++)
-      output = reference.run(lesson.steps[i].command).at(-1);
-    expected.set(key, {
-      data: normalize(reference.data),
-      result: normalize(output),
-    });
-  }
-  const target = expected.get(key);
-  return (
-    JSON.stringify(normalize(session.data)) === JSON.stringify(target.data) &&
-    JSON.stringify(normalize(result)) === JSON.stringify(target.result)
-  );
-}
+export { checkStep, assessStep } from "./lesson-checks.js";

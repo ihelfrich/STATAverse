@@ -44,6 +44,18 @@ for (const name of [
   "is-any-array",
   "chart.js",
   "@kurkle/color",
+  "@codemirror/view",
+  "@codemirror/state",
+  "@codemirror/language",
+  "@codemirror/autocomplete",
+  "@codemirror/commands",
+  "@codemirror/search",
+  "@lezer/common",
+  "@lezer/lr",
+  "@lezer/highlight",
+  "crelt",
+  "style-mod",
+  "w3c-keyname",
 ]) {
   const folder = `node_modules/${name}`;
   const files = await fs.readdir(folder);

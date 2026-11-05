@@ -94,6 +94,7 @@ const functions = {
   },
   inlist: { min: 2, max: 30, fn: (x, ...a) => Number(a.includes(x)) },
 };
+export const SUPPORTED_FUNCTIONS = Object.freeze(Object.keys(functions));
 export function compileExpression(source, columns) {
   const typed = (fn, valueType = "numeric") => Object.assign(fn, { valueType });
   const tokens = tokenize(source);

@@ -111,7 +111,7 @@ export function resultHTML(result, index) {
     body += `<div class="result-annotation" data-annotation="${index}">Select a variable name for an interpretation. ${r.omitted} selected row(s) were excluded for missing model variables. R-squared describes in-sample fit, not causal validity.</div>`;
   }
   if (r.message) body += `<p class="result-text">${h(r.message)}</p>`;
-  return `<article class="result-card"><pre class="result-command ${r.kind === "error" ? "error" : ""}">. ${h(r.command)}</pre>${body}</article>`;
+  return `<article class="result-card">${r.source ? `<span class="result-source">Line ${r.source.line}${r.source.endLine > r.source.line ? `–${r.source.endLine}` : ""}</span>` : ""}<pre class="result-command ${r.kind === "error" ? "error" : ""}">. ${h(r.command)}</pre>${body}</article>`;
 }
 export function explainCoefficient(model, name) {
   const c = model.coefficients.find((c) => c.name === name);

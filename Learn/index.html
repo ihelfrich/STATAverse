@@ -31,7 +31,7 @@
     <div class="workspace-heading">
       <div>
         <p class="eyebrow">The practice workspace</p>
-        <h1>Understand what each command does.</h1>
+        <h1>Stata, one command at a time.</h1>
       </div>
       <p class="scope-note">
         Runs in your browser. A guided Stata subset.<br /><button
@@ -55,6 +55,10 @@
           Start with the basics, then bring the pieces together.
         </p>
         <nav id="lesson-list" aria-label="Practice lessons"></nav>
+        <label for="lesson-switch" class="sr-only"
+          >Choose a practice lesson</label
+        >
+        <select id="lesson-switch" class="lesson-switch"></select>
         <button type="button" id="free-mode" class="explore-button">
           <span>Open practice</span><span aria-hidden="true">↗</span
           ><small>Choose data and write your own commands.</small>
@@ -69,30 +73,27 @@
         <section class="editor-section" aria-labelledby="editor-heading">
           <div class="pane-heading">
             <h2 id="editor-heading">Command editor</h2>
-            <span class="shortcut">⌘ / Ctrl + Enter</span>
+            <span class="shortcut">⌘ / Ctrl + Enter: run current</span>
           </div>
-          <div class="editor-wrap">
-            <span class="command-prompt" aria-hidden="true">.</span
-            ><label class="sr-only" for="command-editor">Stata commands</label
-            ><textarea
-              id="command-editor"
-              maxlength="50000"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="off"
-              aria-describedby="editor-description"
-            ></textarea>
+          <div id="code-editor" class="editor-wrap"></div>
+          <div class="editor-status">
+            <span>Stata do-file</span
+            ><span id="editor-position">Line 1 · column 1</span>
           </div>
           <div class="editor-actions">
+            <button id="run-line" type="button" class="primary-button">
+              Run current command
+            </button>
             <button id="run" type="button" class="primary-button">
-              <span aria-hidden="true">▶</span> Run commands</button
+              Run all</button
             ><button id="insert-example" type="button" class="quiet-button">
               Load example</button
             ><button id="undo" type="button" class="quiet-button">Undo</button>
           </div>
           <p id="editor-description" class="helper">
-            Run the editor in order. Execution stops at the first error. Undo
-            steps back one successful command.
+            Run the command at your cursor, select several lines, or run the
+            full editor. Execution stops at an error. Tab leaves the editor;
+            Ctrl + Space shows suggestions.
           </p>
         </section>
         <div
@@ -164,6 +165,16 @@
           >
             Graph
           </button>
+          <button
+            type="button"
+            id="tab-history"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-history"
+            tabindex="-1"
+          >
+            History <span id="history-count"></span>
+          </button>
         </div>
         <section
           id="panel-data"
@@ -201,6 +212,22 @@
         >
           <div id="graph"></div>
         </section>
+        <section
+          id="panel-history"
+          role="tabpanel"
+          aria-labelledby="tab-history"
+          tabindex="0"
+          hidden
+        >
+          <div class="results-heading">
+            <span>Commands and changes to data</span>
+          </div>
+          <p class="history-intro">
+            Inspect what each command changed. Loading a command into the editor
+            does not execute it.
+          </p>
+          <div id="command-history"></div>
+        </section>
         <div class="workbench-note">
           <span aria-hidden="true">↳</span>
           <p id="activity-note">
@@ -230,6 +257,13 @@
         >
       </p>
     </dialog>
+    <nav class="mobile-workflow" aria-label="Workspace shortcuts">
+      <button type="button" data-workspace-jump="task">Task</button>
+      <button type="button" data-workspace-jump="editor">Editor</button>
+      <button type="button" data-workspace-jump="output">
+        Output <span id="mobile-output-state"></span>
+      </button>
+    </nav>
     <dialog id="limits-dialog" aria-labelledby="limits-title">
       <div class="dialog-header">
         <h2 id="limits-title">Browser practice and Stata</h2>

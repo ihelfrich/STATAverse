@@ -1,5 +1,7 @@
 import { DATASETS, createDataset } from "./datasets.js";
 import { StataError, compileExpression } from "./expression.js";
+import { commandBlocks } from "./do-file.js";
+import { dataChanges } from "./data-changes.js";
 import { missing, summarize, regress, correlation } from "./statistics.js";
 export { StataError };
 const aliases = {
@@ -15,6 +17,35 @@ const aliases = {
   desc: "describe",
   l: "list",
 };
+export const SUPPORTED_COMMANDS = Object.freeze([
+  "describe",
+  "codebook",
+  "list",
+  "count",
+  "summarize",
+  "tabulate",
+  "correlate",
+  "generate",
+  "replace",
+  "rename",
+  "label",
+  "sort",
+  "drop",
+  "keep",
+  "assert",
+  "isid",
+  "duplicates",
+  "regress",
+  "predict",
+  "scatter",
+  "histogram",
+  "import",
+  "clear",
+  "set",
+  "display",
+  "help",
+  ...Object.keys(aliases),
+]);
 const clone = (x) => structuredClone(x);
 const cleanName = (name) =>
   /^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(name) &&
@@ -46,61 +77,9 @@ function splitTop(source, delimiter) {
   return [source.trim(), ""];
 }
 export function splitDoFile(source) {
-  if (source.length > 50000)
-    throw new StataError(
-      "This do-file exceeds the 50,000-character practice limit.",
-    );
-  const lines = [];
-  let current = "",
-    quote = false,
-    block = false;
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i],
-      next = source[i + 1];
-    if (block) {
-      if (c === "*" && next === "/") {
-        block = false;
-        i++;
-        current += " ";
-      } else if (c === "\n") {
-        current += " ";
-      }
-      continue;
-    }
-    if (c === '"') quote = !quote;
-    if (!quote && c === "/" && next === "*") {
-      block = true;
-      i++;
-      continue;
-    }
-    if (!quote && c === "/" && next === "/") {
-      const continuation = source[i + 2] === "/";
-      while (i < source.length && source[i] !== "\n") i++;
-      if (continuation) current += " ";
-      else {
-        if (current.trim() && !current.trim().startsWith("*"))
-          lines.push(current.trim());
-        current = "";
-      }
-      continue;
-    }
-    if (c === "\n" && !quote) {
-      if (current.trim() && !current.trim().startsWith("*"))
-        lines.push(current.trim());
-      current = "";
-    } else current += c;
-  }
-  if (block)
-    throw new StataError("A block comment is not closed. End it with */.");
-  if (quote) throw new StataError("A double quote is not closed.");
-  if (current.trim() && !current.trim().startsWith("*"))
-    lines.push(current.trim());
-  if (lines.length > 200)
-    throw new StataError(
-      "Run at most 200 commands at a time in browser practice.",
-    );
-  return lines;
+  return commandBlocks(source).map((block) => block.command);
 }
+
 function qualify(source, dataset) {
   let main = source,
     condition = "",
@@ -250,18 +229,23 @@ export class PracticeSession {
     return true;
   }
   run(source) {
-    const commands = splitDoFile(source),
+    const commands = commandBlocks(source),
       results = [];
-    for (const command of commands) {
+    for (const block of commands) {
+      const { command, ...location } = block;
       try {
-        results.push(this.execute(command));
+        const result = this.execute(command);
+        result.source = location;
+        results.push(result);
       } catch (error) {
         results.push({
           kind: "error",
+          source: location,
           command,
           message: error.message,
           code: error.code || 498,
           hint: error.hint || "Check the command and data, then try again.",
+          ...(error.evidence ? { evidence: error.evidence } : {}),
         });
         break;
       }
@@ -279,7 +263,11 @@ export class PracticeSession {
       this.undoStack.push(before);
       if (this.undoStack.length > 50) this.undoStack.shift();
       this.history.push(command);
-      this.last = { ...result, command };
+      this.last = {
+        ...result,
+        command,
+        effect: dataChanges(before.data, this.data, result.kind),
+      };
       return this.last;
     } catch (error) {
       Object.assign(this, before);
@@ -626,12 +614,21 @@ export class PracticeSession {
           "assert requires a numeric condition, usually a comparison.",
           109,
         );
-      if (failed)
-        throw new StataError(
+      if (failed) {
+        const error = new StataError(
           `${failed} of ${rows.length} observation(s) contradict the assertion.`,
           9,
           "Inspect the unexpected values with list ... if condition. Do not delete them until you understand their source.",
         );
+        error.evidence = {
+          operation: "assert",
+          checked: q.selected.map(({ i }) => i),
+          failed: q.selected
+            .filter(({ r, i }) => !truth(fn(r, i, data.rows.length)))
+            .map(({ i }) => i),
+        };
+        throw error;
+      }
       return {
         kind: "assert",
         message: `Assertion holds for all ${rows.length} selected observation(s).`,

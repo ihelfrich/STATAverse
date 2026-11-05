@@ -18,8 +18,21 @@ The existing site contains useful lessons and scripts, but browser exercises mai
 
 Repository cloned from ihelfrich/STATAverse; migration archive identified and preserved. Agent Log claimed. Bounded prior-work lookup timed out; no conclusion about catalog coverage. No production publication is authorized by this local overhaul request.
 
-The local overhaul is implemented. Final verification and registration receipts are recorded under `docs/verification/` and `docs/red-team-review.md`. The user requested a 5,000,000-token budget, but the app-created goal exposes no numeric budget and the available goal tool cannot alter one. Work proceeds toward the deliverable; no claim is made that a quota was configured or consumed.
+The first increment is committed as `c7450d5`. Its verification and registration receipts are recorded under `docs/verification/` and `docs/red-team-review.md`. Dr. Helfrich explicitly rejected stopping at that increment. A new active goal now has a configured 5,000,000-token budget. That is a work budget, not a claim about tokens already consumed.
 
-## Final verification
+## Continuing implementation
+
+The current work targets mixed levels, with a clear beginner path and substantial advanced work. The stages below are implementation commitments to investigate and verify, not claims that features already exist.
+
+1. **Command execution and feedback.** Add a capable, accessible do-file editor, single-command execution, source locations, command history and visible changes to data. Replace whole-dataset exercise equality with checks of the actual task. Preserve saved work.
+2. **Data preparation and reproducibility.** Extend local data handling, inspectable transformations, grouping, joins and reshaping where the browser implementation can be verified. Retain original inputs and export reproducible Stata projects. Unsupported syntax must remain explicit.
+3. **Beginner and intermediate curriculum.** Develop task sequences that require prediction, execution, diagnosis and interpretation. Add progressively revealing help, meaningful feedback for common mistakes and independent practice. Avoid making example copying the only practical path.
+4. **Advanced visual analysis.** Build substantive interactive work around partial regression, specification, heteroskedasticity, panel models, nonlinear response, instrumental variables and difference-in-differences. Each implemented method needs stated assumptions and independent numerical checks.
+5. **Coherent design.** Integrate practice, analysis labs, projects and reference. Reduce mobile scrolling between an action and its result, keep the next task visible, and make dense numerical work readable. Test actual tasks, keyboard use, narrow layouts and zoom, in addition to automated accessibility checks.
+6. **Repeated adversarial review.** Reproduce statistical, parser, persistence, export and usability failures. Review student-facing wording and design on real screens after each substantial stage. Record limits and unresolved defects rather than treating a passing suite as complete assurance.
+
+The existing native Stata archive, legacy routes and browser progress remain migration constraints. No public deployment or paid external model generation is included in the current execution.
+
+## First-increment verification
 
 27 engine/persistence tests and 36 desktop/mobile browser cases passed. All 558 checked local links resolve. Project-path, cache isolation and offline checks passed. Nine native teaching scripts, two applied projects and sixteen template cases completed their numerical checks; Java-dependent import/PNG export limitations are recorded separately. Seven selected reusable assets were registered in Scholon. Changes remain local on the review branch.
