@@ -31,6 +31,7 @@ try {
   );
   await page.locator(".sv-site-menu summary").click();
   await fs.mkdir("docs/verification/screenshots", { recursive: true });
+  await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
     path: "docs/verification/screenshots/site-integration-desktop.png",
     fullPage: false,
@@ -199,6 +200,7 @@ try {
       .violations.length,
     0,
   );
+  await mobile.evaluate(() => document.fonts.ready);
   await mobile.screenshot({
     path: "docs/verification/screenshots/site-integration-mobile.png",
     fullPage: false,
