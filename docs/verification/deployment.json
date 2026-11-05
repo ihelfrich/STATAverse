@@ -10,6 +10,7 @@
   "dataLabProjectPathAndOffline": true,
   "dataLabMobileNavigation": true,
   "offlineDataInvestigation": true,
+  "offlineFirstIVInvestigationWithVaryOrigin": true,
   "foreignCachePreserved": true,
   "foreignCacheNotRead": true,
   "searchPracticeLinked": true,

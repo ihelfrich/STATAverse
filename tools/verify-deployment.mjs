@@ -4,7 +4,12 @@ import fs from "node:fs/promises";
 import assert from "node:assert/strict";
 import { chromium, devices } from "@playwright/test";
 const server = spawn(process.execPath, ["tools/serve.mjs"], {
-  env: { ...process.env, PORT: "4174", BASE_PATH: "/learn/stata/" },
+  env: {
+    ...process.env,
+    PORT: "4174",
+    BASE_PATH: "/learn/stata/",
+    TEST_VARY_ORIGIN: "1",
+  },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let browser;
@@ -126,6 +131,14 @@ try {
   await page.locator("#investigation-feedback.answer-passed").waitFor();
   await page.locator("#investigation-next:not([disabled])").waitFor();
   assert.ok(await page.locator("#investigation-next").isEnabled());
+  await page.goto(root + "Labs/IV/");
+  await page.locator("#iv-guide-select").selectOption("iv-weak");
+  await page.locator("#iv-guide-steps").waitFor({ timeout: 8000 });
+  await page.locator("#iv-guide-steps").selectOption("2");
+  assert.equal(await page.locator("#iv-set").innerText(), "All real values");
+  await page.locator('#iv-guide-inputs input[value="2"]').check();
+  await page.locator("#iv-guide-check").click();
+  await page.locator("#iv-guide-next:not([disabled])").waitFor();
   await context.setOffline(false);
   await page.goto(root + "Learn/");
   await page.evaluate(async () => {
@@ -266,6 +279,7 @@ try {
     dataLabProjectPathAndOffline: true,
     dataLabMobileNavigation: true,
     offlineDataInvestigation: true,
+    offlineFirstIVInvestigationWithVaryOrigin: true,
     foreignCachePreserved: true,
     foreignCacheNotRead: true,
     searchPracticeLinked: true,

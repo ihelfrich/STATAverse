@@ -1,6 +1,6 @@
 {
   "origin": "https://ihelfrich.github.io",
-  "checkedAt": "2026-11-05T08:07:06.939Z",
+  "checkedAt": "2026-11-05T08:46:26.129Z",
   "base": "/learn/stata/",
   "checks": [
     "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
@@ -8,6 +8,7 @@
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
     "IV lab at the canonical nested route, shared navigation, checked weak-instrument investigation offline, and restored task response, experiment and note after reload",
+    "method comparison retains selected choices offline at a new query URL, exports its conditions and limitations, and does not infer a causal design from unresolved endogeneity",
     "offline practice and worker simulation, navigation CSS cached, no external runtime requests",
     "Teaching entry, site search indexing and no worker control outside STATAverse",
     "mobile width, keyboard/native navigation, targeted accessibility and no-script site links"
@@ -53,17 +54,22 @@
       "asset": "iv-investigation-ui.js",
       "bytes": 34837,
       "gzipBytes": 11513
+    },
+    {
+      "asset": "method-lab.js",
+      "bytes": 24433,
+      "gzipBytes": 8457
     }
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "e7fbd2106c91ff638cae1380758603bc042dcc50",
+    "commit": "5eb3a81f1e4a128d9fc32e3fdd73bfcfa09b18c6",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
-    "files": 25,
-    "bytes": 1580052,
-    "gzipBytes": 496750
+    "files": 28,
+    "bytes": 1609414,
+    "gzipBytes": 507608
   }
 }

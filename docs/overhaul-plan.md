@@ -71,13 +71,11 @@ Further work remains on inspectable data preparation, additional advanced method
 
 The bounded Scholon lookup for grouped teaching procedures timed out after twenty seconds. Project recall returned unrelated job-application, compatibility-database and assessment descriptions; none was a reusable Stata grouping capability. Development extends this repository. These limited searches do not establish absence elsewhere.
 
-
 ## Relational preparation increment
 
 `Labs/Data/` now provides visual merge and reshape operations with source-row/cell traces, explicit key requirements, conflicting-value rules, invalid-state recovery and reproducible project exports. The guided command path remains 18 lessons and 80 steps; these visual labs supplement it. Further work should connect the lab to structured investigations and continue advanced methods and navigation improvements.
 
 The bounded Scholon lookup for relational preparation timed out after twenty seconds. The project-recall matches (highball, laborscope and learnscope) did not supply a Stata relational-data capability. The existing STATAverse implementation and native Stata manuals were used. These limited searches do not establish absence elsewhere.
-
 
 ## Guided relational investigations
 
@@ -90,3 +88,15 @@ The fourth analysis lab links first stages, reduced forms and structural fits on
 The implementation uses independent R and native Stata reference checks, a bounded 2,000-row population and at most 300 rendered observations. It joins the existing `/learn/stata/` integration, navigation, search and offline package. The IV-specific Scholon lookup timed out; project recall returned no selected-description matches. Existing code and official Stata documentation supplied the reusable foundations. This is a bounded addition to the continuing goal, not completion of the overhaul.
 
 The saved-investigation release passed 108 unit tests, 158 desktop/mobile browser cases, 660 link checks and eleven independent R/native IV cases. Public checks verified the exact source pin, an offline IV task and its response/settings/note after reload, beginner practice, navigation, search, sitemap, old URLs and saved-work compatibility. Its core offline package measures 496,750 bytes gzip from public response bodies. The remaining work within the revised budget should prioritize the student journey across advanced materials, voice/design consistency and meaningful adversarial cases over adding repetitive exercise counts.
+
+## Method comparison release
+
+The method page now separates outcome models, proposed research designs and covariance assumptions. Its 200 setups retain conditions and limitations in the browser and text exports. The printable Stata references share the same claims and preserve existing data. This increment passed 116 unit tests, 172 desktop/mobile browser cases, 665 link checks and 78 native template/reference cases. The public release pins source `5eb3a81f1e4a128d9fc32e3fdd73bfcfa09b18c6`; nine public check groups cover offline comparisons, exports, discovery and existing saved work. The method module measures 8,457 bytes gzip and the core offline package 507,608 bytes gzip. The goal remains active under the user's 2.5-million-token total cap.
+
+The next bounded objective is to make advanced worked scripts readable and useful before download, while reviewing their substantive claims. The panel toolkit is an identified priority: it still contains unconditional advice to cluster at the panel-unit level, categorical FE/RE recommendations, and a reporting template with placeholder significance claims. Its construction and maintained assumptions must be examined before rewriting the surrounding interpretation. The new method page's qualifications do not establish that every linked older script has received the same review. Further work should retain the original downloadable filenames, reuse the existing content, connect students to relevant browser investigations and continue design/voice review.
+
+## Worked-example reader and panel correction
+
+The seven existing do-files now have a sectioned browser reader, source search and line bookmarks, complete-file exports, prerequisite links and offline access after viewing. The revised panel sequence includes eight session-only interpretation checks and source-matched native estimates. The former within-between FE omission was reproduced and corrected; the current native assertions verify the complete static and separate dynamic examples. The full source suite passed 121 unit and 192 browser cases, with 663 valid local links. Publication is tracked separately in the public receipts.
+
+The next review should target unsupported causal interpretations and categorical diagnostic advice in the remaining older do-files, while retaining filenames and exact source provenance. The reader does not certify their prose. Continue within the user’s 2,500,000-token total cap. The current registration checkpoint selects the new reader/panel documentation and results in place of three unchanged R procedure entries; those procedures and their prior registrations remain available.

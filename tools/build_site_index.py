@@ -47,6 +47,22 @@ if investigation_path.exists():
         })
 
 scripts_path = root / "ScriptLibrary" / "scripts.json"
+worked_path = assets_data / "worked-examples.json"
+if worked_path.exists():
+    for item in json.loads(worked_path.read_text()):
+        entries.append({
+            "type": "script", "title": f"Worked example: {item['title']}",
+            "summary": item["summary"], "tags": ["Stata", "do-file", "worked example", item["id"]],
+            "level": item["level"], "path": f"CodeLibrary/?example={item['id']}",
+        })
+        for index, guide in enumerate(item.get("guides", [])):
+            if not guide.get("question"):
+                continue
+            entries.append({
+                "type": "script", "title": f"Panel example: {item['sections'][index]}",
+                "summary": guide["explanation"], "tags": ["panel", "fixed effects", "within-between", "Stata"],
+                "level": item["level"], "path": f"CodeLibrary/?example={item['id']}&section=section-{index}",
+            })
 if scripts_path.exists():
     scripts = json.loads(scripts_path.read_text())
     for item in scripts:
@@ -120,7 +136,7 @@ pages = [
     ("STATAverse Home", "index.html", ["home"]),
     ("Zero-to-Hero Overview", "ZeroToHero/index.html", ["overview"]),
     ("Script Library", "ScriptLibrary/index.html", ["scripts"]),
-    ("Code Library", "CodeLibrary/index.html", ["code", "library", "scripts"]),
+    ("Worked Stata examples", "CodeLibrary/index.html", ["code", "library", "scripts", "panel"]),
     ("Code Library Architecture", "CodeLibrary/architecture.html", ["code", "library", "docs"]),
     ("Code Library Innovation", "CodeLibrary/innovation.html", ["code", "library", "docs"]),
     ("Code Library Transformation", "CodeLibrary/transformation.html", ["code", "library", "docs"]),

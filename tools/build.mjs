@@ -6,7 +6,9 @@ import { LESSONS } from "../src/lessons.js";
 import { DATA_INVESTIGATIONS } from "../src/labs/data-investigations.js";
 import { IV_INVESTIGATIONS } from "../src/labs/iv-investigations.js";
 import { buildMethodGuides } from "./build-method-guides.mjs";
+import { buildWorkedExamples } from "./build-worked-examples.mjs";
 await buildMethodGuides();
+await buildWorkedExamples();
 const investigationMetadata = [
   ...DATA_INVESTIGATIONS.map((g) => ({
     ...g,
@@ -111,6 +113,7 @@ const bundleResult = await build({
     "src/iv-lab.js",
     "src/iv-investigation-ui.js",
     "src/method-lab.js",
+    "src/worked-reader.js",
   ],
   bundle: true,
   minify: true,

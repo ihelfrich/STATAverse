@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-11-05T09:01:41.079Z",
+  "source": "CodeLibrary/scripts/06_panel_data_toolkit.do",
+  "sourceSha256": "3ae0b8db16c4da5186b35b39d61494cf7611adad1259e7883903881a75df6493",
+  "returnCode": "0",
+  "checks": [
+    "full script executes without user-written packages",
+    "static panel restored after separate dynamic example",
+    "within deviations have zero firm means",
+    "FE slopes match explicit unit/year indicators",
+    "within-between within slopes match FE",
+    "between coefficients have positive finite standard errors",
+    "clustered joint restrictions execute with three degrees of freedom",
+    "native dynamic-panel estimation and serial-correlation checks execute"
+  ],
+  "limits": [
+    "One deterministic constructed static panel and a separate dynamic panel; not a Monte Carlo study or evidence for empirical identification.",
+    "Algebraic coefficient comparisons do not imply equal finite-sample covariance corrections.",
+    "Raw license-bearing logs remain outside the repository."
+  ]
+}

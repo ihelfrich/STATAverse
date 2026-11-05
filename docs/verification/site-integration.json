@@ -1,12 +1,13 @@
 {
   "origin": "http://127.0.0.1:4176",
-  "checkedAt": "2026-11-05T07:59:20.794Z",
+  "checkedAt": "2026-11-05T08:40:48.806Z",
   "base": "/learn/stata/",
   "checks": [
     "nested-path command execution, saved practice and scoped service worker",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
     "IV lab at the canonical nested route, shared navigation, checked weak-instrument investigation offline, and restored task response, experiment and note after reload",
+    "method comparison retains selected choices offline at a new query URL, exports its conditions and limitations, and does not infer a causal design from unresolved endogeneity",
     "offline practice and worker simulation, navigation CSS cached, no external runtime requests",
     "Teaching entry, site search indexing and no worker control outside STATAverse",
     "mobile width, keyboard/native navigation, targeted accessibility and no-script site links"
@@ -47,17 +48,27 @@
       "asset": "iv-lab.js",
       "bytes": 93664,
       "gzipBytes": 35318
+    },
+    {
+      "asset": "iv-investigation-ui.js",
+      "bytes": 34837,
+      "gzipBytes": 11513
+    },
+    {
+      "asset": "method-lab.js",
+      "bytes": 24433,
+      "gzipBytes": 8457
     }
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "a87cc9cf0b6d4c13a8c594e5897696eedfcfb139",
+    "commit": "5eb3a81f1e4a128d9fc32e3fdd73bfcfa09b18c6",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
-    "files": 25,
-    "bytes": 1580055,
-    "gzipBytes": 496760
+    "files": 28,
+    "bytes": 1609414,
+    "gzipBytes": 507608
   }
 }

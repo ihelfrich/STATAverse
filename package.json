@@ -11,7 +11,7 @@
     "check": "npm run build && npm test && npm run check:links && npm run test:browser && npm run test:deployment",
     "check:links": "node tools/check-links.mjs",
     "test:deployment": "node tools/verify-deployment.mjs",
-    "format:check": "prettier --check src tests tools/*.mjs playwright.config.js Learn/index.html Labs/index.html Labs/Inference/index.html index.html Workspace/index.html CodeLibrary/index.html assets/css/home.css assets/css/learn.css assets/css/labs.css assets/css/inference.css service-worker.js Labs/Data/index.html assets/css/data-lab.css Labs/IV/index.html assets/css/iv.css MethodLab/index.html assets/css/method-lab.css",
+    "format:check": "prettier --check src tests tools/*.mjs playwright.config.js Learn/index.html Labs/index.html Labs/Inference/index.html index.html Workspace/index.html CodeLibrary/index.html assets/css/home.css assets/css/learn.css assets/css/labs.css assets/css/inference.css service-worker.js Labs/Data/index.html assets/css/data-lab.css Labs/IV/index.html assets/css/iv.css MethodLab/index.html assets/css/method-lab.css assets/css/worked-reader.css",
     "package:site": "npm run build && node tools/package-site.mjs",
     "test:site": "node tools/verify-site-integration.mjs",
     "test:legacy": "node tools/verify-legacy-transition.mjs",

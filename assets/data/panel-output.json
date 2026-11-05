@@ -1,0 +1,117 @@
+{
+  "sourceSha256": "3ae0b8db16c4da5186b35b39d61494cf7611adad1259e7883903881a75df6493",
+  "origin": "Native Stata output for the bundled do-file and its fixed seeds",
+  "staticSample": {
+    "firms": 200,
+    "periods": 10,
+    "observations": 2000
+  },
+  "dynamicSample": {
+    "firms": 250,
+    "retainedPeriods": 10
+  },
+  "rows": [
+    {
+      "model": "pooled",
+      "term": "experience",
+      "b": 10.624045579757224,
+      "se": 0.1756274821100457
+    },
+    {
+      "model": "pooled",
+      "term": "competition",
+      "b": 2.986910254439358,
+      "se": 0.0709314922142461
+    },
+    {
+      "model": "pooled",
+      "term": "innovation",
+      "b": 7.967420699898493,
+      "se": 0.39215141823523836
+    },
+    {
+      "model": "fe",
+      "term": "experience",
+      "b": 1.7966148428924889,
+      "se": 0.22459441261163388
+    },
+    {
+      "model": "fe",
+      "term": "competition",
+      "b": 3.0097223327947127,
+      "se": 0.04785258600512087
+    },
+    {
+      "model": "fe",
+      "term": "innovation",
+      "b": 7.774415922192191,
+      "se": 0.2680452976884405
+    },
+    {
+      "model": "re",
+      "term": "experience",
+      "b": 8.718077648797781,
+      "se": 0.2673481741441219
+    },
+    {
+      "model": "re",
+      "term": "competition",
+      "b": 3.0192107244117894,
+      "se": 0.06311137811364556
+    },
+    {
+      "model": "re",
+      "term": "innovation",
+      "b": 7.902480586023362,
+      "se": 0.34844646183773714
+    },
+    {
+      "model": "hybrid",
+      "term": "experience_within",
+      "b": 1.7966148428865867,
+      "se": 0.2247641527134682
+    },
+    {
+      "model": "hybrid",
+      "term": "competition_within",
+      "b": 3.009722332794505,
+      "se": 0.04788875120942658
+    },
+    {
+      "model": "hybrid",
+      "term": "innovation_within",
+      "b": 7.774415922192128,
+      "se": 0.2682478763527024
+    },
+    {
+      "model": "hybrid",
+      "term": "experience_mean",
+      "b": 11.63874003662443,
+      "se": 0.13979800790703847
+    },
+    {
+      "model": "hybrid",
+      "term": "competition_mean",
+      "b": 2.538012920745045,
+      "se": 0.23805320768193183
+    },
+    {
+      "model": "hybrid",
+      "term": "innovation_mean",
+      "b": 8.53064305805466,
+      "se": 1.4510232975795205
+    },
+    {
+      "model": "dynamic_ab",
+      "term": "L.y",
+      "b": 0.5039606739367709,
+      "se": 0.01508811623158722
+    },
+    {
+      "model": "dynamic_ab",
+      "term": "x",
+      "b": 2.026226474660975,
+      "se": 0.02886332702576295
+    }
+  ]
+}

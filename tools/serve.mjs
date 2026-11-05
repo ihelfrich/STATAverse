@@ -35,6 +35,7 @@ http
           "Content-Type":
             mime[path.extname(file)] || "application/octet-stream",
           "Cache-Control": "no-store",
+          ...(process.env.TEST_VARY_ORIGIN === "1" ? { Vary: "Origin" } : {}),
         })
         .end(data);
     } catch {

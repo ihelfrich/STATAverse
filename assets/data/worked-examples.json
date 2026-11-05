@@ -1,0 +1,328 @@
+[
+  {
+    "id": "regression",
+    "title": "Reading a regression",
+    "level": "After the beginner path",
+    "file": "00_regression_plain_english.do",
+    "summary": "Construct a coffee-sales dataset and read coefficients, fitted values and uncertainty in their stated units.",
+    "scope": "The file constructs its data. A fitted conditional comparison alone does not establish the effect of changing a price or advertising decision.",
+    "prerequisite": {
+      "label": "Practice: a regression and its output",
+      "href": "../Learn/#regression"
+    },
+    "companion": {
+      "label": "Explore regression and adjustment",
+      "href": "../Labs/"
+    },
+    "sections": [
+      "Preparation",
+      "Constructed coffee sales",
+      "A scatterplot",
+      "The fitted regression",
+      "Additional regressors",
+      "Interpretation and scope",
+      "Terminology",
+      "Analysis checks",
+      "Reporting the result"
+    ]
+  },
+  {
+    "id": "confounding",
+    "title": "Confounding and an instrument",
+    "level": "Intermediate",
+    "file": "01b_endogeneity_intuition.do",
+    "summary": "Compare a misleading association with an explicitly constructed instrument in a training example.",
+    "scope": "The beach and training datasets are constructed teaching examples. Instrument validity comes from their stated equations, not from a first-stage test.",
+    "prerequisite": {
+      "label": "Practice: adding a regressor",
+      "href": "../Learn/#regression"
+    },
+    "companion": {
+      "label": "Investigate IV projections and coefficients",
+      "href": "../Labs/IV/#investigation=iv-stages"
+    },
+    "sections": [
+      "Preparation",
+      "A common cause",
+      "Constructed training and performance",
+      "What the omitted variable changes",
+      "A constructed instrument",
+      "Comparing relationships",
+      "Terminology",
+      "Sources of endogeneity",
+      "Design choices",
+      "Analysis sequence",
+      "Interpretation"
+    ]
+  },
+  {
+    "id": "iv-simulation",
+    "title": "Endogeneity simulation",
+    "level": "Intermediate",
+    "file": "01_endogeneity_simulator.do",
+    "summary": "Examine OLS and IV in one known process, then change the strength of confounding.",
+    "scope": "The excluded instrument is valid by construction. The sensitivity plots show individual draws; they are not a Monte Carlo demonstration of finite-sample unbiasedness.",
+    "prerequisite": {
+      "label": "Compare IV assumptions",
+      "href": "../MethodLab/?outcome=continuous&structure=cross&design=iv&dependence=independent"
+    },
+    "companion": {
+      "label": "Explore weak and invalid instruments",
+      "href": "../Labs/IV/"
+    },
+    "sections": [
+      "Preparation",
+      "The constructed process",
+      "OLS with an omitted variable",
+      "Linear IV",
+      "Plots of the constructed relationships",
+      "Changing the confounding coefficient",
+      "Interpretation"
+    ]
+  },
+  {
+    "id": "specification",
+    "title": "Specification and interpretation",
+    "level": "Intermediate",
+    "file": "03_anti_patterns.do",
+    "summary": "Inspect probability scales, control timing, ratio outcomes, pooled comparisons and instrument relevance.",
+    "scope": "A variable type or model label does not settle specification. Ratio outcomes need a meaningful denominator; control selection and causal interpretation depend on the research design.",
+    "prerequisite": {
+      "label": "Compare models and designs",
+      "href": "../MethodLab/"
+    },
+    "companion": {
+      "label": "Investigate regression adjustment",
+      "href": "../Labs/"
+    },
+    "sections": [
+      "Preparation",
+      "Log-odds and probabilities",
+      "Control selection and timing",
+      "Ratio outcomes and denominators",
+      "Pooled and within-unit comparisons",
+      "Instrument relevance",
+      "Interactions and substantive hypotheses",
+      "Interpretation"
+    ]
+  },
+  {
+    "id": "diagnostics",
+    "title": "Model-specific diagnostics",
+    "level": "Intermediate",
+    "file": "04_assumption_checker.do",
+    "summary": "Inspect OLS, panel and IV postestimation commands, their maintained assumptions and their limits.",
+    "scope": "No diagnostic can establish every identifying assumption. Some displayed commands are suggestions for further work, rather than commands executed by this do-file.",
+    "prerequisite": {
+      "label": "Practice: interpreting a regression",
+      "href": "../Learn/#regression"
+    },
+    "companion": {
+      "label": "Compare covariance assumptions",
+      "href": "../Labs/Inference/"
+    },
+    "sections": [
+      "Preparation",
+      "OLS diagnostics",
+      "Panel diagnostics",
+      "IV diagnostics",
+      "Reporting checks"
+    ]
+  },
+  {
+    "id": "interactions",
+    "title": "Interactions and conditional predictions",
+    "level": "Intermediate to advanced",
+    "file": "05_moderation_mastery.do",
+    "summary": "Use factor variables, marginal effects and prediction grids to examine two- and three-way interactions.",
+    "scope": "In a linear model, a product-term coefficient describes a change in a conditional slope. Evaluate slopes at stated moderator values and distinguish pointwise intervals from simultaneous claims.",
+    "prerequisite": {
+      "label": "Practice: interaction terms",
+      "href": "../Learn/#interactions"
+    },
+    "companion": {
+      "label": "Explore regression and adjustment",
+      "href": "../Labs/"
+    },
+    "sections": [
+      "Preparation",
+      "Constructed interaction data",
+      "Product terms and conditional slopes",
+      "Marginal effects",
+      "Prediction plots",
+      "Pointwise significance across moderator values",
+      "Three-way interactions",
+      "Specification checks",
+      "Reporting conditional predictions",
+      "Interpretation"
+    ]
+  },
+  {
+    "id": "panel",
+    "title": "Panel-data comparisons",
+    "level": "Advanced",
+    "file": "06_panel_data_toolkit.do",
+    "summary": "Separate within- and between-firm variation, compare covariance assumptions and inspect a distinct dynamic-panel example.",
+    "scope": "The static simulation imposes strict exogeneity and independent firms with serially correlated errors. Between-firm comparisons can retain confounding by quality. The dynamic model uses a separate constructed sample.",
+    "prerequisite": {
+      "label": "Practice: within-group transformations",
+      "href": "../Learn/#group-statistics"
+    },
+    "companion": {
+      "label": "Compare clustered and independent inference",
+      "href": "../Labs/Inference/"
+    },
+    "sections": [
+      "Preparation",
+      "Data and known coefficients",
+      "Pooled, fixed-effects and random-effects fits",
+      "Within-between decomposition",
+      "A joint slope restriction",
+      "GEE and working covariance",
+      "A working variance model",
+      "A separate dynamic panel",
+      "Reporting the fitted comparisons"
+    ],
+    "guides": [
+      {
+        "explanation": "The complete do-file starts a reproducible simulation and clears the active dataset. Save existing Stata data first. Running isolated selections can also lose local macros used by later sections."
+      },
+      {
+        "explanation": "Firm quality is deliberately visible to the simulation author and omitted from the fitted models. Experience depends on that quality. Errors share shocks within firms, while different firms remain independent. The known coefficients describe the constructed process; one fitted sample will not reproduce them exactly.",
+        "question": {
+          "prompt": "Why is a pooled coefficient on experience vulnerable to confounding here?",
+          "options": [
+            "Experience depends on quality, which also enters performance.",
+            "Every dataset with repeated records makes OLS biased.",
+            "The within-firm errors have unequal observed values."
+          ],
+          "correct": 0,
+          "feedback": [
+            "The construction makes quality a common cause of experience and performance. That connection, rather than repetition alone, creates the omitted-variable problem.",
+            "Repeated records alone do not imply omitted-variable bias. The connection between experience and omitted quality is the relevant feature.",
+            "Within-firm dependence affects inference, but the mean-model problem comes from experience sharing a cause with performance."
+          ]
+        }
+      },
+      {
+        "explanation": "The three models use the same regressors and year indicators. Unit FE remove the additive firm effect from the linear equation. Firm-clustered covariance addresses dependence under the constructed independent-firm sampling structure; it does not remove omitted variables.",
+        "question": {
+          "prompt": "Which problem can remain after adding unit fixed effects?",
+          "options": [
+            "An additive firm effect that never changes.",
+            "A time-varying omitted cause correlated with the regressor.",
+            "Every common year shift, despite the year indicators."
+          ],
+          "correct": 1,
+          "feedback": [
+            "The within transformation removes an additive effect that is constant within the unit. It does not remove every possible confounder.",
+            "Unit FE do not remove a time-varying omitted cause. A causal interpretation still needs assumptions about the idiosyncratic error and regressor history.",
+            "The included year indicators absorb additive common year shifts. Unit-specific trends or time-varying confounding can still remain."
+          ]
+        }
+      },
+      {
+        "explanation": "Each regressor is split into its firm mean and its deviation from that mean. The RE fit includes both parts for all regressors, so between coefficients can be estimated. The within slopes agree with FE in this balanced linear specification. An unrestricted unit-FE fit would instead absorb the firm means.",
+        "question": {
+          "prompt": "What happens to a firm-mean regressor in a model with unrestricted firm fixed effects?",
+          "options": [
+            "It estimates an automatically causal between-firm effect.",
+            "Its coefficient becomes the within-firm coefficient.",
+            "It is absorbed because it is constant within each firm."
+          ],
+          "correct": 2,
+          "feedback": [
+            "Firm means cannot identify separate coefficients when unrestricted firm effects already absorb all time-invariant firm variation.",
+            "The mean is a between-firm variable, not a within deviation. The FE transformation removes it.",
+            "A firm mean is constant within a firm, so the within transformation removes it. The within-between specification uses a different parameterization to retain between comparisons."
+          ]
+        }
+      },
+      {
+        "explanation": "In the mean/deviation parameterization, the usual RE slope restriction equates the within and between coefficients. The joint Wald test uses the fitted clustered covariance. Its result concerns these restrictions within this linear model; it cannot certify exogeneity.",
+        "question": {
+          "prompt": "What does a nonrejection of these restrictions establish?",
+          "options": [
+            "That the available test did not reject the specified slope restrictions.",
+            "That random effects are valid and efficient in the application.",
+            "That no omitted variable is related to any regressor."
+          ],
+          "correct": 0,
+          "feedback": [
+            "Nonrejection is a statement about this test and sample. It does not prove the maintained model or identifying assumptions.",
+            "Efficiency and validity need additional maintained conditions. A nonrejection cannot supply them.",
+            "The test concerns a specified set of slope restrictions, not every possible source of omitted-variable bias."
+          ]
+        }
+      },
+      {
+        "explanation": "The exchangeable working correlation differs from the simulated AR(1) errors. Sandwich covariance can be useful despite working-correlation misspecification under suitable mean and exogeneity conditions. This pooled GEE mean still omits correlated firm quality.",
+        "question": {
+          "prompt": "What does robust covariance leave unresolved in this GEE example?",
+          "options": [
+            "The need to define an outcome.",
+            "Confounding in the conditional-mean specification.",
+            "The existence of repeated observations."
+          ],
+          "correct": 1,
+          "feedback": [
+            "An outcome has already been defined. The substantive unresolved problem is the omitted correlated firm quality.",
+            "A covariance adjustment cannot repair the omitted-variable problem in the mean model.",
+            "The repeated records are observed and declared. Their presence does not resolve the mean specification."
+          ]
+        }
+      },
+      {
+        "explanation": "The random-intercept model attributes covariance to a firm component and an idiosyncratic component under its working model. The simulated serial correlation is richer than that specification. Its ICC is therefore a model-dependent summary, not a causal percentage of performance attributable to firms.",
+        "question": {
+          "prompt": "How should this ICC be interpreted?",
+          "options": [
+            "The causal share of performance produced by firms.",
+            "The exact nonparametric decomposition of all outcome variation.",
+            "A covariance summary conditional on the fitted working model."
+          ],
+          "correct": 2,
+          "feedback": [
+            "A variance component does not establish a causal contribution.",
+            "The decomposition depends on the random-intercept covariance specification, which does not match every feature of the simulated errors.",
+            "The interpretation is conditional on the fitted random-intercept model and its covariance assumptions."
+          ]
+        }
+      },
+      {
+        "explanation": "This section temporarily replaces the data with a dynamic process whose lag coefficient is .5. Native Arellano-Bond estimation uses lagged outcome instruments under explicit serial-correlation and timing restrictions. The original static panel is restored afterward.",
+        "question": {
+          "prompt": "Why can first-order serial correlation appear in differenced errors even when level errors are independent?",
+          "options": [
+            "Adjacent differences contain the same level error with opposite signs.",
+            "It proves all lag instruments are valid.",
+            "Differencing creates an omitted firm effect."
+          ],
+          "correct": 0,
+          "feedback": [
+            "For independent level errors, adjacent differences share one error with opposite signs. Higher-order serial correlation can challenge the moment conditions.",
+            "An expected AR(1) pattern does not prove instrument validity. Timing, exclusion and higher-order serial-correlation restrictions still matter.",
+            "Differencing removes an additive time-invariant firm effect. The shared error term explains the adjacent correlation."
+          ]
+        }
+      },
+      {
+        "explanation": "The table and confidence interval come from actual fitted estimates. Report the sample, model, covariance, units and interpretation. The dynamic model uses a different sample and is not placed in the static comparison table.",
+        "question": {
+          "prompt": "What should determine the cluster level in an application?",
+          "options": [
+            "Always the identifier used by xtset.",
+            "The relevant sampling or assignment dependence, with enough independent clusters for the chosen approximation.",
+            "Whichever choice gives the smallest p-value."
+          ],
+          "correct": 1,
+          "feedback": [
+            "The panel identifier is appropriate in this constructed process, but a different design may require a higher-level or other dependence structure.",
+            "The cluster level needs a design argument. Ordinary cluster-robust approximations can also be poor with few independent clusters.",
+            "Choosing covariance from the desired p-value undermines the uncertainty statement. The sampling or assignment design supplies the relevant argument."
+          ]
+        }
+      }
+    ]
+  }
+]
