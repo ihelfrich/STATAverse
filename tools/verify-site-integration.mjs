@@ -214,6 +214,7 @@ try {
   await page.goto(root + "Learn/#macros-loops");
   await page.locator("#insert-example").click();
   await page.locator("#run").click();
+  await page.locator("#exercise-check.success").waitFor();
   assert.match(
     await page.locator("#exercise-check").innerText(),
     /expected result/,
@@ -223,6 +224,7 @@ try {
     "local prefix browser\nforvalues p = 1/2 {\n generate double `prefix'`p' = hours^`p'\n}";
   await replaceEditor(page, program);
   await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
   assert.match(await page.locator("#dataset-count").innerText(), /7 variables/);
   await page.locator("#tab-results").click();
   assert.match(
@@ -231,6 +233,7 @@ try {
   );
   await page.reload();
   await page.locator("#command-editor").waitFor();
+  await page.locator("#run:not([disabled])").waitFor();
   assert.match(await page.locator("#dataset-count").innerText(), /7 variables/);
   assert.equal(await page.locator("#command-editor").innerText(), program);
   receipt.checks.push(
@@ -500,6 +503,8 @@ try {
   for (const name of [
     "home",
     "learn",
+    "practice-worker",
+    "do-builder",
     "workspace",
     "data-lab",
     "inference-lab",

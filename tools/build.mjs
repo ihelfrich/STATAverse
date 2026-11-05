@@ -142,6 +142,15 @@ await fs.writeFile(
   JSON.stringify(bundleResult.metafile),
 );
 await build({
+  entryPoints: ["src/site.js"],
+  bundle: true,
+  format: "iife",
+  outfile: "assets/js/site.js",
+  minify: true,
+  target: ["es2022"],
+  legalComments: "linked",
+});
+await build({
   entryPoints: ["src/legacy-vendor.js"],
   bundle: true,
   format: "iife",

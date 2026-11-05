@@ -15,7 +15,7 @@
     "Native comparisons use the installed executable; unmodified licensed vendor provenance is not established.",
     "No classroom or manual assistive-technology validation."
   ],
-  "browser_run_scope": "Full 224-case desktop/mobile suite plus two new storage-event-suppression regression cases; 151 unit tests, format, links and deployment checks. Public release verification is pending.",
+  "browser_run_scope": "Final full 226-case desktop/mobile suite, 151 unit tests, formatting, 702 links and deployment checks; public release verification pending.",
   "lessons": 19,
   "lesson_steps": 86,
   "numeric_responses": 18,
