@@ -59,6 +59,6 @@ Independent numerical fixtures come from R `lm`/`sandwich` and native Stata. See
 
 ## Static hosting
 
-Serve the repository root or a project subpath such as `/STATAverse/`. Built assets are included for the existing GitHub Pages arrangement; `.nojekyll` remains in place. Deployment is a separate action. This local candidate has not been pushed or published.
+The integrated destination is `https://ihelfrich.github.io/learn/stata/`. `npm run package:site` produces the static student-facing package that the main website builds from a pinned commit. Local development also supports the repository root and the former `/STATAverse/` project path. See [website integration](docs/site-integration.md) for navigation, storage compatibility, performance measurements and the remaining publication checks. This candidate has not been pushed or published.
 
 Vendor notices are retained under `assets/vendor/`. The application contains no telemetry or remote execution service. New practice data are explicitly synthetic; the older business datasets are constructed teaching examples, not verified business records.

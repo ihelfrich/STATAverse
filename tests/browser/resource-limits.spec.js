@@ -3,19 +3,25 @@ import { test, expect } from "@playwright/test";
 test("large text fails without data loss and history clearly labels shortened previews", async ({
   page,
 }) => {
+  // Native selection and insertion respect CodeMirror's document model. A raw
+  // contenteditable fill can race its DOM observer after the long-line error.
+  const replaceCommand = async (text) => {
+    const editor = page.locator("#command-editor");
+    await editor.press("ControlOrMeta+A");
+    await page.keyboard.insertText(text);
+    await expect(editor).toHaveText(text);
+  };
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
-  await page
-    .locator("#command-editor")
-    .fill(`generate note = "${"a".repeat(8000)}"`);
+  await replaceCommand(`generate note = "${"a".repeat(8000)}"`);
   await page.locator("#run").click();
   await expect(page.locator("#dataset-count")).toContainText("6 variables");
-  await page.locator("#command-editor").fill("replace note = note + note");
+  await replaceCommand("replace note = note + note");
   await page.locator("#run").click();
   await expect(page.locator("#results")).toContainText(
     "concatenation would exceed",
   );
-  await page.locator("#command-editor").fill('replace note = "short"');
+  await replaceCommand('replace note = "short"');
   await page.locator("#run").click();
   await page.locator("#tab-history").click();
   await page.getByText("Inspect 24 changed values", { exact: true }).click();

@@ -21,6 +21,22 @@ import {
 } from "../src/lab-progress.js";
 import { validateBackup } from "../src/persistence.js";
 
+import { INVESTIGATION_CATALOG } from "../src/labs/investigation-catalog.js";
+test("compact progress catalog retains curriculum identity and order", () => {
+  assert.deepEqual(
+    INVESTIGATION_CATALOG,
+    DATA_INVESTIGATIONS.map(
+      ({ id, title, summary, level, minutes, steps }) => ({
+        id,
+        title,
+        summary,
+        level,
+        minutes,
+        steps: steps.map(({ id }) => ({ id })),
+      }),
+    ),
+  );
+});
 const native = JSON.parse(
   fs.readFileSync(new URL("./fixtures/data-lab/native.json", import.meta.url)),
 );

@@ -1,9 +1,9 @@
 {
   "date": "2026-11-05",
   "status": "local_candidate_in_progress",
-  "unit_tests": 88,
-  "browser_tests": 126,
-  "local_links": 599,
+  "unit_tests": 91,
+  "browser_tests": 128,
+  "local_links": 602,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
   "native_Stata_lab_cases": 4,
@@ -15,7 +15,7 @@
     "Native CSV import substituted with double input because Java is unavailable",
     "No classroom or manual assistive-technology validation"
   ],
-  "browser_run_scope": "126-case full desktop/mobile suite; two focused all-investigation cases for reviewed screenshots; eight final navigation, resume/export and reference cases after clickable search titles",
+  "browser_run_scope": "128-case full desktop/mobile suite passed; final project-path deployment runner passed after explicit save-completion waiting; integrated-site browser workflow also passed",
   "lessons": 18,
   "lesson_steps": 80,
   "numeric_responses": 18,
@@ -35,5 +35,13 @@
   "data_investigation_tasks": 17,
   "workspace_backup_version_with_labs": 3,
   "offline_data_investigation": true,
-  "focused_final_browser_cases": 8
+  "website_integration": "site-integration.json",
+  "website_base": "/learn/stata/",
+  "website_navigation_tests": 80,
+  "website_integration_unit_tests": 6,
+  "website_token_tests": 14,
+  "website_style_pages": 184,
+  "landing_script_bytes": 4184,
+  "landing_script_gzip_bytes": 2060,
+  "core_offline_gzip_bytes": 439137
 }

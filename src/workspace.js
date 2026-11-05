@@ -4,7 +4,7 @@ import {
   parseLabProgress,
   withLabProgressLock,
 } from "./lab-progress.js";
-import { DATA_INVESTIGATIONS } from "./labs/data-investigations.js";
+import { INVESTIGATION_CATALOG } from "./labs/investigation-catalog.js";
 const $ = (selector) => document.querySelector(selector);
 const fields = ["name", "role", "focus"];
 const status = $("#workspace-status");
@@ -60,7 +60,7 @@ function refresh() {
       `${guided.length} practice lessons, ${free.length} open datasets, ${labs.length} lab investigations and ${legacy.length} reading modules saved on this device. Reading checkboxes are self-reported; practice and investigation tasks use supported checks rather than secure assessments.`;
     $("#lab-resume-links").replaceChildren();
     for (const [id, steps] of labs) {
-      const guide = DATA_INVESTIGATIONS.find((g) => g.id === id),
+      const guide = INVESTIGATION_CATALOG.find((g) => g.id === id),
         link = document.createElement("a");
       link.href = `../Labs/Data/#investigation=${id}`;
       link.textContent = `${guide.title}: ${steps.length}/${guide.steps.length} tasks checked`;

@@ -6,9 +6,14 @@ const walk = async (dir) => {
   const files = [];
   for (const e of await fs.readdir(dir, { withFileTypes: true })) {
     if (
-      [".git", "node_modules", "test-results", "playwright-report"].includes(
-        e.name,
-      )
+      [
+        ".git",
+        ".build",
+        "dist",
+        "node_modules",
+        "test-results",
+        "playwright-report",
+      ].includes(e.name)
     )
       continue;
     const file = path.join(dir, e.name);

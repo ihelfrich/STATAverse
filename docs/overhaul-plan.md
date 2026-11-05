@@ -12,11 +12,13 @@ The existing site contains useful lessons and scripts, but browser exercises mai
 - Lessons include data inspection, missing values, transformations, grouped summaries, visualization, regression, inference and reproducible do-files. Existing advanced material remains accessible.
 - Students can undo destructive practice commands, reset, save progress and export data and do-files. Failure to save must be visible. Exported code uses Stata syntax.
 - Keyboard, mobile, no-storage and failed-network paths receive browser checks. No client information enters examples or fixtures.
+- STATAverse is part of `https://ihelfrich.github.io/learn/stata/`, connected to the main site's Teaching page, navigation index, public catalogue, search and site map. Its pages provide a clear route back to the main site. Existing `/STATAverse/` links require compatibility handling at publication.
+- Student calculations, practice, imports and exports run directly in the browser. No account, server execution or paid service is required. Measure page payloads, avoid unnecessary downloads, keep long simulations cancellable in a worker, and verify performance at the actual nested deployment path.
 - The final review attacks statistical claims, false exercise completion, parser edge cases, destructive operations, inaccessible controls and broken links. Findings are reproduced before correction.
 
 ## Execution state
 
-Repository cloned from ihelfrich/STATAverse; migration archive identified and preserved. Agent Log claimed. Bounded prior-work lookup timed out; no conclusion about catalog coverage. No production publication is authorized by this local overhaul request.
+Repository cloned from ihelfrich/STATAverse; migration archive identified and preserved. Agent Log claimed. The initial bounded prior-work lookup timed out; no conclusion about catalog coverage. Dr. Helfrich subsequently expanded the goal to full integration into his public website, including navigation and efficient browser execution. The integration is being prepared and verified locally before publication.
 
 The first increment is committed as `c7450d5`. Its verification and registration receipts are recorded under `docs/verification/` and `docs/red-team-review.md`. Dr. Helfrich explicitly rejected stopping at that increment. A new active goal now has a configured 5,000,000-token budget. That is a work budget, not a claim about tokens already consumed.
 
@@ -31,7 +33,13 @@ The current work targets mixed levels, with a clear beginner path and substantia
 5. **Coherent design.** Integrate practice, analysis labs, projects and reference. Reduce mobile scrolling between an action and its result, keep the next task visible, and make dense numerical work readable. Test actual tasks, keyboard use, narrow layouts and zoom, in addition to automated accessibility checks.
 6. **Repeated adversarial review.** Reproduce statistical, parser, persistence, export and usability failures. Review student-facing wording and design on real screens after each substantial stage. Record limits and unresolved defects rather than treating a passing suite as complete assurance.
 
-The existing native Stata archive, legacy routes and browser progress remain migration constraints. No public deployment or paid external model generation is included in the current execution.
+The existing native Stata archive, legacy routes and browser progress remain migration constraints. No public deployment has occurred. No paid external model generation is needed.
+
+## Main-site integration and efficiency
+
+The 5 November UTC scope addition makes website integration and browser efficiency explicit acceptance criteria for the continuing five-million-token goal. The main Astro site is `/Users/ian/Developer/ihelfrich.github.io`; integration work is isolated in `/Users/ian/Developer/agent-playground/stataverse-site-integration` on `codex/stataverse-site-integration`. Its shared navigation registry remains authoritative. The intended mount is `/learn/stata/`, with versioned source selection and a static student-facing package rather than a second independently edited implementation.
+
+The bounded reuse lookup returned advisory website design reviews, not an implemented integration. The project recall matches were unrelated. The existing website, navigation registry and STATAverse build are the reused capabilities. Integration checks must cover nested URLs, return links, search discovery, service-worker scope, saved-work preservation, offline behavior and asset sizes. Further advanced methods and design/voice review remain part of the original objective.
 
 ## First-increment verification
 

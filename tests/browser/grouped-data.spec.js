@@ -1,10 +1,11 @@
+import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
 
 async function run(page, command) {
-  await page.locator("#command-editor").fill(command);
+  await replaceEditor(page, command);
   await page.locator("#run").click();
 }
 

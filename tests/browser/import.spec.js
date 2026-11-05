@@ -1,3 +1,4 @@
+import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
@@ -45,7 +46,7 @@ test("local import previews types, preserves leading zeros and resumes the impor
   await expect(page.locator("#data-table tbody tr").first()).toContainText(
     "001",
   );
-  await page.locator("#command-editor").fill("regress Score Study_hours");
+  await replaceEditor(page, "regress Score Study_hours");
   await page.locator("#run").click();
   await expect(page.locator("#results")).toContainText("1.400");
   await page.reload();
@@ -107,7 +108,7 @@ test("a larger import pages the data without changing the calculation sample", a
   await expect(page.locator("#data-table tbody tr").first()).toContainText(
     "101",
   );
-  await page.locator("#command-editor").fill("count if id > 140");
+  await replaceEditor(page, "count if id > 140");
   await page.locator("#run").click();
   await expect(page.locator("#results")).toContainText("11 of 151");
   await page.locator("#tab-data").click();
@@ -156,7 +157,7 @@ test("workspace backup restores the imported source, commands and selected datas
 }) => {
   await page.goto("/Learn/");
   await importSource(page);
-  await page.locator("#command-editor").fill("summarize Score");
+  await replaceEditor(page, "summarize Score");
   await page.locator("#run").click();
   await page.goto("/Workspace/");
   const pending = page.waitForEvent("download");
@@ -184,7 +185,7 @@ test("malformed or non-UTF-8 files leave current work intact", async ({
   page,
 }) => {
   await page.goto("/Learn/");
-  await page.locator("#command-editor").fill("describe hours");
+  await replaceEditor(page, "describe hours");
   await page.locator("#import-open").click();
   await page.locator("#csv-file").setInputFiles(upload('a,b\n1,"unfinished'));
   await expect(page.locator("#csv-status")).toContainText("not closed");
@@ -247,9 +248,7 @@ test("an imported source used in another saved session cannot be removed", async
   await importSource(page, "id,x\n1,2", "source.csv");
   const id = await page.locator("#dataset-select").inputValue();
   await page.locator("#dataset-select").selectOption("study");
-  await page
-    .locator("#command-editor")
-    .fill(`import delimited using "${id}.csv", clear`);
+  await replaceEditor(page, `import delimited using "${id}.csv", clear`);
   await page.locator("#run").click();
   await page.locator("#dataset-select").selectOption(id);
   await page.locator("#remove-import").click();

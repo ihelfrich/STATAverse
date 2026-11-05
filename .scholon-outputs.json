@@ -454,6 +454,36 @@
         "tests/browser/data-investigations.spec.js",
         "docs/red-team-review.md"
       ]
+    },
+    {
+      "id": "stataverse.site-integration",
+      "project": "stataverse",
+      "path": "docs/verification/site-integration.json",
+      "kind": "receipt",
+      "title": "STATAverse integrated website browser checks",
+      "summary": "Nested-path execution, saved-work compatibility, offline worker scope, main-site discovery and browser asset sizes",
+      "facets": [
+        "Stata",
+        "teaching",
+        "browser",
+        "website",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Local assembled website only; not publicly deployed",
+        "Computed gzip sizes, not production transfer measurements",
+        "Targeted accessibility checks; no classroom or manual assistive-technology validation",
+        "Old project URL compatibility still requires publication work"
+      ],
+      "depends_on": [
+        "stataverse.data-investigations"
+      ],
+      "evidence": [
+        "tools/verify-site-integration.mjs",
+        "docs/site-integration.md",
+        "docs/red-team-review.md"
+      ]
     }
   ]
 }

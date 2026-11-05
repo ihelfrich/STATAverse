@@ -1,4 +1,4 @@
-import { DATA_INVESTIGATIONS } from "./labs/data-investigations.js";
+import { INVESTIGATION_CATALOG } from "./labs/investigation-catalog.js";
 export const LAB_PROGRESS_KEY = "stataverse:labs:v1";
 export const LAB_PROGRESS_LOCK = "stataverse:lab-progress";
 export const emptyLabProgress = () => ({ version: 1, completed: {} });
@@ -13,7 +13,7 @@ export function validateLabProgress(value) {
     throw new Error("Lab progress has an unsupported format.");
   const result = emptyLabProgress();
   for (const [id, steps] of Object.entries(value.completed)) {
-    const guide = DATA_INVESTIGATIONS.find((g) => g.id === id);
+    const guide = INVESTIGATION_CATALOG.find((g) => g.id === id);
     if (
       !guide ||
       !Array.isArray(steps) ||
@@ -36,7 +36,7 @@ export function parseLabProgress(raw) {
 }
 export function completeLabStep(value, id, step) {
   const result = validateLabProgress(value),
-    guide = DATA_INVESTIGATIONS.find((g) => g.id === id);
+    guide = INVESTIGATION_CATALOG.find((g) => g.id === id);
   if (!guide?.steps.some((s) => s.id === step))
     throw new Error("Unknown investigation step.");
   result.completed[id] = [...new Set([...(result.completed[id] || []), step])];

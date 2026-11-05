@@ -1,3 +1,4 @@
+import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
@@ -10,7 +11,7 @@ test("lesson links within an open workspace change the lesson and preserve the d
   let loads = 0;
   page.on("load", () => loads++);
   await page.goto("/Learn/#first-commands");
-  await page.locator("#command-editor").fill("* draft to retain\ndescribe");
+  await replaceEditor(page, "* draft to retain\ndescribe");
   await page.goto("/Learn/#interactions");
   await expect(page.locator("#lesson-title")).toHaveText(
     "Choose the reference group",
@@ -107,7 +108,7 @@ test("a preserved copy survives replay and exports explicitly retain the current
 }) => {
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
-  await page.locator("#command-editor").fill('preserve\nkeep if group == "A"');
+  await replaceEditor(page, 'preserve\nkeep if group == "A"');
   await page.locator("#run").click();
   await expect(page.locator("#dataset-count")).toContainText("12 observations");
   await expect(page.locator("#preserve-status")).toContainText(
@@ -125,7 +126,7 @@ test("a preserved copy survives replay and exports explicitly retain the current
   const content = await fs.readFile(await file.path(), "utf8");
   expect(content.trim()).toMatch(/restore, not$/);
   await page.locator("#export-dialog [data-close]").click();
-  await page.locator("#command-editor").fill("restore");
+  await replaceEditor(page, "restore");
   await page.locator("#run").click();
   await expect(page.locator("#dataset-count")).toContainText("24 observations");
   await expect(page.locator("#preserve-status")).toBeHidden();

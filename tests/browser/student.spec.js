@@ -1,3 +1,4 @@
+import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { LESSONS } from "../../src/lessons.js";
@@ -8,11 +9,10 @@ test("command strings and variable labels remain text in the output", async ({
 }) => {
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
-  await page
-    .locator("#command-editor")
-    .fill(
-      'label variable hours "<img src=x onerror=alert(1)>"\ndescribe hours',
-    );
+  await replaceEditor(
+    page,
+    'label variable hours "<img src=x onerror=alert(1)>"\ndescribe hours',
+  );
   await page.locator("#run").click();
   await expect(page.locator("#results")).toContainText(
     "<img src=x onerror=alert(1)>",
@@ -47,7 +47,7 @@ test("reference pages expose labeled controls and readable contrast", async ({
     ).toEqual([]);
   }
 });
-test("homepage preview computes results and leads to the workspace", async ({
+test("homepage preview shows verified examples and leads to the workspace", async ({
   page,
 }) => {
   await page.goto("/");
@@ -171,9 +171,7 @@ test("an unsupported estimator cannot fabricate output or change data", async ({
 }) => {
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
-  await page
-    .locator("#command-editor")
-    .fill("regress score hours, vce(cluster id)\nclear");
+  await replaceEditor(page, "regress score hours, vce(cluster id)\nclear");
   await page.locator("#run").click();
   await expect(page.locator("#results")).toContainText("not supported");
   await expect(page.locator("#dataset-count")).toContainText("24 observations");
@@ -182,9 +180,7 @@ test("an unsupported estimator cannot fabricate output or change data", async ({
 test("data mutation is visible and undo restores it", async ({ page }) => {
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
-  await page
-    .locator("#command-editor")
-    .fill("generate double minutes = hours * 60");
+  await replaceEditor(page, "generate double minutes = hours * 60");
   await page.locator("#run").click();
   await expect(page.locator('[data-variable="minutes"]')).toBeVisible();
   await page.locator('[data-variable="minutes"]').click();
@@ -198,7 +194,7 @@ test("regression, line controls and exported project contain actual work", async
 }) => {
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
-  await page.locator("#command-editor").fill("regress score hours");
+  await replaceEditor(page, "regress score hours");
   await page.locator("#run").click();
   await page.locator('[data-coefficient="hours"]').click();
   await expect(page.locator(".result-annotation")).toContainText("5.277");

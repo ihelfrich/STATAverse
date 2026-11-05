@@ -1,3 +1,4 @@
+import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -7,7 +8,8 @@ test("run current follows logical commands, reports line errors and leaves later
   await page.goto("/Learn/");
   await page.locator("#free-mode").click();
   const editor = page.locator("#command-editor");
-  await editor.fill(
+  await replaceEditor(
+    page,
     "* Work through this file\ngen minutes = hours * ///\n 60\nreplace minutes = 0 in 1/2\nsummarize absent\nclear",
   );
   await editor.press("ControlOrMeta+Home");
@@ -45,7 +47,7 @@ test("a selected command runs without executing destructive surrounding commands
 }) => {
   await page.goto("/Learn/");
   const editor = page.locator("#command-editor");
-  await editor.fill("describe\ncount\nclear");
+  await replaceEditor(page, "describe\ncount\nclear");
   await editor.press("ControlOrMeta+Home");
   await editor.press("ArrowDown");
   await editor.press("Home");
@@ -63,7 +65,7 @@ test("editor completion, keyboard exit, draft persistence and history reuse work
 }) => {
   await page.goto("/Learn/");
   const editor = page.locator("#command-editor");
-  await editor.fill("sum ho");
+  await replaceEditor(page, "sum ho");
   await editor.press("Control+Space");
   await expect(page.getByRole("option", { name: /hours/ })).toBeVisible();
   await page.getByRole("option", { name: /hours/ }).click();
@@ -72,7 +74,7 @@ test("editor completion, keyboard exit, draft persistence and history reuse work
   await editor.press("Tab");
   await expect(editor).not.toBeFocused();
   await page.locator("#run").click();
-  await editor.fill("* Preserve this comment\ncount");
+  await replaceEditor(page, "* Preserve this comment\ncount");
   await expect
     .poll(() =>
       page.evaluate(

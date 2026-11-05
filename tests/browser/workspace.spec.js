@@ -94,6 +94,9 @@ test("invalid imports and canceled erasure leave all stored work intact", async 
   ).toBe("Existing");
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Clear local data" }).click();
+  await expect(page.locator("#workspace-status")).toContainText(
+    "saved work cleared",
+  );
   expect(
     await page.evaluate(() => localStorage.getItem("stataverse:user")),
   ).toBeNull();

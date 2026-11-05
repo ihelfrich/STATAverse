@@ -11,3 +11,6 @@ tests/fixtures/*.dta
 
 *.log
 *.smcl
+
+.build/
+dist/

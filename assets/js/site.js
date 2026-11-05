@@ -185,7 +185,10 @@
   }
 
   function bindPersistedInputs(container, checkboxes, updateProgress) {
-    var storageKey = "stataverse:progress:" + window.location.pathname;
+    // The integrated website keeps the original project-path keys so existing
+    // reading notes remain available on the same ihelfrich.github.io origin.
+    var progressPath = window.location.pathname.replace(/^\/learn\/stata\//, "/STATAverse/");
+    var storageKey = "stataverse:progress:" + progressPath;
     var stored = null;
     try {
       stored = JSON.parse(window.localStorage.getItem(storageKey) || "null");

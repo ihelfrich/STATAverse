@@ -1,15 +1,13 @@
-import { PracticeSession } from "./engine.js";
+import { HOME_EXAMPLES } from "./home-examples.js";
 import { table, fmt } from "./render.js";
 import { registerOffline } from "./offline.js";
-const session = new PracticeSession(),
-  commands = {
-    scatter: "scatter score hours",
-    summarize: "summarize hours score",
-    regress: "regress score hours",
-  };
+const commands = {
+  scatter: "scatter score hours",
+  summarize: "summarize hours score",
+  regress: "regress score hours",
+};
 function show(command) {
-  session.load("study");
-  const result = session.run(commands[command]).at(-1);
+  const result = HOME_EXAMPLES[command];
   document.querySelector("#preview-command").textContent =
     ". " + commands[command];
   document
