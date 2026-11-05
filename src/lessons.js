@@ -1,5 +1,6 @@
 import { step } from "./lesson-schema.js";
 import { EXTENDED_LESSONS } from "./extended-lessons.js";
+import { GROUPED_LESSONS } from "./grouped-lessons.js";
 import { enrichFoundations } from "./lesson-support.js";
 const FOUNDATIONS = [
   {
@@ -505,7 +506,7 @@ export const TRACKS = [
     id: "data",
     title: "Data and do-files",
     description:
-      "Work safely with samples, observation order and reproducible commands.",
+      "Work with samples, group summaries, observation order and reproducible commands.",
   },
   {
     id: "models",
@@ -522,7 +523,10 @@ export const TRACKS = [
 ];
 const foundations = enrichFoundations(FOUNDATIONS);
 const byId = new Map(
-  [...foundations, ...EXTENDED_LESSONS].map((l) => [l.id, l]),
+  [...foundations, ...EXTENDED_LESSONS, ...GROUPED_LESSONS].map((l) => [
+    l.id,
+    l,
+  ]),
 );
 const order = [
   "first-commands",
@@ -535,6 +539,8 @@ const order = [
   "do-files",
   "temporary-samples",
   "data-quality",
+  "group-statistics",
+  "collapse-samples",
   "group-comparisons",
   "sample-accounting",
   "functional-forms",

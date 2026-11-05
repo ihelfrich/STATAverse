@@ -127,3 +127,27 @@ test("coefficient explanations distinguish model columns from underlying changes
   assert.match(error.hint, /compare values with ==/);
   assert.equal(resultHTML(error, 0).split(error.message).length - 1, 1);
 });
+
+test("group preparation accepts equivalent column and row ordering while preserving sample requirements", () => {
+  const groupLesson = LESSONS.find((l) => l.id === "group-statistics"),
+    s = new PracticeSession();
+  let result = s
+    .run("egen double available = rownonmiss(attendance score hours)")
+    .at(-1);
+  assert.equal(assessStep(groupLesson, 0, s, result).passed, true);
+  s.run("sort score");
+  result = s.run("egen double group_score = mean(score), by(group)").at(-1);
+  assert.equal(assessStep(groupLesson, 1, s, result).passed, true);
+  const collapseLesson = LESSONS.find((l) => l.id === "collapse-samples"),
+    c = new PracticeSession();
+  c.run("preserve\nsort score");
+  result = c
+    .run(
+      "collapse (count) n_score=score n_hours=hours (mean) mean_score=score mean_hours=hours, by(group)",
+    )
+    .at(-1);
+  assert.equal(assessStep(collapseLesson, 1, c, result).passed, true);
+  c.run("restore, preserve");
+  result = c.run(collapseLesson.steps[1].command).at(-1);
+  assert.equal(assessStep(collapseLesson, 3, c, result).passed, false);
+});

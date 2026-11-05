@@ -55,7 +55,7 @@ for (const lesson of LESSONS) {
       else if (p[0] === "value")
         expression = step.command.replace(/^display\s+/, "");
       else if (p[0] === "rows")
-        expression = `${result.names[p[3]]}[${p[1] + 1}]`;
+        expression = `${result.names[p[3]]}[${result.rows[p[1]].position}]`;
       else throw new Error(`Unverified response path in ${lesson.id}`);
       lines.push(
         `assert abs((${expression}) - (${step.response.expected})) < 1e-9`,

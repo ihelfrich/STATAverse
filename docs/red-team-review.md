@@ -146,3 +146,11 @@ Open practice now supports bounded `egen` group/row functions and `collapse`. Re
 - **Test corrections:** initial new tests used nonexistent history/export IDs and assumed a mutation left Results visible. Tests now use actual controls and explicitly reopen Results. Native values and tab behavior were not changed to satisfy those mistaken assertions.
 
 The commands are available in open practice and Command help. Dedicated guided exercises and further data-preparation interactions remain active work; this increment does not complete the overhaul.
+
+### Continuing overhaul: guided group preparation
+
+Two additional lessons now connect those operations in twelve checked steps, including three numerical responses. The path contains eighteen lessons and eighty steps. Students inspect a missing-score observation that receives a group mean, distinguish assignment from contribution, center observed scores, change the selection condition, then compare variablewise and common-case collapse before restoring the individual data. Equal sample counts are explicitly distinguished from identical sample membership; common-case deletion is not presented as a correction for selection bias.
+
+The adversarial lesson check accepts reordered source columns in a row count and reordered rows/output columns in a valid group summary. It still rejects the default calculation when the task requires the common sample. Source previews are evidence for inspection, not a required literal row ordering for task completion. Original lesson IDs, step positions, drafts and progress remain unchanged.
+
+Filtered numerical-list exercises exposed a latent error in the native verification runner: it assumed that the first listed row was dataset position one. The runner now checks the actual observation position returned by list. All eighteen canonical sequences and eighteen numerical responses pass in native Stata. All 78 unit tests and eight focused desktop/mobile curriculum/navigation cases pass after the earlier 102-case full browser suite. Links, deployment/offline/cache and formatting checks pass. The goal remains active.

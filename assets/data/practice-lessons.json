@@ -80,6 +80,22 @@
     "steps": 4
   },
   {
+    "id": "group-statistics",
+    "title": "Group statistics within individual data",
+    "summary": "Attach group means, inspect their source observations and distinguish assignment from contribution.",
+    "level": "Data work",
+    "minutes": 22,
+    "steps": 6
+  },
+  {
+    "id": "collapse-samples",
+    "title": "Collapse and common calculation samples",
+    "summary": "Change the observational unit, compare variablewise and casewise summaries, and restore the individual data.",
+    "level": "Data work",
+    "minutes": 20,
+    "steps": 6
+  },
+  {
     "id": "group-comparisons",
     "title": "Group means and regression",
     "summary": "Connect a binary predictor, group means and an adjusted comparison.",

@@ -81,6 +81,32 @@ function resultProjection(result, target, data, targetColumns) {
         ),
       ),
     };
+  if (r.kind === "collapse") {
+    const by = [...target.by].sort();
+    return {
+      kind: r.kind,
+      by,
+      casewise: r.casewise,
+      sourceRows: r.sourceRows,
+      selectedRows: r.selectedRows,
+      usedRows: r.usedRows,
+      groups: sortRows(
+        r.summaryRows.map((group) => ({
+          keys: by.map((name) => group.keys[r.by.indexOf(name)]),
+          rows: group.rows,
+          statistics: target.specs.map((spec) => {
+            const index = r.specs.findIndex(
+              (s) =>
+                s.name === spec.name &&
+                s.source === spec.source &&
+                s.statistic === spec.statistic,
+            );
+            return index < 0 ? null : group.statistics[index];
+          }),
+        })),
+      ),
+    };
+  }
   if (r.kind === "regress") {
     const m = r.model;
     return {
@@ -183,6 +209,7 @@ export function assessStep(lesson, index, session, result) {
   if (
     [
       "generate",
+      "egen",
       "replace",
       "predict",
       "rename",

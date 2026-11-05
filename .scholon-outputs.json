@@ -236,7 +236,7 @@
       "path": "docs/verification/curriculum-native.json",
       "kind": "receipt",
       "title": "Native Stata curriculum verification",
-      "summary": "Sixteen canonical lesson sequences, fifteen numeric responses and final dataset checks",
+      "summary": "Eighteen canonical lesson sequences, eighteen numeric responses and final dataset checks",
       "limits": [
         "Native input substitutes Java-backed CSV import; canonical commands are not every possible student solution"
       ],

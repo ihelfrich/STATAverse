@@ -155,6 +155,30 @@
   },
   {
     "type": "module",
+    "title": "Browser practice: Group statistics within individual data",
+    "summary": "Attach group means, inspect their source observations and distinguish assignment from contribution.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Data work",
+    "path": "Learn/#group-statistics"
+  },
+  {
+    "type": "module",
+    "title": "Browser practice: Collapse and common calculation samples",
+    "summary": "Change the observational unit, compare variablewise and casewise summaries, and restore the individual data.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Data work",
+    "path": "Learn/#collapse-samples"
+  },
+  {
+    "type": "module",
     "title": "Browser practice: Group means and regression",
     "summary": "Connect a binary predictor, group means and an adjusted comparison.",
     "tags": [

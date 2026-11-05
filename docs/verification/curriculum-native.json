@@ -77,6 +77,20 @@
       "returnCode": "0"
     },
     {
+      "lesson": "group-statistics",
+      "steps": 6,
+      "numericChecks": 2,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
+      "lesson": "collapse-samples",
+      "steps": 6,
+      "numericChecks": 1,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
       "lesson": "group-comparisons",
       "steps": 5,
       "numericChecks": 3,
