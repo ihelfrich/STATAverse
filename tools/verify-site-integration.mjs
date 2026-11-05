@@ -344,6 +344,7 @@ try {
     "inference-lab",
     "inference-worker",
     "iv-lab",
+    "iv-investigation-ui",
   ]) {
     const assetPath = "assets/js/" + name + ".js";
     const response = await context.request.get(root + assetPath);
