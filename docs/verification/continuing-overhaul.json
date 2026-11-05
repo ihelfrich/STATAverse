@@ -1,9 +1,9 @@
 {
   "date": "2026-11-05",
   "status": "local_candidate_in_progress",
-  "unit_tests": 62,
-  "browser_tests": 78,
-  "local_links": 567,
+  "unit_tests": 67,
+  "browser_tests": 92,
+  "local_links": 584,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
   "native_Stata_lab_cases": 4,
@@ -15,12 +15,17 @@
     "Native CSV import substituted with double input because Java is unavailable",
     "No classroom or manual assistive-technology validation"
   ],
-  "browser_run_scope": "78-case full desktop/mobile suite",
+  "browser_run_scope": "92-case full desktop/mobile suite plus focused reruns for final navigation and scenario-label changes",
   "lessons": 16,
   "lesson_steps": 68,
   "numeric_responses": 15,
   "native_Stata_curriculum_sequences": 16,
   "native_Stata_preserve_commands": 20,
   "independent_csv_fixtures": 30,
-  "storage_schema": 3
+  "storage_schema": 3,
+  "independent_R_inference_cases": 5,
+  "native_Stata_inference_cases": 5,
+  "native_Stata_simulation_runs": 3,
+  "native_Stata_simulation_repetitions_each": 50,
+  "offline_inference_worker": true
 }

@@ -18,6 +18,23 @@
   },
   {
     "type": "module",
+    "title": "Analysis lab: Uncertainty and repeated samples",
+    "summary": "Compare conventional, HC1 and clustered confidence intervals, simulate coverage with Monte Carlo uncertainty, and export the exact sample and Stata commands.",
+    "tags": [
+      "interactive",
+      "inference",
+      "confidence intervals",
+      "Monte Carlo",
+      "heteroskedasticity",
+      "clustering",
+      "standard errors",
+      "power"
+    ],
+    "level": "Intermediate and advanced",
+    "path": "Labs/Inference/"
+  },
+  {
+    "type": "module",
     "title": "Browser practice: Your first Stata commands",
     "summary": "Read a dataset, run commands and understand the Results window.",
     "tags": [

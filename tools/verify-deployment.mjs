@@ -90,6 +90,33 @@ try {
     path: "docs/verification/screenshots/partial-regression-desktop.png",
     fullPage: true,
   });
+  await page.goto(root + "Labs/Inference/");
+  await page.locator("#inference-scenario").selectOption("clustered");
+  await page.screenshot({
+    path: "docs/verification/screenshots/inference-sample-desktop.png",
+    fullPage: true,
+  });
+  await page.locator("#run-simulation").click();
+  await page
+    .getByText(
+      "Completed 500 samples. All three methods used the same draws.",
+      { exact: true },
+    )
+    .waitFor();
+  await page.screenshot({
+    path: "docs/verification/screenshots/inference-simulation-desktop.png",
+    fullPage: true,
+  });
+  await context.setOffline(true);
+  await page.reload();
+  await page.locator("#inference-repetitions").selectOption("50");
+  await page.locator("#run-simulation").click();
+  await page
+    .getByText("Completed 50 samples. All three methods used the same draws.", {
+      exact: true,
+    })
+    .waitFor();
+  await context.setOffline(false);
   await page.goto(root + "Learn/");
   await page.evaluate(async () => {
     const cache = await caches.open("unrelated-application");
@@ -127,6 +154,7 @@ try {
     defaultBrowserType: undefined,
   });
   const phone = await mobile.newPage();
+  phone.on("pageerror", (error) => errors.push(error.message));
   await phone.goto(root + "Learn/");
   await phone.locator("#run").click();
   assert.ok(
@@ -178,12 +206,38 @@ try {
     await phone.locator("#coefficient-comparison tbody tr").count(),
     2,
   );
+  await phone.goto(root + "Labs/Inference/");
+  await phone.locator("#inference-scenario").selectOption("clustered");
+  await phone.locator('[data-inference-view="sample"]').click();
+  await phone.screenshot({
+    path: "docs/verification/screenshots/inference-sample-mobile.png",
+    fullPage: false,
+  });
+  await phone.locator("#run-simulation").click();
+  await phone
+    .getByText(
+      "Completed 500 samples. All three methods used the same draws.",
+      { exact: true },
+    )
+    .waitFor();
+  await phone.screenshot({
+    path: "docs/verification/screenshots/inference-simulation-mobile.png",
+    fullPage: false,
+  });
+  assert.ok(
+    await phone.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
   assert.deepEqual(errors, []);
   const receipt = {
     scope,
     projectPath: true,
     regressionLabProjectPath: true,
     regressionLabMobileNavigation: true,
+    inferenceLabProjectPath: true,
+    inferenceLabMobileNavigation: true,
+    offlineInferenceWorker: true,
     offlinePractice: true,
     foreignCachePreserved: true,
     foreignCacheNotRead: true,

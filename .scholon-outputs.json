@@ -303,6 +303,76 @@
         "tests/browser/import.spec.js",
         "docs/red-team-review.md"
       ]
+    },
+    {
+      "id": "stataverse.inference-reference",
+      "path": "tests/fixtures/inference-lab/reference.json",
+      "kind": "results",
+      "title": "Independent inference-lab covariance references",
+      "summary": "Five R lm/sandwich comparisons covering conventional HC1 and one-way clustered covariance",
+      "limits": [
+        "Five synthetic samples; confidence and p-value approximations checked at stated tolerances"
+      ],
+      "evidence": [
+        "tools/inference-reference.R",
+        "tests/inference-lab.test.mjs",
+        "docs/numerical-contract.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.inference-native",
+      "path": "docs/verification/inference-native.json",
+      "kind": "receipt",
+      "title": "Native Stata inference and simulation verification",
+      "summary": "Five sample workflows under three covariance methods and three directly executed fifty-repetition simulations",
+      "limits": [
+        "Native sample CSV import substituted with input; simulation programs run without substitution; finite settings only"
+      ],
+      "evidence": [
+        "tools/check-inference-native.mjs",
+        "docs/red-team-review.md"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.inference-procedure",
+      "path": "tools/inference-reference.R",
+      "kind": "procedure",
+      "title": "R verification of conventional HC1 and clustered inference",
+      "summary": "Independent lm vcovHC vcovCL t-interval and null-test calculations from explicit synthetic CSVs",
+      "limits": [
+        "Requires R jsonlite and sandwich; synthetic data only"
+      ],
+      "evidence": [
+        "tests/fixtures/inference-lab/cases.json",
+        "tests/inference-lab.test.mjs"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
     }
   ]
 }

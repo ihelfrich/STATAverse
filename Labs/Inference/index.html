@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Uncertainty and repeated samples · STATAverse</title>
+    <meta
+      name="description"
+      content="Compare conventional, robust and clustered inference. Generate repeated samples, inspect confidence intervals, and export exact data and Stata commands."
+    />
+    <link rel="stylesheet" href="../../assets/css/inference.css" />
+  </head>
+  <body class="lab-app inference-app">
+    <a class="skip-link" href="#inference-main">Skip to inference lab</a>
+    <header class="app-header">
+      <a href="../../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../../Learn/">Practice</a
+        ><a href="../" aria-current="page">Analysis labs</a
+        ><a href="../../ScriptLibrary/">Reference</a
+        ><a href="../../Workspace/">Saved work</a>
+      </nav>
+      <button type="button" id="export-inference" class="quiet-button">
+        Export experiment
+      </button>
+    </header>
+    <main id="inference-main" class="lab-layout" tabindex="-1">
+      <header class="lab-heading">
+        <div>
+          <nav class="lab-switcher" aria-label="Analysis labs">
+            <a href="../">01 Regression &amp; adjustment</a
+            ><a href="./" aria-current="page"
+              >02 Uncertainty &amp; repeated samples</a
+            >
+          </nav>
+          <h1>Uncertainty and repeated samples</h1>
+          <p>
+            Fit the same regression three ways. Then draw new samples to see how
+            often each interval contains the known coefficient.
+          </p>
+        </div>
+        <a href="../../Learn/#inference" class="lab-prerequisite"
+          >Begin with the guided inference lesson →</a
+        >
+      </header>
+      <aside
+        class="experiment-controls"
+        id="inference-parameters"
+        aria-labelledby="parameters-title"
+      >
+        <div class="control-title">
+          <h2 id="parameters-title">The population</h2>
+          <button type="button" id="reset-inference" class="text-button">
+            Reset
+          </button>
+        </div>
+        <form id="parameter-form">
+          <fieldset id="parameter-fields">
+            <legend class="sr-only">
+              Population and simulation parameters
+            </legend>
+            <label for="inference-scenario">Starting example</label
+            ><select id="inference-scenario"></select>
+            <p
+              id="inference-scenario-description"
+              class="control-description"
+            ></p>
+            <p class="dgp-equation">y = 2 + βx + error</p>
+            <div class="control-pair">
+              <label for="inference-groups"
+                >Independent groups<input
+                  id="inference-groups"
+                  name="groups"
+                  type="number"
+                  min="5"
+                  max="100"
+                  step="1"
+                  value="30"
+                  required /></label
+              ><label for="inference-perGroup"
+                >Rows per group<input
+                  id="inference-perGroup"
+                  name="perGroup"
+                  type="number"
+                  min="2"
+                  max="50"
+                  step="1"
+                  value="10"
+                  required
+              /></label>
+            </div>
+            <label for="inference-confidence">Confidence level</label
+            ><select id="inference-confidence" name="confidence">
+              <option value="0.9">90%</option>
+              <option value="0.95" selected>95%</option>
+              <option value="0.99">99%</option>
+            </select>
+            <details class="inference-advanced">
+              <summary>Adjust the population and null</summary>
+              <div id="inference-sliders"></div>
+              <p class="control-description">
+                Within-group correlations apply to the population. A particular
+                sample need not have exactly these correlations.
+              </p>
+              <div class="control-pair">
+                <label for="inference-nullValue"
+                  >Null coefficient<input
+                    id="inference-nullValue"
+                    name="nullValue"
+                    type="number"
+                    min="-5"
+                    max="5"
+                    step="0.1"
+                    value="0"
+                    required /></label
+                ><label for="inference-seed"
+                  >Browser seed<input
+                    id="inference-seed"
+                    name="seed"
+                    type="number"
+                    min="1"
+                    max="4294967295"
+                    step="1"
+                    value="2026"
+                    required
+                /></label>
+              </div>
+            </details>
+            <label for="inference-repetitions">Repeated samples</label
+            ><select id="inference-repetitions" name="repetitions">
+              <option value="50">50 · quick comparison</option>
+              <option value="200">200</option>
+              <option value="500" selected>500</option>
+              <option value="1000">1,000</option>
+              <option value="2000">2,000 · greater precision</option>
+            </select>
+          </fieldset>
+        </form>
+        <p id="parameter-status" class="parameter-status" role="status"></p>
+        <button type="button" id="run-simulation" class="primary-button">
+          Run repeated samples
+        </button>
+        <button
+          type="button"
+          id="cancel-simulation"
+          class="quiet-button"
+          hidden
+        >
+          Cancel simulation
+        </button>
+        <progress
+          id="simulation-progress"
+          value="0"
+          max="500"
+          aria-label="Simulation progress"
+          hidden
+        ></progress>
+        <p id="simulation-status" class="control-description" role="status">
+          One sample is ready. Run repeated samples to estimate coverage.
+        </p>
+        <p class="control-description">
+          Runs locally. Export to keep this experiment; it is not saved
+          automatically.
+        </p>
+      </aside>
+      <section class="inference-work" aria-label="Inference results">
+        <div class="inference-metrics" id="inference-metrics"></div>
+        <div class="inference-tabs" role="tablist" aria-label="Analysis view">
+          <button
+            type="button"
+            id="inference-tab-sample"
+            role="tab"
+            aria-selected="true"
+            aria-controls="inference-panel-sample"
+          >
+            One sample</button
+          ><button
+            type="button"
+            id="inference-tab-repeated"
+            role="tab"
+            aria-selected="false"
+            tabindex="-1"
+            aria-controls="inference-panel-repeated"
+          >
+            Repeated samples</button
+          ><button
+            type="button"
+            id="inference-tab-method"
+            role="tab"
+            aria-selected="false"
+            tabindex="-1"
+            aria-controls="inference-panel-method"
+          >
+            Stata &amp; assumptions
+          </button>
+        </div>
+        <section
+          id="inference-panel-sample"
+          role="tabpanel"
+          aria-labelledby="inference-tab-sample"
+        >
+          <div class="sample-toolbar">
+            <label for="sample-number"
+              >Sample<input
+                type="number"
+                id="sample-number"
+                min="1"
+                max="2000"
+                value="1"
+                step="1" /></label
+            ><button
+              type="button"
+              id="next-inference-sample"
+              class="quiet-button"
+            >
+              Next sample →</button
+            ><span id="sample-status" role="status"></span>
+          </div>
+          <div class="inference-section-heading">
+            <div>
+              <p class="eyebrow">Same data · Same coefficient</p>
+              <h2>Three uncertainty estimates</h2>
+            </div>
+            <span id="interval-level" class="inference-tag"></span>
+          </div>
+          <div id="single-intervals" class="single-intervals"></div>
+          <div
+            id="inference-comparison"
+            class="inference-table"
+            tabindex="0"
+            role="region"
+            aria-label="Coefficient and inference comparison"
+          ></div>
+          <p class="inference-explanation">
+            The coefficient is fixed across these three rows. The standard-error
+            formula and reference degrees of freedom determine the interval.
+            Containment is observable here because the population coefficient is
+            known.
+          </p>
+          <div class="inference-section-heading">
+            <div>
+              <p class="eyebrow">The realized errors</p>
+              <h2>Residuals and group membership</h2>
+            </div>
+            <label for="inspect-group"
+              >Highlight group<input
+                id="inspect-group"
+                type="number"
+                min="1"
+                max="30"
+                value="1"
+                step="1"
+            /></label>
+          </div>
+          <div id="inference-residuals"></div>
+          <p id="inference-observation" class="inference-explanation"></p>
+          <p class="inference-explanation">
+            The highlighted points share a group; the other points are gray. A
+            residual is an estimated error. The export also includes the true
+            generated errors and their conditional standard deviations.
+          </p>
+        </section>
+        <section
+          id="inference-panel-repeated"
+          role="tabpanel"
+          aria-labelledby="inference-tab-repeated"
+          hidden
+        >
+          <div id="simulation-empty" class="simulation-empty">
+            <span class="eyebrow">Repeated-sampling experiment</span>
+            <h2>How often does the interval cover β?</h2>
+            <p>
+              Each repetition draws new independent groups, fits the regression,
+              and records all three intervals. Choose a starting example and run
+              repeated samples. All methods use identical observations in each
+              repetition.
+            </p>
+            <button
+              type="button"
+              class="primary-button"
+              id="run-simulation-inline"
+            >
+              Run repeated samples
+            </button>
+          </div>
+          <div id="simulation-results" hidden>
+            <div class="inference-section-heading">
+              <div>
+                <p class="eyebrow" id="simulation-count"></p>
+                <h2>Observed interval coverage</h2>
+              </div>
+              <span id="coverage-target" class="inference-tag"></span>
+            </div>
+            <div id="coverage-comparison"></div>
+            <p class="inference-explanation">
+              Coverage is the share of generated intervals containing β. The
+              thin ranges show 95% Monte Carlo uncertainty for that share, using
+              Wilson intervals. They describe simulation precision, not
+              uncertainty about β in one regression.
+            </p>
+            <div
+              id="simulation-summary"
+              class="inference-table"
+              tabindex="0"
+              role="region"
+              aria-label="Repeated-sample numerical results"
+            ></div>
+            <p id="simulation-interpretation" class="inference-explanation"></p>
+            <div class="inference-section-heading">
+              <div>
+                <p class="eyebrow">Individual intervals</p>
+                <h2>Inspect the repetitions</h2>
+              </div>
+              <label for="interval-method"
+                >Method<select id="interval-method">
+                  <option value="conventional">Conventional</option>
+                  <option value="hc1">Robust · HC1</option>
+                  <option value="cluster">Clustered · CR1</option>
+                </select></label
+              >
+            </div>
+            <p id="interval-window" class="inference-explanation"></p>
+            <div id="repeated-intervals"></div>
+            <div class="sample-toolbar">
+              <button type="button" id="interval-previous" class="quiet-button">
+                ← Earlier 60</button
+              ><button type="button" id="interval-next" class="quiet-button">
+                Next 60 →</button
+              ><button
+                type="button"
+                id="inspect-repetition"
+                class="text-button"
+              >
+                Open selected sample
+              </button>
+            </div>
+            <p class="inference-explanation">
+              The horizontal scale stays fixed when you change methods within
+              the displayed window. Blue intervals contain β; rust intervals
+              miss it and have an × at the estimate. Select a line, or focus the
+              plot and use arrow keys, to inspect a repetition. Every completed
+              repetition is included in the numerical summary and export.
+            </p>
+          </div>
+        </section>
+        <section
+          id="inference-panel-method"
+          role="tabpanel"
+          aria-labelledby="inference-tab-method"
+          hidden
+        >
+          <div class="inference-section-heading">
+            <div>
+              <p class="eyebrow">Reproducible analysis</p>
+              <h2>The corresponding Stata commands</h2>
+            </div>
+            <button type="button" id="copy-inference-code" class="quiet-button">
+              Copy do-file
+            </button>
+          </div>
+          <p class="inference-explanation">
+            Export the experiment and extract it into a project folder. The
+            sample do-file imports the exact displayed observations. The native
+            simulation generates new draws from the same population design;
+            Stata's random-number stream differs from the browser's.
+          </p>
+          <label class="inference-code-choice" for="inference-code-kind"
+            >Stata workflow<select id="inference-code-kind">
+              <option value="sample">analysis.do · displayed sample</option>
+              <option value="simulation">
+                simulation.do · repeated native draws
+              </option>
+            </select></label
+          >
+          <pre
+            class="inference-code"
+            tabindex="0"
+            aria-label="Exported Stata do-file"
+          ><code id="inference-code"></code></pre>
+          <div class="inference-method-notes">
+            <h2>What the experiment assumes</h2>
+            <p>
+              All groups are independent and equal in size. The predictor and
+              the errors have independent sources, so E(error | x) = 0. Every
+              fit includes an intercept and one predictor; no weights, missing
+              observations or omitted confounders enter this experiment.
+            </p>
+            <details>
+              <summary>Population generator</summary>
+              <p>
+                For group g and row i, x = √ρₓ a<sub>g</sub> + √(1 − ρₓ)
+                v<sub>gi</sub>. The error is σs(x)[√ρₑ b<sub>g</sub> + √(1 − ρₑ)
+                ε<sub>gi</sub>], where s(x) = exp(hx/2 − h²/4). All a, b, v and
+                ε draws are independent standard normals. The normalization
+                keeps the population mean error variance at σ² as h changes.
+                Conditional on x, the within-group error correlation is ρₑ; with
+                varying s(x), unconditional correlation need not equal that
+                value.
+              </p>
+              <p>
+                Changing a parameter retains the underlying random draws at a
+                fixed seed and sample number. Repeated-sample runs start at
+                sample 1. The browser seed does not reproduce Stata's
+                random-number stream; export the observations for an exact
+                comparison.
+              </p>
+            </details>
+            <details>
+              <summary>Covariance formulas and reference distributions</summary>
+              <p>
+                Conventional inference uses SSE/(N − 2) and assumes independent
+                errors with constant conditional variance. HC1 sums individual
+                squared score contributions and multiplies by N/(N − 2). CR1
+                sums scores within each group before squaring, then multiplies
+                by [G/(G − 1)]·[(N − 1)/(N − 2)]. Both sandwich formulas use the
+                same OLS residuals.
+              </p>
+              <p>
+                Conventional and HC1 intervals use t critical values with N − 2
+                degrees of freedom. CR1 uses G − 1. These match the
+                corresponding unweighted Stata regress options. Normal,
+                independent, constant-variance errors give conventional t
+                inference an exact conditional justification. HC1 and CR1 rely
+                on approximations; the degrees-of-freedom correction does not
+                make them exact.
+              </p>
+            </details>
+            <h2>What changing the covariance cannot do</h2>
+            <p>
+              Robust or clustered inference does not remove omitted-variable
+              bias, establish a causal design, or decide which grouping is
+              appropriate for an empirical study. This generator supplies the
+              grouping and exogeneity. With few independent groups, uneven
+              information or other departures, the usual cluster correction can
+              perform poorly. A clustered standard error can also be smaller
+              than an unclustered one in a particular sample.
+            </p>
+            <p class="inference-sources">
+              Formula references:
+              <a href="https://www.stata.com/manuals/rregress.pdf"
+                >Stata regress, Methods and formulas</a
+              >;
+              <a
+                href="https://www.stata.com/support/faqs/statistics/standard-errors-and-vce-cluster-option/"
+                >Stata's comparison of covariance estimators</a
+              >. This browser lab has independent numerical checks; it is not a
+              full Stata implementation.
+            </p>
+          </div>
+        </section>
+      </section>
+      <noscript
+        ><p>
+          This interactive experiment needs JavaScript. The
+          <a href="../../CodeLibrary/">native Stata script library</a> remains
+          available.
+        </p></noscript
+      >
+    </main>
+    <nav class="lab-mobile-nav" aria-label="Lab shortcuts">
+      <button type="button" data-inference-jump="inference-parameters">
+        Parameters</button
+      ><button type="button" data-inference-view="sample">One sample</button
+      ><button type="button" data-inference-view="repeated">Simulation</button>
+    </nav>
+    <p class="sr-only" role="status" id="inference-announcement"></p>
+    <script type="module" src="../../assets/js/inference-lab.js"></script>
+  </body>
+</html>

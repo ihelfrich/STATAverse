@@ -1,0 +1,433 @@
+@import url("./labs.css");
+.inference-work {
+  min-width: 0;
+}
+#parameter-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+#parameter-fields > label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0 7px;
+  color: #34465f;
+}
+.inference-advanced {
+  margin-top: 20px;
+  border-top: 1px solid #d7dfe9;
+  border-bottom: 1px solid #d7dfe9;
+  padding: 14px 0;
+}
+.inference-advanced summary {
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #234b9e;
+}
+.inference-tabs {
+  scroll-margin-top: 14px;
+}
+@media (max-width: 850px) {
+  .inference-app .experiment-controls {
+    display: block;
+  }
+}
+.inference-app .control-pair {
+  margin-top: 18px;
+}
+.inference-app .lab-control {
+  margin: 18px 0;
+}
+.inference-app .lab-control small {
+  display: block;
+  color: #536277;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+#run-simulation,
+#cancel-simulation,
+#simulation-progress {
+  width: 100%;
+  margin-top: 10px;
+}
+.inference-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  border-top: 2px solid #213d69;
+  border-bottom: 1px solid #c9d3e1;
+  padding: 18px 0;
+  margin-bottom: 22px;
+}
+.inference-metrics span {
+  font-size: 11px;
+  color: #536277;
+  display: block;
+  margin-bottom: 6px;
+}
+.inference-metrics strong {
+  font: 500 clamp(21px, 2.5vw, 32px)/1.2 var(--mono);
+  letter-spacing: -1px;
+}
+.inference-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #c9d3e1;
+  margin-bottom: 22px;
+}
+.inference-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 12px 16px;
+  font: 600 13px/1.4 var(--sans);
+  color: #536277;
+  cursor: pointer;
+}
+.inference-tabs button[aria-selected="true"] {
+  color: #143e9d;
+  border-color: #2453cc;
+}
+.inference-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 28px 0 18px;
+}
+.inference-section-heading h2 {
+  margin: 5px 0 0;
+  font-size: 20px;
+  letter-spacing: -0.45px;
+}
+.inference-tag {
+  font: 12px/1.5 var(--mono);
+  color: #334c60;
+  white-space: nowrap;
+}
+.sample-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+}
+.sample-toolbar label,
+.inference-section-heading label {
+  font-size: 12px;
+  color: #44556d;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sample-toolbar input,
+.inference-section-heading input,
+.inference-section-heading select {
+  width: 85px;
+  min-height: 36px;
+  border: 1px solid #aab8c4;
+  border-radius: 4px;
+  background: #fff;
+  color: #183044;
+  padding: 6px;
+  font: 12px var(--mono);
+}
+.inference-section-heading select {
+  width: auto;
+  max-width: 170px;
+}
+#sample-status {
+  font-size: 12px;
+  color: #7f2f24;
+}
+.single-intervals {
+  background: #fff;
+  border: 1px solid #d7dfe9;
+  padding: 10px 14px;
+}
+.inference-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font: 12px var(--mono);
+  color: #52657b;
+}
+.inference-chart text {
+  fill: currentColor;
+}
+.inference-chart .target {
+  stroke: #24374e;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.inference-chart .covered {
+  stroke: #2354a0;
+  fill: #2354a0;
+}
+.inference-chart .missed {
+  stroke: #a23c24;
+  fill: #a23c24;
+}
+.inference-chart .estimate-line {
+  stroke-width: 4;
+}
+.inference-chart .selected-interval {
+  stroke-width: 6;
+}
+.inference-chart .interval-hit {
+  stroke: transparent;
+  stroke-width: 8;
+  cursor: pointer;
+}
+.inference-chart .axis {
+  stroke: #c7d2df;
+}
+.inference-chart .label {
+  font: 600 12px var(--sans);
+  fill: #21394e;
+}
+.inference-table {
+  overflow: auto;
+  background: #fff;
+  margin-top: 18px;
+  border: 1px solid #d7dfe9;
+}
+.inference-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font: 12px/1.55 var(--mono);
+  white-space: nowrap;
+}
+.inference-table th {
+  font: 600 11px/1.5 var(--sans);
+  color: #43576e;
+  text-align: right;
+  background: #f0f3f8;
+}
+.inference-table th:first-child,
+.inference-table td:first-child {
+  text-align: left;
+}
+.inference-table td {
+  text-align: right;
+}
+.inference-table th,
+.inference-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e1e6ee;
+}
+.inference-table caption {
+  padding: 10px 14px;
+  text-align: left;
+  font: 600 12px var(--sans);
+}
+.inference-explanation {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #4b5f73;
+  max-width: 950px;
+}
+#inference-residuals {
+  background: #fff;
+  border: 1px solid #d7dfe9;
+  max-width: 850px;
+}
+#inference-residuals .lab-point {
+  fill: #96a4b3;
+  stroke: #96a4b3;
+  opacity: 0.65;
+}
+#inference-residuals .lab-point.in-group {
+  fill: #2354a0;
+  stroke: #2354a0;
+  opacity: 1;
+}
+#inference-residuals .lab-point.selected {
+  fill: #a23c24;
+  stroke: #a23c24;
+  opacity: 1;
+}
+.simulation-empty {
+  padding: 40px 32px;
+  background: #fff;
+  border-left: 3px solid #2453cc;
+  margin-top: 30px;
+}
+.simulation-empty h2 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+}
+.simulation-empty p {
+  font-size: 14px;
+  line-height: 1.8;
+  max-width: 640px;
+  color: #4b5f73;
+}
+#coverage-comparison {
+  background: #fff;
+  border: 1px solid #d7dfe9;
+  padding: 18px;
+}
+.coverage-row {
+  display: grid;
+  grid-template-columns: 150px minmax(100px, 1fr) 160px;
+  gap: 20px;
+  align-items: center;
+  margin: 18px 0;
+  font: 12px/1.5 var(--mono);
+}
+.coverage-row strong {
+  font: 600 12px var(--sans);
+}
+.coverage-track {
+  position: relative;
+  height: 20px;
+  background: #eef2f7;
+}
+.coverage-fill {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  background: #d5e1f4;
+}
+.coverage-range {
+  position: absolute;
+  height: 3px;
+  top: 9px;
+  background: #2354a0;
+}
+.coverage-point {
+  position: absolute;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2354a0;
+  transform: translateX(-50%);
+}
+.coverage-target {
+  position: absolute;
+  top: -6px;
+  height: 32px;
+  border-left: 2px dashed #263e52;
+}
+.coverage-numbers small {
+  display: block;
+  color: #536277;
+  font-size: 10px;
+}
+#repeated-intervals {
+  background: #fff;
+  border: 1px solid #d7dfe9;
+  padding: 12px;
+}
+.inference-code {
+  background: #14263c;
+  color: #e0ebf6;
+  font: 12px/1.8 var(--mono);
+  padding: 22px;
+  overflow: auto;
+  border-radius: 4px;
+}
+.inference-code code {
+  color: inherit;
+  background: none;
+  font: inherit;
+  padding: 0;
+}
+.inference-code-choice {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: #334c60;
+  max-width: 420px;
+}
+.inference-code-choice select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #aab8c4;
+  background: #fff;
+  padding: 10px;
+  color: #183044;
+  font: 12px var(--mono);
+}
+.inference-method-notes {
+  max-width: 900px;
+  padding: 18px 0 40px;
+}
+.inference-method-notes h2 {
+  font-size: 20px;
+  margin-top: 28px;
+}
+.inference-method-notes p {
+  font-size: 14px;
+  line-height: 1.85;
+  color: #42586e;
+}
+.inference-method-notes details {
+  border-top: 1px solid #ccd7e3;
+  padding: 18px 0;
+}
+.inference-method-notes summary {
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.inference-sources {
+  font-size: 12px !important;
+}
+@media (max-width: 1100px) {
+  .coverage-row {
+    grid-template-columns: 130px minmax(60px, 1fr) 120px;
+    gap: 12px;
+  }
+}
+@media (max-width: 720px) {
+  .inference-tabs {
+    gap: 0;
+  }
+  .inference-tabs button {
+    font-size: 11px;
+    padding: 12px 8px;
+    flex: 1;
+  }
+  .inference-metrics {
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .inference-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .inference-section-heading h2 {
+    font-size: 19px;
+  }
+  .coverage-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+  .coverage-track {
+    grid-row: 2;
+    grid-column: 1/-1;
+    margin-bottom: 8px;
+  }
+  .coverage-numbers {
+    text-align: right;
+  }
+  .single-intervals {
+    padding: 6px;
+  }
+  .simulation-empty {
+    padding: 24px 20px;
+  }
+  .lab-switcher {
+    font-size: 11px;
+    gap: 6px 14px;
+  }
+}

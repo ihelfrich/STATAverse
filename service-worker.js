@@ -1,10 +1,14 @@
 const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
-const CACHE_NAME = CACHE_PREFIX + "v13";
+const CACHE_NAME = CACHE_PREFIX + "v14";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
   "Labs/",
+  "Labs/Inference/",
+  "assets/css/inference.css",
+  "assets/js/inference-lab.js",
+  "assets/js/inference-worker.js",
   "assets/css/labs.css",
   "assets/js/regression-lab.js",
   "assets/css/learn.css",

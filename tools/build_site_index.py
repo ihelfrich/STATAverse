@@ -11,6 +11,11 @@ entries = [{
     "summary": "Simulate omitted-variable bias, trace partial regression and investigate influential observations with exact Stata exports.",
     "tags": ["interactive", "regression", "OLS", "FWL", "omitted variable bias", "influence", "leverage", "Cook"],
     "level": "Intermediate and advanced", "path": "Labs/",
+}, {
+    "type": "module", "title": "Analysis lab: Uncertainty and repeated samples",
+    "summary": "Compare conventional, HC1 and clustered confidence intervals, simulate coverage with Monte Carlo uncertainty, and export the exact sample and Stata commands.",
+    "tags": ["interactive", "inference", "confidence intervals", "Monte Carlo", "heteroskedasticity", "clustering", "standard errors", "power"],
+    "level": "Intermediate and advanced", "path": "Labs/Inference/",
 }]
 
 practice_path = assets_data / "practice-lessons.json"

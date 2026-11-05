@@ -1,5 +1,23 @@
 @import url("./learn.css");
 
+.lab-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  font-size: 12px;
+  margin-bottom: 22px;
+}
+.lab-switcher a {
+  color: #536277;
+  text-decoration: none;
+  padding-bottom: 7px;
+  border-bottom: 2px solid transparent;
+}
+.lab-switcher a[aria-current] {
+  color: #153f9e;
+  border-color: #2453cc;
+}
+
 .lab-mobile-nav {
   display: none;
 }
