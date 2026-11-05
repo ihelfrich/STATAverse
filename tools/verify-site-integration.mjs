@@ -148,6 +148,38 @@ try {
     "flex",
   );
   await context.setOffline(false);
+  await page.goto(root + "Labs/IV/");
+  assert.equal(
+    await page.locator('link[rel="canonical"]').getAttribute("href"),
+    "https://ihelfrich.github.io/learn/stata/Labs/IV/",
+  );
+  await page.locator("#iv-scenario").selectOption("invalid");
+  assert.match(await page.locator("#iv-assumptions").innerText(), /violated/);
+  await page.locator("#iv-tab-uncertainty").click();
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({
+    path: "docs/verification/screenshots/site-iv-desktop.png",
+    fullPage: false,
+  });
+  await context.setOffline(true);
+  await page.reload();
+  await page.locator("#iv-task").selectOption("weak");
+  await page.locator("#iv-task-load").click();
+  assert.equal(await page.locator("#iv-set").innerText(), "All real values");
+  await page.locator("#iv-answer").fill("all values");
+  await page.locator("#iv-answer-form button").click();
+  assert.equal(
+    await page.locator("#iv-feedback").getAttribute("data-correct"),
+    "true",
+  );
+  assert.equal(
+    await page.locator('.sv-site-nav a[href="/teaching/"]').first().count(),
+    1,
+  );
+  await context.setOffline(false);
+  receipt.checks.push(
+    "IV lab at the canonical nested route, shared navigation, local calculations and checked weak-instrument exercise offline",
+  );
   assert.deepEqual(errors, []);
   assert.deepEqual(external, []);
   receipt.checks.push(
@@ -205,6 +237,23 @@ try {
     path: "docs/verification/screenshots/site-integration-mobile.png",
     fullPage: false,
   });
+  await mobile.goto(root + "Labs/IV/");
+  await mobile.locator("#iv-tab-uncertainty").click();
+  await mobile.locator(".iv-confidence-summary").scrollIntoViewIfNeeded();
+  assert.ok(
+    await mobile.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  assert.equal(
+    (await new AxeBuilder({ page: mobile }).analyze()).violations.length,
+    0,
+  );
+  await mobile.evaluate(() => document.fonts.ready);
+  await mobile.screenshot({
+    path: "docs/verification/screenshots/site-iv-mobile.png",
+    fullPage: false,
+  });
   const plain = await browser.newContext({ javaScriptEnabled: false });
   const noJs = await plain.newPage();
   await noJs.goto(root);
@@ -222,6 +271,7 @@ try {
     "data-lab",
     "inference-lab",
     "inference-worker",
+    "iv-lab",
   ]) {
     const b = await fs.readFile("assets/js/" + name + ".js");
     receipt.payloads.push({

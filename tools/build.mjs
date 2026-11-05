@@ -87,6 +87,7 @@ const bundleResult = await build({
     "src/inference-lab.js",
     "src/inference-worker.js",
     "src/data-lab.js",
+    "src/iv-lab.js",
   ],
   bundle: true,
   minify: true,

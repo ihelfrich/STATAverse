@@ -484,6 +484,118 @@
         "docs/site-integration.md",
         "docs/red-team-review.md"
       ]
+    },
+    {
+      "id": "stataverse.iv-contract",
+      "project": "stataverse",
+      "path": "docs/iv-lab-contract.md",
+      "kind": "specification",
+      "title": "Instrumental-variables browser model contract",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.iv-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/iv-lab/reference.json",
+      "kind": "results",
+      "title": "Independent R instrumental-variables references",
+      "summary": "Nine synthetic cases with matrix 2SLS and transformed-outcome AR tests",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.iv-native",
+      "project": "stataverse",
+      "path": "docs/verification/iv-native.json",
+      "kind": "receipt",
+      "title": "Native Stata IV and weak-instrument inference checks",
+      "summary": "Nine exported workflows with full covariance and analytic confidence-set endpoint checks",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
+    },
+    {
+      "id": "stataverse.iv-verification",
+      "project": "stataverse",
+      "path": "tools/check-iv-native.mjs",
+      "kind": "procedure",
+      "title": "Reproduce native Stata IV reference checks",
+      "summary": "Bounded native runner preserving raw logs in private temporary folders",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Bounded synthetic fixtures; not full Stata equivalence",
+        "Native CSV import substituted with double input",
+        "No classroom or manual assistive-technology validation"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/red-team-review.md",
+        "tests/iv-lab.test.mjs",
+        "tests/browser/iv-lab.spec.js"
+      ]
     }
   ]
 }

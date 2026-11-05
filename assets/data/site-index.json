@@ -53,6 +53,23 @@
   },
   {
     "type": "module",
+    "title": "Analysis lab: Instrumental variables",
+    "summary": "Trace first stages and 2SLS, distinguish weak instruments from exclusion failures, inspect Anderson\u2013Rubin confidence sets and export exact Stata commands.",
+    "tags": [
+      "interactive",
+      "IV",
+      "2SLS",
+      "instruments",
+      "weak instruments",
+      "Anderson Rubin",
+      "endogeneity",
+      "exclusion"
+    ],
+    "level": "Advanced",
+    "path": "Labs/IV/"
+  },
+  {
+    "type": "module",
     "title": "Browser practice: Your first Stata commands",
     "summary": "Read a dataset, run commands and understand the Results window.",
     "tags": [

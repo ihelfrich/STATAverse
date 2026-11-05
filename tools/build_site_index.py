@@ -21,6 +21,11 @@ entries = [{
     "summary": "Trace source records and cells through merges and reshapes. Inspect duplicate keys, missing matches, conflicting values and retained samples; export a complete Stata project.",
     "tags": ["interactive", "merge", "reshape", "keys", "duplicates", "data preparation", "panel", "wide", "long"],
     "level": "Beginner to advanced", "path": "Labs/Data/",
+}, {
+    "type": "module", "title": "Analysis lab: Instrumental variables",
+    "summary": "Trace first stages and 2SLS, distinguish weak instruments from exclusion failures, inspect Anderson–Rubin confidence sets and export exact Stata commands.",
+    "tags": ["interactive", "IV", "2SLS", "instruments", "weak instruments", "Anderson Rubin", "endogeneity", "exclusion"],
+    "level": "Advanced", "path": "Labs/IV/",
 }]
 
 practice_path = assets_data / "practice-lessons.json"

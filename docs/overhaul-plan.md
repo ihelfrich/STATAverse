@@ -80,3 +80,9 @@ The bounded Scholon lookup for relational preparation timed out after twenty sec
 ## Guided relational investigations
 
 Three investigations and seventeen tasks now provide a checked path through the visual data lab. They reuse the existing native fixtures and connect to the homepage, search and Saved work. Stable IDs, explicit trace requirements, targeted feedback, resume links and guarded progress writes support continued work. The command curriculum remains eighteen lessons/eighty steps; investigation tasks are counted separately. Next work should deepen advanced statistical methods and improve navigation across the older materials rather than merely multiply near-identical exercises.
+
+## Instrumental variables
+
+The fourth analysis lab links first stages, reduced forms and structural fits on one synthetic sample. Students can vary relevance, endogeneity and exclusion, compare OLS and correctly calculated 2SLS, inspect the incorrect manual second-stage standard error, and invert Anderson–Rubin tests without forcing an unbounded set into a finite interval. Four checked comparisons connect the calculations to interpretation. Exact sample exports and native Stata do-files support work beyond the browser. These comparisons are local exercises, not yet part of the persistent investigation progress catalogue.
+
+The implementation uses independent R and native Stata reference checks, a bounded 2,000-row population and at most 300 rendered observations. It joins the existing `/learn/stata/` integration, navigation, search and offline package. The IV-specific Scholon lookup timed out; project recall returned no selected-description matches. Existing code and official Stata documentation supplied the reusable foundations. This is a bounded addition to the continuing goal, not completion of the overhaul.

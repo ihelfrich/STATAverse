@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Instrumental variables · STATAverse</title>
+    <meta
+      name="description"
+      content="Work through first stages, 2SLS, weak instruments and exclusion failures. Inspect linked observations and Anderson–Rubin confidence sets directly in your browser."
+    />
+    <link rel="stylesheet" href="../../assets/css/iv.css" />
+  </head>
+  <body class="lab-app iv-app">
+    <a class="skip-link" href="#iv-main">Skip to instrumental-variables lab</a>
+    <header class="app-header">
+      <a href="../../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../../Learn/">Practice</a
+        ><a href="../" aria-current="page">Analysis labs</a
+        ><a href="../../ScriptLibrary/">Reference</a
+        ><a href="../../Workspace/">Saved work</a>
+      </nav>
+      <button type="button" id="export-iv" class="quiet-button">
+        Export experiment
+      </button>
+    </header>
+    <main id="iv-main" class="lab-layout" tabindex="-1">
+      <header class="lab-heading">
+        <div>
+          <nav class="lab-switcher" aria-label="Analysis labs">
+            <a href="../">01 Regression &amp; adjustment</a
+            ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
+            ><a href="../Data/">03 Merge &amp; reshape</a
+            ><a href="./" aria-current="page">04 Instrumental variables</a>
+          </nav>
+          <h1>Instrumental variables</h1>
+          <p>
+            Follow an instrument from the first stage to the IV estimate. Then
+            weaken it, or break exclusion, and examine what the same analysis
+            can tell you.
+          </p>
+        </div>
+        <a href="../" class="lab-prerequisite"
+          >Prerequisite: regression and omitted-variable bias →</a
+        >
+      </header>
+      <aside class="experiment-controls" aria-labelledby="iv-controls-title">
+        <details id="iv-controls-disclosure" open>
+          <summary>Population and sample controls</summary>
+          <div class="control-title">
+            <h2 id="iv-controls-title">Population &amp; sample</h2>
+            <button type="button" id="reset-iv" class="text-button">
+              Reset
+            </button>
+          </div>
+          <form id="iv-form">
+            <label for="iv-scenario">Starting example</label
+            ><select id="iv-scenario"></select>
+            <p id="iv-scenario-description" class="control-description"></p>
+            <div class="iv-equations">
+              <span>x = πz + v</span><span>y = 2 + βx + δz + u</span>
+            </div>
+            <div id="iv-sliders"></div>
+            <details class="iv-settings">
+              <summary>Sample and inference settings</summary>
+              <div class="control-pair">
+                <label for="iv-n"
+                  >Observations<input
+                    id="iv-n"
+                    name="n"
+                    type="number"
+                    min="30"
+                    max="2000"
+                    step="1"
+                    value="300"
+                    required /></label
+                ><label for="iv-seed"
+                  >Seed<input
+                    id="iv-seed"
+                    name="seed"
+                    type="number"
+                    min="1"
+                    max="4294967295"
+                    step="1"
+                    value="2026"
+                    required
+                /></label>
+              </div>
+              <label for="iv-confidence">Confidence level</label
+              ><select id="iv-confidence" name="confidence">
+                <option value="0.9">90%</option>
+                <option value="0.95" selected>95%</option>
+                <option value="0.99">99%</option>
+              </select>
+              <label for="iv-robust">Covariance estimate</label
+              ><select id="iv-robust" name="robust">
+                <option value="false">Conventional</option>
+                <option value="true">Robust (HC1)</option>
+              </select>
+              <div id="iv-extra-sliders"></div>
+            </details>
+          </form>
+          <button type="button" class="quiet-button" id="iv-new-sample">
+            Draw another sample
+          </button>
+          <p class="control-description">
+            Changing a parameter retains the underlying random draws. A new seed
+            draws a new sample.
+          </p>
+        </details>
+        <p id="iv-status" role="status"></p>
+      </aside>
+      <div class="iv-work">
+        <div id="iv-assumptions" class="iv-assumptions"></div>
+        <div
+          id="iv-stages"
+          class="iv-stages"
+          aria-label="First stage, reduced form and IV ratio"
+        ></div>
+        <div class="iv-tabs" role="tablist" aria-label="IV analysis views">
+          <button
+            id="iv-tab-stages"
+            role="tab"
+            aria-controls="iv-panel-stages"
+            aria-selected="true"
+            tabindex="0"
+            type="button"
+          >
+            Stages &amp; estimates
+          </button>
+          <button
+            id="iv-tab-uncertainty"
+            role="tab"
+            aria-controls="iv-panel-uncertainty"
+            aria-selected="false"
+            tabindex="-1"
+            type="button"
+          >
+            Weak-instrument inference
+          </button>
+          <button
+            id="iv-tab-method"
+            role="tab"
+            aria-controls="iv-panel-method"
+            aria-selected="false"
+            tabindex="-1"
+            type="button"
+          >
+            Stata &amp; assumptions
+          </button>
+        </div>
+        <section
+          id="iv-panel-stages"
+          role="tabpanel"
+          aria-labelledby="iv-tab-stages"
+          tabindex="0"
+        >
+          <div class="iv-section-title">
+            <h2>The same observations, three views</h2>
+            <label for="iv-view"
+              >Plot<select id="iv-view">
+                <option value="first">First stage: x against z</option>
+                <option value="reduced">Reduced form: y against z</option>
+                <option value="structural">Outcome: y against x</option>
+              </select></label
+            >
+          </div>
+          <div class="iv-plot-layout">
+            <div>
+              <div id="iv-scatter"></div>
+              <p id="iv-plot-note" class="iv-note"></p>
+            </div>
+            <aside class="iv-inspector" aria-labelledby="iv-record-title">
+              <h3 id="iv-record-title">One observation</h3>
+              <label for="iv-record"
+                >Record number<input
+                  id="iv-record"
+                  type="number"
+                  min="1"
+                  max="300"
+                  step="1"
+                  value="1"
+              /></label>
+              <div id="iv-record-values"></div>
+              <p>
+                Click a point, or focus the selected point and use the arrow
+                keys. The record stays selected when you change views.
+              </p>
+            </aside>
+          </div>
+          <h2>OLS and IV on this sample</h2>
+          <div
+            id="iv-comparison"
+            class="iv-table-wrap"
+            tabindex="0"
+            role="region"
+            aria-label="OLS and IV coefficient comparison"
+          ></div>
+          <p id="iv-interpretation"></p>
+          <details class="iv-explanation">
+            <summary>
+              Why a manual second-stage regression gives the wrong standard
+              error
+            </summary>
+            <div id="iv-naive"></div>
+            <p>
+              The second-stage coefficient uses the part of x predicted by z.
+              Its uncertainty still depends on the structural residual
+              <code>y − intercept − b × x</code>. A regression on fitted x uses
+              a different residual. Use <code>ivregress 2sls</code> to compute
+              the IV covariance.
+            </p>
+          </details>
+        </section>
+        <section
+          id="iv-panel-uncertainty"
+          role="tabpanel"
+          aria-labelledby="iv-tab-uncertainty"
+          tabindex="0"
+          hidden
+        >
+          <div class="iv-section-title">
+            <div>
+              <p class="iv-kicker">Anderson–Rubin inference</p>
+              <h2>Coefficient values and confidence sets</h2>
+            </div>
+          </div>
+          <p>
+            For each candidate b, regress <code>y − b × x</code> on z. If the
+            instrument is valid and b is the true coefficient, z should not
+            predict this transformed outcome. The confidence set collects the
+            candidates this test does not reject.
+          </p>
+          <div class="iv-confidence-summary">
+            <span id="iv-set-label"></span><strong id="iv-set"></strong>
+            <p id="iv-set-explanation"></p>
+          </div>
+          <p class="iv-note">
+            Finite endpoints are rounded. Candidate tests below use the
+            unrounded calculations.
+          </p>
+          <div class="iv-candidate-controls">
+            <label for="iv-candidate"
+              >Candidate b<input
+                id="iv-candidate"
+                type="number"
+                min="-1000000"
+                max="1000000"
+                step="any"
+                value="1" /></label
+            ><button type="button" class="quiet-button" id="iv-test-truth">
+              Use known β</button
+            ><label for="iv-window"
+              >Plot half-width<select id="iv-window">
+                <option value="2">2</option>
+                <option value="5" selected>5</option>
+                <option value="20">20</option>
+                <option value="100">100</option>
+              </select></label
+            >
+          </div>
+          <div id="iv-ar-plot"></div>
+          <p class="iv-note">
+            The plot is centered at zero; arrows mark accepted values beyond its
+            edges. The confidence set above uses analytic endpoints, independent
+            of this window.
+          </p>
+          <div id="iv-ar-result" class="iv-test-result" role="status"></div>
+          <p id="iv-ar-method"></p>
+          <details class="iv-explanation">
+            <summary>
+              Why can a confidence set have two pieces or include every value?
+            </summary>
+            <p>
+              A weak first stage leaves the denominator of the IV ratio poorly
+              determined. The data may fail to reject very large positive and
+              negative coefficients while rejecting values between them. If
+              every candidate passes the test, the confidence set is the whole
+              real line. That is an absence of useful precision from this test;
+              it is not evidence that the effect is zero.
+            </p>
+            <button type="button" id="iv-disconnected" class="quiet-button">
+              Load a two-piece example
+            </button>
+          </details>
+        </section>
+        <section
+          id="iv-panel-method"
+          role="tabpanel"
+          aria-labelledby="iv-tab-method"
+          tabindex="0"
+          hidden
+        >
+          <h2>From this browser experiment to Stata</h2>
+          <p>
+            The export contains this exact synthetic sample, the settings and a
+            do-file. Run the do-file in its folder to reproduce the first stage,
+            reduced form, OLS, 2SLS and the candidate Anderson–Rubin test. The
+            browser performs these calculations locally; the Practice command
+            box supports a smaller command set.
+          </p>
+          <pre
+            id="iv-code"
+            tabindex="0"
+            aria-label="Stata commands for the selected settings"
+          ></pre>
+          <h2>What the experiment assumes</h2>
+          <p>
+            z, v and e are independent standard-normal draws. The structural
+            error is <code>u = σ[ρv + √(1 − ρ²)e]</code>. Thus ρ controls
+            correlation between the first-stage error and the structural error.
+            z remains independent of u throughout this experiment. The δ control
+            introduces a direct effect of z on y, violating exclusion.
+          </p>
+          <p>
+            When π is nonzero, the population IV ratio is <code>β + δ/π</code>.
+            When π is zero, this ratio is undefined; a nonzero sample first
+            stage does not create population identification. There is one
+            instrument for one endogenous regressor, so there is no
+            overidentification test. The fitted IV residual is mechanically
+            orthogonal to z even when exclusion fails.
+          </p>
+          <p>
+            Both covariance options use the <code>small</code> correction and
+            t/F reference distributions with n − 2 residual degrees of freedom.
+            The conventional Anderson–Rubin test has an exact finite-sample
+            reference under the valid normal, homoskedastic population used
+            here. The HC1 version with this F reference is an approximation.
+            Neither protects against an invalid instrument.
+          </p>
+          <p>
+            References:
+            <a href="https://www.stata.com/manuals/rivregress.pdf"
+              >Stata’s ivregress manual</a
+            >
+            and
+            <a href="https://www.stata.com/manuals/rivregresspostestimation.pdf"
+              >postestimation and weak-instrument inference</a
+            >.
+          </p>
+        </section>
+        <section
+          class="iv-investigation"
+          aria-labelledby="iv-investigation-title"
+        >
+          <div class="iv-section-title">
+            <div>
+              <p class="iv-kicker">Guided comparison</p>
+              <h2 id="iv-investigation-title">Four guided comparisons</h2>
+            </div>
+            <label for="iv-task"
+              >Exercise<select id="iv-task">
+                <option value="ratio">1 · The IV ratio</option>
+                <option value="weak">2 · Weak instruments</option>
+                <option value="invalid">3 · Exclusion failure</option>
+                <option value="residual">4 · The correct residual</option>
+              </select></label
+            >
+          </div>
+          <p id="iv-task-prompt"></p>
+          <button type="button" id="iv-task-load" class="quiet-button">
+            Load exercise settings
+          </button>
+          <form id="iv-answer-form">
+            <label id="iv-answer-label" for="iv-answer">Your answer</label
+            ><input id="iv-answer" type="text" autocomplete="off" /><button
+              type="submit"
+              class="primary-button"
+            >
+              Check answer
+            </button>
+          </form>
+          <p id="iv-feedback" role="status"></p>
+        </section>
+        <noscript
+          ><p>
+            This lab requires JavaScript for local calculations. The
+            <a href="../../ScriptLibrary/">Stata script library</a> remains
+            available without it.
+          </p></noscript
+        >
+      </div>
+    </main>
+    <script type="module" src="../../assets/js/iv-lab.js"></script>
+    <script src="../../assets/js/site.js" defer></script>
+  </body>
+</html>
