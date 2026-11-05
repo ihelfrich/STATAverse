@@ -1,13 +1,15 @@
 {
   "origin": "https://ihelfrich.github.io",
-  "checkedAt": "2026-11-05T19:41:22.339Z",
+  "checkedAt": "2026-11-05T21:22:26.132Z",
   "base": "/learn/stata/",
   "checks": [
     "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
     "nested-path command execution, saved practice and scoped service worker",
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
+    "capture/noisily blocks, quietly, confirm and _rc run through the worker at the canonical address; partial changes, skipped commands, History, reload and grouped undo agree",
     "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
+    "capture/noisily blocks and _rc also survive blocked-worker fallback, saved replay and undo at the canonical address",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
     "programming lesson, local substitution, integer loops and saved replay execute entirely offline at the canonical mount",
@@ -27,13 +29,13 @@
     },
     {
       "asset": "learn.js",
-      "bytes": 539151,
-      "gzipBytes": 176077
+      "bytes": 541278,
+      "gzipBytes": 176853
     },
     {
       "asset": "practice-worker.js",
       "bytes": 604,
-      "gzipBytes": 328
+      "gzipBytes": 330
     },
     {
       "asset": "do-builder.js",
@@ -42,13 +44,13 @@
     },
     {
       "asset": "workspace.js",
-      "bytes": 29597,
-      "gzipBytes": 10820
+      "bytes": 29603,
+      "gzipBytes": 10824
     },
     {
       "asset": "data-lab.js",
       "bytes": 130110,
-      "gzipBytes": 46160
+      "gzipBytes": 46164
     },
     {
       "asset": "inference-lab.js",
@@ -83,13 +85,13 @@
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
+    "commit": "bcfc2e728c63d18227c9f4ce6cdb6858d4430d08",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
     "files": 36,
-    "bytes": 1724595,
-    "gzipBytes": 550028
+    "bytes": 1731573,
+    "gzipBytes": 552516
   }
 }
