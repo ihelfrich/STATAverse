@@ -474,7 +474,7 @@
         "Local assembled website only; not publicly deployed",
         "Computed gzip sizes, not production transfer measurements",
         "Targeted accessibility checks; no classroom or manual assistive-technology validation",
-        "Old project URL compatibility still requires publication work"
+        "Legacy and public deployment are verified separately in public-site.json and legacy-transition.json"
       ],
       "depends_on": [
         "stataverse.data-investigations"
@@ -650,6 +650,34 @@
         "tools/verify-site-integration.mjs",
         "docs/site-integration.md",
         "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.public-release",
+      "project": "stataverse",
+      "path": "docs/verification/public-release.json",
+      "kind": "receipt",
+      "title": "STATAverse public deployment and legacy-route receipts",
+      "summary": "Verified main-site and project Pages deployments, pinned source, public browser evidence and continuing-work limits",
+      "facets": [
+        "Stata",
+        "website",
+        "deployment",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Point-in-time public deployment verification",
+        "Full overhaul and saved IV investigations remain active"
+      ],
+      "depends_on": [
+        "stataverse.public-site",
+        "stataverse.legacy-transition"
+      ],
+      "evidence": [
+        "docs/verification/public-site.json",
+        "docs/verification/legacy-transition.json",
+        "docs/site-integration.md"
       ]
     }
   ]

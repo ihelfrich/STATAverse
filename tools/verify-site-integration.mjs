@@ -36,6 +36,23 @@ try {
     if (new URL(r.url()).origin !== origin && !r.url().startsWith("data:"))
       external.push(r.url());
   });
+  if (process.env.SITE_TEST_LEGACY === "1") {
+    await page.goto(
+      origin + "/STATAverse/Learn/?course=fall%202026#first-commands",
+    );
+    await page.waitForURL(root + "Learn/?course=fall%202026#first-commands");
+    await page.locator("#command-editor").waitFor();
+    await page.goto(
+      origin +
+        "/STATAverse/ScriptLibrary/script.html?id=regress&return=%2F#example",
+    );
+    await page.waitForURL(
+      root + "ScriptLibrary/script.html?id=regress&return=%2F#example",
+    );
+    receipt.checks.push(
+      "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
+    );
+  }
   await page.goto(root);
   await page.locator("#preview-result svg").waitFor();
   await page.locator('[data-preview="regress"]').click();
