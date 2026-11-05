@@ -16,8 +16,8 @@ export const fmt = (value, digits = 3) =>
         : value.toFixed(digits);
 const h = escapeHTML;
 const value = (v) => (typeof v === "number" ? fmt(v) : v === null ? "." : h(v));
-export function table(headers, rows) {
-  return `<div class="result-table-wrap"><table class="result-table"><thead><tr>${headers.map((x) => `<th scope="col">${h(x)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((x) => `<td>${x}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+export function table(headers, rows, label = "") {
+  return `<div class="result-table-wrap"${label ? ` tabindex="0" role="region" aria-label="${h(label)}"` : ""}><table class="result-table"><thead><tr>${headers.map((x) => `<th scope="col">${h(x)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((x) => `<td>${x}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 export function resultHTML(result, index, { complete = false } = {}) {
   const r = result;
@@ -55,7 +55,41 @@ export function resultHTML(result, index, { complete = false } = {}) {
         ]),
       ) +
       `<p class="result-annotation">Obs. counts nonmissing values <em>separately for each variable</em>. Std. dev. describes the spread of the observations; it is not the standard error of the mean.</p>`;
-  else if (r.kind === "count")
+  else if (["egen", "collapse"].includes(r.kind) && !r.rowwise) {
+    const groups = complete ? r.summaryRows : r.summaryRows.slice(0, 200);
+    body = `<div class="result-metrics"><div class="result-metric">Observations before<strong>${r.sourceRows}</strong></div><div class="result-metric">Selected<strong>${r.selectedRows}</strong></div><div class="result-metric">Groups<strong>${r.groupCount}</strong></div><div class="result-metric">Observations after<strong>${r.kind === "egen" ? r.sourceRows : r.groupCount}</strong></div></div>`;
+    body += table(
+      [
+        ...(r.by.length ? r.by : ["Group"]),
+        "Source rows",
+        ...r.specs.map((s) => `${s.name}: ${s.statistic}(${s.source})`),
+      ],
+      groups.map((group, groupIndex) => [
+        ...(r.by.length
+          ? group.keys.map(
+              (key, keyIndex) =>
+                (key === ""
+                  ? '<span aria-label="Empty string">""</span>'
+                  : value(key)) +
+                (keyIndex === 0 && !complete
+                  ? groupButton(index, groupIndex, group.keys)
+                  : ""),
+            )
+          : [
+              "All selected" +
+                (!complete ? groupButton(index, groupIndex, []) : ""),
+            ]),
+        group.rows,
+        ...group.statistics.map(
+          (s) =>
+            `<strong>${fmt(s.value)}</strong><span class="group-stat-count">${s.n} nonmissing</span>`,
+        ),
+      ]),
+    );
+    body += `<p class="result-annotation">${r.kind === "egen" ? "Each displayed value is attached to every selected observation in that group; it is not a new independent observation." : "Each displayed row is now one observation in memory. Other source variables are no longer in the working dataset."} Nonmissing counts show the sample used by each statistic.${r.specs.some((s) => ["sum", "total"].includes(s.statistic)) ? " A sum of zero with zero nonmissing values does not establish an observed total of zero." : ""}</p>`;
+    if (!complete && r.summaryRows.length > 200)
+      body += `<p class="result-annotation">Showing the first 200 of ${r.groupCount} groups. All groups enter the working data. Download Results and notes for the complete retained table.</p>`;
+  } else if (r.kind === "count")
     body = `<p class="number-result">${r.n}</p><p class="result-text">${r.n} of ${r.total} observations satisfy this command. The dataset is unchanged. Matching rows are highlighted in the data browser.</p>`;
   else if (r.kind === "display")
     body = `<p class="number-result">${value(r.value)}</p>`;
@@ -124,6 +158,44 @@ export function resultHTML(result, index, { complete = false } = {}) {
   if (r.message && r.kind !== "error")
     body += `<p class="result-text">${h(r.message)}</p>`;
   return `<article class="result-card">${r.source ? `<span class="result-source">Line ${r.source.line}${r.source.endLine > r.source.line ? `–${r.source.endLine}` : ""}</span>` : ""}<pre class="result-command ${r.kind === "error" ? "error" : ""}">. ${h(r.command)}</pre>${body}</article>`;
+}
+function groupButton(result, index, keys) {
+  return `<button type="button" class="text-button group-inspect-button" data-group-result="${result}" data-group-index="${index}" aria-label="Inspect source rows for group ${h(keys.length ? keys.map((key) => (key === "" ? "empty string" : key === null ? "." : key)).join(" / ") : "all selected")}">Inspect rows</button>`;
+}
+export function groupInspectionHTML(result, index) {
+  const group = result.summaryRows[index];
+  if (!group) return "";
+  const groupLabel = result.by.length
+    ? result.by
+        .map(
+          (name, i) =>
+            `${name} = ${group.keys[i] === null ? "." : group.keys[i] === "" ? '""' : group.keys[i]}`,
+        )
+        .join(" · ")
+    : "All selected observations";
+  return `<p class="output-label">${h(groupLabel)}</p><p>${group.rows} selected source observations. These values were recorded when the command ran; later changes to your working data do not alter this view.</p>${table(
+    ["Output", "Statistic", "Nonmissing", "Result"],
+    result.specs.map((s, i) => [
+      h(s.name),
+      h(`${s.statistic}(${s.source})`),
+      group.statistics[i].n,
+      fmt(group.statistics[i].value),
+    ]),
+    "Statistics for the selected group",
+  )}<p>Source positions refer to the ordering at that time. A dot is numeric missing; an empty string is shown as "". Missing values do not enter the counts or means.</p>${table(
+    ["Source position", ...result.sourceNames],
+    group.preview.map((row) => [
+      row.position,
+      ...row.values.map((v) =>
+        v === ""
+          ? '""'
+          : typeof v === "string" && v.length > 160
+            ? h(v.slice(0, 160)) + "…"
+            : value(v),
+      ),
+    ]),
+    "Source observations for the selected group",
+  )}${group.rows > group.preview.length ? `<p class="result-annotation">Showing the first ${group.preview.length} of ${group.rows} source rows in this group. All ${group.rows} rows were considered in the statistics above.</p>` : ""}${group.preview.some((row) => row.values.some((v) => typeof v === "string" && v.length > 160)) ? '<p class="result-annotation">Long text is shortened after 160 characters in this inspection view. The source data are unchanged.</p>' : ""}`;
 }
 export function explainCoefficient(model, name) {
   const c = model.coefficients.find((c) => c.name === name);

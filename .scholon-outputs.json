@@ -373,6 +373,32 @@
       ],
       "status": "candidate_tested",
       "depends_on": []
+    },
+    {
+      "id": "stataverse.grouped-native",
+      "project": "stataverse",
+      "path": "tests/fixtures/grouped-data/native.json",
+      "kind": "reference",
+      "title": "Native Stata grouped and row-statistic fixtures",
+      "summary": "Twenty-five native egen/collapse cases covering missing keys, empty samples, totals, row functions and casewise deletion",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Finite synthetic cases; no weights, by prefixes, extended missing values or general egen expressions",
+        "Browser double storage and string collation limits documented separately"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "tests/fixtures/grouped-data/cases.json",
+        "tools/check-grouped-native.mjs",
+        "tests/grouped-data.test.mjs",
+        "docs/verification/grouped-native.json"
+      ]
     }
   ]
 }

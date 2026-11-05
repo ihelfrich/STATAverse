@@ -26,6 +26,7 @@ import { tags } from "@lezer/highlight";
 import { SUPPORTED_COMMANDS } from "./engine.js";
 import { SUPPORTED_FUNCTIONS } from "./expression.js";
 import { executionRange } from "./do-file.js";
+import { EGEN_FUNCTIONS } from "./grouped-data.js";
 
 const commands = new Set(SUPPORTED_COMMANDS);
 const functions = SUPPORTED_FUNCTIONS;
@@ -188,29 +189,38 @@ export function createCommandEditor(
               context.state.doc.lineAt(from).from,
               from,
             );
-            const options = !prefix.trim()
-              ? [...commands].map((label) => ({
+            const egenFunction = /^\s*egen\s+(?:double\s+)?\w+\s*=\s*$/.test(
+              prefix,
+            );
+            const options = egenFunction
+              ? EGEN_FUNCTIONS.map((label) => ({
                   label,
-                  type: "keyword",
-                  detail: "command",
+                  type: "function",
+                  detail: "egen function",
                 }))
-              : [
-                  ...variables().map((column) => ({
-                    label: column.name,
-                    type: "variable",
-                    detail: column.type,
-                    info: column.label || "Variable in the current dataset",
-                  })),
-                  ...functions.map((label) => ({ label, type: "function" })),
-                  ...[
-                    "if",
-                    "in",
-                    "vce(robust)",
-                    "missing",
-                    "frequency",
-                    "residuals",
-                  ].map((label) => ({ label, type: "keyword" })),
-                ];
+              : !prefix.trim()
+                ? [...commands].map((label) => ({
+                    label,
+                    type: "keyword",
+                    detail: "command",
+                  }))
+                : [
+                    ...variables().map((column) => ({
+                      label: column.name,
+                      type: "variable",
+                      detail: column.type,
+                      info: column.label || "Variable in the current dataset",
+                    })),
+                    ...functions.map((label) => ({ label, type: "function" })),
+                    ...[
+                      "if",
+                      "in",
+                      "vce(robust)",
+                      "missing",
+                      "frequency",
+                      "residuals",
+                    ].map((label) => ({ label, type: "keyword" })),
+                  ];
             return { from, options, validFor: /^\w*$/ };
           },
         ],

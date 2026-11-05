@@ -3,6 +3,7 @@ import { StataError, compileExpression } from "./expression.js";
 import { commandBlocks } from "./do-file.js";
 import { dataChanges } from "./data-changes.js";
 import { nativeImportOptions } from "./import-library.js";
+import { egenColumn, collapseDataset } from "./grouped-data.js";
 import {
   RESOURCE_LIMITS,
   estimatedBytes,
@@ -32,6 +33,8 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "tabulate",
   "correlate",
   "generate",
+  "egen",
+  "collapse",
   "replace",
   "rename",
   "label",
@@ -547,6 +550,28 @@ export class PracticeSession {
     }
     const q = qualify(body, data),
       rows = q.selected.map((x) => x.r);
+    if (verb === "egen" || verb === "collapse") {
+      const args = {
+        data,
+        main: q.main,
+        options,
+        selected: q.selected,
+        command,
+        resolve: (source, settings) => variables(source, data, settings),
+        newName: (name) => newVariable(name, data),
+        validName: cleanName,
+      };
+      let result;
+      if (verb === "egen") result = egenColumn(args);
+      else {
+        const output = collapseDataset(args);
+        this.data = output.data;
+        result = output.result;
+      }
+      this.model = null;
+      this.graph = null;
+      return result;
+    }
     if (verb === "count") {
       noOptions(options);
       if (q.main)

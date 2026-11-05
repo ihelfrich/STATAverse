@@ -131,3 +131,18 @@ Cell-count budgets alone also failed to account for large text in undo copies an
 An older saved session may contain a command that now exceeds the accepted bounds. A browser regression case confirms that replay stops visibly, subsequent commands cannot overwrite the original stored history, and a backup remains available. Another case verifies successful recovery, replacement and reload after a rejected oversized transformation. These cases run on both desktop and mobile.
 
 Verification after this repair: 71 unit tests, 96 desktop/mobile browser cases, 584 local links and project-prefix/offline/cache checks pass. Formatting and whitespace checks pass. The tests verify the specified retention policy and recovery behavior, not a total-memory ceiling on every browser.
+
+### Continuing overhaul: inspectable group preparation
+
+Open practice now supports bounded `egen` group/row functions and `collapse`. Results pair values with nonmissing counts, before/after observation counts and source-row inspection. Twenty-five native cases check the stated behavior on explicit synthetic data.
+
+- **Assignment versus contribution:** a missing outcome can receive its group's mean without contributing to it. Results distinguish selected rows from nonmissing inputs. Qualifiers restrict both calculation and assignment.
+- **Sample changes:** default collapse uses variablewise deletion; `cw` removes rows missing any source variable before grouping. Entire groups can disappear. Native fixtures and browser cases cover this distinction and empty-sample rollback.
+- **Absence versus zero:** all-missing totals default to zero. Counts remain visible, and the missing-total option is supported where native egen supports it. The text does not describe that zero as observed evidence.
+- **Observational unit:** the data browser identifies summary groups after collapse rather than continuing to call each row one student. Preserve, restore, undo and replay retain the correct metadata. History distinguishes aggregation from cell editing or ordinary row deletion.
+- **Stale source inspection:** results retain source previews captured at command time. A browser case changes the outcome and confirms that the earlier preview still contains the original values. Previews stop at fifty rows per group and disclose that bound.
+- **Mobile and keyboard access:** inspection initially sat off-screen at the right edge of a wide table. It now sits beside the group name. Larger table text exposed a mobile scrollable region without keyboard focus; labeled, focusable regions fix that barrier. Dismissal restores focus to the inspection control.
+- **Reload guidance:** resumed sessions no longer instruct students to run their first command; the status reports restored command and observation counts or the replay error.
+- **Test corrections:** initial new tests used nonexistent history/export IDs and assumed a mutation left Results visible. Tests now use actual controls and explicitly reopen Results. Native values and tab behavior were not changed to satisfy those mistaken assertions.
+
+The commands are available in open practice and Command help. Dedicated guided exercises and further data-preparation interactions remain active work; this increment does not complete the overhaul.

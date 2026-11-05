@@ -16,6 +16,8 @@ Imports stay in the browser. UTF-8 CSV, TSV and semicolon-delimited files are bo
 
 Transformations enforce text-growth limits as well as row and column limits. Oversized values fail without changing the data. Undo and displayed results use bounded retention; long changed-value previews are identified as shortened. Older saved work that cannot replay under the current bounds remains preserved for backup. The [numerical contract](docs/numerical-contract.md) specifies these limits.
 
+Open practice supports group and row statistics with `egen`, and changes in observational unit with `collapse`. Results show each statistic's nonmissing sample and let students inspect source observations recorded when the command ran. `preserve`, `restore` and Undo recover individual-level data; grouping, casewise deletion and missing-total decisions are explicit. Command help lists the supported grammar. Twenty-five native cases in `tools/check-grouped-native.mjs` check values and missingness; browser cases cover inspection, snapshots, reload, restore, keyboard access and exports.
+
 ## Local development
 
 Use a current Node installation; this candidate was checked with Node 24.20.0.

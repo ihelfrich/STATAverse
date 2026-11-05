@@ -2,6 +2,9 @@
 
 Primary documentation consulted during the overhaul:
 
+- [Stata egen](https://www.stata.com/manuals/degen.pdf), printed pp. 2–6: group/row functions, missing totals and selection behavior. The browser subset accepts variable arguments rather than general expressions.
+- [Stata collapse](https://www.stata.com/manuals/dcollapse.pdf), printed pp. 1–3: summary syntax, numeric sources, grouping and casewise deletion. Both grouping manuals were fetched through Spider, then followed by 25 native fixtures, including disappearance of groups under casewise deletion.
+
 - [Stata summarize](https://www.stata.com/manuals/rsummarize.pdf): separate nonmissing counts and sample descriptive statistics.
 - [Stata regress](https://www.stata.com/manuals/rregress.pdf): OLS, covariance options and postestimation context. The browser provides conventional and HC1 covariance only.
 - [Stata Hausman](https://www.stata.com/manuals/rhausman.pdf): maintained assumptions and covariance restrictions of the classical comparison; it cannot simply be applied to the clustered fits used elsewhere in the example.

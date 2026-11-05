@@ -54,3 +54,9 @@ The next advanced increment develops repeated-sampling inference under independe
 The repeated-sampling lab now implements those comparisons, including a common interval scale, selected-repetition inspection, conditional dependence controls, Monte Carlo uncertainty, worker cancellation, offline execution and exports. Five R/native sample cases cover all covariance choices. Three native simulation programs execute directly with double-precision returned results and an explicit RNG. The homepage's path ranges now reflect all sixteen lessons.
 
 Further work remains on inspectable data preparation, additional advanced methods, discoverability across the older reference sections and continued design/voice review. The active goal remains open; this second lab is another implementation increment, not a completion claim.
+
+## Grouped preparation increment
+
+`egen` and `collapse` now expose group samples, source-row inspection, missingness decisions and the resulting observational unit. The next curriculum pass will connect attached means, individual values, available-case/common-case summaries and recovery of source data, followed by further relational preparation. Existing lesson IDs and progress remain unchanged in this command-level increment.
+
+The bounded Scholon lookup for grouped teaching procedures timed out after twenty seconds. Project recall returned unrelated job-application, compatibility-database and assessment descriptions; none was a reusable Stata grouping capability. Development extends this repository. These limited searches do not establish absence elsewhere.

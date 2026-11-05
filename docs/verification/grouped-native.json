@@ -1,0 +1,16 @@
+{
+  "method": "Native Stata commands on explicit double-precision input; no CSV substitution or external packages",
+  "cases": 25,
+  "allExpectedReturnCodes": true,
+  "coverage": [
+    "All implemented group and row functions",
+    "Missing keys, all-missing groups, singleton SD and empty selections",
+    "Variablewise versus casewise deletion",
+    "Multiple grouping keys and numeric/string counts"
+  ],
+  "limits": [
+    "Finite synthetic fixtures, not complete Stata parity",
+    "Browser egen accepts source variables rather than general expressions",
+    "Weights, by prefixes, extended missing values and additional functions remain unsupported"
+  ]
+}

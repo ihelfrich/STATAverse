@@ -16,7 +16,9 @@ function cost(result) {
     1 +
     (result.rows?.reduce((n, row) => n + (row.values?.length || 1), 0) || 0) +
     (result.model ? result.model.n * (result.model.predictors.length + 1) : 0) +
-    (result.entries?.length || 0) * 4
+    (result.entries?.length || 0) * 4 +
+    (result.summaryRows?.length || 0) *
+      ((result.specs?.length || 0) * 2 + (result.by?.length || 0) + 1)
   );
 }
 export function retainResults(

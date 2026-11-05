@@ -13,7 +13,7 @@ export function dataChanges(before, after, kind) {
   let changedCells = 0;
   const comparable =
     before.rows.length === after.rows.length &&
-    !["sort", "import", "restore", "rename"].includes(kind);
+    !["sort", "import", "restore", "rename", "collapse"].includes(kind);
   if (comparable) {
     for (let i = 0; i < after.rows.length; i++) {
       for (const name of newNames.filter((n) => oldNames.includes(n))) {
@@ -59,6 +59,7 @@ export function dataChanges(before, after, kind) {
     labels,
     reordered: kind === "sort",
     reloaded: ["import", "restore"].includes(kind),
+    aggregated: kind === "collapse",
   };
 }
 
@@ -67,6 +68,8 @@ export function changeSummary(change) {
   if (change.reloaded)
     return `Dataset loaded · ${change.afterRows} observations`;
   if (change.reordered) return "Observation order changed";
+  if (change.aggregated)
+    return `${change.beforeRows} observations replaced by ${change.afterRows} summary rows`;
   const parts = [];
   const rowDifference = change.afterRows - change.beforeRows;
   if (rowDifference)

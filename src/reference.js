@@ -33,6 +33,31 @@ export const REFERENCE = [
     ],
   ],
   [
+    "Group summaries and the level of observation",
+    [
+      [
+        "egen double group_score = mean(score), by(group)",
+        "Attach the group's nonmissing mean to every observation in the group, retaining the original rows. Also supports sd, min, max, median, count and total of one variable. An if or in qualifier restricts both calculation and assignment; excluded rows receive missing values.",
+      ],
+      [
+        "egen double total_hours = total(hours), by(group) missing",
+        "Without missing, a group containing only missing values receives a total of zero. The missing option instead leaves that total missing. Grouping includes missing keys; add an if condition to exclude them deliberately.",
+      ],
+      [
+        "egen double available = rownonmiss(hours score attendance)",
+        "Calculate across columns within each observation. rowmiss counts missing inputs; rownonmiss counts nonmissing inputs; rowmean averages the observed inputs. rowtotal sums them, treating missing as zero; its missing option leaves an all-missing row missing. Row functions accept numeric variables here and cannot use by().",
+      ],
+      [
+        "preserve\ncollapse (mean) mean_score=score (count) n_score=score, by(group)\nlist\nrestore",
+        "Replace the working data with one summary row per group, then recover the preserved observations. Supported statistics: mean (default), sd, min, max, median, count and sum. Source variables must be numeric. Give distinct output names when calculating several statistics of the same source.",
+      ],
+      [
+        "collapse (mean) hours score (count) n=score, by(group) cw",
+        "Use a common complete-case sample across all source variables. Without cw, each statistic uses all available values of its own source. Groups with no complete cases disappear with cw. Missing grouping keys are included in both modes.",
+      ],
+    ],
+  ],
+  [
     "Change and check data",
     [
       [

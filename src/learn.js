@@ -8,6 +8,7 @@ import {
   fmt,
   resultHTML,
   explainCoefficient,
+  groupInspectionHTML,
 } from "./render.js";
 import { renderGraph } from "./graph.js";
 import { zipSync, strToU8 } from "fflate";
@@ -169,6 +170,12 @@ function loadSession() {
   $("#student-notes").value =
     typeof record?.note === "string" ? record.note.slice(0, 50000) : "";
   renderAll();
+  $("#activity-note").textContent =
+    results.at(-1)?.kind === "error"
+      ? `Replay stopped: ${results.at(-1).message}`
+      : session.history.length
+        ? `Restored ${session.history.length} successful commands. ${session.data.rows.length} observations are in memory.`
+        : "The dataset is loaded. Run your first command to inspect it.";
   setTab("data");
 }
 function renderSidebar() {
@@ -316,18 +323,22 @@ function renderData() {
     selected = new Set(
       results.at(-1)?.kind === "count" ? results.at(-1).selected : [],
     ),
-    newColumn = ["generate", "predict"].includes(results.at(-1)?.kind)
+    newColumn = ["generate", "predict", "egen"].includes(results.at(-1)?.kind)
       ? results.at(-1).name
       : null;
-  $("#dataset-title").textContent = metadata.title;
+  $("#dataset-title").textContent = data.summaryUnit
+    ? `Summary · ${metadata.title}`
+    : metadata.title;
   $("#dataset-count").textContent =
     `${data.rows.length} observations · ${data.columns.length} variables`;
-  $("#dataset-unit").textContent = metadata.unit;
+  $("#dataset-unit").textContent = data.summaryUnit || metadata.unit;
   $("#dataset-origin").textContent =
     metadata.synthetic === false ? "Imported locally" : "Synthetic data";
   $("#download-source").hidden = !customDatasets[initialDataset];
   $("#import-export-note").hidden = !usedImports().length;
-  $("#data-description").textContent = metadata.description;
+  $("#data-description").textContent = data.summaryUnit
+    ? `Collapse changed the level of observation. Each row now contains summary statistics. Original source: ${metadata.description}`
+    : metadata.description;
   const pages = Math.max(1, Math.ceil(data.rows.length / 50));
   dataPage = Math.min(dataPage, pages - 1);
   $("#data-pagination").hidden = data.rows.length <= 50;
@@ -389,6 +400,18 @@ function renderResults() {
         );
       }),
     );
+  $("#results")
+    .querySelectorAll("[data-group-result]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const result = results[Number(button.dataset.groupResult)];
+        $("#group-inspection").innerHTML = groupInspectionHTML(
+          result,
+          Number(button.dataset.groupIndex),
+        );
+        $("#group-dialog").showModal();
+      });
+    });
 }
 function renderHistory() {
   $("#history-count").textContent = timeline.length || "";
@@ -513,20 +536,23 @@ function run(scope = "all") {
   renderHistory();
   renderGraph($("#graph"), session.graph);
   $("#undo").disabled = !session.undoStack.length;
-  const view = ["scatter", "histogram"].includes(last.kind)
-    ? "graph"
-    : [
-          "generate",
-          "replace",
-          "predict",
-          "rename",
-          "drop",
-          "keep",
-          "sort",
-          "restore",
-        ].includes(last.kind)
+  const view =
+    last.kind === "egen" && last.rowwise
       ? "data"
-      : "results";
+      : ["scatter", "histogram"].includes(last.kind)
+        ? "graph"
+        : [
+              "generate",
+              "replace",
+              "predict",
+              "rename",
+              "drop",
+              "keep",
+              "sort",
+              "restore",
+            ].includes(last.kind)
+          ? "data"
+          : "results";
   setTab(view);
   $("#activity-note").textContent =
     last.kind === "error"
