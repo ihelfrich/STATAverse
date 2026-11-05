@@ -1,7 +1,7 @@
 {
   "method": "Native Stata exported IV workflows and official weakrobust tests",
   "limits": [
-    "Nine synthetic cases; not general equivalence",
+    "11 synthetic cases; not general equivalence",
     "Native double input replaces Java-dependent CSV import",
     "Installed Stata requires global set level 95 for weakrobust tests; confidence-set level remains explicitly selected"
   ],
@@ -104,6 +104,38 @@
     },
     {
       "case": "invalid",
+      "returnCode": "0",
+      "checks": [
+        "first stage",
+        "reduced form",
+        "OLS",
+        "2SLS small-sample covariance",
+        "naive second stage",
+        "Wald endpoints",
+        "transformed-outcome AR test",
+        "official estat weakrobust AR test",
+        "full 2SLS covariance matrix",
+        "official confidence-set topology and finite/infinite endpoints"
+      ]
+    },
+    {
+      "case": "invalid-large",
+      "returnCode": "0",
+      "checks": [
+        "first stage",
+        "reduced form",
+        "OLS",
+        "2SLS small-sample covariance",
+        "naive second stage",
+        "Wald endpoints",
+        "transformed-outcome AR test",
+        "official estat weakrobust AR test",
+        "full 2SLS covariance matrix",
+        "official confidence-set topology and finite/infinite endpoints"
+      ]
+    },
+    {
+      "case": "irrelevant-guided",
       "returnCode": "0",
       "checks": [
         "first stage",

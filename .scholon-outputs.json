@@ -510,7 +510,9 @@
         "docs/iv-lab-contract.md",
         "docs/red-team-review.md",
         "tests/iv-lab.test.mjs",
-        "tests/browser/iv-lab.spec.js"
+        "tests/browser/iv-lab.spec.js",
+        "tests/iv-investigations.test.mjs",
+        "tests/browser/iv-investigations.spec.js"
       ]
     },
     {
@@ -519,7 +521,7 @@
       "path": "tests/fixtures/iv-lab/reference.json",
       "kind": "results",
       "title": "Independent R instrumental-variables references",
-      "summary": "Nine synthetic cases with matrix 2SLS and transformed-outcome AR tests",
+      "summary": "Eleven synthetic cases with matrix 2SLS and transformed-outcome AR tests",
       "facets": [
         "Stata",
         "teaching",
@@ -538,7 +540,9 @@
         "docs/iv-lab-contract.md",
         "docs/red-team-review.md",
         "tests/iv-lab.test.mjs",
-        "tests/browser/iv-lab.spec.js"
+        "tests/browser/iv-lab.spec.js",
+        "tests/iv-investigations.test.mjs",
+        "tests/browser/iv-investigations.spec.js"
       ]
     },
     {
@@ -547,7 +551,7 @@
       "path": "docs/verification/iv-native.json",
       "kind": "receipt",
       "title": "Native Stata IV and weak-instrument inference checks",
-      "summary": "Nine exported workflows with full covariance and analytic confidence-set endpoint checks",
+      "summary": "Eleven exported workflows with full covariance and analytic confidence-set endpoint checks",
       "facets": [
         "Stata",
         "teaching",
@@ -566,7 +570,9 @@
         "docs/iv-lab-contract.md",
         "docs/red-team-review.md",
         "tests/iv-lab.test.mjs",
-        "tests/browser/iv-lab.spec.js"
+        "tests/browser/iv-lab.spec.js",
+        "tests/iv-investigations.test.mjs",
+        "tests/browser/iv-investigations.spec.js"
       ]
     },
     {
@@ -594,7 +600,9 @@
         "docs/iv-lab-contract.md",
         "docs/red-team-review.md",
         "tests/iv-lab.test.mjs",
-        "tests/browser/iv-lab.spec.js"
+        "tests/browser/iv-lab.spec.js",
+        "tests/iv-investigations.test.mjs",
+        "tests/browser/iv-investigations.spec.js"
       ]
     },
     {
@@ -678,6 +686,60 @@
         "docs/verification/public-site.json",
         "docs/verification/legacy-transition.json",
         "docs/site-integration.md"
+      ]
+    },
+    {
+      "id": "stataverse.iv-investigations",
+      "project": "stataverse",
+      "path": "src/labs/iv-investigations.js",
+      "kind": "teaching-material",
+      "title": "Saved IV investigations",
+      "summary": "Sixteen checked tasks on two-stage estimation, weak instruments and exclusion failure",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Public release is recorded separately in public-release.json",
+        "No classroom or manual screen-reader validation",
+        "No full Stata equivalence",
+        "Cross-tab serialization requires Web Locks; old open pages must reload"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/verification/iv-investigations.json",
+        "docs/red-team-review.md"
+      ]
+    },
+    {
+      "id": "stataverse.iv-investigation-checks",
+      "project": "stataverse",
+      "path": "docs/verification/iv-investigations.json",
+      "kind": "receipt",
+      "title": "IV investigation browser and persistence verification",
+      "summary": "Curriculum execution, saved task restoration and reproduced concurrent-clear repair",
+      "facets": [
+        "Stata",
+        "teaching",
+        "instrumental-variables",
+        "verification"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Public release is recorded separately in public-release.json",
+        "No classroom or manual screen-reader validation",
+        "No full Stata equivalence",
+        "Cross-tab serialization requires Web Locks; old open pages must reload"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/iv-lab-contract.md",
+        "docs/verification/iv-investigations.json",
+        "docs/red-team-review.md"
       ]
     }
   ]

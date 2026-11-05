@@ -42,8 +42,8 @@ if investigation_path.exists():
     for item in json.loads(investigation_path.read_text()):
         entries.append({
             "type": "module", "title": f"Guided investigation: {item['title']}",
-            "summary": item["summary"], "tags": ["practice", "interactive", "merge", "reshape", "data preparation"],
-            "level": item["level"], "path": f"Labs/Data/#investigation={item['id']}",
+            "summary": item["summary"], "tags": ["practice", "interactive"] + (["IV", "instrumental variables", "inference"] if item["lab"] == "iv" else ["merge", "reshape", "data preparation"]),
+            "level": item["level"], "path": item["path"],
         })
 
 scripts_path = root / "ScriptLibrary" / "scripts.json"

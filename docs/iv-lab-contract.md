@@ -22,6 +22,16 @@ For a candidate b, regress y − bx on z with an intercept and test the z coeffi
 
 Let γ and π̂ be the reduced-form and first-stage slopes, and ry and rx their residuals. The slope variance of the transformed-outcome regression is vyy − 2b vxy + b² vxx. Conventional v terms divide residual cross-products by (n−2)Szz; HC1 weights them by zc² and multiplies by n/[(n−2)Szz²]. The confidence set solves (π̂²−c vxx)b² + (−2γπ̂+2c vxy)b + γ²−c vyy ≤ 0. Analytic inversion preserves bounded intervals, two unbounded rays, half-lines, the whole line, singletons and the empty set. Plotting bounds do not determine confidence-set endpoints. Numerically degenerate variances are reported as unavailable, without fabricated p-values.
 
+## Guided investigations and saved work
+
+Three investigations provide 16 supported tasks: two-stage estimation (five), weak-instrument confidence sets (six), and exclusion failure (five). Numerical checks use the experiment's exact settings and accept three-decimal rounding. Tasks that require selecting an observation or testing a candidate also check that inspection state. Correct-choice positions vary. These checks provide guided practice, not proof of unaided mastery.
+
+Each investigation saves its current task, a separate experiment and response for every visited task, and a shared note. Returning to a task restores that state; resetting a task preserves the other tasks and the note. Previously checked responses are reassessed before the Next control is enabled. Editing analysis settings or the response requires a fresh check; editing the note does not. Invalid inputs retain the last valid draft and visibly report unsaved changes.
+
+The existing lab-progress key accepts completion-only version 1 and draft-bearing version 2. Workspace backup version 3 includes both Data and IV investigations. A shared Web Lock serializes current lab writes, imports and clears. Unique change identifiers make even repeated clears of an empty workspace distinguishable from its earlier state. A stale lab session becomes read-only, while its in-memory work remains exportable. Corrupt stored data are retained; storage failures never produce a saved-on-device claim. Browsers without Web Locks use an optimistic byte comparison, which does not supply the same cross-tab serialization guarantee. An older public page must reload to adopt these protections.
+
+The investigation UI loads only when a guide is selected. A failed module load exposes a retry without disabling the experiment. Its bundle is included in the scoped offline cache. The static homepage and search index link directly to each guide. The main browser Practice interpreter remains a separately bounded command subset.
+
 ## Verification and limits
 
 Independent R matrix calculations and native Stata checks must cover conventional/HC1 covariance, valid/weak/irrelevant/invalid instruments, small samples, negative endogeneity, confidence levels and Anderson–Rubin tests/inversion. Invariance checks cover row ordering and transformations of instrument units. Algebraic boundary fixtures exercise all quadratic set shapes. Browser checks cover keyboard use, validation, export, mobile layout, offline operation and the main-site mount. Passing bounded fixtures does not establish full Stata equivalence.

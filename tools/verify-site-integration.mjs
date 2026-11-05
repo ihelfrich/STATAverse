@@ -197,14 +197,33 @@ try {
   });
   await context.setOffline(true);
   await page.reload();
-  await page.locator("#iv-task").selectOption("weak");
-  await page.locator("#iv-task-load").click();
+  await page.locator("#iv-guide-select").selectOption("iv-weak");
+  await page.locator("#iv-guide-steps").selectOption("2");
   assert.equal(await page.locator("#iv-set").innerText(), "All real values");
-  await page.locator("#iv-answer").fill("all values");
-  await page.locator("#iv-answer-form button").click();
+  await page.locator('#iv-guide-inputs input[value="2"]').check();
+  await page.locator("#iv-guide-check").click();
+  await page.locator("#iv-guide-next:not([disabled])").waitFor();
+  assert.match(
+    await page.locator("#iv-guide-feedback").innerText(),
+    /rejects no candidate/,
+  );
+  await page
+    .locator("#iv-guide-note")
+    .fill("This sample supplies no finite AR bound.");
+  await page
+    .getByText("Task, responses and settings saved on this device", {
+      exact: true,
+    })
+    .waitFor();
+  await page.reload();
+  await page.locator("#iv-guide-next:not([disabled])").waitFor();
   assert.equal(
-    await page.locator("#iv-feedback").getAttribute("data-correct"),
-    "true",
+    await page.locator("#iv-guide-note").inputValue(),
+    "This sample supplies no finite AR bound.",
+  );
+  assert.equal(
+    await page.locator('#iv-guide-inputs input[value="2"]').isChecked(),
+    true,
   );
   assert.equal(
     await page.locator('.sv-site-nav a[href="/teaching/"]').first().count(),
@@ -212,7 +231,7 @@ try {
   );
   await context.setOffline(false);
   receipt.checks.push(
-    "IV lab at the canonical nested route, shared navigation, local calculations and checked weak-instrument exercise offline",
+    "IV lab at the canonical nested route, shared navigation, checked weak-instrument investigation offline, and restored task response, experiment and note after reload",
   );
   assert.deepEqual(errors, []);
   assert.deepEqual(external, []);

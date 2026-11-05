@@ -327,6 +327,48 @@
     "path": "Labs/Data/#investigation=merge-decisions"
   },
   {
+    "type": "module",
+    "title": "Guided investigation: From the first stage to 2SLS",
+    "summary": "Follow a predicted value, calculate the IV ratio and distinguish the coefficient from its uncertainty.",
+    "tags": [
+      "practice",
+      "interactive",
+      "IV",
+      "instrumental variables",
+      "inference"
+    ],
+    "level": "Intermediate",
+    "path": "Labs/IV/#investigation=iv-stages"
+  },
+  {
+    "type": "module",
+    "title": "Guided investigation: Weak instruments and confidence sets",
+    "summary": "Change instrument strength, test candidate coefficients and interpret bounded, disconnected and uninformative sets.",
+    "tags": [
+      "practice",
+      "interactive",
+      "IV",
+      "instrumental variables",
+      "inference"
+    ],
+    "level": "Advanced",
+    "path": "Labs/IV/#investigation=iv-weak"
+  },
+  {
+    "type": "module",
+    "title": "Guided investigation: Exclusion, precision and the wrong target",
+    "summary": "Hold the first stage fixed while violating exclusion, then examine why a larger sample does not repair the design.",
+    "tags": [
+      "practice",
+      "interactive",
+      "IV",
+      "instrumental variables",
+      "inference"
+    ],
+    "level": "Advanced",
+    "path": "Labs/IV/#investigation=iv-exclusion"
+  },
+  {
     "type": "script",
     "title": "Project setup and logging",
     "summary": "Initialize a clean Stata session, create folders, and start a log.",

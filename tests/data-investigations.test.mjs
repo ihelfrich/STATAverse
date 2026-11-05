@@ -24,17 +24,14 @@ import { validateBackup } from "../src/persistence.js";
 import { INVESTIGATION_CATALOG } from "../src/labs/investigation-catalog.js";
 test("compact progress catalog retains curriculum identity and order", () => {
   assert.deepEqual(
-    INVESTIGATION_CATALOG,
-    DATA_INVESTIGATIONS.map(
-      ({ id, title, summary, level, minutes, steps }) => ({
-        id,
-        title,
-        summary,
-        level,
-        minutes,
-        steps: steps.map(({ id }) => ({ id })),
-      }),
-    ),
+    INVESTIGATION_CATALOG.filter((g) => g.lab === "data"),
+    DATA_INVESTIGATIONS.map(({ id, title, steps }) => ({
+      id,
+      title,
+      lab: "data",
+      path: `Labs/Data/#investigation=${id}`,
+      steps: steps.map(({ id, title }) => ({ id, title })),
+    })),
   );
 });
 const native = JSON.parse(

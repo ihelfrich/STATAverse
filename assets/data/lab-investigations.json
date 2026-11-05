@@ -5,7 +5,9 @@
     "summary": "Identify a key, trace matches and decide which records belong in the result.",
     "level": "Beginner",
     "minutes": 15,
-    "steps": 6
+    "steps": 6,
+    "path": "Labs/Data/#investigation=matching-records",
+    "lab": "data"
   },
   {
     "id": "repeated-measurements",
@@ -13,7 +15,9 @@
     "summary": "Follow values between wide and long layouts and distinguish different sources of missingness.",
     "level": "Beginner to intermediate",
     "minutes": 15,
-    "steps": 6
+    "steps": 6,
+    "path": "Labs/Data/#investigation=repeated-measurements",
+    "lab": "data"
   },
   {
     "id": "merge-decisions",
@@ -21,6 +25,38 @@
     "summary": "Compare master retention, update and replacement, then examine what an altered key excludes.",
     "level": "Intermediate",
     "minutes": 15,
-    "steps": 5
+    "steps": 5,
+    "path": "Labs/Data/#investigation=merge-decisions",
+    "lab": "data"
+  },
+  {
+    "id": "iv-stages",
+    "title": "The two stages of IV estimation",
+    "summary": "Follow a predicted value, calculate the IV ratio and distinguish the coefficient from its uncertainty.",
+    "level": "Intermediate",
+    "minutes": 18,
+    "steps": 5,
+    "path": "Labs/IV/#investigation=iv-stages",
+    "lab": "iv"
+  },
+  {
+    "id": "iv-weak",
+    "title": "Weak instruments and confidence sets",
+    "summary": "Change instrument strength, test candidate coefficients and interpret bounded, disconnected and uninformative sets.",
+    "level": "Advanced",
+    "minutes": 20,
+    "steps": 6,
+    "path": "Labs/IV/#investigation=iv-weak",
+    "lab": "iv"
+  },
+  {
+    "id": "iv-exclusion",
+    "title": "Exclusion, precision and the wrong target",
+    "summary": "Hold the first stage fixed while violating exclusion, then examine why a larger sample does not repair the design.",
+    "level": "Advanced",
+    "minutes": 18,
+    "steps": 5,
+    "path": "Labs/IV/#investigation=iv-exclusion",
+    "lab": "iv"
   }
 ]

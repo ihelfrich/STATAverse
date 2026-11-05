@@ -49,6 +49,22 @@
           >Prerequisite: regression and omitted-variable bias →</a
         >
       </header>
+      <section class="iv-guide-bar" aria-label="Guided IV investigations">
+        <label for="iv-guide-select">Guided investigations</label
+        ><select id="iv-guide-select"></select>
+        <p id="iv-guide-summary"></p>
+        <p id="iv-guide-storage" role="status" hidden></p>
+        <button type="button" id="iv-guide-retry" class="quiet-button" hidden>
+          Retry loading investigations
+        </button>
+        <nav id="iv-guide-jumps" aria-label="Investigation shortcuts" hidden>
+          <button type="button" data-iv-jump="iv-guide-task">Task</button
+          ><button type="button" data-iv-jump="iv-results">Results</button
+          ><button type="button" data-iv-jump="iv-guide-answer">
+            Answer &amp; notes
+          </button>
+        </nav>
+      </section>
       <aside class="experiment-controls" aria-labelledby="iv-controls-title">
         <details id="iv-controls-disclosure" open>
           <summary>Population and sample controls</summary>
@@ -116,6 +132,43 @@
         <p id="iv-status" role="status"></p>
       </aside>
       <div class="iv-work">
+        <section
+          id="iv-guide-task"
+          class="iv-guide-task"
+          tabindex="-1"
+          hidden
+          aria-labelledby="iv-guide-title"
+        >
+          <div class="iv-guide-task-head">
+            <p id="iv-guide-progress"></p>
+            <label for="iv-guide-steps"
+              >Task<select id="iv-guide-steps"></select
+            ></label>
+          </div>
+          <h2 id="iv-guide-title"></h2>
+          <p id="iv-guide-instruction"></p>
+          <details id="iv-guide-help">
+            <summary>Show a hint</summary>
+            <p id="iv-guide-hint"></p>
+          </details>
+          <div class="iv-guide-actions">
+            <button type="button" id="iv-guide-reset" class="text-button">
+              Reset task settings</button
+            ><button
+              type="button"
+              data-iv-jump="iv-guide-answer"
+              class="text-button"
+            >
+              Go to answer &amp; notes ↓
+            </button>
+          </div>
+        </section>
+        <div
+          id="iv-results"
+          role="group"
+          tabindex="-1"
+          aria-label="Analysis results"
+        ></div>
         <div id="iv-assumptions" class="iv-assumptions"></div>
         <div
           id="iv-stages"
@@ -345,37 +398,46 @@
           </p>
         </section>
         <section
-          class="iv-investigation"
-          aria-labelledby="iv-investigation-title"
+          id="iv-guide-answer"
+          class="iv-guide-answer"
+          aria-labelledby="iv-guide-question"
+          tabindex="-1"
+          hidden
         >
-          <div class="iv-section-title">
-            <div>
-              <p class="iv-kicker">Guided comparison</p>
-              <h2 id="iv-investigation-title">Four guided comparisons</h2>
-            </div>
-            <label for="iv-task"
-              >Exercise<select id="iv-task">
-                <option value="ratio">1 · The IV ratio</option>
-                <option value="weak">2 · Weak instruments</option>
-                <option value="invalid">3 · Exclusion failure</option>
-                <option value="residual">4 · The correct residual</option>
-              </select></label
+          <h2 id="iv-guide-question"></h2>
+          <fieldset
+            id="iv-guide-inputs"
+            aria-labelledby="iv-guide-question"
+          ></fieldset>
+          <div class="iv-guide-actions">
+            <button type="button" id="iv-guide-check" class="primary-button">
+              Check answer</button
+            ><button type="button" id="iv-guide-previous" class="quiet-button">
+              Previous task</button
+            ><button
+              type="button"
+              id="iv-guide-next"
+              class="quiet-button"
+              disabled
             >
-          </div>
-          <p id="iv-task-prompt"></p>
-          <button type="button" id="iv-task-load" class="quiet-button">
-            Load exercise settings
-          </button>
-          <form id="iv-answer-form">
-            <label id="iv-answer-label" for="iv-answer">Your answer</label
-            ><input id="iv-answer" type="text" autocomplete="off" /><button
-              type="submit"
-              class="primary-button"
-            >
-              Check answer
+              Next task →
             </button>
-          </form>
-          <p id="iv-feedback" role="status"></p>
+          </div>
+          <p id="iv-guide-feedback" role="status"></p>
+          <p id="iv-guide-finished" role="status" hidden></p>
+          <label for="iv-guide-note">Investigation notes</label
+          ><textarea
+            id="iv-guide-note"
+            maxlength="4000"
+            rows="3"
+            placeholder="Record your reasoning, a result to revisit, or a question."
+          ></textarea>
+          <p id="iv-guide-save" role="status"></p>
+          <p class="iv-note">
+            Your task, settings, response and notes are stored in this browser.
+            <a href="../../Workspace/">Saved work</a> can back up or restore
+            them. Project exports include a separate investigation record.
+          </p>
         </section>
         <noscript
           ><p>

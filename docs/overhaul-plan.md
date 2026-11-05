@@ -20,7 +20,7 @@ The existing site contains useful lessons and scripts, but browser exercises mai
 
 Repository cloned from ihelfrich/STATAverse; migration archive identified and preserved. Agent Log claimed. The initial bounded prior-work lookup timed out; no conclusion about catalog coverage. Dr. Helfrich subsequently expanded the goal to full integration into his public website, including navigation and efficient browser execution. The integration is being prepared and verified locally before publication.
 
-The first increment is committed as `c7450d5`. Its verification and registration receipts are recorded under `docs/verification/` and `docs/red-team-review.md`. Dr. Helfrich explicitly rejected stopping at that increment. A new active goal now has a configured 5,000,000-token budget. That is a work budget, not a claim about tokens already consumed.
+The first increment is committed as `c7450d5`. Its verification and registration receipts are recorded under `docs/verification/` and `docs/red-team-review.md`. Dr. Helfrich explicitly rejected stopping at that increment. On 5 November he reduced the work budget from 5,000,000 to **2,500,000 tokens total**. The goal API still reports the older configured limit and exposes no budget-edit operation; the later user limit governs the remaining work. At the correction, 2,004,510 tokens had been recorded. Priorities within the remainder are verified public releases, student usability, statistical correctness and integration at `ihelfrich.github.io/learn/stata/`.
 
 ## Continuing implementation
 
