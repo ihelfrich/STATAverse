@@ -1,4 +1,4 @@
-import { LESSONS } from "./lessons.js";
+import { LESSON_CATALOG } from "./lesson-catalog.js";
 import { DATASETS } from "./datasets.js";
 import { validateImportLibrary } from "./import-library.js";
 import { validateLabProgress } from "./lab-progress.js";
@@ -11,7 +11,7 @@ export const emptyStore = () => ({
   imports: {},
   mode: "guided",
   activeDataset: "study",
-  current: LESSONS[0].id,
+  current: LESSON_CATALOG[0].id,
 });
 const object = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -61,16 +61,16 @@ export function validateStore(value) {
     throw new Error("The practice backup has an unsupported format.");
   const result = emptyStore();
   result.imports = validateImportLibrary(value.imports ?? {});
-  for (const lesson of LESSONS)
+  for (const lesson of LESSON_CATALOG)
     if (Object.hasOwn(value.lessons, lesson.id))
       result.lessons[lesson.id] = record(
         value.lessons[lesson.id],
-        lesson.steps.length,
+        lesson.stepCount,
       );
   for (const id of [...Object.keys(DATASETS), ...Object.keys(result.imports)])
     if (Object.hasOwn(value.free ?? {}, id))
       result.free[id] = record(value.free[id], 1);
-  if (LESSONS.some((l) => l.id === value.current))
+  if (LESSON_CATALOG.some((l) => l.id === value.current))
     result.current = value.current;
   if (value.mode === "free") result.mode = "free";
   if (

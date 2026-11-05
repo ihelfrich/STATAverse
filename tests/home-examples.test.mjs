@@ -30,5 +30,5 @@ test("lightweight landing examples retain the browser engine results", () => {
 });
 test("landing and saved-work bundles stay below their compressed transfer budgets", () => {
   assert.ok(gzipSync(fs.readFileSync("assets/js/home.js")).length < 5000);
-  assert.ok(gzipSync(fs.readFileSync("assets/js/workspace.js")).length < 53000);
+  assert.ok(gzipSync(fs.readFileSync("assets/js/workspace.js")).length < 12000);
 });

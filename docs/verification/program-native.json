@@ -1,0 +1,441 @@
+{
+  "checkedAt": "2026-11-05T17:06:31.177Z",
+  "fixture": "tests/fixtures/program-cases.json",
+  "fixtureSha256": "12fd9a5c3bd0563f32a6cb47bf50be911f4f3445a5f8fcb3009647eb2a10082b",
+  "cases": [
+    {
+      "id": "nested-names",
+      "returnCode": 0,
+      "columns": [
+        "copied"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ]
+    },
+    {
+      "id": "macro-list",
+      "returnCode": 0,
+      "columns": [
+        "c_hours",
+        "c_attendance"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1,
+          60
+        ],
+        [
+          2,
+          70
+        ],
+        [
+          3,
+          80
+        ],
+        [
+          4,
+          90
+        ]
+      ]
+    },
+    {
+      "id": "variable-range",
+      "returnCode": 0,
+      "columns": [
+        "d_hours",
+        "d_attendance"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          2,
+          120
+        ],
+        [
+          4,
+          140
+        ],
+        [
+          6,
+          160
+        ],
+        [
+          8,
+          180
+        ]
+      ]
+    },
+    {
+      "id": "positive-powers",
+      "returnCode": 0,
+      "columns": [
+        "p1",
+        "p2",
+        "p3",
+        "last"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1,
+          1,
+          1,
+          3
+        ],
+        [
+          2,
+          4,
+          8,
+          3
+        ],
+        [
+          3,
+          9,
+          27,
+          3
+        ],
+        [
+          4,
+          16,
+          64,
+          3
+        ]
+      ]
+    },
+    {
+      "id": "descending",
+      "returnCode": 0,
+      "columns": [
+        "v5",
+        "v3",
+        "v1"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          5,
+          3,
+          1
+        ],
+        [
+          5,
+          3,
+          1
+        ],
+        [
+          5,
+          3,
+          1
+        ],
+        [
+          5,
+          3,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "alternate-increment",
+      "returnCode": 0,
+      "columns": [
+        "v2",
+        "v4",
+        "v6",
+        "v8"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          2,
+          4,
+          6,
+          8
+        ],
+        [
+          2,
+          4,
+          6,
+          8
+        ],
+        [
+          2,
+          4,
+          6,
+          8
+        ],
+        [
+          2,
+          4,
+          6,
+          8
+        ]
+      ]
+    },
+    {
+      "id": "empty-loop",
+      "returnCode": 0,
+      "columns": [
+        "retained"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ]
+    },
+    {
+      "id": "nested-conditions",
+      "returnCode": 0,
+      "columns": [
+        "c11",
+        "c12",
+        "c21",
+        "c22"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          2,
+          0,
+          0,
+          4
+        ],
+        [
+          2,
+          0,
+          0,
+          4
+        ],
+        [
+          2,
+          0,
+          0,
+          4
+        ],
+        [
+          2,
+          0,
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "id": "first-observation-condition",
+      "returnCode": 0,
+      "columns": [
+        "reached",
+        "missing_true"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "local-numeric-evaluation",
+      "returnCode": 0,
+      "columns": [
+        "ratio",
+        "root",
+        "count"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          0.3333333333333333,
+          1.414213562373095,
+          4
+        ],
+        [
+          0.3333333333333333,
+          1.414213562373095,
+          4
+        ],
+        [
+          0.3333333333333333,
+          1.414213562373095,
+          4
+        ],
+        [
+          0.3333333333333333,
+          1.414213562373095,
+          4
+        ]
+      ]
+    },
+    {
+      "id": "quoted-items",
+      "returnCode": 0,
+      "columns": [
+        "chosen"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          "last group"
+        ],
+        [
+          "last group"
+        ],
+        [
+          "last group"
+        ],
+        [
+          "last group"
+        ]
+      ]
+    },
+    {
+      "id": "partial-state-after-error",
+      "returnCode": 110,
+      "columns": [
+        "repeated"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ]
+      ]
+    },
+    {
+      "id": "loop-macro-cleanup",
+      "returnCode": 0,
+      "columns": [
+        "hours",
+        "after_for",
+        "after_each",
+        "nested"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          1,
+          "",
+          "",
+          ""
+        ],
+        [
+          2,
+          "",
+          "",
+          ""
+        ],
+        [
+          3,
+          "",
+          "",
+          ""
+        ],
+        [
+          4,
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": "repeated-varlist",
+      "returnCode": 0,
+      "columns": [
+        "count"
+      ],
+      "rows": 4,
+      "values": [
+        [
+          2
+        ],
+        [
+          2
+        ],
+        [
+          2
+        ],
+        [
+          2
+        ]
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "empty-sample-macro",
+      "nativeReturnCode": 0,
+      "browserReturnCode": 2000,
+      "nativeValues": [
+        [
+          "1",
+          "0"
+        ],
+        [
+          "1",
+          "0"
+        ],
+        [
+          "1",
+          "0"
+        ],
+        [
+          "1",
+          "0"
+        ]
+      ],
+      "reason": "The installed executable evaluates hours after keep if 0 as the earlier first-row value (1), despite _N being 0. This behavior is not adopted as a portable contract. Browser control expressions that read variables from an empty sample fail explicitly; _N alone remains usable."
+    }
+  ],
+  "limits": [
+    "Comparison against the installed local macOS executable; an unmodified licensed vendor oracle is not established.",
+    "Constructed cases with numeric tolerance 1e-14; not full macro/control-flow or Stata compatibility.",
+    "Raw native logs remain in a private temporary directory and are not published."
+  ]
+}

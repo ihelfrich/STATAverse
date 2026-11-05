@@ -13,12 +13,18 @@
       "path": "docs/numerical-contract.md",
       "kind": "specification",
       "title": "Browser Stata numerical contract",
-      "summary": "Explicit supported syntax, OLS/HC1 definitions, missing behavior and numerical tolerances",
+      "summary": "Supported browser numerical and do-file semantics, operation limits, scoped locals, loops, replay and explicit compatibility boundaries",
       "facets": ["Stata", "teaching", "verification", "synthetic-data"],
       "status": "candidate_tested",
       "limits": ["Bounded educational subset; no full Stata equivalence"],
       "depends_on": [],
-      "evidence": ["docs/red-team-review.md"]
+      "evidence": [
+        "docs/red-team-review.md",
+        "docs/verification/program-native.json",
+        "tests/program.test.mjs",
+        "tests/browser/programming.spec.js",
+        "docs/browser-runtime-plan.md"
+      ]
     },
     {
       "id": "stataverse.redteam",
@@ -368,7 +374,7 @@
       "path": "docs/iv-lab-contract.md",
       "kind": "specification",
       "title": "Instrumental-variables browser model contract",
-      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson\u2013Rubin inversion and numerical limits",
       "facets": [
         "Stata",
         "teaching",

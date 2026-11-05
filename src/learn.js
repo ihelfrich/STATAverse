@@ -140,11 +140,14 @@ function loadSession() {
     for (const command of record.history) {
       const output = session.run(command);
       results = retainResults([...results, ...output]);
-      timeline = retainResults([...timeline, ...output.map(historyReceipt)], {
-        entries: 500,
-        cells: Infinity,
-        bytes: RESOURCE_LIMITS.timelineBytes,
-      });
+      timeline = retainResults(
+        [...timeline, ...(output.receipts || output.map(historyReceipt))],
+        {
+          entries: 500,
+          cells: Infinity,
+          bytes: RESOURCE_LIMITS.timelineBytes,
+        },
+      );
       if (output.some((r) => r.kind === "error")) {
         storageWarning(
           "Some saved commands could not be replayed. The original saved history has been left unchanged. Inspect Results, and export a backup from Saved work before resetting this session.",
@@ -211,6 +214,11 @@ function renderSidebar() {
 }
 function renderLesson() {
   const free = mode === "free";
+  const runTogether = !free && lesson.runTogether;
+  $(".editor-actions").classList.toggle("run-together", Boolean(runTogether));
+  $("#editor-description").textContent = runTogether
+    ? "Use Run all to keep local definitions and their uses in the same run. Ctrl / ⌘ + Shift + Enter also runs the full editor. Execution stops at an error; earlier successful commands remain."
+    : "Run the command at your cursor, select several lines, or run the full editor. Execution stops at an error. Tab leaves the editor; Ctrl + Space shows suggestions.";
   $("#insert-example").hidden = free;
   $("#next-step").hidden = free;
   $("#restart").textContent = free
@@ -511,11 +519,14 @@ function run(scope = "all") {
     return;
   }
   results = retainResults([...results, ...output]);
-  timeline = retainResults([...timeline, ...output.map(historyReceipt)], {
-    entries: 500,
-    cells: Infinity,
-    bytes: RESOURCE_LIMITS.timelineBytes,
-  });
+  timeline = retainResults(
+    [...timeline, ...(output.receipts || output.map(historyReceipt))],
+    {
+      entries: 500,
+      cells: Infinity,
+      bytes: RESOURCE_LIMITS.timelineBytes,
+    },
+  );
   const last = output.at(-1);
   if (last.kind === "count" && last.selected.length)
     dataPage = Math.floor(last.selected[0] / 50);
@@ -880,6 +891,8 @@ function doFile() {
     "* Put this do-file beside the downloaded original CSV files.",
     "* In Stata, cd to that folder before running this file.",
     "* Browser practice is a subset; output formatting may differ.",
+    "* Local references and loops are expanded into the successful commands below.",
+    "* The complete ZIP preserves your original editor text in editor-draft.do.",
     "clear all",
     "set more off",
     nativeImportCommand(dataset.file, originalData(initialDataset)),

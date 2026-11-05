@@ -1,6 +1,7 @@
 import { step } from "./lesson-schema.js";
 import { EXTENDED_LESSONS } from "./extended-lessons.js";
 import { GROUPED_LESSONS } from "./grouped-lessons.js";
+import { PROGRAMMING_LESSONS } from "./programming-lessons.js";
 import { enrichFoundations } from "./lesson-support.js";
 const FOUNDATIONS = [
   {
@@ -523,10 +524,12 @@ export const TRACKS = [
 ];
 const foundations = enrichFoundations(FOUNDATIONS);
 const byId = new Map(
-  [...foundations, ...EXTENDED_LESSONS, ...GROUPED_LESSONS].map((l) => [
-    l.id,
-    l,
-  ]),
+  [
+    ...foundations,
+    ...EXTENDED_LESSONS,
+    ...GROUPED_LESSONS,
+    ...PROGRAMMING_LESSONS,
+  ].map((l) => [l.id, l]),
 );
 const order = [
   "first-commands",
@@ -537,6 +540,7 @@ const order = [
   "inference",
   "observation-order",
   "do-files",
+  "macros-loops",
   "temporary-samples",
   "data-quality",
   "group-statistics",

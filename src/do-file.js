@@ -94,6 +94,67 @@ export function commandBlocks(source) {
   return blocks;
 }
 
+/** Parse structural blocks without executing or expanding student text. */
+export function parseProgram(source) {
+  const lines = commandBlocks(source);
+  let index = 0;
+  const fail = (message, block) => {
+    const error = new StataError(message);
+    error.source = block;
+    throw error;
+  };
+  function sequence(depth = 0, opener = null) {
+    if (depth > 32) fail("The do-file exceeds 32 nested blocks.", opener);
+    const nodes = [];
+    while (index < lines.length) {
+      const line = lines[index++],
+        text = line.command;
+      if (text === "}") {
+        if (!opener) fail("This closing brace has no opening block.", line);
+        return { nodes, close: line };
+      }
+      if (text.startsWith("}"))
+        fail("Put a closing brace on its own line.", line);
+      const header = text.match(
+        /^(foreach|forvalues|forv|if|else)\b([\s\S]*?)\s*\{$/,
+      );
+      if (!header) {
+        if (/^(foreach|forvalues|forv|else)\b/.test(text))
+          fail(
+            "Put the opening brace at the end of the control statement, and start its commands on the next line.",
+            line,
+          );
+        nodes.push({ ...line, type: "command" });
+        continue;
+      }
+      const kind = header[1] === "forv" ? "forvalues" : header[1];
+      const { nodes: body, close } = sequence(depth + 1, line);
+      const node = {
+        ...line,
+        type: kind,
+        header: header[2].trim(),
+        body,
+        to: close.to,
+        endLine: close.endLine,
+      };
+      if (kind === "else") {
+        const previous = nodes.at(-1);
+        if (node.header || previous?.type !== "if" || previous.otherwise)
+          fail(
+            "This else block must follow one if block and have no condition. Use a nested if for another condition.",
+            line,
+          );
+        previous.otherwise = node.body;
+        previous.to = node.to;
+        previous.endLine = node.endLine;
+      } else nodes.push(node);
+    }
+    if (opener) fail("This block has no closing brace.", opener);
+    return { nodes, close: null };
+  }
+  return sequence().nodes;
+}
+
 /** A selection runs exactly its text; a cursor runs its whole logical command. */
 export function executionRange(source, from, to = from) {
   if (from !== to)
@@ -104,7 +165,7 @@ export function executionRange(source, from, to = from) {
       text: source.slice(from, to),
       selection: true,
     };
-  const blocks = commandBlocks(source);
+  const blocks = parseProgram(source);
   const block =
     blocks.find((b) => from >= b.from && from <= b.to) ||
     blocks.find((b) => b.from >= from);

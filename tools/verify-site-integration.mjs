@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { LESSONS } from "../src/lessons.js";
+import { replaceEditor } from "../tests/browser/editor-helpers.js";
 const origin = process.env.SITE_TEST_ORIGIN || "http://127.0.0.1:4176";
 const root = origin + "/learn/stata/";
 const browser = await chromium.launch({ channel: "chrome" });
@@ -180,6 +181,31 @@ try {
       () => getComputedStyle(document.querySelector(".sv-site-nav")).display,
     ),
     "flex",
+  );
+  await page.goto(root + "Learn/#macros-loops");
+  await page.locator("#insert-example").click();
+  await page.locator("#run").click();
+  assert.match(
+    await page.locator("#exercise-check").innerText(),
+    /expected result/,
+  );
+  await page.locator("#free-mode").click();
+  const program =
+    "local prefix browser\nforvalues p = 1/2 {\n generate double `prefix'`p' = hours^`p'\n}";
+  await replaceEditor(page, program);
+  await page.locator("#run").click();
+  assert.match(await page.locator("#dataset-count").innerText(), /7 variables/);
+  await page.locator("#tab-results").click();
+  assert.match(
+    await page.locator("#results").innerText(),
+    /generate double browser2 = hours\^2/,
+  );
+  await page.reload();
+  await page.locator("#command-editor").waitFor();
+  assert.match(await page.locator("#dataset-count").innerText(), /7 variables/);
+  assert.equal(await page.locator("#command-editor").innerText(), program);
+  receipt.checks.push(
+    "programming lesson, local substitution, integer loops and saved replay execute entirely offline at the canonical mount",
   );
   await context.setOffline(false);
   await page.goto(root + "Labs/IV/");

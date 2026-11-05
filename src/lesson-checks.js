@@ -8,6 +8,7 @@ const ignored = new Set([
   "changedCells",
   "effect",
   "source",
+  "originalCommand",
 ]);
 const clean = (value) => {
   if (Array.isArray(value)) return value.map(clean);

@@ -166,6 +166,18 @@
   },
   {
     "type": "module",
+    "title": "Browser practice: Repeated work with macros and loops",
+    "summary": "Write reusable commands, inspect their substitutions and distinguish program decisions from row filters.",
+    "tags": [
+      "practice",
+      "interactive",
+      "stata"
+    ],
+    "level": "Do-files",
+    "path": "Learn/#macros-loops"
+  },
+  {
+    "type": "module",
     "title": "Browser practice: Temporary samples with preserve",
     "summary": "Keep a recoverable copy, examine a subset and restore all observations.",
     "tags": [

@@ -63,6 +63,13 @@
       "returnCode": "0"
     },
     {
+      "lesson": "macros-loops",
+      "steps": 6,
+      "numericChecks": 0,
+      "finalRows": 24,
+      "returnCode": "0"
+    },
+    {
       "lesson": "temporary-samples",
       "steps": 5,
       "numericChecks": 2,
