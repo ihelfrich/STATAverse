@@ -399,6 +399,33 @@
         "tests/grouped-data.test.mjs",
         "docs/verification/grouped-native.json"
       ]
+    },
+    {
+      "id": "stataverse.data-native",
+      "project": "stataverse",
+      "path": "tests/fixtures/data-lab/native.json",
+      "kind": "reference",
+      "title": "Native Stata merge and reshape reference cases",
+      "summary": "Thirty-two native cases covering keyed matches, overlap updates, missingness, empty samples and reshaping failures and repairs",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Finite synthetic integer/string cases; not full Stata equivalence",
+        "Native Java-backed CSV import substituted with explicit data setup",
+        "No extended missing values, m:m merge or string reshape indexes"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "tools/data-reference-cases.mjs",
+        "tools/check-data-native.mjs",
+        "tests/data-lab.test.mjs",
+        "docs/verification/data-native.json"
+      ]
     }
   ]
 }

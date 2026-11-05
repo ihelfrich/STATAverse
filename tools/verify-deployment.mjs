@@ -116,6 +116,10 @@ try {
       exact: true,
     })
     .waitFor();
+  await page.goto(root + "Labs/Data/");
+  assert.equal(await page.locator("#output-table tbody tr").count(), 8);
+  await page.locator("#mode-reshape").click();
+  assert.equal(await page.locator("#output-table tbody tr").count(), 6);
   await context.setOffline(false);
   await page.goto(root + "Learn/");
   await page.evaluate(async () => {
@@ -229,6 +233,20 @@ try {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   );
+  await phone.goto(root + "Labs/Data/#reshape");
+  await phone.locator('[data-jump="data-result"]').click();
+  assert.equal(await phone.locator("#output-table tbody tr").count(), 6);
+  await phone.locator('[data-jump="record-trace"]').click();
+  assert.ok(
+    await phone
+      .locator("#record-trace")
+      .evaluate((node) => node === document.activeElement),
+  );
+  assert.ok(
+    await phone.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
   assert.deepEqual(errors, []);
   const receipt = {
     scope,
@@ -239,6 +257,8 @@ try {
     inferenceLabMobileNavigation: true,
     offlineInferenceWorker: true,
     offlinePractice: true,
+    dataLabProjectPathAndOffline: true,
+    dataLabMobileNavigation: true,
     foreignCachePreserved: true,
     foreignCacheNotRead: true,
     searchPracticeLinked: true,

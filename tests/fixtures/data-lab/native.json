@@ -1,0 +1,915 @@
+{
+  "method": "Native Stata execution; explicit input replaces only exported CSV import, with remaining successful export commands unchanged",
+  "cases": [
+    {
+      "id": "orders",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [102, 1, 65, "North", 3],
+        [101, 1, 40, "North", 3],
+        [103, 2, 20, "South", 3],
+        [107, 2, null, "South", 3],
+        [104, 3, 120, "West", 3],
+        [105, 4, 80, "East", 3],
+        [106, 9, 35, "", 1],
+        [null, 5, null, "North", 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "orders-reversed",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "North", 102, 65, 3],
+        [2, "South", 103, 20, 3],
+        [3, "West", 104, 120, 3],
+        [4, "East", 105, 80, 3],
+        [5, "North", null, null, 1],
+        [1, "North", 101, 40, 3],
+        [2, "South", 107, null, 3],
+        [9, "", 106, 35, 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "orders-missing-key",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [102, 1, 65, "North", 3],
+        [101, 1, 40, "North", 3],
+        [103, 2, 20, "South", 3],
+        [107, 2, null, "South", 3],
+        [104, 3, 120, "West", 3],
+        [105, 4, 80, "East", 3],
+        [106, 9, 35, "", 1],
+        [108, null, 40, "North", 3],
+        [null, 5, null, "North", 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "orders-duplicate-using",
+      "mode": "merge",
+      "code": 459,
+      "expectedCode": 459,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "orders-duplicate-master",
+      "mode": "merge",
+      "code": 459,
+      "expectedCode": 459,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "orders-wrong-type",
+      "mode": "merge",
+      "code": 459,
+      "expectedCode": 459,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "keep-matched",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [101, 1, 40, "North", 3],
+        [102, 1, 65, "North", 3],
+        [103, 2, 20, "South", 3],
+        [107, 2, null, "South", 3],
+        [104, 3, 120, "West", 3],
+        [105, 4, 80, "East", 3]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "keep-master",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [101, 1, 40, "North", 3],
+        [102, 1, 65, "North", 3],
+        [103, 2, 20, "South", 3],
+        [107, 2, null, "South", 3],
+        [104, 3, 120, "West", 3],
+        [105, 4, 80, "East", 3],
+        [106, 9, 35, "", 1]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "keep-using",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [101, 1, 40, "North", 3],
+        [102, 1, 65, "North", 3],
+        [103, 2, 20, "South", 3],
+        [107, 2, null, "South", 3],
+        [104, 3, 120, "West", 3],
+        [105, 4, 80, "East", 3],
+        [null, 5, null, "North", 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "composite-key",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "term",
+          "type": "numeric"
+        },
+        {
+          "name": "score",
+          "type": "numeric"
+        },
+        {
+          "name": "attendance",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, 1, 60, 85, 3],
+        [1, 2, 75, 90, 3],
+        [2, 1, 80, 75, 3],
+        [2, 2, null, null, 1],
+        [3, 1, 70, 80, 3],
+        [3, 2, null, 95, 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "incomplete-key",
+      "mode": "merge",
+      "code": 459,
+      "expectedCode": 459,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "no-matches-retained",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "empty-master",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [null, 1, null, "North", 2],
+        [null, 2, null, "South", 2],
+        [null, 3, null, "West", 2],
+        [null, 4, null, "East", 2],
+        [null, 5, null, "North", 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "string-missing-keys",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "order",
+          "type": "numeric"
+        },
+        {
+          "name": "customer",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [108, "", 40, "North", 3],
+        [102, "1", 65, "North", 3],
+        [101, "1", 40, "North", 3],
+        [103, "2", 20, "South", 3],
+        [107, "2", null, "South", 3],
+        [104, "3", 120, "West", 3],
+        [105, "4", 80, "East", 3],
+        [106, "9", 35, "", 1],
+        [null, "5", null, "North", 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "partially-missing-composite",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "term",
+          "type": "numeric"
+        },
+        {
+          "name": "score",
+          "type": "numeric"
+        },
+        {
+          "name": "attendance",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, 1, 60, 85, 3],
+        [1, null, 75, 90, 3],
+        [2, 1, 80, 75, 3],
+        [2, 2, null, null, 1],
+        [3, 1, 70, 80, 3],
+        [3, 2, null, 95, 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "overlap-master",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "North", 30, 3],
+        [2, "", 40, 3],
+        [3, "West", null, 3],
+        [4, "East", 50, 3],
+        [5, "East", 60, 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "overlap-master-matched",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "North", 30, 3],
+        [2, "", 40, 3],
+        [3, "West", null, 3],
+        [4, "East", 50, 3]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "overlap-update",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "North", 30, 5],
+        [2, "South", 40, 4],
+        [3, "West", 35, 5],
+        [4, "East", 50, 3],
+        [5, "East", 60, 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "overlap-update-matched",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "North", 30, 5],
+        [2, "South", 40, 4],
+        [3, "West", 35, 5],
+        [4, "East", 50, 3]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "overlap-replace",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "South", 30, 5],
+        [2, "South", 40, 4],
+        [3, "North", 35, 5],
+        [4, "East", 50, 3],
+        [5, "East", 60, 2]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "overlap-replace-matched",
+      "mode": "merge",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "customer",
+          "type": "numeric"
+        },
+        {
+          "name": "region",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "numeric"
+        },
+        {
+          "name": "_merge",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, "South", 30, 5],
+        [2, "South", 40, 4],
+        [3, "North", 35, 5],
+        [4, "East", 50, 3]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "key-type-mismatch",
+      "mode": "merge",
+      "code": 106,
+      "expectedCode": 106,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-long-none",
+      "mode": "reshape",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "term",
+          "type": "numeric"
+        },
+        {
+          "name": "score",
+          "type": "numeric"
+        },
+        {
+          "name": "hours",
+          "type": "numeric"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        }
+      ],
+      "rows": [
+        [1, 1, 60, 3, "A"],
+        [1, 2, 75, 5, "A"],
+        [2, 1, 80, 6, "B"],
+        [2, 2, null, 7, "B"],
+        [3, 1, 70, 4, "A"],
+        [3, 2, 85, 6, "A"]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-long-duplicate",
+      "mode": "reshape",
+      "code": 9,
+      "expectedCode": 9,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-long-gap",
+      "mode": "reshape",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "term",
+          "type": "numeric"
+        },
+        {
+          "name": "score",
+          "type": "numeric"
+        },
+        {
+          "name": "hours",
+          "type": "numeric"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        }
+      ],
+      "rows": [
+        [1, 1, 60, 3, "A"],
+        [1, 2, 75, null, "A"],
+        [2, 1, 80, 6, "B"],
+        [2, 2, null, null, "B"],
+        [3, 1, 70, 4, "A"],
+        [3, 2, 85, null, "A"]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-long-one-stub",
+      "mode": "reshape",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "term",
+          "type": "numeric"
+        },
+        {
+          "name": "score",
+          "type": "numeric"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        },
+        {
+          "name": "hours1",
+          "type": "numeric"
+        },
+        {
+          "name": "hours2",
+          "type": "numeric"
+        }
+      ],
+      "rows": [
+        [1, 1, 60, "A", 3, 5],
+        [1, 2, 75, "A", 3, 5],
+        [2, 1, 80, "B", 6, 7],
+        [2, 2, null, "B", 6, 7],
+        [3, 1, 70, "A", 4, 6],
+        [3, 2, 85, "A", 4, 6]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-wide-none",
+      "mode": "reshape",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "score1",
+          "type": "numeric"
+        },
+        {
+          "name": "score2",
+          "type": "numeric"
+        },
+        {
+          "name": "hours1",
+          "type": "numeric"
+        },
+        {
+          "name": "hours2",
+          "type": "numeric"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        }
+      ],
+      "rows": [
+        [1, 60, 75, 3, 5, "A"],
+        [2, 80, null, 6, 7, "B"],
+        [3, 70, 85, 4, 6, "A"]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-wide-duplicate",
+      "mode": "reshape",
+      "code": 9,
+      "expectedCode": 9,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-wide-gap",
+      "mode": "reshape",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "score1",
+          "type": "numeric"
+        },
+        {
+          "name": "score2",
+          "type": "numeric"
+        },
+        {
+          "name": "hours1",
+          "type": "numeric"
+        },
+        {
+          "name": "hours2",
+          "type": "numeric"
+        },
+        {
+          "name": "group",
+          "type": "string"
+        }
+      ],
+      "rows": [
+        [1, 60, 75, 3, 5, "A"],
+        [2, 80, null, 6, null, "B"],
+        [3, 70, 85, 4, 6, "A"]
+      ],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-wide-varying",
+      "mode": "reshape",
+      "code": 9,
+      "expectedCode": 9,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-wide-one-stub",
+      "mode": "reshape",
+      "code": 9,
+      "expectedCode": 9,
+      "columns": [],
+      "rows": [],
+      "valuesMatch": true
+    },
+    {
+      "id": "reshape-wide-varying-included",
+      "mode": "reshape",
+      "code": 0,
+      "expectedCode": 0,
+      "columns": [
+        {
+          "name": "id",
+          "type": "numeric"
+        },
+        {
+          "name": "score1",
+          "type": "numeric"
+        },
+        {
+          "name": "score2",
+          "type": "numeric"
+        },
+        {
+          "name": "hours1",
+          "type": "numeric"
+        },
+        {
+          "name": "hours2",
+          "type": "numeric"
+        },
+        {
+          "name": "group1",
+          "type": "string"
+        },
+        {
+          "name": "group2",
+          "type": "string"
+        }
+      ],
+      "rows": [
+        [1, 60, 75, 3, 5, "A", "B"],
+        [2, 80, null, 6, 7, "B", "B"],
+        [3, 70, 85, 4, 6, "A", "A"]
+      ],
+      "valuesMatch": true
+    }
+  ]
+}

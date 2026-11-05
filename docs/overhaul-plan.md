@@ -60,3 +60,10 @@ Further work remains on inspectable data preparation, additional advanced method
 `egen` and `collapse` now expose group samples, source-row inspection, missingness decisions and the resulting observational unit. The next curriculum pass will connect attached means, individual values, available-case/common-case summaries and recovery of source data, followed by further relational preparation. Existing lesson IDs and progress remain unchanged in this command-level increment.
 
 The bounded Scholon lookup for grouped teaching procedures timed out after twenty seconds. Project recall returned unrelated job-application, compatibility-database and assessment descriptions; none was a reusable Stata grouping capability. Development extends this repository. These limited searches do not establish absence elsewhere.
+
+
+## Relational preparation increment
+
+`Labs/Data/` now provides visual merge and reshape operations with source-row/cell traces, explicit key requirements, conflicting-value rules, invalid-state recovery and reproducible project exports. The guided command path remains 18 lessons and 80 steps; these visual labs supplement it. Further work should connect the lab to structured investigations and continue advanced methods and navigation improvements.
+
+The bounded Scholon lookup for relational preparation timed out after twenty seconds. The project-recall matches (highball, laborscope and learnscope) did not supply a Stata relational-data capability. The existing STATAverse implementation and native Stata manuals were used. These limited searches do not establish absence elsewhere.

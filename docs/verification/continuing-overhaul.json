@@ -1,9 +1,9 @@
 {
   "date": "2026-11-05",
   "status": "local_candidate_in_progress",
-  "unit_tests": 78,
-  "browser_tests": 102,
-  "local_links": 584,
+  "unit_tests": 84,
+  "browser_tests": 114,
+  "local_links": 598,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
   "native_Stata_lab_cases": 4,
@@ -15,7 +15,7 @@
     "Native CSV import substituted with double input because Java is unavailable",
     "No classroom or manual assistive-technology validation"
   ],
-  "browser_run_scope": "102-case full suite for grouped preparation, followed by eight focused desktop/mobile cases for expanded curriculum, progress migration and homepage navigation",
+  "browser_run_scope": "114-case full desktop/mobile suite, followed by twelve focused data-lab cases after final layout and copy corrections",
   "lessons": 18,
   "lesson_steps": 80,
   "numeric_responses": 18,
@@ -28,5 +28,7 @@
   "native_Stata_simulation_runs": 3,
   "native_Stata_simulation_repetitions_each": 50,
   "offline_inference_worker": true,
-  "native_Stata_grouped_cases": 25
+  "native_Stata_grouped_cases": 25,
+  "native_Stata_data_cases": 32,
+  "offline_data_lab": true
 }

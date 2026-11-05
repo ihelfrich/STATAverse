@@ -7,6 +7,8 @@
   "inferenceLabMobileNavigation": true,
   "offlineInferenceWorker": true,
   "offlinePractice": true,
+  "dataLabProjectPathAndOffline": true,
+  "dataLabMobileNavigation": true,
   "foreignCachePreserved": true,
   "foreignCacheNotRead": true,
   "searchPracticeLinked": true,

@@ -16,6 +16,11 @@ entries = [{
     "summary": "Compare conventional, HC1 and clustered confidence intervals, simulate coverage with Monte Carlo uncertainty, and export the exact sample and Stata commands.",
     "tags": ["interactive", "inference", "confidence intervals", "Monte Carlo", "heteroskedasticity", "clustering", "standard errors", "power"],
     "level": "Intermediate and advanced", "path": "Labs/Inference/",
+}, {
+    "type": "module", "title": "Analysis lab: Merge and reshape",
+    "summary": "Trace source records and cells through merges and reshapes. Inspect duplicate keys, missing matches, conflicting values and retained samples; export a complete Stata project.",
+    "tags": ["interactive", "merge", "reshape", "keys", "duplicates", "data preparation", "panel", "wide", "long"],
+    "level": "Beginner to advanced", "path": "Labs/Data/",
 }]
 
 practice_path = assets_data / "practice-lessons.json"

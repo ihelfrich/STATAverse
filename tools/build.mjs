@@ -19,6 +19,7 @@ await build({
     "src/regression-lab.js",
     "src/inference-lab.js",
     "src/inference-worker.js",
+    "src/data-lab.js",
   ],
   bundle: true,
   minify: true,

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Merge and reshape · STATAverse</title>
+    <meta
+      name="description"
+      content="Trace records through a Stata merge or reshape. Inspect keys, unmatched rows, conflicting values and measurement columns, then export a reproducible Stata project."
+    />
+    <link rel="stylesheet" href="../../assets/css/data-lab.css" />
+  </head>
+  <body class="lab-app data-app">
+    <a class="skip-link" href="#data-main">Skip to data lab</a>
+    <header class="app-header">
+      <a href="../../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../../Learn/">Practice</a
+        ><a href="../" aria-current="page">Analysis labs</a
+        ><a href="../../ScriptLibrary/">Reference</a
+        ><a href="../../Workspace/">Saved work</a>
+      </nav>
+      <button type="button" id="export-data" class="quiet-button">
+        Export Stata project
+      </button>
+    </header>
+    <main id="data-main" class="data-layout" tabindex="-1">
+      <header class="lab-heading">
+        <div>
+          <nav class="lab-switcher" aria-label="Analysis labs">
+            <a href="../">01 Regression &amp; adjustment</a
+            ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
+            ><a href="./" aria-current="page">03 Merge &amp; reshape</a>
+          </nav>
+          <h1>Merge and reshape</h1>
+          <p>
+            Follow each record from its source to the result. Change the keys,
+            sample or layout and see exactly what Stata would retain.
+          </p>
+        </div>
+        <a href="../../Learn/#data-quality" class="lab-prerequisite"
+          >Begin with keys and duplicate records in guided practice →</a
+        >
+      </header>
+      <div class="operation-switch" role="group" aria-label="Data operation">
+        <button id="mode-merge" type="button" aria-pressed="true">
+          Merge two tables</button
+        ><button id="mode-reshape" type="button" aria-pressed="false">
+          Reshape one table
+        </button>
+      </div>
+      <aside
+        class="data-controls"
+        id="data-settings"
+        aria-labelledby="settings-title"
+        tabindex="-1"
+      >
+        <div class="control-title">
+          <h2 id="settings-title">Merge settings</h2>
+          <button type="button" id="reset-data" class="text-button">
+            Reset
+          </button>
+        </div>
+        <div id="merge-controls">
+          <label for="merge-example">Starting example</label
+          ><select id="merge-example"></select>
+          <p id="merge-description" class="control-description"></p>
+          <label for="merge-type">Relationship declared to Stata</label>
+          <select id="merge-type">
+            <option value="1:1">1:1 · unique key in both tables</option>
+            <option value="m:1" selected>m:1 · unique key in using</option>
+            <option value="1:m">1:m · unique key in master</option>
+          </select>
+          <fieldset class="choice-fields">
+            <legend>Match on these variables</legend>
+            <div id="merge-keys"></div>
+          </fieldset>
+          <label for="merge-keep">Rows to retain</label
+          ><select id="merge-keep">
+            <option value="all">All rows from either source</option>
+            <option value="matched">Matched rows only</option>
+            <option value="master">Rows with a master record</option>
+            <option value="using">Rows with a using record</option>
+          </select>
+          <div id="overlap-control" hidden>
+            <label for="merge-overlap">Overlapping variables</label
+            ><select id="merge-overlap">
+              <option value="master">Keep master values (default)</option>
+              <option value="update">Fill missing master values</option>
+              <option value="replace">
+                Fill missing and replace conflicts
+              </option>
+            </select>
+          </div>
+          <details class="data-experiments">
+            <summary>Change the source conditions</summary>
+            <label class="data-check"
+              ><input type="checkbox" id="merge-reverse" /> Reverse master and
+              using</label
+            ><label class="data-check"
+              ><input type="checkbox" id="merge-duplicate" /> Duplicate a key on
+              the unique side</label
+            ><label class="data-check"
+              ><input type="checkbox" id="merge-missing" /> Add a missing key to
+              each source</label
+            >
+            <p>
+              These examples are synthetic. The original tables return when you
+              reset.
+            </p>
+          </details>
+        </div>
+        <div id="reshape-controls" hidden>
+          <label for="reshape-direction">Direction</label
+          ><select id="reshape-direction">
+            <option value="long">Wide → long</option>
+            <option value="wide">Long → wide</option>
+          </select>
+          <p class="control-description">
+            Three fictional students have scores and study hours in two terms.
+            The student ID is <code>id</code>; the term index is
+            <code>term</code>.
+          </p>
+          <fieldset class="choice-fields">
+            <legend>Measurement families (stubs)</legend>
+            <label
+              ><input
+                type="checkbox"
+                value="score"
+                name="reshape-stub"
+                checked
+              />
+              score</label
+            ><label
+              ><input
+                type="checkbox"
+                value="hours"
+                name="reshape-stub"
+                checked
+              />
+              hours</label
+            ><label id="group-stub-option" hidden
+              ><input type="checkbox" value="group" name="reshape-stub" />
+              group</label
+            >
+          </fieldset>
+          <label for="reshape-issue">Source condition</label
+          ><select id="reshape-issue">
+            <option value="none">Complete records</option>
+            <option value="duplicate">Duplicate an identifying record</option>
+            <option value="gap">Remove a term from the source</option>
+            <option value="varying" id="varying-option" hidden>
+              Group changes within a student
+            </option>
+          </select>
+          <p id="reshape-condition" class="control-description"></p>
+        </div>
+        <p class="data-scope">
+          A browser model of these operations on small, synthetic tables. Export
+          includes the source CSVs and a do-file for installed Stata.
+        </p>
+      </aside>
+      <div class="data-workspace">
+        <section
+          id="data-sources"
+          aria-labelledby="sources-title"
+          tabindex="-1"
+        >
+          <div class="section-heading">
+            <h2 id="sources-title">Source tables</h2>
+            <span id="source-summary"></span>
+          </div>
+          <div id="source-tables" class="source-tables"></div>
+        </section>
+        <section
+          id="data-result"
+          class="data-result"
+          aria-labelledby="result-title"
+          tabindex="-1"
+        >
+          <div class="section-heading">
+            <h2 id="result-title">Merged result</h2>
+            <span id="result-summary"></span>
+          </div>
+          <div class="operation-command">
+            <span aria-hidden="true">. </span><code id="data-command"></code>
+          </div>
+          <div
+            id="operation-error"
+            class="operation-error"
+            role="status"
+            hidden
+          ></div>
+          <div id="result-content">
+            <div id="merge-composition" class="merge-composition"></div>
+            <p id="result-explanation" class="result-explanation"></p>
+            <p id="result-caution" class="result-caution" hidden></p>
+            <div class="result-and-trace">
+              <div>
+                <p id="selection-help" class="table-help"></p>
+                <div id="output-table"></div>
+              </div>
+              <aside
+                class="record-trace"
+                id="record-trace"
+                aria-labelledby="trace-title"
+                tabindex="-1"
+              >
+                <h3 id="trace-title">Source trace</h3>
+                <div
+                  id="trace-content"
+                  aria-live="polite"
+                  aria-atomic="true"
+                ></div>
+              </aside>
+            </div>
+          </div>
+        </section>
+        <details class="data-method">
+          <summary>Stata commands, interpretation and scope</summary>
+          <div id="method-content"></div>
+          <h3>Reproduce this result</h3>
+          <p>
+            Export the project, open its folder as your Stata working directory,
+            and run <code>analysis.do</code>. The script imports explicitly
+            typed columns, performs the operation and writes
+            <code>native-result.csv</code>. Compare values and keys; display
+            order can differ.
+          </p>
+          <pre
+            id="data-script"
+            tabindex="0"
+            aria-label="Complete Stata do-file"
+          ></pre>
+          <p>
+            Supported here: <code>merge 1:1</code>, <code>m:1</code> and
+            <code>1:m</code>, ordinary missing values, and
+            <code>reshape</code> with positive integer suffixes. The native
+            manuals cover additional syntax and storage types:
+            <a href="https://www.stata.com/manuals/dmerge.pdf">merge</a> and
+            <a href="https://www.stata.com/manuals/dreshape.pdf">reshape</a>.
+          </p>
+        </details>
+      </div>
+      <p
+        id="data-announcement"
+        class="sr-only"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </main>
+    <nav class="data-mobile-nav" aria-label="Data lab sections">
+      <button type="button" data-jump="data-settings">Settings</button
+      ><button type="button" data-jump="data-sources">Sources</button
+      ><button type="button" data-jump="data-result">Result</button
+      ><button type="button" data-jump="record-trace">Trace</button>
+    </nav>
+    <script type="module" src="../../assets/js/data-lab.js"></script>
+  </body>
+</html>
