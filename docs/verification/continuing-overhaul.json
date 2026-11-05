@@ -1,9 +1,9 @@
 {
   "date": "2026-11-05",
   "status": "local_candidate_in_progress",
-  "unit_tests": 91,
-  "browser_tests": 128,
-  "local_links": 602,
+  "unit_tests": 98,
+  "browser_tests": 142,
+  "local_links": 620,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
   "native_Stata_lab_cases": 4,
@@ -15,7 +15,7 @@
     "Native CSV import substituted with double input because Java is unavailable",
     "No classroom or manual assistive-technology validation"
   ],
-  "browser_run_scope": "128-case full desktop/mobile suite passed; final project-path deployment runner passed after explicit save-completion waiting; integrated-site browser workflow also passed",
+  "browser_run_scope": "Full 142-case desktop/mobile suite and project-path deployment passed; final 14 IV browser cases passed after plot refinements; integrated-site browser workflow includes IV search, sitemap, native navigation, mobile accessibility and checked offline exercise.",
   "lessons": 18,
   "lesson_steps": 80,
   "numeric_responses": 18,
@@ -40,8 +40,16 @@
   "website_navigation_tests": 80,
   "website_integration_unit_tests": 6,
   "website_token_tests": 14,
-  "website_style_pages": 184,
+  "website_style_pages": 185,
   "landing_script_bytes": 4184,
   "landing_script_gzip_bytes": 2060,
-  "core_offline_gzip_bytes": 439137
+  "core_offline_gzip_bytes": 480744,
+  "independent_R_iv_cases": 9,
+  "native_Stata_iv_cases": 9,
+  "iv_guided_comparisons": 4,
+  "iv_bundle_bytes": 92208,
+  "iv_bundle_gzip_bytes": 34800,
+  "offline_iv_lab": true,
+  "core_offline_assets": 23,
+  "website_release_source_commit": "f5f64a19cab3d966cc640ab15c92829b060852e0"
 }

@@ -4,6 +4,7 @@
     "nested-path command execution, saved practice and scoped service worker",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
+    "IV lab at the canonical nested route, shared navigation, local calculations and checked weak-instrument exercise offline",
     "offline practice and worker simulation, navigation CSS cached, no external runtime requests",
     "Teaching entry, site search indexing and no worker control outside STATAverse",
     "mobile width, keyboard/native navigation, targeted accessibility and no-script site links"
@@ -38,11 +39,16 @@
       "asset": "inference-worker.js",
       "bytes": 60355,
       "gzipBytes": 21607
+    },
+    {
+      "asset": "iv-lab.js",
+      "bytes": 92208,
+      "gzipBytes": 34800
     }
   ],
   "coreOfflinePackage": {
-    "files": 20,
-    "bytes": 1411339,
-    "gzipBytes": 439137
+    "files": 23,
+    "bytes": 1528126,
+    "gzipBytes": 480744
   }
 }

@@ -203,6 +203,24 @@ try {
       r.results.slice(0, 20).map(async (x) => (await x.data()).url),
     );
   });
+  const ivMatches = await page.evaluate(async () => {
+    const p = await import("/pagefind/pagefind.js");
+    const results = await p.search("instrumental variables");
+    return Promise.all(
+      results.results.slice(0, 30).map(async (item) => (await item.data()).url),
+    );
+  });
+  assert.ok(
+    ivMatches.some((url) => url.endsWith("/learn/stata/Labs/IV/")),
+    "IV lab is discoverable in the site-wide search",
+  );
+  const sitemap = await (
+    await context.request.get(origin + "/sitemap.xml")
+  ).text();
+  assert.ok(
+    sitemap.includes("https://ihelfrich.github.io/learn/stata/Labs/IV/"),
+    "IV lab appears in the site sitemap",
+  );
   assert.ok(
     matches.some((url) => url.includes("/learn/stata/")),
     JSON.stringify(matches),
