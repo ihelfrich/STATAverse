@@ -124,7 +124,7 @@ pages = [
     ("Code Library Architecture", "CodeLibrary/architecture.html", ["code", "library", "docs"]),
     ("Code Library Innovation", "CodeLibrary/innovation.html", ["code", "library", "docs"]),
     ("Code Library Transformation", "CodeLibrary/transformation.html", ["code", "library", "docs"]),
-    ("Method Lab", "MethodLab/index.html", ["methods", "decision", "lab"]),
+    ("Method comparison", "MethodLab/index.html", ["methods", "research design", "assumptions", "linear probability", "covariance"]),
     ("Script Builder", "ScriptLibrary/builder.html", ["scripts", "builder"]),
     ("Site Search", "Search/index.html", ["search"]),
     ("Workspace", "Workspace/index.html", ["workspace"]),
@@ -135,7 +135,7 @@ for title, path, tags in pages:
     entries.append({
         "type": "page",
         "title": title,
-        "summary": "Primary navigation page.",
+        "summary": "Compare outcome models, proposed research designs and inference assumptions; retain qualifications in the exported comparison." if path.startswith("MethodLab/") else "Primary navigation page.",
         "tags": tags,
         "level": "All",
         "path": path,

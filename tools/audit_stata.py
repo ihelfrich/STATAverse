@@ -42,9 +42,10 @@ for index, source in enumerate(scripts):
     candidate.write_text(text)
     receipt = folder / 'receipt.txt'
     wrapper = folder / 'audit.do'
+    argument = '' if source.name.startswith('02_method_decision_tree') else f' "{root}"'
     wrapper.write_text(
         'set processors 1\n'
-        f'capture noisily do "{candidate}" "{root}"\n'
+        f'capture noisily do "{candidate}"{argument}\n'
         'local result = _rc\n'
         f'file open auditfile using "{receipt}", write text replace\n'
         'file write auditfile "`result\'" _n\n'

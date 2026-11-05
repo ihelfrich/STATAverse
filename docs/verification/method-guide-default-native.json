@@ -1,0 +1,23 @@
+{
+  "method": "Native Stata batch, one processor; each script in a disposable directory",
+  "limits": [
+    "Decision-tree scripts exercise their default settings.",
+    "Successful execution does not certify every explanatory claim or estimator assumption.",
+    "Graph-export warnings are counted separately from completed numerical analysis.",
+    "Raw logs remain outside the repository because Stata prints license information."
+  ],
+  "results": [
+    {
+      "script": "CodeLibrary/scripts/02_method_decision_tree.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    },
+    {
+      "script": "CodeLibrary/scripts/02_method_decision_tree_v2.do",
+      "return_code": "0",
+      "graph_export_failures": 0,
+      "temporary_substitutions": []
+    }
+  ]
+}

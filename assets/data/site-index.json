@@ -328,7 +328,7 @@
   },
   {
     "type": "module",
-    "title": "Guided investigation: From the first stage to 2SLS",
+    "title": "Guided investigation: The two stages of IV estimation",
     "summary": "Follow a predicted value, calculate the IV ratio and distinguish the coefficient from its uncertainty.",
     "tags": [
       "practice",
@@ -863,12 +863,14 @@
   },
   {
     "type": "page",
-    "title": "Method Lab",
-    "summary": "Primary navigation page.",
+    "title": "Method comparison",
+    "summary": "Compare outcome models, proposed research designs and inference assumptions; retain qualifications in the exported comparison.",
     "tags": [
       "methods",
-      "decision",
-      "lab"
+      "research design",
+      "assumptions",
+      "linear probability",
+      "covariance"
     ],
     "level": "All",
     "path": "MethodLab/index.html"

@@ -741,6 +741,33 @@
         "docs/verification/iv-investigations.json",
         "docs/red-team-review.md"
       ]
+    },
+    {
+      "id": "stataverse.method-maintenance",
+      "path": "docs/method-comparison.md",
+      "kind": "procedure",
+      "title": "Method comparison ownership and verification",
+      "summary": "Canonical claims, generated downloads, statistical boundaries and verification limits",
+      "evidence": [
+        "docs/red-team-review.md",
+        "assets/data/method-lab.json",
+        "docs/verification/method-native.json",
+        "tests/method-comparison.test.mjs",
+        "tests/browser/method-lab.spec.js"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Implementation-agent review; no independent classroom or human acceptance",
+        "Templates and bounded execution checks do not establish identification or empirical suitability"
+      ],
+      "depends_on": []
     }
   ]
 }
