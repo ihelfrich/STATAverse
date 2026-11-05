@@ -1,12 +1,13 @@
 {
   "origin": "https://ihelfrich.github.io",
-  "checkedAt": "2026-11-05T14:15:02.813Z",
+  "checkedAt": "2026-11-05T17:39:18.796Z",
   "base": "/learn/stata/",
   "checks": [
     "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
     "nested-path command execution, saved practice and scoped service worker",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
+    "programming lesson, local substitution, integer loops and saved replay execute entirely offline at the canonical mount",
     "IV lab at the canonical nested route, shared navigation, checked weak-instrument investigation offline, and restored task response, experiment and note after reload",
     "method comparison retains selected choices offline at a new query URL, exports its conditions and limitations, and does not infer a causal design from unresolved endogeneity",
     "worked panel source and matching native estimates reopen offline, an interpretation check runs, the complete download preserves source bytes, and app search opens the specific section",
@@ -23,13 +24,13 @@
     },
     {
       "asset": "learn.js",
-      "bytes": 694869,
-      "gzipBytes": 223410
+      "bytes": 711738,
+      "gzipBytes": 229238
     },
     {
       "asset": "workspace.js",
-      "bytes": 162620,
-      "gzipBytes": 52866
+      "bytes": 25468,
+      "gzipBytes": 9415
     },
     {
       "asset": "data-lab.js",
@@ -39,7 +40,7 @@
     {
       "asset": "inference-lab.js",
       "bytes": 92629,
-      "gzipBytes": 34240
+      "gzipBytes": 34241
     },
     {
       "asset": "inference-worker.js",
@@ -69,13 +70,13 @@
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "da94be5e864ea8e256dd00b3e3b99bb169cc14bd",
+    "commit": "f5e9476e643551aed51b57ea49695288d74cdcc4",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
     "files": 31,
-    "bytes": 1667627,
-    "gzipBytes": 524524
+    "bytes": 1686007,
+    "gzipBytes": 530795
   }
 }

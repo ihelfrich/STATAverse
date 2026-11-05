@@ -535,7 +535,7 @@
       "path": "docs/verification/public-release.json",
       "kind": "receipt",
       "title": "STATAverse public deployment and legacy-route receipts",
-      "summary": "Verified main-site and project Pages deployments, pinned source, public browser evidence and continuing-work limits",
+      "summary": "Published browser-only programming increment with 19 lessons, 86 steps and verified main-site integration; broader compatibility remains open",
       "facets": ["Stata", "website", "deployment", "verification"],
       "status": "candidate_tested",
       "limits": [
@@ -546,7 +546,9 @@
       "evidence": [
         "docs/verification/public-site.json",
         "docs/verification/legacy-transition.json",
-        "docs/site-integration.md"
+        "docs/site-integration.md",
+        "docs/verification/public-programming-legacy.json",
+        "docs/verification/program-native.json"
       ]
     },
     {

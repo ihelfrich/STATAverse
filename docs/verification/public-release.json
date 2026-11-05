@@ -1,54 +1,56 @@
 {
-  "checkedAt": "2026-11-05T14:17:04.158Z",
-  "status": "published_increment_user_budget_boundary",
+  "checkedAt": "2026-11-05T17:43:19.144914+00:00",
+  "status": "published_programming_increment_broader_work_open",
   "canonical": "https://ihelfrich.github.io/learn/stata/",
-  "sourceCommit": "da94be5e864ea8e256dd00b3e3b99bb169cc14bd",
+  "sourceCommit": "f5e9476e643551aed51b57ea49695288d74cdcc4",
   "mainSite": {
-    "commit": "169e5a566c54e7cf5935de7e1db8aa63d73c49eb",
+    "commit": "a76816dbc17893f0e172b0361dbe7f8cca3bf0b9",
     "pullRequests": [
-      "https://github.com/ihelfrich/ihelfrich.github.io/pull/26"
+      "https://github.com/ihelfrich/ihelfrich.github.io/pull/27"
     ],
-    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42042241013",
+    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42075827476",
     "conclusion": "success"
   },
   "legacy": {
     "url": "https://ihelfrich.github.io/STATAverse/",
-    "commit": "3ab6c63f44b320cf7d400aa9ad87deb35d1b2639",
-    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/4",
-    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42043242294",
+    "commit": "480b3fb93f0307fab6cbacb2da6c75ef1e2ac747",
+    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/5",
+    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42076903280",
     "conclusion": "success",
-    "pagesBuildUpdatedAt": "2026-11-05T14:16:05Z",
-    "deepLinks": "Public checks preserve paths, encoded query strings and fragments; a post-deployment panel link also completes its interpretation check."
+    "pagesBuildUpdatedAt": "2026-11-05T17:40:42Z",
+    "deepLinks": "Post-deployment public check preserves the encoded query and programming-lesson fragment, and runs that lesson at the canonical route."
   },
   "evidence": [
     "docs/verification/public-site.json",
-    "docs/verification/public-worked-legacy.json",
-    "docs/verification/panel-native.json",
-    "docs/worked-examples.md"
+    "docs/verification/public-programming-legacy.json",
+    "docs/verification/program-native.json",
+    "docs/verification/curriculum-native.json",
+    "docs/browser-runtime-plan.md"
   ],
   "limits": [
-    "This publication completes the specifically authorized extension beyond the user token cap; the broader overhaul remains incomplete.",
-    "Browser practice implements a stated subset; native do-file examples require full Stata to execute.",
-    "The other older do-file prose has not received the same detailed review as the revised panel example."
+    "Browser-only independent interpreter; full Stata command, ado and Mata compatibility remains unfinished.",
+    "Practice execution remains synchronous, with explicit operation and output-retention bounds. Cancelable background execution is the next performance task.",
+    "Native comparisons use the installed executable; unmodified licensed vendor provenance is not established.",
+    "No classroom or manual assistive-technology validation."
   ],
   "previousRelease": {
-    "sourceCommit": "5eb3a81f1e4a128d9fc32e3fdd73bfcfa09b18c6",
+    "sourceCommit": "da94be5e864ea8e256dd00b3e3b99bb169cc14bd",
     "mainSite": {
-      "commit": "035ba4acad5b43116d0bd7c2aa58697901397ad7",
+      "commit": "169e5a566c54e7cf5935de7e1db8aa63d73c49eb",
       "pullRequests": [
-        "https://github.com/ihelfrich/ihelfrich.github.io/pull/25"
+        "https://github.com/ihelfrich/ihelfrich.github.io/pull/26"
       ],
-      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/41996506769",
+      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42042241013",
       "conclusion": "success"
     },
     "legacy": {
       "url": "https://ihelfrich.github.io/STATAverse/",
-      "commit": "82496d09cef5346e4749847c4e1140cfff4da398",
-      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/3",
-      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/41997123101",
+      "commit": "3ab6c63f44b320cf7d400aa9ad87deb35d1b2639",
+      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/4",
+      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42043242294",
       "conclusion": "success",
-      "deepLinks": "Public browser verification preserves path, encoded query and fragment; bridge behavior unchanged",
-      "pagesBuildUpdatedAt": "2026-11-05T08:47:41Z"
+      "pagesBuildUpdatedAt": "2026-11-05T14:16:05Z",
+      "deepLinks": "Public checks preserve paths, encoded query strings and fragments; a post-deployment panel link also completes its interpretation check."
     }
   }
 }

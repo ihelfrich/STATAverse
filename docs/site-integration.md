@@ -38,6 +38,8 @@ The canonical site and legacy route were verified on 5 November 2026 UTC. Main-s
 
 The public browser pass executes and checks the first exercise, restores investigation and reading work, uses IV exercises and repeated-sampling simulations offline, and checks shared navigation, search, mobile width and targeted accessibility. Measured public response bodies total 1,528,982 bytes for the 24 core offline assets, or 481,148 bytes when gzipped locally. These are payload sizes rather than observed transfer times. Additional saved IV investigations remain under development and are outside this release.
 
-## Browser programming candidate
+## Published browser programming release
 
 The browser-only programming increment adds local macros, foreach, integer forvalues and nested if/else blocks, with a six-step lesson and explicit compatibility limits. Saved work now imports a generated lesson ID/step-count catalogue instead of the full curriculum. Its measured source bundle is about 25.5 KB raw / 9.4 KB gzip; Practice is about 712 KB raw / 230 KB gzip. The source worker advances to v28; the integrated cache also includes the pinned release identity. Public measurements and behavior remain governed by the separate deployment receipt.
+
+Public verification on 5 November 2026 at 17:39 UTC confirms source `f5e9476e643551aed51b57ea49695288d74cdcc4` at the canonical route. Main-site PR 27 and source PR 5 deployed successfully. Eleven public check groups include local substitution, loops and saved replay entirely offline. The integrated 31-asset offline package totals 1,686,007 raw bytes / 530,795 locally gzipped bytes. The public Practice bundle is 711,738 / 229,238 bytes; Saved work is 25,468 / 9,415 bytes. The legacy programming deep link was checked again after its deployment at 17:41 UTC. These measurements are response-body sizes, not transfer-time promises.
