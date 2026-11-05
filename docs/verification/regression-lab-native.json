@@ -1,0 +1,57 @@
+{
+  "method": "Installed native Stata; exported do-file with explicit input substitution",
+  "limits": [
+    "Does not verify Java-backed CSV import or PNG export on this machine.",
+    "Checks these four synthetic cases, not all parameter combinations."
+  ],
+  "results": [
+    {
+      "case": "confounding",
+      "returnCode": "0",
+      "assertions": [
+        "adjusted x coefficient",
+        "requested x standard error",
+        "all leverages",
+        "all Cook distances",
+        "all standardized residuals"
+      ],
+      "temporarySubstitution": "Native double-precision input replaces Java-dependent CSV import; all other exported commands are executed."
+    },
+    {
+      "case": "reversal",
+      "returnCode": "0",
+      "assertions": [
+        "adjusted x coefficient",
+        "requested x standard error",
+        "all leverages",
+        "all Cook distances",
+        "all standardized residuals"
+      ],
+      "temporarySubstitution": "Native double-precision input replaces Java-dependent CSV import; all other exported commands are executed."
+    },
+    {
+      "case": "collinear",
+      "returnCode": "0",
+      "assertions": [
+        "adjusted x coefficient",
+        "requested x standard error",
+        "all leverages",
+        "all Cook distances",
+        "all standardized residuals"
+      ],
+      "temporarySubstitution": "Native double-precision input replaces Java-dependent CSV import; all other exported commands are executed."
+    },
+    {
+      "case": "modified",
+      "returnCode": "0",
+      "assertions": [
+        "adjusted x coefficient",
+        "requested x standard error",
+        "all leverages",
+        "all Cook distances",
+        "all standardized residuals"
+      ],
+      "temporarySubstitution": "Native double-precision input replaces Java-dependent CSV import; all other exported commands are executed."
+    }
+  ]
+}

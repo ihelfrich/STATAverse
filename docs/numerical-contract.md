@@ -28,6 +28,16 @@ Fitted values use the observed predictors even for observations outside the esti
 
 The interface reports three decimal places. Regression coefficient/standard-error/t comparisons use a relative tolerance of 1e-10, with unit absolute scale near zero. Probability calculations in jStat are approximate: acceptance requires absolute p-value error below 1e-7 and confidence-limit error below 1e-6, respectively 5,000 and 500 times smaller than half a displayed unit. Observed differences against the six R fixtures were at most 5.2e-9 for p-values and 1.2e-7 for confidence endpoints. These are empirical checks on these fixtures, not a global error bound or certification at every parameter value. Very small p-values display as `<0.001`.
 
-## Native Stata limitation
+## Regression analysis lab
+
+The separate `Labs/` experience generates independent standard-normal z, u and ε using a seeded Mulberry32 uniform generator and a Box–Muller transform. It constructs x = ρz + √(1 − ρ²)u and y = 2 + βx + γz + σε. Parameters are bounded explicitly: 20–1,000 observations, |ρ| ≤ .95, |β| and |γ| ≤ 5, and .1 ≤ σ ≤ 5. The default seed is an illustrative draw, not a claim that estimates equal their population values. CSV export preserves the actual observations; a Stata seed alone will not reproduce the browser generator.
+
+Full and short regressions use an identical sample. Partial regression removes z and an intercept from both x and y. The residual cross-product ratio recovers the full-model x coefficient. Displayed inference comes from the full model and its n − 3 residual degrees of freedom; the standalone residual regression's default standard error is not substituted. The finite-sample omitted-variable decomposition uses the fitted z coefficient and the slope of z on x, while the separate population short slope is β + γρ.
+
+Leverage is the full-model hat diagonal. Standardized residuals divide residuals by s√(1 − h), and Cook's distance is h·e²/[k·s²·(1 − h)²], with k = 3 and s² = SSE/(n − k). These classical diagnostics use conventional residual variance even when the displayed covariance uses HC1. The one-observation comparison refits the model without that row, but leaves the experiment's data intact. A manual offset changes one generated row and is recorded in the exported metadata and do-file.
+
+`tools/lab-reference.R` independently checks four synthetic cases using R `lm`, `sandwich::vcovHC`, `hatvalues`, `cooks.distance` and `rstandard`. Coefficients, standard errors, partial-regression values and diagnostics are checked to 1e-10 relative/unit absolute tolerance; confidence limits use 1e-6. `tools/check-lab-native.mjs` executes the exported Stata commands with native double input substituted for CSV import, and asserts coefficient, standard-error and all-observation diagnostic differences below 1e-9. Cases include strong collinearity, a sign reversal, HC1 covariance and a modified point. These are bounded checks, not evidence of universal equivalence or empirical causal identification.
+
+## Native runtime limitation
 
 The installed Stata command-line runtime initially returned `r(5004): Java installation not found` on `import delimited`. Numerical verification therefore uses Stata's native `input` statement with the same values. No global Java or Stata configuration was changed. Native estimation and scalar parity are checked; an end-to-end `import delimited` rerun of the exported project is not established by those checks.

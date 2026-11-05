@@ -5,6 +5,7 @@ An interactive Stata learning site for mixed levels, with a clear beginner path.
 ## Learning paths
 
 - **Practice (`Learn/`)**: eight lessons and 30 checked exercises, from first commands through regression, uncertainty and an independent analysis. Open practice uses three small synthetic datasets.
+- **Analysis lab (`Labs/`)**: a seeded regression experiment with adjustable structural coefficients, correlation and noise; linked raw/partial-regression plots; an exact omitted-variable decomposition; influence diagnostics and one-observation sensitivity. Export the actual observations and a native Stata do-file.
 - **Applied lessons (`ZeroToHero/`)**: longer worked examples, constructed business datasets and two downloadable Stata projects.
 - **Reference**: concepts, short command templates, native Stata simulations and a method-comparison guide. Advanced materials remain accessible.
 - **Saved work (`Workspace/`)**: local progress, notes and command-history backups. No account or server is required. Backups move work between browsers; no automatic synchronization occurs.
@@ -38,7 +39,7 @@ npm audit
 
 Browser checks use installed Google Chrome through Playwright. The deployment check accepts `BROWSER_CHANNEL` for a different installed Chromium channel. `npm run check` builds and runs the engine, link, browser and deployment checks.
 
-Independent numerical fixtures come from R `lm`/`sandwich` and native Stata. See `tools/reference.R`, `tools/stata-reference.do` and `tools/stata-expressions.do`. Native library checks use `tools/audit_stata.py`; scripts run in disposable folders, return codes are recorded, and license-bearing logs stay outside the repository. The runner never installs packages or changes global Stata configuration.
+Independent numerical fixtures come from R `lm`/`sandwich` and native Stata. See `tools/reference.R`, `tools/stata-reference.do` and `tools/stata-expressions.do`. The regression lab adds `tools/prepare-lab-reference.mjs`, `tools/lab-reference.R` and `tools/check-lab-native.mjs`; the native lab check explicitly substitutes double-precision input for Java-dependent CSV import. Native library checks use `tools/audit_stata.py`; scripts run in disposable folders, return codes are recorded, and license-bearing logs stay outside the repository. The runners never install packages or change global Stata configuration.
 
 [The red-team report](docs/red-team-review.md) records reproduced defects, corrections and limits. [Verification receipts](docs/verification/) include native execution, dependency audit, deployment checks and screenshots. Passing these checks does not establish full Stata equivalence or replace classroom testing.
 

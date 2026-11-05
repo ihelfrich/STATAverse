@@ -1,6 +1,8 @@
 {
   "scope": "http://127.0.0.1:4174/STATAverse/",
   "projectPath": true,
+  "regressionLabProjectPath": true,
+  "regressionLabMobileNavigation": true,
   "offlinePractice": true,
   "foreignCachePreserved": true,
   "foreignCacheNotRead": true,

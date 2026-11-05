@@ -1,0 +1,59 @@
+[
+  {
+    "id": "confounding",
+    "options": {
+      "n": 100,
+      "seed": 2026,
+      "beta": 1,
+      "gamma": 2,
+      "rho": 0.7,
+      "sigma": 1.5,
+      "robust": false
+    },
+    "selected": 37
+  },
+  {
+    "id": "reversal",
+    "options": {
+      "n": 80,
+      "seed": 2026,
+      "beta": 1,
+      "gamma": -3,
+      "rho": 0.8,
+      "sigma": 1,
+      "robust": true
+    },
+    "selected": 22
+  },
+  {
+    "id": "collinear",
+    "options": {
+      "n": 50,
+      "seed": 830,
+      "beta": -0.5,
+      "gamma": 1,
+      "rho": 0.95,
+      "sigma": 1.5,
+      "robust": true
+    },
+    "selected": 10
+  },
+  {
+    "id": "modified",
+    "options": {
+      "n": 100,
+      "seed": 2026,
+      "beta": 1,
+      "gamma": 2,
+      "rho": 0.7,
+      "sigma": 1.5,
+      "robust": false
+    },
+    "perturbation": {
+      "id": 37,
+      "dx": 6,
+      "dy": -12
+    },
+    "selected": 37
+  }
+]

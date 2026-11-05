@@ -57,6 +57,18 @@ try {
     path: "docs/verification/screenshots/practice-desktop.png",
     fullPage: true,
   });
+  await page.goto(root + "Labs/");
+  await page.locator("#coefficient-comparison tbody tr").first().waitFor();
+  await page.screenshot({
+    path: "docs/verification/screenshots/regression-lab-desktop.png",
+    fullPage: true,
+  });
+  await page.locator("#lab-tab-partial").click();
+  await page.screenshot({
+    path: "docs/verification/screenshots/partial-regression-desktop.png",
+    fullPage: true,
+  });
+  await page.goto(root + "Learn/");
   await page.evaluate(async () => {
     const cache = await caches.open("unrelated-application");
     await cache.put(
@@ -104,10 +116,28 @@ try {
     path: "docs/verification/screenshots/practice-mobile.png",
     fullPage: true,
   });
+  await phone.goto(root + "Labs/");
+  await phone.locator('[data-lab-jump="plots"]').click();
+  assert.ok(
+    await phone.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await phone.screenshot({
+    path: "docs/verification/screenshots/regression-lab-mobile.png",
+    fullPage: false,
+  });
+  await phone.locator('[data-lab-jump="estimates"]').click();
+  assert.equal(
+    await phone.locator("#coefficient-comparison tbody tr").count(),
+    2,
+  );
   assert.deepEqual(errors, []);
   const receipt = {
     scope,
     projectPath: true,
+    regressionLabProjectPath: true,
+    regressionLabMobileNavigation: true,
     offlinePractice: true,
     foreignCachePreserved: true,
     foreignCacheNotRead: true,

@@ -47,6 +47,20 @@ The unchanged v2 storage format retains existing progress and editor text. The Z
 
 Limits at this stage: the required dataset projection still checks the supplied lesson's underlying values; it is not a general symbolic proof of equivalent Stata programs. History receipts are reconstructed for successful saved commands, while current-visit errors remain in the results/notes view. Full transcript persistence and more substantial curriculum changes remain further work.
 
+### Continuing overhaul: regression analysis lab
+
+The first advanced browser lab now connects the known generator, raw/partial-regression plots, the finite-sample omitted-variable identity, collinearity, influence diagnostics and exact Stata exports. It is one substantial lab, not the end of the broader advanced curriculum.
+
+- **Inference after residualization:** a residual-only regression can reproduce the coefficient while using the wrong residual degrees of freedom for its default standard error. The lab explicitly uses full-model inference and explains the distinction beside the equality.
+- **Sample versus population bias:** the sample identity uses estimated coefficients and the sample z-on-x slope. The population formula β + γρ is shown separately. Neither is presented as exact recovery of the structural coefficient in each draw.
+- **Direct versus total effects:** control labels identify both β and γ as direct effects in the constructed system. γ alone is not the total effect of z when z also changes x.
+- **Influence versus deletion:** the interface compares a temporary omission without removing rows. Cook's distance, leverage and standardized residuals are distinct. Classical diagnostics retain conventional residual variance even when the reported model covariance uses HC1.
+- **Manual changes and provenance:** changing one point is visibly identified and exported. The seed is a browser-generator seed, not a promise that `set seed` in Stata reproduces it. The native do-file imports the exact exported observations.
+- **Plot usability:** a first visual pass found undersized SVG labels after scaling. Labels were enlarged, narrower layouts use one plot per row, and mobile controls jump directly to parameters, plots and estimates. Linked point selection uses one keyboard stop per plot with arrow-key navigation rather than hundreds of Tab stops.
+- **Test reliability:** a restore-state browser check originally mixed `innerText` with `textContent` matching, producing a false failure from table whitespace. The test now compares the same representation for both change detection and restoration.
+
+Verification at this increment: 38 unit cases, 50 desktop/mobile browser cases and 567 local links pass. Project-prefix, offline practice, cache isolation and mobile lab navigation checks pass. Four independent R cases and four native Stata exported-workflow cases pass. Native CSV import remains substituted because of the installed Java limitation. Automated accessibility checks cover all four lab views; this does not replace student or manual assistive-technology testing.
+
 Engine tests cover supported syntax, invalid expressions, sample selection, missing values, rollback, undo, collinearity, row-order/unit invariance and independent numerical fixtures. Browser tests cover every lesson, interpretation gating, storage failures, backups, simultaneous tabs, graph controls, exports, keyboard navigation, mobile overflow and automated accessibility checks. Deployment uses a real local server under the GitHub Pages project prefix.
 
 Native receipts cover default settings of nine advanced scripts, both applied projects and sixteen small templates with assertions. Runtime success does not certify every branch, explanatory sentence or suitability for another dataset. Historical design notes are labeled as historical; their earlier validation claims are not evidence for this release.

@@ -6,7 +6,12 @@ root = Path(__file__).resolve().parents[1]
 assets_data = root / "assets" / "data"
 assets_data.mkdir(parents=True, exist_ok=True)
 
-entries = []
+entries = [{
+    "type": "module", "title": "Analysis lab: Regression and adjustment",
+    "summary": "Simulate omitted-variable bias, trace partial regression and investigate influential observations with exact Stata exports.",
+    "tags": ["interactive", "regression", "OLS", "FWL", "omitted variable bias", "influence", "leverage", "Cook"],
+    "level": "Intermediate and advanced", "path": "Labs/",
+}]
 
 practice_path = assets_data / "practice-lessons.json"
 if practice_path.exists():

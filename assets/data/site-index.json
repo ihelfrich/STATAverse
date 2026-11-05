@@ -1,6 +1,23 @@
 [
   {
     "type": "module",
+    "title": "Analysis lab: Regression and adjustment",
+    "summary": "Simulate omitted-variable bias, trace partial regression and investigate influential observations with exact Stata exports.",
+    "tags": [
+      "interactive",
+      "regression",
+      "OLS",
+      "FWL",
+      "omitted variable bias",
+      "influence",
+      "leverage",
+      "Cook"
+    ],
+    "level": "Intermediate and advanced",
+    "path": "Labs/"
+  },
+  {
+    "type": "module",
     "title": "Browser practice: Your first Stata commands",
     "summary": "Read a dataset, run commands and understand the Results window.",
     "tags": [

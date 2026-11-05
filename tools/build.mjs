@@ -2,7 +2,12 @@ import { build } from "esbuild";
 import fs from "node:fs/promises";
 import { LESSONS } from "../src/lessons.js";
 await build({
-  entryPoints: ["src/learn.js", "src/home.js", "src/workspace.js"],
+  entryPoints: [
+    "src/learn.js",
+    "src/home.js",
+    "src/workspace.js",
+    "src/regression-lab.js",
+  ],
   bundle: true,
   minify: true,
   format: "esm",

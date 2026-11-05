@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-04",
+  "status": "local_candidate_in_progress",
+  "unit_tests": 38,
+  "browser_tests": 50,
+  "local_links": 567,
+  "broken_links": 0,
+  "independent_R_lab_cases": 4,
+  "native_Stata_lab_cases": 4,
+  "format_check": "passed",
+  "deployment": "deployment.json",
+  "limits": [
+    "Goal remains active; curriculum and design overhaul continues",
+    "No push or public deployment",
+    "Native CSV import substituted with double input because Java is unavailable",
+    "No classroom or manual assistive-technology validation"
+  ]
+}

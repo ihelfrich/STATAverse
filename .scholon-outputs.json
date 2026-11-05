@@ -160,6 +160,76 @@
       "evidence": [
         "docs/red-team-review.md"
       ]
+    },
+    {
+      "id": "stataverse.regression-lab-reference",
+      "project": "stataverse",
+      "path": "tests/fixtures/regression-lab/reference.json",
+      "kind": "results",
+      "title": "Independent regression-lab reference calculations",
+      "summary": "Four synthetic model, partial-regression and influence checks using R lm and sandwich",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Four fixed cases; no global numerical or inferential guarantee"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md",
+        "tools/lab-reference.R",
+        "tests/fixtures/regression-lab/cases.json"
+      ]
+    },
+    {
+      "id": "stataverse.regression-lab-native",
+      "project": "stataverse",
+      "path": "docs/verification/regression-lab-native.json",
+      "kind": "receipt",
+      "title": "Native Stata regression-lab export verification",
+      "summary": "Four exported workflows with native assertions for coefficients, covariance and influence",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Native double input substitutes for Java-dependent CSV import; no PNG export checked"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md",
+        "tools/check-lab-native.mjs"
+      ]
+    },
+    {
+      "id": "stataverse.regression-lab-procedure",
+      "project": "stataverse",
+      "path": "tools/lab-reference.R",
+      "kind": "procedure",
+      "title": "Independent regression-lab R verification procedure",
+      "summary": "Recomputes models, residualization and classical influence diagnostics on exported synthetic observations",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "limits": [
+        "Requires R jsonlite and sandwich; no private or empirical data"
+      ],
+      "depends_on": [],
+      "evidence": [
+        "docs/red-team-review.md",
+        "tests/fixtures/regression-lab/cases.json"
+      ]
     }
   ]
 }
