@@ -1,8 +1,8 @@
 {
   "date": "2026-11-05",
   "status": "local_candidate_in_progress",
-  "unit_tests": 67,
-  "browser_tests": 92,
+  "unit_tests": 71,
+  "browser_tests": 96,
   "local_links": 584,
   "broken_links": 0,
   "independent_R_lab_cases": 4,
@@ -15,7 +15,7 @@
     "Native CSV import substituted with double input because Java is unavailable",
     "No classroom or manual assistive-technology validation"
   ],
-  "browser_run_scope": "92-case full desktop/mobile suite plus focused reruns for final navigation and scenario-label changes",
+  "browser_run_scope": "96-case full desktop/mobile suite after text-growth, retention and saved-replay recovery repairs",
   "lessons": 16,
   "lesson_steps": 68,
   "numeric_responses": 15,

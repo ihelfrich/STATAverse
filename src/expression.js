@@ -1,4 +1,5 @@
 import { missing } from "./statistics.js";
+import { RESOURCE_LIMITS } from "./resource-limits.js";
 export class StataError extends Error {
   constructor(message, code = 198, hint = "") {
     super(message);
@@ -20,6 +21,11 @@ export function tokenize(source) {
     if (source[i] === '"') {
       const end = source.indexOf('"', i + 1);
       if (end < 0) throw new StataError("A double quote is not closed.");
+      if (end - i - 1 > RESOURCE_LIMITS.fieldCharacters)
+        throw new StataError(
+          "A string literal exceeds the browser limit of 10,000 characters.",
+          901,
+        );
       tokens.push({ type: "string", value: source.slice(i + 1, end) });
       i = end + 1;
     } else if ((m = tail.match(/^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/))) {
@@ -253,8 +259,14 @@ export function compileExpression(source, columns) {
                         : x >= y,
             );
           }
-          if (op === "+" && typeof a === "string" && typeof b === "string")
+          if (op === "+" && typeof a === "string" && typeof b === "string") {
+            if (a.length + b.length > RESOURCE_LIMITS.fieldCharacters)
+              throw new StataError(
+                "This concatenation would exceed 10,000 characters in a string value. Use a shorter expression or continue in Stata.",
+                901,
+              );
             return a + b;
+          }
           if (typeof a === "string" || typeof b === "string")
             throw new StataError(
               "Type mismatch: this arithmetic requires numeric variables.",

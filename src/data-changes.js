@@ -5,6 +5,11 @@ export function dataChanges(before, after, kind) {
   const added = newNames.filter((n) => !oldNames.includes(n));
   const removed = oldNames.filter((n) => !newNames.includes(n));
   const cells = [];
+  const preview = (value) =>
+    typeof value === "string" && value.length > 160
+      ? value.slice(0, 160) + "…"
+      : value;
+  let shortenedValues = false;
   let changedCells = 0;
   const comparable =
     before.rows.length === after.rows.length &&
@@ -16,8 +21,17 @@ export function dataChanges(before, after, kind) {
           b = after.rows[i][name];
         if (a !== b) {
           changedCells++;
-          if (cells.length < 200)
-            cells.push({ observation: i + 1, name, before: a, after: b });
+          if (cells.length < 200) {
+            shortenedValues ||= [a, b].some(
+              (value) => typeof value === "string" && value.length > 160,
+            );
+            cells.push({
+              observation: i + 1,
+              name,
+              before: preview(a),
+              after: preview(b),
+            });
+          }
         }
       }
     }
@@ -41,6 +55,7 @@ export function dataChanges(before, after, kind) {
     removed,
     changedCells,
     cells,
+    shortenedValues,
     labels,
     reordered: kind === "sort",
     reloaded: ["import", "restore"].includes(kind),

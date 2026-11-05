@@ -3,6 +3,11 @@ import { StataError, compileExpression } from "./expression.js";
 import { commandBlocks } from "./do-file.js";
 import { dataChanges } from "./data-changes.js";
 import { nativeImportOptions } from "./import-library.js";
+import {
+  RESOURCE_LIMITS,
+  estimatedBytes,
+  dataResourceError,
+} from "./resource-limits.js";
 import { missing, summarize, regress, correlation } from "./statistics.js";
 export { StataError };
 const aliases = {
@@ -50,6 +55,7 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   ...Object.keys(aliases),
 ]);
 const clone = (x) => structuredClone(x);
+const snapshotSizes = new WeakMap();
 const cleanName = (name) =>
   /^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(name) &&
   ![
@@ -268,6 +274,15 @@ export class PracticeSession {
     return results;
   }
   execute(command) {
+    if (
+      this.history.reduce((sum, text) => sum + text.length, 0) +
+        command.length >
+      RESOURCE_LIMITS.historyCharacters
+    )
+      throw new StataError(
+        "This session has reached the saved-history limit of 1 million characters. Export your work and restart the dataset to continue.",
+        901,
+      );
     if (this.history.length >= 500)
       throw new StataError(
         "This practice session has reached 500 successful commands. Export your work and restart the dataset to continue.",
@@ -275,7 +290,12 @@ export class PracticeSession {
     const before = this.snapshot();
     try {
       const result = this.dispatch(command);
+      if (result.changed) {
+        const resourceError = dataResourceError(this.data);
+        if (resourceError) throw new StataError(resourceError, 901);
+      }
       this.undoStack.push(before);
+      snapshotSizes.set(before, estimatedBytes(before));
       // Keep the small teaching-data limit while bounding copies of larger imports.
       const cellCost = (snapshot) =>
         snapshot.data.rows.length * Math.max(1, snapshot.data.columns.length) +
@@ -287,11 +307,20 @@ export class PracticeSession {
         (total, snapshot) => total + cellCost(snapshot),
         0,
       );
+      let retainedBytes = this.undoStack.reduce(
+        (total, state) => total + (snapshotSizes.get(state) || 0),
+        0,
+      );
       while (
         this.undoStack.length > 1 &&
-        (this.undoStack.length > 50 || retainedCells > 750000)
-      )
-        retainedCells -= cellCost(this.undoStack.shift());
+        (this.undoStack.length > 50 ||
+          retainedCells > 750000 ||
+          retainedBytes > RESOURCE_LIMITS.undoBytes)
+      ) {
+        const released = this.undoStack.shift();
+        retainedCells -= cellCost(released);
+        retainedBytes -= snapshotSizes.get(released) || 0;
+      }
       this.history.push(command);
       this.last = {
         ...result,

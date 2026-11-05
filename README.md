@@ -14,6 +14,8 @@ The browser workspace implements a documented **subset**, not Stata itself. It s
 
 Imports stay in the browser. UTF-8 CSV, TSV and semicolon-delimited files are bounded at 1 MB, 5,000 observations, 50 columns and 100,000 cells; the library retains up to three sources totaling 1.5 MB. Leading-zero identifiers remain text by default. Invalid numeric conversions block import. Project exports include the used original sources, decisions, normalized starting CSVs, commands and current data; unrelated imported sources are excluded. Workspace backups include the entire local library. Internal storage schema v3 migrates existing v2 work under the same storage key.
 
+Transformations enforce text-growth limits as well as row and column limits. Oversized values fail without changing the data. Undo and displayed results use bounded retention; long changed-value previews are identified as shortened. Older saved work that cannot replay under the current bounds remains preserved for backup. The [numerical contract](docs/numerical-contract.md) specifies these limits.
+
 ## Local development
 
 Use a current Node installation; this candidate was checked with Node 24.20.0.

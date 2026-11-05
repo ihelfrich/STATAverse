@@ -121,3 +121,13 @@ The path now contains 16 lessons and 68 steps, with a beginner track and three f
 Native receipts cover all 68 canonical steps in 16 sequences, 15 numeric responses and final data values, plus a separate 20-command preserve/restore sequence. Native input substitutes for Java-backed CSV import. The full suite passed 46 unit and 58 browser cases; subsequent lesson-link and mobile-navigation changes passed focused desktop/mobile checks and a repeated deployment check. The suite now includes 60 browser cases. These results do not establish classroom effectiveness or manual screen-reader acceptance.
 
 Inference increment verification: 67 unit tests, 92 desktop/mobile browser cases, 584 local links and project-prefix/offline/cache checks passed. The largest supported 2,000-by-5,000-observation experiment completed in both browser projects. Final homepage navigation and scenario-label changes passed four focused desktop/mobile checks. Five R cases, five native sample cases and three native simulation runs passed. Formatting and whitespace checks passed. The goal remains active and changes remain local.
+
+### Continuing overhaul: text growth and saved-session recovery
+
+The imported-data review reproduced an unbounded-growth path: a valid 8,000-character string doubled to 16,000 characters through `replace note = note + note`. Repeated concatenation could grow exponentially while satisfying every row and column limit. The engine now checks string expressions before expansion, checks aggregate text after a transformation and rolls back failures atomically. Tests retain the preceding regression state, data and undo history after rejection.
+
+Cell-count budgets alone also failed to account for large text in undo copies and results. Structural byte estimates now bound retention alongside the existing count limits. Changed-cell receipts show explicitly shortened previews while preserving the complete dataset values. The estimates do not claim to measure actual JavaScript heap use.
+
+An older saved session may contain a command that now exceeds the accepted bounds. A browser regression case confirms that replay stops visibly, subsequent commands cannot overwrite the original stored history, and a backup remains available. Another case verifies successful recovery, replacement and reload after a rejected oversized transformation. These cases run on both desktop and mobile.
+
+Verification after this repair: 71 unit tests, 96 desktop/mobile browser cases, 584 local links and project-prefix/offline/cache checks pass. Formatting and whitespace checks pass. The tests verify the specified retention policy and recovery behavior, not a total-memory ceiling on every browser.

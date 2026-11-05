@@ -27,6 +27,7 @@ import { setupImportDialog } from "./import-ui.js";
 import { createCommandEditor } from "./editor.js";
 import { changeSummary } from "./data-changes.js";
 import { historyReceipt, retainResults } from "./output-history.js";
+import { RESOURCE_LIMITS } from "./resource-limits.js";
 const $ = (selector) => document.querySelector(selector);
 const STORAGE = PRACTICE_KEY;
 let saved = emptyStore(),
@@ -138,10 +139,14 @@ function loadSession() {
     for (const command of record.history) {
       const output = session.run(command);
       results = retainResults([...results, ...output]);
-      timeline.push(...output.map(historyReceipt));
+      timeline = retainResults([...timeline, ...output.map(historyReceipt)], {
+        entries: 500,
+        cells: Infinity,
+        bytes: RESOURCE_LIMITS.timelineBytes,
+      });
       if (output.some((r) => r.kind === "error")) {
         storageWarning(
-          "Some saved commands could not be replayed. Practice stopped at the first error; inspect Results before continuing.",
+          "Some saved commands could not be replayed. The original saved history has been left unchanged. Inspect Results, and export a backup from Saved work before resetting this session.",
         );
         break;
       }
@@ -399,7 +404,7 @@ function renderHistory() {
       <div class="history-body"><code>${h(result.command)}</code>
       <p>${result.kind === "error" ? `Stopped with r(${result.code}): ${h(result.message)}` : h(changeSummary(effect))}</p>
       ${effect && result.kind !== "error" ? `<span class="history-dimensions">${effect.beforeRows} → ${effect.afterRows} observations · ${effect.beforeColumns} → ${effect.afterColumns} variables</span>` : ""}
-      ${cells.length ? `<details class="change-details"><summary>Inspect ${effect.changedCells} changed value${effect.changedCells === 1 ? "" : "s"}</summary><div class="result-table-wrap" tabindex="0" role="region" aria-label="Changed values"><table class="result-table"><thead><tr><th scope="col">Obs.</th><th scope="col">Variable</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>${cells.map((c) => `<tr><td>${c.observation}</td><td>${h(c.name)}</td><td>${cellValue(c.before)}</td><td>${cellValue(c.after)}</td></tr>`).join("")}</tbody></table></div>${effect.changedCells > cells.length ? `<p>Showing the first ${cells.length} changes.</p>` : ""}</details>` : ""}
+      ${cells.length ? `<details class="change-details"><summary>Inspect ${effect.changedCells} changed value${effect.changedCells === 1 ? "" : "s"}</summary><div class="result-table-wrap" tabindex="0" role="region" aria-label="Changed values"><table class="result-table"><thead><tr><th scope="col">Obs.</th><th scope="col">Variable</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>${cells.map((c) => `<tr><td>${c.observation}</td><td>${h(c.name)}</td><td>${cellValue(c.before)}</td><td>${cellValue(c.after)}</td></tr>`).join("")}</tbody></table></div>${effect.changedCells > cells.length ? `<p>Showing the first ${cells.length} changes.</p>` : ""}${effect.shortenedValues ? "<p>Long text values are shortened to 160 characters in this history preview. The working data and data exports retain their full values.</p>" : ""}</details>` : ""}
       <button type="button" class="text-button" data-reuse-command="${i}">Load in editor</button>
       </div></article>`;
         })
@@ -483,8 +488,11 @@ function run(scope = "all") {
     return;
   }
   results = retainResults([...results, ...output]);
-  timeline.push(...output.map(historyReceipt));
-  if (timeline.length > 500) timeline = timeline.slice(-500);
+  timeline = retainResults([...timeline, ...output.map(historyReceipt)], {
+    entries: 500,
+    cells: Infinity,
+    bytes: RESOURCE_LIMITS.timelineBytes,
+  });
   const last = output.at(-1);
   if (last.kind === "count" && last.selected.length)
     dataPage = Math.floor(last.selected[0] / 50);

@@ -325,6 +325,14 @@
         memory use. The data browser displays 50 rows per page; calculations use
         the full applicable sample.
       </p>
+      <p>
+        String values and labels are limited to 10,000 characters each, and a
+        working dataset to 2 million text characters. A command that exceeds
+        these limits leaves the data unchanged. Saved command history is limited
+        to 1 million characters. Larger text also reduces retained undo states,
+        results and history previews; data and do-file exports retain the
+        accepted work.
+      </p>
     </dialog>
     <dialog id="import-dialog" aria-labelledby="import-title">
       <div class="dialog-header">
