@@ -1,54 +1,63 @@
 {
+  "origin": "http://127.0.0.1:4176",
+  "checkedAt": "2026-11-05T07:59:20.794Z",
   "base": "/learn/stata/",
   "checks": [
     "nested-path command execution, saved practice and scoped service worker",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
-    "IV lab at the canonical nested route, shared navigation, local calculations and checked weak-instrument exercise offline",
+    "IV lab at the canonical nested route, shared navigation, checked weak-instrument investigation offline, and restored task response, experiment and note after reload",
     "offline practice and worker simulation, navigation CSS cached, no external runtime requests",
     "Teaching entry, site search indexing and no worker control outside STATAverse",
     "mobile width, keyboard/native navigation, targeted accessibility and no-script site links"
   ],
+  "payloadBasis": "HTTP response bodies from the tested origin; gzip sizes computed locally",
   "payloads": [
     {
       "asset": "home.js",
-      "bytes": 4184,
-      "gzipBytes": 2060
+      "bytes": 4151,
+      "gzipBytes": 2035
     },
     {
       "asset": "learn.js",
-      "bytes": 694620,
-      "gzipBytes": 223301
+      "bytes": 694869,
+      "gzipBytes": 223410
     },
     {
       "asset": "workspace.js",
-      "bytes": 157141,
-      "gzipBytes": 51203
+      "bytes": 162620,
+      "gzipBytes": 52866
     },
     {
       "asset": "data-lab.js",
-      "bytes": 124042,
-      "gzipBytes": 44275
+      "bytes": 130110,
+      "gzipBytes": 46162
     },
     {
       "asset": "inference-lab.js",
-      "bytes": 92671,
-      "gzipBytes": 34268
+      "bytes": 92629,
+      "gzipBytes": 34240
     },
     {
       "asset": "inference-worker.js",
-      "bytes": 60355,
-      "gzipBytes": 21607
+      "bytes": 60310,
+      "gzipBytes": 21577
     },
     {
       "asset": "iv-lab.js",
-      "bytes": 92208,
-      "gzipBytes": 34800
+      "bytes": 93664,
+      "gzipBytes": 35318
     }
   ],
+  "release": {
+    "source": "ihelfrich/STATAverse",
+    "commit": "a87cc9cf0b6d4c13a8c594e5897696eedfcfb139",
+    "base": "/learn/stata/",
+    "development": false
+  },
   "coreOfflinePackage": {
-    "files": 24,
-    "bytes": 1528540,
-    "gzipBytes": 481009
+    "files": 25,
+    "bytes": 1580055,
+    "gzipBytes": 496760
   }
 }
