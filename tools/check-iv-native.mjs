@@ -134,7 +134,7 @@ await fs.writeFile(
       method:
         "Native Stata exported IV workflows and official weakrobust tests",
       limits: [
-        "Nine synthetic cases; not general equivalence",
+        `${cases.length} synthetic cases; not general equivalence`,
         "Native double input replaces Java-dependent CSV import",
         "Installed Stata requires global set level 95 for weakrobust tests; confidence-set level remains explicitly selected",
       ],

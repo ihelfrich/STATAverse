@@ -2,19 +2,14 @@ import {
   DATA_INVESTIGATIONS,
   assessInvestigation,
 } from "./labs/data-investigations.js";
-import {
-  LAB_PROGRESS_KEY,
-  emptyLabProgress,
-  parseLabProgress,
-  completeLabStep,
-  withLabProgressLock,
-} from "./lab-progress.js";
+import { emptyLabProgress, completeLabStep } from "./lab-progress.js";
+import { LabProgressSession } from "./lab-progress-session.js";
 import { escapeHTML as h } from "./render.js";
 
 export function initializeInvestigations({ applySettings, snapshot }) {
   const $ = (selector) => document.querySelector(selector);
   let progress = emptyLabProgress(),
-    savedRaw = null,
+    session = null,
     canSave = true,
     guide = null,
     index = 0,
@@ -27,14 +22,16 @@ export function initializeInvestigations({ applySettings, snapshot }) {
     $("#investigation-storage").textContent = message;
     progressLabel();
   };
-  try {
-    savedRaw = localStorage.getItem(LAB_PROGRESS_KEY);
-    if (savedRaw !== null) progress = parseLabProgress(savedRaw);
-  } catch {
-    warn(
-      "Lab progress could not be read or saved. Any stored copy has been left in place. You can work through the investigation and export its record with a valid Stata project.",
-    );
-  }
+  session = new LabProgressSession({
+    onStatus: (state) => {
+      if (session) progress = session.value;
+      canSave = state.canSave;
+      if (state.message) warn(state.message);
+      else progressLabel();
+    },
+  });
+  progress = session.value;
+  canSave = session.canSave;
   $("#investigation-select").innerHTML =
     '<option value="">Open exploration</option>' +
     DATA_INVESTIGATIONS.map(
@@ -184,25 +181,12 @@ export function initializeInvestigations({ applySettings, snapshot }) {
       assessment.passed,
     );
     if (!assessment.passed) return;
-    progress = completeLabStep(progress, currentGuide.id, step.id);
     $("#investigation-check").disabled = true;
-    if (canSave) {
-      try {
-        await withLabProgressLock(() => {
-          if (!canSave || localStorage.getItem(LAB_PROGRESS_KEY) !== savedRaw)
-            throw new Error("changed");
-          const text = JSON.stringify(progress);
-          localStorage.setItem(LAB_PROGRESS_KEY, text);
-          savedRaw = text;
-        });
-      } catch (error) {
-        warn(
-          error.message === "changed"
-            ? "Lab progress changed in another tab. Reload before saving further progress so that imported or cleared work is not overwritten. This session can continue and its investigation record can be exported."
-            : "This browser could not save lab progress. This session can continue; export the investigation record with a valid Stata project before leaving.",
-        );
-      }
-    }
+    const save = session.update((value) =>
+      completeLabStep(value, currentGuide.id, step.id),
+    );
+    progress = session.value;
+    await save;
     if (pendingCheck === token) {
       pendingCheck = null;
       $("#investigation-check").disabled = false;
@@ -230,12 +214,6 @@ export function initializeInvestigations({ applySettings, snapshot }) {
     }
   });
   window.addEventListener("hashchange", fromURL);
-  window.addEventListener("storage", (event) => {
-    if (event.key === LAB_PROGRESS_KEY || event.key === null)
-      warn(
-        "Lab progress changed in another tab. Reload before saving further progress so that imported or cleared work is not overwritten. Your current tables remain available.",
-      );
-  });
   fromURL();
   return {
     changed,

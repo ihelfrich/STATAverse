@@ -107,38 +107,6 @@ test("large samples render a bounded number of selectable records", async ({
     "every calculation uses all 2000",
   );
 });
-test("guided comparisons check answers against the specified experiment", async ({
-  page,
-}) => {
-  await page.goto("/Labs/IV/");
-  for (const [id, answer] of [
-    ["ratio", "1.001"],
-    ["weak", "all values"],
-    ["invalid", "1.8"],
-    ["residual", "observed x"],
-  ]) {
-    await page.locator("#iv-task").selectOption(id);
-    await page.locator("#iv-task-load").click();
-    await page.locator("#iv-answer").fill("wrong");
-    await page.locator("#iv-answer-form button").click();
-    await expect(page.locator("#iv-feedback")).toHaveAttribute(
-      "data-correct",
-      "false",
-    );
-    await page.locator("#iv-answer").fill(answer);
-    await page.locator("#iv-answer-form button").click();
-    await expect(page.locator("#iv-feedback")).toHaveAttribute(
-      "data-correct",
-      "true",
-    );
-  }
-  await controls(page);
-  await page.locator("#iv-new-sample").click();
-  await page.locator("#iv-answer-form button").click();
-  await expect(page.locator("#iv-feedback")).toContainText(
-    "different settings",
-  );
-});
 test("export preserves the exact sample, inference options and null candidate", async ({
   page,
 }) => {

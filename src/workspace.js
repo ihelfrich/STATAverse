@@ -3,6 +3,7 @@ import {
   LAB_PROGRESS_KEY,
   parseLabProgress,
   withLabProgressLock,
+  renewLabProgress,
 } from "./lab-progress.js";
 import { INVESTIGATION_CATALOG } from "./labs/investigation-catalog.js";
 const $ = (selector) => document.querySelector(selector);
@@ -24,6 +25,12 @@ function keys() {
 function collect() {
   const raw = localStorage.getItem(PRACTICE_KEY);
   const labs = localStorage.getItem(LAB_PROGRESS_KEY);
+  const labProgress = labs !== null ? parseLabProgress(labs) : null;
+  if (labProgress) delete labProgress.generation;
+  const hasLabWork =
+    labProgress &&
+    (Object.keys(labProgress.completed).length ||
+      Object.keys(labProgress.drafts || {}).length);
   return validateBackup({
     profile: JSON.parse(localStorage.getItem("stataverse:user") || "{}"),
     progress: Object.fromEntries(
@@ -32,7 +39,7 @@ function collect() {
         .map((key) => [key, localStorage.getItem(key)]),
     ),
     ...(raw ? { practice: parseStore(raw) } : {}),
-    ...(labs !== null ? { labs: parseLabProgress(labs) } : {}),
+    ...(hasLabWork ? { labs: labProgress } : {}),
   });
 }
 function refresh() {
@@ -42,7 +49,12 @@ function refresh() {
       $(`#workspace-${field}`).value = data.profile[field];
     const legacy = Object.values(data.progress).map(JSON.parse),
       guided = Object.values(data.practice?.lessons || {}),
-      labs = Object.entries(data.labs?.completed || {}),
+      labs = [
+        ...new Set([
+          ...Object.keys(data.labs?.completed || {}),
+          ...Object.keys(data.labs?.drafts || {}),
+        ]),
+      ].map((id) => [id, data.labs?.completed[id] || []]),
       free = Object.values(data.practice?.free || {});
     $("[data-modules-count]").textContent =
       legacy.length + guided.length + labs.length;
@@ -55,15 +67,19 @@ function refresh() {
         (n, item) =>
           n + Object.values(item.notes).filter((note) => note.trim()).length,
         0,
-      ) + [...guided, ...free].filter((item) => item.note.trim()).length;
+      ) +
+      [...guided, ...free, ...Object.values(data.labs?.drafts || {})].filter(
+        (item) => item.note.trim(),
+      ).length;
     $("[data-progress-detail]").textContent =
       `${guided.length} practice lessons, ${free.length} open datasets, ${labs.length} lab investigations and ${legacy.length} reading modules saved on this device. Reading checkboxes are self-reported; practice and investigation tasks use supported checks rather than secure assessments.`;
     $("#lab-resume-links").replaceChildren();
     for (const [id, steps] of labs) {
       const guide = INVESTIGATION_CATALOG.find((g) => g.id === id),
         link = document.createElement("a");
-      link.href = `../Labs/Data/#investigation=${id}`;
-      link.textContent = `${guide.title}: ${steps.length}/${guide.steps.length} tasks checked`;
+      const draft = data.labs?.drafts?.[id];
+      link.href = `../${guide.path}${draft ? `&step=${draft.step}` : ""}`;
+      link.textContent = `${guide.title}: ${steps.length}/${guide.steps.length} tasks checked${draft ? ` · resume ${guide.steps.find((s) => s.id === draft.step).title}` : ""}`;
       $("#lab-resume-links").append(link);
     }
   } catch (error) {
@@ -148,7 +164,9 @@ $("#workspace-import").addEventListener("change", async (event) => {
       ["stataverse:user", JSON.stringify(data.profile)],
       ...Object.entries(data.progress),
       ...(data.practice ? [[PRACTICE_KEY, JSON.stringify(data.practice)]] : []),
-      ...(data.labs ? [[LAB_PROGRESS_KEY, JSON.stringify(data.labs)]] : []),
+      ...(data.labs
+        ? [[LAB_PROGRESS_KEY, JSON.stringify(renewLabProgress(data.labs))]]
+        : []),
     ];
     const overwrites = changes.filter(
       ([key]) => localStorage.getItem(key) !== null,
@@ -180,7 +198,12 @@ $("[data-clear-notes]").addEventListener("click", async () => {
     return;
   try {
     await withLabProgressLock(() =>
-      writeAtomically(keys().map((key) => [key, null])),
+      writeAtomically([
+        ...keys()
+          .filter((key) => key !== LAB_PROGRESS_KEY)
+          .map((key) => [key, null]),
+        [LAB_PROGRESS_KEY, JSON.stringify(renewLabProgress())],
+      ]),
     );
     refresh();
     report(

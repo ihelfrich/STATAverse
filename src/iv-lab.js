@@ -1,3 +1,4 @@
+import { INVESTIGATION_CATALOG } from "./labs/investigation-catalog.js";
 import { zipSync, strToU8 } from "fflate";
 import {
   IV_DEFAULTS,
@@ -12,6 +13,7 @@ import { scatterPlot } from "./labs/scatter.js";
 import { escapeHTML as h, fmt } from "./render.js";
 const $ = (s) => document.querySelector(s),
   f = (v) => (v === null ? "unavailable" : fmt(v, 3));
+let investigations = null;
 let parameters = { ...IV_DEFAULTS },
   sample = ivSample(parameters),
   selected = 1,
@@ -92,10 +94,6 @@ function updateScenario() {
     preset?.description ||
     "The controls define this population. Estimates below use one sample drawn from it.";
 }
-function clearFeedback() {
-  $("#iv-feedback").textContent = "";
-  delete $("#iv-feedback").dataset.correct;
-}
 function candidateValue() {
   const input = $("#iv-candidate");
   return input.value !== "" && input.checkValidity()
@@ -117,7 +115,7 @@ function load(values) {
   syncForm();
   updateScenario();
   setValid(true);
-  clearFeedback();
+  investigations?.changed();
   render();
 }
 function updateFromForm() {
@@ -137,10 +135,11 @@ function updateFromForm() {
     syncForm();
     updateScenario();
     setValid(true);
-    clearFeedback();
+    investigations?.changed();
     render();
   } catch (error) {
     setValid(false, `${error.message} Results retain the last valid settings.`);
+    investigations?.changed();
   }
 }
 $("#iv-form").addEventListener("submit", (e) => e.preventDefault());
@@ -232,6 +231,7 @@ function selectRecord(id) {
   $("#iv-record").value = id;
   plot?.select(id);
   const row = sample.rows[id - 1];
+  investigations?.changed();
   $("#iv-record-values").innerHTML = `<dl>${[
     ["z", row.z],
     ["x", row.x],
@@ -413,11 +413,18 @@ function renderAR() {
   $("#iv-ar-plot").innerHTML =
     `<svg viewBox="0 0 ${w} ${height}" role="img" aria-label="Anderson–Rubin p-values across candidate coefficients"><desc>Green shading marks the accepted set within the plotted window. The blue curve is the p-value; the dashed horizontal line marks ${alpha.toFixed(2)}. The solid green vertical line is the known true coefficient. The dashed vertical line marks the candidate when visible.</desc>${bands}<line class="iv-ar-axis" x1="${left}" x2="${left}" y1="${top}" y2="${height - bottom}"/><line class="iv-ar-axis" x1="${left}" x2="${w - right}" y1="${height - bottom}" y2="${height - bottom}"/>${ticks}<line class="iv-ar-critical" x1="${left}" x2="${w - right}" y1="${y(alpha)}" y2="${y(alpha)}"/><path class="iv-ar-curve" d="${path}"/>${Math.abs(parameters.beta) <= half ? `<line class="iv-ar-truth" x1="${x(parameters.beta)}" x2="${x(parameters.beta)}" y1="${top}" y2="${height - bottom}"/>` : ""}${candidate !== null && Math.abs(candidate) <= half ? `<line class="iv-ar-candidate" x1="${x(candidate)}" x2="${x(candidate)}" y1="${top}" y2="${height - bottom}"/>` : ""}<text x="${w / 2}" y="${height - 5}" text-anchor="middle">Candidate coefficient b</text><text transform="translate(14 ${height / 2}) rotate(-90)" text-anchor="middle">p-value</text></svg>`;
 }
-$("#iv-candidate").addEventListener("input", renderAR);
-$("#iv-window").addEventListener("change", renderAR);
+$("#iv-candidate").addEventListener("input", () => {
+  renderAR();
+  investigations?.changed();
+});
+$("#iv-window").addEventListener("change", () => {
+  renderAR();
+  investigations?.changed();
+});
 $("#iv-test-truth").addEventListener("click", () => {
   $("#iv-candidate").value = parameters.beta;
   renderAR();
+  investigations?.changed();
 });
 $("#iv-disconnected").addEventListener("click", () =>
   load({ pi: 0.06, seed: 8 }),
@@ -433,6 +440,7 @@ function setView(view, focus = false) {
   if (view === "stages") renderScatter();
   if (view === "uncertainty") renderAR();
   if (focus) $(`#iv-tab-${view}`).focus();
+  investigations?.changed();
 }
 const tabs = ["stages", "uncertainty", "method"];
 tabs.forEach((name, index) => {
@@ -449,97 +457,6 @@ tabs.forEach((name, index) => {
           : (index + (event.key === "ArrowRight" ? 1 : 2)) % 3;
     setView(tabs[next], true);
   });
-});
-const tasks = {
-  ratio: {
-    options: {},
-    view: "stages",
-    prompt:
-      "Use the first-stage and reduced-form slopes to calculate the IV ratio. Enter the ratio to three decimal places.",
-    label: "IV ratio",
-    answer: (s) => s.iv.b,
-    feedback: (s) =>
-      `Reduced form ÷ first stage = ${f(s.reduced.b)} ÷ ${f(s.first.b)} ≈ ${f(s.iv.b)}. The calculation uses the unrounded slopes.`,
-    placeholder: "e.g. 1.234",
-  },
-  weak: {
-    options: { pi: 0.06 },
-    view: "uncertainty",
-    prompt:
-      "With a weak first stage, inspect the Anderson–Rubin set. Does it contain a bounded interval, two pieces, or all values? Enter “bounded”, “two pieces” or “all values”.",
-    label: "Set shape",
-    answer: () => "all values",
-    feedback: () =>
-      "For this particular sample, every candidate passes the test. A different seed can produce two unbounded pieces or a bounded set; weak population relevance alone does not fix the sample's set shape.",
-    placeholder: "bounded, two pieces, or all values",
-  },
-  invalid: {
-    options: { delta: 0.8 },
-    view: "stages",
-    prompt:
-      "The first stage is strong, but δ = 0.8 violates exclusion. Use β + δ/π to find the population IV limit. Enter its value.",
-    label: "Population IV limit",
-    answer: (s) => s.population.iv,
-    feedback: (s) =>
-      `The population IV ratio is ${f(s.population.iv)}, while β = ${f(s.parameters.beta)}. More observations concentrate the estimator around the wrong target when this violation persists.`,
-    placeholder: "e.g. 1.234",
-  },
-  residual: {
-    options: {},
-    view: "stages",
-    prompt:
-      "Both second-stage procedures give the same slope. To compute the correct IV covariance, should the residual use observed x or fitted x? Enter “observed x” or “fitted x”.",
-    label: "Regressor in the residual",
-    answer: () => "observed x",
-    feedback: () =>
-      "Use observed x: y − intercept − b × x. The IV covariance accounts for the instrument through projected regressors, while measuring the structural residual with the actual regressor.",
-    placeholder: "observed x or fitted x",
-  },
-};
-function renderTask() {
-  const task = tasks[$("#iv-task").value];
-  $("#iv-task-prompt").textContent = task.prompt;
-  $("#iv-answer-label").textContent = task.label;
-  $("#iv-answer").placeholder = task.placeholder;
-  $("#iv-answer").value = "";
-  clearFeedback();
-}
-$("#iv-task").addEventListener("change", renderTask);
-$("#iv-task-load").addEventListener("click", () => {
-  const task = tasks[$("#iv-task").value];
-  load(task.options);
-  setView(task.view);
-  $("#iv-feedback").textContent =
-    "Exercise settings loaded. Use the results above, then enter your answer.";
-});
-$("#iv-answer-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const task = tasks[$("#iv-task").value],
-    expectedSettings = ivParameters(task.options),
-    feedback = $("#iv-feedback");
-  if (
-    !valid ||
-    Object.keys(IV_DEFAULTS).some((k) => parameters[k] !== expectedSettings[k])
-  ) {
-    feedback.textContent =
-      "Load this exercise's settings before checking your answer. Your current sample uses different settings.";
-    delete feedback.dataset.correct;
-    return;
-  }
-  const answer = $("#iv-answer").value.trim().toLowerCase(),
-    expected = task.answer(sample);
-  const correct =
-    typeof expected === "number"
-      ? answer !== "" &&
-        Number.isFinite(Number(answer)) &&
-        Math.abs(Number(answer) - expected) <= 0.001
-      : answer === expected;
-  feedback.dataset.correct = String(correct);
-  feedback.textContent = correct
-    ? `Correct. ${task.feedback(sample)}`
-    : answer === ""
-      ? "Enter an answer before checking."
-      : `Recheck ${$("#iv-task").value === "ratio" ? "the reduced-form slope divided by the first-stage slope" : $("#iv-task").value === "invalid" ? "β + δ/π using the population controls" : $("#iv-task").value === "weak" ? "the confidence set above the plot" : "the residual used by the correct 2SLS covariance"}.`;
 });
 $("#export-iv").addEventListener("click", () => {
   const candidate = candidateValue();
@@ -560,6 +477,9 @@ $("#export-iv").addEventListener("click", () => {
       ) + "\n",
     "README.txt": `STATAverse instrumental-variables experiment\n\nSynthetic data; no student or uploaded records. All calculations ran in your browser.\nOpen Stata in this folder and run analysis.do. The CSV preserves the exact browser draws; the seed does not reproduce them in Stata's different generator.\n\nPopulation: x = pi*z + v; y = 2 + beta*x + delta*z + u; u = sigma*(rho*v + sqrt(1-rho^2)*e). z, v and e are independent standard normals.\nIV requires pi != 0 and delta = 0 in this population. The first stage does not test exclusion.\n\n${parameters.confidence * 100}% Anderson-Rubin set: ${setText(sample.ar)}\n${parameters.robust ? "HC1 with approximate F reference." : "Conventional F reference under the valid normal homoskedastic model."}\nFinite endpoints in this README are rounded; recompute with the provided data.\nThe official confidence-set command in analysis.do requires Stata 19+ and is commented for compatibility. The transformed-outcome test runs directly.\n`,
   };
+  const investigation = investigations?.record();
+  if (investigation)
+    files["investigation.json"] = JSON.stringify(investigation, null, 2) + "\n";
   const bytes = zipSync(
     Object.fromEntries(
       Object.entries(files).map(([name, text]) => [name, strToU8(text)]),
@@ -588,5 +508,75 @@ mobileControls.addEventListener("change", (event) => {
 });
 syncForm();
 updateScenario();
-renderTask();
 render();
+
+const investigationAdapter = {
+  snapshot: () => ({
+    parameters: { ...parameters },
+    sample,
+    valid:
+      valid && (candidateValue() !== null || $("#iv-candidate").value === ""),
+    view: active,
+    plot: $("#iv-view").value,
+    selected,
+    candidate: $("#iv-candidate").value,
+    window: Number($("#iv-window").value),
+  }),
+  apply: (state) => {
+    load(state.parameters);
+    selected = state.selected;
+    $("#iv-view").value = state.plot;
+    $("#iv-candidate").value = state.candidate;
+    $("#iv-window").value = state.window;
+    setView(state.view);
+  },
+};
+
+let guideLoading = null,
+  guideAttempts = 0;
+$("#iv-guide-select").innerHTML =
+  '<option value="">Open exploration</option>' +
+  INVESTIGATION_CATALOG.filter((g) => g.lab === "iv")
+    .map((g) => `<option value="${g.id}">${h(g.title)}</option>`)
+    .join("");
+$("#iv-guide-summary").textContent =
+  "Choose a guided investigation, or explore freely. Guided tasks, settings and notes resume from Saved work.";
+async function loadGuides() {
+  if (investigations || guideLoading) return;
+  $("#iv-guide-summary").textContent = "Loading guided investigations…";
+  $("#iv-guide-retry").hidden = true;
+  const moduleURL = new URL("./iv-investigation-ui.js", import.meta.url);
+  if (++guideAttempts > 1) moduleURL.search = `retry=${guideAttempts}`;
+  guideLoading = import(moduleURL.href)
+    .then((module) => {
+      investigations = module.initializeIVInvestigations(investigationAdapter);
+    })
+    .catch(() => {
+      $("#iv-guide-storage").hidden = false;
+      $("#iv-guide-storage").textContent =
+        "Guided tasks could not load. Your experiment is still available. Reconnect if needed, then retry.";
+      $("#iv-guide-retry").hidden = false;
+    })
+    .finally(() => {
+      guideLoading = null;
+    });
+  return guideLoading;
+}
+$("#iv-guide-select").addEventListener("change", (event) => {
+  if (investigations) return;
+  if (event.target.value) {
+    history.replaceState(null, "", `#investigation=${event.target.value}`);
+    loadGuides();
+  } else {
+    history.replaceState(null, "", location.pathname + location.search);
+    $("#iv-guide-summary").textContent =
+      "Open exploration. Choose an investigation when you want guided tasks.";
+  }
+});
+$("#iv-guide-retry").addEventListener("click", loadGuides);
+window.addEventListener("hashchange", () => {
+  if (new URLSearchParams(location.hash.slice(1)).has("investigation"))
+    loadGuides();
+});
+if (new URLSearchParams(location.hash.slice(1)).has("investigation"))
+  loadGuides();

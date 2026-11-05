@@ -1,8 +1,9 @@
 {
   "origin": "https://ihelfrich.github.io",
-  "checkedAt": "2026-11-05T07:15:57.229Z",
+  "checkedAt": "2026-11-05T07:25:28.873Z",
   "base": "/learn/stata/",
   "checks": [
+    "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
     "nested-path command execution, saved practice and scoped service worker",
     "investigation persistence and Workspace resume at integrated path",
     "existing project-path reading progress survives the new mount without a second copy",
@@ -11,53 +12,53 @@
     "Teaching entry, site search indexing and no worker control outside STATAverse",
     "mobile width, keyboard/native navigation, targeted accessibility and no-script site links"
   ],
-  "payloadBasis": "Local source bundles; core offline assets fetched from the tested origin",
+  "payloadBasis": "HTTP response bodies from the tested origin; gzip sizes computed locally",
   "payloads": [
     {
       "asset": "home.js",
-      "bytes": 4184,
-      "gzipBytes": 2060
+      "bytes": 4151,
+      "gzipBytes": 2035
     },
     {
       "asset": "learn.js",
-      "bytes": 694803,
-      "gzipBytes": 223365
+      "bytes": 694769,
+      "gzipBytes": 223343
     },
     {
       "asset": "workspace.js",
-      "bytes": 157141,
-      "gzipBytes": 51203
+      "bytes": 157103,
+      "gzipBytes": 51182
     },
     {
       "asset": "data-lab.js",
-      "bytes": 124042,
-      "gzipBytes": 44275
+      "bytes": 124005,
+      "gzipBytes": 44251
     },
     {
       "asset": "inference-lab.js",
-      "bytes": 92671,
-      "gzipBytes": 34268
+      "bytes": 92629,
+      "gzipBytes": 34240
     },
     {
       "asset": "inference-worker.js",
-      "bytes": 60355,
-      "gzipBytes": 21607
+      "bytes": 60310,
+      "gzipBytes": 21577
     },
     {
       "asset": "iv-lab.js",
-      "bytes": 92208,
-      "gzipBytes": 34800
+      "bytes": 92173,
+      "gzipBytes": 34774
     }
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "559e8db1e66374dfbf3deca876fdb63b08a75194",
+    "commit": "e67990125dac095fda1f7e764a5a6a0f5ec4cbe8",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
     "files": 24,
-    "bytes": 1528540,
-    "gzipBytes": 481009
+    "bytes": 1528982,
+    "gzipBytes": 481148
   }
 }

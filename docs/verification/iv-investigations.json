@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-11-05T07:56:59.750Z",
+  "status": "locally_verified_release_candidate",
+  "guides": 3,
+  "tasks": 16,
+  "unitTests": 108,
+  "browserTests": 158,
+  "nativeStataCases": 11,
+  "independentRCases": 11,
+  "checks": [
+    "All task settings, inspections and responses through desktop and phone controls",
+    "Per-task restoration, reset, reload and Workspace backup restoration",
+    "Held-lock check/edit and empty-clear/pending-save races",
+    "Corrupt and full storage preserve exportable in-memory work",
+    "Failed lazy module load retries while exploration remains usable",
+    "Accessibility, keyboard tabs and viewport overflow",
+    "Nested-path deployment, scoped caches and unrelated-cache preservation"
+  ],
+  "limits": [
+    "Public release is recorded separately in public-release.json",
+    "No classroom or manual screen-reader validation",
+    "No full Stata equivalence",
+    "Cross-tab serialization requires Web Locks; old open pages must reload"
+  ],
+  "payloads": [
+    {
+      "name": "iv-lab",
+      "bytes": 93699,
+      "gzipBytes": 35344
+    },
+    {
+      "name": "iv-investigation-ui",
+      "bytes": 34885,
+      "gzipBytes": 11542
+    },
+    {
+      "name": "workspace",
+      "bytes": 162658,
+      "gzipBytes": 52887
+    }
+  ]
+}

@@ -185,10 +185,12 @@ test("workspace restores lab progress and stale lab tabs cannot overwrite an imp
   await expect(page.locator("#investigation-storage")).toContainText(
     "changed in another tab",
   );
+  const imported = await page.evaluate((key) => localStorage.getItem(key), key);
+  expect(JSON.parse(imported)).toMatchObject(labs);
   await answer(page, DATA_INVESTIGATIONS[0].steps[0]);
-  expect(
-    JSON.parse(await page.evaluate((key) => localStorage.getItem(key), key)),
-  ).toEqual(labs);
+  expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(
+    imported,
+  );
   await page.reload();
   await answer(page, DATA_INVESTIGATIONS[0].steps[0]);
   await expect(workspace.locator("[data-tasks-count]")).toHaveText("2");
@@ -196,15 +198,15 @@ test("workspace restores lab progress and stale lab tabs cannot overwrite an imp
   await workspace
     .getByRole("button", { name: "Clear local data", exact: true })
     .click();
-  await expect
-    .poll(() => page.evaluate((key) => localStorage.getItem(key), key))
-    .toBeNull();
+  await expect(workspace.locator("#workspace-status")).toContainText("cleared");
+  const cleared = await page.evaluate((key) => localStorage.getItem(key), key);
+  expect(JSON.parse(cleared).completed).toEqual({});
   await page.locator("#investigation-next").click();
   await trace(page, DATA_INVESTIGATIONS[0].steps[1]);
   await answer(page, DATA_INVESTIGATIONS[0].steps[1]);
-  expect(
-    await page.evaluate((key) => localStorage.getItem(key), key),
-  ).toBeNull();
+  expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(
+    cleared,
+  );
   await workspace.close();
 });
 

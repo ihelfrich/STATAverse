@@ -19,6 +19,12 @@
   },
   { "id": "invalid", "options": { "delta": 0.8 }, "candidate": 1 },
   {
+    "id": "invalid-large",
+    "options": { "delta": 0.8, "n": 2000 },
+    "candidate": 1
+  },
+  { "id": "irrelevant-guided", "options": { "pi": 0 }, "candidate": 1 },
+  {
     "id": "small-negative",
     "options": {
       "n": 30,
