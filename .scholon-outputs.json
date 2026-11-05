@@ -679,7 +679,7 @@
       "path": "docs/verification/public-release.json",
       "kind": "receipt",
       "title": "STATAverse public deployment and legacy-route receipts",
-      "summary": "Published guided do-file builder and cancelable browser execution with local worker recovery; verified main-site navigation, saved work, public downloads and bounded offline transfer",
+      "summary": "Published categorical and continuous factor-variable regression with saturated-fit output, native numerical checks, public prediction/replay/undo verification, shared navigation and smaller offline package",
       "facets": [
         "Stata",
         "website",
@@ -702,7 +702,8 @@
         "docs/verification/public-programming-legacy.json",
         "docs/verification/program-native.json",
         "docs/verification/public-builder-legacy.json",
-        "docs/verification/builder-native.json"
+        "docs/verification/builder-native.json",
+        "docs/verification/factor-native.json"
       ]
     },
     {

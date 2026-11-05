@@ -30,7 +30,7 @@ The app goal record still reports its old blocked state and five-million-token c
 
 ## Cancelable execution and worker recovery
 
-The next release executes Practice commands and saved-history restoration in a dedicated worker. A run uses a separate data snapshot; completed results, receipts and bounded undo states enter the page together. Stop, navigation and obsolete replies cannot commit an abandoned snapshot. A Stata command error still preserves earlier successful commands within a completed run; cancellation discards the pending run in full.
+The published Practice workspace executes commands and saved-history restoration in a dedicated worker. A run uses a separate data snapshot; completed results, receipts and bounded undo states enter the page together. Stop, navigation and obsolete replies cannot commit an abandoned snapshot. A Stata command error still preserves earlier successful commands within a completed run; cancellation discards the pending run in full.
 
 If worker construction, loading or result decoding fails, the page retries the original request through the same interpreter, yielding between commands and control-flow operations. This recovery remains entirely local. It cannot interrupt a single command midway through its calculation; Stop and the time limit take effect at a command boundary. The worker path can terminate during a calculation. Protocol mismatches and invalid results still fail explicitly rather than guessing across asset versions.
 
