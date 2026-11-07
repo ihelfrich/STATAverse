@@ -325,7 +325,7 @@ function renderLesson() {
   $(".editor-actions").classList.toggle("run-together", Boolean(runTogether));
   $("#editor-description").textContent = runTogether
     ? "Use Run all to keep local definitions and their uses in the same run. Ctrl / ⌘ + Shift + Enter also runs the full editor. An uncaptured error stops execution; earlier successful commands remain."
-    : "Run the command at your cursor, select several lines, or run the full editor. Execution stops at an error. Tab leaves the editor; Ctrl + Space shows suggestions.";
+    : "Run the command at your cursor, select several lines, or run the full editor. An uncaptured error stops execution. ⌘ / Ctrl + / comments or uncomments the current line or selected lines.";
   $("#insert-example").hidden = free;
   $("#next-step").hidden = free;
   $("#restart").textContent = free

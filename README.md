@@ -26,6 +26,8 @@ The programming lesson teaches six connected tasks with actual substitutions vis
 
 `capture` (`cap`), `quietly` (`qui`) and `noisily` (`noi`) work on individual commands and brace blocks. `_rc`, `confirm variable`, `confirm numeric variable`, `confirm string variable` and `confirm new variable` support checks before a step runs. `error` raises a return code; `exit` ends the current Run while retaining data. History records suppressed output and captured failures. A prefixed block is saved and undone as one action. Thirty-nine installed-native cases check return codes, data, visible output and saved replay. Browser limits, Stop and malformed structural input still end execution.
 
+The command editor supports Command+/ on Mac and Ctrl+/ on Windows/Linux to comment or uncomment the current line or selected lines. Each comment action has its own text-undo step. The adjacent keyboard reference covers running a selection or the full editor, find/replace, indentation, moving/duplicating lines and leaving the editor with Tab. Shortcuts apply only while the editor has focus. Text undo is separate from the workspace's data Undo button. The capability notes distinguish browser graphs and local macros from unsupported global macros, machine-learning commands, native `.dta` files and stored estimation sets.
+
 ## Local development
 
 Use a current Node installation; this candidate was checked with Node 24.20.0.

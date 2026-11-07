@@ -220,6 +220,32 @@ try {
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
   );
   await verifyPrefixes(factorPage);
+  await replaceEditor(factorPage, "clear\ncount");
+  const shortcutEditor = factorPage.locator("#command-editor");
+  await shortcutEditor.press("ControlOrMeta+A");
+  await shortcutEditor.press("ControlOrMeta+/");
+  assert.equal(await shortcutEditor.innerText(), "// clear\n// count");
+  await shortcutEditor.press("ControlOrMeta+z");
+  assert.equal(await shortcutEditor.innerText(), "clear\ncount");
+  await shortcutEditor.press("ControlOrMeta+Home");
+  await shortcutEditor.press("ControlOrMeta+/");
+  await shortcutEditor.press("ControlOrMeta+Shift+Enter");
+  await factorPage.locator("#run:not([disabled])").waitFor();
+  assert.match(
+    await factorPage.locator("#dataset-count").innerText(),
+    /24 observations/,
+  );
+  await factorPage.reload();
+  await factorPage.locator("#run:not([disabled])").waitFor();
+  assert.equal(await shortcutEditor.innerText(), "// clear\ncount");
+  await factorPage.locator(".editor-shortcuts summary").click();
+  assert.match(
+    await factorPage.locator(".editor-shortcuts").innerText(),
+    /Comment \/ uncomment/,
+  );
+  receipt.checks.push(
+    "editor comment shortcut, text undo, run-all shortcut and saved commented draft work at the canonical address; shortcut reference is available",
+  );
   await factorContext.close();
   receipt.checks.push(
     "capture/noisily blocks, quietly, confirm and _rc run through the worker at the canonical address; partial changes, skipped commands, History, reload and grouped undo agree",

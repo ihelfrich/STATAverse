@@ -1,32 +1,31 @@
 {
-  "checkedAt": "2026-11-05T19:41:22.339Z",
-  "status": "published_factor_regression_repair_broader_work_open",
+  "checkedAt": "2026-11-05T21:22:26.132Z",
+  "status": "published_capture_support_broader_work_open",
   "canonical": "https://ihelfrich.github.io/learn/stata/",
   "builder": "https://ihelfrich.github.io/learn/stata/ScriptLibrary/builder.html",
-  "sourceCommit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
+  "sourceCommit": "bcfc2e728c63d18227c9f4ce6cdb6858d4430d08",
   "mainSite": {
-    "commit": "5279ceeb88c787e9f7c515f92d6f28e58af9e9b5",
+    "commit": "e57026d32702ac3f28f61fac5ca0f3f75b72c5cf",
     "pullRequests": [
-      "https://github.com/ihelfrich/ihelfrich.github.io/pull/29",
-      "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
+      "https://github.com/ihelfrich/ihelfrich.github.io/pull/31"
     ],
-    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42095414232",
+    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42103739154",
     "conclusion": "success"
   },
   "legacy": {
     "url": "https://ihelfrich.github.io/STATAverse/",
-    "commit": "e64ef121f5100c6b4ceee1694033a0eea998fedb",
-    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/7",
-    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42094698099",
+    "commit": "b9ddba0c8b7dcacbf56b3f4b3eb2818963421037",
+    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/8",
+    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42104733853",
     "conclusion": "success",
-    "pagesBuildUpdatedAt": "2026-11-05T19:32:41Z",
-    "deepLinks": "Post-deployment public verification preserves the Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
+    "pagesBuildUpdatedAt": "2026-11-05T20:35:27Z",
+    "deepLinks": "Post-deployment public verification preserves Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
   },
   "evidence": [
     "docs/verification/public-site.json",
-    "docs/verification/factor-native.json",
-    "tests/factor-variables.test.mjs",
-    "tests/browser/factor-variables.spec.js",
+    "docs/verification/prefix-native.json",
+    "tests/command-prefixes.test.mjs",
+    "tests/browser/command-prefixes.spec.js",
     "docs/numerical-contract.md",
     "docs/red-team-review.md"
   ],
@@ -38,39 +37,75 @@
     "No classroom or manual assistive-technology validation."
   ],
   "previousRelease": {
-    "sourceCommit": "077d273a9aa8dc2a40c722d81e90c7ea3b253bab",
+    "checkedAt": "2026-11-05T19:41:22.339Z",
+    "sourceCommit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
     "mainSite": {
-      "commit": "c2aaf112374ee8f7eec3d64bec984d4dfc37e1ee",
+      "commit": "5279ceeb88c787e9f7c515f92d6f28e58af9e9b5",
       "pullRequests": [
-        "https://github.com/ihelfrich/ihelfrich.github.io/pull/28"
+        "https://github.com/ihelfrich/ihelfrich.github.io/pull/29",
+        "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
       ],
-      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42089574403",
+      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42095414232",
       "conclusion": "success"
     },
     "legacy": {
       "url": "https://ihelfrich.github.io/STATAverse/",
-      "commit": "147d682d15ba4871ca0684102d9a0775b85dcccc",
-      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/6",
-      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42090423978",
+      "commit": "e64ef121f5100c6b4ceee1694033a0eea998fedb",
+      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/7",
+      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42094698099",
       "conclusion": "success",
-      "pagesBuildUpdatedAt": "2026-11-05T19:05:19Z",
-      "deepLinks": "Post-deployment builder path, encoded query and fragment reach the canonical route; the public download contains the generated code."
+      "pagesBuildUpdatedAt": "2026-11-05T19:32:41Z",
+      "deepLinks": "Post-deployment public verification preserves the Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
+    },
+    "factorRegression": {
+      "nativeComparisonCases": 69,
+      "unitTests": 156,
+      "browserTests": 232,
+      "publicCommand": "reg hours attendance##score",
+      "continuousCommand": "reg hours c.attendance##c.score, robust",
+      "predictionReplayUndo": "verified on public site",
+      "coreOfflineGzipBytes": 550028
+    },
+    "deploymentRepair": {
+      "failedWorkflow": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42094661290",
+      "cause": "Unrelated identity test sent a scalar answer to a randomly selected multipart question. Forced multipart fixture reproduced the failure.",
+      "repair": "The test now constructs the correct answer shape and checks both sampled and forced-multipart questions. No application logic changed.",
+      "localEconomicsTests": 226,
+      "pullRequest": "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
     }
   },
-  "factorRegression": {
-    "nativeComparisonCases": 69,
-    "unitTests": 156,
-    "browserTests": 232,
-    "publicCommand": "reg hours attendance##score",
-    "continuousCommand": "reg hours c.attendance##c.score, robust",
-    "predictionReplayUndo": "verified on public site",
-    "coreOfflineGzipBytes": 550028
+  "programmingPrefixes": {
+    "commands": [
+      "capture",
+      "quietly",
+      "noisily",
+      "confirm variable",
+      "confirm numeric variable",
+      "confirm string variable",
+      "confirm new variable",
+      "error",
+      "exit"
+    ],
+    "returnCode": "_rc",
+    "nativeComparisonCases": 39,
+    "unitTests": 162,
+    "browserTests": 238,
+    "publicVerificationGroups": 16,
+    "workerAndFallback": "verified on public site",
+    "savedReplayAndGroupedUndo": "verified on public site",
+    "coreOfflineGzipBytes": 552516
   },
-  "deploymentRepair": {
-    "failedWorkflow": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42094661290",
-    "cause": "Unrelated identity test sent a scalar answer to a randomly selected multipart question. Forced multipart fixture reproduced the failure.",
-    "repair": "The test now constructs the correct answer shape and checks both sampled and forced-multipart questions. No application logic changed.",
-    "localEconomicsTests": 226,
-    "pullRequest": "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
-  }
+  "followupObservations": [
+    {
+      "failure": "A public verification repeat timed out while Playwright scrolled the Practice builder link into view.",
+      "investigation": "The same lesson-to-builder sequence was repeated in isolation; the link opened the builder in 45 ms.",
+      "cause": "Not established; no application fix claimed."
+    },
+    {
+      "failure": "Another repeat reported invalid gzip data from the site-wide Pagefind loader.",
+      "investigation": "An isolated public search returned the expected results. All requested Pagefind assets returned HTTP 200, and compressed index files had valid gzip headers.",
+      "cause": "Not established; no application fix claimed."
+    }
+  ],
+  "finalVerification": "A subsequent complete public pass succeeded in all 16 groups, after both deployments; earlier intermittent failures remain recorded."
 }

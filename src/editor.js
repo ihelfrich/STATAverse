@@ -21,7 +21,14 @@ import {
   bracketMatching,
   syntaxTree,
 } from "@codemirror/language";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  isolateHistory,
+  toggleComment,
+  toggleBlockComment,
+} from "@codemirror/commands";
 import {
   autocompletion,
   closeBrackets,
@@ -36,8 +43,25 @@ import { EGEN_FUNCTIONS } from "./grouped-data.js";
 
 const commands = new Set(SUPPORTED_COMMANDS);
 const functions = SUPPORTED_FUNCTIONS;
+function commentEdit(view, command) {
+  return command({
+    state: view.state,
+    dispatch: (transaction) =>
+      view.dispatch({
+        changes: transaction.changes,
+        selection: transaction.selection,
+        effects: transaction.effects,
+        annotations: isolateHistory.of("full"),
+        userEvent: "input.comment",
+        scrollIntoView: true,
+      }),
+  });
+}
 const stata = StreamLanguage.define({
   name: "stata-practice",
+  languageData: {
+    commentTokens: { line: "//", block: { open: "/*", close: "*/" } },
+  },
   startState: () => ({ block: false }),
   token(stream, state) {
     if (state.block) {
@@ -160,6 +184,12 @@ export function createCommandEditor(
       }),
       Prec.highest(
         keymap.of([
+          { key: "Mod-/", run: (view) => commentEdit(view, toggleComment) },
+          {
+            key: "Alt-A",
+            mac: "Ctrl-A",
+            run: (view) => commentEdit(view, toggleBlockComment),
+          },
           {
             key: "Mod-Enter",
             run: () => {

@@ -1,0 +1,206 @@
+{
+  "checkedAt": "2026-11-07T17:45:43.939Z",
+  "basis": "Executed representative cases in the current independent browser interpreter; this is not a percentage of Stata compatibility.",
+  "checks": [
+    {
+      "feature": "scatterplot",
+      "source": "scatter score hours",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "scatter"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "frequency histogram",
+      "source": "histogram score, frequency",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "histogram"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "local and forvalues",
+      "source": "local powers 2\nforvalues p=1/`powers' {\n generate double power`p'=hours^`p'\n}",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "macro",
+        "generate",
+        "generate"
+      ],
+      "columns": 7,
+      "observations": 24
+    },
+    {
+      "feature": "foreach and local varlist",
+      "source": "local vars hours attendance\nforeach v of local vars {\n summarize `v'\n}",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "macro",
+        "summarize",
+        "summarize"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "preserve and restore",
+      "source": "preserve\nkeep if hours>5\nrestore",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "preserve",
+        "keep",
+        "restore"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "grouped summaries",
+      "source": "preserve\ncollapse (mean) score hours, by(group)\nrestore",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "preserve",
+        "collapse",
+        "restore"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "OLS interactions and predictions",
+      "source": "reg score c.hours##c.attendance, robust\npredict double fitted\npredict double residual, residuals",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "regress",
+        "predict",
+        "predict"
+      ],
+      "columns": 7,
+      "observations": 24
+    },
+    {
+      "feature": "captured error and return code",
+      "source": "capture drop absent\ndisplay _rc",
+      "expectedError": null,
+      "actualError": null,
+      "pass": true,
+      "resultKinds": [
+        "captured",
+        "display"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "global definition",
+      "source": "global outcome score",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "while loop",
+      "source": "while 1 {\ncount\n}",
+      "expectedError": 198,
+      "actualError": 198,
+      "pass": true,
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "native data save",
+      "source": "save \"example.dta\", replace",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "native data use",
+      "source": "use \"example.dta\", clear",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "stored models",
+      "source": "estimates store model1",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "lasso",
+      "source": "lasso linear score hours attendance",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "general twoway",
+      "source": "twoway (scatter score hours)",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    },
+    {
+      "feature": "native graph export",
+      "source": "graph export \"plot.png\", replace",
+      "expectedError": 199,
+      "actualError": 199,
+      "pass": true,
+      "resultKinds": [
+        "error"
+      ],
+      "columns": 5,
+      "observations": 24
+    }
+  ]
+}

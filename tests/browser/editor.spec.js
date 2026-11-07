@@ -2,6 +2,100 @@ import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+for (const platform of ["MacIntel", "Win32"])
+  test(`comment shortcuts preserve selected text, undo, execution and saved drafts (${platform})`, async ({
+    page,
+  }) => {
+    await page.addInitScript((value) => {
+      Object.defineProperty(navigator, "platform", { get: () => value });
+    }, platform);
+    const mod = platform === "MacIntel" ? "Meta" : "Control";
+    await page.goto("/Learn/");
+    await page.locator("#free-mode").click();
+    const editor = page.locator("#command-editor");
+    const source = "generate double minutes = hours * 60\nsummarize minutes";
+    await replaceEditor(page, source);
+    await editor.press(`${mod}+A`);
+    await editor.press(`${mod}+/`);
+    const commented =
+      "// generate double minutes = hours * 60\n// summarize minutes";
+    await expect(editor).toHaveText(commented, { useInnerText: true });
+    await editor.press(`${mod}+/`);
+    await expect(editor).toHaveText(source, { useInnerText: true });
+    await editor.press(`${mod}+z`);
+    await expect(editor).toHaveText(commented, { useInnerText: true });
+    await editor.press(`${mod}+Shift+z`);
+    await expect(editor).toHaveText(source, { useInnerText: true });
+    const blockKey =
+      platform === "MacIntel" ? "Control+Shift+A" : "Alt+Shift+A";
+    await editor.press(blockKey);
+    await expect(editor).toContainText("/*");
+    await expect(editor).toContainText("*/");
+    await editor.press(blockKey);
+    await expect(editor).toHaveText(source, { useInnerText: true });
+    await editor.press(`${mod}+Enter`);
+    await expect(page.locator("#dataset-count")).toContainText("6 variables");
+    await replaceEditor(page, "clear\ncount");
+    await editor.press(`${mod}+Home`);
+    await editor.press(`${mod}+/`);
+    await expect(editor).toHaveText("// clear\ncount", { useInnerText: true });
+    await editor.press(`${mod}+Shift+Enter`);
+    await expect(page.locator("#results")).toContainText("24 of 24");
+    await expect(page.locator("#dataset-count")).toContainText(
+      "24 observations",
+    );
+    await page.reload();
+    await expect(editor).toHaveText("// clear\ncount", { useInnerText: true });
+  });
+
+test("editing shortcuts and their reference work without trapping keyboard focus", async ({
+  page,
+}) => {
+  await page.goto("/Learn/");
+  const editor = page.locator("#command-editor");
+  await replaceEditor(page, "count\nsummarize hours");
+  await editor.press("ControlOrMeta+A");
+  await editor.press("ControlOrMeta+]");
+  await expect(editor).toHaveText("  count\n  summarize hours", {
+    useInnerText: true,
+  });
+  await editor.press("ControlOrMeta+[");
+  await expect(editor).toHaveText("count\nsummarize hours", {
+    useInnerText: true,
+  });
+  await editor.press("ControlOrMeta+Home");
+  await editor.press("Alt+ArrowDown");
+  await expect(editor).toHaveText("summarize hours\ncount", {
+    useInnerText: true,
+  });
+  await editor.press("ControlOrMeta+f");
+  await page.locator('.cm-search input[name="search"]').fill("summarize");
+  await page.locator('.cm-search input[name="replace"]').fill("describe");
+  await page.locator('.cm-search button[name="replaceAll"]').click();
+  await expect(editor).toHaveText("describe hours\ncount", {
+    useInnerText: true,
+  });
+  await page.locator('.cm-search input[name="search"]').press("Escape");
+  await editor.press("Tab");
+  await expect(editor).not.toBeFocused();
+  await page.locator(".editor-shortcuts summary").click();
+  await expect(page.locator(".editor-shortcuts")).toContainText(
+    "Comment / uncomment",
+  );
+  await expect(page.locator(".editor-shortcuts")).toContainText(
+    "Undo button restores",
+  );
+  expect(
+    (await new AxeBuilder({ page }).include(".editor-section").analyze())
+      .violations,
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("run current follows logical commands, reports line errors and leaves later commands untouched", async ({
   page,
 }) => {
