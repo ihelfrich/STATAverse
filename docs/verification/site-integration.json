@@ -1,11 +1,12 @@
 {
   "origin": "http://127.0.0.1:4176",
-  "checkedAt": "2026-11-05T20:27:54.002Z",
+  "checkedAt": "2026-11-07T17:55:21.165Z",
   "base": "/learn/stata/",
   "checks": [
     "nested-path command execution, saved practice and scoped service worker",
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
+    "editor comment shortcut, text undo, run-all shortcut and saved commented draft work at the canonical address; shortcut reference is available",
     "capture/noisily blocks, quietly, confirm and _rc run through the worker at the canonical address; partial changes, skipped commands, History, reload and grouped undo agree",
     "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
     "capture/noisily blocks and _rc also survive blocked-worker fallback, saved replay and undo at the canonical address",
@@ -28,8 +29,8 @@
     },
     {
       "asset": "learn.js",
-      "bytes": 541278,
-      "gzipBytes": 176853
+      "bytes": 541652,
+      "gzipBytes": 176981
     },
     {
       "asset": "practice-worker.js",
@@ -84,13 +85,13 @@
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "bcfc2e728c63d18227c9f4ce6cdb6858d4430d08",
+    "commit": "71ab934e2d9c3a9e0c799105a88f7685ed200441",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
     "files": 36,
-    "bytes": 1731573,
-    "gzipBytes": 552516
+    "bytes": 1735061,
+    "gzipBytes": 553339
   }
 }
