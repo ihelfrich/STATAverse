@@ -2,7 +2,7 @@ const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
 const LEGACY_SCOPE =
   new URL(self.registration.scope).pathname === "/STATAverse/";
-const CACHE_NAME = CACHE_PREFIX + "v31";
+const CACHE_NAME = CACHE_PREFIX + "v32";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",

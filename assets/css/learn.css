@@ -399,6 +399,29 @@ button svg {
   font-size: 10px;
   color: var(--muted);
 }
+.editor-shortcuts {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.editor-shortcuts summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.editor-shortcuts dl {
+  margin: 12px 0;
+}
+.editor-shortcuts dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+.editor-shortcuts dd {
+  margin: 0;
+  font-family: var(--mono);
+}
 .editor-wrap {
   display: flex;
   border: 1px solid #ced8cd;

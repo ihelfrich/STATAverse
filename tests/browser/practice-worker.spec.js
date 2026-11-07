@@ -366,6 +366,6 @@ test("the calculation worker can be opened for the first time offline after the 
   await page.reload();
   await expect(page.locator("#dataset-count")).toContainText("7 variables");
   await expect(page.locator("#run-status")).toContainText(
-    "Restored 2 successful commands",
+    "Restored 2 saved actions",
   );
 });

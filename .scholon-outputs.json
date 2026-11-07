@@ -41,7 +41,9 @@
         "tests/browser/factor-variables.spec.js",
         "docs/verification/prefix-native.json",
         "tests/command-prefixes.test.mjs",
-        "tests/browser/command-prefixes.spec.js"
+        "tests/browser/command-prefixes.spec.js",
+        "docs/verification/browser-capabilities.json",
+        "tests/browser/editor.spec.js"
       ]
     },
     {

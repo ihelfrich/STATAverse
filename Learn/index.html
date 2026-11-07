@@ -112,9 +112,63 @@
           <p id="run-status" class="helper" role="status" hidden></p>
           <p id="editor-description" class="helper">
             Run the command at your cursor, select several lines, or run the
-            full editor. Execution stops at an error. Tab leaves the editor;
-            Ctrl + Space shows suggestions.
+            full editor. An uncaptured error stops execution. ⌘ / Ctrl + /
+            comments or uncomments the current line or selected lines.
           </p>
+          <details class="editor-shortcuts">
+            <summary>Keyboard shortcuts</summary>
+            <p class="helper">
+              These apply while the editor has focus. Use ⌘ on Mac and Ctrl on
+              Windows or Linux.
+            </p>
+            <dl>
+              <div>
+                <dt>Comment / uncomment lines</dt>
+                <dd>⌘ / Ctrl + /</dd>
+              </div>
+              <div>
+                <dt>Run current command or selection</dt>
+                <dd>⌘ / Ctrl + Enter</dd>
+              </div>
+              <div>
+                <dt>Run all</dt>
+                <dd>⌘ / Ctrl + Shift + Enter</dd>
+              </div>
+              <div>
+                <dt>Find and replace</dt>
+                <dd>⌘ / Ctrl + F</dd>
+              </div>
+              <div>
+                <dt>Undo / redo text edits</dt>
+                <dd>⌘ / Ctrl + Z / Shift + Z</dd>
+              </div>
+              <div>
+                <dt>Indent / unindent lines</dt>
+                <dd>⌘ / Ctrl + ] / [</dd>
+              </div>
+              <div>
+                <dt>Move selected lines</dt>
+                <dd>Option / Alt + ↑ / ↓</dd>
+              </div>
+              <div>
+                <dt>Duplicate selected lines</dt>
+                <dd>Option / Alt + Shift + ↑ / ↓</dd>
+              </div>
+              <div>
+                <dt>Show suggestions</dt>
+                <dd>Ctrl + Space</dd>
+              </div>
+              <div>
+                <dt>Leave the editor</dt>
+                <dd>Tab</dd>
+              </div>
+            </dl>
+            <p class="helper">
+              Text undo changes the do-file. The Undo button restores an
+              executed action and its data. Escape closes suggestions or search;
+              Tab then moves to the next control.
+            </p>
+          </details>
         </section>
         <div
           id="exercise-check"
@@ -316,6 +370,21 @@
         user-written commands. Unsupported syntax produces an error.
       </p>
       <p>
+        Graph commands currently cover scatterplots and frequency histograms;
+        the Graph tab also shows fitted regression lines. General twoway
+        combinations, graph export commands and Stata graph files are not
+        implemented. The separate analysis labs have additional interactive
+        plots. Machine-learning commands such as lasso are not implemented in
+        Practice.
+      </p>
+      <p>
+        Export work downloads your current data as CSV, your do-file and a
+        complete project ZIP. Saved work can also export a browser backup. These
+        downloads do not implement Stata's save/use commands for .dta files or
+        estimates store/restore for multiple fitted models. Only the current
+        fitted model is available to predict.
+      </p>
+      <p>
         Local macros, foreach lists, integer forvalues loops and nested if/else
         blocks run here. Run a local's definition together with its uses: each
         Run action starts a new local scope. Compound quotes, extended macro
@@ -343,8 +412,8 @@
         permanent file backup.
       </p>
       <p>
-        A session retains up to 500 successful commands and up to 50 undo states
-        and 100 variables. The Results view retains up to 200 entries; larger
+        A session retains up to 500 saved actions and up to 50 undo states and
+        100 variables. The Results view retains up to 200 entries; larger
         outputs retain fewer entries to limit memory use. Long list and
         frequency tables show their first 200 rows, with complete retained
         tables in the results download. Graphs and regressions require absolute
