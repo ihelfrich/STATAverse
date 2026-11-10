@@ -636,6 +636,72 @@ export const BY = [
   "sum(id)/_N",
 ];
 
+// Machine-written expressions over the same data, from a fixed seed, to
+// reach combinations of operators and missing values nobody thought to
+// write down.
+export function randomExpressions(count, seed = 20261110) {
+  let state = seed;
+  const next = () => {
+    // A small linear congruential generator; only variety matters here.
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  const pick = (items) => items[Math.floor(next() * items.length)];
+  const atoms = [
+      "x",
+      "f",
+      "id",
+      "g",
+      "price",
+      "0",
+      "1",
+      "2.5",
+      "3",
+      ".",
+      ".a",
+      "_n",
+    ],
+    binary = [
+      "+",
+      "-",
+      "*",
+      "/",
+      "^",
+      "==",
+      "!=",
+      "<",
+      ">",
+      "<=",
+      ">=",
+      "&",
+      "|",
+    ],
+    unary = ["-", "!"],
+    one = ["abs", "sqrt", "floor", "ceil", "int", "round", "sign", "missing"],
+    two = ["min", "max", "mod"];
+  const build = (depth) => {
+    const roll = next();
+    if (depth === 0 || roll < 0.25) return pick(atoms);
+    if (roll < 0.6)
+      return `(${build(depth - 1)} ${pick(binary)} ${build(depth - 1)})`;
+    if (roll < 0.7) return `${pick(unary)}${build(depth - 1)}`;
+    if (roll < 0.85) return `${pick(one)}(${build(depth - 1)})`;
+    if (roll < 0.95)
+      return `${pick(two)}(${build(depth - 1)}, ${build(depth - 1)})`;
+    return `cond(${build(depth - 1)}, ${build(depth - 1)}, ${build(depth - 1)})`;
+  };
+  const out = [];
+  while (out.length < count) {
+    // Unparenthesised chains exercise precedence as well.
+    const expression =
+      next() < 0.4
+        ? `${build(2)} ${pick(binary)} ${build(1)} ${pick(binary)} ${build(2)}`
+        : build(3);
+    if (!out.includes(expression)) out.push(expression);
+  }
+  return out;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folder = await fs.mkdtemp(
     path.join(os.tmpdir(), "stataverse-expressions-native-"),
@@ -690,6 +756,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const dataCases = [
     ...DATA.map((e) => ({ expression: e, by: false })),
     ...BY.map((e) => ({ expression: e, by: true })),
+    ...randomExpressions(400).map((e) => ({
+      expression: e,
+      by: false,
+      random: true,
+    })),
   ];
   dataCases.forEach(({ expression, by }, k) => {
     const prefix = by ? "bysort g (id): " : "";

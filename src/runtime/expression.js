@@ -403,21 +403,11 @@ export function compileExpression(source, scope = {}) {
     });
   }
 
-  // Precedence, tightest first: !, ^, unary minus, /, *, -, +, comparison,
-  // &, |. Division binds tighter than multiplication and subtraction than
-  // addition, as Stata documents, which is visible in rounding.
-  const not = () => {
-    if (take("!")) {
-      const value = numeric(signedNot());
-      return node(N, (i, env) => Number(value(i, env) === 0));
-    }
-    return primary();
-  };
-  const signedNot = () => {
-    if (take("-")) return negate(signedNot());
-    if (take("+")) return node(N, numeric(signedNot()));
-    return not();
-  };
+  // Precedence, tightest first: ^, then the prefix operators ! and -, then
+  // /, *, -, +, then the comparisons each at its own level in the order
+  // !=, >, <, <=, >=, ==, then & and |. These were settled by running
+  // machine-written expressions in Stata: !a^b is !(a^b), a == b < c is
+  // a == (b < c), and ! may not be followed directly by a minus sign.
   const negate = (operand) => {
     const value = numeric(operand);
     return node(N, (i, env) => {
@@ -425,14 +415,33 @@ export function compileExpression(source, scope = {}) {
       return isMissing(x) ? MISSING : -x;
     });
   };
+  const invert = (operand) => {
+    const value = numeric(operand);
+    return node(N, (i, env) => Number(value(i, env) === 0));
+  };
+  // What may follow ^: a primary, or one carrying its own prefix.
+  const powerOperand = () => {
+    if (take("-")) return negate(powerOperand());
+    if (take("+")) return node(N, numeric(powerOperand()));
+    if (take("!")) return invert(bang());
+    return primary();
+  };
   const pow = () => {
-    let left = not();
-    while (take("^")) left = arithmetic(left, signedNot(), power);
+    let left = primary();
+    while (take("^")) left = arithmetic(left, powerOperand(), power);
     return left;
+  };
+  // What may follow !: another !, or a power; not a sign.
+  const bang = () => {
+    if (take("!")) return invert(bang());
+    if (isOp("-") || isOp("+"))
+      throw invalid("! may not be followed by a sign");
+    return pow();
   };
   const unary = () => {
     if (take("-")) return negate(unary());
     if (take("+")) return node(N, numeric(unary()));
+    if (take("!")) return invert(bang());
     return pow();
   };
   const divide = binaryLevel(["/"], unary, (_, l, r) =>
@@ -456,7 +465,11 @@ export function compileExpression(source, scope = {}) {
     }
     return arithmetic(l, r, (x, y) => x + y);
   });
-  const compare = binaryLevel(Object.keys(COMPARE), add, relational);
+  // Each comparison is its own level, != binding tightest and == loosest.
+  const compare = ["!=", ">", "<", "<=", ">=", "=="].reduce(
+    (next, operator) => binaryLevel([operator], next, relational),
+    add,
+  );
   const and = binaryLevel(["&"], compare, logical);
   const or = binaryLevel(["|"], and, logical);
 

@@ -144,7 +144,14 @@ test("expressions over data match native Stata, with and without by", () => {
           );
     if (type !== c.type) failures.push(`${label}: type ${type} vs ${c.type}`);
     result.values.forEach((value, i) => {
-      if (!same(value, c.values[i], c.expression))
+      // Machine-written cases pass through ^ and other library functions
+      // in unpredictable places, so they are compared to 1 part in 10^12.
+      const close =
+        c.random &&
+        typeof value === "number" &&
+        Math.abs(value - c.values[i]) <=
+          1e-12 * Math.max(1, Math.abs(c.values[i]));
+      if (!close && !same(value, c.values[i], c.expression))
         failures.push(
           `${label} [${i + 1}]: ${show(value)} vs ${show(c.values[i])}`,
         );
