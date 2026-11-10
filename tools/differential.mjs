@@ -6,7 +6,8 @@
 import fs from "node:fs/promises";
 import { PracticeSession } from "../src/engine.js";
 import { LESSONS } from "../src/lessons.js";
-import { createDataset } from "../src/datasets.js";
+import { DATASETS, createDataset, toCSV } from "../src/datasets.js";
+import { addTextFile } from "../src/runtime/delimited.js";
 import { Session } from "../src/runtime/session.js";
 import { Dataset } from "../src/runtime/store.js";
 import { isMissing } from "../src/runtime/values.js";
@@ -63,6 +64,8 @@ export function compareLesson(lesson) {
   const legacy = new PracticeSession(lesson.dataset),
     runtime = new Session();
   runtime.data = Dataset.fromRows(createDataset(lesson.dataset));
+  for (const [id, data] of Object.entries(DATASETS))
+    addTextFile(runtime, data.file ?? `${id}.csv`, toCSV(createDataset(id)));
   const steps = [];
   for (const step of lesson.steps) {
     if (!step.command) continue;

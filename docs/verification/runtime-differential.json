@@ -1,10 +1,10 @@
 {
   "basis": "Every command of every lesson, run in order through the frozen interpreter and the new runtime from the same starting data. A lesson stops at the first command only one of them runs.",
   "commands": 83,
-  "same": 69,
+  "same": 70,
   "sameToSinglePrecision": 12,
   "bothRefuse": 0,
-  "runtimeRefuses": 2,
+  "runtimeRefuses": 1,
   "legacyRefuses": 0,
   "different": 0,
   "lessons": [
@@ -231,9 +231,8 @@
         {
           "command": "clear\nimport delimited using \"study.csv\", clear\ncount if !missing(score, hours, attendance)",
           "legacy": 0,
-          "runtime": 199,
-          "status": "runtime refuses",
-          "detail": "command import is unrecognized"
+          "runtime": 0,
+          "status": "same"
         }
       ]
     },

@@ -98,6 +98,19 @@
       <section class="console-variables" aria-labelledby="variables-title">
         <h2 id="variables-title">Variables</h2>
         <p id="console-memory">No data in memory.</p>
+        <p class="console-files">
+          Files in this session: <span id="console-files">none</span>
+        </p>
+        <p class="console-files">
+          <label for="console-file"
+            >Add a CSV or text file from your computer</label
+          >
+          <input
+            type="file"
+            id="console-file"
+            accept=".csv,.tsv,.txt,text/csv,text/plain"
+          />
+        </p>
         <div
           class="console-scroll"
           tabindex="0"

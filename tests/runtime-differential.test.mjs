@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { compareAll } from "../tools/differential.mjs";
 
 // Commands the lessons use that the new runtime does not have yet.
-const NOT_YET = /^(codebook|clear\nimport)\b/;
+const NOT_YET = /^codebook\b/;
 
 test("lessons run the same in the frozen interpreter and the new runtime", () => {
   const report = compareAll(),

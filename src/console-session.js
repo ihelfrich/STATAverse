@@ -2,7 +2,8 @@
 // same code runs in the worker and, when a worker cannot start, in the page.
 import { Session } from "./runtime/session.js";
 import { Dataset } from "./runtime/store.js";
-import { DATASETS, createDataset } from "./datasets.js";
+import { addTextFile } from "./runtime/delimited.js";
+import { DATASETS, createDataset, toCSV } from "./datasets.js";
 
 const library = Object.fromEntries(
   Object.keys(DATASETS).map((id) => [id, createDataset(id)]),
@@ -10,9 +11,12 @@ const library = Object.fromEntries(
 
 export function createConsoleSession() {
   let session;
+  // Files the student added stay available when the session is cleared.
+  const added = new Map();
   const memory = () => ({
     observations: session.data.n,
     sortedBy: [...session.data.sortedBy],
+    files: [...(session.files ?? new Map()).keys()].sort(),
     variables: session.data.variables.map(({ name, type, format, label }) => ({
       name,
       type,
@@ -23,6 +27,10 @@ export function createConsoleSession() {
   const reset = (dataset = "") => {
     session = new Session();
     session.library = library;
+    // Each site dataset is also there as a CSV file, as lessons expect.
+    for (const [id, data] of Object.entries(library))
+      addTextFile(session, DATASETS[id].file ?? `${id}.csv`, toCSV(data));
+    for (const [name, text] of added) addTextFile(session, name, text);
     if (dataset && library[dataset])
       session.data = Dataset.fromRows(library[dataset]);
     return { memory: memory() };
@@ -30,6 +38,11 @@ export function createConsoleSession() {
   reset();
   return {
     reset,
+    addFile(name, text) {
+      added.set(name, text);
+      addTextFile(session, name, text);
+      return { memory: memory() };
+    },
     run(source) {
       const { output, rc } = session.run(source);
       return { output, rc, memory: memory() };

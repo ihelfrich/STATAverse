@@ -147,3 +147,12 @@
   border: 1px solid var(--line);
   background: #fff;
 }
+.console-files {
+  font-size: 14px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.console-files label {
+  display: block;
+  margin-bottom: 4px;
+}

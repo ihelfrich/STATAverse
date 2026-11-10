@@ -112,3 +112,33 @@ test("a long do-file can be stopped, which clears the session", async ({
   await page.locator("#console-run").click();
   await expect(page.locator("#console-output")).toContainText("42");
 });
+
+test("a student's own CSV file can be added and imported", async ({ page }) => {
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await expect(page.locator("#console-files")).toContainText("study.csv");
+  await page.locator("#console-file").setInputFiles({
+    name: "my wages.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'Worker,Wage,Region\n1,21.5,"North, coastal"\n2,,South\n3,30,North\n',
+    ),
+  });
+  await expect(page.locator("#console-status")).toContainText(
+    'import delimited using "my wages.csv", clear',
+  );
+  await expect(page.locator("#console-files")).toContainText("my wages.csv");
+  await page
+    .locator("#console-source")
+    .fill('import delimited using "my wages.csv", clear\nsummarize wage\nlist');
+  await page.locator("#console-run").click();
+  const output = page.locator("#console-output");
+  await expect(output).toContainText("(3 vars, 3 obs)");
+  await expect(output).toContainText("North, coastal");
+  await expect(page.locator("#console-memory")).toContainText(
+    "3 observations, 3 variables",
+  );
+  // The file survives clearing the session.
+  await page.locator("#console-reset").click();
+  await expect(page.locator("#console-files")).toContainText("my wages.csv");
+});

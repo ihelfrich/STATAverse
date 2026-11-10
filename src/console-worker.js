@@ -7,7 +7,11 @@ self.onmessage = ({ data }) => {
   const { id, kind, source, dataset } = data;
   try {
     const result =
-      kind === "run" ? session.run(source) : session.reset(dataset);
+      kind === "run"
+        ? session.run(source)
+        : kind === "file"
+          ? session.addFile(data.name, data.text)
+          : session.reset(dataset);
     self.postMessage({ id, ok: true, ...result });
   } catch (error) {
     // Anything that reaches here is a fault in the interpreter itself.

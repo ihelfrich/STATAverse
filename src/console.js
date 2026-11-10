@@ -85,7 +85,9 @@ function ask(message) {
       return Promise.resolve(
         message.kind === "run"
           ? local.run(message.source)
-          : local.reset(message.dataset),
+          : message.kind === "file"
+            ? local.addFile(message.name, message.text)
+            : local.reset(message.dataset),
       );
     } catch (error) {
       return Promise.reject(error);
@@ -133,6 +135,9 @@ function showVariables(memory) {
     body.append(row);
   }
   table.hidden = !memory.variables.length;
+  $("console-files").textContent = memory.files.length
+    ? memory.files.join(", ")
+    : "none";
   $("console-memory").textContent = memory.variables.length
     ? `${memory.observations.toLocaleString("en-US")} observations, ${memory.variables.length} variables${memory.sortedBy.length ? `, sorted by ${memory.sortedBy.join(" ")}` : ""}.`
     : "No data in memory.";
@@ -261,6 +266,23 @@ source.addEventListener("keydown", (event) => {
   }
 });
 source.addEventListener("input", save);
+$("console-file").addEventListener("change", async (event) => {
+  const [file] = event.target.files;
+  event.target.value = "";
+  if (!file) return;
+  if (file.size > 5_000_000) {
+    status.textContent = `${file.name} is larger than 5 MB, which is more than this page reads.`;
+    return;
+  }
+  const text = await file.text();
+  if (text.includes("\0")) {
+    status.textContent = `${file.name} is not a text file. Save it as CSV first; .dta and .xlsx files cannot be read here yet.`;
+    return;
+  }
+  const result = await ask({ kind: "file", name: file.name, text });
+  showVariables(result.memory);
+  status.textContent = `Added ${file.name}. Read it with: import delimited using "${file.name}", clear`;
+});
 
 await startWorker();
 await newSession("Ready.");

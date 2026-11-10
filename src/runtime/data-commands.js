@@ -53,6 +53,11 @@ function changed(session) {
 function load(session, name) {
   const stored = files(session).get(name);
   if (!stored) throw new StataError(`file ${name} not found`, 601);
+  if (typeof stored.text === "string")
+    throw new StataError(
+      `${name} is a text file, not a Stata dataset; use import delimited`,
+      610,
+    );
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.restore(stored);
   data.defaultType = session.data.defaultType;
