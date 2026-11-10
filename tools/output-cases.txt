@@ -585,3 +585,71 @@ poisson n x1 x2
 estat gof
 poisson n x1
 estat gof
+=== tabulate-percentages
+@EST
+generate byte d = y > 12
+tab1 g cl
+tab2 g cl d
+tabulate g cl, row
+tabulate g cl, column
+tabulate g cl, cell
+tabulate g cl, row column chi2
+tabulate g cl, row column cell
+tabulate g d if x1 > 2, row
+tabulate g, summarize(y)
+tabulate cl, summarize(x2)
+tabulate g, generate(gg)
+describe gg1 gg2 gg3
+tabulate cl if x1 > 3, generate(c)
+list g cl gg1 c1 c3 in 1/6
+=== everyday-statistics
+@EST
+replace x2 = . in 3
+mean y x1
+mean y x1 x2
+mean y if g > 1, level(90)
+ci means y x1 x2
+ci means y, level(90)
+ci means y x2 if g < 3
+pwcorr y x1 x2
+pwcorr y x1 x2, sig
+pwcorr y x1 x2, obs
+pwcorr y x1 x2 cl, sig obs star(.05)
+pwcorr y x1 x2 cl, star(.01)
+spearman y x2
+spearman g cl
+clonevar yy = y
+clonevar gg = g if x1 > 4
+describe yy gg
+list y yy g gg in 1/6
+=== regress-diagnostics
+@EST
+regress y x1 x2, beta
+regress y x1 i.g, beta
+regress y x1 x2, vce(hc2)
+regress y x1 x2, vce(hc3)
+regress y x1 x2
+estat hettest
+estat hettest x1 x2
+estat hettest cl
+estat ovtest
+estat imtest
+estat imtest, white
+estat vce
+estat summarize
+testparm x1 x2
+testparm x*
+regress y x1 i.g
+testparm i.g
+estat ovtest
+estat hettest
+estat vce
+regress y x1 x2 if cl > 1
+predict h, hat
+predict lev, leverage
+predict rs, rstandard
+predict rt, rstudent
+predict cd, cooksd
+predict sr, stdr
+predict sf, stdf
+list h lev rs rt cd sr sf

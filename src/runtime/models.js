@@ -2,6 +2,7 @@
 // two-stage least squares (ivregress 2sls), with estat and estimates. They
 // leave the same result object regress leaves, marked dist "z", and the
 // post-estimation commands here read only that object.
+import { regressDiagnostic, testparm } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
@@ -868,7 +869,8 @@ function estat(session, text, ctx) {
       P_p1: (100 * tp) / (tp + fn),
       P_n0: (100 * tn) / (tn + fp),
     };
-  } else throw new StataError(`estat ${what} is not available yet`, 321);
+  } else if (!regressDiagnostic(session, model, what, text, ctx))
+    throw new StataError(`estat ${what} is not available yet`, 321);
 }
 
 function estimatesCommand(session, text, ctx) {
@@ -918,6 +920,12 @@ export const MODEL_COMMANDS = [
   { name: "poisson", minimum: 4, run: maximumLikelihood("poisson") },
   { name: "ivregress", minimum: 5, run: ivregress },
   { name: "test", minimum: 4, run: test },
+  {
+    name: "testparm",
+    minimum: 8,
+    run: (session, text, ctx) =>
+      testparm(session, estimates(session), text, ctx),
+  },
   { name: "lincom", minimum: 6, run: lincom },
   { name: "predict", minimum: 7, run: predict },
   { name: "estat", minimum: 5, run: estat },

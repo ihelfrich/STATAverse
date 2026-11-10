@@ -12,6 +12,7 @@ import { ESTIMATION_COMMANDS } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
+import { EVERYDAY_COMMANDS } from "./everyday.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
@@ -27,6 +28,8 @@ import {
   perGroup,
   present,
   summarize,
+  tab1,
+  tab2,
   tabulate,
 } from "./reports.js";
 import {
@@ -1238,6 +1241,7 @@ export const COMMANDS = [
   ...MODEL_COMMANDS,
   ...PANEL_COMMANDS,
   ...UTILITY_COMMANDS,
+  ...EVERYDAY_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   ...DELIMITED_COMMANDS,
@@ -1261,6 +1265,8 @@ export const COMMANDS = [
   command("count", 3, perGroup(countCommand), true),
   command("summarize", 2, perGroup(summarize), true),
   command("tabulate", 2, perGroup(tabulate), true),
+  command("tab1", 4, tab1),
+  command("tab2", 4, tab2),
   command("list", 1, perGroup(list), true),
   command("describe", 1, describe),
   command("label", 2, label),

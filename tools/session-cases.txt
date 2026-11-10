@@ -1095,3 +1095,68 @@ local m --
 capture local k = ++ + 3
 local rc = _rc
 local w : word count
+=== diagnostics-hettest | r: chi2 df p
+@EST
+regress y x1 x2
+estat hettest
+=== diagnostics-hettest-varlist | r: chi2 df p
+@EST
+regress y x1 x2
+estat hettest x1 cl
+=== diagnostics-ovtest | r: F df df_r p
+@EST
+regress y x1 x2
+estat ovtest
+=== diagnostics-ovtest-factor | r: F df df_r p
+@EST
+regress y x2 i.g
+estat ovtest
+=== diagnostics-testparm | r: F df df_r p drop
+@EST
+regress y x1 x2
+testparm x1 x2
+=== diagnostics-testparm-factor | r: F df df_r p
+@EST
+regress y x1 i.g
+testparm i.g
+=== diagnostics-imtest | r: chi2_h df_h chi2_s df_s chi2_k df_k chi2_t df_t
+@EST
+regress y x1 x2
+estat imtest
+=== diagnostics-predict
+@EST
+regress y x1 x2 if cl > 1
+predict double h, hat
+predict double rs, rstandard
+predict double rt, rstudent
+predict double cd, cooksd
+predict double sr, stdr
+predict double sf, stdf
+predict float lev if g > 1, leverage
+=== diagnostics-hc2 | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+regress y x1 x2, vce(hc2)
+=== diagnostics-hc3 | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+regress y x1 i.g, vce(hc3)
+=== everyday-ci | r: mean se lb ub N level
+@EST
+replace x2 = . in 3
+ci means y x2, level(90)
+=== everyday-spearman | r: rho p N
+@EST
+replace x2 = . in 3
+spearman y x2
+=== everyday-spearman-ties | r: rho p N
+@EST
+spearman g cl
+=== everyday-pwcorr | r: rho N
+@EST
+replace x2 = . in 3
+pwcorr y x2
+=== everyday-data
+@EST
+clonevar yy = y
+clonevar gg = g if x1 > 4
+tabulate g, generate(d)
+tabulate cl if x1 > 3, generate(c)

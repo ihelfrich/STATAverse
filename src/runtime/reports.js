@@ -2,6 +2,7 @@
 // describe. The layouts follow Stata's Results window column for column;
 // tests/runtime-output.test.mjs compares them with text recorded from
 // installed Stata.
+import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import {
@@ -13,6 +14,7 @@ import {
 } from "./values.js";
 
 const g9 = (value, width) => applyFormat(value, "%9.0g").trim().padStart(width);
+const g10 = (value) => applyFormat(value, "%10.0g").trim().padStart(12);
 export const count = (n) => applyFormat(n, "%14.0gc").trim();
 
 export function percentile(sorted, p) {
@@ -211,7 +213,7 @@ function wrap(text, width) {
 
 export function tabulate(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [, Missing NOLabel SORT CHI2 | NOFreq ROW COLumn CELL EXact LRchi2 Gamma TAUb V EXPected]",
+      "varlist(min=1 max=2) [if] [in] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) | NOFreq EXact LRchi2 Gamma TAUb V EXPected]",
       text,
     ),
     rows = scope(session, parsed, ctx),
@@ -235,7 +237,8 @@ export function tabulate(session, text, ctx) {
           ? missingName(value)
           : formatNumber(value)
         : labelled(session, variables[k], value),
-    title = (k) => variables[k].label || variables[k].name;
+    title = (k) => variables[k].label || variables[k].name,
+    data = session.data;
   if (!keep.length) {
     ctx.out("no observations");
     session.results.r = { N: 0 };
@@ -252,6 +255,35 @@ export function tabulate(session, text, ctx) {
       width = Math.max(11, ...shown.map((item) => item.length)),
       rule = "-".repeat(width + 1) + "+" + "-".repeat(35),
       heading = wrap(title(0), width);
+    if (parsed.options.summarize) {
+      const target = session.data.get(
+          session.varlist(parsed.options.summarize)[0],
+        ),
+        of = `Summary of ${target.label || target.name}`,
+        wideRule = rule + "-",
+        line = (label, values) => {
+          const m = moments(values);
+          return `${label.padStart(width)} |${g10(m.mean)}${g10(m.n > 1 ? m.sd : m.n ? 0 : MISSING)}${count(m.n).padStart(12)}`;
+        },
+        within = (value) =>
+          present(
+            target.data,
+            keep.filter((i) => variables[0].data[i] === value),
+          );
+      ctx.out(
+        `${" ".repeat(width)} |${" ".repeat(Math.max(0, Math.ceil((36 - of.length) / 2)))}${of}`,
+      );
+      heading.slice(0, -1).forEach((text) => ctx.out(`${text} |`));
+      ctx.out(`${heading.at(-1)} |        Mean   Std. dev.       Freq.`);
+      ctx.out(wideRule);
+      entries.forEach(([value], k) => ctx.out(line(shown[k], within(value))));
+      ctx.out(wideRule);
+      const all = present(target.data, keep);
+      ctx.out(line("Total", all));
+      ctx.out("");
+      session.results.r = { N: all.length, r: entries.length };
+      return;
+    }
     heading.forEach((line, k) =>
       ctx.out(
         `${line} |${k === heading.length - 1 ? "      Freq.     Percent        Cum." : ""}`,
@@ -270,6 +302,29 @@ export function tabulate(session, text, ctx) {
       `${"Total".padStart(width)} |${count(keep.length).padStart(11)}${applyFormat(100, "%12.2f")}`,
     );
     ctx.out("");
+    if (parsed.options.generate) {
+      const source = variables[0],
+        stem = parsed.options.generate,
+        kept = new Set(keep),
+        sorted = [...data.sortedBy];
+      levels[0].forEach((value, k) => {
+        const name = stem + (k + 1);
+        data.generate(
+          name,
+          source.data.map((v, i) =>
+            kept.has(i) ? Number(v === value) : MISSING,
+          ),
+          { type: "byte" },
+        );
+        data.get(name).label =
+          `${source.name}==` +
+          (typeof value === "string" ||
+          session.data.valueLabels.get(source.valueLabel)?.has(value)
+            ? show(0, value)
+            : applyFormat(value, "%11.4f"));
+      });
+      data.sortedBy = sorted;
+    }
     session.results.r = { N: keep.length, r: entries.length };
     return;
   }
@@ -287,7 +342,53 @@ export function tabulate(session, text, ctx) {
         .slice(1),
     rule = `-----------+${"-".repeat(span)}+----------`,
     columnTitle = title(1).slice(0, span),
-    rowHeading = wrap(title(0), 10);
+    rowHeading = wrap(title(0), 10),
+    rowTotal = table.map((row) => row.reduce((a, b) => a + b, 0)),
+    columnTotal = levels[1].map((_, k) =>
+      table.reduce((t, row) => t + row[k], 0),
+    ),
+    total = keep.length,
+    percent = (n, of) => applyFormat((100 * n) / of, "%10.2f"),
+    kinds = [
+      ["row", "row percentage"],
+      ["column", "column percentage"],
+      ["cell", "cell percentage"],
+    ].filter(([option]) => parsed.options[option]);
+  if (kinds.length) {
+    const entries = ["frequency", ...kinds.map(([, text]) => text)],
+      inner = Math.max(...entries.map((item) => item.length)) + 2,
+      centre = (item) => {
+        const left = Math.floor((inner - item.length) / 2);
+        return " ".repeat(left) + item + " ".repeat(inner - item.length - left);
+      };
+    ctx.out(`+${"-".repeat(inner)}+`);
+    ctx.out(`| ${"Key".padEnd(inner - 1)}|`);
+    ctx.out(`|${"-".repeat(inner)}|`);
+    entries.forEach((item) => ctx.out(`|${centre(item)}|`));
+    ctx.out(`+${"-".repeat(inner)}+`);
+    ctx.out("");
+  }
+  const percentLines = (row, r) =>
+    kinds.map(([option]) => {
+      const of = (k) =>
+        option === "row"
+          ? r === null
+            ? total
+            : rowTotal[r]
+          : option === "column"
+            ? columnTotal[k]
+            : total;
+      return `${" ".repeat(10)} |${cells(row.map((n, k) => percent(n, of(k))))} |${percent(
+        option === "column"
+          ? r === null
+            ? total
+            : rowTotal[r]
+          : r === null
+            ? total
+            : rowTotal[r],
+        option === "row" ? (r === null ? total : rowTotal[r]) : total,
+      ).padStart(10)}`;
+    });
   ctx.out(
     `           |${" ".repeat(Math.max(0, Math.ceil((span - columnTitle.length) / 2)))}${columnTitle}`,
   );
@@ -299,15 +400,18 @@ export function tabulate(session, text, ctx) {
     ),
   );
   ctx.out(rule);
-  table.forEach((row, r) =>
+  table.forEach((row, r) => {
+    if (r && kinds.length) ctx.out(rule);
     ctx.out(
-      `${short(show(0, levels[0][r])).padStart(10)} |${cells(row.map(count))} |${count(row.reduce((a, b) => a + b, 0)).padStart(10)}`,
-    ),
-  );
+      `${short(show(0, levels[0][r])).padStart(10)} |${cells(row.map(count))} |${count(rowTotal[r]).padStart(10)}`,
+    );
+    percentLines(row, r).forEach(ctx.out);
+  });
   ctx.out(rule);
   ctx.out(
     `${"Total".padStart(10)} |${cells(levels[1].map((_, k) => count(table.reduce((t, row) => t + row[k], 0))))} |${count(keep.length).padStart(10)}`,
   );
+  percentLines(columnTotal, null).forEach(ctx.out);
   ctx.out("");
   session.results.r = {
     N: keep.length,
@@ -407,7 +511,7 @@ export function describe(session, text, ctx) {
   for (const name of names) {
     const v = data.get(name);
     ctx.out(
-      `${v.name.padEnd(16)}${v.type.padEnd(8)}${v.format.padEnd(11)}${v.valueLabel.padEnd(11)}${v.label}`.trimEnd(),
+      `${v.name.padEnd(16)}${v.type.padEnd(8)}${v.format.padEnd(11)}${v.valueLabel.padEnd(11)}${v.label.replace(/ {2,}/g, " ")}`.trimEnd(),
     );
   }
   if (whole) {
@@ -437,3 +541,30 @@ export const perGroup = (run) => (session, text, ctx) => {
     run(session, text, { ...ctx, group });
   }
 };
+
+const splitVarlist = (text) =>
+  /^([\s\S]*?)(\s+(?:if|in)\s[\s\S]*|,[\s\S]*)?$/.exec(text);
+/** tab1: a one-way table for each variable. */
+export function tab1(session, text, ctx) {
+  const m = splitVarlist(text),
+    names = session.varlist(m[1]);
+  if (!names.length) throw new StataError("varlist required", 100);
+  ctx.out("");
+  for (const name of names) {
+    ctx.out(`-> tabulation of ${name}  `);
+    tabulate(session, `${name}${m[2] ?? ""}`, ctx);
+  }
+}
+/** tab2: a two-way table for each pair of variables. */
+export function tab2(session, text, ctx) {
+  const m = splitVarlist(text),
+    names = session.varlist(m[1]);
+  if (names.length < 2)
+    throw new StataError("too few variables specified", 102);
+  ctx.out("");
+  for (let a = 0; a < names.length; a++)
+    for (let b = a + 1; b < names.length; b++) {
+      ctx.out(`-> tabulation of ${names[a]} by ${names[b]}  `);
+      tabulate(session, `${names[a]} ${names[b]}${m[2] ?? ""}`, ctx);
+    }
+}

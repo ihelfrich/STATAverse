@@ -7936,6 +7936,1211 @@
       "variables": []
     },
     {
+      "id": "diagnostics-hettest",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\nestat hettest\n",
+      "locals": [],
+      "globals": [],
+      "r": ["chi2", "df", "p"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "chi2": 1.887452644657074,
+        "df": 1,
+        "p": 0.16948951806599746
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-hettest-varlist",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\nestat hettest x1 cl\n",
+      "locals": [],
+      "globals": [],
+      "r": ["chi2", "df", "p"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "chi2": 3.8234344279853367,
+        "df": 2,
+        "p": 0.14782631909013197
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-ovtest",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\nestat ovtest\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "df", "df_r", "p"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 0.8070283872684043,
+        "df": 3,
+        "df_r": 6,
+        "p": 0.5343545502281322
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-ovtest-factor",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x2 i.g\nestat ovtest\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "df", "df_r", "p"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 0.5887268158428666,
+        "df": 3,
+        "df_r": 5,
+        "p": 0.6484260158788013
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-testparm",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\ntestparm x1 x2\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "df", "df_r", "p", "drop"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 1576.481225540144,
+        "df": 2,
+        "df_r": 9,
+        "p": 3.5017578036619275e-12,
+        "drop": 0
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-testparm-factor",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 i.g\ntestparm i.g\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "df", "df_r", "p"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 0.09988268680333129,
+        "df": 2,
+        "df_r": 8,
+        "p": 0.9060543399890871
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-imtest",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\nestat imtest\n",
+      "locals": [],
+      "globals": [],
+      "r": [
+        "chi2_h",
+        "df_h",
+        "chi2_s",
+        "df_s",
+        "chi2_k",
+        "df_k",
+        "chi2_t",
+        "df_t"
+      ],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "chi2_h": 9.659983390504534,
+        "df_h": 5,
+        "chi2_s": 1.990530183558727,
+        "df_s": 2,
+        "chi2_k": 0.10357455056615361,
+        "df_k": 1,
+        "chi2_t": 11.754088124629416,
+        "df_t": 8
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "byte",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-predict",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2 if cl > 1\npredict double h, hat\npredict double rs, rstandard\npredict double rt, rstudent\npredict double cd, cooksd\npredict double sr, stdr\npredict double sf, stdf\npredict float lev if g > 1, leverage\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        },
+        {
+          "name": "h",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "Leverage",
+          "values": [
+            0.6308706200718517, 0.5471492558204637, 0.3925255447207572,
+            0.39223627117062454, 0.21954229459245034, 0.21674287313955065,
+            0.18671207950356883, 0.1510287873839402, 0.26366117669014977,
+            0.3042131292866139, 0.45038958615219404, 0.42294825736014485
+          ]
+        },
+        {
+          "name": "rs",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "Standardized residuals",
+          "values": [
+            -0.15052013691780505, 0.6349851647187292, 0.08721569928558524,
+            0.6820922021995802, 0.9466637896188432, -1.1365823733275133,
+            0.39845771567361404, -1.6093759202748992, 0.11012272105878697,
+            -0.015942641171558036, -1.088206397415003, 1.8679068510871788
+          ]
+        },
+        {
+          "name": "rt",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "Studentized residuals",
+          "values": [
+            -0.13958063570631207, 0.605581707417547, 0.08078995471045353,
+            0.6535882162172143, 0.9385777592071891, -1.1652730237046784,
+            0.3731562536768933, -1.8772335318037134, 0.10204225747467308,
+            -0.014760285613196145, -1.10530443623328, 2.4418564321368095
+          ]
+        },
+        {
+          "name": "cd",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "Cook's D",
+          "values": [
+            0.012907128806360742, 0.1623890085202965, 0.0016383549004701163,
+            0.10008704983760981, 0.0840309169186266, 0.11915740843924481,
+            0.01214986132359333, 0.15358914212622346, 0.0014474417659000557,
+            0.00003704256161652804, 0.3234705016126733, 0.8524357562120346
+          ]
+        },
+        {
+          "name": "sr",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "S.E. of the residual",
+          "values": [
+            0.2864032564782509, 0.3172241102951545, 0.3674114235549279,
+            0.3674988920536208, 0.4164504459640746, 0.4171966598561151,
+            0.42511928445935343, 0.43434530080113687, 0.4045083535518888,
+            0.39321199706290355, 0.3494750064965419, 0.3580931583643087
+          ]
+        },
+        {
+          "name": "sf",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "S.E. of the forecast",
+          "values": [
+            0.6020026453290624, 0.5863470594724454, 0.5562758813267722,
+            0.5562180998887909, 0.5205795197285993, 0.5199816893982294,
+            0.5135246871235142, 0.5057451630777161, 0.5299122589743286,
+            0.5383477831944131, 0.5677158005012524, 0.5623195712734974
+          ]
+        },
+        {
+          "name": "lev",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "Leverage",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            0.39223626255989075, 0.21954229474067688, 0.2167428731918335,
+            0.1867120862007141, 0.15102878212928772, 0.2636611759662628,
+            8.98846567431158e307, 0.4503895938396454, 0.42294827103614807
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-hc2",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2, vce(hc2)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "r2", "rmse"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 2,
+        "df_r": 9,
+        "F": 1667.5942283875409,
+        "r2": 0.997153666389389,
+        "rmse": 0.42026308685728037
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [1.77935318085956, 0.4117139990581271, 0.5702007616863636]
+        },
+        "e(V)": {
+          "rows": 3,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [
+            0.009565038888135105, -0.015204188781921089, 0.00898560817434172,
+            -0.015204188781921089, 0.027662492878168844, -0.02685979901248171,
+            0.00898560817434172, -0.02685979901248171, 0.06129255720617262
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics-hc3",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 i.g, vce(hc3)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "r2", "rmse"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 3,
+        "df_r": 8,
+        "F": 1319.1780284903994,
+        "r2": 0.9955373880393952,
+        "rmse": 0.5581477383717169
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 5,
+          "names": ["x1", "1b.g", "2.g", "3.g", "_cons"],
+          "values": [
+            1.9591397849462364, 0, 0.002150537634406182, 0.1793010752688144,
+            1.0634408602150565
+          ]
+        },
+        "e(V)": {
+          "rows": 5,
+          "columns": 5,
+          "names": ["x1", "1b.g", "2.g", "3.g", "_cons"],
+          "values": [
+            0.003233407142597611, 0, -0.018600073032581294,
+            -0.027665586885407902, -0.005495584308128495, 0, 0, 0, 0, 0,
+            -0.018600073032581294, 0, 0.22834645011962834, 0.16195959953055017,
+            0.01559232503807641, -0.027665586885407902, 0, 0.16195959953055017,
+            0.39822371161409525, 0.03325926979372785, -0.005495584308128495, 0,
+            0.01559232503807641, 0.03325926979372785, 0.03244301662006015
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "everyday-ci",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nreplace x2 = . in 3\nci means y x2, level(90)\n",
+      "locals": [],
+      "globals": [],
+      "r": ["mean", "se", "lb", "ub", "N", "level"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "mean": 4.281818181818182,
+        "se": 0.5690211981701052,
+        "lb": 3.250489382079148,
+        "ub": 5.3131469815572165,
+        "N": 11,
+        "level": 90
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            2, 1.5, 8.98846567431158e307, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3,
+            6.1
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "everyday-spearman",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nreplace x2 = . in 3\nspearman y x2\n",
+      "locals": [],
+      "globals": [],
+      "r": ["rho", "p", "N"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "rho": 0.9, "p": 0.00015997142806871369, "N": 11 },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            2, 1.5, 8.98846567431158e307, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3,
+            6.1
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "everyday-spearman-ties",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nspearman g cl\n",
+      "locals": [],
+      "globals": [],
+      "r": ["rho", "p", "N"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "rho": 0.5354913036918415,
+        "p": 0.07276920490393078,
+        "N": 12
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "everyday-pwcorr",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nreplace x2 = . in 3\npwcorr y x2\n",
+      "locals": [],
+      "globals": [],
+      "r": ["rho", "N"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "rho": 0.9361493450021132, "N": 11 },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            2, 1.5, 8.98846567431158e307, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3,
+            6.1
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "everyday-data",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nclonevar yy = y\nclonevar gg = g if x1 > 4\ntabulate g, generate(d)\ntabulate cl if x1 > 3, generate(c)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        },
+        {
+          "name": "yy",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "gg",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 2, 2, 3, 3, 3, 1, 2, 3
+          ]
+        },
+        {
+          "name": "d1",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "g==     1.0000",
+          "values": [1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0]
+        },
+        {
+          "name": "d2",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "g==     2.0000",
+          "values": [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0]
+        },
+        {
+          "name": "d3",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "g==     3.0000",
+          "values": [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1]
+        },
+        {
+          "name": "c1",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "cl==     2.0000",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307, 1,
+            1, 0, 0, 0, 0, 0, 0, 0
+          ]
+        },
+        {
+          "name": "c2",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "cl==     3.0000",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307, 0,
+            0, 1, 1, 1, 0, 0, 0, 0
+          ]
+        },
+        {
+          "name": "c3",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "cl==     4.0000",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307, 0,
+            0, 0, 0, 0, 1, 1, 1, 1
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-1",
       "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nkeep if x >= .\ngenerate byte v1 = 2.5 in l\ndrop if v1 >= 0.2\ngenerate float v2 = g - v1 if g <= g\nreplace g = sum(x)\ngsort -id\n",
       "locals": [],
