@@ -335,3 +335,26 @@ generate dy = D.y
 generate fy = F.y
 list id year y ly dy fy in 1/6
 xtreg y x
+=== utilities
+@BASE
+label variable x "The X variable"
+label define gl 1 "one" 2 "two" 3 "three"
+label values g gl
+levelsof g
+levelsof s
+levelsof g, local(levels)
+display "`levels'"
+levelsof x if id > 2
+ds
+ds, has(type string)
+ds, has(type numeric)
+unab all : _all
+display "`all'"
+unab some : i* x
+display "`some'"
+ttest x == 0
+ttest f == 1
+generate half = id > 3
+ttest id, by(half)
+ttest x == f
+ttest f == 1, level(90)

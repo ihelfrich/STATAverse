@@ -11,6 +11,7 @@ import { applySyntax, splitAtComma } from "./syntax.js";
 import { ESTIMATION_COMMANDS } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
+import { UTILITY_COMMANDS } from "./utilities.js";
 import { DATA_COMMANDS } from "./data-commands.js";
 import {
   count,
@@ -1052,6 +1053,7 @@ export const COMMANDS = [
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...PANEL_COMMANDS,
+  ...UTILITY_COMMANDS,
   ...ESTIMATION_COMMANDS,
   ...DATA_COMMANDS,
   command("generate", 1, generate, true),
