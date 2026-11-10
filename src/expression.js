@@ -48,7 +48,7 @@ export function tokenize(source) {
         );
       tokens.push({ type: "number", value: null });
       i++;
-    } else if ((m = tail.match(/^(==|!=|~=|<=|>=|[+\-*/^<>&|!~(),])/))) {
+    } else if ((m = tail.match(/^(==|!=|~=|<=|>=|[+\-*/^<>&|!~(),[\]])/))) {
       tokens.push({ type: "op", value: m[0] });
       i += m[0].length;
     } else if (source[i] === "=")
@@ -82,11 +82,179 @@ const precedence = {
   "/": 5,
   "^": 6,
 };
+// Stata's string functions count bytes. These implementations are exact for
+// ASCII text; position-based functions refuse other text instead of
+// returning character positions that Stata would not.
+const ascii = (s) => {
+  for (let i = 0; i < s.length; i++)
+    if (s.charCodeAt(i) > 127)
+      throw new StataError(
+        "This string function is limited to unaccented (ASCII) text in browser practice.",
+        198,
+        "Stata counts bytes here and offers ustr functions for other text. Export your work to Stata for those.",
+      );
+  return s;
+};
+const bounded = (s) => {
+  if (s.length > RESOURCE_LIMITS.fieldCharacters)
+    throw new StataError(
+      "This result would exceed 10,000 characters in a string value.",
+      901,
+    );
+  return s;
+};
+const S = "string",
+  N = "numeric";
+// args: one type for every argument, or one per position. lenient: the
+// function decides what a missing argument means. sameType: positions that
+// must share a type, which becomes the result type when returns is null.
 const functions = {
   missing: {
     min: 1,
     max: 30,
+    args: "any",
+    lenient: true,
     fn: (...a) => Number(a.some((v) => missing(v) || v === "")),
+  },
+  cond: {
+    min: 3,
+    max: 4,
+    args: [N, "any", "any", "any"],
+    sameType: [1, 2, 3],
+    returns: null,
+    lenient: true,
+    fn: (x, a, b, c) =>
+      missing(x) ? (c === undefined ? a : c) : x !== 0 ? a : b,
+  },
+  max: {
+    min: 1,
+    max: 30,
+    lenient: true,
+    fn: (...a) => {
+      const v = a.filter((x) => !missing(x));
+      return v.length ? Math.max(...v) : null;
+    },
+  },
+  min: {
+    min: 1,
+    max: 30,
+    lenient: true,
+    fn: (...a) => {
+      const v = a.filter((x) => !missing(x));
+      return v.length ? Math.min(...v) : null;
+    },
+  },
+  int: { min: 1, max: 1, fn: Math.trunc },
+  trunc: { min: 1, max: 1, fn: Math.trunc },
+  floor: { min: 1, max: 1, fn: Math.floor },
+  ceil: { min: 1, max: 1, fn: Math.ceil },
+  sign: { min: 1, max: 1, fn: Math.sign },
+  mod: {
+    min: 2,
+    max: 2,
+    fn: (x, y) => (y > 0 ? x - y * Math.floor(x / y) : null),
+  },
+  log10: { min: 1, max: 1, fn: (x) => (x > 0 ? Math.log10(x) : null) },
+  strlen: { min: 1, max: 1, args: S, fn: (s) => ascii(s).length },
+  strupper: {
+    min: 1,
+    max: 1,
+    args: S,
+    returns: S,
+    fn: (s) => s.replace(/[a-z]/g, (c) => c.toUpperCase()),
+  },
+  strlower: {
+    min: 1,
+    max: 1,
+    args: S,
+    returns: S,
+    fn: (s) => s.replace(/[A-Z]/g, (c) => c.toLowerCase()),
+  },
+  strtrim: {
+    min: 1,
+    max: 1,
+    args: S,
+    returns: S,
+    fn: (s) => s.replace(/^ +| +$/g, ""),
+  },
+  strltrim: {
+    min: 1,
+    max: 1,
+    args: S,
+    returns: S,
+    fn: (s) => s.replace(/^ +/, ""),
+  },
+  strrtrim: {
+    min: 1,
+    max: 1,
+    args: S,
+    returns: S,
+    fn: (s) => s.replace(/ +$/, ""),
+  },
+  stritrim: {
+    min: 1,
+    max: 1,
+    args: S,
+    returns: S,
+    // Only runs of blanks between two nonblank characters collapse.
+    fn: (s) => s.replace(/(\S) {2,}(?=\S)/g, "$1 "),
+  },
+  substr: {
+    min: 3,
+    max: 3,
+    args: [S, N, N],
+    returns: S,
+    lenient: true,
+    fn: (s, n1, n2) => {
+      ascii(s);
+      if (missing(n1)) return "";
+      let start = Math.trunc(n1);
+      if (start < 0) start = s.length + start + 1;
+      if (start < 1 || start > s.length) return "";
+      const length = missing(n2) ? s.length : Math.trunc(n2);
+      return length < 1 ? "" : s.slice(start - 1, start - 1 + length);
+    },
+  },
+  strpos: {
+    min: 2,
+    max: 2,
+    args: S,
+    // Stata reports position 1 for an empty search string.
+    fn: (s, find) => ascii(s).indexOf(ascii(find)) + 1,
+  },
+  subinstr: {
+    min: 4,
+    max: 4,
+    args: [S, S, S, N],
+    returns: S,
+    lenient: true,
+    fn: (s, from, to, n) => {
+      if (from === "") return s;
+      const limit = missing(n) ? Infinity : Math.trunc(n);
+      let out = "",
+        at = 0,
+        done = 0;
+      while (done < limit) {
+        const hit = s.indexOf(from, at);
+        if (hit < 0) break;
+        out += s.slice(at, hit) + to;
+        at = hit + from.length;
+        done++;
+        bounded(out);
+      }
+      return bounded(out + s.slice(at));
+    },
+  },
+  real: {
+    min: 1,
+    max: 1,
+    args: S,
+    fn: (s) => {
+      const t = s.trim();
+      if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(t)) return null;
+      const v = Number(t);
+      return Number.isFinite(v) ? v : null;
+    },
   },
   ln: { min: 1, max: 1, fn: (x) => (x > 0 ? Math.log(x) : null) },
   log: { min: 1, max: 1, fn: (x) => (x > 0 ? Math.log(x) : null) },
@@ -104,8 +272,26 @@ const functions = {
     fn: (x, a, b) =>
       Number(!missing(x) && (missing(a) || x >= a) && (missing(b) || x <= b)),
   },
-  inlist: { min: 2, max: 30, fn: (x, ...a) => Number(a.includes(x)) },
+  inlist: {
+    min: 2,
+    max: 30,
+    args: "any",
+    lenient: true,
+    fn: (x, ...a) => Number(a.includes(x)),
+  },
 };
+// Older names that Stata still accepts for the same functions.
+for (const [old, current] of Object.entries({
+  length: "strlen",
+  upper: "strupper",
+  lower: "strlower",
+  trim: "strtrim",
+  ltrim: "strltrim",
+  rtrim: "strrtrim",
+  itrim: "stritrim",
+}))
+  functions[old] = functions[current];
+functions.inrange.lenient = true;
 export const SUPPORTED_FUNCTIONS = Object.freeze(Object.keys(functions));
 export function compileExpression(source, columns, { returnCode = 0 } = {}) {
   const typed = (fn, valueType = "numeric") => Object.assign(fn, { valueType });
@@ -137,8 +323,8 @@ export function compileExpression(source, columns, { returnCode = 0 } = {}) {
       const right = parse(6);
       if (right.valueType === "string")
         throw new StataError("Type mismatch: expected a number.", 109);
-      node = typed((r, i, n) => {
-        const v = right(r, i, n);
+      node = typed((r, i, n, rows) => {
+        const v = right(r, i, n, rows);
         if (t.value === "!" || t.value === "~") return Number(!truth(v));
         return missing(v) ? null : t.value === "-" ? -v : v;
       });
@@ -161,14 +347,18 @@ export function compileExpression(source, columns, { returnCode = 0 } = {}) {
           throw new StataError(
             `${t.value}() expects ${f.min === f.max ? f.min : `${f.min}–${f.max}`} argument(s).`,
           );
-        if (
-          !["missing", "inlist"].includes(t.value) &&
-          args.some((fn) => fn.valueType === "string")
-        )
-          throw new StataError(
-            "Type mismatch: expected numeric arguments.",
-            109,
-          );
+        const expected = (k) =>
+          Array.isArray(f.args) ? f.args[k] : (f.args ?? "numeric");
+        args.forEach((fn, k) => {
+          const want = expected(k);
+          if (want !== "any" && fn.valueType !== want)
+            throw new StataError(
+              want === "numeric"
+                ? "Type mismatch: expected numeric arguments."
+                : `Type mismatch: ${t.value}() expects a string here.`,
+              109,
+            );
+        });
         if (
           t.value === "inlist" &&
           args.some((fn) => fn.valueType !== args[0].valueType)
@@ -177,18 +367,25 @@ export function compileExpression(source, columns, { returnCode = 0 } = {}) {
             "Type mismatch: inlist() values must share the same type.",
             109,
           );
-        node = typed((r, i, n) => {
-          const a = args.map((fn) => fn(r, i, n));
-          if (
-            !["missing", "inlist", "inrange"].includes(t.value) &&
-            a.some(missing)
-          )
-            return null;
+        const shared = (f.sameType || []).filter((k) => k < args.length);
+        if (shared.some((k) => args[k].valueType !== args[shared[0]].valueType))
+          throw new StataError(
+            `Type mismatch: ${t.value}() results must share the same type.`,
+            109,
+          );
+        const returns =
+          f.returns === null
+            ? args[shared[0]].valueType
+            : (f.returns ?? "numeric");
+        node = typed((r, i, n, rows) => {
+          const a = args.map((fn) => fn(r, i, n, rows));
+          if (!f.lenient && a.some((v) => typeof v !== "string" && missing(v)))
+            return returns === "string" ? "" : null;
           const value = f.fn(...a);
           return typeof value === "number" && !Number.isFinite(value)
             ? null
             : value;
-        });
+        }, returns);
       } else if (t.value === "_n") node = typed((_r, i) => i + 1);
       else if (t.value === "_N") node = typed((_r, _i, n) => n);
       else if (t.value === "_rc") node = typed(() => returnCode);
@@ -200,7 +397,26 @@ export function compileExpression(source, columns, { returnCode = 0 } = {}) {
             111,
             "Check the variable names in the data browser. Names are case sensitive.",
           );
-        node = typed((r) => r[t.value], column.type);
+        if (take("[")) {
+          // Explicit subscripting. Positions outside 1.._N give missing, as
+          // in Stata. Under by, positions are counted within the group.
+          const index = parse();
+          requireToken("]");
+          if (index.valueType === "string")
+            throw new StataError("A subscript must be numeric.", 109);
+          const empty = column.type === "string" ? "" : null;
+          node = typed((r, i, n, rows) => {
+            if (!rows)
+              throw new StataError(
+                "Subscripts such as x[_n-1] are available in generate and replace.",
+                198,
+                "Create the lagged value with generate first, then use the new variable here.",
+              );
+            const k = index(r, i, n, rows);
+            if (missing(k) || k < 1 || k > n) return empty;
+            return rows[Math.trunc(k) - 1][t.value];
+          }, column.type);
+        } else node = typed((r) => r[t.value], column.type);
       }
     } else throw new StataError(`Unexpected token ${t.value}.`);
     while (
@@ -233,9 +449,9 @@ export function compileExpression(source, columns, { returnCode = 0 } = {}) {
           109,
         );
       node = typed(
-        (r, i, n) => {
-          const a = left(r, i, n),
-            b = right(r, i, n);
+        (r, i, n, rows) => {
+          const a = left(r, i, n, rows),
+            b = right(r, i, n, rows);
           if (op === "&") return Number(truth(a) && truth(b));
           if (op === "|") return Number(truth(a) || truth(b));
           if (["==", "!=", "~=", "<", ">", "<=", ">="].includes(op)) {

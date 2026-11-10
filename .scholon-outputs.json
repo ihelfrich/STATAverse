@@ -509,7 +509,7 @@
       "path": "docs/iv-lab-contract.md",
       "kind": "specification",
       "title": "Instrumental-variables browser model contract",
-      "summary": "Population assumptions, 2SLS covariance, analytic Anderson\u2013Rubin inversion and numerical limits",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
       "facets": [
         "Stata",
         "teaching",
@@ -790,6 +790,55 @@
         "Implementation-agent review; no independent classroom or human acceptance",
         "Templates and bounded execution checks do not establish identification or empirical suitability"
       ],
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.functions-native",
+      "path": "tests/fixtures/stata-functions.json",
+      "kind": "reference",
+      "title": "Native Stata results for expression functions, subscripts and the by prefix",
+      "summary": "75 scalar expressions and 23 by/bysort/subscript data sequences executed in installed Stata on six invented observations, with return codes",
+      "evidence": [
+        "tools/check-functions-native.mjs",
+        "tests/functions.test.mjs",
+        "docs/numerical-contract.md"
+      ],
+      "limits": [
+        "Covers only the listed functions and forms; ASCII strings only",
+        "Row order under tied sort keys is arbitrary in Stata and not compared"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
+      "depends_on": []
+    },
+    {
+      "id": "stataverse.corpus-coverage",
+      "path": "tools/corpus-coverage.mjs",
+      "kind": "procedure",
+      "title": "Do-file corpus coverage of the browser interpreter",
+      "summary": "Counts command lines in the repository's 38 do-files whose command and prefixes the browser interpreter implements; report in docs/verification/corpus-coverage.json",
+      "evidence": [
+        "docs/verification/corpus-coverage.json",
+        "docs/runtime-and-courses-spec.md"
+      ],
+      "limits": [
+        "Name-level upper bound; options, functions and numerical agreement are not checked",
+        "display accounts for two thirds of corpus lines"
+      ],
+      "project": "stataverse",
+      "facets": [
+        "Stata",
+        "teaching",
+        "verification",
+        "synthetic-data"
+      ],
+      "status": "candidate_tested",
       "depends_on": []
     }
   ]

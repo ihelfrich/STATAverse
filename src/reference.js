@@ -125,6 +125,10 @@ export const REFERENCE = [
       ],
       ["sort hours", "Sort ascending; numeric missing values sort last."],
       [
+        "bysort group (hours): generate double order = _n\nby group: generate double size = _N\nby group: generate double previous = hours[_n-1]",
+        "Repeat generate, replace or egen within each group. bysort sorts first; plain by requires data already sorted by those variables and stops with error 5 otherwise. Variables in parentheses order observations inside a group without splitting it. Under by, _n, _N and subscripts count within the group. Stata leaves tied observations in an arbitrary order; the browser keeps their existing order. Other commands under by are not implemented.",
+      ],
+      [
         "keep if !missing(score)",
         "Keep matching rows. Use Undo to restore removed observations.",
       ],
@@ -189,8 +193,16 @@ export const REFERENCE = [
         "Missing-value checks, inclusive ranges and membership.",
       ],
       [
-        "_n  _N",
-        "Current observation position and total number of observations.",
+        "cond(test, a, b)  max(x, y)  min(x, y)  int(x)  floor(x)  ceil(x)  mod(x, y)  sign(x)  log10(x)",
+        "cond() chooses between two values; a missing test counts as true unless a fourth argument is given. max() and min() ignore missing arguments. int() drops the fractional part.",
+      ],
+      [
+        'strlen(s)  upper(s)  lower(s)  strtrim(s)  itrim(s)  substr(s, start, length)  strpos(s, "text")  subinstr(s, "from", "to", .)  real(s)',
+        "String functions, with Stata's older and newer names (length/strlen, upper/strupper, trim/strtrim). substr() counts from 1; a negative start counts from the end and a missing length means the rest. real() converts text to a number or missing. Position functions accept unaccented (ASCII) text only, because Stata counts bytes.",
+      ],
+      [
+        "_n  _N  x[_n-1]  x[1]",
+        "Current observation position, number of observations, and the value of x in another observation. A position outside the data gives missing. Subscripts work in generate, replace and if conditions; replace stores one observation at a time, so replace x = x[_n-1] if missing(x) carries values forward.",
       ],
       [
         'import delimited using "study.csv", clear',

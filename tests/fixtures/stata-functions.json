@@ -1,0 +1,345 @@
+{
+  "source": "Executed tools/check-functions-native.mjs with installed Stata (version 16 semantics); synthetic values only, no global installation changes.",
+  "rows": [
+    [2, 2, 4],
+    [1, 3, 7],
+    [3, 1, 9],
+    [1, 1, 5],
+    [2, 1, 2],
+    [1, 2, null]
+  ],
+  "scalar": [
+    { "expression": "cond(1,2,3)", "expected": 2 },
+    { "expression": "cond(0,2,3)", "expected": 3 },
+    { "expression": "cond(.,2,3)", "expected": 2 },
+    { "expression": "cond(.,2,3,4)", "expected": 4 },
+    { "expression": "cond(5,2,3,4)", "expected": 2 },
+    { "expression": "max(1,.,3)", "expected": 3 },
+    { "expression": "max(.,.)", "expected": null },
+    { "expression": "min(4,.,2)", "expected": 2 },
+    { "expression": "min(.)", "expected": null },
+    { "expression": "int(2.7)", "expected": 2 },
+    { "expression": "int(-2.7)", "expected": -2 },
+    { "expression": "trunc(-0.5)", "expected": 0 },
+    { "expression": "floor(-2.5)", "expected": -3 },
+    { "expression": "ceil(-2.5)", "expected": -2 },
+    { "expression": "ceil(2.1)", "expected": 3 },
+    { "expression": "sign(-3)", "expected": -1 },
+    { "expression": "sign(0)", "expected": 0 },
+    { "expression": "sign(.)", "expected": null },
+    { "expression": "mod(7,3)", "expected": 1 },
+    { "expression": "mod(-7,3)", "expected": 2 },
+    { "expression": "mod(7,0)", "expected": null },
+    { "expression": "mod(7,-3)", "expected": null },
+    { "expression": "mod(5.5,2)", "expected": 1.5 },
+    { "expression": "mod(.,2)", "expected": null },
+    { "expression": "log10(1000)", "expected": 2.9999999999999996 },
+    { "expression": "log10(0)", "expected": null },
+    { "expression": "strlen(\"hello\")", "expected": 5 },
+    { "expression": "length(\"\")", "expected": 0 },
+    { "expression": "strpos(\"hello\",\"l\")", "expected": 3 },
+    { "expression": "strpos(\"hello\",\"z\")", "expected": 0 },
+    { "expression": "strpos(\"hello\",\"\")", "expected": 1 },
+    { "expression": "strpos(\"\",\"a\")", "expected": 0 },
+    { "expression": "real(\"12.5\")", "expected": 12.5 },
+    { "expression": "real(\" 3 \")", "expected": 3 },
+    { "expression": "real(\"abc\")", "expected": null },
+    { "expression": "real(\"1e3\")", "expected": 1000 },
+    { "expression": "real(\"\")", "expected": null },
+    { "expression": "real(\"1,000\")", "expected": null },
+    { "expression": "real(\".5\")", "expected": 0.5 },
+    { "expression": "real(\"-.5e1\")", "expected": -5 },
+    { "expression": "real(\"5.\")", "expected": 5 },
+    { "expression": "real(\"+2\")", "expected": 2 },
+    { "expression": "real(\"1 2\")", "expected": null },
+    { "expression": "max(2,cond(1,5,6))", "expected": 5 },
+    { "expression": "upper(\"aBc1\")", "expected": "ABC1" },
+    { "expression": "strupper(\"z\")", "expected": "Z" },
+    { "expression": "lower(\"ABc\")", "expected": "abc" },
+    { "expression": "strlower(\"Q\")", "expected": "q" },
+    { "expression": "strtrim(\"  a b  \")", "expected": "a b" },
+    { "expression": "trim(\" x \")", "expected": "x" },
+    { "expression": "ltrim(\"  a \")", "expected": "a " },
+    { "expression": "rtrim(\"  a  \")", "expected": "  a" },
+    { "expression": "itrim(\"a   b  c\")", "expected": "a b c" },
+    { "expression": "stritrim(\"  a  b \")", "expected": "  a b " },
+    { "expression": "substr(\"abcdef\",2,3)", "expected": "bcd" },
+    { "expression": "substr(\"abcdef\",-2,2)", "expected": "ef" },
+    { "expression": "substr(\"abcdef\",3,.)", "expected": "cdef" },
+    { "expression": "substr(\"abcdef\",0,2)", "expected": "" },
+    { "expression": "substr(\"abcdef\",7,1)", "expected": "" },
+    { "expression": "substr(\"abcdef\",6,5)", "expected": "f" },
+    { "expression": "substr(\"abcdef\",2,0)", "expected": "" },
+    { "expression": "substr(\"abcdef\",2,-1)", "expected": "" },
+    { "expression": "substr(\"abcdef\",.,2)", "expected": "" },
+    { "expression": "substr(\"abcdef\",-9,2)", "expected": "" },
+    { "expression": "substr(\"abcdef\",2.9,1.9)", "expected": "b" },
+    { "expression": "subinstr(\"a-b-c\",\"-\",\"+\",.)", "expected": "a+b+c" },
+    { "expression": "subinstr(\"a-b-c\",\"-\",\"+\",1)", "expected": "a+b-c" },
+    { "expression": "subinstr(\"a-b-c\",\"-\",\"\",.)", "expected": "abc" },
+    { "expression": "subinstr(\"abc\",\"\",\"x\",.)", "expected": "abc" },
+    { "expression": "subinstr(\"aaa\",\"a\",\"b\",0)", "expected": "aaa" },
+    { "expression": "subinstr(\"aaa\",\"aa\",\"b\",.)", "expected": "ba" },
+    { "expression": "cond(1,\"a\",\"b\")", "expected": "a" },
+    { "expression": "cond(.,\"a\",\"b\")", "expected": "a" },
+    { "expression": "\"a\"+upper(\"b\")", "expected": "aB" },
+    { "expression": "strtrim(itrim(\"  x   y \"))", "expected": "x y" }
+  ],
+  "data": [
+    {
+      "id": "bysort-n",
+      "source": "bysort g (t): generate double n=_n\nby g: generate double total=_N",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "n", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "total", "values": [3, 3, 3, 2, 2, 1] }
+      ]
+    },
+    {
+      "id": "lag-lead",
+      "source": "bysort g (t): generate double lag=x[_n-1]\nby g (t): generate double lead=x[_n+1]",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "lag", "values": [null, 5, null, null, 2, null] },
+        { "name": "lead", "values": [null, 7, null, 4, null, null] }
+      ]
+    },
+    {
+      "id": "first-last",
+      "source": "bysort g (t): generate double first=_n==1\nby g: generate double last=_n==_N",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "first", "values": [1, 0, 0, 1, 0, 1] },
+        { "name": "last", "values": [0, 0, 1, 0, 1, 1] }
+      ]
+    },
+    {
+      "id": "if-n",
+      "source": "bysort g (t): generate double one=1 if _n==1",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "one", "values": [1, null, null, 1, null, 1] }
+      ]
+    },
+    {
+      "id": "carry-forward",
+      "source": "sort g t\nreplace x=x[_n-1] if missing(x)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, 5, 7, 2, 4, 9] }
+      ]
+    },
+    {
+      "id": "running-sum",
+      "source": "sort g t\ngenerate double run=x\nby g: replace run=run[_n-1]+x if _n>1",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "run", "values": [5, null, null, 2, 6, 9] }
+      ]
+    },
+    {
+      "id": "not-sorted",
+      "source": "by g: generate double z=1",
+      "code": 5,
+      "columns": [
+        { "name": "g", "values": [2, 1, 3, 1, 2, 1] },
+        { "name": "t", "values": [2, 3, 1, 1, 1, 2] },
+        { "name": "x", "values": [4, 7, 9, 5, 2, null] }
+      ]
+    },
+    {
+      "id": "sort-then-by",
+      "source": "sort g t\nby g: generate double z=_n",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "z", "values": [1, 2, 3, 1, 2, 1] }
+      ]
+    },
+    {
+      "id": "sorted-on-prefix-only",
+      "source": "sort g\nby g (t): generate double z=_n",
+      "code": 5,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 2, 1, 1] },
+        { "name": "x", "values": [5, null, 7, 4, 2, 9] }
+      ]
+    },
+    {
+      "id": "replace-key-breaks-order",
+      "source": "sort g t\nreplace t=t+1\nby g (t): generate double z=_n",
+      "code": 5,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [2, 3, 4, 2, 3, 2] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] }
+      ]
+    },
+    {
+      "id": "replace-key-keeps-prefix",
+      "source": "sort g t\nreplace t=t+1\nby g: generate double z=_N",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [2, 3, 4, 2, 3, 2] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "z", "values": [3, 3, 3, 2, 2, 1] }
+      ]
+    },
+    {
+      "id": "by-sort-option",
+      "source": "by g (t), sort: generate double z=_n",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "z", "values": [1, 2, 3, 1, 2, 1] }
+      ]
+    },
+    {
+      "id": "egen-under-by",
+      "source": "bysort g (t): egen double m=mean(x)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "m", "values": [6, 6, 6, 3, 3, 9] }
+      ]
+    },
+    {
+      "id": "in-with-by",
+      "source": "bysort g (t): generate double z=1 in 1/2",
+      "code": 190,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] }
+      ]
+    },
+    {
+      "id": "whole-data-subscripts",
+      "source": "sort g t\ngenerate double prev=x[_n-1]\ngenerate double top=x[1]\ngenerate double bottom=x[_N]\ngenerate double beyond=x[_N+1]",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "prev", "values": [null, 5, null, 7, 2, 4] },
+        { "name": "top", "values": [5, 5, 5, 5, 5, 5] },
+        { "name": "bottom", "values": [9, 9, 9, 9, 9, 9] },
+        { "name": "beyond", "values": [null, null, null, null, null, null] }
+      ]
+    },
+    {
+      "id": "drop-keeps-order",
+      "source": "sort g t\ndrop if x==.\nby g: generate double z=_n",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, 7, 2, 4, 9] },
+        { "name": "z", "values": [1, 2, 1, 2, 1] }
+      ]
+    },
+    {
+      "id": "generate-keeps-order",
+      "source": "sort g t\ngenerate double y=1\nby g (t): generate double z=_n",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "y", "values": [1, 1, 1, 1, 1, 1] },
+        { "name": "z", "values": [1, 2, 3, 1, 2, 1] }
+      ]
+    },
+    {
+      "id": "if-subscript",
+      "source": "sort g t\ngenerate double same=1 if x==x[_n-1]",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "same", "values": [null, null, null, null, null, null] }
+      ]
+    },
+    {
+      "id": "by-replace-condition",
+      "source": "bysort g (t): generate double keepme=0\nby g: replace keepme=1 if _n==_N & _N>1",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "keepme", "values": [0, 0, 1, 0, 1, 0] }
+      ]
+    },
+    {
+      "id": "condition-sees-earlier-writes",
+      "source": "sort g t\nreplace x=0 if missing(x[_n-1]) & _n>1",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 0, 2, 4, 9] }
+      ]
+    },
+    {
+      "id": "fill-chain",
+      "source": "sort g t\ngenerate double y=x if t==1\nby g: replace y=y[_n-1] if missing(y)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "y", "values": [5, 5, 5, 2, 2, 9] }
+      ]
+    },
+    {
+      "id": "bys-abbreviation",
+      "source": "bys g (t): gen double z=_n*10",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "z", "values": [10, 20, 30, 10, 20, 10] }
+      ]
+    },
+    {
+      "id": "two-keys",
+      "source": "bysort g t: generate double z=_N\nby g: generate double w=_n",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 1, 1, 2, 2, 3] },
+        { "name": "t", "values": [1, 2, 3, 1, 2, 1] },
+        { "name": "x", "values": [5, null, 7, 2, 4, 9] },
+        { "name": "z", "values": [1, 1, 1, 1, 1, 1] },
+        { "name": "w", "values": [1, 2, 3, 1, 2, 1] }
+      ]
+    }
+  ]
+}

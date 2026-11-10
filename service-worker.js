@@ -38,7 +38,7 @@ const CORE_ASSETS = [
   "assets/js/site.js",
   "assets/js/legacy-location.js",
   "assets/data/site-index.json",
-  "assets/js/practice-shared-E2DGAB3V.js",
+  "assets/js/practice-shared-T5HO72TQ.js",
 ];
 const CORE_URLS = new Set(
   CORE_ASSETS.map((file) => new URL(file, self.registration.scope).href),

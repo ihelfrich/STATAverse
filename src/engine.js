@@ -74,6 +74,9 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "confirm",
   "error",
   "exit",
+  "by",
+  "bysort",
+  "bys",
   ...Object.keys(aliases),
 ]);
 const clone = (x) => structuredClone(x);
@@ -112,7 +115,35 @@ export function splitDoFile(source) {
   return commandBlocks(source).map((block) => block.command);
 }
 
-function qualify(source, dataset, returnCode = 0) {
+// Under a by prefix, _n, _N and subscripts are counted within each group.
+// Rows must already be ordered so that each group is contiguous.
+function sortRows(dataset, names) {
+  dataset.rows.sort((a, b) => {
+    for (const name of names) {
+      const x = missing(a[name]) ? Infinity : a[name],
+        y = missing(b[name]) ? Infinity : b[name];
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+  });
+}
+function groupContexts(dataset, names) {
+  const contexts = [];
+  let start = 0;
+  const same = (a, b) => names.every((name) => a[name] === b[name]);
+  for (let i = 1; i <= dataset.rows.length; i++)
+    if (
+      i === dataset.rows.length ||
+      !same(dataset.rows[i], dataset.rows[start])
+    ) {
+      const rows = dataset.rows.slice(start, i);
+      for (let j = start; j < i; j++)
+        contexts.push({ i: j - start, n: rows.length, rows });
+      start = i;
+    }
+  return contexts;
+}
+function qualify(source, dataset, returnCode = 0, by = null) {
   let main = source,
     condition = "",
     range = "";
@@ -139,6 +170,13 @@ function qualify(source, dataset, returnCode = 0) {
     );
   let start = 1,
     end = dataset.rows.length;
+  if (range && by)
+    throw new StataError(
+      "in may not be combined with by.",
+      190,
+      "Use an if condition with _n, which counts within each group under by.",
+    );
+  const contexts = by ? groupContexts(dataset, by.groups) : null;
   if (range) {
     const m = range.match(/^(\d+|f|l)(?:\/(\d+|f|l))?$/);
     if (!m)
@@ -156,13 +194,18 @@ function qualify(source, dataset, returnCode = 0) {
         "Check the observation count and use positions within the data.",
       );
   }
+  const test = (r, i) =>
+    i + 1 >= start &&
+    i + 1 <= end &&
+    truth(
+      contexts
+        ? fn(r, contexts[i].i, contexts[i].n, contexts[i].rows)
+        : fn(r, i, dataset.rows.length, dataset.rows),
+    );
   const selected = dataset.rows
     .map((r, i) => ({ r, i }))
-    .filter(
-      ({ r, i }) =>
-        i + 1 >= start && i + 1 <= end && truth(fn(r, i, dataset.rows.length)),
-    );
-  return { main, selected, condition, range };
+    .filter(({ r, i }) => test(r, i));
+  return { main, selected, condition, range, contexts, test };
 }
 function variables(
   source,
@@ -411,7 +454,92 @@ export class PracticeSession {
       throw error;
     }
   }
+  // Parses by varlist [(varlist)] [, sort]: command and orders the data.
+  byPrefix(command, word) {
+    const m = command.match(/^\S+\s+([^:]*?)\s*:\s*([\s\S]+)$/);
+    if (!m)
+      throw new StataError(
+        "Use by varlist: command or bysort varlist: command.",
+        198,
+      );
+    const [header, option] = splitTop(m[1], ",");
+    if (option && option !== "sort")
+      throw new StataError(
+        `Option ${option} is not supported with by in browser practice.`,
+        198,
+      );
+    const parts = header.match(/^([^()]*?)\s*(?:\(([^()]*)\))?$/);
+    if (!parts || !parts[1].trim())
+      throw new StataError(
+        "Name at least one grouping variable before the colon.",
+        100,
+      );
+    const data = this.data,
+      groups = variables(parts[1], data),
+      order = [
+        ...groups,
+        ...(parts[2]?.trim() ? variables(parts[2], data) : []),
+      ];
+    const inner = m[2].trim(),
+      innerVerb = inner.match(/^[^\s,]+/)[0],
+      verb = aliases[innerVerb] || innerVerb;
+    if (!["generate", "replace", "egen"].includes(verb))
+      throw new StataError(
+        `by with ${verb} is not supported in browser practice.`,
+        198,
+        "by works here with generate, replace and egen. For a statistic by group, use egen with by() or collapse; for one group, add an if condition.",
+      );
+    if (word !== "by" || option === "sort") {
+      sortRows(data, order);
+      data.sortedBy = order;
+    } else if (!order.every((name, k) => data.sortedBy?.[k] === name))
+      throw new StataError(
+        "not sorted",
+        5,
+        `by requires data sorted by ${order.join(" ")}. Run sort ${order.join(" ")} first, or use bysort.`,
+      );
+    if (verb === "egen") {
+      const [body, options] = splitTop(inner, ",");
+      if (/\bby\s*\(/.test(options))
+        throw new StataError(
+          "Use either the by prefix or the by() option with egen, not both.",
+          198,
+        );
+      return {
+        by: null,
+        inner: `${body}, ${options ? options + " " : ""}by(${groups.join(" ")})`,
+      };
+    }
+    return { by: { groups }, inner };
+  }
   dispatch(command) {
+    const word = command.match(/^[^\s,:]+/)?.[0];
+    let by = null,
+      inner = command;
+    if (["by", "bysort", "bys"].includes(word))
+      ({ by, inner } = this.byPrefix(command, word));
+    const result = this.dispatchCommand(inner, by);
+    const first = inner.match(/^[^\s,]+/)?.[0],
+      verb = aliases[first] || first,
+      sorted = this.data.sortedBy;
+    if (sorted && result.changed && verb !== "sort") {
+      // The sort order is trusted only while nothing could have disturbed
+      // it. Dropping it early makes plain by ask for a sort again.
+      const names = new Set(this.data.columns.map((c) => c.name));
+      let keep = sorted.length;
+      if (verb === "replace") keep = sorted.indexOf(result.name);
+      else if (verb === "drop" || verb === "keep")
+        keep = sorted.findIndex((name) => !names.has(name));
+      else if (
+        !["generate", "egen", "label", "preserve", "restore"].includes(verb)
+      )
+        keep = 0;
+      if (keep === 0) delete this.data.sortedBy;
+      else if (keep > 0) this.data.sortedBy = sorted.slice(0, keep);
+    }
+    return result;
+  }
+  dispatchCommand(command, by = null) {
     const match = command.match(/^([^\s,]+)\s*([\s\S]*)$/);
     if (!match) throw new StataError("Enter a command.");
     const verb = aliases[match[1]] || match[1],
@@ -643,14 +771,8 @@ export class PracticeSession {
     if (verb === "sort") {
       noOptions(options);
       const names = variables(body, data);
-      data.rows.sort((a, b) => {
-        for (const name of names) {
-          const x = missing(a[name]) ? Infinity : a[name],
-            y = missing(b[name]) ? Infinity : b[name];
-          if (x !== y) return x < y ? -1 : 1;
-        }
-        return 0;
-      });
+      sortRows(data, names);
+      data.sortedBy = names;
       this.model = null;
       this.graph = null;
       return {
@@ -659,7 +781,7 @@ export class PracticeSession {
         changed: true,
       };
     }
-    const q = qualify(body, data, this.returnCode),
+    const q = qualify(body, data, this.returnCode, by),
       rows = q.selected.map((x) => x.r);
     if (verb === "egen" || verb === "collapse") {
       const args = {
@@ -778,9 +900,8 @@ export class PracticeSession {
       if (verb === "generate") newVariable(name, data);
       else variables(name, data);
       const fn = compileExpression(expression, data.columns, {
-          returnCode: this.returnCode,
-        }),
-        values = q.selected.map(({ r, i }) => fn(r, i, data.rows.length));
+        returnCode: this.returnCode,
+      });
       const string = fn.valueType === "string",
         numeric = fn.valueType === "numeric";
       if (storage === "double" && string)
@@ -803,10 +924,20 @@ export class PracticeSession {
         data.columns.push({ name, label: "", type, origin: { command } });
         for (const r of data.rows) r[name] = type === "string" ? "" : null;
       }
+      // Stata evaluates and stores one observation at a time, so a
+      // subscript can read a value written earlier in the same command.
+      // The if condition is tested at the same moment for the same reason.
       let changed = 0;
-      q.selected.forEach(({ r }, i) => {
-        if (r[name] !== values[i]) changed++;
-        r[name] = values[i];
+      const values = [];
+      data.rows.forEach((r, i) => {
+        if (!q.test(r, i)) return;
+        const c = q.contexts?.[i],
+          value = c
+            ? fn(r, c.i, c.n, c.rows)
+            : fn(r, i, data.rows.length, data.rows);
+        if (r[name] !== value) changed++;
+        r[name] = value;
+        values.push(value);
       });
       if (verb === "replace") {
         const column = data.columns.find((c) => c.name === name);

@@ -1,0 +1,581 @@
+{
+  "basis": "Name-level upper bound over this repository's do-files. A line counts when its command and every prefix are implemented by the browser interpreter; options, functions and semantics are not checked here.",
+  "files": 38,
+  "commandLines": 2053,
+  "namedSupported": 1853,
+  "share": 0.9026,
+  "shareExcludingDisplay": 0.705,
+  "filesFullyNamed": 3,
+  "unsupported": [
+    {
+      "command": "estat",
+      "lines": 16
+    },
+    {
+      "command": "estimates",
+      "lines": 13
+    },
+    {
+      "command": "graph",
+      "lines": 13
+    },
+    {
+      "command": "margins",
+      "lines": 12
+    },
+    {
+      "command": "ivregress",
+      "lines": 11
+    },
+    {
+      "command": "save",
+      "lines": 10
+    },
+    {
+      "command": "use",
+      "lines": 9
+    },
+    {
+      "command": "xtreg",
+      "lines": 9
+    },
+    {
+      "command": "log",
+      "lines": 8
+    },
+    {
+      "command": "xtset",
+      "lines": 8
+    },
+    {
+      "command": "mkdir",
+      "lines": 7
+    },
+    {
+      "command": "marginsplot",
+      "lines": 6
+    },
+    {
+      "command": "logit",
+      "lines": 5
+    },
+    {
+      "command": "version",
+      "lines": 5
+    },
+    {
+      "command": "encode",
+      "lines": 4
+    },
+    {
+      "command": "expand",
+      "lines": 4
+    },
+    {
+      "command": "format",
+      "lines": 4
+    },
+    {
+      "command": "twoway",
+      "lines": 4
+    },
+    {
+      "command": "poisson",
+      "lines": 3
+    },
+    {
+      "command": "tabstat",
+      "lines": 3
+    },
+    {
+      "command": "tsset",
+      "lines": 3
+    },
+    {
+      "command": "append",
+      "lines": 2
+    },
+    {
+      "command": "args",
+      "lines": 2
+    },
+    {
+      "command": "compress",
+      "lines": 2
+    },
+    {
+      "command": "matrix",
+      "lines": 2
+    },
+    {
+      "command": "merge",
+      "lines": 2
+    },
+    {
+      "command": "nbreg",
+      "lines": 2
+    },
+    {
+      "command": "tempfile",
+      "lines": 2
+    },
+    {
+      "command": "test",
+      "lines": 2
+    },
+    {
+      "command": "xtsum",
+      "lines": 2
+    },
+    {
+      "command": "arima",
+      "lines": 1
+    },
+    {
+      "command": "centile",
+      "lines": 1
+    },
+    {
+      "command": "ds",
+      "lines": 1
+    },
+    {
+      "command": "esttab",
+      "lines": 1
+    },
+    {
+      "command": "hausman",
+      "lines": 1
+    },
+    {
+      "command": "infix",
+      "lines": 1
+    },
+    {
+      "command": "levelsof",
+      "lines": 1
+    },
+    {
+      "command": "lincom",
+      "lines": 1
+    },
+    {
+      "command": "line",
+      "lines": 1
+    },
+    {
+      "command": "lroc",
+      "lines": 1
+    },
+    {
+      "command": "misstable",
+      "lines": 1
+    },
+    {
+      "command": "mixed",
+      "lines": 1
+    },
+    {
+      "command": "ovtest",
+      "lines": 1
+    },
+    {
+      "command": "qnorm",
+      "lines": 1
+    },
+    {
+      "command": "reshape",
+      "lines": 1
+    },
+    {
+      "command": "rvfplot",
+      "lines": 1
+    },
+    {
+      "command": "swilk",
+      "lines": 1
+    },
+    {
+      "command": "sysuse",
+      "lines": 1
+    },
+    {
+      "command": "tsline",
+      "lines": 1
+    },
+    {
+      "command": "unab",
+      "lines": 1
+    },
+    {
+      "command": "which",
+      "lines": 1
+    },
+    {
+      "command": "xtabond",
+      "lines": 1
+    },
+    {
+      "command": "xtdescribe",
+      "lines": 1
+    },
+    {
+      "command": "xtgee",
+      "lines": 1
+    }
+  ],
+  "supported": [
+    {
+      "command": "display",
+      "lines": 1375,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "generate",
+      "lines": 98,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "local",
+      "lines": 89,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "if",
+      "lines": 51,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "set",
+      "lines": 40,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "regress",
+      "lines": 37,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "label",
+      "lines": 30,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "clear",
+      "lines": 24,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "summarize",
+      "lines": 16,
+      "blockedByPrefix": 1
+    },
+    {
+      "command": "replace",
+      "lines": 15,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "import",
+      "lines": 10,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "predict",
+      "lines": 7,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "preserve",
+      "lines": 7,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "restore",
+      "lines": 7,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "correlate",
+      "lines": 6,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "foreach",
+      "lines": 5,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "isid",
+      "lines": 5,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "tabulate",
+      "lines": 5,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "else",
+      "lines": 4,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "exit",
+      "lines": 4,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "list",
+      "lines": 3,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "collapse",
+      "lines": 2,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "egen",
+      "lines": 2,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "forvalues",
+      "lines": 2,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "keep",
+      "lines": 2,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "rename",
+      "lines": 2,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "assert",
+      "lines": 1,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "confirm",
+      "lines": 1,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "describe",
+      "lines": 1,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "drop",
+      "lines": 1,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "duplicates",
+      "lines": 1,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "scatter",
+      "lines": 1,
+      "blockedByPrefix": 0
+    }
+  ],
+  "perFile": [
+    {
+      "file": "ScriptLibrary/scripts/append-files.do",
+      "commandLines": 12,
+      "namedSupported": 9
+    },
+    {
+      "file": "ScriptLibrary/scripts/difference-in-differences.do",
+      "commandLines": 3,
+      "namedSupported": 2
+    },
+    {
+      "file": "ScriptLibrary/scripts/duplicates-audit.do",
+      "commandLines": 3,
+      "namedSupported": 3
+    },
+    {
+      "file": "ScriptLibrary/scripts/encode-categorical.do",
+      "commandLines": 3,
+      "namedSupported": 2
+    },
+    {
+      "file": "ScriptLibrary/scripts/export-regression-table.do",
+      "commandLines": 9,
+      "namedSupported": 5
+    },
+    {
+      "file": "ScriptLibrary/scripts/fixed-effects.do",
+      "commandLines": 2,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/group-summaries.do",
+      "commandLines": 6,
+      "namedSupported": 4
+    },
+    {
+      "file": "ScriptLibrary/scripts/import-csv.do",
+      "commandLines": 4,
+      "namedSupported": 3
+    },
+    {
+      "file": "ScriptLibrary/scripts/import-excel.do",
+      "commandLines": 2,
+      "namedSupported": 1
+    },
+    {
+      "file": "ScriptLibrary/scripts/import-fixed-width.do",
+      "commandLines": 2,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/instrumental-variables-2sls.do",
+      "commandLines": 2,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/label-from-metadata.do",
+      "commandLines": 18,
+      "namedSupported": 13
+    },
+    {
+      "file": "ScriptLibrary/scripts/logit-margins.do",
+      "commandLines": 6,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/loop-acs-hhi.do",
+      "commandLines": 16,
+      "namedSupported": 10
+    },
+    {
+      "file": "ScriptLibrary/scripts/merge-1-1.do",
+      "commandLines": 4,
+      "namedSupported": 2
+    },
+    {
+      "file": "ScriptLibrary/scripts/merge-m-1.do",
+      "commandLines": 6,
+      "namedSupported": 2
+    },
+    {
+      "file": "ScriptLibrary/scripts/missingness-report.do",
+      "commandLines": 11,
+      "namedSupported": 9
+    },
+    {
+      "file": "ScriptLibrary/scripts/ols-robust-diagnostics.do",
+      "commandLines": 8,
+      "namedSupported": 4
+    },
+    {
+      "file": "ScriptLibrary/scripts/panel-setup.do",
+      "commandLines": 3,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/parse-dates.do",
+      "commandLines": 0,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/poisson-nb-overdispersion.do",
+      "commandLines": 4,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/project-setup-log.do",
+      "commandLines": 11,
+      "namedSupported": 6
+    },
+    {
+      "file": "ScriptLibrary/scripts/reshape-wide-long.do",
+      "commandLines": 3,
+      "namedSupported": 1
+    },
+    {
+      "file": "ScriptLibrary/scripts/standardize-variable-names.do",
+      "commandLines": 6,
+      "namedSupported": 5
+    },
+    {
+      "file": "ScriptLibrary/scripts/summary-report.do",
+      "commandLines": 3,
+      "namedSupported": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/winsorize-outliers.do",
+      "commandLines": 5,
+      "namedSupported": 4
+    },
+    {
+      "file": "CodeLibrary/scripts/00_regression_plain_english.do",
+      "commandLines": 212,
+      "namedSupported": 212
+    },
+    {
+      "file": "CodeLibrary/scripts/01_endogeneity_simulator.do",
+      "commandLines": 113,
+      "namedSupported": 102
+    },
+    {
+      "file": "CodeLibrary/scripts/01b_endogeneity_intuition.do",
+      "commandLines": 261,
+      "namedSupported": 260
+    },
+    {
+      "file": "CodeLibrary/scripts/02_method_decision_tree.do",
+      "commandLines": 161,
+      "namedSupported": 159
+    },
+    {
+      "file": "CodeLibrary/scripts/02_method_decision_tree_v2.do",
+      "commandLines": 246,
+      "namedSupported": 244
+    },
+    {
+      "file": "CodeLibrary/scripts/03_anti_patterns.do",
+      "commandLines": 220,
+      "namedSupported": 204
+    },
+    {
+      "file": "CodeLibrary/scripts/04_assumption_checker.do",
+      "commandLines": 271,
+      "namedSupported": 248
+    },
+    {
+      "file": "CodeLibrary/scripts/05_moderation_mastery.do",
+      "commandLines": 226,
+      "namedSupported": 208
+    },
+    {
+      "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",
+      "commandLines": 105,
+      "namedSupported": 80
+    },
+    {
+      "file": "ZeroToHero/projects/project-01/analysis.do",
+      "commandLines": 13,
+      "namedSupported": 9
+    },
+    {
+      "file": "ZeroToHero/projects/project-02/analysis.do",
+      "commandLines": 16,
+      "namedSupported": 6
+    },
+    {
+      "file": "RealData/base_lab.do",
+      "commandLines": 57,
+      "namedSupported": 36
+    }
+  ]
+}
