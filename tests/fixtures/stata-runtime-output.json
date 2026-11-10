@@ -2684,6 +2684,56 @@
           ]
         }
       ]
+    },
+    {
+      "id": "graphs",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nhistogram y\nhistogram y, bin(4)\nhistogram y, frequency width(5)\nhistogram x1, discrete\nhistogram y if g > 1, percent\ncapture noisily histogram nosuch\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        {
+          "command": "histogram y",
+          "lines": ["(bin=3, start=3.1, width=7.3333333)"]
+        },
+        {
+          "command": "histogram y, bin(4)",
+          "lines": ["(bin=4, start=3.1, width=5.5)"]
+        },
+        {
+          "command": "histogram y, frequency width(5)",
+          "lines": ["(bin=5, start=3.1, width=5)"]
+        },
+        {
+          "command": "histogram x1, discrete",
+          "lines": ["(start=1, width=1)"]
+        },
+        {
+          "command": "histogram y if g > 1, percent",
+          "lines": ["(bin=2, start=8.8, width=8.15)"]
+        },
+        {
+          "command": "capture noisily histogram nosuch",
+          "lines": ["variable nosuch not found"]
+        }
+      ]
     }
   ]
 }

@@ -358,3 +358,11 @@ generate half = id > 3
 ttest id, by(half)
 ttest x == f
 ttest f == 1, level(90)
+=== graphs
+@EST
+histogram y
+histogram y, bin(4)
+histogram y, frequency width(5)
+histogram x1, discrete
+histogram y if g > 1, percent
+capture noisily histogram nosuch

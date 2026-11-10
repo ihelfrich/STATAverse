@@ -1,10 +1,10 @@
 {
   "basis": "Every command of every lesson, run in order through the frozen interpreter and the new runtime from the same starting data. A lesson stops at the first command only one of them runs.",
-  "commands": 79,
-  "same": 63,
-  "sameToSinglePrecision": 10,
+  "commands": 83,
+  "same": 69,
+  "sameToSinglePrecision": 12,
   "bothRefuse": 0,
-  "runtimeRefuses": 6,
+  "runtimeRefuses": 2,
   "legacyRefuses": 0,
   "different": 0,
   "lessons": [
@@ -105,9 +105,20 @@
         {
           "command": "histogram score, frequency",
           "legacy": 0,
-          "runtime": 199,
-          "status": "runtime refuses",
-          "detail": "command histogram is unrecognized"
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "scatter score hours",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "correlate score hours",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
         }
       ]
     },
@@ -136,9 +147,8 @@
         {
           "command": "scatter residual fitted",
           "legacy": 0,
-          "runtime": 199,
-          "status": "runtime refuses",
-          "detail": "command scatter is unrecognized"
+          "runtime": 0,
+          "status": "float"
         }
       ]
     },
@@ -577,9 +587,8 @@
         {
           "command": "scatter residual fitted",
           "legacy": 0,
-          "runtime": 199,
-          "status": "runtime refuses",
-          "detail": "command scatter is unrecognized"
+          "runtime": 0,
+          "status": "float"
         }
       ]
     },
@@ -596,9 +605,20 @@
         {
           "command": "scatter wage education",
           "legacy": 0,
-          "runtime": 199,
-          "status": "runtime refuses",
-          "detail": "command scatter is unrecognized"
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress wage education experience, vce(robust)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "isid id",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
         }
       ]
     }

@@ -210,8 +210,8 @@ export class Session {
     }
   }
 
-  record(output, command, lines, rc) {
-    output.push({ command, lines, rc });
+  record(output, command, lines, rc, graph) {
+    output.push(graph ? { command, lines, rc, graph } : { command, lines, rc });
   }
 
   /** One command line, with its prefixes. Errors stop the run unless captured. */
@@ -249,11 +249,13 @@ export class Session {
       throw error;
     }
     if (flags.capture) this.rc = 0;
+    // quietly silences text, not graphs.
     this.record(
       output,
       raw,
       flags.quiet || (flags.capture && !flags.noisy) ? [] : lines,
       0,
+      flags.graph,
     );
   }
 
@@ -293,6 +295,9 @@ export class Session {
         frame,
         by: flags.by,
         out: (line) => lines.push(line),
+        graph: (picture) => {
+          flags.graph = picture;
+        },
         output,
         flags,
       };

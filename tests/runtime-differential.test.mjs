@@ -2,9 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { compareAll } from "../tools/differential.mjs";
 
-// Commands the lessons use that the new runtime does not have yet. Graphs
-// belong to stage 3 and import to stage 2 of the runtime specification.
-const NOT_YET = /^(histogram|scatter|codebook|clear\nimport)\b/;
+// Commands the lessons use that the new runtime does not have yet.
+const NOT_YET = /^(codebook|clear\nimport)\b/;
 
 test("lessons run the same in the frozen interpreter and the new runtime", () => {
   const report = compareAll(),

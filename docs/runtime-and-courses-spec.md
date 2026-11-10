@@ -234,5 +234,5 @@ A second session built most of the rest of stage 1 and reached into stages 2 to 
 
 What stage 1 still lacks before the Console should be linked: running in the cancellable worker; `codebook`; the frozen-engine interface; and a second model's review of the new code. The estimation commands were written as separate fitters that leave one shared result object. Stage 3's shared model frame (interactions, weights, a common covariance module) has not been built, and `regress`, the likelihood fitter and `xtreg` each carry their own copy of the sandwich calculation until it is.
 
-The order of what follows is unchanged from the list above: graphs, then `margins`, then files a student brings (`import delimited`, `.dta`).
+A first set of graphs (`scatter`, `line`, `histogram` and `twoway` overlays with `lfit`) is drawn as SVG and shown in the Console. What follows, in order: `margins`, the remaining graph types and options, then files a student brings (`import delimited`, `.dta`).
 

@@ -139,3 +139,11 @@
     font-size: 12px;
   }
 }
+.console-graph {
+  display: block;
+  width: min(100%, 640px);
+  height: auto;
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  background: #fff;
+}

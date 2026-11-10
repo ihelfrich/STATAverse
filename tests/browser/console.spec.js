@@ -13,6 +13,15 @@ test("the console runs a do-file on the new runtime and keeps the text", async (
   await expect(output).toContainText(". regress score hours attendance");
   await expect(output).toContainText("Number of obs   =");
   await expect(output).toContainText("F(  1,");
+  const graph = output.locator("img.console-graph");
+  await expect(graph).toHaveCount(1);
+  await expect(graph).toHaveAttribute(
+    "alt",
+    /Graph of .* against Weekly study hours/,
+  );
+  expect(await graph.evaluate((image) => image.naturalWidth)).toBeGreaterThan(
+    0,
+  );
   await expect(page.locator("#console-memory")).toContainText(
     "24 observations, 6 variables",
   );

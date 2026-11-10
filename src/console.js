@@ -21,6 +21,9 @@ generate passed = score >= 60 if score < .
 tabulate group passed
 regress score hours attendance
 test hours = attendance
+
+* A picture
+twoway (scatter score hours) (lfit score hours)
 `;
 const $ = (id) => document.getElementById(id);
 const source = $("console-source"),
@@ -115,6 +118,17 @@ function execute() {
     append(`. ${record.command}\n`, "console-command");
     if (record.lines.length)
       append(record.lines.join("\n") + "\n", record.rc ? "console-error" : "");
+    if (record.graph) {
+      // The SVG is produced by this site's own code from numbers and
+      // escaped text, so it is parsed as an image, not as markup to trust.
+      const figure = document.createElement("img");
+      figure.className = "console-graph";
+      figure.alt = record.graph.description;
+      figure.src =
+        "data:image/svg+xml;charset=utf-8," +
+        encodeURIComponent(record.graph.svg);
+      output.append(figure, "\n");
+    }
     append("\n");
   }
   if (output.textContent.length > MAX_OUTPUT) {
