@@ -13,6 +13,7 @@ import { expandVarlist } from "./varlist.js";
 import { applyFormat, stringOf } from "./format.js";
 import { formatNumber } from "./values.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
+import { timeSeriesOperator } from "./panel.js";
 
 const MAX_STEPS = 200000;
 
@@ -45,6 +46,8 @@ export class Session {
       results: this.results,
       state: this.state,
       rc: () => this.rc,
+      series: (operator, order, name) =>
+        timeSeriesOperator(this, operator, order, name),
       system: (name) =>
         ({
           N: this.data.n,

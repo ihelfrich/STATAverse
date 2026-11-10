@@ -2263,6 +2263,295 @@
           ]
         }
       ]
+    },
+    {
+      "id": "panel",
+      "source": "clear\ninput byte id int year double y double x double w\n1 2019 3.1 1.0 2\n1 2020 4.0 1.5 2\n1 2021 5.2 2.1 3\n1 2022 5.9 2.4 3\n2 2019 7.5 2.0 5\n2 2020 8.1 2.2 5\n2 2021 9.6 3.1 4\n2 2022 9.9 3.0 6\n3 2019 2.2 0.5 1\n3 2020 2.9 1.1 1\n3 2021 3.1 1.0 2\n3 2022 4.4 1.9 2\n4 2019 6.0 2.5 4\n4 2020 6.2 2.4 4\n4 2021 7.7 3.3 3\n4 2022 8.3 3.6 5\n5 2019 5.0 1.2 3\n5 2020 5.1 1.4 2\n5 2021 6.6 2.2 3\nend\nxtset id year\nxtset\nxtreg y x, fe\nxtreg y x w, fe\nxtreg y x, re\nxtreg y x w, re\nxtreg y x, fe vce(cluster id)\nxtreg y x, fe robust\nxtsum y x\ntsset id year\ngenerate ly = L.y\ngenerate dy = D.y\ngenerate fy = F.y\nlist id year y ly dy fy in 1/6\nxtreg y x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id int year double y double x double w",
+          "lines": [
+            "           id      year           y           x           w",
+            "  1. 1 2019 3.1 1.0 2",
+            "  2. 1 2020 4.0 1.5 2",
+            "  3. 1 2021 5.2 2.1 3",
+            "  4. 1 2022 5.9 2.4 3",
+            "  5. 2 2019 7.5 2.0 5",
+            "  6. 2 2020 8.1 2.2 5",
+            "  7. 2 2021 9.6 3.1 4",
+            "  8. 2 2022 9.9 3.0 6",
+            "  9. 3 2019 2.2 0.5 1",
+            " 10. 3 2020 2.9 1.1 1",
+            " 11. 3 2021 3.1 1.0 2",
+            " 12. 3 2022 4.4 1.9 2",
+            " 13. 4 2019 6.0 2.5 4",
+            " 14. 4 2020 6.2 2.4 4",
+            " 15. 4 2021 7.7 3.3 3",
+            " 16. 4 2022 8.3 3.6 5",
+            " 17. 5 2019 5.0 1.2 3",
+            " 18. 5 2020 5.1 1.4 2",
+            " 19. 5 2021 6.6 2.2 3",
+            " 20. end"
+          ]
+        },
+        {
+          "command": "xtset id year",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: year, 2019 to 2022",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: year, 2019 to 2022",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9706                                         min =          3",
+            "     Between = 0.7471                                         avg =        3.8",
+            "     Overall = 0.7767                                         max =          4",
+            "",
+            "                                                F(1, 13)          =     429.85",
+            "corr(u_i, Xb) = 0.3550                          Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.849947   .0892276    20.73   0.000     1.657182    2.042711",
+            "       _cons |   2.092739   .1857309    11.27   0.000     1.691492    2.493986",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.2092618",
+            "     sigma_e |  .19374927",
+            "         rho |  .97497169   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(4, 13) = 134.72                     Prob > F = 0.0000"
+          ]
+        },
+        {
+          "command": "xtreg y x w, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9769                                         min =          3",
+            "     Between = 0.7910                                         avg =        3.8",
+            "     Overall = 0.8193                                         max =          4",
+            "",
+            "                                                F(2, 12)          =     253.62",
+            "corr(u_i, Xb) = 0.3529                          Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.791658   .0885345    20.24   0.000     1.598758    1.984558",
+            "           w |   .1340652   .0744559     1.80   0.097    -.0281601    .2962906",
+            "       _cons |    1.78718    .241286     7.41   0.000     1.261463    2.312897",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.0897696",
+            "     sigma_e |  .17893219",
+            "         rho |  .97374849   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(4, 12) = 69.35                      Prob > F = 0.0000"
+          ]
+        },
+        {
+          "command": "xtreg y x, re",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9706                                         min =          3",
+            "     Between = 0.7471                                         avg =        3.8",
+            "     Overall = 0.7767                                         max =          4",
+            "",
+            "                                                Wald chi2(1)      =     447.66",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.857373   .0877858    21.16   0.000     1.685316     2.02943",
+            "       _cons |   2.103396      .5875     3.58   0.000      .951917    3.254875",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.2633222",
+            "     sigma_e |  .19374927",
+            "         rho |  .97701972   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x w, re",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9718                                         min =          3",
+            "     Between = 0.8228                                         avg =        3.8",
+            "     Overall = 0.8479                                         max =          4",
+            "",
+            "                                                Wald chi2(2)      =     227.17",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.773194   .1434408    12.36   0.000     1.492055    2.054333",
+            "           w |   .2615354   .1129163     2.32   0.021     .0402236    .4828473",
+            "       _cons |   1.450193   .4376892     3.31   0.001     .5923382    2.308048",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .35474614",
+            "     sigma_e |  .17893219",
+            "         rho |  .79718476   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe vce(cluster id)",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9706                                         min =          3",
+            "     Between = 0.7471                                         avg =        3.8",
+            "     Overall = 0.7767                                         max =          4",
+            "",
+            "                                                F(1, 4)           =     372.17",
+            "corr(u_i, Xb) = 0.3550                          Prob > F          =     0.0000",
+            "",
+            "                                     (Std. err. adjusted for 5 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.849947   .0958928    19.29   0.000     1.583706    2.116188",
+            "       _cons |   2.092739   .1938044    10.80   0.000     1.554651    2.630826",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.2092618",
+            "     sigma_e |  .19374927",
+            "         rho |  .97497169   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe robust",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9706                                         min =          3",
+            "     Between = 0.7471                                         avg =        3.8",
+            "     Overall = 0.7767                                         max =          4",
+            "",
+            "                                                F(1, 4)           =     372.17",
+            "corr(u_i, Xb) = 0.3550                          Prob > F          =     0.0000",
+            "",
+            "                                     (Std. err. adjusted for 5 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.849947   .0958928    19.29   0.000     1.583706    2.116188",
+            "       _cons |   2.092739   .1938044    10.80   0.000     1.554651    2.630826",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.2092618",
+            "     sigma_e |  .19374927",
+            "         rho |  .97497169   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtsum y x",
+          "lines": [
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "y        overall |  5.831579   2.270108        2.2        9.9 |     N =      19",
+            "         between |             2.182366       3.15      8.775 |     n =       5",
+            "         within  |             .9610228   4.381579   7.181579 | T-bar =     3.8",
+            "                 |                                            |",
+            "x        overall |  2.021053    .863828         .5        3.6 |     N =      19",
+            "         between |             .7451929      1.125       2.95 |     n =       5",
+            "         within  |             .5118051   1.271053   2.796053 | T-bar =     3.8"
+          ]
+        },
+        {
+          "command": "tsset id year",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: year, 2019 to 2022",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "generate ly = L.y",
+          "lines": ["(5 missing values generated)"]
+        },
+        {
+          "command": "generate dy = D.y",
+          "lines": ["(5 missing values generated)"]
+        },
+        {
+          "command": "generate fy = F.y",
+          "lines": ["(5 missing values generated)"]
+        },
+        {
+          "command": "list id year y ly dy fy in 1/6",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | id   year     y    ly    dy    fy |",
+            "     |-----------------------------------|",
+            "  1. |  1   2019   3.1     .     .     4 |",
+            "  2. |  1   2020     4   3.1    .9   5.2 |",
+            "  3. |  1   2021   5.2     4   1.2   5.9 |",
+            "  4. |  1   2022   5.9   5.2    .7     . |",
+            "  5. |  2   2019   7.5     .     .   8.1 |",
+            "     |-----------------------------------|",
+            "  6. |  2   2020   8.1   7.5    .6   9.6 |",
+            "     +-----------------------------------+"
+          ]
+        },
+        {
+          "command": "xtreg y x",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =         19",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9706                                         min =          3",
+            "     Between = 0.7471                                         avg =        3.8",
+            "     Overall = 0.7767                                         max =          4",
+            "",
+            "                                                Wald chi2(1)      =     447.66",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.857373   .0877858    21.16   0.000     1.685316     2.02943",
+            "       _cons |   2.103396      .5875     3.58   0.000      .951917    3.254875",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.2633222",
+            "     sigma_e |  .19374927",
+            "         rho |  .97701972   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
     }
   ]
 }

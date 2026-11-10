@@ -80,6 +80,14 @@ function tokenize(source) {
     } else if ((m = /^\.([a-z])?(?![A-Za-z_0-9.])/.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
       i += m[0].length;
+    } else if ((m = /^([LFD])(\d*)\.([A-Za-z_][A-Za-z_0-9]*)/.exec(rest))) {
+      // L.x, F2.x and D.x: lag, lead and difference under xtset or tsset.
+      push(
+        "series",
+        { operator: m[1], order: Number(m[2] || 1), name: m[3] },
+        i,
+      );
+      i += m[0].length;
     } else if ((m = /^[A-Za-z_][A-Za-z_0-9]*/.exec(rest))) {
       push("name", m[0], i);
       i += m[0].length;
@@ -197,6 +205,12 @@ export function compileExpression(source, scope = {}) {
     if (token.type === "string") {
       const value = token.value;
       return node(S, () => value);
+    }
+    if (token.type === "series") {
+      if (!scope.series) throw new StataError("time variable not set", 111);
+      const { operator, order, name } = token.value,
+        value = scope.series(operator, order, name);
+      return node(N, (i) => value(i));
     }
     if (token.type === "op" && token.value === "(") {
       const inner = or();
