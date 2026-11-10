@@ -17,6 +17,8 @@ import { MORE_ESTIMATORS } from "./more-estimators.js";
 import { TEST_COMMANDS } from "./tests.js";
 import { DATA_UTILITIES } from "./data-utilities.js";
 import { MORE_GRAPH_COMMANDS } from "./graphics-more.js";
+import { LIKELIHOOD_COMMANDS } from "./likelihood.js";
+import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
@@ -1284,6 +1286,8 @@ export const COMMANDS = [
   ...TEST_COMMANDS,
   ...DATA_UTILITIES,
   ...MORE_GRAPH_COMMANDS,
+  ...LIKELIHOOD_COMMANDS,
+  ...MORE_POSTESTIMATION,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   ...DELIMITED_COMMANDS,

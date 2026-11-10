@@ -96,9 +96,9 @@ function xtset(session, text, ctx) {
       )
         gaps = true;
     ctx.out(
-      ` Time variable: ${panel.time}, ${show(low)} to ${show(high)}${gaps ? ", but with gaps" : ""}`,
+      `${panel.id ? " " : ""}Time variable: ${panel.time}, ${show(low)} to ${show(high)}${gaps ? ", but with gaps" : ""}`,
     );
-    ctx.out("         Delta: 1 unit");
+    ctx.out(`${panel.id ? " " : ""}        Delta: 1 unit`);
   }
 }
 
@@ -176,7 +176,7 @@ function xtreg(session, text, ctx) {
   if (!panel?.id)
     throw new StataError("panel variable not set; use xtset varname ...", 459);
   const parsed = session.parse(
-      "anything [if] [in] [, FE RE Robust VCE(string) Level(cilevel) | BE MLE PA SA THeta]",
+      "anything [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel) | MLE PA SA THeta]",
       text,
     ),
     options = parsed.options,
@@ -261,7 +261,41 @@ function xtreg(session, text, ctx) {
     dist,
     corrLine,
     footer = null;
-  if (useFe) {
+  const useBe = !!options.be;
+  if (useBe) {
+    // Least squares on the group means, one observation per group.
+    if (clustered)
+      throw new StataError("xtreg, be takes conventional standard errors", 198);
+    const firsts = groups.map((key) => members.get(key)[0]),
+      ym = firsts.map((i) => yBar[i]),
+      xm = xBar.map((column) => firsts.map((i) => column[i])),
+      xMeans = xm.map(mean),
+      between = ols(
+        xm.map((column, k) => column.map((v) => v - xMeans[k])),
+        ym.map((v) => v - mean(ym)),
+      );
+    df = G - K - 1;
+    if (df < 1) throw new StataError("insufficient observations", 2001);
+    const s2 = between.rss / df,
+      slopeV = between.inverse.map((row) => row.map((v) => v * s2)),
+      vx = slopeV.map((row) => row.reduce((t, v, j) => t + v * xMeans[j], 0));
+    b = between.b;
+    constant = mean(ym) - b.reduce((t, bj, j) => t + bj * xMeans[j], 0);
+    V = [
+      ...slopeV.map((row, j) => [...row, -vx[j]]),
+      [
+        ...vx.map((v) => -v),
+        s2 / G + xMeans.reduce((t, v, j) => t + v * vx[j], 0),
+      ],
+    ];
+    sigmaU = MISSING;
+    statistic = quadratic(b, invertSymmetric(slopeV)) / K;
+    statLabel = `F(${K},${df})`;
+    p = Ftail(K, df, statistic);
+    dist = "t";
+    header = "Between regression (regression on group means)";
+    corrLine = `sd(u_i + avg(e_i.)) = ${g(Math.sqrt(s2), "%8.0g")}`;
+  } else if (useFe) {
     b = within.b;
     constant = mean(y) - b.reduce((t, bj, j) => t + bj * mean(x[j]), 0);
     let slopeV = within.inverse.map((row) => row.map((v) => v * sigmaE2));
@@ -459,6 +493,7 @@ function xtreg(session, text, ctx) {
     df_r: df,
     rank: K + 1,
     kind: "xtreg",
+    sample: rows,
     vce: clustered ? "cluster" : "conventional",
   };
   session.results.e = {
@@ -478,7 +513,7 @@ function xtreg(session, text, ctx) {
     g_max: Math.max(...sizes),
     cmd: "xtreg",
     depvar: dep,
-    model: useFe ? "fe" : "re",
+    model: useBe ? "be" : useFe ? "fe" : "re",
   };
   const r4 = (value) => applyFormat(value, "%6.4f").trim();
   ctx.out("");
@@ -526,14 +561,18 @@ function xtreg(session, text, ctx) {
     return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(tail(t), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
   }).forEach(ctx.out);
   ctx.out(
-    "-------------+----------------------------------------------------------------",
+    useBe
+      ? RULE
+      : "-------------+----------------------------------------------------------------",
   );
-  ctx.out(`     sigma_u |  ${g(sigmaU, "%10.0g")}`);
-  ctx.out(`     sigma_e |  ${g(Math.sqrt(sigmaE2), "%10.0g")}`);
-  ctx.out(
-    `         rho |  ${g(rho, "%10.0g")}   (fraction of variance due to u_i)`,
-  );
-  ctx.out(RULE);
+  if (!useBe) {
+    ctx.out(`     sigma_u |  ${g(sigmaU, "%10.0g")}`);
+    ctx.out(`     sigma_e |  ${g(Math.sqrt(sigmaE2), "%10.0g")}`);
+    ctx.out(
+      `         rho |  ${g(rho, "%10.0g")}   (fraction of variance due to u_i)`,
+    );
+    ctx.out(RULE);
+  }
   if (footer) ctx.out(footer);
   ctx.out("");
 }

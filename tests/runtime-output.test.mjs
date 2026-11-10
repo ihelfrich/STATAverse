@@ -25,8 +25,10 @@ function sameLine(a, b) {
   if (a === b) return true;
   const x = a.split(/\s+/),
     y = b.split(/\s+/);
+  // A number that differs in its seventh digit may print one character
+  // longer or shorter, since trailing zeros are dropped.
   return (
-    a.length === b.length &&
+    Math.abs(a.length - b.length) <= 1 &&
     x.length === y.length &&
     x.every(
       (token, k) =>
@@ -91,6 +93,8 @@ for (const c of fixture.cases)
             "margins",
             "margins-interactions",
             "estat-gof",
+            "nonlinear-more",
+            "more-postestimation",
           ].includes(c.id),
         )
       )

@@ -891,3 +891,90 @@ fillin d grp
 count
 sort d grp x1
 list d grp _fillin z in 1/8
+=== nonlinear-more
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate byte cat = 1 + (z > 2) + (z > 5)
+generate byte grp = 1 + mod(_n, 3)
+generate t = _n
+generate byte pid = ceil(_n / 4)
+tobit z x1 x2, ll(2) nolog
+tobit z x1 x2, ll(2) ul(6) nolog
+tobit z x1, ul(5) nolog level(90)
+ologit cat x1 x2, nolog
+oprobit cat x1 x2, nolog
+ologit cat x1 x2, or nolog
+ologit cat x1, nolog
+mlogit grp x1 x2, nolog
+mlogit grp x1, baseoutcome(3) nolog
+mlogit grp x1 x2, rrr nolog
+=== more-postestimation
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate byte cat = 1 + (z > 2) + (z > 5)
+generate byte grp = 1 + mod(_n, 3)
+generate t = _n
+generate byte pid = ceil(_n / 4)
+tsset t
+newey z x1 x2, lag(2)
+newey z x1, lag(0)
+newey z x1 x2 if d == 1, lag(3) level(90)
+regress z x1 x2
+nlcom _b[x1]/_b[x2]
+nlcom (ratio: _b[x1]/_b[x2]) (prod: _b[x1]*_b[x2])
+nlcom exp(_b[x1]) - 1, level(90)
+testnl _b[x1]*_b[x2] = 0.5
+testnl (_b[x1] = _b[x2]^2) (_b[_cons] = -1)
+logit d x1 x2, nolog
+nlcom -_b[_cons]/_b[x1]
+testnl _b[x1]/_b[x2] = 2
+xtset pid t
+xtreg z x1 x2, be
+xtreg z x1, be level(90)
+quietly xtreg z x1 x2, fe
+estimates store fe
+quietly xtreg z x1 x2, re
+estimates store re
+hausman fe re
