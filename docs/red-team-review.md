@@ -341,3 +341,9 @@ The error needs two comparison operators in a row with no parentheses and no `&`
 
 Not changed: the live interpreter. Under the runtime specification it is frozen so that saved sessions replay as they did, and whether to correct this in place is Dr. Helfrich's decision. A correction would change the replayed result only of a saved command that contains such a chain.
 
+### How far the error reaches, measured
+
+The recorded machine-written expressions were then run through the live interpreter (700 cases; those with extended missing values, which it does not have, were left out). It refused 99, which is the designed behaviour for forms it does not support. Of the 309 it evaluated, 301 agreed with Stata and 8 did not. Seven of the eight are chained comparisons such as `g == id != 0`, the error described above. The eighth is `strpos()` searching an empty string for an empty string: Stata returns 0 and the live interpreter returns 1.
+
+So two behaviours of the live interpreter are known to differ from Stata without a message: comparison chains without parentheses, and `strpos("", "")`. Neither occurs in a lesson. Both are corrected in the new runtime and both are left unchanged in the live one, pending Dr. Helfrich's decision on whether a frozen interpreter should take corrections of this kind.
+
