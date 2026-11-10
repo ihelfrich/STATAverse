@@ -14,6 +14,7 @@ export const SITE_ROOTS = [
   "Labs",
   "Workspace",
   "CodeLibrary",
+  "Console",
   "Glossary",
   "MethodLab",
   "Readings",

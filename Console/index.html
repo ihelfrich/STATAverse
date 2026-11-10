@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script src="../assets/js/legacy-location.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Write and run Stata do-files in the browser. A preview of the new STATAverse runtime, checked command by command against installed Stata."
+    />
+    <title>Console (preview) · STATAverse</title>
+    <link rel="stylesheet" href="../assets/css/learn.css" />
+    <link rel="stylesheet" href="../assets/css/console.css" />
+  </head>
+  <body class="console-page">
+    <a class="skip-link" href="#main">Skip to the console</a>
+    <header class="app-header">
+      <a href="../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../Learn/">Practice</a
+        ><a href="../ScriptLibrary/builder.html">Do-file builder</a
+        ><a href="../Labs/">Analysis labs</a
+        ><a href="../ScriptLibrary/">Reference</a
+        ><a href="../Workspace/">Saved work</a>
+      </nav>
+      <a href="../CodeLibrary/" class="quiet-button">Worked Stata examples →</a>
+    </header>
+    <main id="main" class="console-layout" tabindex="-1">
+      <header class="console-heading">
+        <p class="eyebrow">Preview</p>
+        <h1>Console</h1>
+        <p>
+          Write a do-file and run it here. This page uses a new interpreter
+          whose results are compared with installed Stata command by command. It
+          runs macros, loops, programs, <code>by</code> and the commands listed
+          under <a href="#console-scope">What runs here</a>. Graphs, files on
+          disk and most estimators are not here yet;
+          <a href="../Learn/">Practice</a> remains the place for guided lessons.
+        </p>
+      </header>
+      <section class="console-editor" aria-labelledby="editor-title">
+        <div class="console-bar">
+          <h2 id="editor-title">Do-file</h2>
+          <label class="console-data"
+            >Start from
+            <select id="console-dataset">
+              <option value="">no data</option>
+            </select></label
+          >
+        </div>
+        <label class="sr-only" for="console-source">Do-file text</label>
+        <textarea
+          id="console-source"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+          rows="16"
+        ></textarea>
+        <div class="console-actions">
+          <button
+            type="button"
+            class="primary-button"
+            id="console-run"
+            disabled
+          >
+            Run do-file
+          </button>
+          <button
+            type="button"
+            class="quiet-button"
+            id="console-reset"
+            disabled
+          >
+            Clear session
+          </button>
+          <span class="console-hint">Ctrl or ⌘ + Enter runs the do-file.</span>
+        </div>
+        <p id="console-status" role="status">Loading the interpreter…</p>
+        <noscript><p>The console requires JavaScript.</p></noscript>
+      </section>
+      <section class="console-results" aria-labelledby="results-title">
+        <h2 id="results-title">Results</h2>
+        <pre
+          id="console-output"
+          role="log"
+          aria-live="polite"
+          aria-labelledby="results-title"
+          tabindex="0"
+        ></pre>
+      </section>
+      <section class="console-variables" aria-labelledby="variables-title">
+        <h2 id="variables-title">Variables</h2>
+        <p id="console-memory">No data in memory.</p>
+        <div
+          class="console-scroll"
+          tabindex="0"
+          role="group"
+          aria-labelledby="variables-title"
+        >
+          <table id="console-variable-table" hidden>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Type</th>
+                <th scope="col">Format</th>
+                <th scope="col">Label</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="console-scope" aria-labelledby="console-scope">
+        <h2 id="console-scope">What runs here</h2>
+        <p id="console-commands"></p>
+        <p>
+          <code>sysuse</code> loads this site's own teaching datasets. Stata's
+          example datasets, such as <code>auto</code>, belong to StataCorp and
+          are not included, so a tutorial written for them will not reproduce
+          its numbers here.
+        </p>
+        <p>
+          Nothing you type leaves this browser. The do-file text is kept in this
+          browser so that it is here when you return; the session's data are not
+          kept.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="../assets/js/console.js"></script>
+    <script src="../assets/js/site.js" defer></script>
+  </body>
+</html>

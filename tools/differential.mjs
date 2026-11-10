@@ -23,20 +23,37 @@ const single = (a, b) =>
 function compareData(legacy, runtime) {
   const names = legacy.columns.map((c) => c.name);
   if (names.join(" ") !== runtime.names.join(" "))
-    return { status: "different", detail: `variables [${names}] vs [${runtime.names}]` };
+    return {
+      status: "different",
+      detail: `variables [${names}] vs [${runtime.names}]`,
+    };
   if (legacy.rows.length !== runtime.n)
-    return { status: "different", detail: `observations ${legacy.rows.length} vs ${runtime.n}` };
+    return {
+      status: "different",
+      detail: `observations ${legacy.rows.length} vs ${runtime.n}`,
+    };
   let rounded = false;
   for (const name of names) {
     const column = runtime.get(name).data;
     for (let i = 0; i < runtime.n; i++) {
       const a = legacy.rows[i][name] ?? null,
         raw = column[i],
-        b = typeof raw === "number" ? (isMissing(raw) ? null : raw) : raw === "" ? null : raw,
+        b =
+          typeof raw === "number"
+            ? isMissing(raw)
+              ? null
+              : raw
+            : raw === ""
+              ? null
+              : raw,
         left = a === "" ? null : a;
       if (same(left, b)) continue;
       if (single(left, b)) rounded = true;
-      else return { status: "different", detail: `${name}[${i + 1}]: ${left} vs ${b}` };
+      else
+        return {
+          status: "different",
+          detail: `${name}[${i + 1}]: ${left} vs ${b}`,
+        };
     }
   }
   return { status: rounded ? "float" : "same" };
@@ -66,7 +83,10 @@ export function compareLesson(lesson) {
     steps.push(entry);
     // Once the engines disagree about whether a command ran, later steps of
     // the lesson no longer start from the same data.
-    if (["runtime refuses", "legacy refuses", "different"].includes(entry.status)) break;
+    if (
+      ["runtime refuses", "legacy refuses", "different"].includes(entry.status)
+    )
+      break;
   }
   return { lesson: lesson.id, dataset: lesson.dataset, steps };
 }
@@ -101,5 +121,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const l of lessons)
     for (const s of l.steps)
       if (!["same", "float", "both refuse"].includes(s.status))
-        console.log(`${l.lesson}: ${s.status}: ${s.command}${s.detail ? " — " + s.detail : ""}`);
+        console.log(
+          `${l.lesson}: ${s.status}: ${s.command}${s.detail ? " — " + s.detail : ""}`,
+        );
 }

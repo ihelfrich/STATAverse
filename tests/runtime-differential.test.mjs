@@ -18,7 +18,9 @@ test("lessons run the same in the frozen interpreter and the new runtime", () =>
         (s.status === "runtime refuses" && !NOT_YET.test(s.command)),
     );
   assert.deepEqual(
-    unexpected.map((s) => `${s.lesson}: ${s.status}: ${s.command} ${s.detail ?? ""}`),
+    unexpected.map(
+      (s) => `${s.lesson}: ${s.status}: ${s.command} ${s.detail ?? ""}`,
+    ),
     [],
   );
   assert.ok(report.same + report.sameToSinglePrecision >= 70);
