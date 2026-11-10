@@ -415,3 +415,22 @@ logit d x1 i.g
 margins g
 margins, dydx(*) level(90)
 capture noisily margins, dydx(nosuch)
+=== codebook
+@EST
+label variable y "Outcome measure"
+label define gl 1 "one" 2 "two" 3 "three"
+label values g gl
+replace x2 = . in 3
+replace x2 = .a in 4
+generate str8 name = "n" + string(mod(_n, 4))
+replace name = "" in 2
+generate float small = _n / 4
+generate long big = _n * 100000
+generate byte flag = _n > 6
+codebook y
+codebook x1
+codebook x2
+codebook g
+codebook name
+codebook small big flag
+codebook y g, compact

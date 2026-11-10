@@ -1,10 +1,10 @@
 {
   "basis": "Every command of every lesson, run in order through the frozen interpreter and the new runtime from the same starting data. A lesson stops at the first command only one of them runs.",
-  "commands": 83,
-  "same": 70,
+  "commands": 86,
+  "same": 73,
   "sameToSinglePrecision": 12,
-  "bothRefuse": 0,
-  "runtimeRefuses": 1,
+  "bothRefuse": 1,
+  "runtimeRefuses": 0,
   "legacyRefuses": 0,
   "different": 0,
   "lessons": [
@@ -321,9 +321,26 @@
         {
           "command": "codebook age wait",
           "legacy": 0,
-          "runtime": 199,
-          "status": "runtime refuses",
-          "detail": "command codebook is unrecognized"
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "duplicates report id",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "assert inrange(age, 0, 120) if !missing(age)",
+          "legacy": 9,
+          "runtime": 9,
+          "status": "both refuse"
+        },
+        {
+          "command": "list id age clinic if age > 120 & !missing(age)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
         }
       ]
     },

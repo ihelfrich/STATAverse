@@ -384,11 +384,15 @@ function replace(session, text, ctx) {
     }
   });
   variable.data = before;
+  // Stata adds how many of the changes were to a missing value.
+  const toMissing = string
+    ? 0
+    : rows.filter((i) => before[i] !== raw[i] && isMissing(raw[i])).length;
   const result = session.data.replace(name, raw, rows);
   if (result.to !== beforeType)
     ctx.out(`variable ${name} was ${beforeType} now ${result.to}`);
   ctx.out(
-    `(${count(result.changed)} real change${result.changed === 1 ? "" : "s"} made)`,
+    `(${count(result.changed)} real change${result.changed === 1 ? "" : "s"} made${toMissing ? `, ${count(toMissing)} to missing` : ""})`,
   );
 }
 
