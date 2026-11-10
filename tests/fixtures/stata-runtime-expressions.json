@@ -1,0 +1,1232 @@
+{
+  "source": "Recorded from installed Stata by tools/check-expressions-native.mjs under version 17. Numeric results were written with %21x and are exact doubles; data cases are generate r = EXP after summarize price, with scalars k = 3 and ks = txt.",
+  "variables": [
+    ["id", "byte", [1, 2, 3, 4, 5, 6]],
+    ["x", "double", ["1.5", "-2", ".", "0", ".a", "100"]],
+    ["f", "float", ["0.1", "0.2", "0.3", "1", ".", "16777217"]],
+    ["g", "byte", [1, 1, 2, 2, 3, 3]],
+    ["s", "str", ["apple", "Banana split", "", "  pad  ", "x", "naïve"]],
+    ["price", "double", [10, 20, 30, 40, 50, 60]],
+    ["weight", "double", [1, 2, 3, 4, 5, 6]],
+    ["wage", "double", [6, 5, 4, 3, 2, 1]]
+  ],
+  "scalar": [
+    { "expression": "1+2*3", "number": 7 },
+    { "expression": "(1+2)*3", "number": 9 },
+    { "expression": "-2^2", "number": -4 },
+    { "expression": "2^-1", "number": 0.5 },
+    { "expression": "2^3^2", "number": 64 },
+    { "expression": "-2^-2", "number": -0.25 },
+    { "expression": "5 - -3", "number": 8 },
+    { "expression": "+3", "number": 3 },
+    { "expression": "--3", "number": 3 },
+    { "expression": "2*-3", "number": -6 },
+    { "expression": "10/4", "number": 2.5 },
+    { "expression": "7/2*2", "number": 7 },
+    { "expression": "0.1*3/3", "number": 0.1 },
+    { "expression": "8/2/2", "number": 2 },
+    { "expression": "2-3+4", "number": 3 },
+    { "expression": "0.1+0.2", "number": 0.30000000000000004 },
+    { "expression": "1e308*10", "number": 8.98846567431158e307 },
+    { "expression": "-1e308*10", "number": 8.98846567431158e307 },
+    { "expression": "2^1024", "number": 8.98846567431158e307 },
+    { "expression": "2^1023", "number": 8.98846567431158e307 },
+    { "expression": "0^0", "number": 1 },
+    { "expression": "0^-1", "number": 8.98846567431158e307 },
+    { "expression": "(-8)^(1/3)", "number": 8.98846567431158e307 },
+    { "expression": "(-8)^2", "number": 64 },
+    { "expression": "(-2)^3", "number": -8 },
+    { "expression": "(-2)^0.5", "number": 8.98846567431158e307 },
+    { "expression": "4^0.5", "number": 2 },
+    { "expression": ".5+.5", "number": 1 },
+    { "expression": "1.e2", "number": 100 },
+    { "expression": "1e+2", "number": 100 },
+    { "expression": "3e-1", "number": 0.3 },
+    { "expression": "1/0", "number": 8.98846567431158e307 },
+    { "expression": "0/0", "number": 8.98846567431158e307 },
+    { "expression": "./2", "number": 8.98846567431158e307 },
+    { "expression": ".a+1", "number": 8.98846567431158e307 },
+    { "expression": ".a*.b", "number": 8.98846567431158e307 },
+    { "expression": "-.a", "number": 8.98846567431158e307 },
+    { "expression": "1e400", "number": 8.98846567431158e307 },
+    { "expression": "8.9884656743115785e307", "number": 8.988465674311579e307 },
+    { "expression": "8.99e307", "number": 8.99e307 },
+    { "expression": "1.0X+3", "number": 8 },
+    { "expression": "!0", "number": 1 },
+    { "expression": "!5", "number": 0 },
+    { "expression": "!.", "number": 0 },
+    { "expression": "!0^2", "number": 1 },
+    { "expression": "~1", "number": 0 },
+    { "expression": "!!3", "number": 1 },
+    { "expression": "-!0", "number": -1 },
+    { "expression": "1<2", "number": 1 },
+    { "expression": "2<1", "number": 0 },
+    { "expression": ".>1e300", "number": 1 },
+    { "expression": ".a>.", "number": 1 },
+    { "expression": ".<.a", "number": 1 },
+    { "expression": ".==.", "number": 1 },
+    { "expression": ".a==.", "number": 0 },
+    { "expression": ".a!=.b", "number": 1 },
+    { "expression": "1==1.0", "number": 1 },
+    { "expression": "0.1==float(0.1)", "number": 0 },
+    { "expression": "1!=2", "number": 1 },
+    { "expression": "1~=2", "number": 1 },
+    { "expression": "3>=3", "number": 1 },
+    { "expression": "1<2<3", "number": 1 },
+    { "expression": "3>2>1", "number": 0 },
+    { "expression": "1&0", "number": 0 },
+    { "expression": "1&.", "number": 1 },
+    { "expression": "0|.", "number": 1 },
+    { "expression": "1|0&0", "number": 1 },
+    { "expression": "0&0|1", "number": 1 },
+    { "expression": "!1|1", "number": 1 },
+    { "expression": "5&-1", "number": 1 },
+    { "expression": "1+1==2", "number": 1 },
+    { "expression": "2==1+1", "number": 1 },
+    { "expression": "1<2&2<3", "number": 1 },
+    { "expression": "-1<0", "number": 1 },
+    { "expression": "1 == 1 == 1", "number": 1 },
+    { "expression": "!0 == 1", "number": 1 },
+    { "expression": "1 = 1", "rc": 198 },
+    { "expression": "\"a\"<\"b\"", "number": 1 },
+    { "expression": "\"a\"==\"a\"", "number": 1 },
+    { "expression": "\"B\"<\"a\"", "number": 1 },
+    { "expression": "\"abc\"<\"abd\"", "number": 1 },
+    { "expression": "\"\"<\"a\"", "number": 1 },
+    { "expression": "\"a\"!=\"A\"", "number": 1 },
+    { "expression": "\"a\"+\"b\"==\"ab\"", "number": 1 },
+    { "expression": "\"a\"==1", "rc": 109 },
+    { "expression": "\"a\"+1", "rc": 109 },
+    { "expression": "-\"a\"", "rc": 109 },
+    { "expression": "\"a\"&1", "rc": 109 },
+    { "expression": "!\"a\"", "rc": 109 },
+    { "expression": "\"a\"*2", "string": "aa" },
+    { "expression": "\"a\"-\"b\"", "rc": 109 },
+    { "expression": "abs(-3)", "number": 3 },
+    { "expression": "abs(.)", "number": 8.98846567431158e307 },
+    { "expression": "ceil(2.1)", "number": 3 },
+    { "expression": "ceil(-2.1)", "number": -2 },
+    { "expression": "floor(-2.1)", "number": -3 },
+    { "expression": "floor(.)", "number": 8.98846567431158e307 },
+    { "expression": "int(-2.7)", "number": -2 },
+    { "expression": "int(1e20)", "number": 100000000000000000000 },
+    { "expression": "trunc(2.7)", "number": 2 },
+    { "expression": "round(2.5)", "number": 3 },
+    { "expression": "round(-2.5)", "number": -2 },
+    { "expression": "round(3.5)", "number": 4 },
+    { "expression": "round(0.5)", "number": 1 },
+    { "expression": "round(2.567,0.01)", "number": 2.57 },
+    { "expression": "round(2.5,2)", "number": 2 },
+    { "expression": "round(7,5)", "number": 5 },
+    { "expression": "round(1.005,.01)", "number": 1 },
+    { "expression": "round(5,0)", "number": 5 },
+    { "expression": "round(5,-2)", "number": 4 },
+    { "expression": "round(.)", "number": 8.98846567431158e307 },
+    { "expression": "round(5,.)", "number": 8.98846567431158e307 },
+    { "expression": "sign(-2)", "number": -1 },
+    { "expression": "sign(0)", "number": 0 },
+    { "expression": "sign(.)", "number": 8.98846567431158e307 },
+    { "expression": "sqrt(16)", "number": 4 },
+    { "expression": "sqrt(-1)", "number": 8.98846567431158e307 },
+    { "expression": "sqrt(2)", "number": 1.4142135623730951 },
+    { "expression": "exp(1)", "number": 2.718281828459045 },
+    { "expression": "exp(710)", "number": 8.98846567431158e307 },
+    { "expression": "exp(-750)", "number": 0 },
+    { "expression": "ln(1)", "number": 0 },
+    { "expression": "ln(0)", "number": 8.98846567431158e307 },
+    { "expression": "ln(-1)", "number": 8.98846567431158e307 },
+    { "expression": "log(10)", "number": 2.302585092994046 },
+    { "expression": "log10(1000)", "number": 2.9999999999999996 },
+    { "expression": "log10(0)", "number": 8.98846567431158e307 },
+    { "expression": "mod(7,3)", "number": 1 },
+    { "expression": "mod(-7,3)", "number": 2 },
+    { "expression": "mod(7,-3)", "number": 8.98846567431158e307 },
+    { "expression": "mod(7,0)", "number": 8.98846567431158e307 },
+    { "expression": "mod(5.5,2)", "number": 1.5 },
+    { "expression": "mod(.,2)", "number": 8.98846567431158e307 },
+    { "expression": "min(1,2,3)", "number": 1 },
+    { "expression": "min(.,2)", "number": 2 },
+    { "expression": "min(.,.)", "number": 8.98846567431158e307 },
+    { "expression": "max(1,.a,3)", "number": 3 },
+    { "expression": "max(.a,.b)", "number": 8.98846567431158e307 },
+    { "expression": "max(.b,.a)", "number": 8.98846567431158e307 },
+    { "expression": "cond(1,2,3)", "number": 2 },
+    { "expression": "cond(0,2,3)", "number": 3 },
+    { "expression": "cond(.,2,3)", "number": 2 },
+    { "expression": "cond(.,2,3,4)", "number": 4 },
+    { "expression": "cond(.a,2,3,4)", "number": 4 },
+    { "expression": "inrange(5,1,10)", "number": 1 },
+    { "expression": "inrange(.,1,10)", "number": 0 },
+    { "expression": "inrange(5,.,10)", "number": 1 },
+    { "expression": "inrange(5,1,.)", "number": 1 },
+    { "expression": "inrange(5,.,.)", "number": 1 },
+    { "expression": "inrange(.,.,.)", "number": 0 },
+    { "expression": "inrange(.a,1,.b)", "number": 0 },
+    { "expression": "inlist(3,1,2,3)", "number": 1 },
+    { "expression": "inlist(.,1,.)", "number": 1 },
+    { "expression": "inlist(4,1,2)", "number": 0 },
+    { "expression": "missing(.)", "number": 1 },
+    { "expression": "missing(.a)", "number": 1 },
+    { "expression": "missing(1)", "number": 0 },
+    { "expression": "missing(1,.)", "number": 1 },
+    { "expression": "missing(\"\")", "number": 1 },
+    { "expression": "missing(\"a\")", "number": 0 },
+    { "expression": "missing(1,\"\")", "number": 1 },
+    { "expression": "mi(.)", "number": 1 },
+    { "expression": "float(0.1)", "number": 0.10000000149011612 },
+    { "expression": "float(16777217)", "number": 16777216 },
+    { "expression": "float(1e39)", "number": 8.98846567431158e307 },
+    { "expression": "float(.a)", "number": 8.990660123939097e307 },
+    { "expression": "clip(5,1,3)", "number": 3 },
+    { "expression": "clip(0,1,3)", "number": 1 },
+    { "expression": "clip(.,1,3)", "number": 8.98846567431158e307 },
+    { "expression": "clip(2,.,3)", "number": 2 },
+    { "expression": "clip(2,3,1)", "number": 8.98846567431158e307 },
+    { "expression": "comb(5,2)", "number": 10 },
+    { "expression": "comb(5,6)", "number": 8.98846567431158e307 },
+    { "expression": "comb(5.5,2)", "number": 8.98846567431158e307 },
+    { "expression": "lnfactorial(5)", "number": 4.787491742782046 },
+    { "expression": "lnfactorial(-1)", "number": 8.98846567431158e307 },
+    { "expression": "logit(.5)", "number": 0 },
+    { "expression": "logit(0)", "number": 8.98846567431158e307 },
+    { "expression": "invlogit(0)", "number": 0.5 },
+    { "expression": "invlogit(2)", "number": 0.8807970779778823 },
+    { "expression": "invlogit(800)", "number": 1 },
+    { "expression": "normal(0)", "number": 0.5 },
+    { "expression": "normal(1.96)", "number": 0.9750021048517796 },
+    { "expression": "normal(-3)", "number": 0.0013498980316300946 },
+    { "expression": "normal(-10)", "number": 7.619853024160527e-24 },
+    { "expression": "normal(8)", "number": 0.9999999999999993 },
+    { "expression": "normal(.)", "number": 8.98846567431158e307 },
+    { "expression": "normalden(0)", "number": 0.39894228040143265 },
+    { "expression": "normalden(1)", "number": 0.24197072451914334 },
+    { "expression": "normalden(1,2)", "number": 0.17603266338214973 },
+    { "expression": "normalden(1,0,2)", "number": 0.17603266338214973 },
+    { "expression": "invnormal(.975)", "number": 1.9599639845400536 },
+    { "expression": "invnormal(.5)", "number": 0 },
+    { "expression": "invnormal(0)", "number": 8.98846567431158e307 },
+    { "expression": "invnormal(1)", "number": 8.98846567431158e307 },
+    { "expression": "invnormal(1e-10)", "number": -6.361340902404056 },
+    { "expression": "invnormal(.001)", "number": -3.090232306167813 },
+    { "expression": "invnormal(.3)", "number": -0.5244005127080407 },
+    { "expression": "_pi", "number": 3.141592653589793 },
+    { "expression": "reldif(1,2)", "number": 0.3333333333333333 },
+    { "expression": "reldif(.,.)", "number": 0 },
+    { "expression": "max()", "rc": 198 },
+    { "expression": "abs()", "rc": 198 },
+    { "expression": "abs(1,2)", "rc": 198 },
+    { "expression": "nosuchfn(1)", "rc": 133 },
+    { "expression": "sqrt(", "rc": 132 },
+    { "expression": "1 +", "rc": 198 },
+    { "expression": "(1+2", "rc": 132 },
+    { "expression": "1 2", "rc": 198 },
+    { "expression": "x", "rc": 111 },
+    { "expression": "abs(\"a\")", "rc": 109 },
+    { "expression": "strlen(\"abc\")", "number": 3 },
+    { "expression": "length(\"naïve\")", "number": 6 },
+    { "expression": "ustrlen(\"naïve\")", "number": 5 },
+    { "expression": "strlen(\"\")", "number": 0 },
+    { "expression": "strlen(3)", "rc": 109 },
+    { "expression": "strpos(\"abc\",\"c\")", "number": 3 },
+    { "expression": "strpos(\"abc\",\"z\")", "number": 0 },
+    { "expression": "strpos(\"abc\",\"\")", "number": 1 },
+    { "expression": "strpos(\"naïve\",\"v\")", "number": 5 },
+    { "expression": "ustrpos(\"naïve\",\"v\")", "number": 4 },
+    { "expression": "strrpos(\"abcabc\",\"b\")", "number": 5 },
+    { "expression": "strrpos(\"abc\",\"\")", "number": 3 },
+    { "expression": "real(\"3.5\")", "number": 3.5 },
+    { "expression": "real(\"abc\")", "number": 8.98846567431158e307 },
+    { "expression": "real(\" 12 \")", "number": 12 },
+    { "expression": "real(\"1e3\")", "number": 1000 },
+    { "expression": "real(\".\")", "number": 8.98846567431158e307 },
+    { "expression": "real(\".a\")", "number": 8.990660123939097e307 },
+    { "expression": "real(\"1,000\")", "number": 8.98846567431158e307 },
+    { "expression": "real(\"-.5\")", "number": -0.5 },
+    { "expression": "real(\"\")", "number": 8.98846567431158e307 },
+    { "expression": "wordcount(\"a b  c\")", "number": 3 },
+    { "expression": "wordcount(\"\")", "number": 0 },
+    { "expression": "wordcount(`\"a \"b c\" d\"')", "number": 4 },
+    { "expression": "strmatch(\"apple\",\"a*e\")", "number": 1 },
+    { "expression": "strmatch(\"apple\",\"a?ple\")", "number": 1 },
+    { "expression": "strmatch(\"apple\",\"b*\")", "number": 0 },
+    { "expression": "strmatch(\"apple\",\"APPLE\")", "number": 0 },
+    { "expression": "strmatch(\"a.c\",\"a.c\")", "number": 1 },
+    { "expression": "strmatch(\"abc\",\"a.c\")", "number": 0 },
+    { "expression": "regexm(\"abc123\",\"[0-9]+\")", "number": 1 },
+    { "expression": "regexm(\"abc\",\"^b\")", "number": 0 },
+    { "expression": "regexm(\"abc\",\"B\")", "number": 0 },
+    { "expression": "\"a\"+\"b\"", "string": "ab" },
+    { "expression": "strupper(\"aBc\")", "string": "ABC" },
+    { "expression": "upper(\"naïve\")", "string": "NAïVE" },
+    { "expression": "ustrupper(\"naïve\")", "string": "NAÏVE" },
+    { "expression": "lower(\"ABC\")", "string": "abc" },
+    { "expression": "ustrlower(\"NAÏVE\")", "string": "naïve" },
+    {
+      "expression": "strproper(\"hello wORLD-foo bar2baz\")",
+      "string": "Hello World-Foo Bar2Baz"
+    },
+    { "expression": "proper(\"mcdonald's\")", "string": "Mcdonald'S" },
+    { "expression": "strtrim(\"  a b  \")", "string": "a b" },
+    { "expression": "trim(\"  a b  \")", "string": "a b" },
+    { "expression": "ltrim(\"  a b  \")", "string": "a b  " },
+    { "expression": "rtrim(\"  a b  \")", "string": "  a b" },
+    { "expression": "stritrim(\"a   b  c\")", "string": "a b c" },
+    { "expression": "substr(\"abcdef\",2,3)", "string": "bcd" },
+    { "expression": "substr(\"abcdef\",-2,2)", "string": "ef" },
+    { "expression": "substr(\"abcdef\",2,.)", "string": "bcdef" },
+    { "expression": "substr(\"abcdef\",0,2)", "string": "" },
+    { "expression": "substr(\"abcdef\",7,1)", "string": "" },
+    { "expression": "substr(\"abcdef\",3,0)", "string": "" },
+    { "expression": "substr(\"abcdef\",.,2)", "string": "" },
+    { "expression": "substr(\"abcdef\",-9,2)", "string": "" },
+    { "expression": "substr(\"abcdef\",2.9,1.9)", "string": "b" },
+    { "expression": "usubstr(\"naïve\",3,2)", "string": "ïv" },
+    { "expression": "usubstr(\"naïve\",-2,.)", "string": "ve" },
+    { "expression": "subinstr(\"aXbXc\",\"X\",\"-\",.)", "string": "a-b-c" },
+    { "expression": "subinstr(\"aXbXc\",\"X\",\"-\",1)", "string": "a-bXc" },
+    { "expression": "subinstr(\"aXbXc\",\"X\",\"-\",0)", "string": "aXbXc" },
+    { "expression": "subinstr(\"abc\",\"\",\"-\",.)", "string": "abc" },
+    { "expression": "subinstr(\"aaa\",\"a\",\"aa\",.)", "string": "aaaaaa" },
+    { "expression": "subinword(\"a ab a\",\"a\",\"X\",.)", "string": "X ab X" },
+    { "expression": "strreverse(\"abc\")", "string": "cba" },
+    { "expression": "reverse(\"abc\")", "string": "cba" },
+    { "expression": "word(\"a b c\",2)", "string": "b" },
+    { "expression": "word(\"a b c\",-1)", "string": "c" },
+    { "expression": "word(\"a b c\",5)", "string": "" },
+    { "expression": "word(\"a b c\",0)", "string": "" },
+    { "expression": "word(`\"a \"b c\" d\"',2)", "string": "\"b" },
+    { "expression": "char(65)", "string": "A" },
+    { "expression": "abbrev(\"abcdefghijklmnop\",8)", "string": "abcdef~p" },
+    { "expression": "abbrev(\"abc\",8)", "string": "abc" },
+    { "expression": "regexr(\"abc123\",\"[0-9]+\",\"X\")", "string": "abcX" },
+    { "expression": "regexr(\"abc\",\"z\",\"X\")", "string": "abc" },
+    {
+      "expression": "cond(regexm(\"abc123\",\"([a-z]+)([0-9]+)\"), regexs(2), \"none\")",
+      "string": ""
+    },
+    {
+      "expression": "cond(regexm(\"abc123\",\"([a-z]+)([0-9]+)\"), regexs(0), \"none\")",
+      "string": "abc123"
+    },
+    { "expression": "cond(1,\"yes\",\"no\")", "string": "yes" },
+    { "expression": "cond(1,\"yes\",2)", "rc": 109 },
+    { "expression": "strupper(3)", "rc": 109 },
+    { "expression": "substr(\"abc\",1)", "rc": 198 },
+    { "expression": "itrim(\"a  b\")", "string": "a b" },
+    { "expression": "mdy(1,1,1960)", "number": 0 },
+    { "expression": "mdy(11,10,2026)", "number": 24420 },
+    { "expression": "mdy(2,30,2020)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(2,29,2020)", "number": 21974 },
+    { "expression": "mdy(2,29,2021)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(13,1,2020)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(1,1,1800)", "number": -58438 },
+    { "expression": "mdy(1.5,1,2000)", "number": 14610 },
+    { "expression": "mdy(1,1,99)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(12,31,9999)", "number": 2936549 },
+    { "expression": "mdy(.,1,2000)", "number": 8.98846567431158e307 },
+    { "expression": "year(0)", "number": 1960 },
+    { "expression": "year(24420)", "number": 2026 },
+    { "expression": "month(24420)", "number": 11 },
+    { "expression": "day(24420)", "number": 10 },
+    { "expression": "dow(24420)", "number": 2 },
+    { "expression": "doy(24420)", "number": 314 },
+    { "expression": "quarter(24420)", "number": 4 },
+    { "expression": "halfyear(24420)", "number": 2 },
+    { "expression": "week(24420)", "number": 45 },
+    { "expression": "year(-1)", "number": 1959 },
+    { "expression": "day(-1)", "number": 31 },
+    { "expression": "year(.)", "number": 8.98846567431158e307 },
+    { "expression": "dow(-1)", "number": 4 },
+    { "expression": "year(24420.9)", "number": 2026 },
+    { "expression": "ym(2026,11)", "number": 802 },
+    { "expression": "yq(2026,4)", "number": 267 },
+    { "expression": "ym(2026,13)", "number": 8.98846567431158e307 },
+    { "expression": "yh(2026,2)", "number": 133 },
+    { "expression": "yw(2026,45)", "number": 3476 },
+    { "expression": "mofd(24420)", "number": 802 },
+    { "expression": "qofd(24420)", "number": 267 },
+    { "expression": "yofd(24420)", "number": 2026 },
+    { "expression": "hofd(24420)", "number": 133 },
+    { "expression": "wofd(24420)", "number": 3476 },
+    { "expression": "dofm(802)", "number": 24411 },
+    { "expression": "dofq(267)", "number": 24380 },
+    { "expression": "dofy(2026)", "number": 24107 },
+    { "expression": "dofh(133)", "number": 24288 },
+    { "expression": "mofd(-1)", "number": -1 },
+    { "expression": "dofm(-1)", "number": -31 },
+    { "expression": "td(10nov2026)", "number": 24420 },
+    { "expression": "td(1jan1960)", "number": 0 },
+    { "expression": "tm(2026m11)", "number": 802 },
+    { "expression": "tq(2026q4)", "number": 267 },
+    { "expression": "ty(2026)", "rc": 133 },
+    { "expression": "date(\"11/10/2026\",\"MDY\")", "number": 24420 },
+    { "expression": "date(\"10nov2026\",\"DMY\")", "number": 24420 },
+    { "expression": "date(\"2026-11-10\",\"YMD\")", "number": 24420 },
+    { "expression": "date(\"November 10, 2026\",\"MDY\")", "number": 24420 },
+    { "expression": "date(\"10 November 2026\",\"DMY\")", "number": 24420 },
+    { "expression": "date(\"11/10/26\",\"MD20Y\")", "number": 24420 },
+    {
+      "expression": "date(\"11/10/26\",\"MDY\")",
+      "number": 8.98846567431158e307
+    },
+    { "expression": "date(\"20261110\",\"YMD\")", "number": 24420 },
+    { "expression": "date(\"xx\",\"MDY\")", "number": 8.98846567431158e307 },
+    {
+      "expression": "date(\"2/30/2020\",\"MDY\")",
+      "number": 8.98846567431158e307
+    },
+    { "expression": "date(\"11/10/2026\",\"DMY\")", "number": 24390 },
+    { "expression": "daily(\"1jan1960\",\"DMY\")", "number": 0 },
+    { "expression": "date(\"Nov 10 2026\",\"MDY\")", "number": 24420 },
+    { "expression": "date(\"10.11.2026\",\"DMY\")", "number": 24420 },
+    { "expression": "floor(.a)", "number": 8.990660123939097e307 },
+    { "expression": "ceil(.a)", "number": 8.990660123939097e307 },
+    { "expression": "round(.a)", "number": 8.990660123939097e307 },
+    { "expression": "round(.a,2)", "number": 8.990660123939097e307 },
+    { "expression": "trunc(.a)", "number": 8.990660123939097e307 },
+    { "expression": "abs(.a)", "number": 8.98846567431158e307 },
+    { "expression": "sqrt(.a)", "number": 8.98846567431158e307 },
+    { "expression": "sign(.a)", "number": 8.98846567431158e307 },
+    { "expression": "exp(.a)", "number": 8.98846567431158e307 },
+    { "expression": "ln(.a)", "number": 8.98846567431158e307 },
+    { "expression": "mod(.a,2)", "number": 8.98846567431158e307 },
+    { "expression": "clip(.a,1,2)", "number": 8.990660123939097e307 },
+    { "expression": "cond(1,.a,2)", "number": 8.990660123939097e307 },
+    { "expression": "max(.a)", "rc": 198 },
+    { "expression": "min(.b,.a)", "number": 8.98846567431158e307 },
+    { "expression": "max(.,.a)", "number": 8.98846567431158e307 },
+    { "expression": "-(.a)", "number": 8.98846567431158e307 },
+    { "expression": ".a^2", "number": 8.98846567431158e307 },
+    { "expression": ".a/1", "number": 8.98846567431158e307 },
+    { "expression": "year(.a)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(.a,1,2000)", "number": 8.98846567431158e307 },
+    { "expression": "real(\".b\")", "number": 8.992854573566614e307 },
+    { "expression": "int(.)", "number": 8.98846567431158e307 },
+    { "expression": "1 ==2", "number": 0 },
+    { "expression": "2*\"ab\"", "string": "abab" },
+    { "expression": "\"ab\"*0", "string": "" },
+    { "expression": "\"a\"*-1", "string": "" },
+    { "expression": "\"a\"*.", "string": "" },
+    { "expression": "!.a", "number": 0 },
+    { "expression": ".b&0", "number": 0 },
+    { "expression": ".b|0", "number": 1 },
+    { "expression": "missing(.z)", "number": 1 },
+    { "expression": "1E3", "number": 1000 },
+    { "expression": "1d3", "number": 1000 },
+    { "expression": ".a<.b", "number": 1 },
+    { "expression": "x[1]", "rc": 111 },
+    { "expression": "2(3)", "rc": 133 },
+    { "expression": "1,2", "rc": 101 },
+    { "expression": "_n", "number": 1 },
+    { "expression": "_N", "number": 0 },
+    { "expression": "sum(1)", "number": 1 },
+    { "expression": "(1)", "number": 1 },
+    { "expression": "((2))+1", "number": 3 },
+    { "expression": "1e", "rc": 198 },
+    { "expression": "1..2", "rc": 198 },
+    { "expression": "5.", "number": 5 },
+    { "expression": "abs (3)", "rc": 111 },
+    { "expression": "strlen(\"a\" + \"bc\")", "number": 3 },
+    { "expression": "1<>2", "rc": 198 },
+    { "expression": "!", "rc": 198 },
+    { "expression": "1--", "rc": 198 },
+    { "expression": "2^^3", "rc": 198 },
+    { "expression": "min(1,\"a\")", "rc": 109 },
+    { "expression": "inlist(\"a\",\"a\",1)", "rc": 109 },
+    { "expression": "inlist(1)", "rc": 198 },
+    { "expression": "inrange(1,2)", "rc": 198 },
+    { "expression": "cond(1,2)", "rc": 198 },
+    { "expression": "float()", "rc": 198 },
+    { "expression": "mod(5)", "rc": 198 },
+    { "expression": "2^0.5", "number": 1.414213562373095 },
+    { "expression": "10^-2", "number": 0.010000000000000002 },
+    { "expression": "1/3", "number": 0.3333333333333333 },
+    { "expression": "1-0.9", "number": 0.09999999999999998 },
+    { "expression": "100*1.1", "number": 110.00000000000001 },
+    { "expression": "3*0.1", "number": 0.30000000000000004 },
+    { "expression": "1e-320*1", "number": 1e-320 },
+    { "expression": "-0", "number": 0 },
+    { "expression": "0*-1", "number": 0 },
+    { "expression": "1/-0", "number": 8.98846567431158e307 },
+    { "expression": "5/2", "number": 2.5 },
+    { "expression": "-7/2", "number": -3.5 },
+    { "expression": "2^62*4", "number": 18446744073709552000 },
+    { "expression": "sqrt(1e308)*1e200", "number": 8.98846567431158e307 },
+    { "expression": "abs(-0)", "number": 0 },
+    { "expression": "1 >= .", "number": 0 },
+    { "expression": "-. ", "number": 8.98846567431158e307 },
+    { "expression": "- -.", "number": 8.98846567431158e307 },
+    { "expression": "~0", "number": 1 },
+    { "expression": "1 ~= 1", "number": 0 },
+    { "expression": "1 ! = 1", "number": 0 },
+    { "expression": "strlen(\"a\")+1", "number": 2 },
+    { "expression": "\"a\" + \"b\" + \"c\"", "string": "abc" },
+    { "expression": "\"abc\"==\"abc \"", "number": 0 },
+    { "expression": "\"a\">=\"\"", "number": 1 },
+    { "expression": "min(3)", "rc": 198 },
+    { "expression": "max(2,2)", "number": 2 },
+    { "expression": "cond(2>1,10,20)+1", "number": 11 }
+  ],
+  "data": [
+    {
+      "expression": "x+1",
+      "by": false,
+      "rc": 0,
+      "values": [2.5, -1, 8.98846567431158e307, 1, 8.98846567431158e307, 101],
+      "type": "float"
+    },
+    {
+      "expression": "x*f",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.15000000223517418, -0.4000000059604645, 8.98846567431158e307, 0,
+        8.98846567431158e307, 1677721600
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "f==0.1",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "f==float(0.1)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    { "expression": "f==.1f", "by": false, "rc": 198, "values": [] },
+    {
+      "expression": "x>1",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "x>=.",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x==.a",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(x)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x<.",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-x",
+      "by": false,
+      "rc": 0,
+      "values": [-1.5, 2, 8.98846567431158e307, 0, 8.98846567431158e307, -100],
+      "type": "float"
+    },
+    {
+      "expression": "!x",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x^2",
+      "by": false,
+      "rc": 0,
+      "values": [2.25, 4, 8.98846567431158e307, 0, 8.98846567431158e307, 10000],
+      "type": "float"
+    },
+    {
+      "expression": "_n",
+      "by": false,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "_N",
+      "by": false,
+      "rc": 0,
+      "values": [6, 6, 6, 6, 6, 6],
+      "type": "float"
+    },
+    {
+      "expression": "_n==_N",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "x[1]",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+      "type": "float"
+    },
+    {
+      "expression": "x[_n-1]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 1.5, -2, 8.98846567431158e307, 0,
+        8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[_n+1]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100,
+        8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[0]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[_N]",
+      "by": false,
+      "rc": 0,
+      "values": [100, 100, 100, 100, 100, 100],
+      "type": "float"
+    },
+    {
+      "expression": "x[7]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[.]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[2.7]",
+      "by": false,
+      "rc": 0,
+      "values": [-2, -2, -2, -2, -2, -2],
+      "type": "float"
+    },
+    {
+      "expression": "x[-1]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "s[_n-1]",
+      "by": false,
+      "rc": 0,
+      "values": ["", "apple", "Banana split", "", "  pad  ", "x"],
+      "type": "str12"
+    },
+    {
+      "expression": "x[id[2]]",
+      "by": false,
+      "rc": 0,
+      "values": [-2, -2, -2, -2, -2, -2],
+      "type": "float"
+    },
+    {
+      "expression": "sum(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, -0.5, -0.5, -0.5, -0.5, 99.5],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 3, 6, 10, 15, 21],
+      "type": "float"
+    },
+    {
+      "expression": "sum(x)+sum(id)",
+      "by": false,
+      "rc": 0,
+      "values": [2.5, 2.5, 5.5, 9.5, 14.5, 120.5],
+      "type": "float"
+    },
+    {
+      "expression": "sum(sum(id))",
+      "by": false,
+      "rc": 0,
+      "values": [1, 4, 10, 20, 35, 56],
+      "type": "float"
+    },
+    {
+      "expression": "sum(f)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.10000000149011612, 0.30000000447034836, 0.6000000163912773,
+        1.6000000163912773, 1.6000000163912773, 16777217.600000016
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id>2)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 2, 3, 4],
+      "type": "float"
+    },
+    {
+      "expression": "_pi*id",
+      "by": false,
+      "rc": 0,
+      "values": [
+        3.141592653589793, 6.283185307179586, 9.42477796076938,
+        12.566370614359172, 15.707963267948966, 18.84955592153876
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "pr",
+      "by": false,
+      "rc": 0,
+      "values": [10, 20, 30, 40, 50, 60],
+      "type": "float"
+    },
+    { "expression": "w", "by": false, "rc": 111, "values": [] },
+    { "expression": "nosuch", "by": false, "rc": 111, "values": [] },
+    {
+      "expression": "price/id",
+      "by": false,
+      "rc": 0,
+      "values": [10, 10, 10, 10, 10, 10],
+      "type": "float"
+    },
+    {
+      "expression": "id/0",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "s",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "s+s",
+      "by": false,
+      "rc": 0,
+      "values": [
+        "appleapple",
+        "Banana splitBanana split",
+        "",
+        "  pad    pad  ",
+        "xx",
+        "naïvenaïve"
+      ],
+      "type": "str24"
+    },
+    {
+      "expression": "s==\"x\"",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(s)",
+      "by": false,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "upper(s)",
+      "by": false,
+      "rc": 0,
+      "values": ["APPLE", "BANANA SPLIT", "", "  PAD  ", "X", "NAïVE"],
+      "type": "str12"
+    },
+    {
+      "expression": "substr(s,1,3)",
+      "by": false,
+      "rc": 0,
+      "values": ["app", "Ban", "", "  p", "x", "na�"],
+      "type": "str3"
+    },
+    { "expression": "s+1", "by": false, "rc": 109, "values": [] },
+    { "expression": "x+s", "by": false, "rc": 109, "values": [] },
+    {
+      "expression": "cond(x>0,s,\"neg\")",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "neg", "", "neg", "x", "naïve"],
+      "type": "str6"
+    },
+    { "expression": "cond(x>0,1,\"a\")", "by": false, "rc": 109, "values": [] },
+    {
+      "expression": "cond(x<., x, 0)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, -2, 0, 0, 0, 100],
+      "type": "float"
+    },
+    {
+      "expression": "max(x,f,id)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, 2, 3, 4, 5, 16777216],
+      "type": "float"
+    },
+    {
+      "expression": "min(x,id)",
+      "by": false,
+      "rc": 0,
+      "values": [1, -2, 3, 0, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "inlist(s,\"x\",\"apple\")",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "inlist(id,1,3,5)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "inrange(x,0,10)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(s,1)",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "Banana", "", "pad", "x", "naïve"],
+      "type": "str6"
+    },
+    {
+      "expression": "strpos(s,\"a\")",
+      "by": false,
+      "rc": 0,
+      "values": [1, 2, 0, 4, 0, 2],
+      "type": "float"
+    },
+    {
+      "expression": "id*(g==2)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 3, 4, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "g[_n-1]==g",
+      "by": false,
+      "rc": 0,
+      "values": [0, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "real(s)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "float(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "f*1",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+        8.98846567431158e307, 16777216
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "f+0.1",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.20000000149011612, 0.3000000029802322, 0.40000001192092893, 1.1,
+        8.98846567431158e307, 16777216.1
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "id/3",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.3333333333333333, 0.6666666666666666, 1, 1.3333333333333333,
+        1.6666666666666667, 2
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "mod(id,2)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "round(price/7,0.1)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        1.4000000000000001, 2.9000000000000004, 4.3, 5.7, 7.1000000000000005,
+        8.6
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "year(mdy(id,1,2020))",
+      "by": false,
+      "rc": 0,
+      "values": [2020, 2020, 2020, 2020, 2020, 2020],
+      "type": "float"
+    },
+    {
+      "expression": "int(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "x*.",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": ".z",
+      "by": false,
+      "rc": 0,
+      "values": [
+        9.045521364627034e307, 9.045521364627034e307, 9.045521364627034e307,
+        9.045521364627034e307, 9.045521364627034e307, 9.045521364627034e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(s)>3 & x<.",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "s<\"b\"",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "s!=\"\"",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "1",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"lit\"",
+      "by": false,
+      "rc": 0,
+      "values": ["lit", "lit", "lit", "lit", "lit", "lit"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(s)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "abs(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, 2, 8.98846567431158e307, 0, 8.98846567431158e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "k+id",
+      "by": false,
+      "rc": 0,
+      "values": [4, 5, 6, 7, 8, 9],
+      "type": "float"
+    },
+    {
+      "expression": "scalar(k)*2",
+      "by": false,
+      "rc": 0,
+      "values": [6, 6, 6, 6, 6, 6],
+      "type": "float"
+    },
+    {
+      "expression": "ks+s",
+      "by": false,
+      "rc": 0,
+      "values": [
+        "txtapple",
+        "txtBanana split",
+        "txt",
+        "txt  pad  ",
+        "txtx",
+        "txtnaïve"
+      ],
+      "type": "str15"
+    },
+    { "expression": "scalar(nosuch)", "by": false, "rc": 111, "values": [] },
+    {
+      "expression": "r(N)+0",
+      "by": false,
+      "rc": 0,
+      "values": [6, 6, 6, 6, 6, 6],
+      "type": "float"
+    },
+    {
+      "expression": "r(mean)",
+      "by": false,
+      "rc": 0,
+      "values": [35, 35, 35, 35, 35, 35],
+      "type": "float"
+    },
+    {
+      "expression": "r(nosuch)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "e(N)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    { "expression": "ID", "by": false, "rc": 111, "values": [] },
+    {
+      "expression": "strtrim(s)",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "pad", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "strproper(s)",
+      "by": false,
+      "rc": 0,
+      "values": ["Apple", "Banana Split", "", "  Pad  ", "X", "NaïVe"],
+      "type": "str12"
+    },
+    {
+      "expression": "id[_n-1]+id[_n+1]",
+      "by": false,
+      "rc": 0,
+      "values": [8.98846567431158e307, 4, 6, 8, 10, 8.98846567431158e307],
+      "type": "float"
+    },
+    {
+      "expression": "x==x[_n-1]",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(x>0)+(f>0)",
+      "by": false,
+      "rc": 0,
+      "values": [2, 1, 2, 1, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "id in 1",
+      "by": false,
+      "rc": 0,
+      "values": [
+        1, 8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    { "expression": "", "by": false, "rc": 198, "values": [] },
+    {
+      "expression": "_n",
+      "by": true,
+      "rc": 0,
+      "values": [1, 2, 1, 2, 1, 2],
+      "type": "float"
+    },
+    {
+      "expression": "_N",
+      "by": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "x[1]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        1.5, 1.5, 8.98846567431158e307, 8.98846567431158e307,
+        8.990660123939097e307, 8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[_n-1]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 1.5, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id)",
+      "by": true,
+      "rc": 0,
+      "values": [1, 3, 3, 7, 5, 11],
+      "type": "float"
+    },
+    {
+      "expression": "x[_N]",
+      "by": true,
+      "rc": 0,
+      "values": [-2, -2, 0, 0, 100, 100],
+      "type": "float"
+    },
+    {
+      "expression": "id[0]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "_n==1",
+      "by": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "id[_N]-id[1]",
+      "by": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "id[3]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id)/_N",
+      "by": true,
+      "rc": 0,
+      "values": [0.5, 1.5, 1.5, 3.5, 2.5, 5.5],
+      "type": "float"
+    }
+  ]
+}

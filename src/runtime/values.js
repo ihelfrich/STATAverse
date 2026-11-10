@@ -21,6 +21,13 @@ export function missingName(value) {
   return k >= 1 && k <= 26 ? "." + String.fromCharCode(96 + k) : ".";
 }
 
+/** Maps anything that is not a finite double or one of the 27 codes to ".". */
+export function canonical(value) {
+  if (value < MISSING) return value < -DOUBLE_MAX ? MISSING : value;
+  const k = (value - MISSING) / STEP;
+  return Number.isInteger(k) && k >= 0 && k <= 26 ? value : MISSING;
+}
+
 const LITERAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
 /** Reads a Stata numeric literal; returns undefined when the text is not one. */
 export function parseNumber(text) {
