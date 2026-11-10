@@ -59,8 +59,8 @@ test("graph commands refuse what they cannot draw", () => {
   assert.equal(run("scatter y s").result.rc, 109);
   assert.equal(run("scatter y").result.rc, 102);
   assert.equal(run("scatter y x if x > 99").result.rc, 2000);
-  assert.equal(run("graph bar y").result.rc, 198);
-  assert.equal(run("twoway (area y x)").result.rc, 198);
+  assert.equal(run("graph pie y").result.rc, 198);
+  assert.equal(run("twoway (rcap y x x)").result.rc, 198);
   assert.equal(run("graph export out.png").result.rc, 0);
 });
 
@@ -105,4 +105,56 @@ test("margins leaves r(b) and r(V) for matrix commands", () => {
   );
   assert.ok(Number(result.locals.get("se")) > 0);
   assert.equal(session.matrices.get("V").values.length, 2);
+});
+
+test("twoway draws fits with bands, bars, areas and smoothers", () => {
+  const { result } = run(
+    "twoway (lfitci y x) (scatter y x)\ntwoway (qfitci y x) (qfit y x)\ntwoway bar y x\ntwoway area y x\ntwoway connected y x\ntwoway (histogram x) (kdensity x)\ntwoway lowess y x",
+  );
+  assert.equal(result.rc, 0);
+  const graphs = result.output.filter((o) => o.graph).map((o) => o.graph.svg);
+  assert.equal(graphs.length, 7);
+  // A band is one polygon; the scatter over it has five markers.
+  assert.equal(marks(graphs[0], "polygon"), 1);
+  assert.equal(marks(graphs[0], "circle"), 5);
+  assert.equal(marks(graphs[1], "polyline"), 2);
+  // Five bars and the white background.
+  assert.equal(marks(graphs[2], "rect"), 6);
+  assert.equal(marks(graphs[3], "polygon"), 1);
+  assert.equal(marks(graphs[4], "circle"), 5);
+});
+
+test("graph bar, hbar and box report the statistics they draw", () => {
+  const { result } = run(
+    "graph bar y, over(g)\ngraph hbar (mean) y (median) x, over(g)\ngraph box x, over(g)\ngraph bar, over(g)",
+  );
+  assert.equal(result.rc, 0);
+  const graphs = result.output.filter((o) => o.graph).map((o) => o.graph);
+  assert.equal(graphs.length, 4);
+  // Means of y by g: (1 + 3)/2, 3.5 from the two present values, and 8.
+  assert.match(graphs[0].description, /mean of y by g: 1 2, 2 3\.5, 3 8/);
+  assert.match(graphs[1].description, /median of x by g: 1 1\.5, 2 4, 3 6/);
+  assert.match(graphs[2].description, /x \(2\): median 4, quartiles 3 and 5/);
+  assert.match(graphs[3].description, /percent by g: 1 33\.33333, 2 50/);
+  assert.match(graphs[1].svg, />1<\/text>/);
+});
+
+test("kdensity, lowess and the plots after regress draw and store what they compute", () => {
+  const { result, session } = run(
+    "kdensity x, generate(kx kd) n(4)\nlowess y x, generate(ly)\nregress y x\nrvfplot\navplot x\nlvr2plot\nqnorm y\npnorm y\ntsset x\ntsline y\nhistogram x, normal kdensity",
+  );
+  assert.equal(result.rc, 0);
+  assert.equal(result.output.filter((o) => o.graph).length, 9);
+  assert.equal(session.results.r.N, 6);
+  assert.equal(session.data.get("kd").type, "double");
+  // With one regressor the added-variable slope is the coefficient itself.
+  assert.match(
+    result.output.find((o) => o.command === "avplot x").graph.description,
+    /^Added-variable plot for x: coef = 1\.364865, se = \.2697066, t = 5\.06\.$/,
+  );
+});
+
+test("graphs that are not available say so", () => {
+  for (const command of ["graph pie, over(g)", "twoway rcap y x x", "avplot g"])
+    assert.notEqual(run(`regress y x\n${command}`).result.rc, 0, command);
 });

@@ -16,6 +16,7 @@ import { EVERYDAY_COMMANDS } from "./everyday.js";
 import { MORE_ESTIMATORS } from "./more-estimators.js";
 import { TEST_COMMANDS } from "./tests.js";
 import { DATA_UTILITIES } from "./data-utilities.js";
+import { MORE_GRAPH_COMMANDS } from "./graphics-more.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
@@ -1282,6 +1283,7 @@ export const COMMANDS = [
   ...MORE_ESTIMATORS,
   ...TEST_COMMANDS,
   ...DATA_UTILITIES,
+  ...MORE_GRAPH_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   ...DELIMITED_COMMANDS,

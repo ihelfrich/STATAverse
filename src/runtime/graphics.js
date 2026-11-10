@@ -8,6 +8,14 @@ import { applyFormat } from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { compileExpression } from "./expression.js";
 import { isMissing, isStringType } from "./values.js";
+import {
+  KERNELS,
+  defaultBandwidth,
+  densityGrid,
+  kernelDensity,
+  lowess,
+  polynomialFit,
+} from "./smoothers.js";
 
 const WIDTH = 640,
   HEIGHT = 460,
@@ -37,18 +45,38 @@ export function ticks(low, high) {
   return out;
 }
 
-function unquote(text) {
+export function unquote(text) {
   const t = (text ?? "").trim();
   return t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1) : t;
 }
 
 /** Draws layers on shared axes. Each layer: { kind, points | bars, label }. */
-export function draw({ layers, xTitle, yTitle, title, xRange, yRange }) {
+export function draw({
+  layers,
+  xTitle,
+  yTitle,
+  title,
+  xRange,
+  yRange,
+  xLabels,
+}) {
   const xs = layers.flatMap((l) =>
-      l.bars ? l.bars.flatMap((b) => [b.x0, b.x1]) : l.points.map((p) => p[0]),
+      l.bars
+        ? l.bars.flatMap((b) => [b.x0, b.x1])
+        : l.boxes
+          ? l.boxes.flatMap((b) => [b.x - b.width, b.x + b.width])
+          : l.points.map((p) => p[0]),
     ),
     ys = layers.flatMap((l) =>
-      l.bars ? [0, ...l.bars.map((b) => b.height)] : l.points.map((p) => p[1]),
+      l.bars
+        ? [0, ...l.bars.map((b) => b.height)]
+        : l.boxes
+          ? l.boxes.flatMap((b) => [b.lower, b.upper, ...b.outside])
+          : l.kind === "band"
+            ? l.points.flatMap((p) => [p[1], p[2]])
+            : l.kind === "area"
+              ? [0, ...l.points.map((p) => p[1])]
+              : l.points.map((p) => p[1]),
     );
   if (!xs.length) throw new StataError("no observations", 2000);
   const xt = ticks(
@@ -74,10 +102,10 @@ export function draw({ layers, xTitle, yTitle, title, xRange, yRange }) {
       `<line x1="${PLOT.left}" x2="${WIDTH - PLOT.right}" y1="${n(py(v))}" y2="${n(py(v))}" stroke="#e6e6e6"/>`,
       `<text x="${PLOT.left - 8}" y="${n(py(v) + 4)}" text-anchor="end">${escape(g(v))}</text>`,
     );
-  for (const v of xt)
+  for (const tick of xLabels ?? xt.map((v) => ({ at: v, text: g(v) })))
     parts.push(
-      `<line x1="${n(px(v))}" x2="${n(px(v))}" y1="${PLOT.top + h}" y2="${PLOT.top + h + 5}" stroke="#333333"/>`,
-      `<text x="${n(px(v))}" y="${PLOT.top + h + 20}" text-anchor="middle">${escape(g(v))}</text>`,
+      `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${PLOT.top + h}" y2="${PLOT.top + h + 5}" stroke="#333333"/>`,
+      `<text x="${n(px(tick.at))}" y="${PLOT.top + h + 20}" text-anchor="middle">${escape(tick.text)}</text>`,
     );
   parts.push(
     `<line x1="${PLOT.left}" x2="${WIDTH - PLOT.right}" y1="${PLOT.top + h}" y2="${PLOT.top + h}" stroke="#333333"/>`,
@@ -90,6 +118,40 @@ export function draw({ layers, xTitle, yTitle, title, xRange, yRange }) {
         parts.push(
           `<rect x="${n(px(bar.x0))}" y="${n(py(bar.height))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(py(0) - py(bar.height))}" fill="${color}" fill-opacity="0.75" stroke="#ffffff"/>`,
         );
+    else if (layer.boxes)
+      for (const box of layer.boxes) {
+        const left = px(box.x - box.width),
+          right = px(box.x + box.width),
+          middle = px(box.x);
+        parts.push(
+          `<line x1="${n(middle)}" x2="${n(middle)}" y1="${n(py(box.lower))}" y2="${n(py(box.upper))}" stroke="${color}" stroke-width="1.5"/>`,
+          `<line x1="${n(middle - 8)}" x2="${n(middle + 8)}" y1="${n(py(box.lower))}" y2="${n(py(box.lower))}" stroke="${color}" stroke-width="1.5"/>`,
+          `<line x1="${n(middle - 8)}" x2="${n(middle + 8)}" y1="${n(py(box.upper))}" y2="${n(py(box.upper))}" stroke="${color}" stroke-width="1.5"/>`,
+          `<rect x="${n(left)}" y="${n(py(box.q3))}" width="${n(right - left)}" height="${n(Math.max(0, py(box.q1) - py(box.q3)))}" fill="${color}" fill-opacity="0.6" stroke="${color}"/>`,
+          `<line x1="${n(left)}" x2="${n(right)}" y1="${n(py(box.median))}" y2="${n(py(box.median))}" stroke="#ffffff" stroke-width="2"/>`,
+          ...box.outside.map(
+            (v) =>
+              `<circle cx="${n(middle)}" cy="${n(py(v))}" r="3" fill="${color}"/>`,
+          ),
+        );
+      }
+    else if (layer.kind === "band")
+      parts.push(
+        `<polygon fill="${color}" fill-opacity="0.25" stroke="none" points="${[
+          ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
+          ...[...layer.points]
+            .reverse()
+            .map((p) => `${n(px(p[0]))},${n(py(p[2]))}`),
+        ].join(" ")}"/>`,
+      );
+    else if (layer.kind === "area")
+      parts.push(
+        `<polygon fill="${color}" fill-opacity="0.5" stroke="${color}" points="${[
+          `${n(px(layer.points[0][0]))},${n(py(0))}`,
+          ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
+          `${n(px(layer.points.at(-1)[0]))},${n(py(0))}`,
+        ].join(" ")}"/>`,
+      );
     else if (layer.kind === "segments")
       // Pairs of points joined one pair at a time, with caps: intervals.
       for (let p = 0; p + 1 < layer.points.length; p += 2) {
@@ -100,11 +162,16 @@ export function draw({ layers, xTitle, yTitle, title, xRange, yRange }) {
           `<line x1="${n(px(b[0]) - 4)}" x2="${n(px(b[0]) + 4)}" y1="${n(py(b[1]))}" y2="${n(py(b[1]))}" stroke="${color}" stroke-width="1.5"/>`,
         );
       }
-    else if (layer.kind === "line")
+    else if (layer.kind === "line" || layer.kind === "connected") {
       parts.push(
         `<polyline fill="none" stroke="${color}" stroke-width="2" points="${layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`).join(" ")}"/>`,
       );
-    else
+      if (layer.kind === "connected")
+        for (const p of layer.points)
+          parts.push(
+            `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5" fill="${color}"/>`,
+          );
+    } else
       for (const p of layer.points)
         parts.push(
           `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="4" fill="${color}" fill-opacity="0.85"/>`,
@@ -129,7 +196,62 @@ export function draw({ layers, xTitle, yTitle, title, xRange, yRange }) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
 }
 
-const titleOf = (variable) => variable.label || variable.name;
+/**
+ * Horizontal bars: one group of bars per category, values along the x axis.
+ * groups: [{ label, values }], one value per series.
+ */
+export function drawHorizontalBars({ groups, series, xTitle, title }) {
+  const all = groups.flatMap((group) => group.values);
+  if (!all.length) throw new StataError("no observations", 2000);
+  const xt = ticks(Math.min(0, ...all), Math.max(0, ...all)),
+    x0 = xt[0],
+    x1 = xt.at(-1),
+    left = 120,
+    w = WIDTH - left - PLOT.right,
+    h = HEIGHT - PLOT.top - PLOT.bottom,
+    px = (v) => left + ((v - x0) / (x1 - x0)) * w,
+    band = h / groups.length,
+    thick = (band * 0.8) / series.length,
+    n = (v) => v.toFixed(2),
+    parts = [
+      `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="#ffffff"/>`,
+    ];
+  for (const v of xt)
+    parts.push(
+      `<line x1="${n(px(v))}" x2="${n(px(v))}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#e6e6e6"/>`,
+      `<text x="${n(px(v))}" y="${PLOT.top + h + 20}" text-anchor="middle">${escape(g(v))}</text>`,
+    );
+  groups.forEach((group, k) => {
+    const top = PLOT.top + k * band + band * 0.1;
+    parts.push(
+      `<text x="${left - 8}" y="${n(PLOT.top + (k + 0.5) * band + 4)}" text-anchor="end">${escape(group.label)}</text>`,
+    );
+    group.values.forEach((value, s) =>
+      parts.push(
+        `<rect x="${n(Math.min(px(0), px(value)))}" y="${n(top + s * thick)}" width="${n(Math.abs(px(value) - px(0)))}" height="${n(thick)}" fill="${COLORS[s % COLORS.length]}" fill-opacity="0.75" stroke="#ffffff"/>`,
+      ),
+    );
+  });
+  parts.push(
+    `<line x1="${n(px(0))}" x2="${n(px(0))}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#333333"/>`,
+    `<line x1="${left}" x2="${WIDTH - PLOT.right}" y1="${PLOT.top + h}" y2="${PLOT.top + h}" stroke="#333333"/>`,
+    `<text x="${left + w / 2}" y="${HEIGHT - 22}" text-anchor="middle">${escape(xTitle)}</text>`,
+  );
+  if (title)
+    parts.push(
+      `<text x="${WIDTH / 2}" y="24" text-anchor="middle" font-size="16">${escape(title)}</text>`,
+    );
+  if (series.length > 1)
+    series.forEach((name, s) =>
+      parts.push(
+        `<rect x="${left + 8 + s * 150}" y="${HEIGHT - 14}" width="12" height="8" fill="${COLORS[s % COLORS.length]}"/>`,
+        `<text x="${left + 26 + s * 150}" y="${HEIGHT - 6}">${escape(name)}</text>`,
+      ),
+    );
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
+}
+
+export const titleOf = (variable) => variable.label || variable.name;
 function numeric(session, name) {
   const variable = session.data.get(session.varlist(name)[0]);
   if (isStringType(variable.type))
@@ -190,10 +312,141 @@ function functionPlot(session, text) {
   ];
 }
 
+/** The bars of a histogram and what was decided about its bins. */
+export function histogramBars(values, options, text, note) {
+  const n = values.length,
+    low = Math.min(...values),
+    high = Math.max(...values),
+    startGiven = /\bstart\(/.test(text);
+  let start = startGiven ? options.start : low,
+    width,
+    bins;
+  if (start > low)
+    throw new StataError(
+      "start() may not be larger than the smallest value",
+      198,
+    );
+  if (options.discrete) {
+    const sorted = [...new Set(values)].sort((a, b) => a - b);
+    width =
+      options.width ||
+      Math.min(...sorted.slice(1).map((v, k) => v - sorted[k]), Infinity);
+    if (!Number.isFinite(width)) width = 1;
+    start = startGiven ? options.start : low;
+    bins = Math.round((high - start) / width) + 1;
+    note(`(start=${g(start)}, width=${g(width)})`);
+    start -= width / 2;
+  } else {
+    if (options.width) {
+      width = options.width;
+      bins = Math.max(1, Math.ceil((high - start) / width - 1e-9));
+    } else {
+      // Stata's default number of bins: min(sqrt(N), 10 log10(N)).
+      bins =
+        options.bin ||
+        Math.max(
+          1,
+          Math.trunc(Math.min(Math.sqrt(n), (10 * Math.log(n)) / Math.LN10)),
+        );
+      width = (high - start) / bins || 1;
+    }
+    note(
+      `(bin=${bins}, start=${g(start)}, width=${applyFormat(width, "%10.0g").trim()})`,
+    );
+  }
+  const counts = new Array(bins).fill(0);
+  for (const v of values)
+    counts[
+      Math.min(bins - 1, Math.max(0, Math.floor((v - start) / width + 1e-9)))
+    ]++;
+  const scale = options.frequency
+      ? (c) => c
+      : options.percent
+        ? (c) => (100 * c) / n
+        : options.fraction
+          ? (c) => c / n
+          : (c) => c / n / width,
+    // What multiplies a density to put a curve on the bars' scale.
+    curveScale = options.frequency
+      ? n * width
+      : options.percent
+        ? 100 * width
+        : options.fraction
+          ? width
+          : 1,
+    yTitle = options.frequency
+      ? "Frequency"
+      : options.percent
+        ? "Percent"
+        : options.fraction
+          ? "Fraction"
+          : "Density",
+    bars = counts.map((c, k) => ({
+      x0: start + k * width,
+      x1: start + (k + 1) * width,
+      height: scale(c),
+    }));
+  return { bars, bins, width, start, yTitle, curveScale, n };
+}
+
+// A plot of one variable: twoway histogram and twoway kdensity.
+function univariatePlot(session, kind, text) {
+  const parsed = session.parse(
+      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0) *]",
+      text,
+    ),
+    variable = numeric(session, parsed.varlist[0]),
+    values = session
+      .rows(parsed, null)
+      .map((i) => variable.data[i])
+      .filter((v) => !isMissing(v)),
+    axis = { name: variable.name, label: titleOf(variable) };
+  if (!values.length) throw new StataError("no observations", 2000);
+  if (kind === "histogram") {
+    const made = histogramBars(values, parsed.options, text, () => {});
+    return [
+      {
+        bars: made.bars,
+        points: [],
+        label: made.yTitle,
+        y: { name: made.yTitle, label: made.yTitle },
+        x: axis,
+      },
+    ];
+  }
+  const kernel = kernelName(parsed.options.kernel),
+    bandwidth = parsed.options.bwidth || defaultBandwidth(values),
+    grid = densityGrid(
+      values,
+      bandwidth,
+      parsed.options.n || Math.min(values.length, 50),
+    ),
+    heights = kernelDensity(values, grid, bandwidth, kernel);
+  return [
+    {
+      kind: "line",
+      points: grid.map((v, k) => [v, heights[k]]),
+      label: `kdensity ${variable.name}`,
+      y: { name: "Density", label: "Density" },
+      x: axis,
+    },
+  ];
+}
+export function kernelName(text) {
+  const word = (text ?? "epanechnikov").trim().toLowerCase(),
+    found = Object.keys(KERNELS).find(
+      (name) => name === word || (word.length >= 2 && name.startsWith(word)),
+    );
+  if (!found) throw new StataError(`kernel(${text}) is not available`, 198);
+  return found;
+}
+
 function plot(session, kind, text) {
   if (kind === "function") return functionPlot(session, text);
+  if (kind === "histogram" || kind === "kdensity")
+    return univariatePlot(session, kind, text);
   const parsed = session.parse(
-      "varlist(numeric min=2) [if] [in] [, SORT MSymbol(string) MColor(string) LColor(string) LPattern(string) LWidth(string) MSize(string) Connect(string) *]",
+      "varlist(numeric min=2) [if] [in] [, SORT BWidth(real 0.8) MEAN NOWeight Level(cilevel) BARWidth(real 0) MSymbol(string) MColor(string) LColor(string) LPattern(string) LWidth(string) MSize(string) Connect(string) *]",
       text,
     ),
     variables = parsed.varlist.map((name) => session.data.get(name)),
@@ -218,10 +471,79 @@ function plot(session, kind, text) {
       layers.push({ kind: "line", points, label: "Fitted values", y, x });
       continue;
     }
-    if (parsed.options.sort || kind === "line")
+    if (kind === "qfit" || kind === "lfitci" || kind === "qfitci") {
+      const fitted = polynomialFit(
+        points.map((p) => p[0]),
+        points.map((p) => p[1]),
+        kind.startsWith("q") ? 2 : 1,
+      );
+      if (!fitted) throw new StataError("the fit is not determined", 2001);
+      const low = Math.min(...points.map((p) => p[0])),
+        high = Math.max(...points.map((p) => p[0])),
+        grid = Array.from(
+          { length: 100 },
+          (_, k) => low + ((high - low) * k) / 99,
+        );
+      if (kind.endsWith("ci"))
+        layers.push({
+          kind: "band",
+          points: grid.map((v) => [v, ...fitted.band(v, parsed.options.level)]),
+          label: `${g(parsed.options.level)}% CI`,
+          y,
+          x,
+        });
+      layers.push({
+        kind: "line",
+        points: grid.map((v) => [v, fitted.predict(v)]),
+        label: "Fitted values",
+        y,
+        x,
+      });
+      continue;
+    }
+    if (kind === "lowess") {
+      const smooth = lowess(
+        points.map((p) => p[0]),
+        points.map((p) => p[1]),
+        {
+          bwidth: parsed.options.bwidth,
+          mean: !!parsed.options.mean,
+          weight: !parsed.options.noweight,
+        },
+      );
+      layers.push({
+        kind: "line",
+        points: points
+          .map((p, k) => [p[0], smooth[k]])
+          .sort((a, b) => a[0] - b[0]),
+        label: `lowess ${y.name} ${x.name}`,
+        y,
+        x,
+      });
+      continue;
+    }
+    if (parsed.options.sort || kind !== "scatter")
       points = [...points].sort((a, b) => a[0] - b[0]);
+    if (kind === "bar") {
+      const gaps = points.slice(1).map((p, k) => p[0] - points[k][0]),
+        width =
+          parsed.options.barwidth ||
+          0.8 * Math.min(1, ...gaps.filter((gap) => gap > 0));
+      layers.push({
+        bars: points.map((p) => ({
+          x0: p[0] - width / 2,
+          x1: p[0] + width / 2,
+          height: p[1],
+        })),
+        points,
+        label: titleOf(y),
+        y,
+        x,
+      });
+      continue;
+    }
     layers.push({
-      kind: kind === "scatter" ? "scatter" : "line",
+      kind,
       points,
       label: titleOf(y),
       y,
@@ -235,8 +557,16 @@ const PLOT_KINDS = {
   sc: "scatter",
   scatter: "scatter",
   line: "line",
-  connected: "line",
+  connected: "connected",
   lfit: "lfit",
+  qfit: "qfit",
+  lfitci: "lfitci",
+  qfitci: "qfitci",
+  lowess: "lowess",
+  bar: "bar",
+  area: "area",
+  histogram: "histogram",
+  kdensity: "kdensity",
   function: "function",
 };
 function plotKind(word) {
@@ -292,7 +622,7 @@ function twoway(session, text, ctx, single) {
     }),
     options = graphOptions(session, optionText),
     first = layers[0];
-  if (!layers.some((l) => l.points.length))
+  if (!layers.some((l) => l.points.length || l.bars?.length))
     throw new StataError("no observations", 2000);
   const svg = draw({
     layers,
@@ -303,13 +633,13 @@ function twoway(session, text, ctx, single) {
   });
   ctx.graph({
     svg,
-    description: `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points.`,
+    description: `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points.`,
   });
 }
 
 function histogram(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent TItle(string) XTItle(string) YTItle(string) * | NORMal KDENsity ADDLabels]",
+      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity TItle(string) XTItle(string) YTItle(string) * | ADDLabels]",
       text,
     ),
     options = parsed.options,
@@ -320,82 +650,65 @@ function histogram(session, text, ctx) {
       .filter((v) => !isMissing(v)),
     n = values.length;
   if (!n) throw new StataError("no observations", 2000);
-  const low = Math.min(...values),
+  const { bars, bins, width, start, yTitle, curveScale } = histogramBars(
+      values,
+      options,
+      text,
+      ctx.out,
+    ),
+    layers = [{ bars, points: [], label: yTitle }],
+    low = Math.min(...values),
     high = Math.max(...values),
-    startGiven = /\bstart\(/.test(text);
-  let start = startGiven ? options.start : low,
-    width,
-    bins;
-  if (start > low)
-    throw new StataError(
-      "start() may not be larger than the smallest value",
-      198,
+    grid = Array.from(
+      { length: 200 },
+      (_, k) => low + ((high - low) * k) / 199,
     );
-  if (options.discrete) {
-    const sorted = [...new Set(values)].sort((a, b) => a - b);
-    width =
-      options.width ||
-      Math.min(...sorted.slice(1).map((v, k) => v - sorted[k]), Infinity);
-    if (!Number.isFinite(width)) width = 1;
-    start = startGiven ? options.start : low;
-    bins = Math.round((high - start) / width) + 1;
-    ctx.out(`(start=${g(start)}, width=${g(width)})`);
-    start -= width / 2;
-  } else {
-    if (options.width) {
-      width = options.width;
-      bins = Math.max(1, Math.ceil((high - start) / width - 1e-9));
-    } else {
-      // Stata's default number of bins: min(sqrt(N), 10 log10(N)).
-      bins =
-        options.bin ||
-        Math.max(
-          1,
-          Math.trunc(Math.min(Math.sqrt(n), (10 * Math.log(n)) / Math.LN10)),
-        );
-      width = (high - start) / bins || 1;
-    }
-    ctx.out(
-      `(bin=${bins}, start=${g(start)}, width=${applyFormat(width, "%10.0g").trim()})`,
-    );
+  if (options.normal) {
+    const mean = values.reduce((a, c) => a + c, 0) / n,
+      sd = Math.sqrt(values.reduce((t, v) => t + (v - mean) ** 2, 0) / (n - 1));
+    layers.push({
+      kind: "line",
+      points: grid.map((v) => [
+        v,
+        (curveScale * Math.exp(-0.5 * ((v - mean) / sd) ** 2)) /
+          (sd * Math.sqrt(2 * Math.PI)),
+      ]),
+      label: "Normal density",
+    });
   }
-  const counts = new Array(bins).fill(0);
-  for (const v of values)
-    counts[
-      Math.min(bins - 1, Math.max(0, Math.floor((v - start) / width + 1e-9)))
-    ]++;
-  const scale = options.frequency
-      ? (c) => c
-      : options.percent
-        ? (c) => (100 * c) / n
-        : options.fraction
-          ? (c) => c / n
-          : (c) => c / n / width,
-    yTitle = options.frequency
-      ? "Frequency"
-      : options.percent
-        ? "Percent"
-        : options.fraction
-          ? "Fraction"
-          : "Density",
-    bars = counts.map((c, k) => ({
-      x0: start + k * width,
-      x1: start + (k + 1) * width,
-      height: scale(c),
-    }));
+  if (options.kdensity) {
+    const bandwidth = defaultBandwidth(values),
+      heights = kernelDensity(values, grid, bandwidth);
+    layers.push({
+      kind: "line",
+      points: grid.map((v, k) => [v, curveScale * heights[k]]),
+      label: "Kernel density",
+    });
+  }
   ctx.graph({
     svg: draw({
-      layers: [{ bars }],
+      layers,
       xTitle: unquote(options.xtitle) || titleOf(variable),
       yTitle: unquote(options.ytitle) || yTitle,
       title: unquote(options.title),
-      yRange: [0, Math.max(...bars.map((b) => b.height))],
+      yRange: [
+        0,
+        Math.max(
+          ...bars.map((b) => b.height),
+          ...layers.slice(1).flatMap((l) => l.points.map((p) => p[1])),
+        ),
+      ],
     }),
     description: `Histogram of ${titleOf(variable)}: ${bins} bins of width ${g(width)} starting at ${g(start)}, ${n} observations.`,
   });
   session.results.r = { N: n, bin: bins, width, start };
 }
 
+const otherGraphs = {};
+/** Registers graph subcommands defined elsewhere: graph bar, graph box. */
+export function registerGraph(name, run) {
+  otherGraphs[name] = run;
+}
 function graph(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
@@ -411,6 +724,7 @@ function graph(session, text, ctx) {
       );
     return;
   }
+  if (otherGraphs[m[1]]) return otherGraphs[m[1]](session, m[2], ctx);
   throw new StataError(`graph ${m[1]} is not available yet`, 198);
 }
 
