@@ -67,6 +67,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "clear",
       "capture label drop _all",
       "scalar drop _all",
+      "capture estimates clear",
       "macro drop _all",
       "set type float",
       `log using "case-${k}.log", text replace nomsg`,

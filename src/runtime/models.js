@@ -2,6 +2,8 @@
 // two-stage least squares (ivregress 2sls), with estat and estimates. They
 // leave the same result object regress leaves, marked dist "z", and the
 // post-estimation commands here read only that object.
+import { firstStage, ivDiagnostic } from "./more-estimators.js";
+import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
 import { regressDiagnostic, testparm } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
@@ -362,7 +364,7 @@ function ivregress(session, text, ctx) {
       198,
     );
   const parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) Level(cilevel) | noCONStant SMALL First]",
+      "[if] [in] [, Robust VCE(string) Level(cilevel) First | noCONStant SMALL]",
       m[7],
     ),
     names = (part) => (part.trim() ? session.varlist(part) : []),
@@ -459,6 +461,7 @@ function ivregress(session, text, ctx) {
       vce: robust ? "robust" : "unadjusted",
       kind: "ivregress",
       sample: rows,
+      iv: { dep, endogenous, exogenous, instruments, rows },
     };
   const chi2 = waldChi2(model),
     p = chi2tail(model.df_m, chi2),
@@ -479,6 +482,9 @@ function ivregress(session, text, ctx) {
     depvar: dep,
     vce: model.vce,
   };
+  if (parsed.options.first) {
+    firstStage(session, model.iv, parsed, ctx);
+  }
   ctx.out("");
   [
     ["Number of obs", count(n)],
@@ -869,6 +875,8 @@ function estat(session, text, ctx) {
       P_p1: (100 * tp) / (tp + fn),
       P_n0: (100 * tn) / (tn + fp),
     };
+  } else if (ivDiagnostic(session, model, what, ctx)) {
+    // Printed by the diagnostic.
   } else if (!regressDiagnostic(session, model, what, text, ctx))
     throw new StataError(`estat ${what} is not available yet`, 321);
 }
@@ -881,10 +889,21 @@ function estimatesCommand(session, text, ctx) {
     name = rest.replace(/,.*$/, "").trim();
   if (/^sto(re?)?$/.test(action)) {
     if (!/^[A-Za-z_]\w*$/.test(name)) throw new StataError("invalid name", 198);
-    stored.set(name, {
-      model: estimates(session),
-      e: { ...session.results.e },
-    });
+    const model = estimates(session),
+      data = session.data,
+      marker = `_est_${name}`,
+      inSample = new Set(model.sample),
+      order = [...data.sortedBy];
+    stored.set(name, { model, e: { ...session.results.e } });
+    // Stata marks the estimation sample in a variable named after the store.
+    if (data.has(marker)) data.drop([marker]);
+    data.generate(
+      marker,
+      Array.from({ length: data.n }, (_, i) => Number(inSample.has(i))),
+      { type: "byte" },
+    );
+    data.get(marker).label = "esample() from estimates store";
+    data.sortedBy = order;
   } else if (/^res(t(o(re?)?)?)?$/.test(action)) {
     const entry = stored.get(name);
     if (!entry)
@@ -906,11 +925,18 @@ function estimatesCommand(session, text, ctx) {
         `${key.padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${model.title ?? "Linear regression"}`,
       );
     ctx.out("-".repeat(66));
-  } else if (action === "clear") stored.clear();
-  else if (action === "drop") {
+  } else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
+  else if (/^stats?$/.test(action)) estimatesStats(session, rest, ctx);
+  else if (action === "clear") {
+    for (const key of stored.keys())
+      if (session.data.has(`_est_${key}`)) session.data.drop([`_est_${key}`]);
+    stored.clear();
+  } else if (action === "drop") {
     for (const key of name === "_all" ? [...stored.keys()] : name.split(/\s+/))
       if (!stored.delete(key))
         throw new StataError(`estimation result ${key} not found`, 111);
+      else if (session.data.has(`_est_${key}`))
+        session.data.drop([`_est_${key}`]);
   } else throw new StataError(`estimates ${action} is not available yet`, 198);
 }
 
@@ -918,6 +944,21 @@ export const MODEL_COMMANDS = [
   { name: "logit", minimum: 5, run: maximumLikelihood("logit") },
   { name: "probit", minimum: 4, run: maximumLikelihood("probit") },
   { name: "poisson", minimum: 4, run: maximumLikelihood("poisson") },
+  {
+    name: "logistic",
+    minimum: 8,
+    run: (session, text, ctx) => {
+      // logistic is logit reporting odds ratios, without the iteration log.
+      const [head, options] = splitAtComma(text);
+      maximumLikelihood("logit")(
+        session,
+        `${head}, or nolog ${(options ?? "").replace(/\bor\b/, "")}`,
+        ctx,
+      );
+      session.results.e.cmd = "logistic";
+    },
+  },
+  { name: "lrtest", minimum: 6, run: lrtest },
   { name: "ivregress", minimum: 5, run: ivregress },
   { name: "test", minimum: 4, run: test },
   {

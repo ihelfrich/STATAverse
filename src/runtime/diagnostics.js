@@ -38,7 +38,18 @@ export function project(columns, y) {
     explained += dot(q, yc) ** 2;
   }
   const tss = dot(yc, yc);
-  return { rank: basis.length, ess: explained, rss: tss - explained, tss };
+  let residuals = yc;
+  for (const q of basis) {
+    const weight = dot(residuals, q);
+    residuals = residuals.map((v, i) => v - weight * q[i]);
+  }
+  return {
+    rank: basis.length,
+    ess: explained,
+    rss: tss - explained,
+    tss,
+    residuals,
+  };
 }
 
 /** The estimation sample as plain arrays: y, fitted values and residuals. */

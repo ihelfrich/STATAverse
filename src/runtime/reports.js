@@ -4,6 +4,7 @@
 // installed Stata.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
+import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
 import {
   MISSING,
@@ -91,39 +92,115 @@ export function countCommand(session, text, ctx) {
   session.results.r = { N: n };
 }
 
+/**
+ * The observations a weighted command uses. A frequency weight repeats the
+ * observation; an analytic weight comes back as weights rescaled to sum to
+ * the number of observations.
+ */
+export function weightedRows(session, parsed, rows) {
+  if (!parsed.weight) return { rows, weights: null };
+  const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n),
+    used = rows.filter((i) => !isMissing(all[i]) && all[i] !== 0);
+  if (used.some((i) => all[i] < 0))
+    throw new StataError("negative weights encountered", 402);
+  if (parsed.weight.type === "fweight") {
+    if (used.some((i) => !Number.isInteger(all[i])))
+      throw new StataError("may not use noninteger frequency weights", 401);
+    return {
+      rows: used.flatMap((i) => new Array(all[i]).fill(i)),
+      weights: null,
+    };
+  }
+  return { rows: used, weights: all };
+}
+function weightedMoments(variable, rows, weights) {
+  if (isStringType(variable.type)) return moments([]);
+  const use = rows.filter((i) => !isMissing(variable.data[i])),
+    n = use.length,
+    sumW = use.reduce((t, i) => t + weights[i], 0);
+  if (!n) return moments([]);
+  const sum = use.reduce((t, i) => t + weights[i] * variable.data[i], 0),
+    mean = sum / sumW,
+    variance =
+      n > 1
+        ? (use.reduce(
+            (t, i) => t + weights[i] * (variable.data[i] - mean) ** 2,
+            0,
+          ) /
+            sumW) *
+          (n / (n - 1))
+        : MISSING,
+    values = use.map((i) => variable.data[i]);
+  return {
+    n,
+    sumW,
+    sum,
+    mean,
+    variance,
+    sd: n > 1 ? Math.sqrt(variance) : MISSING,
+    min: Math.min(...values),
+    max: Math.max(...values),
+  };
+}
+
 const SUMMARY_RULE =
   "-------------+---------------------------------------------------------";
 export function summarize(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Detail MEANonly SEParator(integer 5) | Format]",
+      "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) | Format]",
       text,
     ),
-    rows = scope(session, parsed, ctx);
+    weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
+    rows = weighted.rows,
+    analytic = weighted.weights && !parsed.options.detail;
+  if (weighted.weights && parsed.options.detail)
+    throw new StataError(
+      "summarize, detail with aweights is not available yet",
+      198,
+    );
   let last = null;
   // meanonly computes the results and prints nothing.
   if (parsed.options.meanonly) ctx = { ...ctx, out: () => {} };
   if (!parsed.options.detail) {
     ctx.out("");
     ctx.out(
-      "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+      analytic
+        ? "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max"
+        : "    Variable |        Obs        Mean    Std. dev.       Min        Max",
     );
-    ctx.out(SUMMARY_RULE);
+    ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
   }
   parsed.varlist.forEach((name, k) => {
     const variable = session.data.get(name),
       values = isStringType(variable.type) ? [] : present(variable.data, rows),
-      m = moments(values);
+      m = analytic
+        ? weightedMoments(variable, rows, weighted.weights)
+        : moments(values);
     last = { values, m };
-    if (parsed.options.detail) return detail(ctx, variable, values, m);
+    if (parsed.options.detail)
+      return detail(
+        ctx,
+        variable,
+        values,
+        m,
+        // The smallest and largest are observations, not weighted copies.
+        isStringType(variable.type)
+          ? []
+          : present(variable.data, [...new Set(rows)]),
+      );
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
-      ctx.out(SUMMARY_RULE);
+      ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
     const label = (
       name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name
     ).padStart(12);
     ctx.out(
-      m.n
-        ? `${label} |${count(m.n).padStart(11)}${g9(m.mean, 12)}${g9(m.sd, 12)}${g9(m.min, 11)}${g9(m.max, 11)}`
-        : `${label} |${"0".padStart(11)}`,
+      analytic
+        ? m.n
+          ? `${label} |${count(m.n).padStart(8)}${g9(m.sumW, 12)}${g9(m.mean, 12)}${g9(m.sd, 11)}${g9(m.min, 11)}${g9(m.max, 11)}`
+          : `${label} |${"0".padStart(8)}${"0".padStart(12)}`
+        : m.n
+          ? `${label} |${count(m.n).padStart(11)}${g9(m.mean, 12)}${g9(m.sd, 12)}${g9(m.min, 11)}${g9(m.max, 11)}`
+          : `${label} |${"0".padStart(11)}`,
     );
   });
   // One blank line closes the table, or the last detailed block.
@@ -133,7 +210,7 @@ export function summarize(session, text, ctx) {
   session.results.r = m.n
     ? {
         N: m.n,
-        sum_w: m.n,
+        sum_w: m.sumW ?? m.n,
         mean: m.mean,
         Var: m.variance,
         sd: m.sd,
@@ -159,16 +236,15 @@ export function summarize(session, text, ctx) {
     });
   }
 }
-function detail(ctx, variable, values, m) {
+function detail(ctx, variable, values, m, observed = values) {
   const sorted = [...values].sort((a, b) => a - b),
+    ends = [...observed].sort((a, b) => a - b),
     title = variable.label || variable.name,
     p = (q) => g9(percentile(sorted, q), 13),
     // The four smallest and four largest; fewer than four leaves gaps.
     end = (k) =>
       g9(
-        k >= 0
-          ? (sorted[k] ?? MISSING)
-          : (sorted[sorted.length + k] ?? MISSING),
+        k >= 0 ? (ends[k] ?? MISSING) : (ends[ends.length + k] ?? MISSING),
         15,
       ),
     side = (label, value) => "       " + label.padEnd(11) + value.padStart(12),
@@ -213,10 +289,10 @@ function wrap(text, width) {
 
 export function tabulate(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) | NOFreq EXact LRchi2 Gamma TAUb V EXPected]",
+      "varlist(min=1 max=2) [if] [in] [fweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) | NOFreq EXact LRchi2 Gamma TAUb V EXPected]",
       text,
     ),
-    rows = scope(session, parsed, ctx),
+    rows = weightedRows(session, parsed, scope(session, parsed, ctx)).rows,
     variables = parsed.varlist.map((name) => session.data.get(name)),
     keep = rows.filter((i) =>
       variables.every((v) => {
@@ -442,7 +518,7 @@ export function tabulate(session, text, ctx) {
 
 export function list(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) | Divider SEPBY(varlist) noHeader STRing(integer 0) Table Display]",
+      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) | Divider noHeader STRing(integer 0) Table Display]",
       text,
     ),
     rows = scope(session, parsed, ctx),
@@ -479,8 +555,16 @@ export function list(session, text, ctx) {
   ctx.out(`${margin}+${"-".repeat(inner)}+`);
   ctx.out(`${margin}| ${line(variables.map((v) => v.name))} |`);
   ctx.out(`${margin}|${"-".repeat(inner)}|`);
+  const sepby = parsed.options.sepby
+    ? parsed.options.sepby.map((name) => session.data.get(name).data)
+    : null;
   cells.forEach((row, k) => {
-    if (k && parsed.options.separator && k % parsed.options.separator === 0)
+    if (
+      k &&
+      (sepby
+        ? sepby.some((column) => column[rows[k]] !== column[rows[k - 1]])
+        : parsed.options.separator && k % parsed.options.separator === 0)
+    )
       ctx.out(`${margin}|${"-".repeat(inner)}|`);
     ctx.out(`${number(rows[k])}| ${line(row)} |`);
   });
@@ -491,12 +575,22 @@ export function list(session, text, ctx) {
 export function describe(session, text, ctx) {
   const whole = !text.replace(/,.*$/, "").trim(),
     names = session.parse(
-      "[varlist] [, Fullnames | Short Simple Numbers Replace]",
+      "[varlist] [, Fullnames Short | Simple Numbers Replace]",
       text,
     ).varlist,
     data = session.data,
     rule = "-".repeat(session.settings.linesize ?? 80);
   ctx.out("");
+  if (/,\s*s(h(o(rt?)?)?)?\b/.test(text)) {
+    ctx.out("Contains data");
+    ctx.out(` Observations:${count(data.n).padStart(14)}`);
+    ctx.out(`    Variables:${count(data.variables.length).padStart(14)}`);
+    ctx.out(`Sorted by: ${data.sortedBy.join(" ")}`.trimEnd());
+    if (data.variables.length)
+      ctx.out("     Note: Dataset has changed since last saved.");
+    session.results.r = { N: data.n, k: data.variables.length };
+    return;
+  }
   if (whole) {
     ctx.out("Contains data");
     ctx.out(

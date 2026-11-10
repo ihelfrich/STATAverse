@@ -2,6 +2,7 @@
 // plus correlate and tabstat. regress leaves one result object in
 // session.estimates; the post-estimation commands read only that object, so
 // they will serve later estimators without change.
+import { evaluateAll } from "./expression.js";
 import { leverageStatistic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
@@ -243,7 +244,7 @@ export function design(session, text, rows, constant = true) {
   return { dependent, columns, sample };
 }
 
-function fit(session, parsed, by) {
+export function fit(session, parsed, by) {
   const rows = session.rows(parsed, by),
     options = parsed.options,
     constant = options.constant !== false,
@@ -262,18 +263,44 @@ function fit(session, parsed, by) {
       : null,
     hc = /^hc[23]$/.exec(vceText.trim())?.[0] ?? null,
     robust =
-      !!cluster || !!hc || /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
+      !!cluster ||
+      !!hc ||
+      parsed.weight?.type === "pweight" ||
+      /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
   if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
     throw new StataError(`vce(${vceText}) is not available yet`, 198);
-  const obs = cluster
+  let obs = cluster
       ? sample.filter((i) => !isMissing(cluster.data[i]))
       : sample,
-    n = obs.length;
+    w = null,
+    sumW;
+  const wtype = parsed.weight?.type;
+  if (wtype) {
+    const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
+    obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
+    if (obs.some((i) => all[i] < 0))
+      throw new StataError("negative weights encountered", 402);
+    sumW = obs.reduce((t, i) => t + all[i], 0);
+    if (wtype === "fweight") {
+      if (obs.some((i) => !Number.isInteger(all[i])))
+        throw new StataError("may not use noninteger frequency weights", 401);
+      // A frequency weight stands for that many identical observations.
+      obs = obs.flatMap((i) => new Array(all[i]).fill(i));
+    } else {
+      // Analytic and sampling weights are rescaled to sum to N.
+      const scale = obs.length / sumW;
+      w = obs.map((i) => all[i] * scale);
+    }
+  }
+  const n = obs.length;
   if (!n) throw new StataError("no observations", 2000);
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base),
     x = active.map((c) => obs.map(c.value)),
-    mean = (v) => v.reduce((a, b) => a + b, 0) / n,
+    mean = (v) =>
+      (w
+        ? v.reduce((a, b, i) => a + w[i] * b, 0)
+        : v.reduce((a, b) => a + b, 0)) / n,
     ybar = constant ? mean(y) : 0,
     xbar = x.map((v) => (constant ? mean(v) : 0)),
     yc = y.map((v) => v - ybar),
@@ -281,7 +308,10 @@ function fit(session, parsed, by) {
   // Choose columns by pivoting: at each step take the column with the most
   // variation left after those already chosen, as Stata does, so which of
   // two collinear variables is omitted does not depend on their order.
-  const cross = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0),
+  const cross = (a, b) =>
+      w
+        ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
+        : a.reduce((t, v, i) => t + v * b[i], 0),
     original = xc.map((column) => cross(column, column)),
     remaining = xc.map((column) => column.slice()),
     chosen = new Set();
@@ -356,7 +386,7 @@ function fit(session, parsed, by) {
       const sums = new Map();
       obs.forEach((row, i) => {
         const key = cluster.data[row],
-          score = z(i).map((v) => v * residuals[i]),
+          score = z(i).map((v) => v * residuals[i] * (w ? w[i] : 1)),
           sum = sums.get(key) ?? new Array(size).fill(0);
         score.forEach((v, k) => (sum[k] += v));
         sums.set(key, sum);
@@ -378,7 +408,8 @@ function fit(session, parsed, by) {
       }
       scale = 1;
     } else {
-      for (let i = 0; i < n; i++) add(z(i).map((v) => v * residuals[i]));
+      for (let i = 0; i < n; i++)
+        add(z(i).map((v) => v * residuals[i] * (w ? w[i] : 1)));
       scale = n / (n - rank);
     }
     const bm = bread.map((row) =>
@@ -447,6 +478,8 @@ function fit(session, parsed, by) {
     rmse: Math.sqrt(rss / dfResidual),
     ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1),
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
+    sumW,
+    wtype,
     vcetype: hc ? `Robust ${hc.toUpperCase()}` : robust ? "Robust" : "",
     xtxInverse: names.map((r) =>
       names.map((c) => {
@@ -541,7 +574,7 @@ export function coefficientHeader(model, level, label = model.depvar) {
 
 function regress(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, noCONStant Robust VCE(string) Level(cilevel) Beta | noHEader EForm(string) CLuster(varname) ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta | noHEader EForm(string) CLuster(varname) ABSorb(varname)]",
       text,
     ),
     model = fit(session, parsed, null),
@@ -590,6 +623,8 @@ function regress(session, text, ctx) {
   for (const column of model.columns)
     if (column.omitted)
       ctx.out(`note: ${column.name} omitted because of collinearity.`);
+  if (model.wtype && model.wtype !== "fweight")
+    ctx.out(`(sum of wgt is ${g(model.sumW, "%10.0g")})`);
   ctx.out("");
   if (wide) {
     side.forEach((line, k) =>

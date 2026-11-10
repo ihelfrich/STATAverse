@@ -653,3 +653,136 @@ predict cd, cooksd
 predict sr, stdr
 predict sf, stdf
 list h lev rs rt cd sr sf
+=== weights
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+regress z x1 x2 [aweight=w]
+regress z x1 x2 [fweight=fw]
+regress z x1 x2 [pweight=w]
+regress z x1 x2 [aw=w], robust
+regress z x1 x2 [aweight=w] if d == 1
+summarize z [aweight=w]
+return list
+summarize z x1 x2 [aw=w] if n > 2
+summarize z x1 [fweight=fw]
+summarize z [fweight=fw], detail
+tabulate n [fweight=fw]
+tabulate n d [fweight=fw]
+tabulate d [fw=fw] if x1 > 3
+=== model-comparison
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+logistic d x1 x2
+logistic d x1, level(90)
+logit d x1, nolog
+estimates store a
+logit d x1 x2, nolog
+estimates store b
+lrtest a b
+lrtest b a
+lrtest a
+estimates table a b, b(%9.4f)
+estimates table a b, b(%9.4f) se(%9.4f)
+estimates table a b, b(%9.4f) star
+estimates table a b, b(%9.4f) stats(N ll aic bic)
+estimates table a b, b(%9.3f) se(%9.3f) stats(N r2_p)
+estimates stats a b
+estimates dir
+regress z x1 x2
+estimates store r1
+regress z x1
+estimates store r2
+estimates table r1 r2
+estimates table r1 r2, se stats(N r2 r2_a rmse)
+estimates table r1 r2, star(.1 .05 .01)
+estimates table r1 r2, star stats(N F)
+estimates stats r1 r2
+lrtest r1 r2
+=== iv-diagnostics
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+ivregress 2sls z x2 (x1 = n), first
+estat firststage
+estat endogenous
+ivregress 2sls z (x1 = n x2)
+estat overid
+estat firststage
+estat endogenous
+ivregress 2sls z (x1 = n x2 w), first level(90)
+estat firststage
+estat overid
+areg z x1, absorb(d)
+areg z x1 x2, absorb(fw)
+areg z x1 x2 if n > 1, absorb(w) level(90)
+describe, short
+list z x1 d, sepby(d)
+list z d in 1/8, sepby(d) noobs
