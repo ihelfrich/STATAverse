@@ -89,7 +89,10 @@ function define(session, text) {
 
 function list(session, text, ctx) {
   const name = text.replace(/,.*$/, "").trim(),
-    matrix = session.matrices?.get(name);
+    result = /^([er])\((\w+)\)$/.exec(name),
+    matrix = result
+      ? fromEstimates(session, result[1], result[2])
+      : session.matrices?.get(name);
   if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
   const { values, rowNames, colNames } = matrix,
     symmetric =

@@ -168,3 +168,25 @@ test("the quantile solver finds the minimum an exhaustive search finds", async (
     );
   }
 });
+
+test("do, run and include execute do-files held in the session", async () => {
+  const { createConsoleSession } = await import("../src/console-session.js");
+  const session = createConsoleSession();
+  session.addFile(
+    "setup.do",
+    "sysuse wages, clear\nlocal who `1'\ndisplay \"hello `who'\"\ngenerate lw = ln(wage)\n",
+  );
+  session.addFile("shared.do", "local shared 7\n");
+  const result = session.run(
+    "do setup world\ncount\nrun setup again\ninclude shared.do\ndisplay `shared'\ncapture do missing\ndisplay _rc",
+  );
+  assert.equal(result.rc, 0);
+  const lines = result.output.flatMap((o) => o.lines);
+  // do shows what the file printed; run does not.
+  assert.equal(lines.filter((line) => line === "hello world").length, 1);
+  assert.equal(lines.filter((line) => line === "hello again").length, 0);
+  // include keeps the file's local macros; a missing file is r(601).
+  assert.ok(lines.includes("7"));
+  assert.ok(lines.includes("601"));
+  assert.ok(result.memory.variables.some((v) => v.name === "lw"));
+});

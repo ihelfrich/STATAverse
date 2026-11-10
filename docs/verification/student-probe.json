@@ -1,7 +1,7 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 161,
+  "run": 166,
   "refused": [
     {
       "command": "table sector",
@@ -269,34 +269,14 @@
       "message": "experience] invalid name r(198);"
     },
     {
-      "command": "egen c1x = cut(wage), group(3)",
-      "rc": 198,
-      "message": "option group not allowed r(198);"
-    },
-    {
-      "command": "egen cc1 = concat(sector id)",
-      "rc": 133,
-      "message": "unknown egen function concat() r(133);"
-    },
-    {
-      "command": "egen an1 = anycount(education), values(12 16)",
-      "rc": 133,
-      "message": "unknown egen function anycount() r(133);"
-    },
-    {
-      "command": "stack wage education, into(z)",
-      "rc": 199,
-      "message": "command stack is unrecognized r(199);"
-    },
-    {
       "command": "cross using x",
-      "rc": 199,
-      "message": "command cross is unrecognized r(199);"
+      "rc": 601,
+      "message": "file x.dta not found r(601);"
     },
     {
       "command": "joinby sector using x",
-      "rc": 199,
-      "message": "command joinby is unrecognized r(199);"
+      "rc": 601,
+      "message": "file x.dta not found r(601);"
     },
     {
       "command": "merge m:m sector using x",
@@ -314,29 +294,24 @@
       "message": "invalid syntax r(198);"
     },
     {
-      "command": "matrix list e(b)",
-      "rc": 111,
-      "message": "matrix e(b) not found r(111);"
-    },
-    {
       "command": "mat li b",
       "rc": 111,
       "message": "matrix b not found r(111);"
     },
     {
       "command": "do myfile.do",
-      "rc": 199,
-      "message": "command do is unrecognized r(199);"
+      "rc": 601,
+      "message": "file myfile.do not found r(601);"
     },
     {
       "command": "run myfile.do",
-      "rc": 199,
-      "message": "command run is unrecognized r(199);"
+      "rc": 601,
+      "message": "file myfile.do not found r(601);"
     },
     {
       "command": "include myfile.do",
-      "rc": 199,
-      "message": "command include is unrecognized r(199);"
+      "rc": 601,
+      "message": "file myfile.do not found r(601);"
     }
   ]
 }
