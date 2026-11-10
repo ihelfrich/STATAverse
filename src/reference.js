@@ -176,6 +176,14 @@ export const REFERENCE = [
         "OLS with an intercept and optional HC1 covariance. Use c. for continuous predictors and i. for categories. # adds an interaction; ## also includes its component terms. Bare variables inside # or ## are categorical. ib2.group sets category 2 as the reference. Weights and clustered inference require installed Stata.",
       ],
       [
+        "test hours attendance\ntest hours = attendance\ntest (hours = 1) (attendance = 0.5)",
+        "Wald F tests after regress: several coefficients jointly zero, one linear restriction, or several restrictions in parentheses. Uses the covariance of the fitted model, robust if you asked for it. Available after a regress on plain variables; rerun regress after any data change.",
+      ],
+      [
+        "lincom hours - 2*attendance\nlincom _cons + 6*hours",
+        "Estimate, standard error, t test and 95% interval for a linear combination of coefficients. _cons is the intercept.",
+      ],
+      [
         "predict double fitted [, xb]",
         "Fitted values after regress; observed predictors are required.",
       ],

@@ -186,6 +186,73 @@ test("version is accepted without changing data and rejects impossible releases"
     assert.equal(session.run(source).at(-1).kind, "error", source);
 });
 
+const modelSession = () =>
+  new PracticeSession("m", {
+    m: {
+      data: {
+        id: "m",
+        name: "Invented regression fixture",
+        columns: ["y", "x1", "x2", "x3"].map((name) => ({
+          name,
+          label: name,
+          type: "numeric",
+        })),
+        rows: fixture.modelRows.map(([y, x1, x2, x3]) => ({ y, x1, x2, x3 })),
+      },
+    },
+  });
+
+test("test and lincom match native Stata after conventional and robust regress", () => {
+  const close = (a, b, label) =>
+    assert.ok(
+      Math.abs(a - b) <= 1e-8 * Math.max(1, Math.abs(b)),
+      `${label}: ${a} vs ${b}`,
+    );
+  for (const c of fixture.inference) {
+    const result = modelSession()
+      .run(c.setup + "\n" + c.command)
+      .at(-1);
+    if (c.command.startsWith("test")) {
+      const [F, p, q, df] = c.values;
+      assert.equal(result.kind, "test", c.id + ": " + result.message);
+      close(result.F, F, c.id + " F");
+      assert.ok(
+        Math.abs(result.p - p) <= 1e-10,
+        `${c.id} p: ${result.p} vs ${p}`,
+      );
+      assert.equal(result.q, q, c.id);
+      assert.equal(result.df, df, c.id);
+    } else {
+      const [estimate, se, df] = c.values;
+      assert.equal(result.kind, "lincom", c.id + ": " + result.message);
+      close(result.estimate, estimate, c.id + " estimate");
+      close(result.se, se, c.id + " se");
+      assert.equal(result.df, df, c.id);
+    }
+  }
+});
+
+test("test and lincom refuse what they cannot compute and need a fitted model", () => {
+  const session = modelSession();
+  assert.equal(session.run("test x1").at(-1).code, 301);
+  session.run("regress y x1 x2 x3");
+  for (const source of [
+    "test x1*x2 = 0",
+    "test absent",
+    "lincom x1 = 2",
+    "lincom x1 + 1",
+    "test (x1 = 0) (2*x1 = 0)",
+    "test x1, mtest",
+    "test 1 = 1",
+  ])
+    assert.equal(session.run(source).at(-1).kind, "error", source);
+  session.run("generate double z = 1");
+  assert.equal(session.run("lincom x1").at(-1).code, 301);
+  const factor = new PracticeSession("study");
+  factor.run("regress score i.attendance##c.hours");
+  assert.equal(factor.run("test hours").at(-1).kind, "error");
+});
+
 test("subscripts outside generate and replace are refused with guidance", () => {
   const session = new PracticeSession("study");
   const error = session

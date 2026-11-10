@@ -52,6 +52,15 @@ for (const fallback of [false, true])
     await expect(
       page.getByRole("region", { name: "Statistics table" }),
     ).toContainText("Total");
+    await replaceEditor(
+      page,
+      "regress score hours attendance\ntest hours attendance\nlincom hours - attendance",
+    );
+    await page.locator("#run").click();
+    await expect(page.locator("#results")).toContainText("Prob > F");
+    await expect(
+      page.getByRole("region", { name: "Linear combination of coefficients" }),
+    ).toBeVisible();
     await replaceEditor(page, "bysort group: tabulate score");
     await page.locator("#run").click();
     await expect(page.locator("#results")).toContainText(

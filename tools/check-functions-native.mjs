@@ -212,6 +212,43 @@ export const TABSTAT = [
   ],
 ];
 
+// Postestimation cases read r(F), r(p), r(df), r(df_r) after test and
+// r(estimate), r(se), r(df) after lincom.
+export const MODEL_ROWS = [
+  [12.1, 1, 4, 2],
+  [15.3, 2, 3, 5],
+  [11.8, 3, 6, 1],
+  [19.9, 4, 2, 6],
+  [18.2, 5, 5, 3],
+  [22.7, 6, 1, 7],
+  [20.4, 7, 7, 2],
+  [27.5, 8, 3, 8],
+  [24.1, 9, 6, 4],
+  [30.9, 10, 2, 9],
+  [26.3, 11, 8, 3],
+  [33.8, 12, 4, 10],
+];
+const FITS = [
+  ["ols", "regress y x1 x2 x3"],
+  ["robust", "regress y x1 x2 x3, vce(robust)"],
+];
+const COMMANDS = [
+  "test x1 x2",
+  "test x1 = x2",
+  "test (x1 = x2) (x3 = 1)",
+  "test x1 + x2 = 2*x3",
+  "test _cons = 0",
+  "test x1 x2 x3",
+  "test 2*x1 - 1 = x3 + 0.5",
+  "lincom x1 + 2*x2 - x3",
+  "lincom _cons + 6*x1",
+  "lincom x1 - x2",
+  "lincom 0.5*(x1 + x2)",
+];
+export const INFERENCE = FITS.flatMap(([fit, setup]) =>
+  COMMANDS.map((command) => ({ id: `${fit}: ${command}`, setup, command })),
+);
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folder = await fs.mkdtemp(
     path.join(os.tmpdir(), "stataverse-functions-native-"),
@@ -290,6 +327,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         "file write out _n",
       );
   }
+  audit.push(
+    "file close out",
+    "clear",
+    "input double y double x1 double x2 double x3",
+    ...MODEL_ROWS.map((r) => r.join(" ")),
+    "end",
+    'file open out using "inference.txt", write text replace',
+  );
+  for (const { setup, command } of INFERENCE)
+    audit.push(
+      `quietly ${setup}`,
+      `quietly ${command}`,
+      command.startsWith("test")
+        ? "file write out %24.17g (r(F)) _tab %24.17g (r(p)) _tab %24.17g (r(df)) _tab %24.17g (r(df_r)) _n"
+        : "file write out %24.17g (r(estimate)) _tab %24.17g (r(se)) _tab %24.17g (r(df)) _n",
+    );
   audit.push("file close out", "exit, clear", "");
   await fs.writeFile(path.join(folder, "audit.do"), audit.join("\n"));
   await promisify(execFile)(
@@ -365,6 +418,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       groups = Array.from({ length: groupCount }, () => take().values);
     return { id, source, total, groups };
   });
+  const inferenceLines = (
+    await fs.readFile(path.join(folder, "inference.txt"), "utf8")
+  )
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.split("\t").map(Number));
+  if (inferenceLines.length !== INFERENCE.length)
+    throw new Error("Stata did not return every postestimation result.");
+  const inferenceCases = INFERENCE.map((c, k) => ({
+    ...c,
+    values: inferenceLines[k],
+  }));
   await fs.rm(folder, { recursive: true });
   await fs.writeFile(
     "tests/fixtures/stata-functions.json",
@@ -378,11 +443,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         reports: dataCases.filter((c) => c.native),
         tabstatRows: TABSTAT_ROWS,
         tabstat: tabstatCases,
+        modelRows: MODEL_ROWS,
+        inference: inferenceCases,
       }),
       { parser: "json" },
     ),
   );
   console.log(
-    `Recorded ${scalarCases.length} scalar, ${DATA.length} data, ${REPORTS.length} report and ${TABSTAT.length} tabstat cases.`,
+    `Recorded ${scalarCases.length} scalar, ${DATA.length} data, ${REPORTS.length} report, ${TABSTAT.length} tabstat and ${INFERENCE.length} postestimation cases.`,
   );
 }

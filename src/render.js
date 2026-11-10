@@ -69,7 +69,26 @@ export function resultHTML(result, index, { complete = false } = {}) {
             "Summary statistics by group",
           ) +
           `<p class="result-annotation">One row per group and variable. Obs. counts nonmissing values. Stata prints a separate table for each group; the numbers are the same.</p>`;
-  } else if (r.kind === "tabstat") {
+  } else if (r.kind === "lincom")
+    body =
+      table(
+        ["Combination", "Coefficient", "Std. err.", "t", "P>|t|", "95% CI"],
+        [
+          [
+            h(r.expression),
+            fmt(r.estimate),
+            fmt(r.se),
+            fmt(r.t),
+            fmt(r.p),
+            `${fmt(r.lo)} to ${fmt(r.hi)}`,
+          ],
+        ],
+        "Linear combination of coefficients",
+      ) +
+      `<p class="result-annotation">Outcome: ${h(r.dependent)}. Uses the ${r.robust ? "HC1 robust" : "conventional"} covariance of the fitted regression and a t distribution with ${r.df} degrees of freedom.</p>`;
+  else if (r.kind === "test")
+    body = `<ol class="result-text">${r.constraints.map((c) => `<li>${h(c)}</li>`).join("")}</ol><div class="result-metrics"><div class="result-metric">F(${r.q}, ${r.df})<strong>${fmt(r.F, 2)}</strong></div><div class="result-metric">Prob &gt; F<strong>${fmt(r.p, 4)}</strong></div></div><p class="result-annotation">Wald test that the listed restrictions hold together, using the ${r.robust ? "HC1 robust" : "conventional"} covariance of the fitted regression. A small probability is evidence against the restrictions jointly; it does not say which one fails.</p>`;
+  else if (r.kind === "tabstat") {
     const block = (label, values) =>
       r.statistics.map((statistic, s) => [
         ...(r.by ? [s === 0 ? label : ""] : []),

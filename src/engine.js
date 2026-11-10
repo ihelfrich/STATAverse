@@ -17,6 +17,8 @@ import {
   correlation,
   tabstatName,
   tabstatValues,
+  linearCombination,
+  linearTest,
 } from "./statistics.js";
 import { factorRegression, termValue } from "./factor-variables.js";
 import { capturable } from "./command-prefixes.js";
@@ -82,6 +84,8 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "error",
   "exit",
   "tabstat",
+  "test",
+  "lincom",
   "version",
   "by",
   "bysort",
@@ -1294,6 +1298,156 @@ export class PracticeSession {
             : factors
               ? "The table shows the expanded model terms. Select a term to see what it represents. With ##, the component terms are included as well as their interaction."
               : "OLS describes a conditional association. Robust standard errors change uncertainty, not the coefficients or the identification assumptions.",
+      };
+    }
+    if (verb === "test" || verb === "lincom") {
+      noOptions(options);
+      if (by) throw new StataError(`${verb} may not be combined with by.`, 190);
+      const model = this.model;
+      if (!model)
+        throw new StataError(
+          "last estimates not found",
+          301,
+          "Run regress first. Data-changing commands in browser practice clear the fitted model.",
+        );
+      if (model.df <= 0)
+        throw new StataError(
+          "The fitted model has no residual degrees of freedom, so no test is available.",
+          198,
+        );
+      const names = model.coefficients.map((c) => c.name),
+        plain = names.every((name) => /^[A-Za-z_]\w*$/.test(name));
+      if (!plain)
+        throw new StataError(
+          `${verb} is available in browser practice after a regress on plain variables.`,
+          198,
+          "This model contains factor-variable or interaction terms. Generate those columns explicitly, rerun regress, or export your work to Stata.",
+        );
+      const columns = names.map((name) => ({ name, type: "numeric" }));
+      // Reads weights and the constant from an expression in coefficient
+      // names by evaluating it at unit vectors, then confirms it is linear.
+      const linear = (source) => {
+        const text = source.trim();
+        if (!text) throw new StataError("Specify a coefficient expression.");
+        let fn;
+        try {
+          fn = compileExpression(text, columns);
+        } catch (error) {
+          if (error.code === 111)
+            throw new StataError(
+              error.message.replace("Variable", "Coefficient"),
+              111,
+              `Coefficients in the fitted model: ${names.join(" ")}.`,
+            );
+          throw error;
+        }
+        if (fn.valueType !== "numeric")
+          throw new StataError("Use a numeric expression in coefficients.");
+        const at = (vector) =>
+          fn(
+            Object.fromEntries(names.map((name, i) => [name, vector[i]])),
+            0,
+            1,
+          );
+        const zero = names.map(() => 0),
+          constant = at(zero),
+          weights = names.map(
+            (_n, i) => at(zero.map((_z, j) => Number(i === j))) - constant,
+          ),
+          probe = names.map((_n, i) => 1.5 + i * 0.75),
+          expected =
+            constant + weights.reduce((s, w, i) => s + w * probe[i], 0),
+          actual = at(probe);
+        if (
+          [constant, actual, ...weights].some((v) => missing(v)) ||
+          Math.abs(actual - expected) > 1e-9 * Math.max(1, Math.abs(expected))
+        )
+          throw new StataError(
+            "The expression must be linear in the coefficients.",
+            198,
+            "Use sums and multiples of coefficient names, such as hours - attendance or 2*hours.",
+          );
+        return { weights, constant };
+      };
+      if (verb === "lincom") {
+        if (body.includes("="))
+          throw new StataError(
+            "lincom takes one linear combination without an equals sign.",
+            198,
+            "To test equality, use test, or write lincom hours - attendance.",
+          );
+        const { weights, constant } = linear(body);
+        if (constant !== 0)
+          throw new StataError(
+            "Browser lincom accepts combinations of coefficients without an added constant.",
+            198,
+          );
+        if (weights.every((w) => w === 0))
+          throw new StataError("The combination contains no coefficient.");
+        return {
+          kind: "lincom",
+          expression: body.trim(),
+          dependent: model.dependent,
+          robust: model.robust,
+          df: model.df,
+          ...linearCombination(model, weights),
+        };
+      }
+      const specs = /^\s*\(/.test(body)
+        ? [...body.matchAll(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)].map(
+            (m) => m[1],
+          )
+        : body.includes("=")
+          ? [body]
+          : body.trim().split(/\s+/).filter(Boolean);
+      if (!specs.length)
+        throw new StataError(
+          "Use test varlist, test expression = expression, or several (expression = expression) terms.",
+        );
+      if (
+        /^\s*\(/.test(body) &&
+        body.replace(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, "").trim()
+      )
+        throw new StataError(
+          "Put every hypothesis in its own parentheses.",
+          198,
+        );
+      const constraints = specs.map((spec) => {
+        const sides = spec.split("=");
+        if (sides.length > 2 || sides.some((side) => !side.trim()))
+          throw new StataError(
+            "Each hypothesis takes the form expression = expression.",
+            198,
+          );
+        const left = linear(sides[0]),
+          right =
+            sides.length === 2
+              ? linear(sides[1])
+              : { weights: names.map(() => 0), constant: 0 };
+        const weights = left.weights.map((w, i) => w - right.weights[i]);
+        if (weights.every((w) => w === 0))
+          throw new StataError(
+            `The hypothesis ${spec.trim()} does not involve a coefficient.`,
+            198,
+          );
+        return {
+          text: sides.length === 2 ? spec.trim() : `${spec.trim()} = 0`,
+          weights,
+          value: right.constant - left.constant,
+        };
+      });
+      const outcome = linearTest(model, constraints);
+      if (!outcome)
+        throw new StataError(
+          "These hypotheses are redundant or contradictory, so a joint test is not defined.",
+          198,
+          "Stata drops a redundant constraint and reports the rest. Remove the repeated hypothesis here.",
+        );
+      return {
+        kind: "test",
+        constraints: constraints.map((c) => c.text),
+        robust: model.robust,
+        ...outcome,
       };
     }
     if (verb === "predict") {

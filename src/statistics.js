@@ -239,3 +239,50 @@ export function regress(
     residuals,
   };
 }
+
+// One linear combination w'b of fitted coefficients with its t inference.
+export function linearCombination(model, weights) {
+  const b = model.coefficients.map((c) => c.b),
+    V = model.covariance,
+    estimate = weights.reduce((s, w, i) => s + w * b[i], 0),
+    variance = weights.reduce(
+      (s, wi, i) => s + weights.reduce((t, wj, j) => t + wi * wj * V[i][j], 0),
+      0,
+    ),
+    se = Math.sqrt(Math.max(0, variance));
+  if (!(se > 0)) return { estimate, se, t: null, p: null, lo: null, hi: null };
+  const t = estimate / se,
+    critical = jStat.studentt.inv(0.975, model.df);
+  return {
+    estimate,
+    se,
+    t,
+    p: Math.min(1, 2 * jStat.studentt.cdf(-Math.abs(t), model.df)),
+    lo: estimate - critical * se,
+    hi: estimate + critical * se,
+  };
+}
+// Wald F test of R b = r using the fitted covariance, as Stata's test does
+// after regress.
+export function linearTest(model, constraints) {
+  const b = model.coefficients.map((c) => c.b),
+    q = constraints.length,
+    R = new Matrix(constraints.map((c) => c.weights)),
+    gap = new Matrix(
+      constraints.map((c) => [
+        c.weights.reduce((s, w, i) => s + w * b[i], 0) - c.value,
+      ]),
+    ),
+    middle = R.mmul(new Matrix(model.covariance)).mmul(R.transpose());
+  const svd = new SingularValueDecomposition(middle, { autoTranspose: true }),
+    largest = Math.max(...svd.diagonal);
+  if (!(largest > 0) || Math.min(...svd.diagonal) < largest * 1e-12)
+    return null;
+  const F = gap.transpose().mmul(inverse(middle)).mmul(gap).get(0, 0) / q;
+  return {
+    F,
+    q,
+    df: model.df,
+    p: Math.min(1, Math.max(0, 1 - jStat.centralF.cdf(F, q, model.df))),
+  };
+}

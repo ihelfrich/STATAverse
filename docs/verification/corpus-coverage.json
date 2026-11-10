@@ -2,9 +2,9 @@
   "basis": "Name-level upper bound over this repository's do-files. A line counts when its command and every prefix are implemented by the browser interpreter; options, functions and semantics are not checked here.",
   "files": 38,
   "commandLines": 2053,
-  "namedSupported": 1862,
-  "share": 0.907,
-  "shareExcludingDisplay": 0.7183,
+  "namedSupported": 1865,
+  "share": 0.9084,
+  "shareExcludingDisplay": 0.7227,
   "filesFullyNamed": 4,
   "unsupported": [
     {
@@ -112,10 +112,6 @@
       "lines": 2
     },
     {
-      "command": "test",
-      "lines": 2
-    },
-    {
       "command": "xtsum",
       "lines": 2
     },
@@ -145,10 +141,6 @@
     },
     {
       "command": "levelsof",
-      "lines": 1
-    },
-    {
-      "command": "lincom",
       "lines": 1
     },
     {
@@ -358,6 +350,11 @@
       "blockedByPrefix": 0
     },
     {
+      "command": "test",
+      "lines": 2,
+      "blockedByPrefix": 0
+    },
+    {
       "command": "assert",
       "lines": 1,
       "blockedByPrefix": 0
@@ -379,6 +376,11 @@
     },
     {
       "command": "duplicates",
+      "lines": 1,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "lincom",
       "lines": 1,
       "blockedByPrefix": 0
     },
@@ -552,7 +554,7 @@
     {
       "file": "CodeLibrary/scripts/04_assumption_checker.do",
       "commandLines": 271,
-      "namedSupported": 249
+      "namedSupported": 250
     },
     {
       "file": "CodeLibrary/scripts/05_moderation_mastery.do",
@@ -562,7 +564,7 @@
     {
       "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",
       "commandLines": 105,
-      "namedSupported": 81
+      "namedSupported": 83
     },
     {
       "file": "ZeroToHero/projects/project-01/analysis.do",

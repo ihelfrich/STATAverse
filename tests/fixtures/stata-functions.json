@@ -487,5 +487,153 @@
       "total": [[1, 9, null, null, 9]],
       "groups": [[[1, 9, null, null, 9]]]
     }
+  ],
+  "modelRows": [
+    [12.1, 1, 4, 2],
+    [15.3, 2, 3, 5],
+    [11.8, 3, 6, 1],
+    [19.9, 4, 2, 6],
+    [18.2, 5, 5, 3],
+    [22.7, 6, 1, 7],
+    [20.4, 7, 7, 2],
+    [27.5, 8, 3, 8],
+    [24.1, 9, 6, 4],
+    [30.9, 10, 2, 9],
+    [26.3, 11, 8, 3],
+    [33.8, 12, 4, 10]
+  ],
+  "inference": [
+    {
+      "id": "ols: test x1 x2",
+      "setup": "regress y x1 x2 x3",
+      "command": "test x1 x2",
+      "values": [178.0940752827641, 2.328395241370786e-7, 2, 8]
+    },
+    {
+      "id": "ols: test x1 = x2",
+      "setup": "regress y x1 x2 x3",
+      "command": "test x1 = x2",
+      "values": [9.840540165639739, 0.01386866171489095, 1, 8]
+    },
+    {
+      "id": "ols: test (x1 = x2) (x3 = 1)",
+      "setup": "regress y x1 x2 x3",
+      "command": "test (x1 = x2) (x3 = 1)",
+      "values": [51.20156709174986, 0.00002756984584317942, 2, 8]
+    },
+    {
+      "id": "ols: test x1 + x2 = 2*x3",
+      "setup": "regress y x1 x2 x3",
+      "command": "test x1 + x2 = 2*x3",
+      "values": [1.0650687205427856, 0.3322495538413816, 1, 8]
+    },
+    {
+      "id": "ols: test _cons = 0",
+      "setup": "regress y x1 x2 x3",
+      "command": "test _cons = 0",
+      "values": [24.03662210131371, 0.0011896813287709624, 1, 8]
+    },
+    {
+      "id": "ols: test x1 x2 x3",
+      "setup": "regress y x1 x2 x3",
+      "command": "test x1 x2 x3",
+      "values": [325.1152424407379, 1.0745276518637704e-8, 3, 8]
+    },
+    {
+      "id": "ols: test 2*x1 - 1 = x3 + 0.5",
+      "setup": "regress y x1 x2 x3",
+      "command": "test 2*x1 - 1 = x3 + 0.5",
+      "values": [0.6539720495594918, 0.44207953727575644, 1, 8]
+    },
+    {
+      "id": "ols: lincom x1 + 2*x2 - x3",
+      "setup": "regress y x1 x2 x3",
+      "command": "lincom x1 + 2*x2 - x3",
+      "values": [0.31898670190137257, 0.27788763450504234, 8]
+    },
+    {
+      "id": "ols: lincom _cons + 6*x1",
+      "setup": "regress y x1 x2 x3",
+      "command": "lincom _cons + 6*x1",
+      "values": [17.324821949620393, 2.7034058675798716, 8]
+    },
+    {
+      "id": "ols: lincom x1 - x2",
+      "setup": "regress y x1 x2 x3",
+      "command": "lincom x1 - x2",
+      "values": [1.5619214926702825, 0.4979087195471736, 8]
+    },
+    {
+      "id": "ols: lincom 0.5*(x1 + x2)",
+      "setup": "regress y x1 x2 x3",
+      "command": "lincom 0.5*(x1 + x2)",
+      "values": [0.6592498611131962, 0.09362918299488371, 8]
+    },
+    {
+      "id": "robust: test x1 x2",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test x1 x2",
+      "values": [373.65031842961884, 1.2585791836031518e-8, 2, 8]
+    },
+    {
+      "id": "robust: test x1 = x2",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test x1 = x2",
+      "values": [13.763707145122277, 0.0059568003774059025, 1, 8]
+    },
+    {
+      "id": "robust: test (x1 = x2) (x3 = 1)",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test (x1 = x2) (x3 = 1)",
+      "values": [35.87228282163991, 0.00010128743205031224, 2, 8]
+    },
+    {
+      "id": "robust: test x1 + x2 = 2*x3",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test x1 + x2 = 2*x3",
+      "values": [1.9457152894129617, 0.20055865881136678, 1, 8]
+    },
+    {
+      "id": "robust: test _cons = 0",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test _cons = 0",
+      "values": [31.502758663360567, 0.0005027310935303321, 1, 8]
+    },
+    {
+      "id": "robust: test x1 x2 x3",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test x1 x2 x3",
+      "values": [313.29375221450795, 1.2444388374913816e-8, 3, 8]
+    },
+    {
+      "id": "robust: test 2*x1 - 1 = x3 + 0.5",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "test 2*x1 - 1 = x3 + 0.5",
+      "values": [1.0668372994484603, 0.33187226590536606, 1, 8]
+    },
+    {
+      "id": "robust: lincom x1 + 2*x2 - x3",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "lincom x1 + 2*x2 - x3",
+      "values": [0.31898670190137257, 0.26002694475647936, 8]
+    },
+    {
+      "id": "robust: lincom _cons + 6*x1",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "lincom _cons + 6*x1",
+      "values": [17.324821949620393, 2.244575241842077, 8]
+    },
+    {
+      "id": "robust: lincom x1 - x2",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "lincom x1 - x2",
+      "values": [1.5619214926702825, 0.42100910601763125, 8]
+    },
+    {
+      "id": "robust: lincom 0.5*(x1 + x2)",
+      "setup": "regress y x1 x2 x3, vce(robust)",
+      "command": "lincom 0.5*(x1 + x2)",
+      "values": [0.6592498611131962, 0.08360284717818826, 8]
+    }
   ]
 }
