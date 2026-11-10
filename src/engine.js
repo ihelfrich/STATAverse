@@ -10,7 +10,16 @@ import {
   estimatedBytes,
   dataResourceError,
 } from "./resource-limits.js";
-import { missing, summarize, regress, correlation } from "./statistics.js";
+import {
+  missing,
+  summarize,
+  regress,
+  correlation,
+  tabstatName,
+  tabstatValues,
+  linearCombination,
+  linearTest,
+} from "./statistics.js";
 import { factorRegression, termValue } from "./factor-variables.js";
 import { capturable } from "./command-prefixes.js";
 export { StataError };
@@ -74,6 +83,13 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "confirm",
   "error",
   "exit",
+  "tabstat",
+  "test",
+  "lincom",
+  "version",
+  "by",
+  "bysort",
+  "bys",
   ...Object.keys(aliases),
 ]);
 const clone = (x) => structuredClone(x);
@@ -112,7 +128,47 @@ export function splitDoFile(source) {
   return commandBlocks(source).map((block) => block.command);
 }
 
-function qualify(source, dataset, returnCode = 0) {
+// Under a by prefix, _n, _N and subscripts are counted within each group.
+// Rows must already be ordered so that each group is contiguous.
+function sortRows(dataset, names) {
+  dataset.rows.sort((a, b) => {
+    for (const name of names) {
+      const x = missing(a[name]) ? Infinity : a[name],
+        y = missing(b[name]) ? Infinity : b[name];
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+  });
+}
+function groupContexts(dataset, names) {
+  const contexts = [];
+  let start = 0;
+  const same = (a, b) => names.every((name) => a[name] === b[name]);
+  for (let i = 1; i <= dataset.rows.length; i++)
+    if (
+      i === dataset.rows.length ||
+      !same(dataset.rows[i], dataset.rows[start])
+    ) {
+      const rows = dataset.rows.slice(start, i);
+      for (let j = start; j < i; j++)
+        contexts.push({ i: j - start, n: rows.length, rows });
+      start = i;
+    }
+  return contexts;
+}
+// Every group appears, including one with no selected observations, as in
+// Stata's by output.
+function byGroups(dataset, q, names) {
+  const chosen = new Set(q.selected.map((x) => x.i)),
+    groups = [];
+  dataset.rows.forEach((r, i) => {
+    if (q.contexts[i].i === 0)
+      groups.push({ keys: names.map((name) => r[name]), rows: [] });
+    if (chosen.has(i)) groups.at(-1).rows.push(r);
+  });
+  return groups;
+}
+function qualify(source, dataset, returnCode = 0, by = null) {
   let main = source,
     condition = "",
     range = "";
@@ -139,6 +195,13 @@ function qualify(source, dataset, returnCode = 0) {
     );
   let start = 1,
     end = dataset.rows.length;
+  if (range && by)
+    throw new StataError(
+      "in may not be combined with by.",
+      190,
+      "Use an if condition with _n, which counts within each group under by.",
+    );
+  const contexts = by ? groupContexts(dataset, by.groups) : null;
   if (range) {
     const m = range.match(/^(\d+|f|l)(?:\/(\d+|f|l))?$/);
     if (!m)
@@ -156,13 +219,18 @@ function qualify(source, dataset, returnCode = 0) {
         "Check the observation count and use positions within the data.",
       );
   }
+  const test = (r, i) =>
+    i + 1 >= start &&
+    i + 1 <= end &&
+    truth(
+      contexts
+        ? fn(r, contexts[i].i, contexts[i].n, contexts[i].rows)
+        : fn(r, i, dataset.rows.length, dataset.rows),
+    );
   const selected = dataset.rows
     .map((r, i) => ({ r, i }))
-    .filter(
-      ({ r, i }) =>
-        i + 1 >= start && i + 1 <= end && truth(fn(r, i, dataset.rows.length)),
-    );
-  return { main, selected, condition, range };
+    .filter(({ r, i }) => test(r, i));
+  return { main, selected, condition, range, contexts, test };
 }
 function variables(
   source,
@@ -411,7 +479,102 @@ export class PracticeSession {
       throw error;
     }
   }
+  // Parses by varlist [(varlist)] [, sort]: command and orders the data.
+  byPrefix(command, word) {
+    const m = command.match(/^\S+\s+([^:]*?)\s*:\s*([\s\S]+)$/);
+    if (!m)
+      throw new StataError(
+        "Use by varlist: command or bysort varlist: command.",
+        198,
+      );
+    const [header, option] = splitTop(m[1], ",");
+    if (option && option !== "sort")
+      throw new StataError(
+        `Option ${option} is not supported with by in browser practice.`,
+        198,
+      );
+    const parts = header.match(/^([^()]*?)\s*(?:\(([^()]*)\))?$/);
+    if (!parts || !parts[1].trim())
+      throw new StataError(
+        "Name at least one grouping variable before the colon.",
+        100,
+      );
+    const data = this.data,
+      groups = variables(parts[1], data),
+      order = [
+        ...groups,
+        ...(parts[2]?.trim() ? variables(parts[2], data) : []),
+      ];
+    const inner = m[2].trim(),
+      innerVerb = inner.match(/^[^\s,]+/)[0],
+      verb = aliases[innerVerb] || innerVerb;
+    if (!["generate", "replace", "egen", "summarize", "count"].includes(verb))
+      throw new StataError(
+        `by with ${verb} is not supported in browser practice.`,
+        198,
+        "by works here with generate, replace, egen, summarize and count. For other statistics by group, use egen with by() or collapse; for one group, add an if condition.",
+      );
+    const sorts = word !== "by" || option === "sort";
+    if (sorts) {
+      sortRows(data, order);
+      data.sortedBy = order;
+    } else if (!order.every((name, k) => data.sortedBy?.[k] === name))
+      throw new StataError(
+        "not sorted",
+        5,
+        `by requires data sorted by ${order.join(" ")}. Run sort ${order.join(" ")} first, or use bysort.`,
+      );
+    if (verb === "egen") {
+      const [body, options] = splitTop(inner, ",");
+      if (/\bby\s*\(/.test(options))
+        throw new StataError(
+          "Use either the by prefix or the by() option with egen, not both.",
+          198,
+        );
+      return {
+        by: null,
+        inner: `${body}, ${options ? options + " " : ""}by(${groups.join(" ")})`,
+      };
+    }
+    return { by: { groups, sorts }, inner };
+  }
   dispatch(command) {
+    const word = command.match(/^[^\s,:]+/)?.[0];
+    let by = null,
+      inner = command;
+    if (["by", "bysort", "bys"].includes(word))
+      ({ by, inner } = this.byPrefix(command, word));
+    const result = this.dispatchCommand(inner, by);
+    const first = inner.match(/^[^\s,]+/)?.[0],
+      verb = aliases[first] || first,
+      sorted = this.data.sortedBy;
+    if (result.kind === "by") {
+      // A reporting command under bysort still reorders the data.
+      if (by.sorts) {
+        this.model = null;
+        this.graph = null;
+        result.changed = true;
+      }
+      return result;
+    }
+    if (sorted && result.changed && verb !== "sort") {
+      // The sort order is trusted only while nothing could have disturbed
+      // it. Dropping it early makes plain by ask for a sort again.
+      const names = new Set(this.data.columns.map((c) => c.name));
+      let keep = sorted.length;
+      if (verb === "replace") keep = sorted.indexOf(result.name);
+      else if (verb === "drop" || verb === "keep")
+        keep = sorted.findIndex((name) => !names.has(name));
+      else if (
+        !["generate", "egen", "label", "preserve", "restore"].includes(verb)
+      )
+        keep = 0;
+      if (keep === 0) delete this.data.sortedBy;
+      else if (keep > 0) this.data.sortedBy = sorted.slice(0, keep);
+    }
+    return result;
+  }
+  dispatchCommand(command, by = null) {
     const match = command.match(/^([^\s,]+)\s*([\s\S]*)$/);
     if (!match) throw new StataError("Enter a command.");
     const verb = aliases[match[1]] || match[1],
@@ -456,6 +619,23 @@ export class PracticeSession {
         kind: "confirm",
         silent: true,
         message: `Confirmed ${type ? type + " " : ""}variable ${names}.`,
+      };
+    }
+    if (verb === "version") {
+      noOptions(options);
+      const number = Number(body);
+      if (!/^\d+(\.\d+)?$/.test(body) || number < 1)
+        throw new StataError(
+          "Use version followed by a number, as in version 17.",
+        );
+      if (number > 19)
+        throw new StataError(
+          `Version ${body} is later than the Stata releases this practice environment follows.`,
+          9,
+        );
+      return {
+        kind: "version",
+        message: `version ${body} noted. Browser practice follows one documented behavior for each command and does not change with the version.`,
       };
     }
     if (verb === "help")
@@ -643,14 +823,8 @@ export class PracticeSession {
     if (verb === "sort") {
       noOptions(options);
       const names = variables(body, data);
-      data.rows.sort((a, b) => {
-        for (const name of names) {
-          const x = missing(a[name]) ? Infinity : a[name],
-            y = missing(b[name]) ? Infinity : b[name];
-          if (x !== y) return x < y ? -1 : 1;
-        }
-        return 0;
-      });
+      sortRows(data, names);
+      data.sortedBy = names;
       this.model = null;
       this.graph = null;
       return {
@@ -659,7 +833,7 @@ export class PracticeSession {
         changed: true,
       };
     }
-    const q = qualify(body, data, this.returnCode),
+    const q = qualify(body, data, this.returnCode, by),
       rows = q.selected.map((x) => x.r);
     if (verb === "egen" || verb === "collapse") {
       const args = {
@@ -689,6 +863,16 @@ export class PracticeSession {
         throw new StataError(
           "Use count, count if expression, or count in first/last.",
         );
+      if (by)
+        return {
+          kind: "by",
+          inner: "count",
+          by: by.groups,
+          groups: byGroups(data, q, by.groups).map(({ keys, rows }) => ({
+            keys,
+            n: rows.length,
+          })),
+        };
       return {
         kind: "count",
         n: rows.length,
@@ -712,12 +896,102 @@ export class PracticeSession {
     if (verb === "summarize") {
       noOptions(options);
       const names = variables(q.main, data, { allowEmpty: true });
+      if (by)
+        return {
+          kind: "by",
+          inner: "summarize",
+          by: by.groups,
+          groups: byGroups(data, q, by.groups).map(({ keys, rows }) => ({
+            keys,
+            n: rows.length,
+            stats: names.map((name) => ({
+              name,
+              ...summarize(rows.map((r) => r[name])),
+            })),
+          })),
+        };
       return {
         kind: "summarize",
         stats: names.map((name) => ({
           name,
           ...summarize(rows.map((r) => r[name])),
         })),
+        n: rows.length,
+      };
+    }
+    if (verb === "tabstat") {
+      if (by)
+        throw new StataError(
+          "Use tabstat with its by() option instead of the by prefix.",
+          198,
+        );
+      const names = variables(q.main, data, { numeric: true });
+      let statistics = ["mean"],
+        group = null,
+        text = options;
+      text = text.replace(
+        /(?:^|\s)(?:statistics|stats|stat|s)\(([^()]*)\)/,
+        (_all, list) => {
+          statistics = list
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((word) => {
+              const name = tabstatName(word);
+              if (!name)
+                throw new StataError(
+                  `Statistic ${word} is not available in browser tabstat.`,
+                  198,
+                  "Available: n mean sum min max range sd variance cv semean median iqr and p1 p5 p10 p25 p50 p75 p90 p95 p99.",
+                );
+              return name;
+            });
+          return "";
+        },
+      );
+      text = text.replace(/(?:^|\s)by\(([^()]*)\)/, (_all, name) => {
+        const chosen = variables(name, data);
+        if (chosen.length !== 1)
+          throw new StataError("tabstat by() takes one variable.", 198);
+        group = chosen[0];
+        return "";
+      });
+      noOptions(text.trim());
+      if (!statistics.length)
+        throw new StataError("Name at least one statistic.", 198);
+      const table = (subset) =>
+        names.map((name) =>
+          tabstatValues(
+            subset.map((r) => r[name]),
+            statistics,
+          ),
+        );
+      // Groups appear in ascending order; observations with a missing
+      // group value are left out of the groups but remain in the total.
+      const groups = [];
+      if (group) {
+        const keys = [
+          ...new Set(
+            rows.map((r) => r[group]).filter((k) => !missing(k) && k !== ""),
+          ),
+        ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+        for (const key of keys)
+          groups.push({
+            key,
+            values: table(rows.filter((r) => r[group] === key)),
+          });
+      }
+      return {
+        kind: "tabstat",
+        names,
+        statistics,
+        by: group,
+        groups,
+        total: table(
+          group
+            ? rows.filter((r) => !missing(r[group]) && r[group] !== "")
+            : rows,
+        ),
         n: rows.length,
       };
     }
@@ -778,9 +1052,8 @@ export class PracticeSession {
       if (verb === "generate") newVariable(name, data);
       else variables(name, data);
       const fn = compileExpression(expression, data.columns, {
-          returnCode: this.returnCode,
-        }),
-        values = q.selected.map(({ r, i }) => fn(r, i, data.rows.length));
+        returnCode: this.returnCode,
+      });
       const string = fn.valueType === "string",
         numeric = fn.valueType === "numeric";
       if (storage === "double" && string)
@@ -803,10 +1076,20 @@ export class PracticeSession {
         data.columns.push({ name, label: "", type, origin: { command } });
         for (const r of data.rows) r[name] = type === "string" ? "" : null;
       }
+      // Stata evaluates and stores one observation at a time, so a
+      // subscript can read a value written earlier in the same command.
+      // The if condition is tested at the same moment for the same reason.
       let changed = 0;
-      q.selected.forEach(({ r }, i) => {
-        if (r[name] !== values[i]) changed++;
-        r[name] = values[i];
+      const values = [];
+      data.rows.forEach((r, i) => {
+        if (!q.test(r, i)) return;
+        const c = q.contexts?.[i],
+          value = c
+            ? fn(r, c.i, c.n, c.rows)
+            : fn(r, i, data.rows.length, data.rows);
+        if (r[name] !== value) changed++;
+        r[name] = value;
+        values.push(value);
       });
       if (verb === "replace") {
         const column = data.columns.find((c) => c.name === name);
@@ -1015,6 +1298,156 @@ export class PracticeSession {
             : factors
               ? "The table shows the expanded model terms. Select a term to see what it represents. With ##, the component terms are included as well as their interaction."
               : "OLS describes a conditional association. Robust standard errors change uncertainty, not the coefficients or the identification assumptions.",
+      };
+    }
+    if (verb === "test" || verb === "lincom") {
+      noOptions(options);
+      if (by) throw new StataError(`${verb} may not be combined with by.`, 190);
+      const model = this.model;
+      if (!model)
+        throw new StataError(
+          "last estimates not found",
+          301,
+          "Run regress first. Data-changing commands in browser practice clear the fitted model.",
+        );
+      if (model.df <= 0)
+        throw new StataError(
+          "The fitted model has no residual degrees of freedom, so no test is available.",
+          198,
+        );
+      const names = model.coefficients.map((c) => c.name),
+        plain = names.every((name) => /^[A-Za-z_]\w*$/.test(name));
+      if (!plain)
+        throw new StataError(
+          `${verb} is available in browser practice after a regress on plain variables.`,
+          198,
+          "This model contains factor-variable or interaction terms. Generate those columns explicitly, rerun regress, or export your work to Stata.",
+        );
+      const columns = names.map((name) => ({ name, type: "numeric" }));
+      // Reads weights and the constant from an expression in coefficient
+      // names by evaluating it at unit vectors, then confirms it is linear.
+      const linear = (source) => {
+        const text = source.trim();
+        if (!text) throw new StataError("Specify a coefficient expression.");
+        let fn;
+        try {
+          fn = compileExpression(text, columns);
+        } catch (error) {
+          if (error.code === 111)
+            throw new StataError(
+              error.message.replace("Variable", "Coefficient"),
+              111,
+              `Coefficients in the fitted model: ${names.join(" ")}.`,
+            );
+          throw error;
+        }
+        if (fn.valueType !== "numeric")
+          throw new StataError("Use a numeric expression in coefficients.");
+        const at = (vector) =>
+          fn(
+            Object.fromEntries(names.map((name, i) => [name, vector[i]])),
+            0,
+            1,
+          );
+        const zero = names.map(() => 0),
+          constant = at(zero),
+          weights = names.map(
+            (_n, i) => at(zero.map((_z, j) => Number(i === j))) - constant,
+          ),
+          probe = names.map((_n, i) => 1.5 + i * 0.75),
+          expected =
+            constant + weights.reduce((s, w, i) => s + w * probe[i], 0),
+          actual = at(probe);
+        if (
+          [constant, actual, ...weights].some((v) => missing(v)) ||
+          Math.abs(actual - expected) > 1e-9 * Math.max(1, Math.abs(expected))
+        )
+          throw new StataError(
+            "The expression must be linear in the coefficients.",
+            198,
+            "Use sums and multiples of coefficient names, such as hours - attendance or 2*hours.",
+          );
+        return { weights, constant };
+      };
+      if (verb === "lincom") {
+        if (body.includes("="))
+          throw new StataError(
+            "lincom takes one linear combination without an equals sign.",
+            198,
+            "To test equality, use test, or write lincom hours - attendance.",
+          );
+        const { weights, constant } = linear(body);
+        if (constant !== 0)
+          throw new StataError(
+            "Browser lincom accepts combinations of coefficients without an added constant.",
+            198,
+          );
+        if (weights.every((w) => w === 0))
+          throw new StataError("The combination contains no coefficient.");
+        return {
+          kind: "lincom",
+          expression: body.trim(),
+          dependent: model.dependent,
+          robust: model.robust,
+          df: model.df,
+          ...linearCombination(model, weights),
+        };
+      }
+      const specs = /^\s*\(/.test(body)
+        ? [...body.matchAll(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)].map(
+            (m) => m[1],
+          )
+        : body.includes("=")
+          ? [body]
+          : body.trim().split(/\s+/).filter(Boolean);
+      if (!specs.length)
+        throw new StataError(
+          "Use test varlist, test expression = expression, or several (expression = expression) terms.",
+        );
+      if (
+        /^\s*\(/.test(body) &&
+        body.replace(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, "").trim()
+      )
+        throw new StataError(
+          "Put every hypothesis in its own parentheses.",
+          198,
+        );
+      const constraints = specs.map((spec) => {
+        const sides = spec.split("=");
+        if (sides.length > 2 || sides.some((side) => !side.trim()))
+          throw new StataError(
+            "Each hypothesis takes the form expression = expression.",
+            198,
+          );
+        const left = linear(sides[0]),
+          right =
+            sides.length === 2
+              ? linear(sides[1])
+              : { weights: names.map(() => 0), constant: 0 };
+        const weights = left.weights.map((w, i) => w - right.weights[i]);
+        if (weights.every((w) => w === 0))
+          throw new StataError(
+            `The hypothesis ${spec.trim()} does not involve a coefficient.`,
+            198,
+          );
+        return {
+          text: sides.length === 2 ? spec.trim() : `${spec.trim()} = 0`,
+          weights,
+          value: right.constant - left.constant,
+        };
+      });
+      const outcome = linearTest(model, constraints);
+      if (!outcome)
+        throw new StataError(
+          "These hypotheses are redundant or contradictory, so a joint test is not defined.",
+          198,
+          "Stata drops a redundant constraint and reports the rest. Remove the repeated hypothesis here.",
+        );
+      return {
+        kind: "test",
+        constraints: constraints.map((c) => c.text),
+        robust: model.robust,
+        ...outcome,
       };
     }
     if (verb === "predict") {

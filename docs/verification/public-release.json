@@ -1,25 +1,31 @@
 {
-  "checkedAt": "2026-11-05T21:22:26.132Z",
-  "status": "published_capture_support_broader_work_open",
+  "checkedAt": "2026-11-07T18:04:40.766Z",
+  "status": "published_editor_shortcuts_broader_work_open",
   "canonical": "https://ihelfrich.github.io/learn/stata/",
   "builder": "https://ihelfrich.github.io/learn/stata/ScriptLibrary/builder.html",
-  "sourceCommit": "bcfc2e728c63d18227c9f4ce6cdb6858d4430d08",
+  "sourceCommit": "71ab934e2d9c3a9e0c799105a88f7685ed200441",
   "mainSite": {
-    "commit": "e57026d32702ac3f28f61fac5ca0f3f75b72c5cf",
+    "commit": "b874c1091c67ee06e33a923dd0694df746a021f6",
     "pullRequests": [
-      "https://github.com/ihelfrich/ihelfrich.github.io/pull/31"
+      "https://github.com/ihelfrich/ihelfrich.github.io/pull/32",
+      "https://github.com/ihelfrich/ihelfrich.github.io/pull/33"
     ],
-    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42103739154",
+    "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42399013295",
     "conclusion": "success"
   },
   "legacy": {
     "url": "https://ihelfrich.github.io/STATAverse/",
-    "commit": "b9ddba0c8b7dcacbf56b3f4b3eb2818963421037",
-    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/8",
-    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42104733853",
+    "commit": "e5b9831183a8caa0a32e9e3c6a69154c1fa07ecd",
+    "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/9",
+    "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42399632132",
     "conclusion": "success",
-    "pagesBuildUpdatedAt": "2026-11-05T20:35:27Z",
-    "deepLinks": "Post-deployment public verification preserves Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
+    "pagesBuildUpdatedAt": "2026-11-07T18:07:11Z",
+    "deepLinks": "Post-deployment targeted browser verification preserves Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route.",
+    "verifiedAt": "2026-11-07T18:08:34.405Z",
+    "verifiedDestinations": [
+      "https://ihelfrich.github.io/learn/stata/Learn/?course=fall%202026#first-commands",
+      "https://ihelfrich.github.io/learn/stata/ScriptLibrary/script.html?id=regress&return=%2F#example"
+    ]
   },
   "evidence": [
     "docs/verification/public-site.json",
@@ -27,51 +33,59 @@
     "tests/command-prefixes.test.mjs",
     "tests/browser/command-prefixes.spec.js",
     "docs/numerical-contract.md",
-    "docs/red-team-review.md"
+    "docs/red-team-review.md",
+    "docs/verification/browser-capabilities.json",
+    "tests/browser/editor.spec.js",
+    "docs/verification/site-integration.json"
   ],
   "limits": [
     "Browser-only independent interpreter; full Stata command, ado and Mata compatibility remains unfinished.",
     "Cooperative recovery yields between commands; an individual command cannot be interrupted midway in that mode.",
     "Generated do-files target installed Stata. Native cases use constructed .dta data on macOS; Windows execution and CSV/Excel import are not established by those cases.",
     "Native comparisons use the installed executable; unmodified licensed vendor provenance is not established.",
-    "No classroom or manual assistive-technology validation."
+    "No classroom or manual assistive-technology validation.",
+    "Global macros, while loops, machine-learning commands, native .dta save/use, stored estimation sets, general twoway and graph export remain unsupported in Practice."
   ],
   "previousRelease": {
-    "checkedAt": "2026-11-05T19:41:22.339Z",
-    "sourceCommit": "10d5be2f08de455b6e478386ed487b0c131dadf6",
+    "checkedAt": "2026-11-05T21:22:26.132Z",
+    "sourceCommit": "bcfc2e728c63d18227c9f4ce6cdb6858d4430d08",
     "mainSite": {
-      "commit": "5279ceeb88c787e9f7c515f92d6f28e58af9e9b5",
+      "commit": "e57026d32702ac3f28f61fac5ca0f3f75b72c5cf",
       "pullRequests": [
-        "https://github.com/ihelfrich/ihelfrich.github.io/pull/29",
-        "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
+        "https://github.com/ihelfrich/ihelfrich.github.io/pull/31"
       ],
-      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42095414232",
+      "workflowRun": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42103739154",
       "conclusion": "success"
     },
     "legacy": {
       "url": "https://ihelfrich.github.io/STATAverse/",
-      "commit": "e64ef121f5100c6b4ceee1694033a0eea998fedb",
-      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/7",
-      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42094698099",
+      "commit": "b9ddba0c8b7dcacbf56b3f4b3eb2818963421037",
+      "pullRequest": "https://github.com/ihelfrich/STATAverse/pull/8",
+      "workflowRun": "https://github.com/ihelfrich/STATAverse/actions/runs/42104733853",
       "conclusion": "success",
-      "pagesBuildUpdatedAt": "2026-11-05T19:32:41Z",
-      "deepLinks": "Post-deployment public verification preserves the Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
+      "pagesBuildUpdatedAt": "2026-11-05T20:35:27Z",
+      "deepLinks": "Post-deployment public verification preserves Learn and ScriptLibrary paths, encoded query strings and fragments at the canonical route."
     },
-    "factorRegression": {
-      "nativeComparisonCases": 69,
-      "unitTests": 156,
-      "browserTests": 232,
-      "publicCommand": "reg hours attendance##score",
-      "continuousCommand": "reg hours c.attendance##c.score, robust",
-      "predictionReplayUndo": "verified on public site",
-      "coreOfflineGzipBytes": 550028
-    },
-    "deploymentRepair": {
-      "failedWorkflow": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42094661290",
-      "cause": "Unrelated identity test sent a scalar answer to a randomly selected multipart question. Forced multipart fixture reproduced the failure.",
-      "repair": "The test now constructs the correct answer shape and checks both sampled and forced-multipart questions. No application logic changed.",
-      "localEconomicsTests": 226,
-      "pullRequest": "https://github.com/ihelfrich/ihelfrich.github.io/pull/30"
+    "programmingPrefixes": {
+      "commands": [
+        "capture",
+        "quietly",
+        "noisily",
+        "confirm variable",
+        "confirm numeric variable",
+        "confirm string variable",
+        "confirm new variable",
+        "error",
+        "exit"
+      ],
+      "returnCode": "_rc",
+      "nativeComparisonCases": 39,
+      "unitTests": 162,
+      "browserTests": 238,
+      "publicVerificationGroups": 16,
+      "workerAndFallback": "verified on public site",
+      "savedReplayAndGroupedUndo": "verified on public site",
+      "coreOfflineGzipBytes": 552516
     }
   },
   "programmingPrefixes": {
@@ -107,5 +121,26 @@
       "cause": "Not established; no application fix claimed."
     }
   ],
-  "finalVerification": "A subsequent complete public pass succeeded in all 16 groups, after both deployments; earlier intermittent failures remain recorded."
+  "finalVerification": "All 17 public verification groups passed against source pin 71ab934 after canonical deployment, including editor comment shortcuts, text Undo, saved drafts, worker/fallback execution, offline operation, navigation, search and legacy redirects. Earlier intermittent navigation/search failures remain recorded without a claimed cause.",
+  "editorShortcuts": {
+    "lineComment": "Mod-/",
+    "textUndoAndRedo": "verified, including rapid toggles",
+    "focusedBrowserCases": 12,
+    "unitTests": 162,
+    "browserTests": 244,
+    "capabilityProbes": 16,
+    "publicVerificationGroups": 17,
+    "coreOfflineFiles": 36,
+    "coreOfflineGzipBytes": 553339,
+    "platformScope": "Chrome on macOS, Mac and Windows key mappings, desktop and mobile viewports; native Windows and Safari not tested"
+  },
+  "deploymentRepair": {
+    "preexistingFailedWorkflow": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42393273867",
+    "failedWorkflow": "https://github.com/ihelfrich/ihelfrich.github.io/actions/runs/42398737358",
+    "cause": "A planning-document test required a hearing on a fixed date from a changing public feed. The refreshed feed no longer contained one; the assertion reproduced locally.",
+    "repair": "Five synthetic in-memory records now test hearing, meeting, publication, undated and adjacent-day filtering. No application logic or public observations changed.",
+    "adapterTests": 9,
+    "cityTests": 729,
+    "pullRequest": "https://github.com/ihelfrich/ihelfrich.github.io/pull/33"
+  }
 }

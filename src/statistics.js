@@ -18,6 +18,55 @@ export const mean = (values) => {
         scale
     : 0;
 };
+// Stata's default percentile rule: with P = n*p/100, average the Pth and
+// (P+1)th ordered values when P is an integer, otherwise take the next one up.
+export function percentile(sorted, p) {
+  const n = sorted.length;
+  if (!n) return null;
+  const position = (n * p) / 100;
+  if (Number.isInteger(position))
+    return position >= n
+      ? sorted[n - 1]
+      : position < 1
+        ? sorted[0]
+        : (sorted[position - 1] + sorted[position]) / 2;
+  return sorted[Math.ceil(position) - 1];
+}
+const TABSTAT = {
+  n: (s) => s.n,
+  mean: (s) => s.mean,
+  sum: (s) => (s.n ? s.sum : null),
+  min: (s) => s.min,
+  max: (s) => s.max,
+  range: (s) => (s.n ? s.max - s.min : null),
+  sd: (s) => s.sd,
+  variance: (s) => (s.sd === null ? null : s.sd ** 2),
+  cv: (s) => (s.sd === null || !s.mean ? null : s.sd / s.mean),
+  semean: (s) => (s.sd === null ? null : s.sd / Math.sqrt(s.n)),
+  iqr: (s) =>
+    s.n ? percentile(s.sorted, 75) - percentile(s.sorted, 25) : null,
+};
+for (const p of [1, 5, 10, 25, 50, 75, 90, 95, 99])
+  TABSTAT[`p${p}`] = (s) => percentile(s.sorted, p);
+const TABSTAT_ALIASES = { count: "n", var: "variance", median: "p50" };
+export function tabstatName(word) {
+  const name = TABSTAT_ALIASES[word] || word;
+  return Object.hasOwn(TABSTAT, name) ? name : null;
+}
+export function tabstatValues(values, statistics) {
+  const sorted = values
+      .filter((v) => typeof v === "number" && !missing(v))
+      .sort((a, b) => a - b),
+    base = {
+      ...summarize(values),
+      sorted,
+      sum: sorted.reduce((total, v) => total + v, 0),
+    };
+  return statistics.map((name) => {
+    const value = TABSTAT[name](base);
+    return value === undefined || !Number.isFinite(value) ? null : value;
+  });
+}
 export function summarize(values) {
   const x = values.filter((v) => typeof v === "number" && !missing(v));
   if (!x.length) return { n: 0, mean: null, sd: null, min: null, max: null };
@@ -188,5 +237,52 @@ export function regress(
     sample,
     fitted,
     residuals,
+  };
+}
+
+// One linear combination w'b of fitted coefficients with its t inference.
+export function linearCombination(model, weights) {
+  const b = model.coefficients.map((c) => c.b),
+    V = model.covariance,
+    estimate = weights.reduce((s, w, i) => s + w * b[i], 0),
+    variance = weights.reduce(
+      (s, wi, i) => s + weights.reduce((t, wj, j) => t + wi * wj * V[i][j], 0),
+      0,
+    ),
+    se = Math.sqrt(Math.max(0, variance));
+  if (!(se > 0)) return { estimate, se, t: null, p: null, lo: null, hi: null };
+  const t = estimate / se,
+    critical = jStat.studentt.inv(0.975, model.df);
+  return {
+    estimate,
+    se,
+    t,
+    p: Math.min(1, 2 * jStat.studentt.cdf(-Math.abs(t), model.df)),
+    lo: estimate - critical * se,
+    hi: estimate + critical * se,
+  };
+}
+// Wald F test of R b = r using the fitted covariance, as Stata's test does
+// after regress.
+export function linearTest(model, constraints) {
+  const b = model.coefficients.map((c) => c.b),
+    q = constraints.length,
+    R = new Matrix(constraints.map((c) => c.weights)),
+    gap = new Matrix(
+      constraints.map((c) => [
+        c.weights.reduce((s, w, i) => s + w * b[i], 0) - c.value,
+      ]),
+    ),
+    middle = R.mmul(new Matrix(model.covariance)).mmul(R.transpose());
+  const svd = new SingularValueDecomposition(middle, { autoTranspose: true }),
+    largest = Math.max(...svd.diagonal);
+  if (!(largest > 0) || Math.min(...svd.diagonal) < largest * 1e-12)
+    return null;
+  const F = gap.transpose().mmul(inverse(middle)).mmul(gap).get(0, 0) / q;
+  return {
+    F,
+    q,
+    df: model.df,
+    p: Math.min(1, Math.max(0, 1 - jStat.centralF.cdf(F, q, model.df))),
   };
 }

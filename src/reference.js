@@ -125,6 +125,18 @@ export const REFERENCE = [
       ],
       ["sort hours", "Sort ascending; numeric missing values sort last."],
       [
+        "bysort group (hours): generate double order = _n\nby group: generate double size = _N\nby group: generate double previous = hours[_n-1]",
+        "Repeat generate, replace or egen within each group; summarize and count report one line per group. bysort sorts first; plain by requires data already sorted by those variables and stops with error 5 otherwise. Variables in parentheses order observations inside a group without splitting it. Under by, _n, _N and subscripts count within the group. Stata leaves tied observations in an arbitrary order; the browser keeps their existing order. Other commands under by are not implemented.",
+      ],
+      [
+        "tabstat score hours, statistics(n mean sd median) by(group)",
+        "A table of chosen statistics, optionally by one grouping variable with a Total row. Statistics: n mean sum min max range sd variance cv semean median iqr and p1 p5 p10 p25 p50 p75 p90 p95 p99. Percentiles follow Stata's rule. Layout and format options are not implemented.",
+      ],
+      [
+        "bysort group: summarize score hours\nby group: count if missing(score)",
+        "Summary statistics and counts for every group, including a group with no selected observations. Stata prints one table per group; the browser prints one table with a row for each group and variable.",
+      ],
+      [
         "keep if !missing(score)",
         "Keep matching rows. Use Undo to restore removed observations.",
       ],
@@ -164,6 +176,14 @@ export const REFERENCE = [
         "OLS with an intercept and optional HC1 covariance. Use c. for continuous predictors and i. for categories. # adds an interaction; ## also includes its component terms. Bare variables inside # or ## are categorical. ib2.group sets category 2 as the reference. Weights and clustered inference require installed Stata.",
       ],
       [
+        "test hours attendance\ntest hours = attendance\ntest (hours = 1) (attendance = 0.5)",
+        "Wald F tests after regress: several coefficients jointly zero, one linear restriction, or several restrictions in parentheses. Uses the covariance of the fitted model, robust if you asked for it. Available after a regress on plain variables; rerun regress after any data change.",
+      ],
+      [
+        "lincom hours - 2*attendance\nlincom _cons + 6*hours",
+        "Estimate, standard error, t test and 95% interval for a linear combination of coefficients. _cons is the intercept.",
+      ],
+      [
         "predict double fitted [, xb]",
         "Fitted values after regress; observed predictors are required.",
       ],
@@ -189,8 +209,16 @@ export const REFERENCE = [
         "Missing-value checks, inclusive ranges and membership.",
       ],
       [
-        "_n  _N",
-        "Current observation position and total number of observations.",
+        "cond(test, a, b)  max(x, y)  min(x, y)  int(x)  floor(x)  ceil(x)  mod(x, y)  sign(x)  log10(x)",
+        "cond() chooses between two values; a missing test counts as true unless a fourth argument is given. max() and min() ignore missing arguments. int() drops the fractional part.",
+      ],
+      [
+        'strlen(s)  upper(s)  lower(s)  strtrim(s)  itrim(s)  substr(s, start, length)  strpos(s, "text")  subinstr(s, "from", "to", .)  real(s)',
+        "String functions, with Stata's older and newer names (length/strlen, upper/strupper, trim/strtrim). substr() counts from 1; a negative start counts from the end and a missing length means the rest. real() converts text to a number or missing. Position functions accept unaccented (ASCII) text only, because Stata counts bytes.",
+      ],
+      [
+        "_n  _N  x[_n-1]  x[1]",
+        "Current observation position, number of observations, and the value of x in another observation. A position outside the data gives missing. Subscripts work in generate, replace and if conditions; replace stores one observation at a time, so replace x = x[_n-1] if missing(x) carries values forward.",
       ],
       [
         'import delimited using "study.csv", clear',
@@ -199,6 +227,10 @@ export const REFERENCE = [
       [
         "* comment\n// comment\n/* comment */\n/// continuation",
         "Comments and line continuations are supported. A do-file stops at its first error.",
+      ],
+      [
+        "version 17",
+        "Accepted at the top of a do-file so that files written for Stata run here. It does not change how browser commands behave.",
       ],
       [
         "display 2 + 3\nclear\nset more off",

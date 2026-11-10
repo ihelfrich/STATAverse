@@ -44,7 +44,70 @@ export function resultHTML(result, index, { complete = false } = {}) {
       (!complete && r.rows.length > 200
         ? `<p class="result-annotation">Showing the first 200 of ${r.rows.length} listed observations. Use an in range to inspect another section, or download Results and notes for the complete retained output.</p>`
         : "");
-  else if (r.kind === "summarize")
+  else if (r.kind === "by") {
+    const key = (k) => (k === "" ? '""' : value(k));
+    body =
+      r.inner === "count"
+        ? table(
+            [...r.by, "Observations"],
+            r.groups.map((g) => [...g.keys.map(key), g.n]),
+            "Counts by group",
+          )
+        : table(
+            [...r.by, "Variable", "Obs.", "Mean", "Std. dev.", "Min", "Max"],
+            r.groups.flatMap((g) =>
+              g.stats.map((s) => [
+                ...g.keys.map(key),
+                h(s.name),
+                s.n,
+                fmt(s.mean),
+                fmt(s.sd),
+                fmt(s.min),
+                fmt(s.max),
+              ]),
+            ),
+            "Summary statistics by group",
+          ) +
+          `<p class="result-annotation">One row per group and variable. Obs. counts nonmissing values. Stata prints a separate table for each group; the numbers are the same.</p>`;
+  } else if (r.kind === "lincom")
+    body =
+      table(
+        ["Combination", "Coefficient", "Std. err.", "t", "P>|t|", "95% CI"],
+        [
+          [
+            h(r.expression),
+            fmt(r.estimate),
+            fmt(r.se),
+            fmt(r.t),
+            fmt(r.p),
+            `${fmt(r.lo)} to ${fmt(r.hi)}`,
+          ],
+        ],
+        "Linear combination of coefficients",
+      ) +
+      `<p class="result-annotation">Outcome: ${h(r.dependent)}. Uses the ${r.robust ? "HC1 robust" : "conventional"} covariance of the fitted regression and a t distribution with ${r.df} degrees of freedom.</p>`;
+  else if (r.kind === "test")
+    body = `<ol class="result-text">${r.constraints.map((c) => `<li>${h(c)}</li>`).join("")}</ol><div class="result-metrics"><div class="result-metric">F(${r.q}, ${r.df})<strong>${fmt(r.F, 2)}</strong></div><div class="result-metric">Prob &gt; F<strong>${fmt(r.p, 4)}</strong></div></div><p class="result-annotation">Wald test that the listed restrictions hold together, using the ${r.robust ? "HC1 robust" : "conventional"} covariance of the fitted regression. A small probability is evidence against the restrictions jointly; it does not say which one fails.</p>`;
+  else if (r.kind === "tabstat") {
+    const block = (label, values) =>
+      r.statistics.map((statistic, s) => [
+        ...(r.by ? [s === 0 ? label : ""] : []),
+        h(statistic === "n" ? "N" : statistic),
+        ...r.names.map((_name, v) => fmt(values[v][s])),
+      ]);
+    body =
+      table(
+        [...(r.by ? [r.by] : []), "Statistic", ...r.names],
+        [
+          ...r.groups.flatMap((g) =>
+            block(g.key === "" ? '""' : value(g.key), g.values),
+          ),
+          ...block("Total", r.total),
+        ],
+        "Statistics table",
+      ) +
+      `<p class="result-annotation">Each statistic uses the nonmissing values of its own variable.${r.by ? " Observations with a missing group value are left out." : ""}</p>`;
+  } else if (r.kind === "summarize")
     body =
       table(
         ["Variable", "Obs.", "Mean", "Std. dev.", "Min", "Max"],

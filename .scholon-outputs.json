@@ -13,7 +13,7 @@
       "path": "docs/numerical-contract.md",
       "kind": "specification",
       "title": "Browser Stata numerical contract",
-      "summary": "Browser numerical and do-file semantics, capture and output prefixes, factor-variable regression with native comparisons, worker recovery and guided do-file authoring",
+      "summary": "Browser numerical and do-file semantics, capture and output prefixes, factor-variable regression with native comparisons, worker recovery and guided do-file authoring; functions, subscripts, by-group commands, tabstat, test and lincom with 129 native cases; do-file corpus coverage report",
       "facets": [
         "Stata",
         "teaching",
@@ -43,7 +43,13 @@
         "tests/command-prefixes.test.mjs",
         "tests/browser/command-prefixes.spec.js",
         "docs/verification/browser-capabilities.json",
-        "tests/browser/editor.spec.js"
+        "tests/browser/editor.spec.js",
+        "tests/fixtures/stata-functions.json",
+        "tools/check-functions-native.mjs",
+        "tests/functions.test.mjs",
+        "tools/corpus-coverage.mjs",
+        "docs/verification/corpus-coverage.json",
+        "docs/runtime-and-courses-spec.md"
       ]
     },
     {
@@ -509,7 +515,7 @@
       "path": "docs/iv-lab-contract.md",
       "kind": "specification",
       "title": "Instrumental-variables browser model contract",
-      "summary": "Population assumptions, 2SLS covariance, analytic Anderson\u2013Rubin inversion and numerical limits",
+      "summary": "Population assumptions, 2SLS covariance, analytic Anderson–Rubin inversion and numerical limits",
       "facets": [
         "Stata",
         "teaching",

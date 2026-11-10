@@ -15,7 +15,8 @@
     "package:site": "npm run build && node tools/package-site.mjs",
     "test:site": "node tools/verify-site-integration.mjs",
     "test:legacy": "node tools/verify-legacy-transition.mjs",
-    "test:loading": "node tools/verify-practice-loading.mjs"
+    "test:loading": "node tools/verify-practice-loading.mjs",
+    "coverage:corpus": "node tools/corpus-coverage.mjs --write"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",

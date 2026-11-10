@@ -63,6 +63,56 @@ async function verifyPrefixes(page) {
   );
   assert.match(await page.locator("#dataset-count").innerText(), /5 variables/);
 }
+async function verifyBy(page) {
+  await replaceEditor(
+    page,
+    "bysort group (id): generate double by_position = _n\nby group: generate double by_previous = hours[_n-1]\ngenerate by_initial = upper(substr(group, 1, 1))",
+  );
+  await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.match(await page.locator("#dataset-count").innerText(), /8 variables/);
+  await replaceEditor(
+    page,
+    "version 17\nby group: summarize score\ntabstat score hours, statistics(n mean median) by(group)",
+  );
+  await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.equal(
+    await page
+      .getByRole("region", { name: "Summary statistics by group" })
+      .count(),
+    1,
+  );
+  assert.match(
+    await page.getByRole("region", { name: "Statistics table" }).innerText(),
+    /Total/,
+  );
+  assert.match(await page.locator("#dataset-count").innerText(), /8 variables/);
+  await replaceEditor(
+    page,
+    "regress score hours attendance\ntest hours attendance\nlincom hours - attendance",
+  );
+  await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.match(await page.locator("#results").innerText(), /Prob > F/);
+  assert.equal(
+    await page
+      .getByRole("region", { name: "Linear combination of coefficients" })
+      .count(),
+    1,
+  );
+  await replaceEditor(page, "by hours: generate double by_unsorted = 1");
+  await page.locator("#run").click();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.match(await page.locator("#results").innerText(), /not sorted/);
+  assert.equal(await page.locator('[data-variable="by_unsorted"]').count(), 0);
+  await page.reload();
+  await page.locator("#run:not([disabled])").waitFor();
+  assert.match(await page.locator("#dataset-count").innerText(), /8 variables/);
+  // Six reporting commands and three new variables each hold one step.
+  for (let i = 0; i < 9; i++) await page.locator("#undo").click();
+  assert.match(await page.locator("#dataset-count").innerText(), /5 variables/);
+}
 try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1050 },
@@ -220,6 +270,10 @@ try {
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
   );
   await verifyPrefixes(factorPage);
+  await verifyBy(factorPage);
+  receipt.checks.push(
+    "bysort, by, subscripts and string functions run at the canonical address; summarize under by, tabstat with by(), version, and test and lincom after regress report without changing data; unsorted by stops with not sorted and changes nothing; reload replays and undo restores the data",
+  );
   await replaceEditor(factorPage, "clear\ncount");
   const shortcutEditor = factorPage.locator("#command-editor");
   await shortcutEditor.press("ControlOrMeta+A");
