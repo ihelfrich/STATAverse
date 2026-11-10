@@ -13,6 +13,7 @@ import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
+import { MARGINS_COMMANDS } from "./margins.js";
 import { DATA_COMMANDS } from "./data-commands.js";
 import {
   count,
@@ -1063,6 +1064,7 @@ export const COMMANDS = [
   ...PANEL_COMMANDS,
   ...UTILITY_COMMANDS,
   ...GRAPH_COMMANDS,
+  ...MARGINS_COMMANDS,
   ...ESTIMATION_COMMANDS,
   ...DATA_COMMANDS,
   command("generate", 1, generate, true),

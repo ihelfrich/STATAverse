@@ -298,6 +298,7 @@ function fit(session, parsed, by) {
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
     clusters,
     clusterName: cluster?.name,
+    sample: obs,
     dfResidual,
     level: options.level,
   };

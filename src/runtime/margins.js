@@ -1,0 +1,324 @@
+// margins: average predictions and marginal effects after regress, logit,
+// probit and poisson, with delta-method standard errors. Every quantity is
+// an average over the estimation sample of a function of x'b, so its
+// gradient with respect to b is an average too.
+import { StataError } from "./errors.js";
+import { applyFormat } from "./format.js";
+import { invttail, ttail } from "./distributions.js";
+import { density, invnormal, normal } from "./functions-normal.js";
+import { RULE, estimates, quadratic } from "./estimation.js";
+import { parseNumlist } from "./numlist.js";
+import { count, labelled } from "./reports.js";
+import { isMissing } from "./values.js";
+
+const g = (value) => applyFormat(value, "%9.0g").trim();
+// For each link: the mean, its derivative and second derivative in x'b.
+const LINKS = {
+  linear: [(e) => e, () => 1, () => 0],
+  logit: [
+    (e) => 1 / (1 + Math.exp(-e)),
+    (e) => {
+      const p = 1 / (1 + Math.exp(-e));
+      return p * (1 - p);
+    },
+    (e) => {
+      const p = 1 / (1 + Math.exp(-e));
+      return p * (1 - p) * (1 - 2 * p);
+    },
+  ],
+  probit: [normal, density, (e) => -e * density(e)],
+  poisson: [Math.exp, Math.exp, Math.exp],
+};
+
+function margins(session, text, ctx) {
+  const model = estimates(session),
+    link =
+      LINKS[model.kind] ?? (model.command === "regress" ? LINKS.linear : null);
+  if (!link || !model.sample)
+    throw new StataError(
+      `margins is not available after ${model.command} yet`,
+      322,
+    );
+  const [mean, slope, curve] = link,
+    parsed = session.parse(
+      "[anything] [, DYdx(string) AT(string) ATMeans Level(cilevel) noSE POST]",
+      text,
+    ),
+    options = parsed.options,
+    level = options.level,
+    rows = model.sample,
+    n = rows.length,
+    k = model.names.length,
+    covariates = [
+      ...new Set(
+        model.columns.map((c) => (c.term.variable ?? c.term.factor).name),
+      ),
+    ],
+    factors = new Map(
+      model.columns
+        .filter((c) => c.term.factor)
+        .map((c) => [c.term.factor.name, c.term.factor]),
+    ),
+    levelsOf = (name) =>
+      model.columns
+        .filter((c) => c.term.factor?.name === name)
+        .map((c) => c.level),
+    columnMeans = model.names.map((name, j) =>
+      name === "_cons"
+        ? 1
+        : rows.reduce((t, i) => t + model.columns[j].value(i), 0) / n,
+    );
+  // A row of the design for observation i under a set of fixed values.
+  // fixed: Map of variable name to a value, or "mean".
+  const row = (i, fixed) =>
+    model.names.map((name, j) => {
+      if (name === "_cons") return 1;
+      const column = model.columns[j],
+        variable = column.term.variable ?? column.term.factor,
+        value = fixed.get(variable.name);
+      if (value === undefined) return column.value(i);
+      if (value === "mean") return columnMeans[j];
+      return column.term.factor ? Number(value === column.level) : value;
+    });
+  const xb = (r) => r.reduce((t, v, j) => t + v * model.b[j], 0);
+  // Average of a function of each row, with its gradient in b.
+  const average = (fixed, each) => {
+    let value = 0;
+    const gradient = new Array(k).fill(0);
+    for (const i of rows) {
+      const r = row(i, fixed),
+        [v, dv] = each(r, xb(r));
+      value += v / n;
+      dv.forEach((d, j) => (gradient[j] += d / n));
+    }
+    return { value, gradient };
+  };
+  const prediction = (fixed) =>
+    average(fixed, (r, e) => [mean(e), r.map((v) => slope(e) * v)]);
+  const effect = (fixed, j) =>
+    average(fixed, (r, e) => [
+      slope(e) * model.b[j],
+      r.map((v, c) => curve(e) * v * model.b[j] + (c === j ? slope(e) : 0)),
+    ]);
+  const difference = (a, b) => ({
+    value: a.value - b.value,
+    gradient: a.gradient.map((v, j) => v - b.gradient[j]),
+  });
+
+  // at(): each variable takes one value or a list; sets are their product.
+  const base = new Map();
+  if (options.atmeans) for (const name of covariates) base.set(name, "mean");
+  let sets = [new Map(base)];
+  const atNames = [];
+  if (options.at) {
+    for (const m of options.at.matchAll(/(\w+)\s*=\s*(\([^)]*\)|\S+)/g)) {
+      const name = session.varlist(m[1])[0];
+      if (!covariates.includes(name))
+        throw new StataError(
+          `variable ${name} not found in list of covariates`,
+          322,
+        );
+      const values = parseNumlist(m[2].replace(/^\(|\)$/g, ""));
+      atNames.push(name);
+      sets = sets.flatMap((set) =>
+        values.map((value) => new Map(set).set(name, value)),
+      );
+    }
+    if (!atNames.length) throw new StataError("invalid at() option", 198);
+  }
+  const allFixed = (set) => covariates.every((name) => set.has(name));
+
+  // What to compute.
+  const results = [];
+  const marginVariables = (parsed.anything ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => session.varlist(word.replace(/^i\./, ""))[0]);
+  for (const name of marginVariables)
+    if (!factors.has(name))
+      throw new StataError(
+        `'${name}' not found in list of covariates\n(it must enter the model as a factor variable, i.${name})`,
+        322,
+      );
+  let dydx = null;
+  if (options.dydx) {
+    const wanted = /^(\*|_all)$/.test(options.dydx.trim())
+      ? covariates
+      : options.dydx
+          .trim()
+          .split(/\s+/)
+          .map((word) => {
+            let name;
+            try {
+              name = session.varlist(word)[0];
+            } catch {
+              name = word;
+            }
+            if (!covariates.includes(name))
+              throw new StataError(
+                `invalid dydx() option;\n${word} not found in list of covariates`,
+                322,
+              );
+            return name;
+          });
+    dydx = wanted;
+    for (const name of wanted) {
+      const set = sets[0];
+      if (factors.has(name)) {
+        const [first, ...others] = levelsOf(name),
+          atBase = prediction(new Map(set).set(name, first));
+        results.push({ group: name });
+        for (const lv of others)
+          results.push({
+            label: `${labelled(session, factors.get(name), lv)}  `.padStart(13),
+            ...difference(prediction(new Map(set).set(name, lv)), atBase),
+            factor: name,
+            wrt: `${lv}.${name}`,
+          });
+      } else
+        results.push({
+          label: `${name.padStart(12)} `,
+          ...effect(set, model.names.indexOf(name)),
+          wrt: name,
+        });
+    }
+  } else if (marginVariables.length) {
+    for (const name of marginVariables) {
+      results.push({ group: name });
+      for (const lv of levelsOf(name))
+        results.push({
+          label: `${labelled(session, factors.get(name), lv)}  `.padStart(13),
+          ...prediction(new Map(sets[0]).set(name, lv)),
+          factor: name,
+        });
+    }
+  } else if (sets.length > 1) {
+    results.push({ group: "_at" });
+    sets.forEach((set, s) =>
+      results.push({ label: `${s + 1}  `.padStart(13), ...prediction(set) }),
+    );
+  } else
+    results.push({ label: `${"_cons".padStart(12)} `, ...prediction(sets[0]) });
+
+  const t = model.dist !== "z",
+    critical = t
+      ? invttail(model.df_r, (1 - level / 100) / 2)
+      : invnormal(1 - (1 - level / 100) / 2),
+    tail = (z) =>
+      t ? 2 * ttail(model.df_r, Math.abs(z)) : 2 * normal(-Math.abs(z)),
+    fixedAll = allFixed(sets[0]) && sets.length === 1,
+    title = dydx
+      ? fixedAll
+        ? "Conditional marginal effects"
+        : "Average marginal effects"
+      : fixedAll
+        ? "Adjusted predictions"
+        : "Predictive margins",
+    expression =
+      model.kind === "poisson"
+        ? "Predicted number of events"
+        : model.kind === "logit" || model.kind === "probit"
+          ? `Pr(${model.depvar})`
+          : "Linear prediction",
+    vce =
+      {
+        ols: "OLS",
+        robust: "Robust",
+        cluster: "Robust",
+        oim: "OIM",
+        unadjusted: "Unadjusted",
+      }[model.vce] ?? "OLS";
+  ctx.out("");
+  ctx.out(`${title.padEnd(60)}Number of obs = ${count(n)}`);
+  ctx.out(`Model VCE: ${vce}`);
+  ctx.out("");
+  ctx.out(`Expression: ${expression}, predict()`);
+  if (dydx)
+    ctx.out(
+      `dy/dx wrt:  ${results
+        .filter((r) => r.wrt)
+        .map((r) => r.wrt)
+        .join(" ")}`,
+    );
+  const describe = (set) => {
+    const entries = [...set].map(([name, value]) => [
+        name,
+        value === "mean" ? g(columnMeans[model.names.indexOf(name)]) : g(value),
+        value === "mean" ? " (mean)" : "",
+      ]),
+      width = Math.max(0, ...entries.map((e) => e[1].length));
+    return entries.map(
+      ([name, value, note]) => `${name} = ${value.padStart(width)}${note}`,
+    );
+  };
+  if (sets.length > 1)
+    sets.forEach((set, s) =>
+      describe(
+        new Map([...set].filter(([name]) => atNames.includes(name))),
+      ).forEach((line, j) =>
+        ctx.out(
+          j
+            ? `${" ".repeat(`${s + 1}._at: `.length)}${line}`
+            : `${s + 1}._at: ${line}`,
+        ),
+      ),
+    );
+  else if (sets[0].size)
+    describe(sets[0]).forEach((line, j) =>
+      ctx.out(`${j ? "    " : "At: "}${line}`),
+    );
+  ctx.out("");
+  ctx.out(RULE);
+  ctx.out("             |            Delta-method");
+  ctx.out(
+    `             | ${(dydx ? "dy/dx" : "Margin").padStart(10)}   std. err.      ${t ? "t" : "z"}    P>|${t ? "t" : "z"}|     [${g(level)}% conf. interval]`,
+  );
+  ctx.out(
+    "-------------+----------------------------------------------------------------",
+  );
+  let previous = null;
+  for (const result of results) {
+    if (result.group) {
+      if (previous && !previous.group) ctx.out("             |");
+      ctx.out(`${result.group.padStart(12)} |`);
+    } else {
+      if (previous && previous.factor && !result.factor)
+        ctx.out("             |");
+      const se = Math.sqrt(quadratic(result.gradient, model.V)),
+        z = result.value / se;
+      ctx.out(
+        `${result.label}|${g(result.value).padStart(11)}${g(se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(tail(z), "%8.3f")}${g(result.value - critical * se).padStart(13)}${g(result.value + critical * se).padStart(12)}`,
+      );
+      result.se = se;
+    }
+    previous = result;
+  }
+  ctx.out(RULE);
+  if (dydx && results.some((r) => r.factor))
+    ctx.out(
+      "Note: dy/dx for factor levels is the discrete change from the base level.",
+    );
+  ctx.out("");
+  const values = results.filter((r) => !r.group);
+  session.results.r = { N: n, level };
+  session.margins = {
+    values: values.map((r) => r.value),
+    se: values.map((r) => r.se),
+  };
+  if (values.some((r) => isMissing(r.value))) return;
+}
+
+export const MARGINS_COMMANDS = [
+  { name: "margins", minimum: 7, run: margins },
+  {
+    name: "marginsplot",
+    minimum: 11,
+    run: () => {
+      throw new StataError(
+        "marginsplot is not available yet; margins prints the numbers it would plot",
+        198,
+      );
+    },
+  },
+];

@@ -6,7 +6,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
-import { count } from "./reports.js";
+import { count, labelled } from "./reports.js";
 import {
   RULE,
   describeLinear,
@@ -88,8 +88,24 @@ function zTable(session, model, level, transform) {
       `${model.depvar.padStart(12)} | ${head}  ${robust ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
       "-------------+----------------------------------------------------------------",
     ];
+  let previous = null;
   model.names.forEach((name, k) => {
-    const label = `${name.padStart(12)} `;
+    // Levels of a factor variable are grouped under its name, as in regress.
+    const column = model.columns[k],
+      factor = column?.term.factor;
+    if (
+      previous !== null &&
+      (factor || previous.factor) &&
+      (column?.term ?? "cons") !== previous.term
+    )
+      lines.push("             |");
+    if (factor && column.term !== previous?.term)
+      lines.push(`${factor.name.padStart(12)} |`);
+    previous = { term: column?.term ?? "cons", factor };
+    if (column?.base) return;
+    const label = factor
+      ? `${labelled(session, factor, column.level)}  `.padStart(13)
+      : `${name.padStart(12)} `;
     if (!model.estimable[k])
       return lines.push(`${label}|          0  (omitted)`);
     const b = model.b[k],
@@ -289,6 +305,7 @@ function maximumLikelihood(kind) {
       vce: robust ? "robust" : "oim",
       family,
       kind,
+      sample,
     };
     const chi2 = robust ? waldChi2(model) : 2 * (ll - ll0),
       p = isMissing(chi2) ? MISSING : chi2tail(model.df_m, chi2),
@@ -453,6 +470,7 @@ function ivregress(session, text, ctx) {
       rmse: Math.sqrt(rss / n),
       vce: robust ? "robust" : "unadjusted",
       kind: "ivregress",
+      sample: rows,
     };
   const chi2 = waldChi2(model),
     p = chi2tail(model.df_m, chi2),

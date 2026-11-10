@@ -82,7 +82,7 @@ for (const c of fixture.cases)
           (line) => !/^r\(\d+\);$/.test(line),
         ),
         b = expected.lines.filter((line) => !/^r\(\d+\);$/.test(line));
-      if (!sameText(a, b, c.id === "nonlinear"))
+      if (!sameText(a, b, c.id === "nonlinear" || c.id === "margins"))
         failures.push(
           `${expected.command}\n--- runtime\n${a.join("\n")}\n--- Stata\n${b.join("\n")}`,
         );
