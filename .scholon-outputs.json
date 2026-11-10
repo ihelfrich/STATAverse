@@ -796,16 +796,17 @@
       "id": "stataverse.functions-native",
       "path": "tests/fixtures/stata-functions.json",
       "kind": "reference",
-      "title": "Native Stata results for expression functions, subscripts and the by prefix",
-      "summary": "75 scalar expressions and 23 by/bysort/subscript data sequences executed in installed Stata on six invented observations, with return codes",
+      "title": "Native Stata results for functions, by-group commands, tabstat, test and lincom",
+      "summary": "75 scalar expressions, 23 by/bysort/subscript data sequences, 4 grouped reports, 5 tabstat result matrices and 22 test/lincom results executed in installed Stata on small invented datasets",
       "evidence": [
         "tools/check-functions-native.mjs",
         "tests/functions.test.mjs",
         "docs/numerical-contract.md"
       ],
       "limits": [
-        "Covers only the listed functions and forms; ASCII strings only",
-        "Row order under tied sort keys is arbitrary in Stata and not compared"
+        "Covers only the listed functions, statistics and forms; ASCII strings only",
+        "Row order under tied sort keys is arbitrary in Stata and not compared",
+        "test and lincom cover regress on plain variables only"
       ],
       "project": "stataverse",
       "facets": [

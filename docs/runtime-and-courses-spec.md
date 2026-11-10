@@ -202,3 +202,13 @@ Module boundaries inside `src/runtime/`; the linear-algebra routines (keep `ml-m
 2. **`sysuse`.** Students will type `sysuse auto`. The dataset belongs to StataCorp and I do not propose shipping it. The default in this spec is that `sysuse` lists the site's own datasets and explains the difference. The alternative is a synthetic stand-in under the same name, which would run familiar tutorials and give different numbers from every textbook.
 3. **Course order.** The spec releases data work first because it depends on the earliest stage and serves the widest audience. If the causal course matters more for the job-market season, the IV and difference-in-differences families can move ahead of the nonlinear ones at some cost to Course 2's date.
 4. **The coverage target.** Ninety percent of corpus lines is a placeholder until stage 0 reports the baseline.
+
+## Progress, 9 November 2026
+
+Stage 0 has its coverage tool and baseline: `tools/corpus-coverage.mjs` and `docs/verification/corpus-coverage.json`. The differential harness, the frozen-engine interface and the investigation of the intermittent navigation failures are not done.
+
+Before the new runtime exists, four sets of commands were added to the current interpreter because they are purely additive: no existing command changed its results, so saved sessions replay as before and the freeze rule above is not broken. They are expression functions and subscripts; `by` and `bysort` for `generate`, `replace`, `egen`, `summarize` and `count`; `tabstat` and `version`; and `test` and `lincom` after `regress`. Each was compared with installed Stata (129 cases in `tests/fixtures/stata-functions.json`) and is described in [the numerical contract](numerical-contract.md). Name-level corpus coverage, setting `display` aside, moved from 68.3 to 72.3 percent.
+
+One change does touch existing behavior in a way that cannot alter results: `generate` and `replace` now evaluate one observation at a time. Without subscripts, which did not exist before, the order of evaluation is unobservable.
+
+These additions raise the cost of the later migration, since the new runtime must reproduce them too. That is the reason to stop adding to the old interpreter once the grammar and data store of stage 1 begin. The core offline package is at 561,451 gzip bytes of its 600,000 limit, so further families need the on-demand loading described above before they ship.

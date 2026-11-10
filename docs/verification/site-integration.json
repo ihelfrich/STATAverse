@@ -1,12 +1,12 @@
 {
   "origin": "http://127.0.0.1:4176",
-  "checkedAt": "2026-11-10T02:04:51.845Z",
+  "checkedAt": "2026-11-10T02:18:15.969Z",
   "base": "/learn/stata/",
   "checks": [
     "nested-path command execution, saved practice and scoped service worker",
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
-    "bysort, by, subscripts and string functions run at the canonical address; summarize under by, tabstat with by() and version report without changing data; unsorted by stops with not sorted and changes nothing; reload replays and undo restores the data",
+    "bysort, by, subscripts and string functions run at the canonical address; summarize under by, tabstat with by(), version, and test and lincom after regress report without changing data; unsorted by stops with not sorted and changes nothing; reload replays and undo restores the data",
     "editor comment shortcut, text undo, run-all shortcut and saved commented draft work at the canonical address; shortcut reference is available",
     "capture/noisily blocks, quietly, confirm and _rc run through the worker at the canonical address; partial changes, skipped commands, History, reload and grouped undo agree",
     "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",
@@ -30,18 +30,18 @@
     },
     {
       "asset": "learn.js",
-      "bytes": 545017,
-      "gzipBytes": 178285
+      "bytes": 546541,
+      "gzipBytes": 178738
     },
     {
       "asset": "practice-worker.js",
       "bytes": 604,
-      "gzipBytes": 328
+      "gzipBytes": 329
     },
     {
       "asset": "do-builder.js",
       "bytes": 21512,
-      "gzipBytes": 8210
+      "gzipBytes": 8209
     },
     {
       "asset": "workspace.js",
@@ -51,27 +51,27 @@
     {
       "asset": "data-lab.js",
       "bytes": 133225,
-      "gzipBytes": 47272
+      "gzipBytes": 47274
     },
     {
       "asset": "inference-lab.js",
       "bytes": 93146,
-      "gzipBytes": 34446
+      "gzipBytes": 34449
     },
     {
       "asset": "inference-worker.js",
       "bytes": 60822,
-      "gzipBytes": 21806
+      "gzipBytes": 21798
     },
     {
       "asset": "iv-lab.js",
       "bytes": 94179,
-      "gzipBytes": 35550
+      "gzipBytes": 35549
     },
     {
       "asset": "iv-investigation-ui.js",
       "bytes": 34837,
-      "gzipBytes": 11514
+      "gzipBytes": 11513
     },
     {
       "asset": "method-lab.js",
@@ -86,13 +86,13 @@
   ],
   "release": {
     "source": "ihelfrich/STATAverse",
-    "commit": "dc36f7a74e3edf0f83e07edc371d7bddc96ce3a6",
+    "commit": "197320975b5ad5fe1c398239782514a6b35498ca",
     "base": "/learn/stata/",
     "development": false
   },
   "coreOfflinePackage": {
     "files": 36,
-    "bytes": 1752081,
-    "gzipBytes": 559672
+    "bytes": 1757566,
+    "gzipBytes": 561451
   }
 }
