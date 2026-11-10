@@ -1061,3 +1061,21 @@ regress y g#h
 === interaction-square | e: N df_m rss | matrices: e(b) e(V)
 @EST
 regress y x1 c.x1#c.x1
+=== xtile-egen-more | locals: c1 c2 n
+@EST
+xtile q4 = y, nquantiles(4)
+xtile half = x2
+xtile t3 = y if g > 1, nquantiles(3)
+egen zy = std(y)
+egen p90 = pctile(y), p(90)
+egen p25g = pctile(y), p(25) by(g)
+egen iq = iqr(y)
+egen cutx = cut(x1), at(0 4 8 13)
+egen anyv = anymatch(g), values(1 3)
+egen total2 = rowsd(x1 x2)
+egen first = rowfirst(x2 x1)
+egen cnt = rownonmiss(x1 x2 y)
+quietly centile y, centile(10 50 90)
+local c1 = round(r(c_1), 1e-6)
+local c2 = round(r(c_2), 1e-6)
+local n = r(N)

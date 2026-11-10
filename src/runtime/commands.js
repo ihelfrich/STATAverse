@@ -856,7 +856,7 @@ function egen(session, text, ctx) {
   if (!m) throw invalid();
   const [, typeText, name, fcn, argument, tail = ""] = m,
     parsed = session.parse(
-      "[if] [in] [, BY(varlist) Missing Field Track Unique]",
+      "[if] [in] [, BY(varlist) Missing Field Track Unique P(integer 50) AT(numlist) Values(numlist)]",
       tail,
     ),
     data = session.data;
@@ -875,7 +875,8 @@ function egen(session, text, ctx) {
     groupOf.get(key).push(i);
   }
   const groups = [...groupOf.values()];
-  let type = typeText?.trim();
+  let type = typeText?.trim(),
+    label = "";
   if (/^row/.test(fcn)) {
     const columns = session
       .varlist(argument)
@@ -903,12 +904,18 @@ function egen(session, text, ctx) {
                   ? columns.length - row.length
                   : fcn === "rownonmiss"
                     ? row.length
-                    : (() => {
-                        throw new StataError(
-                          `unknown egen function ${fcn}()`,
-                          133,
-                        );
-                      })();
+                    : fcn === "rowsd"
+                      ? moments(row).sd
+                      : fcn === "rowfirst"
+                        ? (row[0] ?? MISSING)
+                        : fcn === "rowlast"
+                          ? (row.at(-1) ?? MISSING)
+                          : (() => {
+                              throw new StataError(
+                                `unknown egen function ${fcn}()`,
+                                133,
+                              );
+                            })();
     }
   } else if (fcn === "group" || fcn === "tag") {
     const names = session.varlist(argument),
@@ -963,8 +970,44 @@ function egen(session, text, ctx) {
         k = j;
       }
     }
+  } else if (fcn === "std" || fcn === "cut" || fcn === "anymatch") {
+    const compiled = session.compile(argument);
+    if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+    const all = evaluateAll(compiled, data.n);
+    if (fcn === "std") {
+      const m = moments(rows.map((i) => all[i]).filter((v) => !isMissing(v)));
+      for (const i of rows)
+        values[i] = isMissing(all[i]) ? MISSING : (all[i] - m.mean) / m.sd;
+      label = `Standardized values of ${argument.trim()}`;
+    } else if (fcn === "cut") {
+      const cuts = parsed.options.at;
+      if (!cuts) throw invalid("egen cut() needs at()");
+      // The left end of the interval a value falls in; none at or past
+      // the last cut point.
+      for (const i of rows) {
+        const below = cuts.filter((cut) => cut <= all[i]);
+        values[i] =
+          isMissing(all[i]) || !below.length || all[i] >= cuts.at(-1)
+            ? MISSING
+            : below.at(-1);
+      }
+    } else {
+      const wanted = parsed.options.values;
+      if (!wanted) throw invalid("egen anymatch() needs values()");
+      for (const i of rows) values[i] = Number(wanted.includes(all[i]));
+      for (let i = 0; i < data.n; i++) if (!selected.has(i)) values[i] = 0;
+      type ??= "byte";
+      label = `${argument.trim()} == ${wanted.map(formatNumber).join(" ")}`;
+    }
   } else {
-    const fn = statistic(fcn === "pctile" ? "median" : fcn);
+    const fn =
+      fcn === "pctile"
+        ? (v) =>
+            percentile(
+              [...v].sort((a, b) => a - b),
+              parsed.options.p,
+            )
+        : statistic(fcn);
     if (!fn) throw new StataError(`unknown egen function ${fcn}()`, 133);
     const compiled = session.compile(argument);
     if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
@@ -985,6 +1028,7 @@ function egen(session, text, ctx) {
   if (fcn === "group" || fcn === "tag")
     data.get(name).label = `${fcn}(${argument.trim()})`;
   if (fcn === "rank") data.get(name).label = `rank of (${argument.trim()})`;
+  if (label) data.get(name).label = label;
 }
 
 function collapse(session, text) {
@@ -1107,6 +1151,77 @@ function sysuse(session, text) {
   session.data = session.data.constructor.fromRows(library[name]);
 }
 
+function xtile(session, text) {
+  const parsed = session.parse(
+      "newvarname =exp [if] [in] [, Nquantiles(integer 2)]",
+      text,
+    ),
+    compiled = session.compile(parsed.exp),
+    q = parsed.options.nquantiles,
+    data = session.data,
+    values = new Array(data.n).fill(MISSING),
+    picked = [];
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  if (q < 2) throw invalid("nquantiles() must be at least 2");
+  session.select(parsed, null, (i, env) => {
+    const value = compiled.evaluate(i, env);
+    if (!isMissing(value)) picked.push([i, value]);
+  });
+  const sorted = picked.map((p) => p[1]).sort((a, b) => a - b),
+    cuts = Array.from({ length: q - 1 }, (_, k) =>
+      percentile(sorted, (100 * (k + 1)) / q),
+    );
+  // A value belongs to the first quantile whose upper limit it does not pass.
+  for (const [i, value] of picked)
+    values[i] = cuts.filter((cut) => value > cut).length + 1;
+  const order = [...data.sortedBy];
+  data.generate(parsed.varlist[0], values, {
+    type: parsed.typed[0] ? parsed.types[0] : inferType(values),
+  });
+  data.sortedBy = order;
+  data.get(parsed.varlist[0]).label = `${q} quantiles of ${parsed.exp.trim()}`;
+}
+
+function centile(session, text, ctx) {
+  const parsed = session.parse(
+      "[varlist] [if] [in] [, Centile(numlist) Level(cilevel)]",
+      text,
+    ),
+    wanted = parsed.options.centile ?? [50],
+    rows = session.rows(parsed, null),
+    results = {};
+  ctx.out("");
+  ctx.out("    Variable |       Obs  Percentile    Centile");
+  ctx.out("-------------+---------------------------------");
+  for (const name of parsed.varlist) {
+    const variable = session.data.get(name);
+    if (isStringType(variable.type)) continue;
+    const sorted = present(variable.data, rows).sort((a, b) => a - b),
+      n = sorted.length;
+    wanted.forEach((p, k) => {
+      // Stata's centile interpolates at position (n + 1) p / 100.
+      const position = ((n + 1) * p) / 100,
+        low = Math.floor(position),
+        value = !n
+          ? MISSING
+          : low < 1
+            ? sorted[0]
+            : low >= n
+              ? sorted[n - 1]
+              : sorted[low - 1] +
+                (position - low) * (sorted[low] - sorted[low - 1]);
+      results[`c_${k + 1}`] = value;
+      results.N = n;
+      ctx.out(
+        `${(k ? "" : name).padStart(12)} |${(k ? "" : count(n)).padStart(10)}${formatNumber(p).padStart(11)}${applyFormat(value, "%9.0g").trim().padStart(12)}`,
+      );
+    });
+  }
+  ctx.out("");
+  ctx.out("(confidence limits for centiles are not computed here)");
+  session.results.r = { ...results, n_cent: wanted.length };
+}
+
 const command = (name, minimum, run, byable = false) => ({
   name,
   minimum,
@@ -1137,6 +1252,8 @@ export const COMMANDS = [
   command("recast", 6, recast),
   command("compress", 8, compress),
   command("collapse", 8, collapse),
+  command("xtile", 5, xtile),
+  command("centile", 7, centile),
   command("count", 3, perGroup(countCommand), true),
   command("summarize", 2, perGroup(summarize), true),
   command("tabulate", 2, perGroup(tabulate), true),
