@@ -13,7 +13,7 @@
       "path": "docs/numerical-contract.md",
       "kind": "specification",
       "title": "Browser Stata numerical contract",
-      "summary": "Browser numerical and do-file semantics, capture and output prefixes, factor-variable regression with native comparisons, worker recovery and guided do-file authoring",
+      "summary": "Browser numerical and do-file semantics, capture and output prefixes, factor-variable regression with native comparisons, worker recovery and guided do-file authoring; functions, subscripts, by-group commands, tabstat, test and lincom with 129 native cases; do-file corpus coverage report",
       "facets": [
         "Stata",
         "teaching",
@@ -43,7 +43,13 @@
         "tests/command-prefixes.test.mjs",
         "tests/browser/command-prefixes.spec.js",
         "docs/verification/browser-capabilities.json",
-        "tests/browser/editor.spec.js"
+        "tests/browser/editor.spec.js",
+        "tests/fixtures/stata-functions.json",
+        "tools/check-functions-native.mjs",
+        "tests/functions.test.mjs",
+        "tools/corpus-coverage.mjs",
+        "docs/verification/corpus-coverage.json",
+        "docs/runtime-and-courses-spec.md"
       ]
     },
     {
@@ -790,56 +796,6 @@
         "Implementation-agent review; no independent classroom or human acceptance",
         "Templates and bounded execution checks do not establish identification or empirical suitability"
       ],
-      "depends_on": []
-    },
-    {
-      "id": "stataverse.functions-native",
-      "path": "tests/fixtures/stata-functions.json",
-      "kind": "reference",
-      "title": "Native Stata results for functions, by-group commands, tabstat, test and lincom",
-      "summary": "75 scalar expressions, 23 by/bysort/subscript data sequences, 4 grouped reports, 5 tabstat result matrices and 22 test/lincom results executed in installed Stata on small invented datasets",
-      "evidence": [
-        "tools/check-functions-native.mjs",
-        "tests/functions.test.mjs",
-        "docs/numerical-contract.md"
-      ],
-      "limits": [
-        "Covers only the listed functions, statistics and forms; ASCII strings only",
-        "Row order under tied sort keys is arbitrary in Stata and not compared",
-        "test and lincom cover regress on plain variables only"
-      ],
-      "project": "stataverse",
-      "facets": [
-        "Stata",
-        "teaching",
-        "verification",
-        "synthetic-data"
-      ],
-      "status": "candidate_tested",
-      "depends_on": []
-    },
-    {
-      "id": "stataverse.corpus-coverage",
-      "path": "tools/corpus-coverage.mjs",
-      "kind": "procedure",
-      "title": "Do-file corpus coverage of the browser interpreter",
-      "summary": "Counts command lines in the repository's 38 do-files whose command and prefixes the browser interpreter implements; report in docs/verification/corpus-coverage.json",
-      "evidence": [
-        "docs/verification/corpus-coverage.json",
-        "docs/runtime-and-courses-spec.md"
-      ],
-      "limits": [
-        "Name-level upper bound; options, functions and numerical agreement are not checked",
-        "display accounts for two thirds of corpus lines"
-      ],
-      "project": "stataverse",
-      "facets": [
-        "Stata",
-        "teaching",
-        "verification",
-        "synthetic-data"
-      ],
-      "status": "candidate_tested",
       "depends_on": []
     }
   ]
