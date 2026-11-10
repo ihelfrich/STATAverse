@@ -124,7 +124,8 @@ export function summarize(session, text, ctx) {
         : `${label} |${"0".padStart(11)}`,
     );
   });
-  if (!parsed.options.detail) ctx.out("");
+  // One blank line closes the table, or the last detailed block.
+  ctx.out("");
   if (!last) return;
   const { m, values } = last;
   session.results.r = m.n
@@ -195,7 +196,6 @@ function detail(ctx, variable, values, m) {
   ctx.out(
     `99%${p(99)}${end(-1)}${side("Kurtosis", g9(m2 ? central(4) / m2 ** 2 : MISSING, 0))}`,
   );
-  ctx.out("");
 }
 
 // A heading wider than its column wraps onto several right-aligned lines.

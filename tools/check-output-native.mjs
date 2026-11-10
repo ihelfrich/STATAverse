@@ -9,8 +9,49 @@ import { promisify } from "node:util";
 import { format } from "prettier";
 import { readCases } from "./check-session-native.mjs";
 
+/**
+ * Machine-written reporting do-files. The data come from runiform(), which
+ * the runtime reproduces draw for draw, at magnitudes from thousandths to
+ * millions, so the tables meet numbers of every width.
+ */
+export function randomReports(count) {
+  const cases = [];
+  for (let k = 1; k <= count; k++) {
+    const n = 5 + ((k * 7) % 11),
+      power = (k % 11) - 3;
+    cases.push({
+      id: `random-report-${k}`,
+      source: [
+        "clear",
+        `set seed ${1000 + k}`,
+        `set obs ${n}`,
+        `generate double a = (runiform() - .5) * 10^${power}`,
+        "generate float b = runiform() * 1000",
+        "generate int c = floor(runiform() * 4)",
+        "generate long d = floor(runiform() * 1e6)",
+        "replace a = . in 2",
+        "summarize",
+        "summarize a d, detail",
+        "tabulate c",
+        "tabulate c if b > 300",
+        "list a b c d in 1/5",
+        "tabstat a b d, statistics(mean sd min max n)",
+        "correlate a b d",
+        "regress a b d",
+        "codebook c d",
+        "bysort c: summarize b",
+        "",
+      ].join("\n"),
+    });
+  }
+  return cases;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const cases = await readCases("tools/output-cases.txt"),
+  const cases = [
+      ...(await readCases("tools/output-cases.txt")),
+      ...randomReports(40),
+    ],
     folder = await fs.mkdtemp(
       path.join(os.tmpdir(), "stataverse-output-native-"),
     );

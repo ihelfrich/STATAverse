@@ -286,13 +286,9 @@ function units(values, single) {
 }
 // Six significant digits, turning to scientific notation from a million up,
 // which is how codebook prints means and percentiles.
+const ten = (value) => applyFormat(value, "%10.0g").trim();
 function six(value) {
-  if (isMissing(value)) return missingName(value);
-  if (value !== 0 && (Math.abs(value) >= 1e6 || Math.abs(value) < 1e-5)) {
-    const [mantissa, power] = value.toExponential(5).split("e");
-    return `${mantissa.replace(/\.?0+$/, "")}e${power[0]}${power.slice(1).padStart(2, "0")}`;
-  }
-  return applyFormat(value, "%9.6g").trim();
+  return applyFormat(value, "%8.0g").trim();
 }
 
 function codebook(session, text, ctx) {
@@ -406,7 +402,7 @@ function codebook(session, text, ctx) {
     ctx.out("");
     if (present.length)
       ctx.out(
-        `${field("Range")}${`[${g(unique[0])},${g(unique.at(-1))}]`.padEnd(30)}Units: ${g(units(present, v.type === "float"))}`,
+        `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present, v.type === "float"))}`,
       );
     ctx.out(
       `${field("Unique values")}${String(unique.length).padEnd(26)}Missing .: ${system}/${all.length}`,
@@ -421,7 +417,7 @@ function codebook(session, text, ctx) {
           ...unique,
           ...[...new Set(all.filter(isMissing))].sort((a, b) => a - b),
         ],
-        show = (x) => (isMissing(x) ? missingName(x) : g(x));
+        show = (x) => (isMissing(x) ? missingName(x) : ten(x));
       ctx.out(
         `${field("Tabulation")}Freq.  ${map ? " Numeric  Label" : "Value"}`,
       );
@@ -439,7 +435,12 @@ function codebook(session, text, ctx) {
       sorted = unique.length ? [...present].sort((a, b) => a - b) : [],
       mean = six(m.mean),
       sd = six(m.sd),
-      width = Math.max(mean.length, sd.length),
+      // The first percentile shares the column of the mean and deviation.
+      width = Math.max(
+        mean.length,
+        sd.length,
+        six(percentile(sorted, 10)).length,
+      ),
       quantiles = [10, 25, 50, 75, 90],
       cell = (text, k) => text.padStart(k ? 10 : width);
     ctx.out(`${field("Mean")}${mean.padStart(width)}`);

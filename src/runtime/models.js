@@ -484,7 +484,7 @@ function ivregress(session, text, ctx) {
     [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
     ["Prob > chi2", applyFormat(p, "%6.4f").trim()],
     ["R-squared", applyFormat(model.r2, "%6.4f").trim()],
-    ["Root MSE", g(model.rmse, "%9.5g")],
+    ["Root MSE", "    " + applyFormat(model.rmse, "%7.0g")],
   ].forEach(([label, value], k) =>
     ctx.out(`${(k ? "" : model.title).padEnd(50)}${side(label, value)}`),
   );

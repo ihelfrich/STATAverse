@@ -533,7 +533,13 @@ function regress(session, text, ctx) {
       ...(wide
         ? []
         : [stat("Adj R-squared", applyFormat(model.r2_a, "%6.4f").trim())]),
-      stat("Root MSE", g(model.rmse, "%9.5g"), wide),
+      stat(
+        "Root MSE",
+        // Left untrimmed: scientific notation keeps its sign column and so
+        // runs one place wider, as in Stata.
+        (wide ? "    " : "   ") + applyFormat(model.rmse, "%7.0g"),
+        wide,
+      ),
     ];
   session.estimates = model;
   session.results.e = {
