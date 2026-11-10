@@ -9,6 +9,7 @@ import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
 import { ESTIMATION_COMMANDS } from "./estimation.js";
+import { MODEL_COMMANDS } from "./models.js";
 import { DATA_COMMANDS } from "./data-commands.js";
 import {
   count,
@@ -1047,6 +1048,8 @@ const command = (name, minimum, run, byable = false) => ({
 // A command under by: runs once per group, with a heading for each.
 
 export const COMMANDS = [
+  // Listed first so that test, lincom and predict choose by distribution.
+  ...MODEL_COMMANDS,
   ...ESTIMATION_COMMANDS,
   ...DATA_COMMANDS,
   command("generate", 1, generate, true),

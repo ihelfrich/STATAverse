@@ -11,11 +11,11 @@ import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
-const RULE = "-".repeat(78);
+export const RULE = "-".repeat(78);
 
 // ----- small dense linear algebra -----
 /** Inverse of a symmetric positive definite matrix by Cholesky. */
-function invertSymmetric(a) {
+export function invertSymmetric(a) {
   const n = a.length,
     l = a.map((row) => row.slice());
   for (let j = 0; j < n; j++) {
@@ -44,7 +44,7 @@ function invertSymmetric(a) {
     }
   return out;
 }
-const quadratic = (v, m) =>
+export const quadratic = (v, m) =>
   v.reduce(
     (total, vi, i) =>
       total + vi * m[i].reduce((t, mij, j) => t + mij * v[j], 0),
@@ -53,7 +53,7 @@ const quadratic = (v, m) =>
 
 // ----- the model -----
 /** Reads "y x1 i.g" into a dependent variable and design columns. */
-function design(session, text, rows) {
+export function design(session, text, rows) {
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) throw new StataError("varlist required", 100);
   const numeric = (name) => {
@@ -303,7 +303,7 @@ function fit(session, parsed, by) {
   };
 }
 
-function coefficientRows(session, model, level) {
+export function coefficientRows(session, model, level) {
   const critical = invttail(model.df_r, (1 - level / 100) / 2),
     out = [];
   let previous = null;
@@ -332,7 +332,7 @@ function coefficientRows(session, model, level) {
   });
   return out;
 }
-function coefficientHeader(model, level, label = model.depvar) {
+export function coefficientHeader(model, level, label = model.depvar) {
   const robust = model.vce !== "ols",
     interval = `[${g(level, "%9.0g")}% conf. interval]`;
   return [
@@ -423,12 +423,12 @@ function regress(session, text, ctx) {
   ctx.out("");
 }
 
-function estimates(session) {
+export function estimates(session) {
   if (!session.estimates) throw new StataError("last estimates not found", 301);
   return session.estimates;
 }
 
-function predict(session, text, ctx) {
+export function predict(session, text, ctx) {
   const model = estimates(session),
     parsed = session.parse("newvarname [if] [in] [, XB Residuals STDP]", text),
     options = parsed.options,
@@ -482,7 +482,7 @@ function predict(session, text, ctx) {
  * "2*x1 + _cons", into weights and a constant by evaluating it with each
  * coefficient set to one in turn.
  */
-function linear(model, text) {
+export function linear(model, text) {
   const usable = model.names.filter((name) => isName(name) || name === "_cons"),
     evaluate = (values) => {
       const compiled = compileExpression(text, { scalars: new Map(values) });
@@ -516,7 +516,7 @@ function linear(model, text) {
   });
   return { weights, constant };
 }
-function describeLinear(model, weights, constant) {
+export function describeLinear(model, weights, constant) {
   let text = "";
   weights.forEach((w, k) => {
     if (!w) return;
@@ -528,7 +528,7 @@ function describeLinear(model, weights, constant) {
   return `${text} = ${g(-constant + 0)}`;
 }
 
-function test(session, text, ctx) {
+export function test(session, text, ctx) {
   const model = estimates(session),
     [head] = splitAtComma(text),
     groups = head.match(/\([^()]*\)/g),
@@ -577,7 +577,7 @@ function test(session, text, ctx) {
   session.results.r = { F, p, df: q, df_r: model.df_r, drop: 0 };
 }
 
-function lincom(session, text, ctx) {
+export function lincom(session, text, ctx) {
   const model = estimates(session),
     parsed = session.parse("anything [, Level(cilevel)]", text),
     { weights, constant } = linear(model, parsed.anything),

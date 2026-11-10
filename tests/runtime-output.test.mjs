@@ -17,6 +17,34 @@ const trimmed = (lines) => {
   while (out.length && !out.at(-1)) out.pop();
   return out;
 };
+// Maximum-likelihood estimators reach the same estimates as Stata by a
+// different sequence of steps. Their iteration lines are not compared, and
+// numbers that follow from the last step may differ in the seventh digit.
+const iteration = (line) => /^Iteration \d+:/.test(line);
+function sameLine(a, b) {
+  if (a === b) return true;
+  const x = a.split(/\s+/),
+    y = b.split(/\s+/);
+  return (
+    a.length === b.length &&
+    x.length === y.length &&
+    x.every(
+      (token, k) =>
+        token === y[k] ||
+        (/^-?[\d.]+$/.test(token) &&
+          /^-?[\d.]+$/.test(y[k]) &&
+          Math.abs(Number(token) - Number(y[k])) <=
+            2e-6 * Math.max(1, Math.abs(Number(y[k])))),
+    )
+  );
+}
+function sameText(actual, expected, tolerant) {
+  if (!tolerant) return actual.join("\n") === expected.join("\n");
+  const a = actual.filter((line) => !iteration(line)),
+    b = expected.filter((line) => !iteration(line));
+  return a.length === b.length && a.every((line, k) => sameLine(line, b[k]));
+}
+
 // Commands whose printed text is not compared, with the reason.
 const SKIP = [
   // Data entry echoes the typed rows with line numbers in Stata's log.
@@ -54,7 +82,7 @@ for (const c of fixture.cases)
           (line) => !/^r\(\d+\);$/.test(line),
         ),
         b = expected.lines.filter((line) => !/^r\(\d+\);$/.test(line));
-      if (a.join("\n") !== b.join("\n"))
+      if (!sameText(a, b, c.id === "nonlinear"))
         failures.push(
           `${expected.command}\n--- runtime\n${a.join("\n")}\n--- Stata\n${b.join("\n")}`,
         );

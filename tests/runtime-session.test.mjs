@@ -50,12 +50,19 @@ test("do-files leave the same data, macros and results as native Stata", () => {
         );
     for (const [name, value] of Object.entries(c.rValues)) {
       const actual = session.results.r[name] ?? 2 ** 1023;
-      if (!close(actual, value))
+      // Tests on likelihood estimates inherit their looser agreement.
+      const loose = /^ml-/.test(c.id) ? 1e-5 : 1e-9;
+      if (
+        !close(actual, value) &&
+        !(Math.abs(actual - value) <= loose * Math.abs(value))
+      )
         fail(`r(${name}): ${show(actual)} vs ${show(value)}`);
     }
     // Estimation results are compared to 1 part in 10^9.
-    const near = (x, y, scale = 1) =>
-      x === y || Math.abs(x - y) <= 1e-9 * Math.max(scale, Math.abs(y));
+    // Likelihood estimates stop at a tolerance, so they agree less tightly.
+    const tolerance = /^ml-/.test(c.id) ? 1e-5 : 1e-9,
+      near = (x, y, scale = 1) =>
+        x === y || Math.abs(x - y) <= tolerance * Math.max(scale, Math.abs(y));
     for (const [name, value] of Object.entries(c.eValues ?? {})) {
       const actual = session.results.e[name] ?? 2 ** 1023;
       if (!near(actual, value))
@@ -66,13 +73,17 @@ test("do-files leave the same data, macros and results as native Stata", () => {
         values = name === "e(b)" ? model.b : model.V.flat(),
         names = model.names.map((n, k) =>
           model.estimable[k] || /b\./.test(n) ? n : "o." + n,
-        );
-      if (names.join(" ") !== matrix.names.join(" "))
+        ),
+        // Stata names a likelihood model's coefficients by equation.
+        expectedNames = matrix.names.map((n) => n.replace(/^[^:]+:/, ""));
+      if (names.join(" ") !== expectedNames.join(" "))
         fail(`${name} names [${names}] vs [${matrix.names}]`);
       const scale = Math.max(...matrix.values.map(Math.abs));
       if (
         values.length !== matrix.values.length ||
-        values.some((v, k) => Math.abs(v - matrix.values[k]) > 1e-9 * scale)
+        values.some(
+          (v, k) => Math.abs(v - matrix.values[k]) > tolerance * scale,
+        )
       )
         fail(`${name}: ${values} vs ${matrix.values}`);
     }
@@ -96,7 +107,17 @@ test("do-files leave the same data, macros and results as native Stata", () => {
           ? Array.from(actual.data).sort(order)
           : Array.from(actual.data),
         expected = TIED.has(c.id) ? [...v.values].sort(order) : v.values;
-      if (values.some((value, i) => !close(value, expected[i])))
+      if (
+        values.some(
+          (value, i) =>
+            !close(value, expected[i]) &&
+            !(
+              /^ml-/.test(c.id) &&
+              Math.abs(value - expected[i]) <=
+                1e-5 * Math.max(1, Math.abs(expected[i]))
+            ),
+        )
+      )
         fail(`${v.name}: ${values.map(show)} vs ${v.values.map(show)}`);
     }
   }
