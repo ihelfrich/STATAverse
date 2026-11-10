@@ -6,6 +6,7 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { splitAtComma } from "./syntax.js";
+import { compileExpression } from "./expression.js";
 import { isMissing, isStringType } from "./values.js";
 
 const WIDTH = 640,
@@ -130,7 +131,57 @@ function numeric(session, name) {
 }
 
 // One plot of a twoway graph: scatter, line, connected or lfit.
+// (function y = exp(x), range(0 5)): a curve of an expression in x.
+function functionPlot(session, text) {
+  const [head, optionText] = splitAtComma(text),
+    options = session.parse(
+      "[, RAnge(string) N(integer 300) LColor(string) LPattern(string) LWidth(string) *]",
+      optionText ? "," + optionText : "",
+    ).options,
+    expression = head.replace(/^\s*\w+\s*=(?!=)/, "").trim(),
+    scalars = new Map(session.scalars).set("x", 0),
+    compiled = compileExpression(expression, {
+      ...session.scope(),
+      dataset: null,
+      scalars,
+    });
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  let low = 0,
+    high = 1;
+  const range = (options.range ?? "").trim().split(/\s+/).filter(Boolean);
+  if (range.length === 2)
+    [low, high] = range.map((word) => session.scalar(word));
+  else if (range.length === 1) {
+    const values = Array.from(
+      session.data.get(session.varlist(range[0])[0]).data,
+    ).filter((v) => !isMissing(v));
+    low = Math.min(...values);
+    high = Math.max(...values);
+  }
+  if (!(high > low))
+    throw new StataError("range() must give two increasing values", 198);
+  const n = Math.max(2, Math.min(5000, options.n)),
+    points = [];
+  for (let k = 0; k < n; k++) {
+    const x = low + ((high - low) * k) / (n - 1);
+    scalars.set("x", x);
+    const y = compiled.evaluate(0, { start: 0, count: 0, sums: [] });
+    if (!isMissing(y)) points.push([x, y]);
+  }
+  const axis = { name: "x", label: "x" };
+  return [
+    {
+      kind: "line",
+      points,
+      label: expression,
+      y: { name: "y", label: "y" },
+      x: axis,
+    },
+  ];
+}
+
 function plot(session, kind, text) {
+  if (kind === "function") return functionPlot(session, text);
   const parsed = session.parse(
       "varlist(numeric min=2) [if] [in] [, SORT MSymbol(string) MColor(string) LColor(string) LPattern(string) LWidth(string) MSize(string) Connect(string) *]",
       text,
@@ -176,6 +227,7 @@ const PLOT_KINDS = {
   line: "line",
   connected: "line",
   lfit: "lfit",
+  function: "function",
 };
 function plotKind(word) {
   const kind =

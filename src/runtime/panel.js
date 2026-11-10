@@ -4,7 +4,13 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
-import { RULE, invertSymmetric, quadratic } from "./estimation.js";
+import {
+  RULE,
+  design,
+  invertSymmetric,
+  quadratic,
+  termRows,
+} from "./estimation.js";
 import { count } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
@@ -170,24 +176,31 @@ function xtreg(session, text, ctx) {
   if (!panel?.id)
     throw new StataError("panel variable not set; use xtset varname ...", 459);
   const parsed = session.parse(
-      "varlist(numeric min=1) [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel)]",
+      "anything [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel)]",
       text,
     ),
     options = parsed.options,
     data = session.data,
-    [dep, ...regressors] = parsed.varlist,
     id = data.get(panel.id).data,
-    rows = session
-      .rows(parsed, null)
-      .filter(
-        (i) =>
-          parsed.varlist.every((name) => !isMissing(data.get(name).data[i])) &&
-          !isMissing(id[i]),
-      ),
+    // The same model design as regress, so factor variables and
+    // interactions are available.
+    {
+      dependent,
+      columns,
+      sample: rows,
+    } = design(
+      session,
+      parsed.anything,
+      session.rows(parsed, null).filter((i) => !isMissing(id[i])),
+      true,
+    ),
+    dep = dependent.name,
+    active = columns.filter((c) => !c.base),
+    regressors = active.map((c) => c.name),
     N = rows.length,
     K = regressors.length,
-    y = rows.map((i) => data.get(dep).data[i]),
-    x = regressors.map((name) => rows.map((i) => data.get(name).data[i])),
+    y = rows.map((i) => dependent.data[i]),
+    x = active.map((c) => rows.map(c.value)),
     groupOf = rows.map((i) => id[i]),
     groups = [...new Set(groupOf)],
     G = groups.length,
@@ -344,16 +357,45 @@ function xtreg(session, text, ctx) {
     }
   } else {
     // Swamy-Arora: the between regression on group means gives sigma_u.
+    // Group means of some regressors can be collinear (year indicators in a
+    // balanced panel all have the same mean), so only independent columns
+    // enter it.
     const firsts = groups.map((key) => members.get(key)[0]),
-      between = ols(
-        [
-          ...xBar.map((column) => firsts.map((i) => column[i])),
-          firsts.map(() => 1),
-        ],
+      candidates = [
+        firsts.map(() => 1),
+        ...xBar.map((column) => firsts.map((i) => column[i])),
+      ],
+      basis = [],
+      kept = candidates.filter((column) => {
+        let rest = column.slice();
+        const original = rest.reduce((t, v) => t + v * v, 0);
+        for (const q of basis) {
+          const weight =
+            rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+          rest = rest.map((v, k) => v - weight * q.vector[k]);
+        }
+        const norm = rest.reduce((t, v) => t + v * v, 0);
+        if (!(original > 0 && norm > 1e-9 * original)) return false;
+        basis.push({ vector: rest, norm });
+        return true;
+      });
+    // Stata falls back on another estimator of the variance components
+    // when the between regression has no degrees of freedom left; that is
+    // not built yet.
+    if (G - kept.length < 1)
+      throw new StataError(
+        "xtreg, re needs more groups than coefficients to estimate its variance components here; use fe, or fewer regressors",
+        198,
+      );
+    const between = ols(
+        kept,
         firsts.map((i) => yBar[i]),
       ),
       harmonic = G / sum(sizes.map((t) => 1 / t)),
-      sigmaU2 = Math.max(0, between.rss / (G - K - 1) - sigmaE2 / harmonic);
+      sigmaU2 = Math.max(
+        0,
+        between.rss / (G - kept.length) - sigmaE2 / harmonic,
+      );
     sigmaU = Math.sqrt(sigmaU2);
     const theta = groupOf.map((key) => {
         const t = members.get(key).length;
@@ -392,21 +434,27 @@ function xtreg(session, text, ctx) {
         : invnormal(1 - (1 - level / 100) / 2),
     tail = (t) =>
       dist === "t" ? 2 * ttail(df, Math.abs(t)) : 2 * normal(-Math.abs(t));
+  const fullNames = [...columns.map((c) => c.name), "_cons"];
   session.estimates = {
     command: "xtreg",
     title: header,
     dist,
     depvar: dep,
-    names,
-    b: coefficients,
-    V,
-    columns: regressors.map((name) => ({
-      name,
-      value: (i) => data.get(name).data[i],
-      term: { variable: data.get(name) },
-    })),
+    // Base levels of factors sit among the coefficients at zero.
+    names: fullNames,
+    b: fullNames.map((name) =>
+      names.includes(name) ? coefficients[names.indexOf(name)] : 0,
+    ),
+    V: fullNames.map((r) =>
+      fullNames.map((c) =>
+        names.includes(r) && names.includes(c)
+          ? V[names.indexOf(r)][names.indexOf(c)]
+          : 0,
+      ),
+    ),
+    columns,
     constant: true,
-    estimable: names.map(() => true),
+    estimable: fullNames.map((name) => names.includes(name)),
     N,
     df_m: K,
     df_r: df,
@@ -472,13 +520,12 @@ function xtreg(session, text, ctx) {
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );
-  names.forEach((name, k) => {
-    const se = Math.sqrt(V[k][k]),
-      t = coefficients[k] / se;
-    ctx.out(
-      `${name.padStart(12)} |${g(coefficients[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(tail(t), "%8.3f")}${g(coefficients[k] - critical * se).padStart(13)}${g(coefficients[k] + critical * se).padStart(12)}`,
-    );
-  });
+  const model = session.estimates;
+  termRows(session, model, (k) => {
+    const se = Math.sqrt(model.V[k][k]),
+      t = model.b[k] / se;
+    return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(tail(t), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+  }).forEach(ctx.out);
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );

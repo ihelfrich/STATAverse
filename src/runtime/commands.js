@@ -305,6 +305,9 @@ export function displayText(session, text, asMacro = false) {
       out += String(value).repeat(Math.max(0, session.scalar(m[1])));
     } else if (/^(_c|_continue|_request\(.*\))$/.test(word)) continue;
     else if (word === "as" || word === "in") k++;
+    // A quotation mark left over after a closed string is printed as it is.
+    else if ((m = /^"([^"]*)""$/.exec(word))) out += smcl(m[1]) + '"';
+    else if (word === '"') out += '"';
     else if (/^%/.test(word)) {
       if (!parseFormat(word))
         throw new StataError(`invalid format ${word}`, 120);

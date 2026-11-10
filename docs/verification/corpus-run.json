@@ -209,10 +209,10 @@
     },
     {
       "file": "CodeLibrary/scripts/03_anti_patterns.do",
-      "commands": 35,
-      "rc": 198,
-      "stoppedAt": "twoway (scatter y x, msize(tiny) mcolor(gs13)) (line p_hat x, sort lcolor(navy) lwidth(thick)) (function y = invlogit(-5 + 0.1*x), range(x) lcolor(red) lpattern(dash) lwidth(thick)), title(\"Why Raw Logit Coefficients Mislead\") subtitle(\"The relationship is NON-LINEAR\") ytitle(\"P(Y=1)\") xtitle(\"X\") ylabel(0(0.2)1) legend(order(2 \"Predicted probability\" 3 \"True probability\") position(6)) note(\"Marginal effect of X varies across X values!\")",
-      "message": "function is not a twoway plot type available here"
+      "commands": 158,
+      "rc": 321,
+      "stoppedAt": "estat firststage",
+      "message": "estat firststage is not available yet"
     },
     {
       "file": "CodeLibrary/scripts/04_assumption_checker.do",
@@ -223,17 +223,17 @@
     },
     {
       "file": "CodeLibrary/scripts/05_moderation_mastery.do",
-      "commands": 36,
-      "rc": 132,
-      "stoppedAt": "display \"{err} the firm size-performance relationship.\"\"",
-      "message": "too few quotes"
+      "commands": 56,
+      "rc": 322,
+      "stoppedAt": "margins, dydx(firm_size_c) at(comp_c = (`comp_low' 0 `comp_high'))",
+      "message": "margins is not available yet for a model with interactions"
     },
     {
       "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",
-      "commands": 35,
-      "rc": 101,
-      "stoppedAt": "xtreg performance experience competition innovation i.year, fe vce(cluster firm_id)",
-      "message": "factor-variable and time-series operators not allowed"
+      "commands": 63,
+      "rc": 199,
+      "stoppedAt": "xtgee performance experience competition innovation i.year, family(gaussian) link(identity) corr(exchangeable) vce(robust)",
+      "message": "command xtgee is unrecognized"
     },
     {
       "file": "ZeroToHero/projects/project-01/analysis.do",
