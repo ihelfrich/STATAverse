@@ -55,7 +55,13 @@ const ABBREVIATIONS = {
   window: "win",
 };
 // Commands the interpreter runs under a by prefix.
-const BY_COMMANDS = new Set(["generate", "replace", "egen"]);
+const BY_COMMANDS = new Set([
+  "generate",
+  "replace",
+  "egen",
+  "summarize",
+  "count",
+]);
 const PREFIXES = new Set([
   "capture",
   "quietly",

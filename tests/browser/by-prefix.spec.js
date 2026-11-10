@@ -39,10 +39,15 @@ for (const fallback of [false, true])
     await expect(page.locator("#results")).toContainText("bysort");
     await page.locator("#tab-data").click();
     await expect(page.locator('[data-variable="unsorted"]')).toHaveCount(0);
-    await replaceEditor(page, "bysort group: summarize score");
+    await replaceEditor(page, "bysort group: summarize score hours");
+    await page.locator("#run").click();
+    await expect(
+      page.getByRole("region", { name: "Summary statistics by group" }),
+    ).toBeVisible();
+    await replaceEditor(page, "bysort group: tabulate score");
     await page.locator("#run").click();
     await expect(page.locator("#results")).toContainText(
-      "by with summarize is not supported",
+      "by with tabulate is not supported",
     );
     await page.locator("#export-open").click();
     const wait = page.waitForEvent("download");

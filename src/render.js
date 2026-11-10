@@ -44,7 +44,32 @@ export function resultHTML(result, index, { complete = false } = {}) {
       (!complete && r.rows.length > 200
         ? `<p class="result-annotation">Showing the first 200 of ${r.rows.length} listed observations. Use an in range to inspect another section, or download Results and notes for the complete retained output.</p>`
         : "");
-  else if (r.kind === "summarize")
+  else if (r.kind === "by") {
+    const key = (k) => (k === "" ? '""' : value(k));
+    body =
+      r.inner === "count"
+        ? table(
+            [...r.by, "Observations"],
+            r.groups.map((g) => [...g.keys.map(key), g.n]),
+            "Counts by group",
+          )
+        : table(
+            [...r.by, "Variable", "Obs.", "Mean", "Std. dev.", "Min", "Max"],
+            r.groups.flatMap((g) =>
+              g.stats.map((s) => [
+                ...g.keys.map(key),
+                h(s.name),
+                s.n,
+                fmt(s.mean),
+                fmt(s.sd),
+                fmt(s.min),
+                fmt(s.max),
+              ]),
+            ),
+            "Summary statistics by group",
+          ) +
+          `<p class="result-annotation">One row per group and variable. Obs. counts nonmissing values. Stata prints a separate table for each group; the numbers are the same.</p>`;
+  } else if (r.kind === "summarize")
     body =
       table(
         ["Variable", "Obs.", "Mean", "Std. dev.", "Min", "Max"],

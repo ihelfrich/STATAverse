@@ -143,6 +143,18 @@ function groupContexts(dataset, names) {
     }
   return contexts;
 }
+// Every group appears, including one with no selected observations, as in
+// Stata's by output.
+function byGroups(dataset, q, names) {
+  const chosen = new Set(q.selected.map((x) => x.i)),
+    groups = [];
+  dataset.rows.forEach((r, i) => {
+    if (q.contexts[i].i === 0)
+      groups.push({ keys: names.map((name) => r[name]), rows: [] });
+    if (chosen.has(i)) groups.at(-1).rows.push(r);
+  });
+  return groups;
+}
 function qualify(source, dataset, returnCode = 0, by = null) {
   let main = source,
     condition = "",
@@ -483,13 +495,14 @@ export class PracticeSession {
     const inner = m[2].trim(),
       innerVerb = inner.match(/^[^\s,]+/)[0],
       verb = aliases[innerVerb] || innerVerb;
-    if (!["generate", "replace", "egen"].includes(verb))
+    if (!["generate", "replace", "egen", "summarize", "count"].includes(verb))
       throw new StataError(
         `by with ${verb} is not supported in browser practice.`,
         198,
-        "by works here with generate, replace and egen. For a statistic by group, use egen with by() or collapse; for one group, add an if condition.",
+        "by works here with generate, replace, egen, summarize and count. For other statistics by group, use egen with by() or collapse; for one group, add an if condition.",
       );
-    if (word !== "by" || option === "sort") {
+    const sorts = word !== "by" || option === "sort";
+    if (sorts) {
       sortRows(data, order);
       data.sortedBy = order;
     } else if (!order.every((name, k) => data.sortedBy?.[k] === name))
@@ -510,7 +523,7 @@ export class PracticeSession {
         inner: `${body}, ${options ? options + " " : ""}by(${groups.join(" ")})`,
       };
     }
-    return { by: { groups }, inner };
+    return { by: { groups, sorts }, inner };
   }
   dispatch(command) {
     const word = command.match(/^[^\s,:]+/)?.[0];
@@ -522,6 +535,15 @@ export class PracticeSession {
     const first = inner.match(/^[^\s,]+/)?.[0],
       verb = aliases[first] || first,
       sorted = this.data.sortedBy;
+    if (result.kind === "by") {
+      // A reporting command under bysort still reorders the data.
+      if (by.sorts) {
+        this.model = null;
+        this.graph = null;
+        result.changed = true;
+      }
+      return result;
+    }
     if (sorted && result.changed && verb !== "sort") {
       // The sort order is trusted only while nothing could have disturbed
       // it. Dropping it early makes plain by ask for a sort again.
@@ -811,6 +833,16 @@ export class PracticeSession {
         throw new StataError(
           "Use count, count if expression, or count in first/last.",
         );
+      if (by)
+        return {
+          kind: "by",
+          inner: "count",
+          by: by.groups,
+          groups: byGroups(data, q, by.groups).map(({ keys, rows }) => ({
+            keys,
+            n: rows.length,
+          })),
+        };
       return {
         kind: "count",
         n: rows.length,
@@ -834,6 +866,20 @@ export class PracticeSession {
     if (verb === "summarize") {
       noOptions(options);
       const names = variables(q.main, data, { allowEmpty: true });
+      if (by)
+        return {
+          kind: "by",
+          inner: "summarize",
+          by: by.groups,
+          groups: byGroups(data, q, by.groups).map(({ keys, rows }) => ({
+            keys,
+            n: rows.length,
+            stats: names.map((name) => ({
+              name,
+              ...summarize(rows.map((r) => r[name])),
+            })),
+          })),
+        };
       return {
         kind: "summarize",
         stats: names.map((name) => ({

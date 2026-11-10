@@ -66,7 +66,7 @@ test("unsupported by forms stop without changing data", () => {
   const session = new PracticeSession("study"),
     before = JSON.stringify(session.data);
   for (const source of [
-    "bysort group: summarize score",
+    "bysort group: tabulate score",
     "bysort group, rc0: generate double z = 1",
     "bysort : generate double z = 1",
     "by group: generate double z = 1",
@@ -79,6 +79,58 @@ test("unsupported by forms stop without changing data", () => {
     .run('generate double z = strlen("é")')
     .find((r) => r.kind === "error");
   assert.equal(text.code, 198);
+});
+
+const grouping = () =>
+  new PracticeSession("fn", {
+    fn: {
+      data: {
+        id: "fn",
+        name: "Invented grouping fixture",
+        columns: ["g", "t", "x"].map((name) => ({
+          name,
+          label: name,
+          type: "numeric",
+        })),
+        rows: fixture.rows.map(([g, t, x]) => ({ g, t, x })),
+      },
+    },
+  });
+
+test("summarize and count under by match native Stata group statistics", () => {
+  const close = (a, b) =>
+    a === b || Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b));
+  for (const c of fixture.reports) {
+    assert.equal(c.code, 0, c.id);
+    const column = (name) => c.columns.find((col) => col.name === name).values,
+      result = grouping().run(c.source).at(-1);
+    assert.equal(result.kind, "by", c.id);
+    // collapse omits a group with no selected observations; by reports it.
+    const expected = new Map(column("g").map((g, k) => [g, k]));
+    for (const group of result.groups) {
+      const k = expected.get(group.keys[0]);
+      if (result.inner === "count") {
+        assert.equal(group.n, k === undefined ? 0 : column("n")[k], c.id);
+        continue;
+      }
+      const stat = group.stats[0];
+      if (k === undefined) {
+        assert.equal(stat.n, 0, c.id);
+        continue;
+      }
+      for (const name of ["n", "mean", "sd", "min", "max"])
+        assert.ok(
+          close(stat[name] ?? null, column(name)[k]),
+          `${c.id}: ${name} in group ${group.keys[0]}: ${stat[name]} vs ${column(name)[k]}`,
+        );
+    }
+    assert.ok(
+      [...expected.keys()].every((g) =>
+        result.groups.some((group) => group.keys[0] === g),
+      ),
+      c.id,
+    );
+  }
 });
 
 test("subscripts outside generate and replace are refused with guidance", () => {

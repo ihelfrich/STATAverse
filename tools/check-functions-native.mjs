@@ -154,6 +154,31 @@ export const DATA = [
   ["two-keys", "bysort g t: generate double z=_N\nby g: generate double w=_n"],
 ];
 
+// Reporting commands under by leave only the last group's r() results in
+// Stata, so each is compared with a collapse that computes the same numbers.
+export const REPORTS = [
+  [
+    "by-summarize",
+    "bysort g (t): summarize x",
+    "collapse (count) n=x (mean) mean=x (sd) sd=x (min) min=x (max) max=x, by(g)",
+  ],
+  [
+    "by-summarize-if",
+    "bysort g (t): summarize x if t>1",
+    "collapse (count) n=x (mean) mean=x (sd) sd=x (min) min=x (max) max=x if t>1, by(g)",
+  ],
+  [
+    "by-count-within-group",
+    "bysort g (t): count if _n<=2",
+    "bysort g (t): generate byte k=_n<=2\ncollapse (sum) n=k, by(g)",
+  ],
+  [
+    "by-count-missing",
+    "bysort g (t): count if missing(x)",
+    "generate byte k=missing(x)\ncollapse (sum) n=k, by(g)",
+  ],
+];
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folder = await fs.mkdtemp(
     path.join(os.tmpdir(), "stataverse-functions-native-"),
@@ -175,7 +200,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       'if _rc file write out "E" _tab "`=_rc\'" _n',
     );
   audit.push("file close out");
-  for (const [i, [, source]] of DATA.entries()) {
+  const programs = [
+    ...DATA.map(([, source]) => source),
+    ...REPORTS.map(([, , native]) => native),
+  ];
+  for (const [i, source] of programs.entries()) {
     await fs.writeFile(
       path.join(folder, `case-${i}.do`),
       [
@@ -230,7 +259,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     };
   });
   const dataCases = [];
-  for (const [i, [id, source]] of DATA.entries()) {
+  const ids = [
+    ...DATA.map(([id, source]) => ({ id, source })),
+    ...REPORTS.map(([id, source, native]) => ({ id, source, native })),
+  ];
+  for (const [i, { id, source, native }] of ids.entries()) {
     const [code, ...lines] = (
       await fs.readFile(path.join(folder, `data-${i}.tsv`), "utf8")
     )
@@ -239,6 +272,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     dataCases.push({
       id,
       source,
+      ...(native ? { native } : {}),
       code: Number(code),
       columns: lines.map((line) => {
         const [name, ...values] = line.split("\t");
@@ -258,12 +292,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
           "Executed tools/check-functions-native.mjs with installed Stata (version 16 semantics); synthetic values only, no global installation changes.",
         rows: DATA_ROWS,
         scalar: scalarCases,
-        data: dataCases,
+        data: dataCases.filter((c) => !c.native),
+        reports: dataCases.filter((c) => c.native),
       }),
       { parser: "json" },
     ),
   );
   console.log(
-    `Recorded ${scalarCases.length} scalar and ${dataCases.length} data cases.`,
+    `Recorded ${scalarCases.length} scalar, ${DATA.length} data and ${REPORTS.length} report cases.`,
   );
 }

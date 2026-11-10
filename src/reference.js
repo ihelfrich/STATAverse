@@ -126,7 +126,11 @@ export const REFERENCE = [
       ["sort hours", "Sort ascending; numeric missing values sort last."],
       [
         "bysort group (hours): generate double order = _n\nby group: generate double size = _N\nby group: generate double previous = hours[_n-1]",
-        "Repeat generate, replace or egen within each group. bysort sorts first; plain by requires data already sorted by those variables and stops with error 5 otherwise. Variables in parentheses order observations inside a group without splitting it. Under by, _n, _N and subscripts count within the group. Stata leaves tied observations in an arbitrary order; the browser keeps their existing order. Other commands under by are not implemented.",
+        "Repeat generate, replace or egen within each group; summarize and count report one line per group. bysort sorts first; plain by requires data already sorted by those variables and stops with error 5 otherwise. Variables in parentheses order observations inside a group without splitting it. Under by, _n, _N and subscripts count within the group. Stata leaves tied observations in an arbitrary order; the browser keeps their existing order. Other commands under by are not implemented.",
+      ],
+      [
+        "bysort group: summarize score hours\nby group: count if missing(score)",
+        "Summary statistics and counts for every group, including a group with no selected observations. Stata prints one table per group; the browser prints one table with a row for each group and variable.",
       ],
       [
         "keep if !missing(score)",

@@ -2,9 +2,9 @@
   "basis": "Name-level upper bound over this repository's do-files. A line counts when its command and every prefix are implemented by the browser interpreter; options, functions and semantics are not checked here.",
   "files": 38,
   "commandLines": 2053,
-  "namedSupported": 1853,
-  "share": 0.9026,
-  "shareExcludingDisplay": 0.705,
+  "namedSupported": 1854,
+  "share": 0.9031,
+  "shareExcludingDisplay": 0.7065,
   "filesFullyNamed": 3,
   "unsupported": [
     {
@@ -268,7 +268,7 @@
     {
       "command": "summarize",
       "lines": 16,
-      "blockedByPrefix": 1
+      "blockedByPrefix": 0
     },
     {
       "command": "replace",
@@ -420,7 +420,7 @@
     {
       "file": "ScriptLibrary/scripts/group-summaries.do",
       "commandLines": 6,
-      "namedSupported": 4
+      "namedSupported": 5
     },
     {
       "file": "ScriptLibrary/scripts/import-csv.do",

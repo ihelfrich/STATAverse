@@ -1,11 +1,12 @@
 {
   "origin": "http://127.0.0.1:4176",
-  "checkedAt": "2026-11-10T01:53:21.760Z",
+  "checkedAt": "2026-11-10T01:54:58.859Z",
   "base": "/learn/stata/",
   "checks": [
     "nested-path command execution, saved practice and scoped service worker",
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
+    "bysort, by, subscripts and string functions run at the canonical address; unsorted by stops with not sorted and changes nothing; reload replays and undo restores the data",
     "editor comment shortcut, text undo, run-all shortcut and saved commented draft work at the canonical address; shortcut reference is available",
     "capture/noisily blocks, quietly, confirm and _rc run through the worker at the canonical address; partial changes, skipped commands, History, reload and grouped undo agree",
     "blocked workers recover locally at the integrated address; saved commands replay and undo retains the preceding dataset",

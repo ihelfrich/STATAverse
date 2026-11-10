@@ -341,5 +341,58 @@
         { "name": "w", "values": [1, 2, 3, 1, 2, 1] }
       ]
     }
+  ],
+  "reports": [
+    {
+      "id": "by-summarize",
+      "source": "bysort g (t): summarize x",
+      "native": "collapse (count) n=x (mean) mean=x (sd) sd=x (min) min=x (max) max=x, by(g)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 2, 3] },
+        { "name": "n", "values": [2, 2, 1] },
+        { "name": "mean", "values": [6, 3, 9] },
+        {
+          "name": "sd",
+          "values": [1.4142135623730951, 1.4142135623730951, null]
+        },
+        { "name": "min", "values": [5, 2, 9] },
+        { "name": "max", "values": [7, 4, 9] }
+      ]
+    },
+    {
+      "id": "by-summarize-if",
+      "source": "bysort g (t): summarize x if t>1",
+      "native": "collapse (count) n=x (mean) mean=x (sd) sd=x (min) min=x (max) max=x if t>1, by(g)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 2] },
+        { "name": "n", "values": [1, 1] },
+        { "name": "mean", "values": [7, 4] },
+        { "name": "sd", "values": [null, null] },
+        { "name": "min", "values": [7, 4] },
+        { "name": "max", "values": [7, 4] }
+      ]
+    },
+    {
+      "id": "by-count-within-group",
+      "source": "bysort g (t): count if _n<=2",
+      "native": "bysort g (t): generate byte k=_n<=2\ncollapse (sum) n=k, by(g)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 2, 3] },
+        { "name": "n", "values": [2, 2, 1] }
+      ]
+    },
+    {
+      "id": "by-count-missing",
+      "source": "bysort g (t): count if missing(x)",
+      "native": "generate byte k=missing(x)\ncollapse (sum) n=k, by(g)",
+      "code": 0,
+      "columns": [
+        { "name": "g", "values": [1, 2, 3] },
+        { "name": "n", "values": [1, 0, 0] }
+      ]
+    }
   ]
 }
