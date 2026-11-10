@@ -505,6 +505,7 @@ function ivregress(session, text, ctx) {
 // ----- post-estimation that depends on the distribution -----
 function test(session, text, ctx) {
   const model = estimates(session);
+  singleEquation(model, "test");
   if (model.dist !== "z") return testT(session, text, ctx);
   const [head] = splitAtComma(text),
     groups = head.match(/\([^()]*\)/g),
@@ -564,6 +565,7 @@ function test(session, text, ctx) {
 
 function lincom(session, text, ctx) {
   const model = estimates(session);
+  singleEquation(model, "lincom");
   if (model.dist !== "z") return lincomT(session, text, ctx);
   const parsed = session.parse(
       "anything [, Level(cilevel) OR IRr EForm]",
@@ -609,8 +611,22 @@ function lincom(session, text, ctx) {
   };
 }
 
+/** Stops a command that cannot yet read a model with several equations. */
+function singleEquation(model, what) {
+  if (model.kind === "mlogit")
+    throw new StataError(`${what} after mlogit is not available yet`, 198);
+}
 function predict(session, text, ctx) {
   const model = estimates(session);
+  singleEquation(model, "predict");
+  if (
+    (model.kind === "ologit" || model.kind === "oprobit") &&
+    !/,[\s\S]*\b(xb|stdp)\b/.test(text)
+  )
+    throw new StataError(
+      `after ${model.kind}, predict gives the linear prediction with xb; predicted probabilities are not available yet`,
+      198,
+    );
   if (!model.family) return predictT(session, text, ctx);
   const [key, describe, label] = model.family.predict,
     parsed = session.parse(

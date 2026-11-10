@@ -1,7 +1,7 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 145,
+  "run": 154,
   "refused": [
     {
       "command": "table sector",
@@ -79,16 +79,6 @@
       "message": "command avplots is unrecognized r(199);"
     },
     {
-      "command": "testnl _b[education] = _b[experience]^2",
-      "rc": 199,
-      "message": "command testnl is unrecognized r(199);"
-    },
-    {
-      "command": "nlcom _b[education]/_b[experience]",
-      "rc": 199,
-      "message": "command nlcom is unrecognized r(199);"
-    },
-    {
       "command": "contrast sectorn",
       "rc": 199,
       "message": "command contrast is unrecognized r(199);"
@@ -120,33 +110,8 @@
     },
     {
       "command": "hausman m1 m2",
-      "rc": 199,
-      "message": "command hausman is unrecognized r(199);"
-    },
-    {
-      "command": "nbreg id education",
-      "rc": 199,
-      "message": "command nbreg is unrecognized r(199);"
-    },
-    {
-      "command": "tobit wage education, ll(10)",
-      "rc": 199,
-      "message": "command tobit is unrecognized r(199);"
-    },
-    {
-      "command": "ologit sectorn education",
-      "rc": 199,
-      "message": "command ologit is unrecognized r(199);"
-    },
-    {
-      "command": "oprobit sectorn education",
-      "rc": 199,
-      "message": "command oprobit is unrecognized r(199);"
-    },
-    {
-      "command": "mlogit sectorn education",
-      "rc": 199,
-      "message": "command mlogit is unrecognized r(199);"
+      "rc": 498,
+      "message": "                  ---- Coefficients ----              |      (b)          (B)            (b-B)     sqrt(diag(V_b-V_B))  "
     },
     {
       "command": "cloglog high education",
@@ -214,19 +179,9 @@
       "message": "command ivreg2 is unrecognized r(199);"
     },
     {
-      "command": "qreg wage education",
-      "rc": 199,
-      "message": "command qreg is unrecognized r(199);"
-    },
-    {
       "command": "rreg wage education",
       "rc": 199,
       "message": "command rreg is unrecognized r(199);"
-    },
-    {
-      "command": "newey wage education, lag(1)",
-      "rc": 199,
-      "message": "command newey is unrecognized r(199);"
     },
     {
       "command": "prais wage education",

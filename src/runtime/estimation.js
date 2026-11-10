@@ -720,6 +720,11 @@ export function predict(session, text, ctx) {
     throw new StataError("only one statistic may be requested", 198);
   if (!chosen.length) ctx.out("(option xb assumed; fitted values)");
   if (extra.length) {
+    if (model.command !== "regress")
+      throw new StataError(
+        `option ${extra[0]} is only available after regress`,
+        198,
+      );
     const made = leverageStatistic(session, model, extra[0]),
       keep = new Set(session.rows(parsed, null)),
       order = [...session.data.sortedBy],

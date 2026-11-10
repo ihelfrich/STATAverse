@@ -130,3 +130,41 @@ test("do-files leave the same data, macros and results as native Stata", () => {
   }
   assert.deepEqual(failures, []);
 });
+
+test("the quantile solver finds the minimum an exhaustive search finds", async () => {
+  const { quantileFit } = await import("../src/runtime/quantile.js");
+  // A fixed-seed generator; small integers so that ties are common.
+  let state = 20261110;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  const solve2 = ([a, b], [u, v]) => {
+    const det = a[0] * b[1] - a[1] * b[0];
+    return Math.abs(det) < 1e-12
+      ? null
+      : [(u * b[1] - a[1] * v) / det, (a[0] * v - u * b[0]) / det];
+  };
+  for (let trial = 0; trial < 60; trial++) {
+    const n = 6 + Math.floor(next() * 10),
+      x = Array.from({ length: n }, () => [Math.floor(next() * 8), 1]),
+      y = x.map(() => Math.floor(next() * 12)),
+      q = [0.1, 0.25, 0.5, 0.75, 0.9, 0.97][trial % 6],
+      loss = (b) =>
+        x.reduce((t, row, i) => {
+          const e = y[i] - row[0] * b[0] - b[1];
+          return t + (e >= 0 ? q * e : (q - 1) * e);
+        }, 0);
+    if (new Set(x.map((row) => row[0])).size < 2) continue;
+    let best = Infinity;
+    for (let a = 0; a < n; a++)
+      for (let b = a + 1; b < n; b++) {
+        const found = solve2([x[a], x[b]], [y[a], y[b]]);
+        if (found) best = Math.min(best, loss(found));
+      }
+    assert.ok(
+      Math.abs(quantileFit(x, y, q).value - best) <= 1e-9 * (1 + best),
+      `trial ${trial}: ${quantileFit(x, y, q).value} vs ${best}`,
+    );
+  }
+});
