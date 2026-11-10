@@ -223,7 +223,7 @@ Several of these agree with Stata only because the runtime repeats arithmetic th
 
 After `mlogit`, `predict`, `test` and `lincom` are refused; after `ologit` and `oprobit`, `predict` gives only the linear prediction; `margins` is refused after all the estimators in this paragraph. `tobit`, `nbreg`, `mlogit` and the ordered models take conventional standard errors only. `newey` refuses a panel and a time variable with gaps. `nbreg` fits the mean-dispersion model only.
 
-`tools/student-probe.mjs` measures breadth separately from correctness: it runs 228 commands a student might type, one at a time, in a Console session and records which stop with an error. 157 run after the graph commands and further estimators were added, against 59 at the first release; the receipt is `docs/verification/student-probe.json`. The list is a judgement about what is commonly typed, and a command that runs is not thereby shown to agree with Stata.
+`tools/student-probe.mjs` measures breadth separately from correctness: it runs 228 commands a student might type, one at a time, in a Console session and records which stop with an error. 154 run after the graph commands and further estimators were added, against 59 at the first release; the receipt is `docs/verification/student-probe.json`. The list is a judgement about what is commonly typed, and a command that runs is not thereby shown to agree with Stata.
 
 **Limits of that evidence.**
 
