@@ -4630,6 +4630,2455 @@
         -0.4, 0.1, 8.98846567431158e307, 0.1, 8.98846567431158e307, 0.1
       ],
       "type": "float"
+    },
+    {
+      "expression": "subinstr((\"\" + s), \" b \", \"\", 5) > substr(\"\", 1, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strproper(((s + s) + substr(\"Ab c\", 5, .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "Appleapple",
+        "Banana Splitbanana Split",
+        "",
+        "  Pad    Pad  ",
+        "Xx",
+        "NaïVenaïVe"
+      ],
+      "type": "str24"
+    },
+    {
+      "expression": "subinstr(s, s, \"Ab c\", id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "strlen(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\" b \", \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"Ab c\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "Ab c", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "missing(((\"Ab c\" + \"Ab c\") + substr(\"xyz\", 1, 2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"Ab c\", stritrim(\"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(subinstr(word(\" b \", 2), \"xyz\", \"xyz\", .) + ltrim(\"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\"\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(subinstr(cond(g, s, \"\"), \" b \", \"\", 0), id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "split", "", "", "", ""],
+      "type": "str5"
+    },
+    {
+      "expression": "strpos(upper(substr(\"Ab c\", id, 2)), cond(., \" b \", \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"\" != \"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(upper(\"a\"), 1, 1), s, \"xyz\", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["A", "A", "A", "A", "A", "A"],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(\"\", substr(s, 0, 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(word(subinstr(\"Ab c\", \" b \", \" b \", 3), 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(cond(-2, cond(5, s, \"a\"), \"a\"), -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "split", "", "pad", "x", "naïve"],
+      "type": "str6"
+    },
+    {
+      "expression": "wordcount((s + s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 3, 0, 2, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"xyz\", g, 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["x", "x", "y", "y", "z", "z"],
+      "type": "str1"
+    },
+    {
+      "expression": "cond(1, \"a\", subinstr(lower(\"\"), \"xyz\", \"xyz\", .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(substr(ltrim(\" b \"), 1, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "missing(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "rtrim(\" b \") == substr(word(\"Ab c\", 5), 1, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(substr(s, ., -1), 1, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "ltrim((subinstr(\" b \", \"a\", \" b \", 5) + \"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b a", "b a", "b a", "b a", "b a", "b a"],
+      "type": "str3"
+    },
+    {
+      "expression": "lower(strproper(word(\" b \", 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(lower(\"\"), -2, 5) > upper(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(ltrim(\" b \") + ((\"\" + \"Ab c\") + (\"Ab c\" + \"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz"
+      ],
+      "type": "str13"
+    },
+    {
+      "expression": "subinstr(s, \"Ab c\", \" b \", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "substr(substr(\"xyz\", 0, .), g, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"Ab c\", \"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"xyz\", -2, 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(substr(lower(\" b \"), 0, 1), -1, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\" b \"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "rtrim(ltrim(word(\"Ab c\", 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(substr(s, -2, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(trim(word(\"a\", 5)), id, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(word(word(\"xyz\", -1), 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(trim(strproper(s)), strreverse(\" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(word(trim(\" b \"), 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(subinstr(\"Ab c\", \"xyz\", s, 2), 3, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(\"Ab c\" + substr(word(s, 1), 2, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab cp", "Ab ca", "Ab c", "Ab cad", "Ab c", "Ab caï"],
+      "type": "str7"
+    },
+    {
+      "expression": "strlen(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(cond(1, substr(\" b \", 0, -2), \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos((rtrim(\"Ab c\") + stritrim(\" b \")), subinstr(\"a\", \"\", s, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(3, trim(\"a\"), ltrim(subinstr(\"xyz\", \"a\", \"xyz\", 5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(rtrim((\" b \" + s)), ltrim(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 2, 0, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(cond(-2, \"Ab c\", \"\")) > ((\"Ab c\" + \"Ab c\") + \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "s",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "wordcount(cond(5, (\"a\" + \" b \"), trim(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "word(word(\" b \", 3), g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(substr((s + s), 2, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["PP", "AN", "", " P", "X", "A�"],
+      "type": "str2"
+    },
+    {
+      "expression": "(s + word(\"xyz\", g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["applexyz", "Banana splitxyz", "", "  pad  ", "x", "naïve"],
+      "type": "str15"
+    },
+    {
+      "expression": "strreverse(substr(substr(s, 0, g), -1, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(subinstr(\"Ab c\", s, \"\", -2), cond(g, \"a\", \"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "trim(subinstr(cond(., \"Ab c\", s), \"Ab c\", \" b \", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "b", "b", "b", "b"],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(upper(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(cond(-1, trim(\" b \"), \" b \"), 5, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "trim(subinstr(trim(\"\"), s, \"\", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(\" b \", rtrim(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(subinstr(\"Ab c\", \"Ab c\", s, 5)) == word(\"xyz\", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(\"a\", 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\"xyz\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(\"\", \"a\", \"a\", .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(subinstr(subinstr(\"Ab c\", \"\", s, g), \" b \", \"\", -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(\"xyz\", cond(g, s, s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 3, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(lower(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "trim(substr(word(s, 1), -2, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["l", "na", "", "ad", "", "ve"],
+      "type": "str2"
+    },
+    {
+      "expression": "strlen(lower(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 4, 4, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, trim((\" b \" + \"\")), lower(stritrim(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "b", "b", "b", "b"],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strproper(\" b \") >= lower(word(\"Ab c\", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(substr(substr(s, 0, -2), -1, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(subinstr((\" b \" + \"Ab c\"), \" b \", \"a\", 5), lower(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(\" b \", \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(subinstr(strproper(\"Ab c\"), \" b \", \"Ab c\", id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab C", "Ab C", "Ab C", "Ab C", "Ab C", "Ab C"],
+      "type": "str4"
+    },
+    {
+      "expression": "substr(cond(5, \"xyz\", \" b \"), -2, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(\"\", id) >= (rtrim(\"a\") + (\"Ab c\" + \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(2, \" b \", \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "strrpos(word(\"xyz\", -2), cond(id, \"Ab c\", s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(substr(\"Ab c\", -1, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strreverse(strproper(\"Ab c\")) <= (cond(5, \"Ab c\", \" b \") + \"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(cond(-1, word(\"a\", id), \"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strproper((rtrim(\"xyz\") + rtrim(\"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C"
+      ],
+      "type": "str7"
+    },
+    {
+      "expression": "((\"Ab c\" + \"\") + substr(s, -2, 3)) != s",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(\"xyz\" + cond(g, \"\", \" b \")) < lower(subinstr(\"Ab c\", \"a\", \"\", 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(substr(\"a\", -2, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(strproper(subinstr(\"Ab c\", \"xyz\", \"xyz\", 5)), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab C", "Ab C", "b C", "b C", " C", " C"],
+      "type": "str4"
+    },
+    {
+      "expression": "strpos(s, (\"\" + s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(cond(3, cond(-1, s, \"\"), substr(\"Ab c\", 5, 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "lower(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["ab c", "ab c", "ab c", "ab c", "ab c", "ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "substr(substr(s, 0, -2), -2, 2) > \"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "\"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(cond(5, trim(s), \"xyz\"), strproper(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(s, g, 2) >= lower(trim(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(cond(id, substr(s, 2, .), \"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(substr(ltrim(\" b \"), g, -1), id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "trim(strproper(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab C", "Ab C", "Ab C", "Ab C", "Ab C", "Ab C"],
+      "type": "str4"
+    },
+    {
+      "expression": "substr(word((\" b \" + \"Ab c\"), .), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(substr(subinstr(\"\", \"\", s, -1), ., 3), ., 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(substr(word(\" b \", g), 1, 3), rtrim(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount((\"Ab c\" + trim(\"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "substr(lower(subinstr(\"a\", s, s, 2)), g, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(\" b \", 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(cond(id, substr(\"a\", ., 3), substr(\"a\", g, 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(s, 0, 5), \"xyz\", \" b \", .) <= strproper((\" b \" + \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(2, substr(\"\", id, -1), (s + s)) != \"Ab c\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "upper(stritrim(subinstr(s, \" b \", \"Ab c\", -2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["APPLE", "BANANA SPLIT", "", "  PAD  ", "X", "NAïVE"],
+      "type": "str12"
+    },
+    {
+      "expression": "strpos(\"a\", substr(\" b \", ., -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(subinstr((\"a\" + \"xyz\"), \" b \", \"Ab c\", g), s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 2, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"Ab c\", strreverse(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(substr(\"Ab c\", 0, id), 1, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(stritrim(stritrim(\"Ab c\")), trim(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"a\", ., 2) == substr(strproper(s), 1, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(cond(id, \"Ab c\", substr(\"a\", id, id)), .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(strreverse(strproper(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(\"xyz\" + \"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "subinstr(substr(\" b \", ., 1), \"a\", \"a\", id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(trim((\" b \" + s)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [7, 14, 1, 7, 3, 8],
+      "type": "float"
+    },
+    {
+      "expression": "cond(g, substr(cond(0, \"Ab c\", \"a\"), g, 5), cond(3, substr(s, 0, .), upper(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "stritrim(upper(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["AB C", "AB C", "AB C", "AB C", "AB C", "AB C"],
+      "type": "str4"
+    },
+    {
+      "expression": "wordcount(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(strproper(\"xyz\"), \" b \", s, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Xyz", "Xyz", "Xyz", "Xyz", "Xyz", "Xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(ltrim(s), \"\", \"xyz\", 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(strreverse(\"a\"), 3, 2), \"a\", \"xyz\", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(cond(0, substr(\"Ab c\", -2, 3), \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(upper(\"Ab c\"), 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "cond(., \"\", \" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "lower(substr(subinstr(\"\", \" b \", \"Ab c\", 0), id, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "rtrim(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(substr(substr(\"Ab c\", 3, 5), ., .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr((word(\" b \", -1) + subinstr(\"Ab c\", \" b \", s, 1)), -1, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["c", "c", "c", "c", "c", "c"],
+      "type": "str1"
+    },
+    {
+      "expression": "(subinstr(substr(s, id, 2), \" b \", s, g) + s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apapple", "anBanana split", "", "ad  pad  ", "x", "enaïve"],
+      "type": "str14"
+    },
+    {
+      "expression": "substr(\" b \", -1, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" ", " ", " ", " ", " ", " "],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(lower(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word((\"\" + \"\"), 3) < substr(trim(\"\"), ., .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, word((\" b \" + \" b \"), 5), subinstr(substr(\"Ab c\", ., 1), \"Ab c\", \" b \", .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strproper(strproper(substr(s, 2, 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(\"xyz\", s, \"xyz\", 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyzyz", "xyz"],
+      "type": "str5"
+    },
+    {
+      "expression": "rtrim(trim(substr(\"\", 5, .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(\" b \", -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(substr(word(\"Ab c\", .), id, -1), substr(\"\", 0, .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(substr(strproper(\"Ab c\"), 0, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(strproper(cond(id, \"a\", \"a\")), -2, 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(s + \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "appleAb c",
+        "Banana splitAb c",
+        "Ab c",
+        "  pad  Ab c",
+        "xAb c",
+        "naïveAb c"
+      ],
+      "type": "str16"
+    },
+    {
+      "expression": "strlen(rtrim(substr(s, g, 2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 0, 2, 0, 2],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(ltrim(\" b \"), substr(\"Ab c\", g, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(\" b \" + \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        " b Ab c",
+        " b Ab c",
+        " b Ab c",
+        " b Ab c",
+        " b Ab c",
+        " b Ab c"
+      ],
+      "type": "str7"
+    },
+    {
+      "expression": "wordcount(rtrim((\"Ab c\" + \" b \")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(word(subinstr(\"\", s, \"a\", -1), id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(stritrim(subinstr(\" b \", \"\", s, -2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr((\"Ab c\" + substr(\"\", -1, 3)), \"xyz\", \"xyz\", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "Ab c", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "\"Ab c\" < (\" b \" + substr(s, 0, -2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(upper(substr(\"\", g, 2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"xyz\" != (subinstr(\"\", \"xyz\", \" b \", -2) + s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(word(\" b \", 5), 1, 3), s, s, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen((word(\" b \", -2) + substr(\"xyz\", id, 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(substr(subinstr(\"xyz\", \"xyz\", \"a\", 2), g, g), -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\"xyz\" != substr(\"a\", -1, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(2, ltrim(\"xyz\"), upper(\" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "word(\"Ab c\", -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab", "Ab", "Ab", "Ab", "Ab", "Ab"],
+      "type": "str2"
+    },
+    {
+      "expression": "strrpos(s, \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 6, 0, 4, 0, 2],
+      "type": "float"
+    },
+    {
+      "expression": "strproper((\"xyz\" + strreverse(\"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Xyzzyx", "Xyzzyx", "Xyzzyx", "Xyzzyx", "Xyzzyx", "Xyzzyx"],
+      "type": "str6"
+    },
+    {
+      "expression": "missing(cond(3, (\"xyz\" + \"xyz\"), stritrim(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, word((\" b \" + \"xyz\"), 1), \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "b", "b", "b", "b"],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(word(subinstr(\"Ab c\", \"a\", \"\", .), 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(upper(stritrim(\"a\")), -1, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(substr(cond(g, \"Ab c\", \"\"), id, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(word(substr(\"a\", 0, 5), 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"Ab c\", -2, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" ", " ", " c", " c", " c", " c"],
+      "type": "str2"
+    },
+    {
+      "expression": "strlen((substr(s, 3, 3) + (\"Ab c\" + \"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [7, 7, 4, 7, 4, 7],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(substr((\" b \" + \"xyz\"), 5, .), stritrim(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "upper(cond(-2, upper(\"xyz\"), rtrim(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["XYZ", "XYZ", "XYZ", "XYZ", "XYZ", "XYZ"],
+      "type": "str3"
+    },
+    {
+      "expression": "stritrim(substr(\"Ab c\", 0, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(substr(substr(\"xyz\", -2, 2), 1, id), 1, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["y", "yz", "yz", "yz", "yz", "yz"],
+      "type": "str2"
+    },
+    {
+      "expression": "missing(strreverse(subinstr(\"xyz\", \"\", \"\", g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(subinstr(word(\"xyz\", -1), s, \"Ab c\", g), strreverse(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(strreverse(\" b \")) > \" b \"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(substr(cond(g, \" b \", \" b \"), 0, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(s, 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(upper(subinstr(\"a\", \"xyz\", \"\", 0)), word(\" b \", 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "missing(rtrim(substr(\"Ab c\", id, 5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(\"a\", 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(subinstr(subinstr(\"Ab c\", s, \" b \", 5), \"Ab c\", \" b \", 2), ., id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(\"xyz\", ., id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "stritrim(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(cond(id, substr(\"a\", id, 2), upper(\"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(\" b \", 2) != substr(substr(\"a\", -1, 1), g, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(subinstr(\"\", \"xyz\", \" b \", g), -1, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos((lower(\" b \") + \"xyz\"), strreverse(\" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"\" >= substr((s + \"\"), g, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(substr(subinstr(\"a\", \"xyz\", \"Ab c\", id), 1, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(subinstr(subinstr(\" b \", \"a\", s, .), \"Ab c\", \"xyz\", 0) + \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b a", " b a", " b a", " b a", " b a", " b a"],
+      "type": "str4"
+    },
+    {
+      "expression": "strproper(subinstr(rtrim(s), \"\", \"xyz\", -2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Apple", "Banana Split", "", "  Pad", "X", "NaïVe"],
+      "type": "str12"
+    },
+    {
+      "expression": "subinstr(strproper(\"a\"), \"Ab c\", \"\", .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["A", "A", "A", "A", "A", "A"],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(cond(-2, cond(-2, \"a\", \"\"), (\"Ab c\" + \"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"xyz\" == substr(ltrim(\"a\"), 5, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"a\" >= \"Ab c\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(cond(-1, (\"a\" + \"a\"), upper(\"a\")), \"a\", \"xyz\", 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["aa", "aa", "aa", "aa", "aa", "aa"],
+      "type": "str2"
+    },
+    {
+      "expression": "word(s, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "Banana", "", "", "", ""],
+      "type": "str6"
+    },
+    {
+      "expression": "strlen(upper(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(trim(\"Ab c\"), \" b \", \"xyz\", -2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(subinstr(\"\", \"a\", \"a\", .), \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(5, subinstr(\"xyz\", \" b \", \"\", 5), \"a\") >= substr(word(\"a\", 0), 1, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"a\", 0, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(substr(\"xyz\", 3, .) + ltrim((\"\" + s)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["zapple", "zBanana split", "z", "zpad  ", "zx", "znaïve"],
+      "type": "str13"
+    },
+    {
+      "expression": "substr(substr(\"a\", id, g), 0, -2) == ltrim(word(\"\", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"Ab c\", g, 2) > substr(substr(\" b \", 1, -1), g, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "strlen(cond(1, substr(\" b \", -2, 0), strreverse(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(substr(\" b \", g, 0), (\"Ab c\" + \"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(-1, \"xyz\", subinstr(lower(\" b \"), \"\", s, .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "strproper(substr(word(\" b \", 0), 5, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(\"a\", \"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"xyz\", cond(2, s, s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, subinstr((\"Ab c\" + \"a\"), \"xyz\", s, 5), word(substr(\" b \", 3, -2), 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab ca", "Ab ca", "Ab ca", "Ab ca", "Ab ca", "Ab ca"],
+      "type": "str5"
+    },
+    {
+      "expression": "rtrim(cond(5, (\" b \" + \"xyz\"), \"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b xyz", " b xyz", " b xyz", " b xyz", " b xyz", " b xyz"],
+      "type": "str6"
+    },
+    {
+      "expression": "strrpos(\"\", \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"a\", s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(upper(substr(\"Ab c\", 0, 2)), \"\", \" b \", .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "subinstr(substr((s + \"Ab c\"), id, 2), \"Ab c\", \" b \", id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["ap", "an", " c", "ad", "c", "eA"],
+      "type": "str2"
+    },
+    {
+      "expression": "substr(\"\", -2, id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "subinstr(\" b \", \"Ab c\", \"\", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "trim(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(substr(substr(s, -2, 0), id, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(strreverse(substr(\"\", -2, 0)), word(\"xyz\", 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(trim(strproper(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(s) == \" b \"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(s, \"\", s, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "strpos(subinstr(substr(s, 1, 1), \"\", \" b \", -2), cond(., s, \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(g, \" b \", strproper((\"Ab c\" + \"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "strpos(substr(\" b \", 0, -1), cond(-1, \"\", \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "trim(strproper(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Apple", "Banana Split", "", "Pad", "X", "NaïVe"],
+      "type": "str12"
+    },
+    {
+      "expression": "substr(substr(\"\", 3, .), id, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "rtrim(cond(-1, \"Ab c\", (\"\" + \" b \")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "Ab c", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "subinstr(substr(word(\" b \", g), 1, 5), \" b \", \"Ab c\", 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(((\"xyz\" + \"\") + substr(s, 3, id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["XYZP", "XYZNA", "XYZ", "XYZPAD ", "XYZ", "XYZïVE"],
+      "type": "str7"
+    },
+    {
+      "expression": "substr((\"a\" + s), 2, 0) == upper(ltrim(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(-1, substr(\" b \", 2, 0), substr(word(\"Ab c\", .), ., 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing((subinstr(\"\", s, \"a\", 2) + word(\"Ab c\", 5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 4, 4, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(trim(word(\"Ab c\", g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 1, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(cond(2, \" b \", substr(\"xyz\", 0, g)), s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 3, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(s, \"Ab c\", \" b \", 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount((subinstr(\" b \", \"Ab c\", \"Ab c\", 1) + \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "missing(substr((\"\" + s), 0, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strreverse(substr(substr(\"a\", 0, -1), g, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(substr(strreverse(\" b \"), ., -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(stritrim(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["XYZ", "XYZ", "XYZ", "XYZ", "XYZ", "XYZ"],
+      "type": "str3"
+    },
+    {
+      "expression": "substr(word(s, .), 1, 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(s + word(s, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "appleapple",
+        "Banana splitsplit",
+        "",
+        "  pad  pad",
+        "xx",
+        "naïvenaïve"
+      ],
+      "type": "str17"
+    },
+    {
+      "expression": "missing(substr(\"\", 5, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"xyz\" != subinstr(\"Ab c\", s, s, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(rtrim(subinstr(s, \"xyz\", \"a\", .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 5, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "(\"a\" + \" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a b ", "a b ", "a b ", "a b ", "a b ", "a b "],
+      "type": "str4"
+    },
+    {
+      "expression": "strlen(substr((\"\" + \"\"), 0, 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(word(\"Ab c\", .), g, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(\" b \", 2, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b ", "b ", "b ", "b ", "b ", "b "],
+      "type": "str2"
+    },
+    {
+      "expression": "strreverse(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["zyx", "zyx", "zyx", "zyx", "zyx", "zyx"],
+      "type": "str3"
+    },
+    {
+      "expression": "strlen(word(\" b \", id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(lower(strproper(\"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "rtrim(word(rtrim(\"a\"), 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr((strreverse(\" b \") + subinstr(\"\", \"Ab c\", \"\", -1)), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", "b ", "b ", " ", " "],
+      "type": "str3"
+    },
+    {
+      "expression": "lower((\"\" + \"Ab c\")) >= \"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(word(cond(5, \"a\", \"\"), 0), subinstr(\" b \", \"xyz\", s, 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(((\" b \" + \"a\") + \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(word(subinstr(\"xyz\", \"\", \"\", 2), .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(\"\", \"\", \"\", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "cond(., s, ltrim(strreverse(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "(trim(strreverse(s)) + \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["elppaa", "tilps ananaBa", "a", "dapa", "xa", "ev��ana"],
+      "type": "str13"
+    },
+    {
+      "expression": "strlen(stritrim(trim(\"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 4, 4, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(cond(5, s, (\" b \" + \"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "substr(strproper(upper(\"Ab c\")), 1, 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab", "Ab", "Ab", "Ab", "Ab", "Ab"],
+      "type": "str2"
+    },
+    {
+      "expression": "subinstr(word(\"\", g), \"a\", \" b \", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(\" b \", substr(\" b \", 0, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "(lower(\"Ab c\") + \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c"
+      ],
+      "type": "str8"
+    },
+    {
+      "expression": "upper(ltrim((\"a\" + s)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["AAPPLE", "ABANANA SPLIT", "A", "A  PAD  ", "AX", "ANAïVE"],
+      "type": "str13"
+    },
+    {
+      "expression": "word(substr(word(\"Ab c\", 1), 3, 5), 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(substr(rtrim(\" b \"), 0, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(substr(\"\", ., g), substr(s, -2, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(\"xyz\" + ltrim(strreverse(\" b \")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyzb ", "xyzb ", "xyzb ", "xyzb ", "xyzb ", "xyzb "],
+      "type": "str5"
+    },
+    {
+      "expression": "strpos(\" b \", cond(id, \"Ab c\", s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(strreverse(strreverse(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(s, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(substr(\"xyz\", 3, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"\" > substr(substr(\"xyz\", 2, 2), ., -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(cond(id, s, \"xyz\"), s, \"a\", 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr((strproper(s) + \"\"), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Apple", "Banan", "", " Pad ", "", "ïVe"],
+      "type": "str5"
     }
   ]
 }

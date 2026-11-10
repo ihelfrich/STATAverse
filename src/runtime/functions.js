@@ -568,13 +568,22 @@ export const FUNCTIONS = {
   strltrim: text((s) => s.replace(/^ +/, "")),
   strrtrim: text((s) => s.replace(/ +$/, "")),
   stritrim: text((s) => s.replace(/(\S) {2,}(?=\S)/g, "$1 ")),
-  strreverse: text((s) => [...s].reverse().join("")),
+  // Stata reverses bytes, so a character outside ASCII does not survive;
+  // ustrreverse() reverses characters.
+  strreverse: text((s) =>
+    isAscii(s)
+      ? [...s].reverse().join("")
+      : decoder.decode(bytesOf(s).reverse()),
+  ),
+  ustrreverse: text((s) => [...s].reverse().join("")),
   substr: { args: [S, N, N], returns: S, lenient: true, fn: substr },
   usubstr: { args: [S, N, N], returns: S, lenient: true, fn: usubstr },
   strpos: {
     args: [S, S],
     returns: N,
     fn: (s, find) => {
+      // Nothing is found in an empty string, not even an empty string.
+      if (s === "") return 0;
       const at = s.indexOf(find);
       return at < 0 ? 0 : byteLength(s.slice(0, at)) + 1;
     },

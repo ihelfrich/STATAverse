@@ -702,6 +702,47 @@ export function randomExpressions(count, seed = 20261110) {
   return out;
 }
 
+/** Machine-written string expressions, on the same plan. */
+export function randomStringExpressions(count, seed = 77) {
+  let state = seed;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  const pick = (items) => items[Math.floor(next() * items.length)];
+  const numbers = ["0", "1", "2", "3", "-1", "-2", ".", "5", "id", "g"],
+    text = (depth) => {
+      const roll = next();
+      if (depth === 0 || roll < 0.3)
+        return pick(["s", '"a"', '""', '" b "', '"Ab c"', '"xyz"']);
+      if (roll < 0.5)
+        return `${pick(["upper", "lower", "trim", "ltrim", "rtrim", "strproper", "strreverse", "stritrim"])}(${text(depth - 1)})`;
+      if (roll < 0.65)
+        return `substr(${text(depth - 1)}, ${pick(numbers)}, ${pick(numbers)})`;
+      if (roll < 0.75) return `(${text(depth - 1)} + ${text(depth - 1)})`;
+      if (roll < 0.85)
+        return `subinstr(${text(depth - 1)}, ${text(0)}, ${text(0)}, ${pick(numbers)})`;
+      if (roll < 0.93) return `word(${text(depth - 1)}, ${pick(numbers)})`;
+      return `cond(${pick(numbers)}, ${text(depth - 1)}, ${text(depth - 1)})`;
+    },
+    number = () => {
+      const roll = next();
+      if (roll < 0.25) return `strlen(${text(2)})`;
+      if (roll < 0.45) return `strpos(${text(2)}, ${text(1)})`;
+      if (roll < 0.6) return `wordcount(${text(2)})`;
+      if (roll < 0.8)
+        return `${text(2)} ${pick(["==", "!=", "<", ">", "<=", ">="])} ${text(2)}`;
+      if (roll < 0.9) return `strrpos(${text(2)}, ${text(1)})`;
+      return `missing(${text(2)})`;
+    };
+  const out = [];
+  while (out.length < count) {
+    const expression = next() < 0.5 ? text(3) : number();
+    if (!out.includes(expression)) out.push(expression);
+  }
+  return out;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folder = await fs.mkdtemp(
     path.join(os.tmpdir(), "stataverse-expressions-native-"),
@@ -757,6 +798,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ...DATA.map((e) => ({ expression: e, by: false })),
     ...BY.map((e) => ({ expression: e, by: true })),
     ...randomExpressions(400).map((e) => ({
+      expression: e,
+      by: false,
+      random: true,
+    })),
+    ...randomStringExpressions(300).map((e) => ({
       expression: e,
       by: false,
       random: true,
