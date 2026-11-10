@@ -16,6 +16,12 @@ import { COMMANDS, extendedFunction } from "./commands.js";
 import { timeSeriesOperator } from "./panel.js";
 
 const MAX_STEPS = 200000;
+// c(current_date) in Stata's form, such as "10 Nov 2026".
+function currentDate() {
+  const now = new Date(),
+    months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+  return `${String(now.getDate()).padStart(2)} ${months[now.getMonth()]} ${now.getFullYear()}`;
+}
 
 function findCommand(word) {
   return COMMANDS.find(
@@ -46,6 +52,14 @@ export class Session {
       results: this.results,
       state: this.state,
       rc: () => this.rc,
+      coefficient: (kind, name) => {
+        const model = this.estimates;
+        // Without a model, Stata reports the name as not found.
+        if (!model) throw new StataError(`[${name}] not found`, 111);
+        const at = model.names.indexOf(name.replace(/^[^:]+:/, ""));
+        if (at < 0) throw new StataError(`[${name}] not found`, 111);
+        return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+      },
       series: (operator, order, name) =>
         timeSeriesOperator(this, operator, order, name),
       system: (name) =>
@@ -56,6 +70,24 @@ export class Session {
           pi: Math.PI,
           type: this.data.defaultType,
           rc: this.rc,
+          changed: Number(this.data.variables.length > 0),
+          filename: this.fileInUse ?? "",
+          current_date: currentDate(),
+          current_time: new Date().toTimeString().slice(0, 8),
+          stata_version: 17,
+          version: 17,
+          os: "Browser",
+          machine_type: "STATAverse",
+          pwd: "/stataverse",
+          dirsep: "/",
+          rng: "default",
+          rng_current: "mt64",
+          linesize: this.settings.linesize ?? 80,
+          more: "off",
+          maxvar: 5000,
+          alpha: "a b c d e f g h i j k l m n o p q r s t u v w x y z",
+          ALPHA: "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z",
+          Mons: "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",
         })[name],
       format: (args, { node, numeric, mismatch, invalid }) => {
         if (args.length < 1 || args.length > 2) throw invalid();

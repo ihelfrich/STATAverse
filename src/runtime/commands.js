@@ -288,7 +288,7 @@ export function displayText(session, text, asMacro = false) {
     let word = words[k];
     let m;
     if (/^(_n|_newline)$/.test(word)) out += "\n";
-    else if ((m = /^_newline\((.+)\)$/.exec(word)))
+    else if ((m = /^_n(?:ewline)?\((.+)\)$/.exec(word)))
       out += "\n".repeat(Math.max(0, session.scalar(m[1])));
     else if ((m = /^_s(?:kip)?\((.+)\)$/.exec(word)))
       out += " ".repeat(Math.max(0, session.scalar(m[1])));
@@ -435,9 +435,51 @@ function gsort(session, text) {
   session.data.sort(keys);
 }
 function rename(session, text) {
-  const words = text.split(/\s+/).filter(Boolean);
+  const data = session.data,
+    [head, optionText] = splitAtComma(text),
+    option = (optionText ?? "").trim();
+  // rename varlist, lower | upper | proper
+  if (option) {
+    const change = /^l(o(w(er?)?)?)?$/.test(option)
+      ? (name) => name.toLowerCase()
+      : /^u(p(p(er?)?)?)?$/.test(option)
+        ? (name) => name.toUpperCase()
+        : /^p(r(o(p(er?)?)?)?)?$/.test(option)
+          ? (name) => name[0].toUpperCase() + name.slice(1).toLowerCase()
+          : null;
+    if (!change) throw new StataError(`option ${option} not allowed`, 198);
+    const names = session.varlist(head),
+      planned = names.map(change),
+      others = data.names.filter((name) => !names.includes(name));
+    for (const name of planned)
+      if (others.includes(name) || planned.filter((n) => n === name).length > 1)
+        throw new StataError(`variable ${name} already defined`, 110);
+    names.forEach((name, k) => {
+      if (planned[k] !== name) data.get(name).name = planned[k];
+    });
+    data.sortedBy = data.sortedBy.map(
+      (name) => planned[names.indexOf(name)] ?? name,
+    );
+    return;
+  }
+  // rename (a b) (c d)
+  const groups = /^\s*\(([^)]*)\)\s*\(([^)]*)\)\s*$/.exec(head);
+  if (groups) {
+    const from = session.varlist(groups[1]),
+      to = groups[2].trim().split(/\s+/).filter(Boolean);
+    if (from.length !== to.length)
+      throw new StataError(
+        "the two lists must have the same number of names",
+        198,
+      );
+    // Rename through temporary names so that swaps work.
+    from.forEach((name, k) => data.rename(name, `__rename${k}`));
+    from.forEach((name, k) => data.rename(`__rename${k}`, to[k]));
+    return;
+  }
+  const words = head.split(/\s+/).filter(Boolean);
   if (words.length !== 2) throw invalid();
-  session.data.rename(session.varlist(words[0])[0], words[1]);
+  data.rename(session.varlist(words[0])[0], words[1]);
 }
 function order(session, text) {
   const parsed = session.parse(
@@ -526,6 +568,13 @@ function setCommand(session, text, ctx) {
     const level = Number(rest[0]);
     if (!(level >= 10 && level <= 99.99)) throw invalid();
     session.settings.level = level;
+  } else if (what === "rng") {
+    // The one generator here is the one Stata calls mt64.
+    if (!/^(mt64|default)$/.test(rest[0] ?? ""))
+      throw new StataError(
+        `set rng ${rest[0] ?? ""} is not available; mt64 is`,
+        198,
+      );
   } else if (what === "seed") {
     const seed = session.scalar(rest.join(" "));
     if (!(seed >= 0 && seed <= 2147483647))

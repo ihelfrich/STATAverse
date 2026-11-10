@@ -1026,3 +1026,18 @@ local hi = r(max)
 keep in 1
 keep k
 replace k = 0
+=== coefficients | locals: b se cons t rc1 rc2
+@EST
+capture display _b[x1]
+local rc1 = _rc
+regress y x1 x2
+local b = round(_b[x1], 1e-8)
+local se = round(_se[x1], 1e-8)
+local cons = round(_b[_cons], 1e-8)
+generate double fitted = _b[_cons] + _b[x1] * x1 + _b[x2] * x2
+predict double xb
+generate byte same = abs(fitted - xb) < 1e-10
+drop fitted xb
+local t = _b[x1] / _se[x1] > 10
+capture display _b[nosuch]
+local rc2 = _rc

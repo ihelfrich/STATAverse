@@ -2,22 +2,10 @@
   "basis": "Name-level upper bound over this repository's do-files for the new runtime in src/runtime. A line counts when its command is implemented; options, functions and semantics are not checked here.",
   "files": 38,
   "commandLines": 2053,
-  "namedSupported": 2004,
-  "share": 0.9761,
-  "shareExcludingDisplay": 0.9277,
+  "namedSupported": 2032,
+  "share": 0.9898,
+  "shareExcludingDisplay": 0.969,
   "unsupported": [
-    {
-      "command": "margins",
-      "lines": 12
-    },
-    {
-      "command": "import",
-      "lines": 10
-    },
-    {
-      "command": "marginsplot",
-      "lines": 6
-    },
     {
       "command": "matrix",
       "lines": 2

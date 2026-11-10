@@ -80,6 +80,10 @@ function tokenize(source) {
     } else if ((m = /^\.([a-z])?(?![A-Za-z_0-9.])/.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
       i += m[0].length;
+    } else if ((m = /^(_b|_se)\[\s*([^\]]+?)\s*\]/.exec(rest))) {
+      // _b[x] and _se[x]: a coefficient of the last model and its error.
+      push("coefficient", { kind: m[1], name: m[2] }, i);
+      i += m[0].length;
     } else if ((m = /^([LFD])(\d*)\.([A-Za-z_][A-Za-z_0-9]*)/.exec(rest))) {
       // L.x, F2.x and D.x: lag, lead and difference under xtset or tsset.
       push(
@@ -205,6 +209,15 @@ export function compileExpression(source, scope = {}) {
     if (token.type === "string") {
       const value = token.value;
       return node(S, () => value);
+    }
+    if (token.type === "coefficient") {
+      if (!scope.coefficient)
+        throw new StataError(`[${token.value.name}] not found`, 111);
+      const { kind, name } = token.value;
+      // Looked up when the expression is compiled, so a wrong name stops
+      // the command before it runs.
+      scope.coefficient(kind, name);
+      return node(N, () => scope.coefficient(kind, name));
     }
     if (token.type === "series") {
       if (!scope.series) throw new StataError("time variable not set", 111);
