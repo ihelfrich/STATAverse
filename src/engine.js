@@ -10,7 +10,14 @@ import {
   estimatedBytes,
   dataResourceError,
 } from "./resource-limits.js";
-import { missing, summarize, regress, correlation } from "./statistics.js";
+import {
+  missing,
+  summarize,
+  regress,
+  correlation,
+  tabstatName,
+  tabstatValues,
+} from "./statistics.js";
 import { factorRegression, termValue } from "./factor-variables.js";
 import { capturable } from "./command-prefixes.js";
 export { StataError };
@@ -74,6 +81,8 @@ export const SUPPORTED_COMMANDS = Object.freeze([
   "confirm",
   "error",
   "exit",
+  "tabstat",
+  "version",
   "by",
   "bysort",
   "bys",
@@ -608,6 +617,23 @@ export class PracticeSession {
         message: `Confirmed ${type ? type + " " : ""}variable ${names}.`,
       };
     }
+    if (verb === "version") {
+      noOptions(options);
+      const number = Number(body);
+      if (!/^\d+(\.\d+)?$/.test(body) || number < 1)
+        throw new StataError(
+          "Use version followed by a number, as in version 17.",
+        );
+      if (number > 19)
+        throw new StataError(
+          `Version ${body} is later than the Stata releases this practice environment follows.`,
+          9,
+        );
+      return {
+        kind: "version",
+        message: `version ${body} noted. Browser practice follows one documented behavior for each command and does not change with the version.`,
+      };
+    }
     if (verb === "help")
       return {
         kind: "help",
@@ -886,6 +912,82 @@ export class PracticeSession {
           name,
           ...summarize(rows.map((r) => r[name])),
         })),
+        n: rows.length,
+      };
+    }
+    if (verb === "tabstat") {
+      if (by)
+        throw new StataError(
+          "Use tabstat with its by() option instead of the by prefix.",
+          198,
+        );
+      const names = variables(q.main, data, { numeric: true });
+      let statistics = ["mean"],
+        group = null,
+        text = options;
+      text = text.replace(
+        /(?:^|\s)(?:statistics|stats|stat|s)\(([^()]*)\)/,
+        (_all, list) => {
+          statistics = list
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((word) => {
+              const name = tabstatName(word);
+              if (!name)
+                throw new StataError(
+                  `Statistic ${word} is not available in browser tabstat.`,
+                  198,
+                  "Available: n mean sum min max range sd variance cv semean median iqr and p1 p5 p10 p25 p50 p75 p90 p95 p99.",
+                );
+              return name;
+            });
+          return "";
+        },
+      );
+      text = text.replace(/(?:^|\s)by\(([^()]*)\)/, (_all, name) => {
+        const chosen = variables(name, data);
+        if (chosen.length !== 1)
+          throw new StataError("tabstat by() takes one variable.", 198);
+        group = chosen[0];
+        return "";
+      });
+      noOptions(text.trim());
+      if (!statistics.length)
+        throw new StataError("Name at least one statistic.", 198);
+      const table = (subset) =>
+        names.map((name) =>
+          tabstatValues(
+            subset.map((r) => r[name]),
+            statistics,
+          ),
+        );
+      // Groups appear in ascending order; observations with a missing
+      // group value are left out of the groups but remain in the total.
+      const groups = [];
+      if (group) {
+        const keys = [
+          ...new Set(
+            rows.map((r) => r[group]).filter((k) => !missing(k) && k !== ""),
+          ),
+        ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+        for (const key of keys)
+          groups.push({
+            key,
+            values: table(rows.filter((r) => r[group] === key)),
+          });
+      }
+      return {
+        kind: "tabstat",
+        names,
+        statistics,
+        by: group,
+        groups,
+        total: table(
+          group
+            ? rows.filter((r) => !missing(r[group]) && r[group] !== "")
+            : rows,
+        ),
         n: rows.length,
       };
     }

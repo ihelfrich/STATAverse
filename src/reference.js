@@ -129,6 +129,10 @@ export const REFERENCE = [
         "Repeat generate, replace or egen within each group; summarize and count report one line per group. bysort sorts first; plain by requires data already sorted by those variables and stops with error 5 otherwise. Variables in parentheses order observations inside a group without splitting it. Under by, _n, _N and subscripts count within the group. Stata leaves tied observations in an arbitrary order; the browser keeps their existing order. Other commands under by are not implemented.",
       ],
       [
+        "tabstat score hours, statistics(n mean sd median) by(group)",
+        "A table of chosen statistics, optionally by one grouping variable with a Total row. Statistics: n mean sum min max range sd variance cv semean median iqr and p1 p5 p10 p25 p50 p75 p90 p95 p99. Percentiles follow Stata's rule. Layout and format options are not implemented.",
+      ],
+      [
         "bysort group: summarize score hours\nby group: count if missing(score)",
         "Summary statistics and counts for every group, including a group with no selected observations. Stata prints one table per group; the browser prints one table with a row for each group and variable.",
       ],
@@ -215,6 +219,10 @@ export const REFERENCE = [
       [
         "* comment\n// comment\n/* comment */\n/// continuation",
         "Comments and line continuations are supported. A do-file stops at its first error.",
+      ],
+      [
+        "version 17",
+        "Accepted at the top of a do-file so that files written for Stata run here. It does not change how browser commands behave.",
       ],
       [
         "display 2 + 3\nclear\nset more off",

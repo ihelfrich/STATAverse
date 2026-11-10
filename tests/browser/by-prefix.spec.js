@@ -44,6 +44,14 @@ for (const fallback of [false, true])
     await expect(
       page.getByRole("region", { name: "Summary statistics by group" }),
     ).toBeVisible();
+    await replaceEditor(
+      page,
+      "version 17\ntabstat score hours, statistics(n mean median) by(group)",
+    );
+    await page.locator("#run").click();
+    await expect(
+      page.getByRole("region", { name: "Statistics table" }),
+    ).toContainText("Total");
     await replaceEditor(page, "bysort group: tabulate score");
     await page.locator("#run").click();
     await expect(page.locator("#results")).toContainText(

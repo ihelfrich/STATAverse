@@ -133,6 +133,59 @@ test("summarize and count under by match native Stata group statistics", () => {
   }
 });
 
+test("tabstat matches the result matrices saved by native Stata", () => {
+  const close = (a, b) =>
+    a === b ||
+    (a !== null &&
+      b !== null &&
+      Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b)));
+  for (const c of fixture.tabstat) {
+    const session = new PracticeSession("ts", {
+      ts: {
+        data: {
+          id: "ts",
+          name: "Invented tabstat fixture",
+          columns: ["g", "x", "y"].map((name) => ({
+            name,
+            label: name,
+            type: "numeric",
+          })),
+          rows: fixture.tabstatRows.map(([g, x, y]) => ({ g, x, y })),
+        },
+      },
+    });
+    const result = session.run(c.source).at(-1);
+    assert.equal(result.kind, "tabstat", c.id + ": " + result.message);
+    const compare = (actual, expected, label) =>
+      expected.forEach((column, v) =>
+        column.forEach((value, k) =>
+          assert.ok(
+            close(actual[v][k], value),
+            `${c.id} ${label} ${result.names[v]} ${result.statistics[k]}: ${actual[v][k]} vs ${value}`,
+          ),
+        ),
+      );
+    compare(result.total, c.total, "total");
+    assert.equal(result.groups.length, c.groups.length, c.id);
+    c.groups.forEach((expected, g) =>
+      compare(result.groups[g].values, expected, "group " + (g + 1)),
+    );
+  }
+});
+
+test("version is accepted without changing data and rejects impossible releases", () => {
+  const session = new PracticeSession("study"),
+    before = JSON.stringify(session.data);
+  const out = session.run("version 17\nversion 16.1\ncount");
+  assert.deepEqual(
+    out.map((r) => r.kind),
+    ["version", "version", "count"],
+  );
+  assert.equal(JSON.stringify(session.data), before);
+  for (const source of ["version 99", "version", "version abc"])
+    assert.equal(session.run(source).at(-1).kind, "error", source);
+});
+
 test("subscripts outside generate and replace are refused with guidance", () => {
   const session = new PracticeSession("study");
   const error = session

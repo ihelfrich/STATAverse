@@ -2,10 +2,10 @@
   "basis": "Name-level upper bound over this repository's do-files. A line counts when its command and every prefix are implemented by the browser interpreter; options, functions and semantics are not checked here.",
   "files": 38,
   "commandLines": 2053,
-  "namedSupported": 1854,
-  "share": 0.9031,
-  "shareExcludingDisplay": 0.7065,
-  "filesFullyNamed": 3,
+  "namedSupported": 1862,
+  "share": 0.907,
+  "shareExcludingDisplay": 0.7183,
+  "filesFullyNamed": 4,
   "unsupported": [
     {
       "command": "estat",
@@ -60,10 +60,6 @@
       "lines": 5
     },
     {
-      "command": "version",
-      "lines": 5
-    },
-    {
       "command": "encode",
       "lines": 4
     },
@@ -81,10 +77,6 @@
     },
     {
       "command": "poisson",
-      "lines": 3
-    },
-    {
-      "command": "tabstat",
       "lines": 3
     },
     {
@@ -316,6 +308,11 @@
       "blockedByPrefix": 0
     },
     {
+      "command": "version",
+      "lines": 5,
+      "blockedByPrefix": 0
+    },
+    {
       "command": "else",
       "lines": 4,
       "blockedByPrefix": 0
@@ -327,6 +324,11 @@
     },
     {
       "command": "list",
+      "lines": 3,
+      "blockedByPrefix": 0
+    },
+    {
+      "command": "tabstat",
       "lines": 3,
       "blockedByPrefix": 0
     },
@@ -420,7 +422,7 @@
     {
       "file": "ScriptLibrary/scripts/group-summaries.do",
       "commandLines": 6,
-      "namedSupported": 5
+      "namedSupported": 6
     },
     {
       "file": "ScriptLibrary/scripts/import-csv.do",
@@ -495,7 +497,7 @@
     {
       "file": "ScriptLibrary/scripts/project-setup-log.do",
       "commandLines": 11,
-      "namedSupported": 6
+      "namedSupported": 7
     },
     {
       "file": "ScriptLibrary/scripts/reshape-wide-long.do",
@@ -510,7 +512,7 @@
     {
       "file": "ScriptLibrary/scripts/summary-report.do",
       "commandLines": 3,
-      "namedSupported": 0
+      "namedSupported": 1
     },
     {
       "file": "ScriptLibrary/scripts/winsorize-outliers.do",
@@ -535,12 +537,12 @@
     {
       "file": "CodeLibrary/scripts/02_method_decision_tree.do",
       "commandLines": 161,
-      "namedSupported": 159
+      "namedSupported": 160
     },
     {
       "file": "CodeLibrary/scripts/02_method_decision_tree_v2.do",
       "commandLines": 246,
-      "namedSupported": 244
+      "namedSupported": 245
     },
     {
       "file": "CodeLibrary/scripts/03_anti_patterns.do",
@@ -550,7 +552,7 @@
     {
       "file": "CodeLibrary/scripts/04_assumption_checker.do",
       "commandLines": 271,
-      "namedSupported": 248
+      "namedSupported": 249
     },
     {
       "file": "CodeLibrary/scripts/05_moderation_mastery.do",
@@ -560,7 +562,7 @@
     {
       "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",
       "commandLines": 105,
-      "namedSupported": 80
+      "namedSupported": 81
     },
     {
       "file": "ZeroToHero/projects/project-01/analysis.do",
@@ -575,7 +577,7 @@
     {
       "file": "RealData/base_lab.do",
       "commandLines": 57,
-      "namedSupported": 36
+      "namedSupported": 37
     }
   ]
 }

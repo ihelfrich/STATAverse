@@ -69,6 +69,25 @@ export function resultHTML(result, index, { complete = false } = {}) {
             "Summary statistics by group",
           ) +
           `<p class="result-annotation">One row per group and variable. Obs. counts nonmissing values. Stata prints a separate table for each group; the numbers are the same.</p>`;
+  } else if (r.kind === "tabstat") {
+    const block = (label, values) =>
+      r.statistics.map((statistic, s) => [
+        ...(r.by ? [s === 0 ? label : ""] : []),
+        h(statistic === "n" ? "N" : statistic),
+        ...r.names.map((_name, v) => fmt(values[v][s])),
+      ]);
+    body =
+      table(
+        [...(r.by ? [r.by] : []), "Statistic", ...r.names],
+        [
+          ...r.groups.flatMap((g) =>
+            block(g.key === "" ? '""' : value(g.key), g.values),
+          ),
+          ...block("Total", r.total),
+        ],
+        "Statistics table",
+      ) +
+      `<p class="result-annotation">Each statistic uses the nonmissing values of its own variable.${r.by ? " Observations with a missing group value are left out." : ""}</p>`;
   } else if (r.kind === "summarize")
     body =
       table(

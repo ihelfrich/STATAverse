@@ -179,6 +179,39 @@ export const REPORTS = [
   ],
 ];
 
+// tabstat cases read Stata's saved result matrices: one row per statistic,
+// one column per variable.
+export const TABSTAT_ROWS = [
+  [1, 3, 2.5],
+  [1, 1, null],
+  [1, 4, 1.5],
+  [1, 1, 8],
+  [1, 5, 0.5],
+  [2, 9, 3],
+  [2, 2, 3],
+  [2, 6, 7],
+  [2, null, 4],
+  [null, 7, 1],
+  [2, 5, 6],
+];
+const ALL_STATISTICS =
+  "n mean sum min max range sd variance cv semean median iqr p1 p5 p10 p25 p50 p75 p90 p95 p99";
+export const TABSTAT = [
+  ["all-statistics-by", `tabstat x y, statistics(${ALL_STATISTICS}) by(g)`, 2],
+  [
+    "if-condition-by",
+    "tabstat x y if y<7, statistics(n mean sd p25 p75 iqr) by(g)",
+    2,
+  ],
+  ["no-groups", "tabstat x y, statistics(mean sd p25 median p75 count var)", 0],
+  ["default-statistic", "tabstat y x", 0],
+  [
+    "single-observation-group",
+    "tabstat x if x>=7, statistics(n mean sd semean p50) by(g)",
+    1,
+  ],
+];
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const folder = await fs.mkdtemp(
     path.join(os.tmpdir(), "stataverse-functions-native-"),
@@ -233,7 +266,31 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "file close out",
     );
   }
-  audit.push("exit, clear", "");
+  audit.push(
+    "clear",
+    "input double g double x double y",
+    ...TABSTAT_ROWS.map((r) => r.map((v) => v ?? ".").join(" ")),
+    "end",
+    'file open out using "tabstat.txt", write text replace',
+  );
+  for (const [, source, groupCount] of TABSTAT) {
+    audit.push(`quietly ${source}${source.includes(",") ? "" : ","} save`);
+    for (const name of [
+      "StatTotal",
+      ...Array.from({ length: groupCount }, (_x, k) => `Stat${k + 1}`),
+    ])
+      audit.push(
+        `matrix M=r(${name})`,
+        `file write out "${name}" _tab "\`=rowsof(M)'" _tab "\`=colsof(M)'"`,
+        "forvalues i=1/`=rowsof(M)' {",
+        "forvalues j=1/`=colsof(M)' {",
+        "file write out _tab %24.17g (M[`i',`j'])",
+        "}",
+        "}",
+        "file write out _n",
+      );
+  }
+  audit.push("file close out", "exit, clear", "");
   await fs.writeFile(path.join(folder, "audit.do"), audit.join("\n"));
   await promisify(execFile)(
     "/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp",
@@ -283,6 +340,31 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       }),
     });
   }
+  const matrixLines = (
+    await fs.readFile(path.join(folder, "tabstat.txt"), "utf8")
+  )
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.split("\t"));
+  const tabstatCases = TABSTAT.map(([id, source, groupCount]) => {
+    const take = () => {
+      const [name, rows, columns, ...values] = matrixLines.shift();
+      const numbers = values.map((v) => (v.trim() === "." ? null : Number(v)));
+      // Stored as variables by statistics to match the interpreter's result.
+      return {
+        name,
+        values: Array.from({ length: Number(columns) }, (_c, j) =>
+          Array.from(
+            { length: Number(rows) },
+            (_r, i) => numbers[i * Number(columns) + j],
+          ),
+        ),
+      };
+    };
+    const total = take().values,
+      groups = Array.from({ length: groupCount }, () => take().values);
+    return { id, source, total, groups };
+  });
   await fs.rm(folder, { recursive: true });
   await fs.writeFile(
     "tests/fixtures/stata-functions.json",
@@ -294,11 +376,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         scalar: scalarCases,
         data: dataCases.filter((c) => !c.native),
         reports: dataCases.filter((c) => c.native),
+        tabstatRows: TABSTAT_ROWS,
+        tabstat: tabstatCases,
       }),
       { parser: "json" },
     ),
   );
   console.log(
-    `Recorded ${scalarCases.length} scalar, ${DATA.length} data and ${REPORTS.length} report cases.`,
+    `Recorded ${scalarCases.length} scalar, ${DATA.length} data, ${REPORTS.length} report and ${TABSTAT.length} tabstat cases.`,
   );
 }

@@ -18,6 +18,55 @@ export const mean = (values) => {
         scale
     : 0;
 };
+// Stata's default percentile rule: with P = n*p/100, average the Pth and
+// (P+1)th ordered values when P is an integer, otherwise take the next one up.
+export function percentile(sorted, p) {
+  const n = sorted.length;
+  if (!n) return null;
+  const position = (n * p) / 100;
+  if (Number.isInteger(position))
+    return position >= n
+      ? sorted[n - 1]
+      : position < 1
+        ? sorted[0]
+        : (sorted[position - 1] + sorted[position]) / 2;
+  return sorted[Math.ceil(position) - 1];
+}
+const TABSTAT = {
+  n: (s) => s.n,
+  mean: (s) => s.mean,
+  sum: (s) => (s.n ? s.sum : null),
+  min: (s) => s.min,
+  max: (s) => s.max,
+  range: (s) => (s.n ? s.max - s.min : null),
+  sd: (s) => s.sd,
+  variance: (s) => (s.sd === null ? null : s.sd ** 2),
+  cv: (s) => (s.sd === null || !s.mean ? null : s.sd / s.mean),
+  semean: (s) => (s.sd === null ? null : s.sd / Math.sqrt(s.n)),
+  iqr: (s) =>
+    s.n ? percentile(s.sorted, 75) - percentile(s.sorted, 25) : null,
+};
+for (const p of [1, 5, 10, 25, 50, 75, 90, 95, 99])
+  TABSTAT[`p${p}`] = (s) => percentile(s.sorted, p);
+const TABSTAT_ALIASES = { count: "n", var: "variance", median: "p50" };
+export function tabstatName(word) {
+  const name = TABSTAT_ALIASES[word] || word;
+  return Object.hasOwn(TABSTAT, name) ? name : null;
+}
+export function tabstatValues(values, statistics) {
+  const sorted = values
+      .filter((v) => typeof v === "number" && !missing(v))
+      .sort((a, b) => a - b),
+    base = {
+      ...summarize(values),
+      sorted,
+      sum: sorted.reduce((total, v) => total + v, 0),
+    };
+  return statistics.map((name) => {
+    const value = TABSTAT[name](base);
+    return value === undefined || !Number.isFinite(value) ? null : value;
+  });
+}
 export function summarize(values) {
   const x = values.filter((v) => typeof v === "number" && !missing(v));
   if (!x.length) return { n: 0, mean: null, sd: null, min: null, max: null };
