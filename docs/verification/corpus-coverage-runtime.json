@@ -2,24 +2,16 @@
   "basis": "Name-level upper bound over this repository's do-files for the new runtime in src/runtime. A line counts when its command is implemented; options, functions and semantics are not checked here.",
   "files": 38,
   "commandLines": 2053,
-  "namedSupported": 2032,
-  "share": 0.9898,
-  "shareExcludingDisplay": 0.969,
+  "namedSupported": 2035,
+  "share": 0.9912,
+  "shareExcludingDisplay": 0.9735,
   "unsupported": [
-    {
-      "command": "matrix",
-      "lines": 2
-    },
     {
       "command": "nbreg",
       "lines": 2
     },
     {
       "command": "arima",
-      "lines": 1
-    },
-    {
-      "command": "centile",
       "lines": 1
     },
     {

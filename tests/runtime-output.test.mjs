@@ -86,7 +86,12 @@ for (const c of fixture.cases)
         !sameText(
           a,
           b,
-          ["nonlinear", "margins", "margins-interactions"].includes(c.id),
+          [
+            "nonlinear",
+            "margins",
+            "margins-interactions",
+            "estat-gof",
+          ].includes(c.id),
         )
       )
         failures.push(

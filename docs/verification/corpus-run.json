@@ -240,10 +240,10 @@
     },
     {
       "file": "ZeroToHero/projects/project-02/analysis.do",
-      "commands": 14,
-      "rc": 321,
-      "stoppedAt": "estat gof",
-      "message": "estat gof is not available yet"
+      "commands": 15,
+      "rc": 199,
+      "stoppedAt": "nbreg delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id",
+      "message": "command nbreg is unrecognized"
     },
     {
       "file": "RealData/base_lab.do",

@@ -719,6 +719,155 @@ function estat(session, text, ctx) {
       `${"Mean VIF".padStart(12)} |${applyFormat(vifs.reduce((t, v) => t + v[1], 0) / vifs.length, "%10.2f")}`,
     );
     ctx.out("");
+  } else if (what === "gof" && model.kind === "poisson") {
+    const outcome = session.data.get(model.depvar).data;
+    let deviance = 0,
+      pearson = 0;
+    for (const i of model.sample) {
+      const mu = Math.exp(
+          model.names.reduce(
+            (t, name, k) =>
+              t +
+              model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
+            0,
+          ),
+        ),
+        y = outcome[i];
+      deviance += 2 * ((y > 0 ? y * Math.log(y / mu) : 0) - (y - mu));
+      pearson += (y - mu) ** 2 / mu;
+    }
+    const df = model.N - model.rank,
+      line = (label, value) =>
+        ctx.out(`         ${label.padEnd(25)}=${value.padStart(10)}`);
+    ctx.out("");
+    line("Deviance goodness-of-fit", g(deviance));
+    line(
+      `Prob > chi2(${df})`,
+      applyFormat(chi2tail(df, deviance), "%6.4f").trim(),
+    );
+    ctx.out("");
+    line("Pearson goodness-of-fit", g(pearson));
+    line(
+      `Prob > chi2(${df})`,
+      applyFormat(chi2tail(df, pearson), "%6.4f").trim(),
+    );
+    ctx.out("");
+    session.results.r = { chi2_d: deviance, chi2_p: pearson, df };
+  } else if (what === "gof" || /^clas/.test(what)) {
+    if (!model.family?.binary)
+      throw new StataError(
+        `estat ${what} is only available after logit and probit`,
+        321,
+      );
+    const outcome = session.data.get(model.depvar).data,
+      rows = model.sample,
+      index = (i) =>
+        model.names.reduce(
+          (t, name, k) =>
+            t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
+          0,
+        ),
+      p = rows.map((i) => model.family.mean(index(i))),
+      y = rows.map((i) => Number(outcome[i] !== 0)),
+      kind = model.kind === "logit" ? "logistic" : "probit";
+    ctx.out("");
+    if (what === "gof") {
+      // Observations with the same covariates form one pattern.
+      const patterns = new Map();
+      rows.forEach((i, r) => {
+        const key = JSON.stringify(model.columns.map((c) => c.value(i))),
+          cell = patterns.get(key) ?? { n: 0, y: 0, p: p[r] };
+        cell.n++;
+        cell.y += y[r];
+        patterns.set(key, cell);
+      });
+      let chi2 = 0;
+      for (const cell of patterns.values())
+        chi2 +=
+          (cell.y - cell.n * cell.p) ** 2 / (cell.n * cell.p * (1 - cell.p));
+      const df = patterns.size - model.rank,
+        values = [
+          count(rows.length),
+          count(patterns.size),
+          applyFormat(df > 0 ? chi2 : 0, "%9.2f").trim(),
+          df > 0 ? applyFormat(chi2tail(df, chi2), "%6.4f").trim() : ".",
+        ],
+        width = Math.max(...values.map((v) => v.length)) + 1;
+      ctx.out(`Goodness-of-fit test after ${kind} model`);
+      ctx.out(`Variable: ${model.depvar}`);
+      ctx.out("");
+      [
+        "Number of observations",
+        "Number of covariate patterns",
+        `Pearson chi2(${Math.max(0, df)})`,
+        "Prob > chi2",
+      ].forEach((label, k) =>
+        ctx.out(`${label.padStart(28)} =${values[k].padStart(width)}`),
+      );
+      ctx.out("");
+      session.results.r = {
+        N: rows.length,
+        m: patterns.size,
+        chi2: df > 0 ? chi2 : 0,
+        df: Math.max(0, df),
+      };
+      return;
+    }
+    let tp = 0,
+      fp = 0,
+      fn = 0,
+      tn = 0;
+    y.forEach((actual, r) => {
+      const positive = p[r] >= 0.5;
+      if (positive && actual) tp++;
+      else if (positive) fp++;
+      else if (actual) fn++;
+      else tn++;
+    });
+    const percent = (a, b) =>
+        `${applyFormat(b ? (100 * a) / b : MISSING, "%8.2f")}%`,
+      line = (label, code, a, b) =>
+        ctx.out(`${label.padEnd(32)}${code}${percent(a, b)}`),
+      rule = "-".repeat(50),
+      row = (label, a, b) =>
+        ctx.out(
+          `${label}|${count(a).padStart(10)}${count(b).padStart(14)}  |${count(a + b).padStart(11)}`,
+        );
+    ctx.out(
+      `${kind[0].toUpperCase() + kind.slice(1)} model for ${model.depvar}`,
+    );
+    ctx.out("");
+    ctx.out("              -------- True --------");
+    ctx.out("Classified |         D            ~D  |      Total");
+    ctx.out("-----------+--------------------------+-----------");
+    row("     +     ", tp, fp);
+    row("     -     ", fn, tn);
+    ctx.out("-----------+--------------------------+-----------");
+    row("   Total   ", tp + fn, fp + tn);
+    ctx.out("");
+    ctx.out("Classified + if predicted Pr(D) >= .5");
+    ctx.out(`True D defined as ${model.depvar} != 0`);
+    ctx.out(rule);
+    line("Sensitivity", "Pr( +| D)", tp, tp + fn);
+    line("Specificity", "Pr( -|~D)", tn, tn + fp);
+    line("Positive predictive value", "Pr( D| +)", tp, tp + fp);
+    line("Negative predictive value", "Pr(~D| -)", tn, tn + fn);
+    ctx.out(rule);
+    line("False + rate for true ~D", "Pr( +|~D)", fp, tn + fp);
+    line("False - rate for true D", "Pr( -| D)", fn, tp + fn);
+    line("False + rate for classified +", "Pr(~D| +)", fp, tp + fp);
+    line("False - rate for classified -", "Pr( D| -)", fn, tn + fn);
+    ctx.out(rule);
+    ctx.out(
+      `${"Correctly classified".padEnd(41)}${percent(tp + tn, rows.length)}`,
+    );
+    ctx.out(rule);
+    ctx.out("");
+    session.results.r = {
+      P_corr: (100 * (tp + tn)) / rows.length,
+      P_p1: (100 * tp) / (tp + fn),
+      P_n0: (100 * tn) / (tn + fp),
+    };
   } else throw new StataError(`estat ${what} is not available yet`, 321);
 }
 
