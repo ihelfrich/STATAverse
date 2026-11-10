@@ -236,3 +236,9 @@ Every command in the 19 lessons now runs the same in the frozen interpreter and 
 
 A first set of graphs (`scatter`, `line`, `histogram` and `twoway` overlays with `lfit`) is drawn as SVG and shown in the Console. `margins`, `marginsplot` and `import delimited` followed the same day. What follows, in order: `matrix` and the commands that read `r()` and `e()` matrices, the remaining graph types and options, `estat` after instrumental variables and logit, then `.dta` files.
 
+### What the randomized comparison changed about the method
+
+The verification section above asks for constructed cases per command. Those were written, and they were not enough. Three generators now produce cases nobody chose: arithmetic and string expressions, short sequences of data commands, nests of loops and conditions, and reports on random data. Each batch is run in installed Stata and recorded like any other fixture, so the tests still run without Stata. Between them they found about a dozen differences that roughly 900 hand-written cases had passed over, among them operator precedence, an inner `if` deciding an outer `else`, and what `by` does when no observations are left.
+
+Two consequences for the stages that follow. A new command family should get a generator as well as written cases before it is called checked. And the frozen interpreter deserves the same treatment once: the comparison precedence error recorded in [the review](red-team-review.md) was found only because the same expressions were run through it.
+
