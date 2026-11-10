@@ -949,7 +949,14 @@ function collapse(session, text) {
   if (new Set(names).size !== names.length)
     throw new StataError("a target variable is named twice", 198);
   const by = parsed.options.by ?? [],
-    rows = session.rows(parsed, null),
+    // cw keeps only observations with every source variable present.
+    rows = session
+      .rows(parsed, null)
+      .filter(
+        (i) =>
+          !parsed.options.cw ||
+          targets.every((t) => !isMissing(data.get(t.source).data[i])),
+      ),
     groups = new Map();
   for (const i of rows) {
     const key = JSON.stringify(by.map((k) => data.get(k).data[i]));

@@ -16,7 +16,8 @@
     "test:site": "node tools/verify-site-integration.mjs",
     "test:legacy": "node tools/verify-legacy-transition.mjs",
     "test:loading": "node tools/verify-practice-loading.mjs",
-    "coverage:corpus": "node tools/corpus-coverage.mjs --write"
+    "coverage:corpus": "node tools/corpus-coverage.mjs --write",
+    "differential": "node tools/differential.mjs --write"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",

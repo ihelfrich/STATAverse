@@ -1,0 +1,606 @@
+{
+  "basis": "Every command of every lesson, run in order through the frozen interpreter and the new runtime from the same starting data. A lesson stops at the first command only one of them runs.",
+  "commands": 79,
+  "same": 63,
+  "sameToSinglePrecision": 10,
+  "bothRefuse": 0,
+  "runtimeRefuses": 6,
+  "legacyRefuses": 0,
+  "different": 0,
+  "lessons": [
+    {
+      "lesson": "first-commands",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "describe",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "list id hours score in 1/5",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "summarize hours score",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "tabulate group",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "missing-values",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "count if group == \"A\"",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "count if hours > 5",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "count if hours > 5 & !missing(hours)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "count if !missing(hours, attendance, score)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "transformations",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "generate double minutes = hours * 60",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "summarize hours minutes",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "generate double high_study = hours >= 6 if !missing(hours)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "tabulate high_study, missing",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "graphs",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "histogram score, frequency",
+          "legacy": 0,
+          "runtime": 199,
+          "status": "runtime refuses",
+          "detail": "command histogram is unrecognized"
+        }
+      ]
+    },
+    {
+      "lesson": "regression",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "regress score hours",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "predict double fitted",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "predict double residual, residuals",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "scatter residual fitted",
+          "legacy": 0,
+          "runtime": 199,
+          "status": "runtime refuses",
+          "detail": "command scatter is unrecognized"
+        }
+      ]
+    },
+    {
+      "lesson": "inference",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "regress score hours attendance",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score hours attendance, vce(robust)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score hours if !missing(attendance)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "observation-order",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "sort score",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "list id score in 1/3",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "list id score if inlist(id, 1, 2, 3)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "sort id\nisid id",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "do-files",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "* Available observations for score on hours\ncount if !missing(score, hours)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "summarize hours score",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score hours ///\n    attendance, vce(robust)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "clear\nimport delimited using \"study.csv\", clear\ncount if !missing(score, hours, attendance)",
+          "legacy": 0,
+          "runtime": 199,
+          "status": "runtime refuses",
+          "detail": "command import is unrecognized"
+        }
+      ]
+    },
+    {
+      "lesson": "macros-loops",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "local outcome score\nsummarize `outcome'",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "local evaluated = 60/7\nlocal text 60/7\ndisplay 2 / `evaluated'\ndisplay 2 / `text'",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "local measures hours score attendance\nforeach v of local measures {\n summarize `v'\n}",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "foreach v of varlist hours-attendance {\n generate double copy_`v' = `v'\n}\nlist id hours copy_hours attendance copy_attendance in 1/5",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "forvalues p = 2/3 {\n generate double hours`p' = hours^`p'\n}\nlist id hours hours2 hours3 in 1/5",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "if hours > 5 {\n generate double block_choice = 1\n}\nelse {\n generate double block_choice = 0\n}\ngenerate double row_choice = hours > 5 & !missing(hours)\nlist id hours block_choice row_choice in 1/5",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "temporary-samples",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "preserve",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "keep if group == \"A\"",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "summarize score",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "restore",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "count",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "data-quality",
+      "dataset": "clinic",
+      "steps": [
+        {
+          "command": "codebook age wait",
+          "legacy": 0,
+          "runtime": 199,
+          "status": "runtime refuses",
+          "detail": "command codebook is unrecognized"
+        }
+      ]
+    },
+    {
+      "lesson": "group-statistics",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "egen double available = rownonmiss(hours score attendance)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "egen double group_score = mean(score), by(group)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "list id score group_score if id == 21",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "generate double deviation = score - group_score\nsummarize deviation if group == \"A\"",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "egen double observed_hours_score = mean(score) if !missing(hours), by(group)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "list id hours score group_score observed_hours_score if inlist(id, 19, 21)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "collapse-samples",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "preserve",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "collapse (mean) mean_hours=hours mean_score=score (count) n_hours=hours n_score=score, by(group)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "restore, preserve",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "collapse (mean) mean_hours=hours mean_score=score (count) n_hours=hours n_score=score, by(group) cw",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "list group n_hours n_score",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "restore",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "group-comparisons",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "generate double group_b = group == \"B\" if !missing(group)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "summarize score if group == \"A\"",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "summarize score if group == \"B\"",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score group_b",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score group_b hours, vce(robust)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "sample-accounting",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "generate double complete = !missing(score, hours, attendance)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score hours attendance if complete == 1",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "predict double fitted",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "count if !missing(fitted)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "count if !missing(fitted) & missing(score)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        }
+      ]
+    },
+    {
+      "lesson": "functional-forms",
+      "dataset": "wages",
+      "steps": [
+        {
+          "command": "generate double ln_wage = ln(wage) if wage > 0 & !missing(wage)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress ln_wage education experience",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "display 100 * (exp(0.04) - 1)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "generate double experience2 = experience ^ 2",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress wage education experience experience2",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        }
+      ]
+    },
+    {
+      "lesson": "interactions",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "generate double group_b = group == \"B\" if !missing(group)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "generate double hours_c = hours - 5",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "generate double hours_b = hours_c * group_b",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score hours_c group_b hours_b",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "predict double fitted_interaction",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        }
+      ]
+    },
+    {
+      "lesson": "debugging",
+      "dataset": "study",
+      "steps": [
+        {
+          "command": "count if group == \"A\"",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "generate double high_study = hours >= 6 if !missing(hours)",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "regress score hours",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "predict double fitted\ngenerate double residual = score - fitted",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "float"
+        },
+        {
+          "command": "scatter residual fitted",
+          "legacy": 0,
+          "runtime": 199,
+          "status": "runtime refuses",
+          "detail": "command scatter is unrecognized"
+        }
+      ]
+    },
+    {
+      "lesson": "independent-analysis",
+      "dataset": "wages",
+      "steps": [
+        {
+          "command": "summarize wage education experience",
+          "legacy": 0,
+          "runtime": 0,
+          "status": "same"
+        },
+        {
+          "command": "scatter wage education",
+          "legacy": 0,
+          "runtime": 199,
+          "status": "runtime refuses",
+          "detail": "command scatter is unrecognized"
+        }
+      ]
+    }
+  ]
+}
