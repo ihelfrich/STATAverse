@@ -1,0 +1,114 @@
+{
+  "basis": "Name-level upper bound over this repository's do-files for the new runtime in src/runtime. A line counts when its command is implemented; options, functions and semantics are not checked here.",
+  "files": 38,
+  "commandLines": 2053,
+  "namedSupported": 1985,
+  "share": 0.9669,
+  "shareExcludingDisplay": 0.8997,
+  "unsupported": [
+    {
+      "command": "graph",
+      "lines": 13
+    },
+    {
+      "command": "margins",
+      "lines": 12
+    },
+    {
+      "command": "import",
+      "lines": 10
+    },
+    {
+      "command": "marginsplot",
+      "lines": 6
+    },
+    {
+      "command": "twoway",
+      "lines": 4
+    },
+    {
+      "command": "matrix",
+      "lines": 2
+    },
+    {
+      "command": "nbreg",
+      "lines": 2
+    },
+    {
+      "command": "arima",
+      "lines": 1
+    },
+    {
+      "command": "centile",
+      "lines": 1
+    },
+    {
+      "command": "esttab",
+      "lines": 1
+    },
+    {
+      "command": "hausman",
+      "lines": 1
+    },
+    {
+      "command": "infix",
+      "lines": 1
+    },
+    {
+      "command": "line",
+      "lines": 1
+    },
+    {
+      "command": "lroc",
+      "lines": 1
+    },
+    {
+      "command": "misstable",
+      "lines": 1
+    },
+    {
+      "command": "mixed",
+      "lines": 1
+    },
+    {
+      "command": "ovtest",
+      "lines": 1
+    },
+    {
+      "command": "qnorm",
+      "lines": 1
+    },
+    {
+      "command": "rvfplot",
+      "lines": 1
+    },
+    {
+      "command": "scatter",
+      "lines": 1
+    },
+    {
+      "command": "swilk",
+      "lines": 1
+    },
+    {
+      "command": "tsline",
+      "lines": 1
+    },
+    {
+      "command": "which",
+      "lines": 1
+    },
+    {
+      "command": "xtabond",
+      "lines": 1
+    },
+    {
+      "command": "xtdescribe",
+      "lines": 1
+    },
+    {
+      "command": "xtgee",
+      "lines": 1
+    }
+  ]
+}

@@ -223,3 +223,16 @@ The grammar reimplements Stata's `syntax` command instead of inventing a declara
 
 Stage 1 still needs, in the order I would build them: the expression compiler on the new values (extended missing values, storage-aware results, the functions already in the old interpreter); display formats and the plain-text results layout; macros and programs on `src/stata-program.js`; the existing commands declared and reimplemented on the store; and the `Console/` page. The stage 0 items that remain (the differential harness and the frozen-engine interface) are needed before the first command is reimplemented, since that is when there are two engines to compare.
 
+### Later on 10 November 2026
+
+A second session built most of the rest of stage 1 and reached into stages 2 to 4. The numerical contract lists what exists and how each part was checked; the short version follows.
+
+- **Built and checked against installed Stata:** the expression compiler and about 130 functions; display formats; do-file control flow, macros and programs; 60 commands for data work; `save`, `use`, `append`, `merge` and `reshape` on a folder held in the session; the reporting commands with their printed layout; `regress`, `logit`, `probit`, `poisson`, `ivregress 2sls` and `xtreg` with `predict`, `test`, `lincom`, `estat` and `estimates`.
+- **The differential harness of stage 0** exists as `tools/differential.mjs` with a standing test.
+- **The Console page** exists at `Console/` and is packaged with the site, but nothing links to it. Linking it is the release decision for stage 1 and is left to Dr. Helfrich.
+- **Coverage of the corpus by command name** is 90.0 percent with `display` set aside. What remains, by lines: `graph` 13, `margins` 12, `import` 10, `marginsplot` 6, `twoway` 4, then single lines.
+
+What stage 1 still lacks before the Console should be linked: running in the cancellable worker; `codebook`; the frozen-engine interface; and a second model's review of the new code. The estimation commands were written as separate fitters that leave one shared result object. Stage 3's shared model frame (interactions, weights, a common covariance module) has not been built, and `regress`, the likelihood fitter and `xtreg` each carry their own copy of the sandwich calculation until it is.
+
+The order of what follows is unchanged from the list above: graphs, then `margins`, then files a student brings (`import delimited`, `.dta`).
+

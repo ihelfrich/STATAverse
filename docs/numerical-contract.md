@@ -191,3 +191,38 @@ This section describes `src/runtime/`, the new runtime specified in [the runtime
 - A string cut to a byte width is cut at a character boundary. Stata cuts at the byte.
 - Factor-variable and time-series operators in a varlist are refused with return code 101.
 
+## New runtime: expressions, formats, sessions and commands
+
+These parts of `src/runtime/` were added on 10 November 2026. The only page that loads them is the unlinked preview at `Console/`. Each paragraph names what is implemented; the evidence and its limits follow.
+
+**Expressions** (`expression.js`, `functions.js`, `distributions.js`). Stata's precedence, including two rules that show up in rounding: division binds tighter than multiplication and subtraction tighter than addition, and a power is computed exactly only for a whole nonnegative exponent and as exp(y ln x) otherwise, so `10^-2` is not 0.01. Any arithmetic on a missing value gives system missing; `floor`, `ceil`, `round`, `int`, `float`, `clip`, `cond`, `real` and subscripts pass an extended missing value through. Subscripts, `_n` and `_N` are relative to the by-group, `sum()` restarts with each group, and `L.`, `F.` and `D.` work after `xtset` or `tsset`. About 130 functions: numeric, string (byte-based, with the `u` forms on characters), date, and the normal, t, F and chi-squared distributions with their inverses.
+
+**Display formats** (`format.js`). `%g`, `%f` and `%e` with the `-`, `0` and `c` modifiers, string formats, and the date formats `%td`, `%tm`, `%tq`, `%tw`, `%th` and `%ty` with custom codes. `%f` rounds the exact binary value and sends an exact tie to the even digit; `%g` and `%e` send it up.
+
+**Sessions** (`session.js`, `dofile.js`, `macros.js`). Comments, continuation lines and `#delimit`; local and global macros with nesting, `=exp`, extended functions and increments; `foreach`, `forvalues`, `while`, `if` and `else`; `program define` with `args`, `syntax` and `return`; `capture`, `quietly`, `noisily`, `by` and `bysort`. A loop's macro does not outlive the loop, and `forvalues i = 5/1` runs no iterations.
+
+**Commands.** Data: `generate`, `replace`, `egen`, `collapse`, `drop`, `keep`, `sort`, `gsort`, `rename`, `order`, `recast`, `compress`, `label`, `format`, `preserve`, `restore`, `expand`, `duplicates`, `destring`, `tostring`, `encode`, `decode`, `recode`, `input`. Files: `save`, `use`, `append`, `merge` (1:1, m:1, 1:m) and `reshape`, on a folder that lives in the session. Reports: `count`, `summarize`, `tabulate`, `list`, `describe`, `tabstat`, `correlate`, `ttest`, `levelsof`, `ds`. Estimation: `regress` (robust, clustered, factor variables as main effects), `logit`, `probit`, `poisson`, `ivregress 2sls`, `xtreg` (`fe`, `re`), with `predict`, `test`, `lincom`, `estat ic`, `estat vif` and `estimates store`, `restore` and `dir`.
+
+**Evidence.** Five recording tools run cases in installed Stata under `version 17` and five test files compare the runtime with what was recorded.
+
+| Record | Cases | Compared | Agreement required |
+| --- | --- | --- | --- |
+| `check-expressions-native.mjs` | 491 scalar and 104 data expressions | value, type and return code | identical doubles; 1 part in 10^14 through exp or ln; 1 part in 10^11 for distributions |
+| `check-formats-native.mjs` | 2,414 formatted values | text | identical |
+| `check-session-native.mjs` | 104 do-files | return code, data with types, formats and labels, macros, `r()`, `e()`, `e(b)`, `e(V)` | identical data; 1 part in 10^13 for moments; 1 part in 10^9 for linear estimators; 1 part in 10^5 for likelihood estimators |
+| `check-output-native.mjs` | 309 commands in 27 do-files | every printed line, read from a Stata text log | identical, except as listed below |
+| `check-runtime-native.mjs` | 170 syntax lines, 70 storage sequences | described in the previous section | identical |
+
+`tools/differential.mjs` runs every lesson command through the frozen interpreter and the new runtime: 73 of 79 agree (63 identically, 10 to single precision because `generate` now stores `float`), and the other six are `histogram`, `scatter`, `codebook` and `import`, which the runtime does not have. `tests/runtime-differential.test.mjs` fails on any other difference. `tools/corpus-coverage-runtime.mjs` puts name-level coverage of the repository's do-files at 90.0 percent with `display` set aside, against 72.3 percent for the frozen interpreter; that number says a command exists, not that every option does.
+
+**Limits of that evidence.**
+
+- Four expressions are not compared: a literal that falls between two missing-value codes, two cases that depend on Stata evaluating `regexs()` before `regexm()` in one expression, and one that is a qualifier.
+- Likelihood estimators reach Stata's maximum by a different sequence of steps. Their iteration lines are not compared, and printed numbers may differ in the seventh digit. Stata's starting values for `poisson` are not reproduced.
+- When Stata sorts on a key with ties it orders the tied observations arbitrarily. The runtime's sort is stable. One do-file case is compared as sets for that reason.
+- `describe` always prints the note that the data have changed since they were saved.
+- Not implemented and refused with a message: graphs, `margins`, interactions and time-series operators inside a model's variable list, weights, `merge m:m`, `xtreg, be`, `ivregress liml` and `gmm`, `ttest, unequal`, `codebook`, `import` and `export`, strL beyond its declaration, and any command not named above.
+- Random-number functions are absent, so no result here depends on a seed.
+- The cases use small invented datasets. They establish the stated behaviours on those cases and nothing about speed or about data with tens of thousands of observations.
+- The Console runs the interpreter in the page, not in a cancellable worker. A do-file is stopped after 200,000 commands.
+
