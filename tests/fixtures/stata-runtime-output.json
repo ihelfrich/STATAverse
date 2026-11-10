@@ -6617,6 +6617,695 @@
       ]
     },
     {
+      "id": "classical-tests",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate w = 1 + mod(_n, 3)\ngenerate byte fw = 1 + mod(_n, 2)\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate str3 name = cond(d, \"yes\", \"no\")\nprtest d == .5\nprtest d == .4, level(90)\nprtest d, by(fw)\nsdtest z == 2\nsdtest z == 1.5 if grp > 1\nsdtest z, by(d)\nsdtest x1, by(fw)\nranksum z, by(d)\nranksum x1, by(fw)\nsignrank z = n\nsignrank x1 = x2\noneway z grp\noneway z grp, tabulate\noneway x1 d\nkwallis z, by(grp)\nkwallis x1, by(grp)\ntabi 10 20 \\ 30 40, chi2\ntabi 10 20 \\ 30 40\ntabi 3 9 \\ 8 2, exact\ntabi 10 20 30 \\ 30 40 15, chi2 row\ntabulate d fw, exact\ntabulate d fw, chi2 exact\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate w = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate byte fw = 1 + mod(_n, 2)", "lines": [] },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        {
+          "command": "generate str3 name = cond(d, \"yes\", \"no\")",
+          "lines": []
+        },
+        {
+          "command": "prtest d == .5",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =        20",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           d |         .6   .1095445                      .3852967    .8147033",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(d)                                             z =   0.8944",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.8145         Pr(|Z| > |z|) = 0.3711          Pr(Z > z) = 0.1855"
+          ]
+        },
+        {
+          "command": "prtest d == .4, level(90)",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =        20",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           d |         .6   .1095445                      .4198153    .7801847",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(d)                                             z =   1.8257",
+            "H0: p = 0.4",
+            "",
+            "     Ha: p < 0.4                 Ha: p != 0.4                   Ha: p > 0.4",
+            " Pr(Z < z) = 0.9661         Pr(|Z| > |z|) = 0.0679          Pr(Z > z) = 0.0339"
+          ]
+        },
+        {
+          "command": "prtest d, by(fw)",
+          "lines": [
+            "Two-sample test of proportions                     1: Number of obs =       10",
+            "                                                   2: Number of obs =       10",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           1 |         .7   .1449138                      .4159742    .9840258",
+            "           2 |         .5   .1581139                      .1901025    .8098975",
+            "-------------+----------------------------------------------------------------",
+            "        diff |         .2   .2144761                     -.2203654    .6203654",
+            "             |  under H0:    .219089     0.91   0.361",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(1) - prop(2)                                  z =   0.9129",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.8193         Pr(|Z| > |z|) = 0.3613          Pr(Z > z) = 0.1807"
+          ]
+        },
+        {
+          "command": "sdtest z == 2",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       z |      20         3.9    .4406932     1.97084    2.977618    4.822382",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(z)                                             c = chi2 =  18.4500",
+            "H0: sd = 2                                       Degrees of freedom =       19",
+            "",
+            "     Ha: sd < 2                   Ha: sd != 2                   Ha: sd > 2",
+            "  Pr(C < c) = 0.5074         2*Pr(C > c) = 0.9852           Pr(C > c) = 0.4926"
+          ]
+        },
+        {
+          "command": "sdtest z == 1.5 if grp > 1",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       z |      14    4.428571    .5418151    2.027286    3.258051    5.599092",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(z)                                             c = chi2 =  23.7460",
+            "H0: sd = 1.5                                     Degrees of freedom =       13",
+            "",
+            "    Ha: sd < 1.5                 Ha: sd != 1.5                 Ha: sd > 1.5",
+            "  Pr(C < c) = 0.9665         2*Pr(C > c) = 0.0671           Pr(C > c) = 0.0335"
+          ]
+        },
+        {
+          "command": "sdtest z, by(d)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       0 |       8           3      .46291    1.309307    1.905392    4.094608",
+            "       1 |      12         4.5    .6215816    2.153222    3.131908    5.868092",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      20         3.9    .4406932     1.97084    2.977618    4.822382",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(0) / sd(1)                                         f =   0.3697",
+            "H0: ratio = 1                                    Degrees of freedom =    7, 11",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.0983         2*Pr(F < f) = 0.1966           Pr(F > f) = 0.9017"
+          ]
+        },
+        {
+          "command": "sdtest x1, by(fw)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       1 |      10        5.21    .8168299    2.583043    3.362202    7.057798",
+            "       2 |      10        4.81    .8106856    2.563613    2.976102    6.643898",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      20        5.01    .5619468    2.513103    3.833832    6.186168",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(1) / sd(2)                                         f =   1.0152",
+            "H0: ratio = 1                                    Degrees of freedom =     9, 9",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.5088         2*Pr(F > f) = 0.9824           Pr(F > f) = 0.4912"
+          ]
+        },
+        {
+          "command": "ranksum z, by(d)",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "           d |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           0 |        8          63          84",
+            "           1 |       12         147         126",
+            "-------------+---------------------------------",
+            "    Combined |       20         210         210",
+            "",
+            "Unadjusted variance      168.00",
+            "Adjustment for ties       -3.79",
+            "                     ----------",
+            "Adjusted variance        164.21",
+            "",
+            "H0: z(d==0) = z(d==1)",
+            "         z = -1.639",
+            "Prob > |z| = 0.1013",
+            "Exact prob = 0.1186"
+          ]
+        },
+        {
+          "command": "ranksum x1, by(fw)",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "          fw |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           1 |       10         110         105",
+            "           2 |       10         100         105",
+            "-------------+---------------------------------",
+            "    Combined |       20         210         210",
+            "",
+            "Unadjusted variance      175.00",
+            "Adjustment for ties        0.00",
+            "                     ----------",
+            "Adjusted variance        175.00",
+            "",
+            "H0: x1(fw==1) = x1(fw==2)",
+            "         z =  0.378",
+            "Prob > |z| = 0.7055",
+            "Exact prob = 0.7394"
+          ]
+        },
+        {
+          "command": "signrank z = n",
+          "lines": [
+            "Wilcoxon signed-rank test",
+            "",
+            "        Sign |      Obs   Sum ranks    Expected",
+            "-------------+---------------------------------",
+            "    Positive |        5          73        97.5",
+            "    Negative |       10         122        97.5",
+            "        Zero |        5          15          15",
+            "-------------+---------------------------------",
+            "         All |       20         210         210",
+            "",
+            "Unadjusted variance      717.50",
+            "Adjustment for ties       -4.00",
+            "Adjustment for zeros     -13.75",
+            "                     ----------",
+            "Adjusted variance        699.75",
+            "",
+            "H0: z = n",
+            "         z = -0.926",
+            "Prob > |z| = 0.3544",
+            "Exact prob = 0.3847"
+          ]
+        },
+        {
+          "command": "signrank x1 = x2",
+          "lines": [
+            "Wilcoxon signed-rank test",
+            "",
+            "        Sign |      Obs   Sum ranks    Expected",
+            "-------------+---------------------------------",
+            "    Positive |       17         198         105",
+            "    Negative |        3          12         105",
+            "        Zero |        0           0           0",
+            "-------------+---------------------------------",
+            "         All |       20         210         210",
+            "",
+            "Unadjusted variance      717.50",
+            "Adjustment for ties       -0.12",
+            "Adjustment for zeros       0.00",
+            "                     ----------",
+            "Adjusted variance        717.38",
+            "",
+            "H0: x1 = x2",
+            "         z =  3.472",
+            "Prob > |z| = 0.0005",
+            "Exact prob = 0.0001"
+          ]
+        },
+        {
+          "command": "oneway z grp",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      15.6095238      2    7.8047619      2.28     0.1327",
+            " Within groups      58.1904762     17   3.42296919",
+            "------------------------------------------------------------------------",
+            "    Total                 73.8     19   3.88421053",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   2.3740    Prob>chi2 = 0.305"
+          ]
+        },
+        {
+          "command": "oneway z grp, tabulate",
+          "lines": [
+            "            |            Summary of z",
+            "        grp |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |   2.6666667   1.2110601           6",
+            "          2 |           4   1.6329932           7",
+            "          3 |   4.8571429   2.4102954           7",
+            "------------+------------------------------------",
+            "      Total |         3.9   1.9708401          20",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      15.6095238      2    7.8047619      2.28     0.1327",
+            " Within groups      58.1904762     17   3.42296919",
+            "------------------------------------------------------------------------",
+            "    Total                 73.8     19   3.88421053",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   2.3740    Prob>chi2 = 0.305"
+          ]
+        },
+        {
+          "command": "oneway x1 d",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      38.4200833      1   38.4200833      8.48     0.0093",
+            " Within groups      81.5779167     18   4.53210648",
+            "------------------------------------------------------------------------",
+            "    Total              119.998     19   6.31568421",
+            "",
+            "Bartlett's equal-variances test: chi2(1) =   0.1195    Prob>chi2 = 0.730"
+          ]
+        },
+        {
+          "command": "kwallis z, by(grp)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +----------------------+",
+            "  | grp | Obs | Rank sum |",
+            "  |-----+-----+----------|",
+            "  |   1 |   6 |    40.50 |",
+            "  |   2 |   7 |    78.00 |",
+            "  |   3 |   7 |    91.50 |",
+            "  +----------------------+",
+            "",
+            "  chi2(2) =  3.816",
+            "     Prob = 0.1484",
+            "",
+            "  chi2(2) with ties =  3.904",
+            "               Prob = 0.1420"
+          ]
+        },
+        {
+          "command": "kwallis x1, by(grp)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +----------------------+",
+            "  | grp | Obs | Rank sum |",
+            "  |-----+-----+----------|",
+            "  |   1 |   6 |    63.00 |",
+            "  |   2 |   7 |    70.00 |",
+            "  |   3 |   7 |    77.00 |",
+            "  +----------------------+",
+            "",
+            "  chi2(2) =  0.100",
+            "     Prob = 0.9512",
+            "",
+            "  chi2(2) with ties =  0.100",
+            "               Prob = 0.9512"
+          ]
+        },
+        {
+          "command": "tabi 10 20 \\ 30 40, chi2",
+          "lines": [
+            "           |          col",
+            "       row |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |        10         20 |        30",
+            "         2 |        30         40 |        70",
+            "-----------+----------------------+----------",
+            "     Total |        40         60 |       100",
+            "",
+            "          Pearson chi2(1) =   0.7937   Pr = 0.373"
+          ]
+        },
+        {
+          "command": "tabi 10 20 \\ 30 40",
+          "lines": [
+            "           |          col",
+            "       row |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |        10         20 |        30",
+            "         2 |        30         40 |        70",
+            "-----------+----------------------+----------",
+            "     Total |        40         60 |       100",
+            "",
+            "           Fisher's exact =                 0.504",
+            "   1-sided Fisher's exact =                 0.253"
+          ]
+        },
+        {
+          "command": "tabi 3 9 \\ 8 2, exact",
+          "lines": [
+            "           |          col",
+            "       row |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |         3          9 |        12",
+            "         2 |         8          2 |        10",
+            "-----------+----------------------+----------",
+            "     Total |        11         11 |        22",
+            "",
+            "           Fisher's exact =                 0.030",
+            "   1-sided Fisher's exact =                 0.015"
+          ]
+        },
+        {
+          "command": "tabi 10 20 30 \\ 30 40 15, chi2 row",
+          "lines": [
+            "+----------------+",
+            "| Key            |",
+            "|----------------|",
+            "|   frequency    |",
+            "| row percentage |",
+            "+----------------+",
+            "",
+            "           |               col",
+            "       row |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        10         20         30 |        60",
+            "           |     16.67      33.33      50.00 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         2 |        30         40         15 |        85",
+            "           |     35.29      47.06      17.65 |    100.00",
+            "-----------+---------------------------------+----------",
+            "     Total |        40         60         45 |       145",
+            "           |     27.59      41.38      31.03 |    100.00",
+            "",
+            "          Pearson chi2(2) =  17.8881   Pr = 0.000"
+          ]
+        },
+        {
+          "command": "tabulate d fw, exact",
+          "lines": [
+            "           |          fw",
+            "         d |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         0 |         3          5 |         8",
+            "         1 |         7          5 |        12",
+            "-----------+----------------------+----------",
+            "     Total |        10         10 |        20",
+            "",
+            "           Fisher's exact =                 0.650",
+            "   1-sided Fisher's exact =                 0.325"
+          ]
+        },
+        {
+          "command": "tabulate d fw, chi2 exact",
+          "lines": [
+            "           |          fw",
+            "         d |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         0 |         3          5 |         8",
+            "         1 |         7          5 |        12",
+            "-----------+----------------------+----------",
+            "     Total |        10         10 |        20",
+            "",
+            "          Pearson chi2(1) =   0.8333   Pr = 0.361",
+            "           Fisher's exact =                 0.650",
+            "   1-sided Fisher's exact =                 0.325"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-utilities",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate w = 1 + mod(_n, 3)\ngenerate byte fw = 1 + mod(_n, 2)\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate str3 name = cond(d, \"yes\", \"no\")\nmean z, over(grp)\nmean x1 if n > 1, over(d) level(90)\nlookfor x\n_pctile z, p(10 50 90)\nreturn list\npctile pz = z, nq(4)\npctile double px = x1 if d == 1, nq(5) genp(pp)\nlist pz px pp in 1/6\ncumul x1, generate(cx)\ncumul z, generate(cz) equal\nlist x1 cx z cz in 1/6\nmvdecode z n, mv(1)\nmvdecode x2, mv(2.1 99)\nmvencode z, mv(99)\nlist z n x2 in 1/6\nseparate x1, by(d)\nseparate z if x1 > 3, by(grp) generate(zz)\nsplit name, parse(e)\nsplit name, parse(s) generate(part)\ndescribe name1 name2 part1\nlist name name1 name2 part1 in 1/4\ninsobs 2\ncount\nfillin d grp\ncount\nsort d grp x1\nlist d grp _fillin z in 1/8\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate w = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate byte fw = 1 + mod(_n, 2)", "lines": [] },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        {
+          "command": "generate str3 name = cond(d, \"yes\", \"no\")",
+          "lines": []
+        },
+        {
+          "command": "mean z, over(grp)",
+          "lines": [
+            "Mean estimation                             Number of obs = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "     c.z@grp |",
+            "          1  |   2.666667   .4944132      1.631848    3.701485",
+            "          2  |          4   .6172134      2.708158    5.291842",
+            "          3  |   4.857143    .911006      2.950385      6.7639",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x1 if n > 1, over(d) level(90)",
+          "lines": [
+            "Mean estimation                             Number of obs = 16",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      c.x1@d |",
+            "          0  |      4.775   .8178987      3.341182    6.208818",
+            "          1  |   6.141667   .6423747      5.015552    7.267782",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lookfor x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x1              double  %10.0g",
+            "x2              double  %10.0g"
+          ]
+        },
+        { "command": "_pctile z, p(10 50 90)", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                 r(r1) =  1.5",
+            "                 r(r2) =  4",
+            "                 r(r3) =  6.5"
+          ]
+        },
+        { "command": "pctile pz = z, nq(4)", "lines": [] },
+        {
+          "command": "pctile double px = x1 if d == 1, nq(5) genp(pp)",
+          "lines": []
+        },
+        {
+          "command": "list pz px pp in 1/6",
+          "lines": [
+            "     +---------------+",
+            "     | pz    px   pp |",
+            "     |---------------|",
+            "  1. |  2   4.2   20 |",
+            "  2. |  4   5.5   40 |",
+            "  3. |  5   7.2   60 |",
+            "  4. |  .   8.1   80 |",
+            "  5. |  .     .    . |",
+            "     |---------------|",
+            "  6. |  .     .    . |",
+            "     +---------------+"
+          ]
+        },
+        { "command": "cumul x1, generate(cx)", "lines": [] },
+        { "command": "cumul z, generate(cz) equal", "lines": [] },
+        {
+          "command": "list x1 cx z cz in 1/6",
+          "lines": [
+            "     +---------------------+",
+            "     |  x1    cx   z    cz |",
+            "     |---------------------|",
+            "  1. |   1   .05   3   .45 |",
+            "  2. | 1.5    .1   1    .1 |",
+            "  3. |   2   .15   4    .6 |",
+            "  4. | 2.2    .2   2    .3 |",
+            "  5. | 2.9   .25   5    .8 |",
+            "     |---------------------|",
+            "  6. | 3.1    .3   2    .3 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "mvdecode z n, mv(1)",
+          "lines": [
+            "           z: 2 missing values generated",
+            "           n: 2 missing values generated"
+          ]
+        },
+        {
+          "command": "mvdecode x2, mv(2.1 99)",
+          "lines": ["          x2: 1 missing value generated"]
+        },
+        {
+          "command": "mvencode z, mv(99)",
+          "lines": ["           z: 2 missing values recoded"]
+        },
+        {
+          "command": "list z n x2 in 1/6",
+          "lines": [
+            "     +--------------+",
+            "     |  z   n    x2 |",
+            "     |--------------|",
+            "  1. |  3   0     . |",
+            "  2. | 99   .   1.2 |",
+            "  3. |  4   0   3.3 |",
+            "  4. |  2   2    .9 |",
+            "  5. |  5   .   2.8 |",
+            "     |--------------|",
+            "  6. |  2   3   1.1 |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "separate x1, by(d)",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x10             double  %10.0g                x1, d == 0",
+            "x11             double  %10.0g                x1, d == 1"
+          ]
+        },
+        {
+          "command": "separate z if x1 > 3, by(grp) generate(zz)",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "zz1             byte    %10.0g                z, grp == 1",
+            "zz2             byte    %10.0g                z, grp == 2",
+            "zz3             byte    %10.0g                z, grp == 3"
+          ]
+        },
+        {
+          "command": "split name, parse(e)",
+          "lines": ["variables created as string:", "name1  name2"]
+        },
+        {
+          "command": "split name, parse(s) generate(part)",
+          "lines": ["variable created as string:", "part1"]
+        },
+        {
+          "command": "describe name1 name2 part1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "name1           str2    %9s",
+            "name2           str1    %9s",
+            "part1           str2    %9s"
+          ]
+        },
+        {
+          "command": "list name name1 name2 part1 in 1/4",
+          "lines": [
+            "     +------------------------------+",
+            "     | name   name1   name2   part1 |",
+            "     |------------------------------|",
+            "  1. |   no      no              no |",
+            "  2. |   no      no              no |",
+            "  3. |   no      no              no |",
+            "  4. |  yes       y       s      ye |",
+            "     +------------------------------+"
+          ]
+        },
+        { "command": "insobs 2", "lines": ["(2 observations added)"] },
+        { "command": "count", "lines": ["  22"] },
+        { "command": "fillin d grp", "lines": [] },
+        { "command": "count", "lines": ["  27"] },
+        { "command": "sort d grp x1", "lines": [] },
+        {
+          "command": "list d grp _fillin z in 1/8",
+          "lines": [
+            "     +------------------------+",
+            "     | d   grp   _fillin    z |",
+            "     |------------------------|",
+            "  1. | 0     1         0    4 |",
+            "  2. | 0     1         0    2 |",
+            "  3. | 0     1         0    2 |",
+            "  4. | 0     2         0    3 |",
+            "  5. | 0     3         0   99 |",
+            "     |------------------------|",
+            "  6. | 0     3         0    5 |",
+            "  7. | 0     3         0    3 |",
+            "  8. | 0     3         0    4 |",
+            "     +------------------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

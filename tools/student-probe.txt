@@ -1,0 +1,228 @@
+browse
+edit
+tab1 education sector
+tab2 education sector
+tabulate sector education, row col chi2
+tabulate sector, summarize(wage)
+tabulate sector, generate(sec)
+tabulate sector, missing nolabel sort
+table sector
+table sector, statistic(mean wage)
+mean wage
+mean wage, over(sectorn)
+ci means wage
+proportion sectorn
+inspect wage
+lookfor wage
+notes: checked
+mvdecode wage, mv(0)
+mvencode wage, mv(0)
+clonevar w2 = wage
+separate wage, by(sectorn)
+split sector, parse("a")
+sample 50
+bsample
+set obs 40
+insobs 2
+fillin education sectorn
+pwcorr wage education experience, sig obs star(.05)
+spearman wage education
+correlate wage education, covariance
+graph bar wage, over(sector)
+graph bar (mean) wage, over(sector)
+graph box wage, over(sector)
+graph hbar wage, over(sector)
+graph pie, over(sector)
+graph export "g.png", replace
+graph save g, replace
+kdensity wage
+twoway (scatter wage education) (lfit wage education)
+twoway lfitci wage education
+twoway qfit wage education
+twoway connected wage education
+twoway bar wage education
+twoway area wage education
+twoway kdensity wage
+twoway histogram wage
+twoway lowess wage education
+lowess wage education
+scatter wage education, mlabel(sector) title("A") xtitle("B") ytitle("C") by(sector)
+histogram wage, bin(8) normal frequency
+tsline wage
+qnorm wage
+pnorm wage
+which regress
+help regress
+search regress
+findit outreg2
+ssc install outreg2
+net install foo
+about
+query
+timer on 1
+sleep 10
+drawnorm z1 z2
+tabi 10 20 \ 30 40, chi2
+prtest high == .5
+sdtest wage, by(high)
+ranksum wage, by(high)
+signrank wage = experience
+anova wage sectorn
+oneway wage sectorn, tabulate
+kwallis wage, by(sectorn)
+regress wage education experience [aweight=experience]
+regress wage education experience [pweight=experience]
+regress wage education experience [fweight=experience]
+regress wage education experience, beta
+regress wage education experience, noconstant
+regress wage education experience, level(90)
+regress wage education experience, vce(hc3)
+regress wage education experience, vce(bootstrap)
+regress wage i.sectorn##c.education
+estat hettest
+estat ovtest
+estat imtest, white
+estat summarize
+estat vce
+estat esample
+predict r1, residuals
+predict h1, hat
+predict rs1, rstandard
+predict rt1, rstudent
+predict cd1, cooksd
+predict se1, stdp
+predict sr1, stdr
+rvfplot
+avplot education
+avplots
+lvr2plot
+testparm education experience
+testnl _b[education] = _b[experience]^2
+nlcom _b[education]/_b[experience]
+contrast sectorn
+pwcompare sectorn
+margins sectorn
+margins, dydx(*)
+margins, at(education=(10 12 16))
+estimates table m1 m2
+estimates table m1 m2, se stats(N r2)
+estimates stats m1 m2
+esttab m1 m2
+outreg2 using t.doc
+eststo: regress wage education
+lrtest m1 m2
+hausman m1 m2
+nbreg id education
+tobit wage education, ll(10)
+ologit sectorn education
+oprobit sectorn education
+mlogit sectorn education
+logistic high education
+logit high education, or
+cloglog high education
+glm wage education, family(gaussian)
+areg wage education, absorb(sectorn)
+reghdfe wage education, absorb(sectorn)
+xtreg wage education, be
+xtlogit high education, fe
+xtdescribe
+xttab high
+ivregress 2sls wage (education = experience), first
+ivregress gmm wage (education = experience)
+ivregress liml wage (education = experience)
+estat firststage
+estat endogenous
+estat overid
+ivreg2 wage (education = experience)
+qreg wage education
+rreg wage education
+newey wage education, lag(1)
+prais wage education
+arima wage, ar(1)
+dfuller wage
+corrgram wage
+ac wage
+pac wage
+tssmooth ma w3 = wage, window(2 1 2)
+bootstrap: regress wage education
+bootstrap _b, reps(20): regress wage education
+simulate m=r(mean), reps(10): summarize wage
+permute high _b[high], reps(10): regress wage high
+jackknife: regress wage education
+svyset id
+svy: mean wage
+stset experience
+sts list
+mata: 1+1
+putexcel A1 = "x"
+export excel using "x.xlsx", replace
+import excel using "x.xlsx", clear
+outsheet using x.csv, replace
+infile a b using x.raw
+describe using x
+count if wage > 10
+summarize wage [aweight=experience]
+tabulate sector [fweight=experience]
+collapse (mean) wage [aweight=experience], by(sector)
+egen m1x = rowmean(wage education)
+egen t1x = total(wage), by(sector)
+egen r1x = rank(wage)
+egen s1x = std(wage)
+egen c1x = cut(wage), group(3)
+egen g1x = group(sector education)
+egen tg1 = tag(sector)
+egen md1 = median(wage), by(sector)
+egen p1x = pctile(wage), p(25)
+egen iq1 = iqr(wage)
+egen rm1 = rowmiss(wage education)
+egen rt1x = rowtotal(wage education)
+egen cc1 = concat(sector id)
+egen an1 = anycount(education), values(12 16)
+generate lw = ln(wage)
+bysort sector (wage): generate rk = _n
+xtile q = wage, nquantiles(4)
+pctile pw = wage, nq(4)
+_pctile wage, p(10 90)
+cumul wage, generate(cw)
+stack wage education, into(z)
+cross using x
+joinby sector using x
+merge m:m sector using x
+recode education (min/12 = 1) (13/max = 2), generate(ed2)
+label define yn 0 "No" 1 "Yes"
+label values high yn
+label list
+label variable wage "W"
+numlabel, add
+order wage, first
+describe, short
+codebook, compact
+list in 1/5, clean noobs
+list wage if wage > 20, sepby(sector)
+sort wage
+gsort -wage
+duplicates report
+isid id
+assert wage > 0
+display %9.2f r(mean)
+display c(current_date)
+display "`c(N)'"
+macro list
+scalar list
+return list
+ereturn list
+matrix list e(b)
+matrix b = e(b)
+mat li b
+set more off
+set seed 1
+set scheme s1color
+set type double
+clear all
+cls
+log using a.log, replace
+log close
+capture log close
+do myfile.do
+run myfile.do
+include myfile.do

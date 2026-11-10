@@ -289,7 +289,7 @@ function wrap(text, width) {
 
 export function tabulate(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [fweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) | NOFreq EXact LRchi2 Gamma TAUb V EXPected]",
+      "varlist(min=1 max=2) [if] [in] [fweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact | NOFreq LRchi2 Gamma TAUb V EXPected]",
       text,
     ),
     rows = weightedRows(session, parsed, scope(session, parsed, ctx)).rows,
@@ -512,7 +512,56 @@ export function tabulate(session, text, ctx) {
     ctx.out(
       `          Pearson chi2(${df}) = ${applyFormat(chi2, "%8.4f")}   Pr = ${applyFormat(p, "%5.3f")}`,
     );
+    if (!parsed.options.exact) ctx.out("");
+  }
+  if (parsed.options.exact) {
+    if (levels[0].length !== 2 || levels[1].length !== 2)
+      throw new StataError(
+        "exact is available here for 2 x 2 tables only",
+        198,
+      );
+    // Fisher's exact test: the hypergeometric probabilities of the tables
+    // with these margins, summed over those no more likely than this one.
+    const [[a, b], [c, d]] = table,
+      n = a + b + c + d,
+      lnFactorial = (k) => {
+        let total = 0;
+        for (let j = 2; j <= k; j++) total += Math.log(j);
+        return total;
+      },
+      probability = (x) =>
+        Math.exp(
+          lnFactorial(a + b) +
+            lnFactorial(c + d) +
+            lnFactorial(a + c) +
+            lnFactorial(b + d) -
+            lnFactorial(n) -
+            lnFactorial(x) -
+            lnFactorial(a + b - x) -
+            lnFactorial(a + c - x) -
+            lnFactorial(d - a + x),
+        ),
+      low = Math.max(0, a - d),
+      high = Math.min(a + b, a + c),
+      observed = probability(a);
+    let twoSided = 0,
+      lower = 0,
+      upper = 0;
+    for (let x = low; x <= high; x++) {
+      const px = probability(x);
+      if (px <= observed * (1 + 1e-7)) twoSided += px;
+      if (x <= a) lower += px;
+      if (x >= a) upper += px;
+    }
+    const oneSided = Math.min(lower, upper);
+    ctx.out(
+      `           Fisher's exact =                 ${applyFormat(twoSided, "%5.3f")}`,
+    );
+    ctx.out(
+      `   1-sided Fisher's exact =                 ${applyFormat(oneSided, "%5.3f")}`,
+    );
     ctx.out("");
+    Object.assign(session.results.r, { p_exact: twoSided, p1_exact: oneSided });
   }
 }
 

@@ -1,0 +1,522 @@
+{
+  "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
+  "commands": 228,
+  "run": 125,
+  "refused": [
+    {
+      "command": "table sector",
+      "rc": 199,
+      "message": "command table is unrecognized r(199);"
+    },
+    {
+      "command": "table sector, statistic(mean wage)",
+      "rc": 199,
+      "message": "command table is unrecognized r(199);"
+    },
+    {
+      "command": "proportion sectorn",
+      "rc": 199,
+      "message": "command proportion is unrecognized r(199);"
+    },
+    {
+      "command": "inspect wage",
+      "rc": 199,
+      "message": "command inspect is unrecognized r(199);"
+    },
+    {
+      "command": "notes: checked",
+      "rc": 199,
+      "message": "command notes is unrecognized r(199);"
+    },
+    {
+      "command": "sample 50",
+      "rc": 199,
+      "message": "command sample is unrecognized r(199);"
+    },
+    {
+      "command": "bsample",
+      "rc": 199,
+      "message": "command bsample is unrecognized r(199);"
+    },
+    {
+      "command": "graph bar wage, over(sector)",
+      "rc": 198,
+      "message": "graph bar is not available yet r(198);"
+    },
+    {
+      "command": "graph bar (mean) wage, over(sector)",
+      "rc": 198,
+      "message": "graph bar is not available yet r(198);"
+    },
+    {
+      "command": "graph box wage, over(sector)",
+      "rc": 198,
+      "message": "graph box is not available yet r(198);"
+    },
+    {
+      "command": "graph hbar wage, over(sector)",
+      "rc": 198,
+      "message": "graph hbar is not available yet r(198);"
+    },
+    {
+      "command": "graph pie, over(sector)",
+      "rc": 198,
+      "message": "graph pie is not available yet r(198);"
+    },
+    {
+      "command": "kdensity wage",
+      "rc": 199,
+      "message": "command kdensity is unrecognized r(199);"
+    },
+    {
+      "command": "twoway lfitci wage education",
+      "rc": 198,
+      "message": "lfitci is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "twoway qfit wage education",
+      "rc": 198,
+      "message": "qfit is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "twoway bar wage education",
+      "rc": 198,
+      "message": "bar is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "twoway area wage education",
+      "rc": 198,
+      "message": "area is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "twoway kdensity wage",
+      "rc": 198,
+      "message": "kdensity is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "twoway histogram wage",
+      "rc": 198,
+      "message": "histogram is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "twoway lowess wage education",
+      "rc": 198,
+      "message": "lowess is not a twoway plot type available here r(198);"
+    },
+    {
+      "command": "lowess wage education",
+      "rc": 199,
+      "message": "command lowess is unrecognized r(199);"
+    },
+    {
+      "command": "histogram wage, bin(8) normal frequency",
+      "rc": 198,
+      "message": "option normal is not available in the browser yet r(198);"
+    },
+    {
+      "command": "tsline wage",
+      "rc": 199,
+      "message": "command tsline is unrecognized r(199);"
+    },
+    {
+      "command": "qnorm wage",
+      "rc": 199,
+      "message": "command qnorm is unrecognized r(199);"
+    },
+    {
+      "command": "pnorm wage",
+      "rc": 199,
+      "message": "command pnorm is unrecognized r(199);"
+    },
+    {
+      "command": "which regress",
+      "rc": 199,
+      "message": "command which is unrecognized r(199);"
+    },
+    {
+      "command": "query",
+      "rc": 199,
+      "message": "command query is unrecognized r(199);"
+    },
+    {
+      "command": "drawnorm z1 z2",
+      "rc": 199,
+      "message": "command drawnorm is unrecognized r(199);"
+    },
+    {
+      "command": "anova wage sectorn",
+      "rc": 199,
+      "message": "command anova is unrecognized r(199);"
+    },
+    {
+      "command": "regress wage education experience, vce(bootstrap)",
+      "rc": 198,
+      "message": "vce(bootstrap) is not available yet r(198);"
+    },
+    {
+      "command": "estat esample",
+      "rc": 321,
+      "message": "estat esample is not available yet r(321);"
+    },
+    {
+      "command": "rvfplot",
+      "rc": 199,
+      "message": "command rvfplot is unrecognized r(199);"
+    },
+    {
+      "command": "avplot education",
+      "rc": 199,
+      "message": "command avplot is unrecognized r(199);"
+    },
+    {
+      "command": "avplots",
+      "rc": 199,
+      "message": "command avplots is unrecognized r(199);"
+    },
+    {
+      "command": "lvr2plot",
+      "rc": 199,
+      "message": "command lvr2plot is unrecognized r(199);"
+    },
+    {
+      "command": "testnl _b[education] = _b[experience]^2",
+      "rc": 199,
+      "message": "command testnl is unrecognized r(199);"
+    },
+    {
+      "command": "nlcom _b[education]/_b[experience]",
+      "rc": 199,
+      "message": "command nlcom is unrecognized r(199);"
+    },
+    {
+      "command": "contrast sectorn",
+      "rc": 199,
+      "message": "command contrast is unrecognized r(199);"
+    },
+    {
+      "command": "pwcompare sectorn",
+      "rc": 199,
+      "message": "command pwcompare is unrecognized r(199);"
+    },
+    {
+      "command": "margins sectorn",
+      "rc": 322,
+      "message": "'sectorn' not found in list of covariates\n(it must enter the model as a factor variable, i.sectorn) r(322);"
+    },
+    {
+      "command": "esttab m1 m2",
+      "rc": 199,
+      "message": "command esttab is unrecognized r(199);"
+    },
+    {
+      "command": "outreg2 using t.doc",
+      "rc": 199,
+      "message": "command outreg2 is unrecognized r(199);"
+    },
+    {
+      "command": "eststo: regress wage education",
+      "rc": 199,
+      "message": "command eststo is unrecognized r(199);"
+    },
+    {
+      "command": "hausman m1 m2",
+      "rc": 199,
+      "message": "command hausman is unrecognized r(199);"
+    },
+    {
+      "command": "nbreg id education",
+      "rc": 199,
+      "message": "command nbreg is unrecognized r(199);"
+    },
+    {
+      "command": "tobit wage education, ll(10)",
+      "rc": 199,
+      "message": "command tobit is unrecognized r(199);"
+    },
+    {
+      "command": "ologit sectorn education",
+      "rc": 199,
+      "message": "command ologit is unrecognized r(199);"
+    },
+    {
+      "command": "oprobit sectorn education",
+      "rc": 199,
+      "message": "command oprobit is unrecognized r(199);"
+    },
+    {
+      "command": "mlogit sectorn education",
+      "rc": 199,
+      "message": "command mlogit is unrecognized r(199);"
+    },
+    {
+      "command": "cloglog high education",
+      "rc": 199,
+      "message": "command cloglog is unrecognized r(199);"
+    },
+    {
+      "command": "glm wage education, family(gaussian)",
+      "rc": 199,
+      "message": "command glm is unrecognized r(199);"
+    },
+    {
+      "command": "reghdfe wage education, absorb(sectorn)",
+      "rc": 199,
+      "message": "command reghdfe is unrecognized r(199);"
+    },
+    {
+      "command": "xtreg wage education, be",
+      "rc": 459,
+      "message": "panel variable not set; use xtset varname ... r(459);"
+    },
+    {
+      "command": "xtlogit high education, fe",
+      "rc": 199,
+      "message": "command xtlogit is unrecognized r(199);"
+    },
+    {
+      "command": "xtdescribe",
+      "rc": 199,
+      "message": "command xtdescribe is unrecognized r(199);"
+    },
+    {
+      "command": "xttab high",
+      "rc": 199,
+      "message": "command xttab is unrecognized r(199);"
+    },
+    {
+      "command": "ivregress gmm wage (education = experience)",
+      "rc": 198,
+      "message": "ivregress gmm is not available yet; 2sls is r(198);"
+    },
+    {
+      "command": "ivregress liml wage (education = experience)",
+      "rc": 198,
+      "message": "ivregress liml is not available yet; 2sls is r(198);"
+    },
+    {
+      "command": "estat firststage",
+      "rc": 301,
+      "message": "estat firststage is only available after ivregress r(301);"
+    },
+    {
+      "command": "estat endogenous",
+      "rc": 301,
+      "message": "estat endogenous is only available after ivregress r(301);"
+    },
+    {
+      "command": "estat overid",
+      "rc": 301,
+      "message": "estat overid is only available after ivregress r(301);"
+    },
+    {
+      "command": "ivreg2 wage (education = experience)",
+      "rc": 199,
+      "message": "command ivreg2 is unrecognized r(199);"
+    },
+    {
+      "command": "qreg wage education",
+      "rc": 199,
+      "message": "command qreg is unrecognized r(199);"
+    },
+    {
+      "command": "rreg wage education",
+      "rc": 199,
+      "message": "command rreg is unrecognized r(199);"
+    },
+    {
+      "command": "newey wage education, lag(1)",
+      "rc": 199,
+      "message": "command newey is unrecognized r(199);"
+    },
+    {
+      "command": "prais wage education",
+      "rc": 199,
+      "message": "command prais is unrecognized r(199);"
+    },
+    {
+      "command": "arima wage, ar(1)",
+      "rc": 199,
+      "message": "command arima is unrecognized r(199);"
+    },
+    {
+      "command": "dfuller wage",
+      "rc": 199,
+      "message": "command dfuller is unrecognized r(199);"
+    },
+    {
+      "command": "corrgram wage",
+      "rc": 199,
+      "message": "command corrgram is unrecognized r(199);"
+    },
+    {
+      "command": "ac wage",
+      "rc": 199,
+      "message": "command ac is unrecognized r(199);"
+    },
+    {
+      "command": "pac wage",
+      "rc": 199,
+      "message": "command pac is unrecognized r(199);"
+    },
+    {
+      "command": "tssmooth ma w3 = wage, window(2 1 2)",
+      "rc": 199,
+      "message": "command tssmooth is unrecognized r(199);"
+    },
+    {
+      "command": "bootstrap: regress wage education",
+      "rc": 199,
+      "message": "command bootstrap is unrecognized r(199);"
+    },
+    {
+      "command": "bootstrap _b, reps(20): regress wage education",
+      "rc": 199,
+      "message": "command bootstrap is unrecognized r(199);"
+    },
+    {
+      "command": "simulate m=r(mean), reps(10): summarize wage",
+      "rc": 199,
+      "message": "command simulate is unrecognized r(199);"
+    },
+    {
+      "command": "permute high _b[high], reps(10): regress wage high",
+      "rc": 199,
+      "message": "command permute is unrecognized r(199);"
+    },
+    {
+      "command": "jackknife: regress wage education",
+      "rc": 199,
+      "message": "command jackknife is unrecognized r(199);"
+    },
+    {
+      "command": "svyset id",
+      "rc": 199,
+      "message": "command svyset is unrecognized r(199);"
+    },
+    {
+      "command": "svy: mean wage",
+      "rc": 199,
+      "message": "command svy is unrecognized r(199);"
+    },
+    {
+      "command": "stset experience",
+      "rc": 199,
+      "message": "command stset is unrecognized r(199);"
+    },
+    {
+      "command": "sts list",
+      "rc": 199,
+      "message": "command sts is unrecognized r(199);"
+    },
+    {
+      "command": "mata: 1+1",
+      "rc": 199,
+      "message": "command mata is unrecognized r(199);"
+    },
+    {
+      "command": "putexcel A1 = \"x\"",
+      "rc": 199,
+      "message": "command putexcel is unrecognized r(199);"
+    },
+    {
+      "command": "export excel using \"x.xlsx\", replace",
+      "rc": 198,
+      "message": "export excel is not available; export delimited is r(198);"
+    },
+    {
+      "command": "import excel using \"x.xlsx\", clear",
+      "rc": 198,
+      "message": "import excel is not available; import delimited is r(198);"
+    },
+    {
+      "command": "outsheet using x.csv, replace",
+      "rc": 199,
+      "message": "command outsheet is unrecognized r(199);"
+    },
+    {
+      "command": "infile a b using x.raw",
+      "rc": 199,
+      "message": "command infile is unrecognized r(199);"
+    },
+    {
+      "command": "describe using x",
+      "rc": 101,
+      "message": "using not allowed r(101);"
+    },
+    {
+      "command": "collapse (mean) wage [aweight=experience], by(sector)",
+      "rc": 198,
+      "message": "experience] invalid name r(198);"
+    },
+    {
+      "command": "egen c1x = cut(wage), group(3)",
+      "rc": 198,
+      "message": "option group not allowed r(198);"
+    },
+    {
+      "command": "egen cc1 = concat(sector id)",
+      "rc": 133,
+      "message": "unknown egen function concat() r(133);"
+    },
+    {
+      "command": "egen an1 = anycount(education), values(12 16)",
+      "rc": 133,
+      "message": "unknown egen function anycount() r(133);"
+    },
+    {
+      "command": "stack wage education, into(z)",
+      "rc": 199,
+      "message": "command stack is unrecognized r(199);"
+    },
+    {
+      "command": "cross using x",
+      "rc": 199,
+      "message": "command cross is unrecognized r(199);"
+    },
+    {
+      "command": "joinby sector using x",
+      "rc": 199,
+      "message": "command joinby is unrecognized r(199);"
+    },
+    {
+      "command": "merge m:m sector using x",
+      "rc": 198,
+      "message": "merge m:m is not available; it rarely does what is wanted r(198);"
+    },
+    {
+      "command": "numlabel, add",
+      "rc": 199,
+      "message": "command numlabel is unrecognized r(199);"
+    },
+    {
+      "command": "macro list",
+      "rc": 198,
+      "message": "invalid syntax r(198);"
+    },
+    {
+      "command": "matrix list e(b)",
+      "rc": 111,
+      "message": "matrix e(b) not found r(111);"
+    },
+    {
+      "command": "mat li b",
+      "rc": 111,
+      "message": "matrix b not found r(111);"
+    },
+    {
+      "command": "do myfile.do",
+      "rc": 199,
+      "message": "command do is unrecognized r(199);"
+    },
+    {
+      "command": "run myfile.do",
+      "rc": 199,
+      "message": "command run is unrecognized r(199);"
+    },
+    {
+      "command": "include myfile.do",
+      "rc": 199,
+      "message": "command include is unrecognized r(199);"
+    }
+  ]
+}

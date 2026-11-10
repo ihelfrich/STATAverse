@@ -14,6 +14,8 @@ import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { EVERYDAY_COMMANDS } from "./everyday.js";
 import { MORE_ESTIMATORS } from "./more-estimators.js";
+import { TEST_COMMANDS } from "./tests.js";
+import { DATA_UTILITIES } from "./data-utilities.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
@@ -1278,6 +1280,8 @@ export const COMMANDS = [
   ...UTILITY_COMMANDS,
   ...EVERYDAY_COMMANDS,
   ...MORE_ESTIMATORS,
+  ...TEST_COMMANDS,
+  ...DATA_UTILITIES,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   ...DELIMITED_COMMANDS,
