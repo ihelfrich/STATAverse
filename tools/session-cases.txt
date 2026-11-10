@@ -594,3 +594,173 @@ correlate y x1, covariance
 @EST
 generate x3 = x1 + x2
 regress y x3 x1 x2
+=== collapse-cw
+@BASE
+collapse (mean) x f (count) n = id, by(g) cw
+=== save-use | locals: a b c d n
+@BASE
+save "one.dta"
+capture save "one.dta"
+local a = _rc
+drop if id > 2
+save one, replace
+capture use nosuch
+local b = _rc
+generate extra = 1
+capture use one
+local c = _rc
+use one, clear
+local n = _N
+clear
+capture use "one.dta"
+local d = _rc
+=== append-basic
+@BASE
+keep id x s
+preserve
+keep if id <= 2
+replace s = "a much longer string value" in 1
+generate byte only_using = 7
+recast double id
+save part, replace
+restore
+generate only_master = id * 2
+sort x
+append using part
+=== append-generate | locals: rc
+@BASE
+keep id s
+save part, replace
+rename s t
+generate s = id
+capture append using part
+local rc = _rc
+drop s
+append using part, generate(src)
+=== merge-one-to-one | locals: rc1 rc2
+@BASE
+preserve
+keep id f s
+drop if id == 2
+replace id = 9 in 1
+rename s label
+generate x = -1
+save using1, replace
+restore
+keep id x g
+gsort -id
+merge 1:1 id using using1
+capture merge 1:1 id using using1
+local rc1 = _rc
+drop _merge
+capture merge 1:1 g using using1
+local rc2 = _rc
+=== merge-many-to-one | locals: rc
+@BASE
+preserve
+keep g
+duplicates drop
+generate str5 region = "r" + string(g)
+generate double pop = g * 1000
+drop if g == 3
+save groups, replace
+restore
+merge m:1 g using groups, keepusing(region) generate(source)
+capture merge 1:m id using groups
+local rc = _rc
+=== merge-keep-nogenerate
+@BASE
+preserve
+keep id f
+keep if inlist(id, 1, 3, 5, 7)
+save some, replace
+restore
+keep id x
+merge 1:1 id using some, keep(match) nogenerate
+=== merge-one-to-many
+@BASE
+keep g id x
+save detail, replace
+keep g
+duplicates drop
+generate w = g * 10
+drop if g == 1
+set obs 3
+replace g = 8 in 3
+replace w = 80 in 3
+merge 1:m g using detail
+=== reshape-long | locals: rc
+clear
+input byte id double inc2019 double inc2020 double inc2021 str3 name
+1 10 11 12 "ann"
+2 20 . 22 "bob"
+3 30 31 . "cy"
+end
+reshape long inc, i(id) j(year)
+capture reshape long inc, i(id) j(year)
+local rc = _rc
+=== reshape-wide
+clear
+input byte id int year double inc byte emp
+1 2019 10 1
+1 2020 11 0
+2 2019 20 1
+2 2021 22 1
+3 2020 31 0
+end
+reshape wide inc emp, i(id) j(year)
+=== reshape-long-string
+clear
+input byte id double scorea double scoreb
+1 5 6
+2 7 8
+end
+reshape long score, i(id) j(form) string
+=== expand | locals: rc
+@BASE
+keep id g
+expand 2
+expand g if id == 3
+capture expand
+local rc = _rc
+=== encode-decode | locals: a b rc
+@BASE
+encode s, generate(code)
+local a : value label code
+local b : label code 2
+decode code, generate(back)
+capture encode x, generate(bad)
+local rc = _rc
+=== destring-tostring
+clear
+input str6 a str6 b str6 c double n
+"1" "1.5" "x1" 3
+"22" "." "7" 4.25
+"" "-3" "8" .
+end
+destring a b, replace
+destring c, generate(c2) force
+tostring n, generate(ns)
+tostring a, replace
+destring c, generate(c3) ignore("x")
+=== recode
+@BASE
+recode g (1 = 10) (2 3 = 20)
+recode id (1/3 = 1) (4/max = 2), generate(half)
+recode x (. = 0) (.a = -1) (min/0 = -9) (else = 5)
+recode f (0.1 = 1) (nonmissing = 2) (missing = 3), generate(fr)
+=== duplicates | locals: n1 n2 | r: N_drop
+clear
+input byte a str1 b
+1 "x"
+1 "x"
+2 "y"
+1 "x"
+2 "z"
+end
+duplicates tag, generate(dup)
+duplicates tag a, generate(dupa)
+local n1 = _N
+duplicates drop a b, force
+local n2 = _N
+duplicates drop

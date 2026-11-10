@@ -193,3 +193,55 @@ generate x3 = x1 + x2
 generate x4 = 2*x1 + 1
 regress y x1 x2 x3
 regress y x1 x4, robust
+=== files-merge
+@BASE
+save "one.dta"
+capture noisily save "one.dta"
+save one, replace
+capture noisily use nosuch
+generate extra = 1
+capture noisily use one
+use one, clear
+preserve
+keep id f
+drop if id == 2
+replace id = 9 in 1
+save using1, replace
+restore
+keep id x g
+merge 1:1 id using using1
+capture noisily merge 1:1 id using using1
+drop _merge
+capture noisily merge 1:1 g using using1
+merge m:1 id using using1, nogenerate keep(match)
+merge 1:1 id using using1, generate(again)
+=== cleaning
+clear
+input str6 a str6 b str6 c double n byte k
+"1" "1.5" "x1" 3 1
+"22" "." "7" 4.25 1
+"" "-3" "8" . 2
+end
+destring a b, replace
+destring c, replace
+destring c, generate(c2) force
+destring c, generate(c3) ignore("x")
+destring n, replace
+tostring n, generate(ns)
+tostring a, replace
+tostring a, replace
+tostring b, generate(bs)
+recode k (1 = 10) (2 = 20)
+recode k (10 = 1) (else = 0), generate(k2)
+recode n (missing = 0)
+expand 2
+expand 3 if k == 20
+duplicates report
+duplicates report k
+duplicates drop
+capture noisily duplicates drop k
+duplicates drop k, force
+encode c, generate(code)
+capture noisily encode k, generate(bad)
+decode code, generate(back)
+capture noisily decode k, generate(bad)

@@ -4995,6 +4995,1014 @@
           ]
         }
       ]
+    },
+    {
+      "id": "collapse-cw",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncollapse (mean) x f (count) n = id, by(g) cw\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 3,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "(mean) x",
+          "values": [-0.25, 0, 100]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "(mean) f",
+          "values": [0.15000000596046448, 1, 2.5]
+        },
+        {
+          "name": "n",
+          "type": "long",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(count) id",
+          "values": [2, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "save-use",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsave \"one.dta\"\ncapture save \"one.dta\"\nlocal a = _rc\ndrop if id > 2\nsave one, replace\ncapture use nosuch\nlocal b = _rc\ngenerate extra = 1\ncapture use one\nlocal c = _rc\nuse one, clear\nlocal n = _N\nclear\ncapture use \"one.dta\"\nlocal d = _rc\n",
+      "locals": ["a", "b", "c", "d", "n"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "a": "602", "b": "601", "c": "4", "d": "0", "n": "2" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1.5, -2]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0.10000000149011612, 0.20000000298023224]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split"]
+        }
+      ]
+    },
+    {
+      "id": "append-basic",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nkeep id x s\npreserve\nkeep if id <= 2\nreplace s = \"a much longer string value\" in 1\ngenerate byte only_using = 7\nrecast double id\nsave part, replace\nrestore\ngenerate only_master = id * 2\nsort x\nappend using part\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 8,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "double",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 4, 1, 6, 3, 5, 1, 2]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            -2, 0, 1.5, 100, 8.98846567431158e307, 8.990660123939097e307, 1.5,
+            -2
+          ]
+        },
+        {
+          "name": "s",
+          "type": "str26",
+          "format": "%26s",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            "Banana split",
+            "pad",
+            "apple",
+            "kiwi",
+            "",
+            "x",
+            "a much longer string value",
+            "Banana split"
+          ]
+        },
+        {
+          "name": "only_master",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            4, 8, 2, 12, 6, 10, 8.98846567431158e307, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "only_using",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307, 7,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": "append-generate",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nkeep id s\nsave part, replace\nrename s t\ngenerate s = id\ncapture append using part\nlocal rc = _rc\ndrop s\nappend using part, generate(src)\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "rc": "106" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "t",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            "apple",
+            "Banana split",
+            "",
+            "pad",
+            "x",
+            "kiwi",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "name": "src",
+          "type": "byte",
+          "format": "%18.0g",
+          "valueLabel": "_append",
+          "label": "Dataset source",
+          "values": [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "apple",
+            "Banana split",
+            "",
+            "pad",
+            "x",
+            "kiwi"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "merge-one-to-one",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\npreserve\nkeep id f s\ndrop if id == 2\nreplace id = 9 in 1\nrename s label\ngenerate x = -1\nsave using1, replace\nrestore\nkeep id x g\ngsort -id\nmerge 1:1 id using using1\ncapture merge 1:1 id using using1\nlocal rc1 = _rc\ndrop _merge\ncapture merge 1:1 g using using1\nlocal rc2 = _rc\n",
+      "locals": ["rc1", "rc2"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "rc1": "110", "rc2": "111" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 7,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 9]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100, -1
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3, 8.98846567431158e307]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5, 0.10000000149011612
+          ]
+        },
+        {
+          "name": "label",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["", "", "", "pad", "x", "kiwi", "apple"]
+        }
+      ]
+    },
+    {
+      "id": "merge-many-to-one",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\npreserve\nkeep g\nduplicates drop\ngenerate str5 region = \"r\" + string(g)\ngenerate double pop = g * 1000\ndrop if g == 3\nsave groups, replace\nrestore\nmerge m:1 g using groups, keepusing(region) generate(source)\ncapture merge 1:m id using groups\nlocal rc = _rc\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "rc": "111" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 6,
+      "sortedBy": ["id"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "region",
+          "type": "str5",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["r1", "r1", "r2", "r2", "", ""]
+        },
+        {
+          "name": "source",
+          "type": "byte",
+          "format": "%23.0g",
+          "valueLabel": "_merge",
+          "label": "Matching result from merge",
+          "values": [3, 3, 3, 3, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "merge-keep-nogenerate",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\npreserve\nkeep id f\nkeep if inlist(id, 1, 3, 5, 7)\nsave some, replace\nrestore\nkeep id x\nmerge 1:1 id using some, keep(match) nogenerate\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 3,
+      "sortedBy": ["id"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 3, 5]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1.5, 8.98846567431158e307, 8.990660123939097e307]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.30000001192092896, 8.98846567431158e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "merge-one-to-many",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nkeep g id x\nsave detail, replace\nkeep g\nduplicates drop\ngenerate w = g * 10\ndrop if g == 1\nset obs 3\nreplace g = 8 in 3\nreplace w = 80 in 3\nmerge 1:m g using detail\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 7,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 3, 8, 1, 1, 2, 3]
+        },
+        {
+          "name": "w",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            20, 30, 80, 8.98846567431158e307, 8.98846567431158e307, 20, 30
+          ]
+        },
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [3, 5, 8.98846567431158e307, 1, 2, 4, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.990660123939097e307, 8.98846567431158e307,
+            1.5, -2, 0, 100
+          ]
+        },
+        {
+          "name": "_merge",
+          "type": "byte",
+          "format": "%23.0g",
+          "valueLabel": "_merge",
+          "label": "Matching result from merge",
+          "values": [3, 3, 1, 2, 2, 3, 3]
+        }
+      ]
+    },
+    {
+      "id": "reshape-long",
+      "source": "clear\ninput byte id double inc2019 double inc2020 double inc2021 str3 name\n1 10 11 12 \"ann\"\n2 20 . 22 \"bob\"\n3 30 31 . \"cy\"\nend\nreshape long inc, i(id) j(year)\ncapture reshape long inc, i(id) j(year)\nlocal rc = _rc\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "rc": "110" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 9,
+      "sortedBy": ["id", "year"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3]
+        },
+        {
+          "name": "year",
+          "type": "int",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2019, 2020, 2021, 2019, 2020, 2021, 2019, 2020, 2021]
+        },
+        {
+          "name": "inc",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            10, 11, 12, 20, 8.98846567431158e307, 22, 30, 31,
+            8.98846567431158e307
+          ]
+        },
+        {
+          "name": "name",
+          "type": "str3",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["ann", "ann", "ann", "bob", "bob", "bob", "cy", "cy", "cy"]
+        }
+      ]
+    },
+    {
+      "id": "reshape-wide",
+      "source": "clear\ninput byte id int year double inc byte emp\n1 2019 10 1\n1 2020 11 0\n2 2019 20 1\n2 2021 22 1\n3 2020 31 0\nend\nreshape wide inc emp, i(id) j(year)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 3,
+      "sortedBy": ["id"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3]
+        },
+        {
+          "name": "inc2019",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "2019 inc",
+          "values": [10, 20, 8.98846567431158e307]
+        },
+        {
+          "name": "emp2019",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "2019 emp",
+          "values": [1, 1, 8.98846567431158e307]
+        },
+        {
+          "name": "inc2020",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "2020 inc",
+          "values": [11, 8.98846567431158e307, 31]
+        },
+        {
+          "name": "emp2020",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "2020 emp",
+          "values": [0, 8.98846567431158e307, 0]
+        },
+        {
+          "name": "inc2021",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "2021 inc",
+          "values": [8.98846567431158e307, 22, 8.98846567431158e307]
+        },
+        {
+          "name": "emp2021",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "2021 emp",
+          "values": [8.98846567431158e307, 1, 8.98846567431158e307]
+        }
+      ]
+    },
+    {
+      "id": "reshape-long-string",
+      "source": "clear\ninput byte id double scorea double scoreb\n1 5 6\n2 7 8\nend\nreshape long score, i(id) j(form) string\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 4,
+      "sortedBy": ["id", "form"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2]
+        },
+        {
+          "name": "form",
+          "type": "str1",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["a", "b", "a", "b"]
+        },
+        {
+          "name": "score",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [5, 6, 7, 8]
+        }
+      ]
+    },
+    {
+      "id": "expand",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nkeep id g\nexpand 2\nexpand g if id == 3\ncapture expand\nlocal rc = _rc\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "rc": "100" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 14,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 3, 3]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3, 1, 1, 2, 2, 3, 3, 2, 2]
+        }
+      ]
+    },
+    {
+      "id": "encode-decode",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nencode s, generate(code)\nlocal a : value label code\nlocal b : label code 2\ndecode code, generate(back)\ncapture encode x, generate(bad)\nlocal rc = _rc\n",
+      "locals": ["a", "b", "rc"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "a": "code", "b": "apple", "rc": "107" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "code",
+          "type": "long",
+          "format": "%12.0g",
+          "valueLabel": "code",
+          "label": "",
+          "values": [2, 1, 8.98846567431158e307, 4, 5, 3]
+        },
+        {
+          "name": "back",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "destring-tostring",
+      "source": "clear\ninput str6 a str6 b str6 c double n\n\"1\" \"1.5\" \"x1\" 3\n\"22\" \".\" \"7\" 4.25\n\"\" \"-3\" \"8\" .\nend\ndestring a b, replace\ndestring c, generate(c2) force\ntostring n, generate(ns)\ntostring a, replace\ndestring c, generate(c3) ignore(\"x\")\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "a",
+          "type": "str2",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["1", "22", "."]
+        },
+        {
+          "name": "b",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1.5, 8.98846567431158e307, -3]
+        },
+        {
+          "name": "c",
+          "type": "str6",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["x1", "7", "8"]
+        },
+        {
+          "name": "c3",
+          "type": "byte",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 7, 8]
+        },
+        {
+          "name": "c2",
+          "type": "byte",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [8.98846567431158e307, 7, 8]
+        },
+        {
+          "name": "n",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [3, 4.25, 8.98846567431158e307]
+        },
+        {
+          "name": "ns",
+          "type": "str4",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "n",
+          "values": ["3", "4.25", "."]
+        }
+      ]
+    },
+    {
+      "id": "recode",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nrecode g (1 = 10) (2 3 = 20)\nrecode id (1/3 = 1) (4/max = 2), generate(half)\nrecode x (. = 0) (.a = -1) (min/0 = -9) (else = 5)\nrecode f (0.1 = 1) (nonmissing = 2) (missing = 3), generate(fr)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [5, -9, 0, -9, -1, 5]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [10, 10, 20, 20, 20, 20]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "half",
+          "type": "byte",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "RECODE of id",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "fr",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "RECODE of f",
+          "values": [1, 2, 2, 2, 3, 2]
+        }
+      ]
+    },
+    {
+      "id": "duplicates",
+      "source": "clear\ninput byte a str1 b\n1 \"x\"\n1 \"x\"\n2 \"y\"\n1 \"x\"\n2 \"z\"\nend\nduplicates tag, generate(dup)\nduplicates tag a, generate(dupa)\nlocal n1 = _N\nduplicates drop a b, force\nlocal n2 = _N\nduplicates drop\n",
+      "locals": ["n1", "n2"],
+      "globals": [],
+      "r": ["N_drop"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "n1": "5", "n2": "3" },
+      "globalValues": {},
+      "rValues": { "N_drop": 0 },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "a",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 2]
+        },
+        {
+          "name": "b",
+          "type": "str1",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["x", "y", "z"]
+        },
+        {
+          "name": "dup",
+          "type": "byte",
+          "format": "%12.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 0, 0]
+        },
+        {
+          "name": "dupa",
+          "type": "byte",
+          "format": "%12.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1, 1]
+        }
+      ]
     }
   ]
 }

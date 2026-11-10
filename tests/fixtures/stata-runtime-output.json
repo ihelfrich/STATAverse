@@ -1615,6 +1615,221 @@
           ]
         }
       ]
+    },
+    {
+      "id": "files-merge",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsave \"one.dta\"\ncapture noisily save \"one.dta\"\nsave one, replace\ncapture noisily use nosuch\ngenerate extra = 1\ncapture noisily use one\nuse one, clear\npreserve\nkeep id f\ndrop if id == 2\nreplace id = 9 in 1\nsave using1, replace\nrestore\nkeep id x g\nmerge 1:1 id using using1\ncapture noisily merge 1:1 id using using1\ndrop _merge\ncapture noisily merge 1:1 g using using1\nmerge m:1 id using using1, nogenerate keep(match)\nmerge 1:1 id using using1, generate(again)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "save \"one.dta\"", "lines": ["file one.dta saved"] },
+        {
+          "command": "capture noisily save \"one.dta\"",
+          "lines": ["file one.dta already exists"]
+        },
+        { "command": "save one, replace", "lines": ["file one.dta saved"] },
+        {
+          "command": "capture noisily use nosuch",
+          "lines": ["file nosuch.dta not found"]
+        },
+        { "command": "generate extra = 1", "lines": [] },
+        {
+          "command": "capture noisily use one",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "use one, clear", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "keep id f", "lines": [] },
+        { "command": "drop if id == 2", "lines": ["(1 observation deleted)"] },
+        { "command": "replace id = 9 in 1", "lines": ["(1 real change made)"] },
+        {
+          "command": "save using1, replace",
+          "lines": ["(file using1.dta not found)", "file using1.dta saved"]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "keep id x g", "lines": [] },
+        {
+          "command": "merge 1:1 id using using1",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             3",
+            "        from master                         2  (_merge==1)",
+            "        from using                          1  (_merge==2)",
+            "",
+            "    Matched                                 4  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily merge 1:1 id using using1",
+          "lines": ["variable _merge already defined"]
+        },
+        { "command": "drop _merge", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 g using using1",
+          "lines": ["variable g not found"]
+        },
+        {
+          "command": "merge m:1 id using using1, nogenerate keep(match)",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 5",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "merge 1:1 id using using1, generate(again)",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 5  (again==3)",
+            "    -----------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cleaning",
+      "source": "clear\ninput str6 a str6 b str6 c double n byte k\n\"1\" \"1.5\" \"x1\" 3 1\n\"22\" \".\" \"7\" 4.25 1\n\"\" \"-3\" \"8\" . 2\nend\ndestring a b, replace\ndestring c, replace\ndestring c, generate(c2) force\ndestring c, generate(c3) ignore(\"x\")\ndestring n, replace\ntostring n, generate(ns)\ntostring a, replace\ntostring a, replace\ntostring b, generate(bs)\nrecode k (1 = 10) (2 = 20)\nrecode k (10 = 1) (else = 0), generate(k2)\nrecode n (missing = 0)\nexpand 2\nexpand 3 if k == 20\nduplicates report\nduplicates report k\nduplicates drop\ncapture noisily duplicates drop k\nduplicates drop k, force\nencode c, generate(code)\ncapture noisily encode k, generate(bad)\ndecode code, generate(back)\ncapture noisily decode k, generate(bad)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str6 a str6 b str6 c double n byte k",
+          "lines": [
+            "             a          b          c           n         k",
+            "  1. \"1\" \"1.5\" \"x1\" 3 1",
+            "  2. \"22\" \".\" \"7\" 4.25 1",
+            "  3. \"\" \"-3\" \"8\" . 2",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "destring a b, replace",
+          "lines": [
+            "a: all characters numeric; replaced as byte",
+            "(1 missing value generated)",
+            "b: all characters numeric; replaced as double",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "destring c, replace",
+          "lines": ["c: contains nonnumeric characters; no replace"]
+        },
+        {
+          "command": "destring c, generate(c2) force",
+          "lines": [
+            "c: contains nonnumeric characters; c2 generated as byte",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "destring c, generate(c3) ignore(\"x\")",
+          "lines": ["c: character x removed; c3 generated as byte"]
+        },
+        {
+          "command": "destring n, replace",
+          "lines": ["n already numeric; no replace"]
+        },
+        {
+          "command": "tostring n, generate(ns)",
+          "lines": ["ns generated as str4"]
+        },
+        { "command": "tostring a, replace", "lines": ["a was byte now str2"] },
+        {
+          "command": "tostring a, replace",
+          "lines": ["a already string; no replace"]
+        },
+        {
+          "command": "tostring b, generate(bs)",
+          "lines": ["bs generated as str3"]
+        },
+        {
+          "command": "recode k (1 = 10) (2 = 20)",
+          "lines": ["(3 changes made to k)"]
+        },
+        {
+          "command": "recode k (10 = 1) (else = 0), generate(k2)",
+          "lines": ["(3 differences between k and k2)"]
+        },
+        {
+          "command": "recode n (missing = 0)",
+          "lines": ["(1 changes made to n)"]
+        },
+        { "command": "expand 2", "lines": ["(3 observations created)"] },
+        {
+          "command": "expand 3 if k == 20",
+          "lines": ["(4 observations created)"]
+        },
+        {
+          "command": "duplicates report",
+          "lines": [
+            "Duplicates in terms of all variables",
+            "",
+            "--------------------------------------",
+            "   Copies | Observations       Surplus",
+            "----------+---------------------------",
+            "        2 |            4             2",
+            "        6 |            6             5",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "duplicates report k",
+          "lines": [
+            "Duplicates in terms of k",
+            "",
+            "--------------------------------------",
+            "   Copies | Observations       Surplus",
+            "----------+---------------------------",
+            "        4 |            4             3",
+            "        6 |            6             5",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "duplicates drop",
+          "lines": [
+            "Duplicates in terms of all variables",
+            "",
+            "(7 observations deleted)"
+          ]
+        },
+        {
+          "command": "capture noisily duplicates drop k",
+          "lines": ["force option required with duplicates drop varlist"]
+        },
+        {
+          "command": "duplicates drop k, force",
+          "lines": ["Duplicates in terms of k", "", "(1 observation deleted)"]
+        },
+        { "command": "encode c, generate(code)", "lines": [] },
+        {
+          "command": "capture noisily encode k, generate(bad)",
+          "lines": ["not possible with numeric variable"]
+        },
+        { "command": "decode code, generate(back)", "lines": [] },
+        {
+          "command": "capture noisily decode k, generate(bad)",
+          "lines": ["k not labeled"]
+        }
+      ]
     }
   ]
 }
