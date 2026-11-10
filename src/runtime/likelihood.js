@@ -631,7 +631,212 @@ function mlogit(session, text, ctx) {
   ctx.out("");
 }
 
+// ----- negative binomial -----
+const lnFactorial = (n) => {
+  let total = 0;
+  for (let k = 2; k <= n; k++) total += Math.log(k);
+  return total;
+};
+function nbreg(session, text, ctx) {
+  const parsed = session.parse(
+      "anything [if] [in] [, Level(cilevel) noLOg IRr noCONStant | Dispersion(string) Robust VCE(string) EXPosure(varname) OFFset(varname)]",
+      text,
+    ),
+    options = parsed.options,
+    constant = options.constant !== false,
+    f = frame(session, parsed, constant),
+    n = f.y.length;
+  if (f.y.some((v) => v < 0 || !Number.isInteger(v)))
+    throw new StataError(
+      `${f.dependent.name} must be a nonnegative count`,
+      459,
+    );
+  const poisson = (x) => {
+      const k = x[0].length,
+        start = new Array(k).fill(0);
+      start[k - 1] = Math.log(f.y.reduce((a, b) => a + b, 0) / n || 1);
+      return maximize((theta) => {
+        const gradient = new Array(k).fill(0);
+        let value = 0;
+        x.forEach((r, i) => {
+          const xb = dot(r, theta),
+            mu = Math.exp(xb);
+          value += f.y[i] * xb - mu - lnFactorial(f.y[i]);
+          r.forEach((v, a) => (gradient[a] += (f.y[i] - mu) * v));
+        });
+        return { value, gradient };
+      }, start);
+    },
+    negative = (x, start) => {
+      const k = x[0].length;
+      return maximize((theta) => {
+        const a = Math.exp(-theta[k]),
+          gradient = new Array(k + 1).fill(0);
+        let value = 0;
+        x.forEach((r, i) => {
+          const mu = Math.exp(dot(r, theta)),
+            y = f.y[i];
+          let lnGamma = 0,
+            digamma = 0;
+          for (let j = 0; j < y; j++) {
+            lnGamma += Math.log(a + j);
+            digamma += 1 / (a + j);
+          }
+          value +=
+            lnGamma -
+            lnFactorial(y) +
+            a * Math.log(a / (a + mu)) +
+            y * Math.log(mu / (a + mu));
+          const dxb = ((y - mu) * a) / (a + mu),
+            da = digamma + Math.log(a / (a + mu)) + (mu - y) / (a + mu);
+          r.forEach((v, c) => (gradient[c] += dxb * v));
+          gradient[k] -= a * da;
+        });
+        return { value, gradient };
+      }, start);
+    },
+    ones = f.x.map(() => [1]),
+    base = poisson(f.x),
+    k = f.x[0].length,
+    null0 = constant ? negative(ones, [...poisson(ones).theta, 0]) : null,
+    full = negative(f.x, [...base.theta, null0 ? null0.theta[1] : 0]),
+    dfModel = f.active.length,
+    ll0 = null0 ? null0.ll : MISSING,
+    chi2 = null0 ? 2 * (full.ll - ll0) : MISSING,
+    p = null0 ? chi2tail(dfModel, chi2) : MISSING,
+    chi2c = Math.max(0, 2 * (full.ll - base.ll)),
+    lnalpha = full.theta[k],
+    seLn = Math.sqrt(full.V[k][k]),
+    alpha = Math.exp(lnalpha),
+    critical = invnormal(1 - (1 - options.level / 100) / 2),
+    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
+    position = new Map(f.names.map((name, j) => [name, j])),
+    model = {
+      command: "nbreg",
+      title: "Negative binomial regression",
+      dist: "z",
+      depvar: f.dependent.name,
+      names,
+      b: names.map((name) =>
+        position.has(name) ? full.theta[position.get(name)] : 0,
+      ),
+      V: names.map((r) =>
+        names.map((c) =>
+          position.has(r) && position.has(c)
+            ? full.V[position.get(r)][position.get(c)]
+            : 0,
+        ),
+      ),
+      columns: f.columns,
+      constant,
+      estimable: names.map((name) => position.has(name)),
+      N: n,
+      df_m: dfModel,
+      rank: k + 1,
+      ll: full.ll,
+      ll_0: ll0,
+      vce: "oim",
+      kind: "nbreg",
+      sample: f.sample,
+      alpha,
+    };
+  session.estimates = model;
+  session.results.e = {
+    N: n,
+    df_m: dfModel,
+    ll: full.ll,
+    ll_0: ll0,
+    ll_c: base.ll,
+    chi2,
+    p,
+    chi2_c: chi2c,
+    alpha,
+    r2_p: null0 ? 1 - full.ll / ll0 : MISSING,
+    rank: k + 1,
+    k: k + 1,
+    cmd: "nbreg",
+    depvar: model.depvar,
+    vce: "oim",
+  };
+  ctx.out("");
+  if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
+    for (const [title, fitted] of [
+      ["Fitting Poisson model:", base],
+      ...(null0 ? [["Fitting constant-only model:", null0]] : []),
+      ["Fitting full model:", full],
+    ]) {
+      ctx.out(title);
+      ctx.out("");
+      fitted.log.forEach((value, j) =>
+        ctx.out(
+          `Iteration ${j}:  Log likelihood = ${g(value, "%10.0g").padStart(10)}`,
+        ),
+      );
+      ctx.out("");
+    }
+  ctx.out(`${model.title.padEnd(56)}${side("Number of obs", count(n))}`);
+  ctx.out(
+    `${" ".repeat(56)}${side(`LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim())}`,
+  );
+  ctx.out(
+    `${"Dispersion: mean".padEnd(56)}${side("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
+  );
+  ctx.out(
+    `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
+  );
+  ctx.out("");
+  ctx.out(RULE);
+  ctx.out(
+    heading(model.depvar, options.level, options.irr ? "IRR" : "Coefficient"),
+  );
+  ctx.out(SPLIT);
+  f.names.forEach((name, j) =>
+    ctx.out(
+      row(
+        `${name.padStart(12)} `,
+        full.theta[j],
+        Math.sqrt(full.V[j][j]),
+        options.level,
+        0,
+        !!options.irr,
+      ),
+    ),
+  );
+  ctx.out(SPLIT);
+  ctx.out(
+    plainRow(
+      "    /lnalpha ",
+      lnalpha,
+      seLn,
+      lnalpha - critical * seLn,
+      lnalpha + critical * seLn,
+    ),
+  );
+  ctx.out(SPLIT);
+  ctx.out(
+    plainRow(
+      "       alpha ",
+      alpha,
+      alpha * seLn,
+      Math.exp(lnalpha - critical * seLn),
+      Math.exp(lnalpha + critical * seLn),
+    ),
+  );
+  ctx.out(RULE);
+  if (options.irr) {
+    ctx.out(
+      "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
+    );
+    if (constant) ctx.out("Note: _cons estimates baseline incidence rate.");
+  }
+  ctx.out(
+    `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, "%5.2f").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(0.5 * chi2tail(1, chi2c), "%5.3f")}`,
+  );
+  ctx.out("");
+}
+
 export const LIKELIHOOD_COMMANDS = [
+  { name: "nbreg", minimum: 5, run: nbreg },
   { name: "tobit", minimum: 5, run: tobit },
   { name: "ologit", minimum: 4, run: ordered("ologit") },
   { name: "oprobit", minimum: 4, run: ordered("oprobit") },

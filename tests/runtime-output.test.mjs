@@ -95,6 +95,7 @@ for (const c of fixture.cases)
             "estat-gof",
             "nonlinear-more",
             "more-postestimation",
+            "count-quantile",
           ].includes(c.id),
         )
       )
