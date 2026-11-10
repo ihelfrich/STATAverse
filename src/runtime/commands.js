@@ -20,6 +20,8 @@ import { MORE_GRAPH_COMMANDS } from "./graphics-more.js";
 import { LIKELIHOOD_COMMANDS } from "./likelihood.js";
 import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { QUANTILE_COMMANDS } from "./quantile.js";
+import { RESAMPLING_COMMANDS } from "./resampling.js";
+import { MORE_DATA_COMMANDS } from "./more-data.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
@@ -900,7 +902,7 @@ function egen(session, text, ctx) {
   if (!m) throw invalid();
   const [, typeText, name, fcn, argument, tail = ""] = m,
     parsed = session.parse(
-      "[if] [in] [, BY(varlist) Missing Field Track Unique P(integer 50) AT(numlist) Values(numlist)]",
+      "[if] [in] [, BY(varlist) Missing Field Track Unique P(integer 50) AT(numlist) Values(numlist) Group(integer 0) Punct(string) | Label Icodes Format(string) Decode MAXLength(integer 0)]",
       tail,
     ),
     data = session.data;
@@ -924,7 +926,44 @@ function egen(session, text, ctx) {
   const groups = [...groupOf.values()];
   let type = typeText?.trim(),
     label = "";
-  if (/^row/.test(fcn)) {
+  if (fcn === "concat") {
+    // Values side by side as text, numbers as display shows them.
+    const variables = session.varlist(argument).map((v) => data.get(v)),
+      punct = (parsed.options.punct ?? "").replace(/^"([\s\S]*)"$/, "$1"),
+      text = values.map((_, i) =>
+        selected.has(i)
+          ? variables
+              .map((v) =>
+                isStringType(v.type)
+                  ? v.data[i].trim()
+                  : isMissing(v.data[i])
+                    ? missingName(v.data[i])
+                    : formatNumber(v.data[i]),
+              )
+              .join(punct)
+          : "",
+      ),
+      order = [...data.sortedBy];
+    // Stata sizes the variable before trimming the last separator.
+    data.generate(name, text, {
+      string: true,
+      type: `str${Math.max(1, ...text.map((v) => byteLength(v))) + (variables.length > 1 ? byteLength(punct) : 0)}`,
+    });
+    data.sortedBy = order;
+    return;
+  }
+  if (fcn === "anycount") {
+    const wanted = parsed.options.values;
+    if (!wanted) throw invalid("egen anycount() needs values()");
+    const names = session.varlist(argument),
+      columns = names.map((v) => numericColumn(session, v));
+    for (let i = 0; i < data.n; i++)
+      values[i] = selected.has(i)
+        ? columns.filter((column) => wanted.includes(column[i])).length
+        : 0;
+    type = "byte";
+    label = `${names.join(" ")} == ${wanted.map(formatNumber).join(" ")}`;
+  } else if (/^row/.test(fcn)) {
     const columns = session
       .varlist(argument)
       .map((v) => numericColumn(session, v));
@@ -1027,16 +1066,34 @@ function egen(session, text, ctx) {
         values[i] = isMissing(all[i]) ? MISSING : (all[i] - m.mean) / m.sd;
       label = `Standardized values of ${argument.trim()}`;
     } else if (fcn === "cut") {
-      const cuts = parsed.options.at;
-      if (!cuts) throw invalid("egen cut() needs at()");
-      // The left end of the interval a value falls in; none at or past
-      // the last cut point.
-      for (const i of rows) {
-        const below = cuts.filter((cut) => cut <= all[i]);
-        values[i] =
-          isMissing(all[i]) || !below.length || all[i] >= cuts.at(-1)
+      if (parsed.options.group) {
+        if (parsed.options.at)
+          throw invalid("cannot specify both at() and group() option");
+        // Groups of roughly equal size, numbered from 0, divided at the
+        // quantiles pctile reports.
+        const sortedValues = rows
+            .map((i) => all[i])
+            .filter((v) => !isMissing(v))
+            .sort((a, b) => a - b),
+          points = Array.from({ length: parsed.options.group - 1 }, (_, k) =>
+            percentile(sortedValues, (100 * (k + 1)) / parsed.options.group),
+          );
+        for (const i of rows)
+          values[i] = isMissing(all[i])
             ? MISSING
-            : below.at(-1);
+            : points.filter((point) => point <= all[i]).length;
+      } else {
+        const cuts = parsed.options.at;
+        if (!cuts) throw invalid("one of at() or group() must be specified");
+        // The left end of the interval a value falls in; none at or past
+        // the last cut point.
+        for (const i of rows) {
+          const below = cuts.filter((cut) => cut <= all[i]);
+          values[i] =
+            isMissing(all[i]) || !below.length || all[i] >= cuts.at(-1)
+              ? MISSING
+              : below.at(-1);
+        }
       }
     } else {
       const wanted = parsed.options.values;
@@ -1290,6 +1347,8 @@ export const COMMANDS = [
   ...LIKELIHOOD_COMMANDS,
   ...MORE_POSTESTIMATION,
   ...QUANTILE_COMMANDS,
+  ...RESAMPLING_COMMANDS,
+  ...MORE_DATA_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   ...DELIMITED_COMMANDS,

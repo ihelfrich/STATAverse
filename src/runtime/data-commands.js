@@ -24,7 +24,7 @@ const RANK = ["byte", "int", "long", "float", "double"];
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;
 
 // ----- the session's folder -----
-function fileName(text) {
+export function fileName(text) {
   let name = text.trim();
   if (name.startsWith('`"') && name.endsWith("\"'")) name = name.slice(2, -2);
   else if (name.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1);
@@ -50,7 +50,7 @@ function changed(session) {
     fingerprint(session.data) !== session.cleanFingerprint
   );
 }
-function load(session, name) {
+export function load(session, name) {
   const stored = files(session).get(name);
   if (!stored) throw new StataError(`file ${name} not found`, 601);
   if (typeof stored.text === "string")

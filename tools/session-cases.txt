@@ -2186,3 +2186,197 @@ replace cnt = 21 in 17
 replace cnt = 1 in 19
 replace cnt = 9 in 6
 qreg x2 x1 n, quantile(.75)
+=== resample-bootstrap | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+set seed 42
+bootstrap, reps(30): regress z x1 x2
+=== resample-jackknife | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+jackknife: regress z x1 x2
+=== resample-simulate
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+set seed 3
+simulate m=r(mean) s=r(sd) n=r(N), reps(6): summarize x1 if runiform() < .7
+=== resample-sample
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+set seed 17
+sample 40
+set seed 18
+bsample
+=== combine-cross
+clear
+input byte k str1 c double v
+1 "a" 10
+2 "b" 20
+2 "c" 30
+3 "d" 40
+end
+save jb_using, replace
+clear
+input byte id byte k double w
+1 2 .5
+2 1 1.5
+3 2 2.5
+4 4 3.5
+end
+cross using jb_using
+=== combine-joinby
+clear
+input byte k str1 c double v
+1 "a" 10
+2 "b" 20
+2 "c" 30
+3 "d" 40
+end
+save jb_using, replace
+clear
+input byte id byte k double w
+1 2 .5
+2 1 1.5
+3 2 2.5
+4 4 3.5
+end
+joinby k using jb_using
+sort id c
+=== combine-joinby-unmatched
+clear
+input byte k str1 c double v
+1 "a" 10
+2 "b" 20
+2 "c" 30
+3 "d" 40
+end
+save jb_using, replace
+clear
+input byte id byte k double w
+1 2 .5
+2 1 1.5
+3 2 2.5
+4 4 3.5
+end
+joinby k using jb_using, unmatched(both)
+sort k id c
+=== combine-stack
+clear
+input byte k str1 c double v
+1 "a" 10
+2 "b" 20
+2 "c" 30
+3 "d" 40
+end
+save jb_using, replace
+clear
+input byte id byte k double w
+1 2 .5
+2 1 1.5
+3 2 2.5
+4 4 3.5
+end
+stack id k w k, into(a b) clear
+=== egen-concat-cut
+clear
+input byte d double x1 byte n str3 name
+0 1.0 0 "no"
+0 1.5 1 "no"
+1 2.2 2 "yes"
+1 3.4 2 "yes"
+0 5.1 . "no"
+1 6.0 4 "yes"
+1 9.4 10 "yes"
+end
+egen cc = concat(name d)
+egen cc2 = concat(d n), punct("-")
+egen cc3 = concat(x1 name), punct(" ")
+egen ac = anycount(n d), values(1 2)
+egen cg = cut(x1), group(3)
+egen cg2 = cut(x1), group(2)
+egen ca = cut(x1), at(0 3 6 10)
+egen ac2 = anycount(n) if d == 1, values(2 4)

@@ -7894,6 +7894,631 @@
       ]
     },
     {
+      "id": "resampling",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\nset seed 42\nbootstrap, reps(20): regress z x1 x2\nset seed 42\nbootstrap _b, reps(20) nodots: regress z x1 x2\nset seed 7\nbootstrap, reps(60) level(90): regress z x1 if d == 1\nset seed 42\nbootstrap m=r(mean) s=r(sd), reps(15): summarize z\nset seed 42\nbootstrap r(mean), reps(15) nodots: summarize z\nset seed 11\nbootstrap ratio=(r(mean)/r(sd)) top=r(max), reps(25) nodots: summarize x1\nset seed 42\nregress z x1 x2, vce(bootstrap, reps(20))\njackknife: regress z x1 x2\njackknife r(mean): summarize z\njackknife m=r(mean) s=r(sd), nodots: summarize z\nregress z x1 x2, vce(jackknife)\njackknife, level(90): regress z x1 if d == 1\nset seed 42\nsimulate m=r(mean) s=r(sd), reps(5): summarize z\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "bootstrap, reps(20): regress z x1 x2",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     20",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(2)  = 207.23",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.9181",
+            "                                                        Adj R-squared = 0.9085",
+            "                                                        Root MSE      = 0.5962",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           z | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736    .069714     3.98   0.000     .1407367    .4140105",
+            "          x2 |   1.600971   .1298078    12.33   0.000     1.346552    1.855389",
+            "       _cons |  -.9717534   .4067705    -2.39   0.017    -1.769009   -.1744978",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "bootstrap _b, reps(20) nodots: regress z x1 x2",
+          "lines": [
+            "Linear regression                                       Number of obs =     20",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(2)  = 207.23",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.9181",
+            "                                                        Adj R-squared = 0.9085",
+            "                                                        Root MSE      = 0.5962",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           z | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736    .069714     3.98   0.000     .1407367    .4140105",
+            "          x2 |   1.600971   .1298078    12.33   0.000     1.346552    1.855389",
+            "       _cons |  -.9717534   .4067705    -2.39   0.017    -1.769009   -.1744978",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "bootstrap, reps(60) level(90): regress z x1 if d == 1",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (60): .........10.........20.........30.........40.........50.........60 done",
+            "",
+            "Linear regression                                       Number of obs =     12",
+            "                                                        Replications  =     60",
+            "                                                        Wald chi2(1)  =   4.41",
+            "                                                        Prob > chi2   = 0.0358",
+            "                                                        R-squared     = 0.2387",
+            "                                                        Adj R-squared = 0.1626",
+            "                                                        Root MSE      = 1.9705",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           z | coefficient  std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .4727445   .2251497     2.10   0.036     .1024063    .8430828",
+            "       _cons |   1.596561   1.519589     1.05   0.293    -.9029402    4.096062",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean) s=r(sd), reps(15): summarize z",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (15): .........10..... done",
+            "",
+            "Bootstrap results                                           Number of obs = 20",
+            "                                                            Replications  = 15",
+            "",
+            "      Command: summarize z",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |        3.9    .404881     9.63   0.000     3.106448    4.693552",
+            "           s |    1.97084   .2595328     7.59   0.000     1.462165    2.479515",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "bootstrap r(mean), reps(15) nodots: summarize z",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 20",
+            "                                                            Replications  = 15",
+            "",
+            "      Command: summarize z",
+            "        _bs_1: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _bs_1 |        3.9    .404881     9.63   0.000     3.106448    4.693552",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 11", "lines": [] },
+        {
+          "command": "bootstrap ratio=(r(mean)/r(sd)) top=r(max), reps(25) nodots: summarize x1",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 20",
+            "                                                            Replications  = 25",
+            "",
+            "      Command: summarize x1",
+            "        ratio: r(mean)/r(sd)",
+            "          top: r(max)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       ratio |   1.993552   .2357711     8.46   0.000     1.531449    2.455655",
+            "         top |        9.4   .4953783    18.98   0.000     8.429076    10.37092",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "regress z x1 x2, vce(bootstrap, reps(20))",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     20",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(2)  = 207.23",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.9181",
+            "                                                        Adj R-squared = 0.9085",
+            "                                                        Root MSE      = 0.5962",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           z | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736    .069714     3.98   0.000     .1407367    .4140105",
+            "          x2 |   1.600971   .1298078    12.33   0.000     1.346552    1.855389",
+            "       _cons |  -.9717534   .4067705    -2.39   0.017    -1.769009   -.1744978",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife: regress z x1 x2",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     20",
+            "                                                        Replications  =     20",
+            "                                                        F(2, 19)      =  84.40",
+            "                                                        Prob > F      = 0.0000",
+            "                                                        R-squared     = 0.9181",
+            "                                                        Adj R-squared = 0.9085",
+            "                                                        Root MSE      = 0.5962",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           z | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736   .0605448     4.58   0.000     .1506519    .4040953",
+            "          x2 |   1.600971   .1430003    11.20   0.000     1.301668    1.900274",
+            "       _cons |  -.9717534   .4251128    -2.29   0.034    -1.861525    -.081982",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife r(mean): summarize z",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (20): .........10.........20 done",
+            "",
+            "Jackknife results                                           Number of obs = 20",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize z",
+            "        _jk_1: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _jk_1 |        3.9   .4406931     8.85   0.000     2.977619    4.822381",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean) s=r(sd), nodots: summarize z",
+          "lines": [
+            "Jackknife results                                           Number of obs = 20",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize z",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |        3.9   .4406931     8.85   0.000     2.977619    4.822381",
+            "           s |    1.97084   .2757055     7.15   0.000     1.393782    2.547898",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress z x1 x2, vce(jackknife)",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     20",
+            "                                                        Replications  =     20",
+            "                                                        F(2, 19)      =  84.40",
+            "                                                        Prob > F      = 0.0000",
+            "                                                        R-squared     = 0.9181",
+            "                                                        Adj R-squared = 0.9085",
+            "                                                        Root MSE      = 0.5962",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           z | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736   .0605448     4.58   0.000     .1506519    .4040953",
+            "          x2 |   1.600971   .1430003    11.20   0.000     1.301668    1.900274",
+            "       _cons |  -.9717534   .4251128    -2.29   0.034    -1.861525    -.081982",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, level(90): regress z x1 if d == 1",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (12): .........10.. done",
+            "",
+            "Linear regression                                       Number of obs =     12",
+            "                                                        Replications  =     12",
+            "                                                        F(1, 11)      =   2.69",
+            "                                                        Prob > F      = 0.1293",
+            "                                                        R-squared     = 0.2387",
+            "                                                        Adj R-squared = 0.1626",
+            "                                                        Root MSE      = 1.9705",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           z | Coefficient  std. err.      t    P>|t|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .4727445   .2883271     1.64   0.129    -.0450577    .9905468",
+            "       _cons |   1.596561   1.940636     0.82   0.428    -1.888599     5.08172",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "simulate m=r(mean) s=r(sd), reps(5): summarize z",
+          "lines": [
+            "      Command: summarize z",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "",
+            "Simulations (5): ..... done"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------+",
+            "     |   m         s |",
+            "     |---------------|",
+            "  1. | 3.9   1.97084 |",
+            "  2. | 3.9   1.97084 |",
+            "  3. | 3.9   1.97084 |",
+            "  4. | 3.9   1.97084 |",
+            "  5. | 3.9   1.97084 |",
+            "     +---------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sampling",
+      "source": "clear\nset obs 10\ngenerate id = _n\ngenerate g = mod(_n, 3)\nset seed 123\nbsample\nlist id, clean noobs\nset seed 5\nsample 60\nlist id, clean noobs\nset seed 5\nsample 3, count\nlist id g, clean noobs\nclear\nset obs 25\ngenerate id = _n\nset seed 99\nbsample 8\nlist id, clean noobs\nset seed 99\nsample 0\ncount\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "set seed 123", "lines": [] },
+        { "command": "bsample", "lines": [] },
+        {
+          "command": "list id, clean noobs",
+          "lines": [
+            "    id",
+            "     6",
+            "     8",
+            "     1",
+            "    10",
+            "     2",
+            "     4",
+            "     9",
+            "     7",
+            "     6",
+            "     7"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "sample 60", "lines": ["(4 observations deleted)"] },
+        {
+          "command": "list id, clean noobs",
+          "lines": [
+            "    id",
+            "     8",
+            "     2",
+            "     4",
+            "     9",
+            "     7",
+            "     1"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "sample 3, count", "lines": ["(3 observations deleted)"] },
+        {
+          "command": "list id g, clean noobs",
+          "lines": ["    id   g", "     2   2", "     7   1", "     1   1"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 25",
+          "lines": ["Number of observations (_N) was 0, now 25."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        { "command": "bsample 8", "lines": [] },
+        {
+          "command": "list id, clean noobs",
+          "lines": [
+            "    id",
+            "     3",
+            "    14",
+            "    14",
+            "    12",
+            "     9",
+            "    17",
+            "    11",
+            "    21"
+          ]
+        },
+        { "command": "set seed 99", "lines": [] },
+        { "command": "sample 0", "lines": ["(8 observations deleted)"] },
+        { "command": "count", "lines": ["  0"] }
+      ]
+    },
+    {
+      "id": "combine-data",
+      "source": "clear\ninput byte k str1 c double v\n1 \"a\" 10\n2 \"b\" 20\n2 \"c\" 30\n3 \"d\" 40\nend\nsave jb_using, replace\nclear\ninput byte id byte k double w\n1 2 .5\n2 1 1.5\n3 2 2.5\n4 4 3.5\nend\npreserve\ncross using jb_using\nlist, clean\ndescribe\nrestore\npreserve\njoinby k using jb_using, unmatched(both)\nsort k id c\nlist, clean\ndescribe _merge\nrestore\nstack id w, into(z) clear\nlist, clean\ndescribe\nclear\ninput byte d double x1 byte n str3 name\n0 1.0 0 \"no\"\n0 1.5 1 \"no\"\n1 2.2 2 \"yes\"\n1 3.4 2 \"yes\"\n0 5.1 . \"no\"\n1 6.0 4 \"yes\"\n1 9.4 10 \"yes\"\nend\negen cc2 = concat(d n), punct(\"-\")\negen cg = cut(x1), group(3)\nlist, clean\nregress x1 n d\nmatrix list e(b)\nmatrix list e(V)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte k str1 c double v",
+          "lines": [
+            "            k          c           v",
+            "  1. 1 \"a\" 10",
+            "  2. 2 \"b\" 20",
+            "  3. 2 \"c\" 30",
+            "  4. 3 \"d\" 40",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "save jb_using, replace",
+          "lines": ["(file jb_using.dta not found)", "file jb_using.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id byte k double w",
+          "lines": [
+            "           id         k           w",
+            "  1. 1 2 .5",
+            "  2. 2 1 1.5",
+            "  3. 3 2 2.5",
+            "  4. 4 4 3.5",
+            "  5. end"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        { "command": "cross using jb_using", "lines": [] },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       id   k     w   c    v",
+            "  1.    1   2    .5   a   10",
+            "  2.    2   1   1.5   a   10",
+            "  3.    3   2   2.5   a   10",
+            "  4.    4   4   3.5   a   10",
+            "  5.    1   2    .5   b   20",
+            "  6.    1   2    .5   c   30",
+            "  7.    1   2    .5   d   40",
+            "  8.    2   1   1.5   b   20",
+            "  9.    2   1   1.5   c   30",
+            " 10.    2   1   1.5   d   40",
+            " 11.    3   2   2.5   b   20",
+            " 12.    3   2   2.5   c   30",
+            " 13.    3   2   2.5   d   40",
+            " 14.    4   4   3.5   b   20",
+            " 15.    4   4   3.5   c   30",
+            " 16.    4   4   3.5   d   40"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:            16",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "k               byte    %8.0g",
+            "w               double  %10.0g",
+            "c               str1    %9s",
+            "v               double  %10.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "joinby k using jb_using, unmatched(both)", "lines": [] },
+        { "command": "sort k id c", "lines": [] },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       id   k     w                          _merge   c    v",
+            "  1.    2   1   1.5   both in master and using data   a   10",
+            "  2.    1   2    .5   both in master and using data   b   20",
+            "  3.    1   2    .5   both in master and using data   c   30",
+            "  4.    3   2   2.5   both in master and using data   b   20",
+            "  5.    3   2   2.5   both in master and using data   c   30",
+            "  6.    .   3     .              only in using data   d   40",
+            "  7.    4   4   3.5             only in master data        ."
+          ]
+        },
+        {
+          "command": "describe _merge",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "_merge          byte    %29.0g     __MERGE"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "stack id w, into(z) clear", "lines": [] },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       _stack     z",
+            "  1.        1     1",
+            "  2.        1     2",
+            "  3.        1     3",
+            "  4.        1     4",
+            "  5.        2    .5",
+            "  6.        2   1.5",
+            "  7.        2   2.5",
+            "  8.        2   3.5"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             8",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "_stack          int     %8.0g",
+            "z               double  %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 byte n str3 name",
+          "lines": [
+            "            d          x1         n       name",
+            "  1. 0 1.0 0 \"no\"",
+            "  2. 0 1.5 1 \"no\"",
+            "  3. 1 2.2 2 \"yes\"",
+            "  4. 1 3.4 2 \"yes\"",
+            "  5. 0 5.1 . \"no\"",
+            "  6. 1 6.0 4 \"yes\"",
+            "  7. 1 9.4 10 \"yes\"",
+            "  8. end"
+          ]
+        },
+        { "command": "egen cc2 = concat(d n), punct(\"-\")", "lines": [] },
+        { "command": "egen cg = cut(x1), group(3)", "lines": [] },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       d    x1    n   name    cc2   cg",
+            "  1.   0     1    0     no    0-0    0",
+            "  2.   0   1.5    1     no    0-1    0",
+            "  3.   1   2.2    2    yes    1-2    1",
+            "  4.   1   3.4    2    yes    1-2    1",
+            "  5.   0   5.1    .     no    0-.    2",
+            "  6.   1     6    4    yes    1-4    2",
+            "  7.   1   9.4   10    yes   1-10    2"
+          ]
+        },
+        {
+          "command": "regress x1 n d",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         6",
+            "-------------+----------------------------------   F(2, 3)         =     29.02",
+            "       Model |  49.4138506         2  24.7069253   Prob > F        =    0.0109",
+            "    Residual |  2.55448276         3  .851494253   R-squared       =    0.9508",
+            "-------------+----------------------------------   Adj R-squared   =    0.9181",
+            "       Total |  51.9683333         5  10.3936667   Root MSE        =    .92276",
+            "",
+            "------------------------------------------------------------------------------",
+            "          x1 | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           n |   .8034483   .1399092     5.74   0.010     .3581948    1.248702",
+            "           d |   .7862069   .9756095     0.81   0.479    -2.318618    3.891032",
+            "       _cons |   .8482759   .6562323     1.29   0.287    -1.240148      2.9367",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,3]",
+            "            n          d      _cons",
+            "y1  .80344828   .7862069  .84827586"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[3,3]",
+            "                n           d       _cons",
+            "    n   .01957458",
+            "    d  -.07829832   .95181398",
+            "_cons  -.00978729  -.38659797   .43064077"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

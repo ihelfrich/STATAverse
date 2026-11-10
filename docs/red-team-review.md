@@ -356,3 +356,7 @@ The evidence is a test that runs the recorded machine-written data expressions t
 What changes for a student: a saved command containing an unparenthesised chain of comparisons, or `strpos("", "")`, now replays with Stata's answer where it used to replay with the earlier one. No lesson, check or worked example contains either, and the 86 lesson commands still agree between the two interpreters.
 
 
+
+### An intermittent browser test, 10 November 2026
+
+In two of five full runs of the browser suite on this date one case did not pass. On the run where it was captured it was `tests/browser/iv-investigations.spec.js:355`, "clearing an empty workspace invalidates an IV save already waiting behind that clear", on the mobile project. Repeated alone it passed 30 times out of 30 (15 on each device). The IV investigations code was not changed on this date and does not load the new runtime. The likely cause is timing under the load of the full suite, on a test that depends on the order of a pending save and a clear, but that is not established. It is the same lab in which an intermittent navigation fault was noted earlier and not reproduced. Not fixed: the test and the code it covers are left as they are until the failure can be made to repeat.

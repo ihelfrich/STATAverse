@@ -1,7 +1,7 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 154,
+  "run": 166,
   "refused": [
     {
       "command": "table sector",
@@ -29,16 +29,6 @@
       "message": "command notes is unrecognized r(199);"
     },
     {
-      "command": "sample 50",
-      "rc": 199,
-      "message": "command sample is unrecognized r(199);"
-    },
-    {
-      "command": "bsample",
-      "rc": 199,
-      "message": "command bsample is unrecognized r(199);"
-    },
-    {
       "command": "graph pie, over(sector)",
       "rc": 198,
       "message": "graph pie is not available yet r(198);"
@@ -62,11 +52,6 @@
       "command": "anova wage sectorn",
       "rc": 199,
       "message": "command anova is unrecognized r(199);"
-    },
-    {
-      "command": "regress wage education experience, vce(bootstrap)",
-      "rc": 198,
-      "message": "vce(bootstrap) is not available yet r(198);"
     },
     {
       "command": "estat esample",
@@ -219,29 +204,9 @@
       "message": "command tssmooth is unrecognized r(199);"
     },
     {
-      "command": "bootstrap: regress wage education",
-      "rc": 199,
-      "message": "command bootstrap is unrecognized r(199);"
-    },
-    {
-      "command": "bootstrap _b, reps(20): regress wage education",
-      "rc": 199,
-      "message": "command bootstrap is unrecognized r(199);"
-    },
-    {
-      "command": "simulate m=r(mean), reps(10): summarize wage",
-      "rc": 199,
-      "message": "command simulate is unrecognized r(199);"
-    },
-    {
       "command": "permute high _b[high], reps(10): regress wage high",
       "rc": 199,
       "message": "command permute is unrecognized r(199);"
-    },
-    {
-      "command": "jackknife: regress wage education",
-      "rc": 199,
-      "message": "command jackknife is unrecognized r(199);"
     },
     {
       "command": "svyset id",
@@ -304,34 +269,14 @@
       "message": "experience] invalid name r(198);"
     },
     {
-      "command": "egen c1x = cut(wage), group(3)",
-      "rc": 198,
-      "message": "option group not allowed r(198);"
-    },
-    {
-      "command": "egen cc1 = concat(sector id)",
-      "rc": 133,
-      "message": "unknown egen function concat() r(133);"
-    },
-    {
-      "command": "egen an1 = anycount(education), values(12 16)",
-      "rc": 133,
-      "message": "unknown egen function anycount() r(133);"
-    },
-    {
-      "command": "stack wage education, into(z)",
-      "rc": 199,
-      "message": "command stack is unrecognized r(199);"
-    },
-    {
       "command": "cross using x",
-      "rc": 199,
-      "message": "command cross is unrecognized r(199);"
+      "rc": 601,
+      "message": "file x.dta not found r(601);"
     },
     {
       "command": "joinby sector using x",
-      "rc": 199,
-      "message": "command joinby is unrecognized r(199);"
+      "rc": 601,
+      "message": "file x.dta not found r(601);"
     },
     {
       "command": "merge m:m sector using x",
@@ -349,29 +294,24 @@
       "message": "invalid syntax r(198);"
     },
     {
-      "command": "matrix list e(b)",
-      "rc": 111,
-      "message": "matrix e(b) not found r(111);"
-    },
-    {
       "command": "mat li b",
       "rc": 111,
       "message": "matrix b not found r(111);"
     },
     {
       "command": "do myfile.do",
-      "rc": 199,
-      "message": "command do is unrecognized r(199);"
+      "rc": 601,
+      "message": "file myfile.do not found r(601);"
     },
     {
       "command": "run myfile.do",
-      "rc": 199,
-      "message": "command run is unrecognized r(199);"
+      "rc": 601,
+      "message": "file myfile.do not found r(601);"
     },
     {
       "command": "include myfile.do",
-      "rc": 199,
-      "message": "command include is unrecognized r(199);"
+      "rc": 601,
+      "message": "file myfile.do not found r(601);"
     }
   ]
 }
