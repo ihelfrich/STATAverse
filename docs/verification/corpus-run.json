@@ -223,10 +223,10 @@
     },
     {
       "file": "CodeLibrary/scripts/05_moderation_mastery.do",
-      "commands": 56,
-      "rc": 322,
-      "stoppedAt": "margins, dydx(firm_size_c) at(comp_c = (`comp_low' 0 `comp_high'))",
-      "message": "margins is not available yet for a model with interactions"
+      "commands": 115,
+      "rc": 199,
+      "stoppedAt": "matrix b = r(b)",
+      "message": "command matrix is unrecognized"
     },
     {
       "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",

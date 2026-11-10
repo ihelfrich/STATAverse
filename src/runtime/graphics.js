@@ -84,12 +84,22 @@ export function draw({ layers, xTitle, yTitle, title, xRange, yRange }) {
     `<line x1="${PLOT.left}" x2="${PLOT.left}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#333333"/>`,
   );
   layers.forEach((layer, k) => {
-    const color = COLORS[k % COLORS.length];
+    const color = layer.color ?? COLORS[k % COLORS.length];
     if (layer.bars)
       for (const bar of layer.bars)
         parts.push(
           `<rect x="${n(px(bar.x0))}" y="${n(py(bar.height))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(py(0) - py(bar.height))}" fill="${color}" fill-opacity="0.75" stroke="#ffffff"/>`,
         );
+    else if (layer.kind === "segments")
+      // Pairs of points joined one pair at a time, with caps: intervals.
+      for (let p = 0; p + 1 < layer.points.length; p += 2) {
+        const [a, b] = [layer.points[p], layer.points[p + 1]];
+        parts.push(
+          `<line x1="${n(px(a[0]))}" x2="${n(px(b[0]))}" y1="${n(py(a[1]))}" y2="${n(py(b[1]))}" stroke="${color}" stroke-width="1.5"/>`,
+          `<line x1="${n(px(a[0]) - 4)}" x2="${n(px(a[0]) + 4)}" y1="${n(py(a[1]))}" y2="${n(py(a[1]))}" stroke="${color}" stroke-width="1.5"/>`,
+          `<line x1="${n(px(b[0]) - 4)}" x2="${n(px(b[0]) + 4)}" y1="${n(py(b[1]))}" y2="${n(py(b[1]))}" stroke="${color}" stroke-width="1.5"/>`,
+        );
+      }
     else if (layer.kind === "line")
       parts.push(
         `<polyline fill="none" stroke="${color}" stroke-width="2" points="${layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`).join(" ")}"/>`,
@@ -253,9 +263,8 @@ function twoway(session, text, ctx, single) {
   let specs,
     optionText = "";
   if (single) {
-    const [head, options] = splitAtComma(text);
-    specs = [`${single} ${head}`];
-    optionText = options ?? "";
+    specs = [`${single} ${text}`];
+    optionText = splitAtComma(text)[1] ?? "";
   } else {
     const [head, options] = splitAtComma(text),
       groups = head.match(/\((?:[^()]|\([^()]*\))*\)/g);
@@ -269,11 +278,10 @@ function twoway(session, text, ctx, single) {
         .filter(Boolean);
       specs = pieces.map((piece, k) => {
         if (k < pieces.length - 1) return piece;
-        const [head, options] = splitAtComma(piece);
-        // Options after the last plot belong to the graph unless they are
-        // plot options, which stay with the plot.
-        optionText = options ?? "";
-        return head;
+        // Options after the last plot may belong to it (range(), sort) or
+        // to the graph (title()); both readers ignore what is not theirs.
+        optionText = splitAtComma(piece)[1] ?? "";
+        return piece;
       });
     }
   }

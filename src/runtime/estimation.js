@@ -152,6 +152,10 @@ export function design(session, text, rows, constant = true) {
       const column = {
         name: term.variable.name,
         value: (i) => term.variable.data[i],
+        // The same column from any set of variable values, and its
+        // derivative with respect to one variable; margins uses both.
+        evaluate: (get) => get(term.variable),
+        partial: (get, variable) => Number(variable === term.variable),
         term,
       };
       independent(column);
@@ -187,6 +191,25 @@ export function design(session, text, rows, constant = true) {
             if (product)
               for (const c of continuous) product *= c.variable.data[i];
             return product;
+          },
+          evaluate: (get) => {
+            for (let k = 0; k < factors.length; k++)
+              if (get(factors[k].variable) !== cell[k]) return 0;
+            return continuous.reduce((t, c) => t * get(c.variable), 1);
+          },
+          partial: (get, variable) => {
+            for (let k = 0; k < factors.length; k++)
+              if (get(factors[k].variable) !== cell[k]) return 0;
+            // Product rule over the continuous components.
+            let total = 0;
+            continuous.forEach((c, at) => {
+              if (c.variable !== variable) return;
+              total += continuous.reduce(
+                (t, other, k) => (k === at ? t : t * get(other.variable)),
+                1,
+              );
+            });
+            return total;
           },
           term,
           levels: cell,

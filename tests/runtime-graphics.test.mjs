@@ -70,3 +70,25 @@ test("ticks are round and cover the data", () => {
   assert.deepEqual(ticks(5, 5), [4, 4.5, 5, 5.5, 6]);
   assert.deepEqual(ticks(-0.3, 0.42), [-0.4, -0.2, 0, 0.2, 0.4, 0.6]);
 });
+
+test("marginsplot draws the last margins with its intervals", () => {
+  const { result } = run(
+    'regress y c.x##c.g\nmargins, dydx(x) at(g=(1 2 3))\nmarginsplot, title("Effect")',
+  );
+  assert.equal(result.rc, 0);
+  const graph = result.output.at(-1).graph;
+  assert.equal(marks(graph.svg, "circle"), 3);
+  assert.equal(marks(graph.svg, "polyline"), 1);
+  assert.match(graph.svg, />Effect</);
+  assert.match(graph.description, /3 estimates/);
+  assert.equal(run("marginsplot").result.rc, 301);
+});
+
+test("function plots draw a curve of an expression in x", () => {
+  const { last, result } = run(
+    "twoway (scatter y x) (function y = x^2 / 4, range(x))",
+  );
+  assert.equal(result.rc, 0);
+  assert.equal(marks(last.graph.svg, "polyline"), 1);
+  assert.equal(run("twoway function y = exp(-x), range(5 0)").result.rc, 198);
+});
