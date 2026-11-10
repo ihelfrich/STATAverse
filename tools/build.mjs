@@ -168,6 +168,7 @@ const bundleResult = await build({
     "src/iv-investigation-ui.js",
     "src/method-lab.js",
     "src/console.js",
+    "src/console-worker.js",
     "src/do-builder.js",
     "src/worked-reader.js",
   ],

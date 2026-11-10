@@ -226,5 +226,5 @@ These parts of `src/runtime/` were added on 10 November 2026. The only page that
 - `runiform()` uses the 64-bit Mersenne Twister and returns the same doubles as Stata after the same `set seed`, checked on recorded draws. `rnormal()`, `runiformint()`, `rbinomial()`, `rpoisson()`, `rbernoulli()` and `rexponential()` are built on it by this site's own methods: they are reproducible here and do not match Stata's draws.
 - A number stored in a macro with 16 significant digits can differ from Stata's in the last digit, because Stata's conversion to decimal is not exactly rounded there.
 - The cases use small invented datasets. They establish the stated behaviours on those cases and nothing about speed or about data with tens of thousands of observations.
-- The Console runs the interpreter in the page, not in a cancellable worker. A do-file is stopped after 200,000 commands.
+- The Console runs the interpreter in a worker and falls back to the page when a worker cannot start. Stop ends the worker, which also discards the session's data. A do-file is stopped after 200,000 commands in either case.
 
