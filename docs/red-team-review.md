@@ -347,3 +347,12 @@ The recorded machine-written expressions were then run through the live interpre
 
 So two behaviours of the live interpreter are known to differ from Stata without a message: comparison chains without parentheses, and `strpos("", "")`. Neither occurs in a lesson. Both are corrected in the new runtime and both are left unchanged in the live one, pending Dr. Helfrich's decision on whether a frozen interpreter should take corrections of this kind.
 
+### Corrected in the live interpreter, 10 November 2026
+
+Dr. Helfrich decided that both should be corrected in place. `src/expression.js` now gives each comparison operator its own level in Stata's order (`!=` and `~=` tightest, then `>`, `<`, `<=`, `>=`, and `==` loosest), and `strpos()` returns 0 when the string searched is empty. Arithmetic precedence in the live interpreter was left as it was.
+
+The evidence is a test that runs the recorded machine-written data expressions through the live interpreter and fails on any value that differs from Stata's. Of the 804 recorded, 196 are left out (errors, by-groups, and those using the variable that holds an extended missing value), 283 are refused, and 325 are evaluated; all 325 agree. Before the correction 321 agreed and 4 did not. Seven hand-written cases, checked in Stata 17 the same day, are tested as well. Two of the seven were first written with the wrong expected value and corrected from Stata's output, which is a fair measure of how unintuitive the rule is.
+
+What changes for a student: a saved command containing an unparenthesised chain of comparisons, or `strpos("", "")`, now replays with Stata's answer where it used to replay with the earlier one. No lesson, check or worked example contains either, and the 86 lesson commands still agree between the two interpreters.
+
+
