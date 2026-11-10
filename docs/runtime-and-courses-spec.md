@@ -214,3 +214,12 @@ One change does touch existing behavior in a way that cannot alter results: `gen
 These additions raise the cost of the later migration, since the new runtime must reproduce them too. That is the reason to stop adding to the old interpreter once the grammar and data store of stage 1 begin. The core offline package is at 561,451 gzip bytes of its 600,000 limit, so further families need the on-demand loading described above before they ship.
 
 What the corpus still asks for, by number of command lines: `estat` 16, `estimates` 13, `graph` 13, `margins` 12, `ivregress` 11, `save` 10, `use` 9, `xtreg` 9, `log` 8, `xtset` 8, `mkdir` 7, `marginsplot` 6, `logit` 5, `encode` 4, `expand` 4, `format` 4. Those sixteen account for 139 of the 188 lines whose command is not implemented. The list orders the stage 3 and stage 4 work by what the site's own teaching code uses: stored estimates and `estat`, `margins` and `marginsplot`, the graph grammar, `ivregress`, the panel commands, and `use`, `save` and `log` from stage 2.
+
+## Progress, 10 November 2026
+
+Dr. Helfrich approved starting stage 1 in the Claude session. The first part is in `src/runtime/`: the command grammar (`syntax.js`, with `varlist.js` and `numlist.js`), values and storage types (`values.js`) and the typed dataset (`store.js`). They are described, with their evidence and its limits, in [the numerical contract](numerical-contract.md#new-runtime-command-grammar-and-storage-types). Nothing the site serves imports them, so the release is unchanged and the offline package is the same size.
+
+The grammar reimplements Stata's `syntax` command instead of inventing a declaration format. That choice serves two parts of this spec at once: built-in commands declare their syntax in notation that installed Stata can check line for line, and `program define` gets `syntax` from the same code.
+
+Stage 1 still needs, in the order I would build them: the expression compiler on the new values (extended missing values, storage-aware results, the functions already in the old interpreter); display formats and the plain-text results layout; macros and programs on `src/stata-program.js`; the existing commands declared and reimplemented on the store; and the `Console/` page. The stage 0 items that remain (the differential harness and the frozen-engine interface) are needed before the first command is reimplemented, since that is when there are two engines to compare.
+

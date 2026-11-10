@@ -13,7 +13,7 @@
       "path": "docs/numerical-contract.md",
       "kind": "specification",
       "title": "Browser Stata numerical contract",
-      "summary": "Browser numerical and do-file semantics, capture and output prefixes, factor-variable regression with native comparisons, worker recovery and guided do-file authoring; functions, subscripts, by-group commands, tabstat, test and lincom with 129 native cases; do-file corpus coverage report",
+      "summary": "Browser numerical and do-file semantics, capture and output prefixes, factor-variable regression with native comparisons, worker recovery and guided do-file authoring; functions, subscripts, by-group commands, tabstat, test and lincom with 129 native cases; do-file corpus coverage report; new runtime grammar and storage types with 170 syntax and 70 storage native cases",
       "facets": [
         "Stata",
         "teaching",
