@@ -1,0 +1,255 @@
+{
+  "basis": "Each do-file run from the start in a fresh session of the new runtime, with the site's datasets available. Finishing is not agreement with Stata; it means no command was refused.",
+  "files": 38,
+  "finished": 8,
+  "results": [
+    {
+      "file": "ScriptLibrary/scripts/append-files.do",
+      "commands": 4,
+      "rc": 601,
+      "stoppedAt": "use `f', clear",
+      "message": "file data/part1.dta not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/difference-in-differences.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "gen did = treated * post",
+      "message": "treated not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/duplicates-audit.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "duplicates tag id, gen(dup_id)",
+      "message": "variable id not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/encode-categorical.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "encode region, gen(region_id)",
+      "message": "variable region not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/export-regression-table.do",
+      "commands": 3,
+      "rc": 199,
+      "stoppedAt": "exit 199"
+    },
+    {
+      "file": "ScriptLibrary/scripts/fixed-effects.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "xtset store_id week",
+      "message": "variable store_id not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/group-summaries.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "bysort region: summarize sales price",
+      "message": "variable region not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/import-csv.do",
+      "commands": 1,
+      "rc": 601,
+      "stoppedAt": "import delimited using \"data/your_file.csv\", clear varnames(1) stringcols(_all)",
+      "message": "file data/your_file.csv not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/import-excel.do",
+      "commands": 1,
+      "rc": 198,
+      "stoppedAt": "import excel \"data/workbook.xlsx\", sheet(\"Sheet1\") firstrow clear",
+      "message": "import excel is not available; import delimited is"
+    },
+    {
+      "file": "ScriptLibrary/scripts/import-fixed-width.do",
+      "commands": 1,
+      "rc": 199,
+      "stoppedAt": "infix str5 id 1-5 str2 state 6-7 income 8-15 using \"data/fixed_width.txt\", clear",
+      "message": "command infix is unrecognized"
+    },
+    {
+      "file": "ScriptLibrary/scripts/instrumental-variables-2sls.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "ivregress 2sls sales (price = competitor_price) foot_traffic labor_hours",
+      "message": "variable price not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/label-from-metadata.do",
+      "commands": 2,
+      "rc": 601,
+      "stoppedAt": "import delimited using \"data/metadata.csv\", clear varnames(1)",
+      "message": "file data/metadata.csv not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/logit-margins.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "encode region, generate(region_id)",
+      "message": "variable region not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/loop-acs-hhi.do",
+      "commands": 5,
+      "rc": 601,
+      "stoppedAt": "import delimited using \"`data_dir'/ACS_`yy'_5YR_B19013_with_ann.csv\", clear varnames(1)",
+      "message": "file /path/to/Median HHI/ACS_09_5YR_B19013_with_ann.csv not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/merge-1-1.do",
+      "commands": 1,
+      "rc": 601,
+      "stoppedAt": "use \"data/master.dta\", clear",
+      "message": "file data/master.dta not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/merge-m-1.do",
+      "commands": 1,
+      "rc": 601,
+      "stoppedAt": "use \"data/transactions.dta\", clear",
+      "message": "file data/transactions.dta not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/missingness-report.do",
+      "commands": 1,
+      "rc": 199,
+      "stoppedAt": "misstable summarize",
+      "message": "command misstable is unrecognized"
+    },
+    {
+      "file": "ScriptLibrary/scripts/ols-robust-diagnostics.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "regress sales price promo foot_traffic labor_hours",
+      "message": "variable sales not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/panel-setup.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "xtset store_id week",
+      "message": "variable store_id not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/parse-dates.do",
+      "commands": 0,
+      "rc": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/poisson-nb-overdispersion.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "encode supplier_tier, generate(supplier_id)",
+      "message": "variable supplier_tier not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/project-setup-log.do",
+      "commands": 11,
+      "rc": 0
+    },
+    {
+      "file": "ScriptLibrary/scripts/reshape-wide-long.do",
+      "commands": 1,
+      "rc": 601,
+      "stoppedAt": "use \"data/sales_wide.dta\", clear",
+      "message": "file data/sales_wide.dta not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/standardize-variable-names.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "rename *, lower",
+      "message": "variable * not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/summary-report.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "tabstat sales price foot_traffic, stat(n mean sd min max)",
+      "message": "variable sales not found"
+    },
+    {
+      "file": "ScriptLibrary/scripts/winsorize-outliers.do",
+      "commands": 1,
+      "rc": 111,
+      "stoppedAt": "centile sales, centile(1 99)",
+      "message": "variable sales not found"
+    },
+    {
+      "file": "CodeLibrary/scripts/00_regression_plain_english.do",
+      "commands": 207,
+      "rc": 0
+    },
+    {
+      "file": "CodeLibrary/scripts/01_endogeneity_simulator.do",
+      "commands": 53,
+      "rc": 198,
+      "stoppedAt": "quietly ivregress 2sls y (x = z), vce(robust) first",
+      "message": "option first is not available in the browser yet"
+    },
+    {
+      "file": "CodeLibrary/scripts/01b_endogeneity_intuition.do",
+      "commands": 261,
+      "rc": 0
+    },
+    {
+      "file": "CodeLibrary/scripts/02_method_decision_tree.do",
+      "commands": 147,
+      "rc": 0
+    },
+    {
+      "file": "CodeLibrary/scripts/02_method_decision_tree_v2.do",
+      "commands": 232,
+      "rc": 0
+    },
+    {
+      "file": "CodeLibrary/scripts/03_anti_patterns.do",
+      "commands": 156,
+      "rc": 198,
+      "stoppedAt": "ivregress 2sls y (x = z_weak), first",
+      "message": "option first is not available in the browser yet"
+    },
+    {
+      "file": "CodeLibrary/scripts/04_assumption_checker.do",
+      "commands": 12,
+      "rc": 601,
+      "stoppedAt": "sysuse auto, clear",
+      "message": "file auto.dta not found. This site's datasets are: study, wages, clinic."
+    },
+    {
+      "file": "CodeLibrary/scripts/05_moderation_mastery.do",
+      "commands": 226,
+      "rc": 0
+    },
+    {
+      "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",
+      "commands": 63,
+      "rc": 199,
+      "stoppedAt": "xtgee performance experience competition innovation i.year, family(gaussian) link(identity) corr(exchangeable) vce(robust)",
+      "message": "command xtgee is unrecognized"
+    },
+    {
+      "file": "ZeroToHero/projects/project-01/analysis.do",
+      "commands": 13,
+      "rc": 0
+    },
+    {
+      "file": "ZeroToHero/projects/project-02/analysis.do",
+      "commands": 15,
+      "rc": 199,
+      "stoppedAt": "nbreg delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id",
+      "message": "command nbreg is unrecognized"
+    },
+    {
+      "file": "RealData/base_lab.do",
+      "commands": 20,
+      "rc": 198,
+      "stoppedAt": "exit 198"
+    }
+  ]
+}

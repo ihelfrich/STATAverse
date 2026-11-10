@@ -214,3 +214,31 @@ One change does touch existing behavior in a way that cannot alter results: `gen
 These additions raise the cost of the later migration, since the new runtime must reproduce them too. That is the reason to stop adding to the old interpreter once the grammar and data store of stage 1 begin. The core offline package is at 561,451 gzip bytes of its 600,000 limit, so further families need the on-demand loading described above before they ship.
 
 What the corpus still asks for, by number of command lines: `estat` 16, `estimates` 13, `graph` 13, `margins` 12, `ivregress` 11, `save` 10, `use` 9, `xtreg` 9, `log` 8, `xtset` 8, `mkdir` 7, `marginsplot` 6, `logit` 5, `encode` 4, `expand` 4, `format` 4. Those sixteen account for 139 of the 188 lines whose command is not implemented. The list orders the stage 3 and stage 4 work by what the site's own teaching code uses: stored estimates and `estat`, `margins` and `marginsplot`, the graph grammar, `ivregress`, the panel commands, and `use`, `save` and `log` from stage 2.
+
+## Progress, 10 November 2026
+
+Dr. Helfrich approved starting stage 1 in the Claude session. The first part is in `src/runtime/`: the command grammar (`syntax.js`, with `varlist.js` and `numlist.js`), values and storage types (`values.js`) and the typed dataset (`store.js`). They are described, with their evidence and its limits, in [the numerical contract](numerical-contract.md#new-runtime-command-grammar-and-storage-types). Nothing the site serves imports them, so the release is unchanged and the offline package is the same size.
+
+The grammar reimplements Stata's `syntax` command instead of inventing a declaration format. That choice serves two parts of this spec at once: built-in commands declare their syntax in notation that installed Stata can check line for line, and `program define` gets `syntax` from the same code.
+
+Stage 1 still needs, in the order I would build them: the expression compiler on the new values (extended missing values, storage-aware results, the functions already in the old interpreter); display formats and the plain-text results layout; macros and programs on `src/stata-program.js`; the existing commands declared and reimplemented on the store; and the `Console/` page. The stage 0 items that remain (the differential harness and the frozen-engine interface) are needed before the first command is reimplemented, since that is when there are two engines to compare.
+
+### Later on 10 November 2026
+
+A second session built most of the rest of stage 1 and reached into stages 2 to 4. The numerical contract lists what exists and how each part was checked; the short version follows.
+
+- **Built and checked against installed Stata:** the expression compiler and about 130 functions; display formats; do-file control flow, macros and programs; 60 commands for data work; `save`, `use`, `append`, `merge` and `reshape` on a folder held in the session; the reporting commands with their printed layout; `regress`, `logit`, `probit`, `poisson`, `ivregress 2sls` and `xtreg` with `predict`, `test`, `lincom`, `estat` and `estimates`.
+- **The differential harness of stage 0** exists as `tools/differential.mjs` with a standing test.
+- **The Console page** exists at `Console/` and is packaged with the site, but nothing links to it. Linking it is the release decision for stage 1 and is left to Dr. Helfrich.
+- **Coverage of the corpus by command name** is 96.9 percent with `display` set aside. Running the 38 do-files from the start is the stricter test; `docs/verification/corpus-run.json` lists where each stops. Most that stop are templates that need the reader's own data, eight finish, and the rest stop at something not built (`ivregress, first`, `xtgee`, `nbreg`, `sysuse auto`) or at a deliberate `exit`.
+
+Every command in the 19 lessons now runs the same in the frozen interpreter and the new runtime, apart from the intended effect of `float` storage. What stage 1 still lacks before the Console should be linked: the frozen-engine interface, and a second model's review of the new code. The Console already runs in a worker that can be stopped, and reads a CSV file the student chooses. The estimation commands were written as separate fitters that leave one shared result object. Stage 3's shared model frame (interactions, weights, a common covariance module) has not been built, and `regress`, the likelihood fitter and `xtreg` each carry their own copy of the sandwich calculation until it is.
+
+A first set of graphs (`scatter`, `line`, `histogram` and `twoway` overlays with `lfit`) is drawn as SVG and shown in the Console. `margins`, `marginsplot` and `import delimited` followed the same day. What follows, in order: `matrix` and the commands that read `r()` and `e()` matrices, the remaining graph types and options, `estat` after instrumental variables and logit, then `.dta` files.
+
+### What the randomized comparison changed about the method
+
+The verification section above asks for constructed cases per command. Those were written, and they were not enough. Three generators now produce cases nobody chose: arithmetic and string expressions, short sequences of data commands, nests of loops and conditions, and reports on random data. Each batch is run in installed Stata and recorded like any other fixture, so the tests still run without Stata. Between them they found about a dozen differences that roughly 900 hand-written cases had passed over, among them operator precedence, an inner `if` deciding an outer `else`, and what `by` does when no observations are left.
+
+Two consequences for the stages that follow. A new command family should get a generator as well as written cases before it is called checked. And the frozen interpreter deserves the same treatment once: the comparison precedence error recorded in [the review](red-team-review.md) was found only because the same expressions were run through it.
+

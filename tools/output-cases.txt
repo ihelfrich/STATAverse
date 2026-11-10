@@ -1,0 +1,587 @@
+=== counts
+@BASE
+count
+count if x > 0
+count if id > 100
+=== summarize
+@BASE
+summarize
+summarize x f
+summarize f if g > 1
+summarize s
+summarize x if id > 10
+=== summarize-wide
+clear
+set obs 3
+generate double big = 123456789.123 * _n
+generate double small = 0.000012345 * _n
+generate a_very_long_variable_name = _n
+generate long count = 1000000 * _n
+summarize
+=== summarize-many
+clear
+set obs 4
+generate a = _n
+generate b = _n^2
+generate c = 1/_n
+generate d = -_n
+generate e = _n*1000
+generate f = 0
+generate g = .
+summarize
+summarize, separator(2)
+=== summarize-detail
+@BASE
+summarize id, detail
+summarize f, detail
+=== tabulate-one
+@BASE
+tabulate g
+tabulate s
+tabulate x
+tabulate x, missing
+tabulate g if id > 2
+tabulate g, sort
+=== tabulate-labelled
+@BASE
+label variable g "Group of the unit"
+label define gl 1 "one" 2 "two" 3 "a long label here"
+label values g gl
+tabulate g
+tabulate g, nolabel
+=== tabulate-two
+@BASE
+tabulate g id
+tabulate g s
+=== list
+@BASE
+list
+list id x in 1/3
+list id s if g > 1
+list f
+list, clean
+list id s, noobs
+list id x, separator(2)
+list id x, separator(0)
+=== list-formats
+@BASE
+format x %9.2f
+format f %5.1f
+label define gl 1 "one" 2 "two"
+label values g gl
+list id x f g
+list id g, nolabel
+=== display
+display "hello"
+display 2 + 2
+display "a" "b" 3
+display 1/3
+display %9.2f 3.14159 " and " %5.0f 2.5
+display "x" _col(10) "y"
+display _skip(4) "z"
+display "one" _newline "two"
+display 1e10
+display "The mean is " 35.5 "."
+display 10/4 ", " 2^10
+display as text "plain" as result " result"
+=== describe
+@BASE
+label variable x "The X variable"
+label data "Test data"
+describe
+describe id x
+=== messages-generate
+@BASE
+generate y = x * 2
+generate z = 1
+generate w = . if id > 3
+replace z = 2
+replace z = 3 in 1
+replace z = 3 in 1
+generate byte b = 1
+replace b = 300 in 1
+replace b = 0.5 in 2
+replace s = "longer than twelve" in 1
+drop if id > 5
+keep if id > 1
+drop in 1
+keep in 1/2
+drop if id > 100
+=== messages-errors
+@BASE
+capture noisily generate id = 1
+capture noisily generate q = nosuch + 1
+capture noisily generate q = s + 1
+capture noisily replace nosuch = 1
+capture noisily summarize nosuch
+capture noisily frobnicate
+capture noisily generate q = 
+capture noisily by g: generate q = 1
+capture noisily assert x > 0
+capture noisily assert 1 == 2
+capture noisily confirm variable nosuch
+capture noisily drop nosuch
+capture noisily rename x id
+capture noisily generate 1x = 1
+capture noisily display sqrt(
+capture noisily display nosuchfn(1)
+capture noisily generate q = 1 if
+capture noisily list in 9
+capture noisily sort nosuch
+capture noisily isid g
+capture noisily label values s gl
+=== messages-compress
+@BASE
+generate double d = id
+generate long big = id * 1000
+generate str20 pad = s
+compress
+recast byte x
+recast int f, force
+recast double id
+=== by-reports
+@BASE
+bysort g: summarize id
+by g: count
+by g: list id x
+by g: tabulate id
+=== egen-collapse
+@BASE
+egen m = mean(x)
+egen mg = mean(x), by(g)
+egen c = count(x) if id > 2
+collapse (mean) x (count) n = id, by(g)
+list
+=== regress
+@EST
+regress y x1
+regress y x1 x2
+regress y x1 x2, noconstant
+regress y x1 x2, robust
+regress y x1 x2, vce(cluster cl)
+regress y x1 x2, level(90)
+regress y x1 if g > 1
+regress y i.g
+regress y x1 i.g
+=== postestimation
+@EST
+regress y x1 x2
+test x1
+test x1 x2
+test x1 = x2
+test x1 = 2
+lincom x1 + x2
+lincom x1 - x2, level(90)
+predict yhat
+predict res, residuals
+list yhat res in 1/3
+=== correlate
+@EST
+correlate y x1 x2
+correlate y x1, covariance
+correlate
+=== tabstat
+@EST
+tabstat y x1
+tabstat y x1 x2, statistics(mean sd n)
+tabstat y, by(g)
+tabstat y x1, by(g) statistics(mean median min max)
+tabstat y x1, statistics(n mean) columns(statistics)
+=== regress-collinear
+@EST
+generate x3 = x1 + x2
+generate x4 = 2*x1 + 1
+regress y x1 x2 x3
+regress y x1 x4, robust
+=== files-merge
+@BASE
+save "one.dta"
+capture noisily save "one.dta"
+save one, replace
+capture noisily use nosuch
+generate extra = 1
+capture noisily use one
+use one, clear
+preserve
+keep id f
+drop if id == 2
+replace id = 9 in 1
+save using1, replace
+restore
+keep id x g
+merge 1:1 id using using1
+capture noisily merge 1:1 id using using1
+drop _merge
+capture noisily merge 1:1 g using using1
+merge m:1 id using using1, nogenerate keep(match)
+merge 1:1 id using using1, generate(again)
+=== cleaning
+clear
+input str6 a str6 b str6 c double n byte k
+"1" "1.5" "x1" 3 1
+"22" "." "7" 4.25 1
+"" "-3" "8" . 2
+end
+destring a b, replace
+destring c, replace
+destring c, generate(c2) force
+destring c, generate(c3) ignore("x")
+destring n, replace
+tostring n, generate(ns)
+tostring a, replace
+tostring a, replace
+tostring b, generate(bs)
+recode k (1 = 10) (2 = 20)
+recode k (10 = 1) (else = 0), generate(k2)
+recode n (missing = 0)
+expand 2
+expand 3 if k == 20
+duplicates report
+duplicates report k
+duplicates drop
+capture noisily duplicates drop k
+duplicates drop k, force
+encode c, generate(code)
+capture noisily encode k, generate(bad)
+decode code, generate(back)
+capture noisily decode k, generate(bad)
+=== nonlinear
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+logit d x1
+logit d x1 x2
+logit d x1 x2, robust
+logit d x1 x2, or
+probit d x1 x2
+poisson n x1 x2
+poisson n x1, irr
+poisson n x1 x2
+test x1
+test x1 x2
+lincom x1 + x2
+predict mu
+logit d x1 x2
+predict phat
+predict xbhat, xb
+list phat xbhat in 1/3
+logit d x1 if x1 < 6, nolog
+ivregress 2sls n x2 (x1 = z)
+ivregress 2sls n (x1 = z x2), robust
+regress n x1 x2
+estat ic
+estat vif
+estimates store ols
+logit d x1
+estimates store lg
+estimates restore ols
+test x1
+estimates dir
+=== panel
+clear
+input byte id int year double y double x double w
+1 2019 3.1 1.0 2
+1 2020 4.0 1.5 2
+1 2021 5.2 2.1 3
+1 2022 5.9 2.4 3
+2 2019 7.5 2.0 5
+2 2020 8.1 2.2 5
+2 2021 9.6 3.1 4
+2 2022 9.9 3.0 6
+3 2019 2.2 0.5 1
+3 2020 2.9 1.1 1
+3 2021 3.1 1.0 2
+3 2022 4.4 1.9 2
+4 2019 6.0 2.5 4
+4 2020 6.2 2.4 4
+4 2021 7.7 3.3 3
+4 2022 8.3 3.6 5
+5 2019 5.0 1.2 3
+5 2020 5.1 1.4 2
+5 2021 6.6 2.2 3
+end
+xtset id year
+xtset
+xtreg y x, fe
+xtreg y x w, fe
+xtreg y x, re
+xtreg y x w, re
+xtreg y x, fe vce(cluster id)
+xtreg y x, fe robust
+xtsum y x
+tsset id year
+xtreg y x i.year, fe
+xtreg y c.x##c.w, fe
+generate ly = L.y
+generate dy = D.y
+generate fy = F.y
+list id year y ly dy fy in 1/6
+xtreg y x
+=== utilities
+@BASE
+label variable x "The X variable"
+label define gl 1 "one" 2 "two" 3 "three"
+label values g gl
+levelsof g
+levelsof s
+levelsof g, local(levels)
+display "`levels'"
+levelsof x if id > 2
+ds
+ds, has(type string)
+ds, has(type numeric)
+unab all : _all
+display "`all'"
+unab some : i* x
+display "`some'"
+ttest x == 0
+ttest f == 1
+generate half = id > 3
+ttest id, by(half)
+ttest x == f
+ttest f == 1, level(90)
+=== graphs
+@EST
+histogram y
+histogram y, bin(4)
+histogram y, frequency width(5)
+histogram x1, discrete
+histogram y if g > 1, percent
+capture noisily histogram nosuch
+=== margins
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate byte g = 1 + (x2 > 2) + (x2 > 3)
+logit d x1 x2
+margins
+margins, dydx(*)
+margins, dydx(x1)
+margins, at(x1=(2 5 8))
+margins, atmeans
+margins, dydx(x1) atmeans
+margins, at(x1=5 x2=2)
+probit d x1 x2
+margins, dydx(*)
+poisson n x1 x2
+margins
+margins, dydx(x1)
+regress n x1 x2
+margins
+margins, dydx(*)
+margins, at(x1=(1 5))
+regress n x1 i.g
+margins g
+margins, dydx(g)
+logit d x1 i.g
+margins g
+margins, dydx(*) level(90)
+capture noisily margins, dydx(nosuch)
+=== codebook
+@EST
+label variable y "Outcome measure"
+label define gl 1 "one" 2 "two" 3 "three"
+label values g gl
+replace x2 = . in 3
+replace x2 = .a in 4
+generate str8 name = "n" + string(mod(_n, 4))
+replace name = "" in 2
+generate float small = _n / 4
+generate long big = _n * 100000
+generate byte flag = _n > 6
+codebook y
+codebook x1
+codebook x2
+codebook g
+codebook name
+codebook small big flag
+codebook y g, compact
+=== interactions
+@EST
+generate byte h = mod(_n, 2)
+regress y c.x1##c.x2
+regress y i.g##c.x1
+regress y i.g#c.x1
+regress y x2 i.g#c.x1
+regress y i.g##i.h
+regress y c.x1#c.x2
+regress y x1 c.x1#c.x1
+regress y g#h
+regress y i.g i.h#c.x1
+=== panel-balanced
+clear
+input byte id int year double y double x
+1 2019 3.1 1.0
+1 2020 4.0 1.5
+1 2021 5.2 2.1
+2 2019 7.5 2.0
+2 2020 8.1 2.2
+2 2021 9.6 3.1
+3 2019 2.2 0.5
+3 2020 2.9 1.1
+3 2021 3.1 1.0
+4 2019 6.0 2.5
+4 2020 6.2 2.4
+4 2021 7.7 3.3
+5 2019 5.0 1.2
+5 2020 5.1 1.4
+5 2021 6.6 2.2
+6 2019 4.1 0.9
+6 2020 4.9 1.6
+6 2021 5.0 1.3
+end
+xtset id year
+xtreg y x i.year, re
+xtreg y x i.year, fe
+xtreg y x, re
+=== margins-interactions
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate byte g = 1 + (x2 > 2) + (x2 > 3)
+regress n c.x1##c.x2
+margins, dydx(x1)
+margins, dydx(x1) at(x2=(1 2 3))
+margins, at(x1=(2 8))
+margins, dydx(*)
+margins
+regress n i.g##c.x1
+margins g
+margins, dydx(x1)
+margins, dydx(g)
+margins, dydx(x1) at(g=(1 2 3))
+regress n x1 c.x1#c.x1
+margins, dydx(x1)
+margins, dydx(x1) at(x1=(2 5 8))
+logit d c.x1##c.x2
+margins, dydx(x1)
+margins, dydx(x1) at(x2=(1 3))
+margins, dydx(x1) atmeans
+=== tabulate-chi2
+@EST
+generate byte h = mod(_n, 2)
+tabulate g h, chi2
+tabulate g cl, chi2
+summarize y, meanonly
+display r(mean)
+=== matrices
+@EST
+regress y x1 x2
+matrix b = e(b)
+matrix list b
+matrix V = e(V)
+matrix list V
+matrix A = (1, 2.5 \ -3, 4)
+matrix list A
+matrix C = J(2, 3, 0)
+matrix list C
+matrix I3 = I(3)
+matrix list I3
+matrix T = A'
+matrix list T
+display b[1,1]
+display V[2,2]
+display A[2,1] + 1
+display rowsof(A) " " colsof(C)
+display el(A, 1, 2)
+matrix D = A
+matrix drop A
+capture noisily matrix list A
+matrix list D
+capture noisily matrix Z = nosuch
+=== estat-gof
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate byte g = 1 + (x2 > 2) + (x2 > 3)
+logit d x1 x2
+estat gof
+logit d i.g
+estat gof
+probit d x1
+estat gof
+estat classification
+poisson n x1 x2
+estat gof
+poisson n x1
+estat gof

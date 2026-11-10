@@ -1,0 +1,1097 @@
+=== generate-basic
+@BASE
+generate y = x*2
+generate byte b = id > 3
+generate str3 t = substr(s,1,3)
+generate z = f == 0.1
+generate double d = f
+generate str s2 = "abc"
+generate long l = 1e9
+generate int i = 40000
+=== generate-if-in
+@BASE
+generate y = id if x > 0
+generate w = id in 2/4
+generate v = 1 if g==2 in 3/6
+generate a = 1 in l
+generate b = 1 in -2/l
+generate c = 1 in f/2
+=== replace-sequential | locals: rc
+@BASE
+generate c = 1
+replace c = c[_n-1] + 1 in 2/l
+replace x = 0 if missing(x)
+replace s = upper(s) if strlen(s) < 5
+capture replace c = 5 in 9
+local rc = _rc
+=== replace-promote
+@BASE
+generate byte b = 1
+replace b = id*100
+generate byte h = 1
+replace h = 0.5 in 1
+generate int big = 1
+replace big = 100000 in 2
+=== by-generate
+@BASE
+bysort g (id): generate n = _n
+by g: generate N = _N
+by g: generate first = x[1]
+by g: generate run = sum(id)
+by g: replace n = 0 if _n == _N
+bysort g: egen bm = mean(id)
+=== by-not-sorted | locals: rc rc2
+@BASE
+sort x
+capture by g: generate q = 1
+local rc = _rc
+capture by g, sort: generate q2 = 1
+local rc2 = _rc
+=== drop-keep
+@BASE
+drop if x > 50
+drop in 1
+keep if g < 3
+drop f
+keep id s
+=== sort-gsort
+@BASE
+gsort -g id
+generate o = _n
+sort s
+generate o2 = _n
+=== egen-statistics
+@BASE
+egen m = mean(x)
+egen t = total(x)
+egen mn = min(x), by(g)
+egen mx = max(f), by(g)
+egen sd = sd(f)
+egen c = count(x), by(g)
+egen md = median(id), by(g)
+egen double dm = mean(f)
+egen mi = mean(x) if id > 1
+=== egen-group-tag
+@BASE
+egen grp = group(g)
+egen tg = tag(g)
+egen sgrp = group(s)
+egen rt = rowtotal(x f)
+egen rm = rowmean(x f)
+egen rmiss = rowmiss(x f)
+egen rk = rank(f)
+egen sq = seq()
+=== collapse-by
+@BASE
+collapse (mean) x f (count) n = id (max) mxid = id, by(g)
+=== collapse-many
+@BASE
+collapse (sum) x (sd) sdf = f (median) md = id (min) f (first) s1=id (last) s2=id (p25) p = id, by(g)
+=== collapse-all
+@BASE
+collapse (mean) x f
+=== collapse-if
+@BASE
+collapse x if id > 2, by(g)
+=== macros-basic | locals: a b c d e f g h i j k l m n o p q r2 | globals: G
+local a = 2 + 3
+local b "hello world"
+local c `a' + 1
+local d = `a' * 2
+local e : word count `b'
+local f : word 2 of `b'
+local g = "str" + "ing"
+local h = 1/3
+local i = 1e10
+local j = 0.1
+global G = 7
+local k = $G + 1
+local l "${G}x"
+local m = strlen("`b'")
+local n `"quoted "inner" text"'
+local o = .
+local p = -0.5
+local q = 100000000
+local r2 = 123456789.123
+=== macros-increment | locals: i j k
+local i = 1
+local ++i
+local i = `i' + 1
+local j = `i++'
+local k = `++i'
+local --i
+=== macros-nested | locals: v w e1 s esclen dollarlen empty
+local x1 "one"
+local x2 "two"
+local n 2
+local v "`x`n''"
+local name x1
+local w "``name''"
+local e1 = `=2+2' + 1
+local s "`=upper("abc")'"
+local esc "\`not'"
+local dollar "\$G"
+local esclen : length local esc
+local dollarlen : length local dollar
+local empty "`undefined'"
+=== foreach-in | locals: out
+foreach w in a b "c d" e {
+  local out "`out'[`w']"
+}
+=== foreach-of | locals: out o2 o3 o4
+@BASE
+foreach v of varlist x-g {
+  local out `out' `v'
+}
+local list "p q r"
+foreach w of local list {
+  local o2 `o2'`w'
+}
+foreach n of numlist 1/3 5 {
+  local o3 `o3' `n'
+}
+foreach v of newlist n1 n2 {
+  local o4 `o4' `v'
+}
+=== forvalues | locals: s d e f never i
+local s = 0
+forvalues i = 1/10 {
+  local s = `s' + `i'
+}
+forvalues i = 10(-3)1 {
+  local d `d' `i'
+}
+forvalues i = 1 3 to 9 {
+  local e `e' `i'
+}
+forvalues i = 0(0.25)1 {
+  local f `f' `i'
+}
+forvalues i = 5/1 {
+  local never `never' `i'
+}
+=== while-continue | locals: out i
+local i 0
+while `i' < 10 {
+  local ++i
+  if mod(`i',2) continue
+  if `i' > 6 continue, break
+  local out `out' `i'
+}
+=== if-else | locals: r ok never
+local x 5
+if `x' < 3 {
+  local r low
+}
+else if `x' < 7 {
+  local r mid
+}
+else {
+  local r high
+}
+if "`r'" == "mid" local ok 1
+else local ok 0
+if 0 local never 1
+=== nested-loops | locals: out
+foreach a in 1 2 {
+  forvalues b = 1/2 {
+    local out `out' `a'`b'
+  }
+}
+=== program-args | locals: s t
+program define addup, rclass
+  args a b
+  return scalar sum = `a' + `b'
+  return local txt "`a' and `b'"
+end
+addup 3 4
+local s = r(sum)
+local t "`r(txt)'"
+=== program-syntax | locals: m o rc1 rc2
+@BASE
+program define mymean, rclass
+  syntax varname [if] [, Detail]
+  quietly summarize `varlist' `if'
+  return scalar m = r(mean)
+  return local opt "`detail'"
+end
+mymean x if id < 5, d
+local m = r(m)
+local o "`r(opt)'"
+capture mymean nosuch
+local rc1 = _rc
+capture mymean x, bogus
+local rc2 = _rc
+=== program-scope | locals: seen rc outer
+local outer 1
+program define inner
+  local outer 99
+  global fromprog "`outer'"
+end
+inner
+local seen "$fromprog|`outer'"
+capture program drop nosuchprog
+local rc = _rc
+=== capture-codes | locals: a b c d e f g
+capture generate x =
+local a = _rc
+capture nosuchcommand
+local b = _rc
+capture confirm variable nosuch
+local c = _rc
+capture assert 1 == 2
+local d = _rc
+capture error 42
+local e = _rc
+capture display 1
+local f = _rc
+capture {
+  display 1
+  error 7
+}
+local g = _rc
+=== confirm | locals: a b c d e f g
+@BASE
+confirm variable x
+capture confirm new variable x
+local a = _rc
+capture confirm numeric variable s
+local b = _rc
+capture confirm string variable x
+local c = _rc
+capture confirm number abc
+local d = _rc
+capture confirm integer number 2.5
+local e = _rc
+confirm number 2.5
+capture confirm existence
+local f = _rc
+confirm name abc
+capture confirm name 1abc
+local g = _rc
+=== assert-isid | locals: a b c
+@BASE
+assert id > 0
+capture assert x > 0
+local a = _rc
+isid id
+capture isid g
+local b = _rc
+assert f < 3 | f >= .
+capture assert s == 1
+local c = _rc
+=== labels | locals: a b c d e f g t fm h i
+@BASE
+label variable x "The X"
+label define gl 1 "one" 2 "two"
+label values g gl
+local a : variable label x
+local b : value label g
+local c : label gl 2
+local d : label gl 7
+label define gl 3 "three", add
+capture label define gl 1 "uno"
+local e = _rc
+label define gl 1 "uno", modify
+local f : label gl 1
+label data "My data"
+local g : data label
+local t : type s
+local fm : format f
+capture label values s gl
+local h = _rc
+label values g .
+local i : value label g
+=== formats | locals: a b c d e f
+@BASE
+format x %9.2f
+local a : format x
+format %td id
+local b : format id
+capture format s %9.2f
+local c = _rc
+capture format x %9s
+local d = _rc
+local e : display %9.2f x[1]
+local f : display x[6] " and " f[1]
+=== preserve-restore | locals: n1 n2 rc rc2
+@BASE
+preserve
+drop if id > 2
+local n1 = _N
+restore
+local n2 = _N
+capture restore
+local rc = _rc
+preserve
+capture preserve
+local rc2 = _rc
+restore, not
+=== compress
+@BASE
+generate double d = id
+generate long big = id*1000
+generate float h = 0.5
+generate str20 pad = s
+generate double frac = id/4
+compress
+=== order-rename | locals: rc
+@BASE
+order s g
+rename x ex
+order f, last
+order id, after(s)
+capture rename ex g
+local rc = _rc
+=== count-summarize | locals: a b | r: N mean sd Var min max sum sum_w
+@BASE
+count
+local a = r(N)
+count if x > 0
+local b = r(N)
+summarize f if g > 1
+=== summarize-detail | r: p1 p5 p10 p25 p50 p75 p90 p95 p99 skewness kurtosis N mean sd
+@BASE
+summarize id, detail
+=== summarize-detail-float | r: p1 p5 p10 p25 p50 p75 p90 p95 p99 skewness kurtosis N mean sd
+@BASE
+summarize f, detail
+=== summarize-empty | locals: m | r: N sum sum_w
+@BASE
+summarize x if id > 10
+local m = r(mean)
+=== summarize-string | r: N
+@BASE
+summarize s
+=== summarize-last-of-list | r: N mean max
+@BASE
+summarize x f id
+=== tabulate-one | r: N r
+@BASE
+tabulate g
+=== tabulate-missing | r: N r
+@BASE
+tabulate x, missing
+=== tabulate-two | r: N r c
+@BASE
+tabulate g s
+=== scalars | locals: x y rc
+scalar a = 2
+scalar b = a^2
+scalar s = "txt"
+local x = a + b
+local y = s + "!"
+scalar drop a
+capture display a
+local rc = _rc
+=== set-type | locals: t n
+set type double
+clear
+set obs 2
+generate x = 0.1
+local t : type x
+count if x == 0.1
+local n = r(N)
+set type float
+=== tempvar | locals: m
+@BASE
+tempvar t
+generate `t' = id * 2
+summarize `t'
+local m = r(mean)
+drop `t'
+=== display-local | locals: a b c d e f g h i
+local a : display %5.2f 3.14159
+local b : display 1/3
+local c : display "a" "b" 3 + 4
+local d : display %9.0g 1234567.891
+local e : display _skip(3) "x"
+local f : display %-8s "ab" "|"
+local g : display 5 -3
+local h : display 2 3
+local i : display "x" _col(10) "y"
+=== exit-flow | locals: a b c
+local a 1
+if 1 {
+  local b 2
+  exit
+}
+local c 3
+=== error-stops
+@BASE
+generate y = 1
+generate y = 2
+generate z = 3
+=== unknown-command
+frobnicate x
+=== comments-delimit | locals: a b c d e f g
+* comment line
+local a 1 // trailing
+local b = 1 + /// continued
+   2
+/* block
+comment */ local c 3
+#delimit ;
+local d = 4
+  + 5;
+local e 6;
+#delimit cr
+local f "has // inside quotes"
+local g = 2 * /* inline */ 3
+=== drop-all | locals: n k
+@BASE
+drop _all
+local n = _N
+local k = c(k)
+=== abbreviations | locals: n
+@BASE
+su i
+local n = r(N)
+gen t = i + 1
+g u = 1
+=== by-reports | locals: a | r: N mean
+@BASE
+bysort g: count
+local a = r(N)
+by g: summarize id
+=== macro-lists | locals: u d un in mi sz po so isin
+local A "a b c b"
+local B "b d"
+local u : list uniq A
+local d : list dups A
+local un : list A | B
+local in : list A & B
+local mi : list A - B
+local sz : list sizeof A
+local po : list posof "c" in A
+local so : list sort A
+local isin : list B in A
+=== subinstr-extended | locals: t u len
+local s "a-b-c"
+local t : subinstr local s "-" "+"
+local u : subinstr local s "-" "+", all
+local len : length local s
+=== quietly-capture-blocks | locals: n rc
+@BASE
+quietly {
+  generate q = 1
+  count
+}
+local n = r(N)
+capture {
+  generate q = 2
+}
+local rc = _rc
+noisily display "x"
+=== type-mismatch | locals: a b c d
+@BASE
+capture replace s = 1
+local a = _rc
+capture replace x = "a"
+local b = _rc
+capture generate byte t = "a"
+local c = _rc
+capture generate str3 u = 1
+local d = _rc
+=== in-ranges | locals: rc | r: N
+@BASE
+capture generate d = 1 in 7
+local rc = _rc
+count in 2/3
+=== if-strings | locals: a b
+@BASE
+count if s == "pad"
+local a = r(N)
+count if s > "b"
+local b = r(N)
+generate t = 1 if inlist(s, "x", "kiwi")
+=== missing-comparisons | locals: a b c d
+@BASE
+count if x > 50
+local a = r(N)
+count if x > 50 & x < .
+local b = r(N)
+count if x == .a
+local c = r(N)
+count if x >= .
+local d = r(N)
+=== from-nothing
+clear
+set obs 5
+generate id = _n
+generate sq = id^2
+generate double r = sqrt(id)
+generate lag = sq[_n-1]
+generate cum = sum(id)
+=== recast-command
+@BASE
+recast double f
+recast byte id
+recast int x
+recast int x, force
+recast str3 s, force
+=== regress-ols | e: N df_m df_r F r2 r2_a rmse mss rss ll rank | matrices: e(b) e(V)
+@EST
+regress y x1 x2
+=== regress-robust | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+regress y x1 x2, robust
+=== regress-cluster | e: N df_m df_r F N_clust | matrices: e(b) e(V)
+@EST
+regress y x1 x2, vce(cluster cl)
+=== regress-noconstant | e: N df_m df_r F r2 r2_a rmse mss rss | matrices: e(b) e(V)
+@EST
+regress y x1 x2, noconstant
+=== regress-factor | e: N df_m df_r F r2 | matrices: e(b) e(V)
+@EST
+regress y x1 i.g
+=== regress-collinear | e: N df_m df_r rank F | matrices: e(b) e(V)
+@EST
+generate x3 = 2*x1 + 1
+regress y x1 x3 x2
+=== regress-sample | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+replace x2 = . in 5
+regress y x1 x2 if g > 1
+=== test-equal | r: F p df df_r
+@EST
+regress y x1 x2
+test x1 = x2
+=== test-joint-robust | r: F p df df_r
+@EST
+regress y x1 x2, robust
+test x1 x2
+=== test-several | r: F p df df_r
+@EST
+regress y x1 x2
+test (x1 = 1) (x2 = 0.5)
+=== lincom-values | r: estimate se df t p lb ub
+@EST
+regress y x1 x2
+lincom 2*x1 - x2
+=== predict-values
+@EST
+regress y x1 x2
+predict yhat
+predict double res, residuals
+predict se, stdp
+predict part if g == 2
+=== correlate-values | r: N rho cov_12 Var_1 Var_2
+@EST
+correlate y x1
+=== no-estimates | locals: a b c
+@EST
+capture test x1
+local a = _rc
+capture predict z
+local b = _rc
+capture lincom x1
+local c = _rc
+=== correlate-covariance | r: N rho cov_12 Var_1 Var_2
+@EST
+correlate y x1, covariance
+=== regress-collinear-order | e: df_m rank | matrices: e(b)
+@EST
+generate x3 = x1 + x2
+regress y x3 x1 x2
+=== collapse-cw
+@BASE
+collapse (mean) x f (count) n = id, by(g) cw
+=== save-use | locals: a b c d n
+@BASE
+save "one.dta"
+capture save "one.dta"
+local a = _rc
+drop if id > 2
+save one, replace
+capture use nosuch
+local b = _rc
+generate extra = 1
+capture use one
+local c = _rc
+use one, clear
+local n = _N
+clear
+capture use "one.dta"
+local d = _rc
+=== append-basic
+@BASE
+keep id x s
+preserve
+keep if id <= 2
+replace s = "a much longer string value" in 1
+generate byte only_using = 7
+recast double id
+save part, replace
+restore
+generate only_master = id * 2
+sort x
+append using part
+=== append-generate | locals: rc
+@BASE
+keep id s
+save part, replace
+rename s t
+generate s = id
+capture append using part
+local rc = _rc
+drop s
+append using part, generate(src)
+=== merge-one-to-one | locals: rc1 rc2
+@BASE
+preserve
+keep id f s
+drop if id == 2
+replace id = 9 in 1
+rename s label
+generate x = -1
+save using1, replace
+restore
+keep id x g
+gsort -id
+merge 1:1 id using using1
+capture merge 1:1 id using using1
+local rc1 = _rc
+drop _merge
+capture merge 1:1 g using using1
+local rc2 = _rc
+=== merge-many-to-one | locals: rc
+@BASE
+preserve
+keep g
+duplicates drop
+generate str5 region = "r" + string(g)
+generate double pop = g * 1000
+drop if g == 3
+save groups, replace
+restore
+merge m:1 g using groups, keepusing(region) generate(source)
+capture merge 1:m id using groups
+local rc = _rc
+=== merge-keep-nogenerate
+@BASE
+preserve
+keep id f
+keep if inlist(id, 1, 3, 5, 7)
+save some, replace
+restore
+keep id x
+merge 1:1 id using some, keep(match) nogenerate
+=== merge-one-to-many
+@BASE
+keep g id x
+save detail, replace
+keep g
+duplicates drop
+generate w = g * 10
+drop if g == 1
+set obs 3
+replace g = 8 in 3
+replace w = 80 in 3
+merge 1:m g using detail
+=== reshape-long | locals: rc
+clear
+input byte id double inc2019 double inc2020 double inc2021 str3 name
+1 10 11 12 "ann"
+2 20 . 22 "bob"
+3 30 31 . "cy"
+end
+reshape long inc, i(id) j(year)
+capture reshape long inc, i(id) j(year)
+local rc = _rc
+=== reshape-wide
+clear
+input byte id int year double inc byte emp
+1 2019 10 1
+1 2020 11 0
+2 2019 20 1
+2 2021 22 1
+3 2020 31 0
+end
+reshape wide inc emp, i(id) j(year)
+=== reshape-long-string
+clear
+input byte id double scorea double scoreb
+1 5 6
+2 7 8
+end
+reshape long score, i(id) j(form) string
+=== expand | locals: rc
+@BASE
+keep id g
+expand 2
+expand g if id == 3
+capture expand
+local rc = _rc
+=== encode-decode | locals: a b rc
+@BASE
+encode s, generate(code)
+local a : value label code
+local b : label code 2
+decode code, generate(back)
+capture encode x, generate(bad)
+local rc = _rc
+=== destring-tostring
+clear
+input str6 a str6 b str6 c double n
+"1" "1.5" "x1" 3
+"22" "." "7" 4.25
+"" "-3" "8" .
+end
+destring a b, replace
+destring c, generate(c2) force
+tostring n, generate(ns)
+tostring a, replace
+destring c, generate(c3) ignore("x")
+=== recode
+@BASE
+recode g (1 = 10) (2 3 = 20)
+recode id (1/3 = 1) (4/max = 2), generate(half)
+recode x (. = 0) (.a = -1) (min/0 = -9) (else = 5)
+recode f (0.1 = 1) (nonmissing = 2) (missing = 3), generate(fr)
+=== duplicates | locals: n1 n2 | r: N_drop
+clear
+input byte a str1 b
+1 "x"
+1 "x"
+2 "y"
+1 "x"
+2 "z"
+end
+duplicates tag, generate(dup)
+duplicates tag a, generate(dupa)
+local n1 = _N
+duplicates drop a b, force
+local n2 = _N
+duplicates drop
+=== ml-logit | e: N df_m ll ll_0 chi2 r2_p | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+logit d x1 x2
+=== ml-logit-robust | e: N ll chi2 | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+logit d x1 x2, robust
+=== ml-probit | e: N df_m ll ll_0 chi2 r2_p | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+probit d x1 x2
+=== ml-poisson | e: N df_m ll ll_0 chi2 r2_p | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+poisson n x1 x2
+=== iv-2sls | e: N df_m chi2 r2 rmse rss | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+ivregress 2sls n x2 (x1 = z)
+=== iv-2sls-robust | e: N chi2 r2 rmse | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+ivregress 2sls n (x1 = z x2), robust
+=== ml-test | r: chi2 p df
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+logit d x1 x2
+test x1 x2
+=== ml-predict
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+logit d x1 x2
+predict double p
+predict double xb, xb
+poisson n x1
+predict double mu
+=== estat-ic
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+regress n x1 x2
+estat ic
+=== runiform-seed
+clear
+set obs 6
+set seed 12345
+generate double u = runiform()
+generate double v = runiform(2, 5)
+set seed 12345
+generate double again = runiform()
+set seed 1
+generate double other = runiform() if _n > 2
+=== random-other | locals: n same lo hi
+clear
+set obs 200
+set seed 7
+generate double z = rnormal()
+generate double w = rnormal(10, 2)
+generate k = runiformint(1, 6)
+generate b = rbinomial(10, .3)
+generate p = rpoisson(4)
+quietly count if z < . & w < . & inrange(k, 1, 6) & inrange(b, 0, 10) & p >= 0
+local n = r(N)
+set seed 7
+generate double z2 = rnormal()
+quietly count if z == z2
+local same = r(N)
+quietly summarize k
+local lo = r(min)
+local hi = r(max)
+keep in 1
+keep k
+replace k = 0
+=== coefficients | locals: b se cons t rc1 rc2
+@EST
+capture display _b[x1]
+local rc1 = _rc
+regress y x1 x2
+local b = round(_b[x1], 1e-8)
+local se = round(_se[x1], 1e-8)
+local cons = round(_b[_cons], 1e-8)
+generate double fitted = _b[_cons] + _b[x1] * x1 + _b[x2] * x2
+predict double xb
+generate byte same = abs(fitted - xb) < 1e-10
+drop fitted xb
+local t = _b[x1] / _se[x1] > 10
+capture display _b[nosuch]
+local rc2 = _rc
+=== interaction-cc | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y c.x1##c.x2
+=== interaction-ic | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y i.g##c.x1
+=== interaction-ic-only | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y i.g#c.x1
+=== interaction-ii | e: N df_m rss | matrices: e(b)
+@EST
+generate byte h = mod(_n, 2)
+regress y i.g##i.h
+=== interaction-bare | e: N df_m rss | matrices: e(b)
+@EST
+generate byte h = mod(_n, 2)
+regress y g#h
+=== interaction-square | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y x1 c.x1#c.x1
+=== xtile-egen-more | locals: c1 c2 n
+@EST
+xtile q4 = y, nquantiles(4)
+xtile half = x2
+xtile t3 = y if g > 1, nquantiles(3)
+egen zy = std(y)
+egen p90 = pctile(y), p(90)
+egen p25g = pctile(y), p(25) by(g)
+egen iq = iqr(y)
+egen cutx = cut(x1), at(0 4 8 13)
+egen anyv = anymatch(g), values(1 3)
+egen total2 = rowsd(x1 x2)
+egen first = rowfirst(x2 x1)
+egen cnt = rownonmiss(x1 x2 y)
+quietly centile y, centile(10 50 90)
+local c1 = round(r(c_1), 1e-6)
+local c2 = round(r(c_2), 1e-6)
+local n = r(N)
+=== interaction-three-way | e: N df_m rss | matrices: e(b) e(V)
+@EST
+generate double z = mod(_n, 3) + x2 / 10
+regress y c.x1##c.x2##c.z
+=== interaction-three-way-factor | e: N df_m rss | matrices: e(b)
+@EST
+generate byte h = mod(_n, 2)
+regress y i.h##c.x1##c.x2
+=== macro-suffix-increment | locals: n m rc w
+local n = 1
+local n++
+local m = 5
+local m --
+capture local k = ++ + 3
+local rc = _rc
+local w : word count

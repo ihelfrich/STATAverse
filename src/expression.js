@@ -66,21 +66,23 @@ export function tokenize(source) {
   }
   return tokens;
 }
+// Stata gives each comparison its own level, == loosest and != tightest, so
+// a == b < c is a == (b < c). Recorded from Stata 17.
 const precedence = {
   "|": 1,
   "&": 2,
   "==": 3,
-  "!=": 3,
-  "~=": 3,
-  "<": 3,
-  ">": 3,
-  "<=": 3,
-  ">=": 3,
-  "+": 4,
-  "-": 4,
-  "*": 5,
-  "/": 5,
-  "^": 6,
+  ">=": 4,
+  "<=": 5,
+  "<": 6,
+  ">": 7,
+  "!=": 8,
+  "~=": 8,
+  "+": 9,
+  "-": 9,
+  "*": 10,
+  "/": 10,
+  "^": 11,
 };
 // Stata's string functions count bytes. These implementations are exact for
 // ASCII text; position-based functions refuse other text instead of
@@ -219,8 +221,9 @@ const functions = {
     min: 2,
     max: 2,
     args: S,
-    // Stata reports position 1 for an empty search string.
-    fn: (s, find) => ascii(s).indexOf(ascii(find)) + 1,
+    // Stata reports position 1 for an empty search string, unless the
+    // string searched is empty too, when it reports 0.
+    fn: (s, find) => (s === "" ? 0 : ascii(s).indexOf(ascii(find)) + 1),
   },
   subinstr: {
     min: 4,
@@ -320,7 +323,7 @@ export function compileExpression(source, columns, { returnCode = 0 } = {}) {
       node = parse();
       requireToken(")");
     } else if (["-", "+", "!", "~"].includes(t.value)) {
-      const right = parse(6);
+      const right = parse(precedence["^"]);
       if (right.valueType === "string")
         throw new StataError("Type mismatch: expected a number.", 109);
       node = typed((r, i, n, rows) => {

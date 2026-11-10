@@ -1,0 +1,3548 @@
+{
+  "source": "Recorded from installed Stata by tools/check-runtime-native.mjs under version 17. Numeric values were written with %21x and are exact doubles; missing values are the strings ., .a to .z.",
+  "syntaxVariables": [
+    ["make", "str8"],
+    ["price", "double"],
+    ["mpg", "double"],
+    ["rep78", "double"],
+    ["weight", "double"],
+    ["wage1", "double"],
+    ["wage2", "double"],
+    ["group", "double"],
+    ["id", "double"]
+  ],
+  "declarations": {
+    "report": "varlist [if] [in] [, Detail MEANonly SEParator(integer 5) Format]",
+    "estimate": "[varlist(default=none numeric max=2)] [fweight aweight] [, noCONStant Level(cilevel) *]",
+    "assign": "newvarname =exp [if] [in]",
+    "combine": "anything(name=spec id=\"specification\") using/ [, GENerate(name) KEEPusing(string) REPLACE noLabel Title(string) SAVing(string asis) N(numlist) R(real 1.5)]",
+    "group": "varname(numeric) [if] , BY(varlist) [ Generate(name) ]",
+    "names": "[namelist(min=1 max=3)] [, CLEAR]",
+    "lower": "[, replace Clear]",
+    "open": "[anything] [using] [if] [in] [, *]"
+  },
+  "syntax": [
+    {
+      "group": "report",
+      "line": "price mpg",
+      "rc": 0,
+      "locals": {
+        "varlist": "price mpg",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "pri",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "wage*",
+      "rc": 0,
+      "locals": {
+        "varlist": "wage1 wage2",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price-rep78",
+      "rc": 0,
+      "locals": {
+        "varlist": "price mpg rep78",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "_all",
+      "rc": 0,
+      "locals": {
+        "varlist": "make price mpg rep78 weight wage1 wage2 group id",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "*",
+      "rc": 0,
+      "locals": {
+        "varlist": "make price mpg rep78 weight wage1 wage2 group id",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "wage? m*",
+      "rc": 0,
+      "locals": {
+        "varlist": "wage1 wage2 make mpg",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price mpg price",
+      "rc": 0,
+      "locals": {
+        "varlist": "price mpg price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "make price",
+      "rc": 0,
+      "locals": {
+        "varlist": "make price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "*e",
+      "rc": 0,
+      "locals": {
+        "varlist": "make price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "p*e",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price if mpg > 20 & rep78 < .",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if mpg > 20 & rep78 < .",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price in 1/3",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "in 1/3",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price if mpg>20 in 2/4, detail",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if mpg>20 ",
+        "in": "in 2/4",
+        "detail": "detail",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price in 2/4 if mpg>20",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if mpg>20",
+        "in": "in 2/4",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price   if   mpg  >  20",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if mpg  >  20",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price in 2",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "in 2/2",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price in f/l",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "in 1/5",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price in -2/l",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "in 4/5",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    { "group": "report", "line": "price in 4/2", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price in 1/99", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price in 0", "rc": 198, "locals": {} },
+    {
+      "group": "report",
+      "line": "price, d",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "detail",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price, det mean",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "detail",
+        "meanonly": "meanonly",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price, sep(3)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "3",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price, separator( 7 )",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "7",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price, separator(x)",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "report",
+      "line": "price, separator(2.5)",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "report",
+      "line": "price, separator()",
+      "rc": 198,
+      "locals": {}
+    },
+    { "group": "report", "line": "price, sep", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price, detail(3)", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price, bogus", "rc": 198, "locals": {} },
+    { "group": "report", "line": "", "rc": 100, "locals": {} },
+    { "group": "report", "line": "nosuch", "rc": 111, "locals": {} },
+    { "group": "report", "line": "w", "rc": 111, "locals": {} },
+    { "group": "report", "line": "wag", "rc": 111, "locals": {} },
+    { "group": "report", "line": "price [fw=mpg]", "rc": 101, "locals": {} },
+    { "group": "report", "line": "price using f", "rc": 101, "locals": {} },
+    { "group": "report", "line": "price = 3", "rc": 101, "locals": {} },
+    {
+      "group": "report",
+      "line": "price, detail detail",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "report",
+      "line": "price,detail",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "detail",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price , detail , meanonly",
+      "rc": 198,
+      "locals": {}
+    },
+    { "group": "report", "line": "price if", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price in", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price, MEAN", "rc": 198, "locals": {} },
+    { "group": "report", "line": "price, me", "rc": 198, "locals": {} },
+    {
+      "group": "report",
+      "line": "price, mean f",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "meanonly",
+        "separator": "5",
+        "format": "format"
+      }
+    },
+    {
+      "group": "report",
+      "line": "price if make == \"a, b\"",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if make == \"a, b\"",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price if inlist(rep78, 1, 2), d",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if inlist(rep78, 1, 2)",
+        "in": "",
+        "detail": "detail",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price if mpg[1] > 2",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if mpg[1] > 2",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price mpg, sep(3) d",
+      "rc": 0,
+      "locals": {
+        "varlist": "price mpg",
+        "if": "",
+        "in": "",
+        "detail": "detail",
+        "meanonly": "",
+        "separator": "3",
+        "format": ""
+      }
+    },
+    { "group": "report", "line": "price-nosuch", "rc": 111, "locals": {} },
+    { "group": "report", "line": "rep78-price", "rc": 111, "locals": {} },
+    {
+      "group": "report",
+      "line": "price i",
+      "rc": 0,
+      "locals": {
+        "varlist": "price id",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price, ",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price if mpg > 20, det if",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "report",
+      "line": "price if mpg > 20 if rep78 > 1",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "report",
+      "line": "price in 1/2 in 3/4",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "report",
+      "line": "price, sep (3)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "3",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price, nodetail",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "in": "",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": ""
+      }
+    },
+    {
+      "group": "report",
+      "line": "price mpg if price > mpg in 1/4 , f",
+      "rc": 0,
+      "locals": {
+        "varlist": "price mpg",
+        "if": "if price > mpg ",
+        "in": "in 1/4",
+        "detail": "",
+        "meanonly": "",
+        "separator": "5",
+        "format": "format"
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "",
+      "rc": 0,
+      "locals": {
+        "varlist": "",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    { "group": "estimate", "line": "price mpg rep78", "rc": 103, "locals": {} },
+    { "group": "estimate", "line": "make", "rc": 109, "locals": {} },
+    {
+      "group": "estimate",
+      "line": "price [fw=rep78]",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "fweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price [aweight = mpg*2], nocons",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "aweight",
+        "exp": "= mpg*2",
+        "constant": "noconstant",
+        "level": "95",
+        "options": ""
+      }
+    },
+    { "group": "estimate", "line": "price [pw=mpg]", "rc": 101, "locals": {} },
+    {
+      "group": "estimate",
+      "line": "price [fweight=rep78]",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "fweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price [aw=rep78]",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "aweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price [w=rep78]",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "fweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price [freq=rep78]",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "fweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price [fweight rep78]",
+      "rc": 198,
+      "locals": {}
+    },
+    { "group": "estimate", "line": "price [fw=]", "rc": 198, "locals": {} },
+    {
+      "group": "estimate",
+      "line": "price, level(90) robust vce(cluster group)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "90",
+        "options": "robust vce(cluster group)"
+      }
+    },
+    { "group": "estimate", "line": "price, l(101)", "rc": 198, "locals": {} },
+    { "group": "estimate", "line": "price, l(9)", "rc": 198, "locals": {} },
+    {
+      "group": "estimate",
+      "line": "price, level(99.5)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "99.5",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price, nocon",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "95",
+        "options": "nocon"
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price, noc",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "95",
+        "options": "noc"
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price, noconstant",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "noconstant",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price, constant",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    { "group": "estimate", "line": "price if mpg>3", "rc": 101, "locals": {} },
+    { "group": "estimate", "line": "price in 1/2", "rc": 101, "locals": {} },
+    {
+      "group": "estimate",
+      "line": "price, robust nocons cluster(id)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "",
+        "exp": "",
+        "constant": "noconstant",
+        "level": "95",
+        "options": "robust cluster(id)"
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "price [fw=rep78] , level(80)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "weight": "fweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "80",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": "[fw=rep78]",
+      "rc": 0,
+      "locals": {
+        "varlist": "",
+        "weight": "fweight",
+        "exp": "= rep78",
+        "constant": "",
+        "level": "95",
+        "options": ""
+      }
+    },
+    {
+      "group": "estimate",
+      "line": ", robust",
+      "rc": 0,
+      "locals": {
+        "varlist": "",
+        "weight": "",
+        "exp": "",
+        "constant": "",
+        "level": "95",
+        "options": "robust"
+      }
+    },
+    {
+      "group": "assign",
+      "line": "x = price*2",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "float",
+        "exp": "= price*2",
+        "if": "",
+        "in": ""
+      }
+    },
+    {
+      "group": "assign",
+      "line": "x=price*2 if mpg>20",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "float",
+        "exp": "= price*2 ",
+        "if": "if mpg>20",
+        "in": ""
+      }
+    },
+    { "group": "assign", "line": "price = 1", "rc": 110, "locals": {} },
+    { "group": "assign", "line": "x", "rc": 100, "locals": {} },
+    { "group": "assign", "line": "x y = 1", "rc": 103, "locals": {} },
+    { "group": "assign", "line": "x == 1", "rc": 198, "locals": {} },
+    {
+      "group": "assign",
+      "line": "x = price == 2 in 1/2",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "float",
+        "exp": "= price == 2 ",
+        "if": "",
+        "in": "in 1/2"
+      }
+    },
+    { "group": "assign", "line": "1x = 3", "rc": 198, "locals": {} },
+    { "group": "assign", "line": "x = \"a=b\"", "rc": 109, "locals": {} },
+    {
+      "group": "assign",
+      "line": "byte x = 1",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "byte",
+        "exp": "= 1",
+        "if": "",
+        "in": ""
+      }
+    },
+    { "group": "assign", "line": "str5 x = make", "rc": 109, "locals": {} },
+    {
+      "group": "assign",
+      "line": "double x = price in 1 if mpg > 2",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "double",
+        "exp": "= price ",
+        "if": "if mpg > 2",
+        "in": "in 1/1"
+      }
+    },
+    {
+      "group": "assign",
+      "line": "x = cond(mpg >= 20, 1, 0)",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "float",
+        "exp": "= cond(mpg >= 20, 1, 0)",
+        "if": "",
+        "in": ""
+      }
+    },
+    {
+      "group": "assign",
+      "line": "x = mpg != 3",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "float",
+        "exp": "= mpg != 3",
+        "if": "",
+        "in": ""
+      }
+    },
+    { "group": "assign", "line": "x = ", "rc": 198, "locals": {} },
+    { "group": "assign", "line": "_all = 1", "rc": 101, "locals": {} },
+    { "group": "assign", "line": "if = 1", "rc": 100, "locals": {} },
+    { "group": "assign", "line": "x = 1, replace", "rc": 101, "locals": {} },
+    {
+      "group": "assign",
+      "line": "pri = 1",
+      "rc": 0,
+      "locals": {
+        "varlist": "pri",
+        "typlist": "float",
+        "exp": "= 1",
+        "if": "",
+        "in": ""
+      }
+    },
+    {
+      "group": "assign",
+      "line": "x:lbl = 1",
+      "rc": 0,
+      "locals": {
+        "varlist": "x",
+        "typlist": "float",
+        "exp": "= 1",
+        "if": "",
+        "in": ""
+      }
+    },
+    {
+      "group": "combine",
+      "line": "1:1 id using other",
+      "rc": 0,
+      "locals": {
+        "spec": "1:1 id",
+        "using": "other",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "1:1 id using \"my file.dta\", gen(_m) keepusing(price mpg)",
+      "rc": 0,
+      "locals": {
+        "spec": "1:1 id",
+        "using": "my file.dta",
+        "generate": "_m",
+        "keepusing": "price mpg",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    { "group": "combine", "line": "1:1 id", "rc": 100, "locals": {} },
+    { "group": "combine", "line": "using f", "rc": 100, "locals": {} },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, title(\"a b\") saving(\"x y\", replace) n(1/3 5) r(2)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "a b",
+        "saving": "\"x y\", replace",
+        "n": "1 2 3 5",
+        "r": "2"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, nol",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "nolabel",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, nolabel replace",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "replace",
+        "label": "nolabel",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, label",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, gen(1bad)",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, gen(a b)",
+      "rc": 103,
+      "locals": {}
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, r(abc)",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, r(-2.50)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "-2.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, r(1e2)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "",
+        "r": "100"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(1(2)9)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "1 3 5 7 9",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(1 2 to 6)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "1 2 3 4 5 6",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(5/1)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "5 4 3 2 1",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(1 2:8)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "1 2 3 4 5 6 7 8",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(1[3]10)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "1 4 7 10",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(a)",
+      "rc": 121,
+      "locals": {}
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, n(1.5 .25 -3)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "",
+        "saving": "",
+        "n": "1.5 .25 -3",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, title(a) title(b)",
+      "rc": 198,
+      "locals": {}
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, title(a (b) c)",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "a (b) c",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, title(`\"a \"b\" c\"')",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "a \"b\" c",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f, ti( spaced  out )",
+      "rc": 0,
+      "locals": {
+        "spec": "m:1 id",
+        "using": "f",
+        "generate": "",
+        "keepusing": "",
+        "replace": "",
+        "label": "",
+        "title": "spaced out",
+        "saving": "",
+        "n": "",
+        "r": "1.5"
+      }
+    },
+    {
+      "group": "combine",
+      "line": "m:1 id using f.dta if id > 2",
+      "rc": 101,
+      "locals": {}
+    },
+    { "group": "combine", "line": "m:1 id using", "rc": 198, "locals": {} },
+    { "group": "combine", "line": "m:1 id using f g", "rc": 198, "locals": {} },
+    {
+      "group": "group",
+      "line": "price, by(group)",
+      "rc": 0,
+      "locals": { "varlist": "price", "if": "", "by": "group", "generate": "" }
+    },
+    { "group": "group", "line": "price", "rc": 198, "locals": {} },
+    {
+      "group": "group",
+      "line": "price mpg, by(group)",
+      "rc": 103,
+      "locals": {}
+    },
+    {
+      "group": "group",
+      "line": "price, by(group id) g(z)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "",
+        "by": "group id",
+        "generate": "z"
+      }
+    },
+    { "group": "group", "line": "make, by(group)", "rc": 109, "locals": {} },
+    { "group": "group", "line": "price, by(nosuch)", "rc": 111, "locals": {} },
+    {
+      "group": "group",
+      "line": "price, by(gro)",
+      "rc": 0,
+      "locals": { "varlist": "price", "if": "", "by": "group", "generate": "" }
+    },
+    { "group": "group", "line": "price, by()", "rc": 198, "locals": {} },
+    { "group": "group", "line": "price, g(z)", "rc": 198, "locals": {} },
+    {
+      "group": "group",
+      "line": "price if mpg > 2, by(wage*)",
+      "rc": 0,
+      "locals": {
+        "varlist": "price",
+        "if": "if mpg > 2",
+        "by": "wage1 wage2",
+        "generate": ""
+      }
+    },
+    {
+      "group": "group",
+      "line": "pr, by(group)",
+      "rc": 0,
+      "locals": { "varlist": "price", "if": "", "by": "group", "generate": "" }
+    },
+    {
+      "group": "names",
+      "line": "a b c",
+      "rc": 0,
+      "locals": { "namelist": "a b c", "clear": "" }
+    },
+    { "group": "names", "line": "a b c d", "rc": 103, "locals": {} },
+    {
+      "group": "names",
+      "line": "",
+      "rc": 0,
+      "locals": { "namelist": "", "clear": "" }
+    },
+    { "group": "names", "line": "a 1b", "rc": 198, "locals": {} },
+    {
+      "group": "names",
+      "line": "a, clear",
+      "rc": 0,
+      "locals": { "namelist": "a", "clear": "clear" }
+    },
+    { "group": "names", "line": "a, CLEAR", "rc": 198, "locals": {} },
+    { "group": "names", "line": "a, cle", "rc": 198, "locals": {} },
+    {
+      "group": "lower",
+      "line": ", replace",
+      "rc": 0,
+      "locals": { "replace": "replace", "clear": "" }
+    },
+    { "group": "lower", "line": ", rep", "rc": 198, "locals": {} },
+    {
+      "group": "lower",
+      "line": ", c",
+      "rc": 0,
+      "locals": { "replace": "", "clear": "clear" }
+    },
+    {
+      "group": "lower",
+      "line": ", cl",
+      "rc": 0,
+      "locals": { "replace": "", "clear": "clear" }
+    },
+    { "group": "lower", "line": "x", "rc": 101, "locals": {} },
+    {
+      "group": "lower",
+      "line": ", replace clear",
+      "rc": 0,
+      "locals": { "replace": "replace", "clear": "clear" }
+    },
+    {
+      "group": "lower",
+      "line": "",
+      "rc": 0,
+      "locals": { "replace": "", "clear": "" }
+    },
+    {
+      "group": "open",
+      "line": "",
+      "rc": 0,
+      "locals": {
+        "anything": "",
+        "using": "",
+        "if": "",
+        "in": "",
+        "options": ""
+      }
+    },
+    {
+      "group": "open",
+      "line": "a b (c d) e",
+      "rc": 0,
+      "locals": {
+        "anything": "a b (c d) e",
+        "using": "",
+        "if": "",
+        "in": "",
+        "options": ""
+      }
+    },
+    {
+      "group": "open",
+      "line": "using \"x y.dta\", clear",
+      "rc": 0,
+      "locals": {
+        "anything": "",
+        "using": "using `\"x y.dta\"'",
+        "if": "",
+        "in": "",
+        "options": "clear"
+      }
+    },
+    {
+      "group": "open",
+      "line": "a if b in 1/2 using c, d(e) f",
+      "rc": 111,
+      "locals": {}
+    },
+    {
+      "group": "open",
+      "line": "a \"b if c\" d",
+      "rc": 0,
+      "locals": {
+        "anything": "a \"b if c\" d",
+        "using": "",
+        "if": "",
+        "in": "",
+        "options": ""
+      }
+    },
+    {
+      "group": "open",
+      "line": "a, b(c, d) e",
+      "rc": 0,
+      "locals": {
+        "anything": "a",
+        "using": "",
+        "if": "",
+        "in": "",
+        "options": "b(c, d) e"
+      }
+    },
+    { "group": "open", "line": "a = b", "rc": 101, "locals": {} },
+    {
+      "group": "open",
+      "line": "using f",
+      "rc": 0,
+      "locals": {
+        "anything": "",
+        "using": "using `\"f\"'",
+        "if": "",
+        "in": "",
+        "options": ""
+      }
+    },
+    {
+      "group": "open",
+      "line": "a using b.dta",
+      "rc": 0,
+      "locals": {
+        "anything": "a",
+        "using": "using `\"b.dta\"'",
+        "if": "",
+        "in": "",
+        "options": ""
+      }
+    },
+    {
+      "group": "open",
+      "line": "a in 2",
+      "rc": 0,
+      "locals": {
+        "anything": "a",
+        "using": "",
+        "if": "",
+        "in": "in 2/2",
+        "options": ""
+      }
+    }
+  ],
+  "storage": [
+    {
+      "id": "generate-default-float",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.1", "1", "16777217", ".", ".a", "1e39"]
+        }
+      ],
+      "rc": [0],
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%9.0g",
+          "values": [
+            0.10000000149011612, 1, 16777216, 8.98846567431158e307,
+            8.990660123939097e307, 8.98846567431158e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate-byte",
+      "n": 8,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["100", "101", "-127", "-128", "2.7", "-2.7", ".b", "0"],
+          "type": "byte"
+        }
+      ],
+      "rc": [0],
+      "observations": 8,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [
+            100, 8.98846567431158e307, -127, 8.98846567431158e307, 2, -2,
+            8.992854573566614e307, 0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate-int",
+      "n": 5,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["32740", "32741", "-32767", "-32768", "99.99"],
+          "type": "int"
+        }
+      ],
+      "rc": [0],
+      "observations": 5,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "int",
+          "format": "%8.0g",
+          "values": [
+            32740, 8.98846567431158e307, -32767, 8.98846567431158e307, 99
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate-long",
+      "n": 5,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": [
+            "2147483620",
+            "2147483621",
+            "-2147483647",
+            "-2147483648",
+            "0.5"
+          ],
+          "type": "long"
+        }
+      ],
+      "rc": [0],
+      "observations": 5,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "long",
+          "format": "%12.0g",
+          "values": [
+            2147483620, 8.98846567431158e307, -2147483647, 8.98846567431158e307,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate-float-limits",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": [
+            "1.7014117331926443e38",
+            "1.70141178e38",
+            "-1.7014117331926443e38",
+            "-1.8e38",
+            "1e-46",
+            ".z"
+          ],
+          "type": "float"
+        }
+      ],
+      "rc": [0],
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%9.0g",
+          "values": [
+            1.7014117331926443e38, 1.7014117331926443e38,
+            -1.7014117331926443e38, 8.98846567431158e307, 0,
+            9.045521364627034e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate-double",
+      "n": 5,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": [
+            "0.1",
+            "8.9884656743115785e307",
+            "-8.9884656743115785e307",
+            "1e-320",
+            ".c"
+          ],
+          "type": "double"
+        }
+      ],
+      "rc": [0],
+      "observations": 5,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [
+            0.1, 8.988465674311579e307, -8.988465674311579e307, 1e-320,
+            8.995049023194132e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "replace-byte-to-int",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": ["101", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "int", "format": "%8.0g", "values": [101, 1, 1] }
+      ]
+    },
+    {
+      "id": "replace-byte-to-long",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": ["40000", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "long",
+          "format": "%8.0g",
+          "values": [40000, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-byte-to-double",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": ["3e9", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%8.0g",
+          "values": [3000000000, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-byte-to-float",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": ["0.5", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%8.0g",
+          "values": [0.5, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-byte-fraction-large",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": ["16777217.5", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%8.0g",
+          "values": [16777218, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-byte-missing-kept",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": [".a", ".", "2"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [8.990660123939097e307, 8.98846567431158e307, 2]
+        }
+      ]
+    },
+    {
+      "id": "replace-byte-negative",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        { "op": "replace", "name": "x", "values": ["-128", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "int",
+          "format": "%8.0g",
+          "values": [-128, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-int-to-long",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "int"
+        },
+        { "op": "replace", "name": "x", "values": ["32741", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "long",
+          "format": "%8.0g",
+          "values": [32741, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-int-to-float",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "int"
+        },
+        { "op": "replace", "name": "x", "values": ["0.5", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%8.0g",
+          "values": [0.5, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-int-to-double",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "int"
+        },
+        { "op": "replace", "name": "x", "values": ["-2147483648", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%8.0g",
+          "values": [-2147483648, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-long-to-double",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "long"
+        },
+        { "op": "replace", "name": "x", "values": ["0.5", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%12.0g",
+          "values": [0.5, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-long-large",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "long"
+        },
+        { "op": "replace", "name": "x", "values": ["2147483621", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%12.0g",
+          "values": [2147483621, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-float-stays",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "float"
+        },
+        { "op": "replace", "name": "x", "values": ["0.1", "16777217", "1e39"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%9.0g",
+          "values": [0.10000000149011612, 16777216, 8.98846567431158e307]
+        }
+      ]
+    },
+    {
+      "id": "replace-float-huge",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "float"
+        },
+        { "op": "replace", "name": "x", "values": ["1e300", "1", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%9.0g",
+          "values": [8.98846567431158e307, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-double-stays",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "double"
+        },
+        { "op": "replace", "name": "x", "values": ["0.1", "1e300", "1"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [0.1, 1e300, 1]
+        }
+      ]
+    },
+    {
+      "id": "replace-range-ignores-unassigned",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "replace",
+          "name": "x",
+          "values": ["300", "5", "6"],
+          "range": [2, 3]
+        }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "byte", "format": "%8.0g", "values": [1, 5, 6] }
+      ]
+    },
+    {
+      "id": "replace-range-promotes",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "1", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "replace",
+          "name": "x",
+          "values": ["5", "300", "6"],
+          "range": [2, 2]
+        }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "int", "format": "%8.0g", "values": [1, 300, 1] }
+      ]
+    },
+    {
+      "id": "string-default-width",
+      "n": 4,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["a", "abc", "", "ab"],
+          "string": true
+        }
+      ],
+      "rc": [0],
+      "observations": 4,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str3",
+          "format": "%9s",
+          "values": ["a", "abc", "", "ab"]
+        }
+      ]
+    },
+    {
+      "id": "string-all-empty",
+      "n": 2,
+      "steps": [
+        { "op": "generate", "name": "s", "values": ["", ""], "string": true }
+      ],
+      "rc": [0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "s", "type": "str1", "format": "%9s", "values": ["", ""] }
+      ]
+    },
+    {
+      "id": "string-truncates",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["abcdef", "ab", "a"],
+          "type": "str2",
+          "string": true
+        }
+      ],
+      "rc": [0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str2",
+          "format": "%9s",
+          "values": ["ab", "ab", "a"]
+        }
+      ]
+    },
+    {
+      "id": "string-wider-than-needed",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["ab", "a"],
+          "type": "str10",
+          "string": true
+        }
+      ],
+      "rc": [0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str10",
+          "format": "%10s",
+          "values": ["ab", "a"]
+        }
+      ]
+    },
+    {
+      "id": "string-replace-widens",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["a", "b", "c"],
+          "string": true
+        },
+        {
+          "op": "replace",
+          "name": "s",
+          "values": ["a", "bcdef", "c"],
+          "range": [2, 2],
+          "string": true
+        }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str5",
+          "format": "%9s",
+          "values": ["a", "bcdef", "c"]
+        }
+      ]
+    },
+    {
+      "id": "string-replace-never-narrows",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["abcdef", "b"],
+          "string": true
+        },
+        { "op": "replace", "name": "s", "values": ["a", "b"], "string": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "s", "type": "str6", "format": "%9s", "values": ["a", "b"] }
+      ]
+    },
+    {
+      "id": "string-bytes",
+      "n": 2,
+      "steps": [
+        { "op": "generate", "name": "s", "values": ["é", "aé"], "string": true }
+      ],
+      "rc": [0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "s", "type": "str3", "format": "%9s", "values": ["é", "aé"] }
+      ]
+    },
+    {
+      "id": "type-mismatch",
+      "n": 2,
+      "steps": [
+        { "op": "generate", "name": "x", "values": ["1", "2"] },
+        { "op": "generate", "name": "s", "values": ["a", "b"], "string": true },
+        { "op": "replace", "name": "x", "values": ["a", "b"], "string": true },
+        { "op": "replace", "name": "s", "values": ["1", "2"] },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["a", "b"],
+          "type": "byte",
+          "string": true
+        },
+        { "op": "generate", "name": "u", "values": ["1", "2"], "type": "str3" },
+        { "op": "generate", "name": "x", "values": ["1", "2"] }
+      ],
+      "rc": [0, 0, 109, 109, 109, 109, 110],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "float", "format": "%9.0g", "values": [1, 2] },
+        { "name": "s", "type": "str1", "format": "%9s", "values": ["a", "b"] }
+      ]
+    },
+    {
+      "id": "names",
+      "n": 1,
+      "steps": [
+        { "op": "generate", "name": "_all", "values": ["1"] },
+        { "op": "generate", "name": "if", "values": ["1"] },
+        { "op": "generate", "name": "byte", "values": ["1"] },
+        { "op": "generate", "name": "str5", "values": ["1"] },
+        { "op": "generate", "name": "x_1", "values": ["1"] },
+        {
+          "op": "generate",
+          "name": "a23456789012345678901234567890123",
+          "values": ["1"]
+        },
+        {
+          "op": "generate",
+          "name": "a2345678901234567890123456789012",
+          "values": ["1"]
+        },
+        { "op": "generate", "name": "_n", "values": ["1"] },
+        { "op": "generate", "name": "_cons", "values": ["1"] },
+        { "op": "generate", "name": "1x", "values": ["1"] },
+        { "op": "generate", "name": "x.y", "values": ["1"] },
+        { "op": "generate", "name": "X", "values": ["1"] },
+        { "op": "generate", "name": "_", "values": ["1"] },
+        { "op": "generate", "name": "using", "values": ["1"] },
+        { "op": "generate", "name": "strL", "values": ["1"] },
+        { "op": "generate", "name": "str", "values": ["1"] },
+        { "op": "generate", "name": "in", "values": ["1"] },
+        { "op": "generate", "name": "_pi", "values": ["1"] },
+        { "op": "generate", "name": "float", "values": ["1"] },
+        { "op": "generate", "name": "e", "values": ["1"] },
+        { "op": "generate", "name": "with", "values": ["1"] },
+        { "op": "generate", "name": "_b", "values": ["1"] },
+        { "op": "generate", "name": "_x", "values": ["1"] }
+      ],
+      "rc": [
+        101, 198, 102, 102, 0, 198, 0, 198, 198, 198, 198, 0, 0, 101, 102, 0,
+        198, 198, 102, 0, 100, 198, 0
+      ],
+      "observations": 1,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x_1", "type": "float", "format": "%9.0g", "values": [1] },
+        {
+          "name": "a2345678901234567890123456789012",
+          "type": "float",
+          "format": "%9.0g",
+          "values": [1]
+        },
+        { "name": "X", "type": "float", "format": "%9.0g", "values": [1] },
+        { "name": "_", "type": "float", "format": "%9.0g", "values": [1] },
+        { "name": "str", "type": "float", "format": "%9.0g", "values": [1] },
+        { "name": "e", "type": "float", "format": "%9.0g", "values": [1] },
+        { "name": "_x", "type": "float", "format": "%9.0g", "values": [1] }
+      ]
+    },
+    {
+      "id": "recast-double-to-float",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.1", "0.5"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "float" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [0.1, 0.5]
+        }
+      ]
+    },
+    {
+      "id": "recast-force-double-to-float",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.1", "0.5"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "float", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "float",
+          "format": "%10.0g",
+          "values": [0.10000000149011612, 0.5]
+        }
+      ]
+    },
+    {
+      "id": "recast-double-to-float-exact",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.5", "2"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "float" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "float", "format": "%10.0g", "values": [0.5, 2] }
+      ]
+    },
+    {
+      "id": "recast-force-double-to-float-exact",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.5", "2"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "float", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "float", "format": "%10.0g", "values": [0.5, 2] }
+      ]
+    },
+    {
+      "id": "recast-to-byte",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "200"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "byte" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [1, 200]
+        }
+      ]
+    },
+    {
+      "id": "recast-force-to-byte",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "200"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "byte", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "byte",
+          "format": "%10.0g",
+          "values": [1, 8.98846567431158e307]
+        }
+      ]
+    },
+    {
+      "id": "recast-to-byte-fits",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "100"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "byte" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "byte", "format": "%10.0g", "values": [1, 100] }
+      ]
+    },
+    {
+      "id": "recast-force-to-byte-fits",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "100"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "byte", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "byte", "format": "%10.0g", "values": [1, 100] }
+      ]
+    },
+    {
+      "id": "recast-fraction-to-int",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.5", "2"],
+          "type": "float"
+        },
+        { "op": "recast", "name": "x", "type": "int" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "float", "format": "%9.0g", "values": [0.5, 2] }
+      ]
+    },
+    {
+      "id": "recast-force-fraction-to-int",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["0.5", "2"],
+          "type": "float"
+        },
+        { "op": "recast", "name": "x", "type": "int", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "int", "format": "%9.0g", "values": [0, 2] }
+      ]
+    },
+    {
+      "id": "recast-widen",
+      "n": 2,
+      "steps": [
+        { "op": "generate", "name": "x", "values": ["1", "2"], "type": "byte" },
+        { "op": "recast", "name": "x", "type": "double" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "double", "format": "%8.0g", "values": [1, 2] }
+      ]
+    },
+    {
+      "id": "recast-force-widen",
+      "n": 2,
+      "steps": [
+        { "op": "generate", "name": "x", "values": ["1", "2"], "type": "byte" },
+        { "op": "recast", "name": "x", "type": "double", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "double", "format": "%8.0g", "values": [1, 2] }
+      ]
+    },
+    {
+      "id": "recast-float-to-long",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["16777216", ".a"],
+          "type": "float"
+        },
+        { "op": "recast", "name": "x", "type": "long" }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "long",
+          "format": "%9.0g",
+          "values": [16777216, 8.990660123939097e307]
+        }
+      ]
+    },
+    {
+      "id": "recast-force-float-to-long",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["16777216", ".a"],
+          "type": "float"
+        },
+        { "op": "recast", "name": "x", "type": "long", "force": true }
+      ],
+      "rc": [0, 0],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "long",
+          "format": "%9.0g",
+          "values": [16777216, 8.990660123939097e307]
+        }
+      ]
+    },
+    {
+      "id": "recast-numeric-to-string",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "2"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "str5" }
+      ],
+      "rc": [0, 109],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "double", "format": "%10.0g", "values": [1, 2] }
+      ]
+    },
+    {
+      "id": "recast-force-numeric-to-string",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["1", "2"],
+          "type": "double"
+        },
+        { "op": "recast", "name": "x", "type": "str5", "force": true }
+      ],
+      "rc": [0, 109],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        { "name": "x", "type": "double", "format": "%10.0g", "values": [1, 2] }
+      ]
+    },
+    {
+      "id": "recast-string",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["abcdef", "ab"],
+          "string": true
+        },
+        { "op": "recast", "name": "s", "type": "str2", "force": false },
+        { "op": "generate", "name": "t", "values": ["a", "b"], "string": true },
+        { "op": "recast", "name": "t", "type": "str9", "force": false },
+        { "op": "recast", "name": "t", "type": "byte", "force": false }
+      ],
+      "rc": [0, 0, 0, 0, 109],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str6",
+          "format": "%9s",
+          "values": ["abcdef", "ab"]
+        },
+        { "name": "t", "type": "str9", "format": "%9s", "values": ["a", "b"] }
+      ]
+    },
+    {
+      "id": "recast-string-force",
+      "n": 2,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["abcdef", "ab"],
+          "string": true
+        },
+        { "op": "recast", "name": "s", "type": "str2", "force": true },
+        { "op": "generate", "name": "t", "values": ["a", "b"], "string": true },
+        { "op": "recast", "name": "t", "type": "str9", "force": true },
+        { "op": "recast", "name": "t", "type": "byte", "force": true }
+      ],
+      "rc": [0, 0, 0, 0, 109],
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str2",
+          "format": "%9s",
+          "values": ["ab", "ab"]
+        },
+        { "name": "t", "type": "str9", "format": "%9s", "values": ["a", "b"] }
+      ]
+    },
+    {
+      "id": "sort-numeric-missing",
+      "n": 7,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["3", ".", "-1", ".b", "2.5", ".a", "0"],
+          "type": "double"
+        },
+        {
+          "op": "generate",
+          "name": "k",
+          "values": ["1", "2", "3", "4", "5", "6", "7"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["x"] }
+      ],
+      "rc": [0, 0, 0],
+      "observations": 7,
+      "sortedBy": ["x"],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [
+            -1, 0, 2.5, 3, 8.98846567431158e307, 8.990660123939097e307,
+            8.992854573566614e307
+          ]
+        },
+        {
+          "name": "k",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [3, 7, 5, 1, 2, 6, 4]
+        }
+      ]
+    },
+    {
+      "id": "sort-string",
+      "n": 7,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "s",
+          "values": ["b", "B", "a", "", " a", "ab", "10"],
+          "string": true
+        },
+        {
+          "op": "generate",
+          "name": "k",
+          "values": ["1", "2", "3", "4", "5", "6", "7"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["s"] }
+      ],
+      "rc": [0, 0, 0],
+      "observations": 7,
+      "sortedBy": ["s"],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str2",
+          "format": "%9s",
+          "values": ["", " a", "10", "B", "a", "ab", "b"]
+        },
+        {
+          "name": "k",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [4, 5, 7, 2, 3, 6, 1]
+        }
+      ]
+    },
+    {
+      "id": "sort-two-keys",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] }
+      ],
+      "rc": [0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        }
+      ]
+    },
+    {
+      "id": "gsort-descending",
+      "n": 5,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["3", ".", "-1", ".a", "2"],
+          "type": "double"
+        },
+        { "op": "gsort", "keys": ["-x"] }
+      ],
+      "rc": [0, 0],
+      "observations": 5,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [3, 2, -1, 8.990660123939097e307, 8.98846567431158e307]
+        }
+      ]
+    },
+    {
+      "id": "gsort-mixed",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        { "op": "gsort", "keys": ["g", "-t"] }
+      ],
+      "rc": [0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [3, 2, 1, 3, 2, 1]
+        }
+      ]
+    },
+    {
+      "id": "gsort-ascending-only",
+      "n": 3,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "x",
+          "values": ["3", "1", "2"],
+          "type": "byte"
+        },
+        { "op": "gsort", "keys": ["x"] }
+      ],
+      "rc": [0, 0],
+      "observations": 3,
+      "sortedBy": ["x"],
+      "variables": [
+        { "name": "x", "type": "byte", "format": "%8.0g", "values": [1, 2, 3] }
+      ]
+    },
+    {
+      "id": "sorted-after-replace-key",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        {
+          "op": "replace",
+          "name": "t",
+          "values": ["9", "9", "9", "9", "9", "9"]
+        }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [9, 9, 9, 9, 9, 9]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-replace-first-key",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        {
+          "op": "replace",
+          "name": "g",
+          "values": ["9", "9", "9", "9", "9", "9"]
+        }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [9, 9, 9, 9, 9, 9]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-replace-other",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        {
+          "op": "replace",
+          "name": "z",
+          "values": ["9", "9", "9", "9", "9", "9"]
+        }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [9, 9, 9, 9, 9, 9]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-generate",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        {
+          "op": "generate",
+          "name": "w",
+          "values": ["9", "9", "9", "9", "9", "9"]
+        }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        },
+        {
+          "name": "w",
+          "type": "float",
+          "format": "%9.0g",
+          "values": [9, 9, 9, 9, 9, 9]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-drop-second-key",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "drop", "names": ["t"] }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-drop-first-key",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "drop", "names": ["g"] }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-drop-other",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "drop", "names": ["z"] }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-rename-key",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "rename", "from": "t", "to": "time" }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "time"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "time",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-more-observations",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "obs", "n": 8 }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 8,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [
+            1, 1, 1, 2, 2, 2, 8.98846567431158e307, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [
+            1, 2, 3, 1, 2, 3, 8.98846567431158e307, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [
+            6, 4, 2, 3, 5, 1, 8.98846567431158e307, 8.98846567431158e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-drop-observations",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "dropin", "range": [2, 3] }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 4,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-order",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "order", "names": ["z", "t"] }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-recast-key",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "recast", "name": "t", "type": "double" }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g", "t"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "double",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "sorted-after-sort-again-on-prefix",
+      "n": 6,
+      "steps": [
+        {
+          "op": "generate",
+          "name": "g",
+          "values": ["2", "1", "2", "1", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "t",
+          "values": ["3", "3", "1", "2", "2", "1"],
+          "type": "byte"
+        },
+        {
+          "op": "generate",
+          "name": "z",
+          "values": ["1", "2", "3", "4", "5", "6"],
+          "type": "byte"
+        },
+        { "op": "sort", "keys": ["g", "t"] },
+        { "op": "sort", "keys": ["g"] }
+      ],
+      "rc": [0, 0, 0, 0, 0],
+      "observations": 6,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 1, 1, 2, 2, 2]
+        },
+        {
+          "name": "t",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [1, 2, 3, 1, 2, 3]
+        },
+        {
+          "name": "z",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [6, 4, 2, 3, 5, 1]
+        }
+      ]
+    },
+    {
+      "id": "variables",
+      "n": 2,
+      "steps": [
+        { "op": "generate", "name": "a", "values": ["1", "2"], "type": "byte" },
+        { "op": "generate", "name": "b", "values": ["x", "y"], "string": true },
+        {
+          "op": "generate",
+          "name": "c",
+          "values": ["3", "4"],
+          "type": "double"
+        },
+        { "op": "generate", "name": "d", "values": ["5", "6"], "type": "long" },
+        { "op": "rename", "from": "a", "to": "b" },
+        { "op": "rename", "from": "a", "to": "alpha" },
+        { "op": "rename", "from": "nosuch", "to": "q" },
+        { "op": "rename", "from": "c", "to": "1c" },
+        { "op": "order", "names": ["d", "b"] },
+        { "op": "order", "names": ["nosuch"] },
+        { "op": "drop", "names": ["nosuch"] },
+        { "op": "keep", "names": ["d", "alpha", "c"] },
+        { "op": "obs", "n": 1 },
+        { "op": "obs", "n": 4 },
+        { "op": "dropin", "range": [1, 1] },
+        { "op": "dropin", "range": [3, 9] }
+      ],
+      "rc": [0, 0, 0, 0, 110, 0, 111, 198, 0, 111, 111, 0, 198, 0, 0, 198],
+      "observations": 3,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "d",
+          "type": "long",
+          "format": "%12.0g",
+          "values": [6, 8.98846567431158e307, 8.98846567431158e307]
+        },
+        {
+          "name": "alpha",
+          "type": "byte",
+          "format": "%8.0g",
+          "values": [2, 8.98846567431158e307, 8.98846567431158e307]
+        },
+        {
+          "name": "c",
+          "type": "double",
+          "format": "%10.0g",
+          "values": [4, 8.98846567431158e307, 8.98846567431158e307]
+        }
+      ]
+    }
+  ]
+}

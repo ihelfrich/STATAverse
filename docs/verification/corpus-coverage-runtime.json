@@ -1,0 +1,78 @@
+{
+  "basis": "Name-level upper bound over this repository's do-files for the new runtime in src/runtime. A line counts when its command is implemented; options, functions and semantics are not checked here.",
+  "files": 38,
+  "commandLines": 2053,
+  "namedSupported": 2035,
+  "share": 0.9912,
+  "shareExcludingDisplay": 0.9735,
+  "unsupported": [
+    {
+      "command": "nbreg",
+      "lines": 2
+    },
+    {
+      "command": "arima",
+      "lines": 1
+    },
+    {
+      "command": "esttab",
+      "lines": 1
+    },
+    {
+      "command": "hausman",
+      "lines": 1
+    },
+    {
+      "command": "infix",
+      "lines": 1
+    },
+    {
+      "command": "lroc",
+      "lines": 1
+    },
+    {
+      "command": "misstable",
+      "lines": 1
+    },
+    {
+      "command": "mixed",
+      "lines": 1
+    },
+    {
+      "command": "ovtest",
+      "lines": 1
+    },
+    {
+      "command": "qnorm",
+      "lines": 1
+    },
+    {
+      "command": "rvfplot",
+      "lines": 1
+    },
+    {
+      "command": "swilk",
+      "lines": 1
+    },
+    {
+      "command": "tsline",
+      "lines": 1
+    },
+    {
+      "command": "which",
+      "lines": 1
+    },
+    {
+      "command": "xtabond",
+      "lines": 1
+    },
+    {
+      "command": "xtdescribe",
+      "lines": 1
+    },
+    {
+      "command": "xtgee",
+      "lines": 1
+    }
+  ]
+}

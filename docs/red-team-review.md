@@ -332,3 +332,27 @@ What the native comparison found before release: `strpos(s, "")` is 1 in Stata, 
 Review of the change itself raised one ordering question. `replace x = x[_n-1] if missing(x[_n-1])` depends on whether the condition sees values written earlier in the same command. Stata's does. The first implementation computed all conditions before storing anything; it was changed to test and store one observation at a time, and two native cases now fix that behavior.
 
 Limits that remain. Row order among tied sort keys is deterministic here and arbitrary in Stata. Plain `by` is sometimes stricter than Stata about whether data are still sorted. String position functions refuse non-ASCII text. `test` and `lincom` refuse models with factor-variable terms and do not drop redundant constraints. The fixtures are small invented datasets; they fix the listed behaviors and say nothing about performance on large data. During the first full browser run, four mobile cases were reported as failed. The recorded error in each was `browserContext.close: ENOENT` on a trace file under `test-results/`: a second Playwright run started in the same checkout cleared that shared output folder while the first was still writing to it. No assertion about the application failed. All four passed when rerun alone, and the three later full runs passed 248 of 248. Two Playwright runs must not share a checkout. The earlier intermittent public navigation and search observations were not reproduced: the public verification tool, which covers site navigation, Teaching links, Pagefind search and legacy links, passed 19 of 19 runs against the deployed site on the evening of 9 November, 17 of them with the legacy checks. Nineteen clean runs from one machine and network bound the failure rate loosely and do not identify a cause, so the item stays open with no original failing page or trace to work from. After the source was merged into the STATAverse main branch (pull request 10), the public pass was repeated with the legacy checks: 18 groups, including old `/STATAverse/` links reaching their canonical pages with queries and fragments intact. No second model or person reviewed this work.
+
+## 10 November 2026: a precedence error in the live interpreter
+
+While building the new runtime, 400 machine-written expressions were run in installed Stata and in both interpreters. They showed that Stata does not treat the comparison operators as one level. It evaluates `2 == 1 < 3` as `2 == (1 < 3)`, which is 0. The interpreter that the live site runs (`src/expression.js`) evaluates it left to right as `(2 == 1) < 3`, which is 1.
+
+The error needs two comparison operators in a row with no parentheses and no `&` or `|` between them, which is unusual in a student's command and absent from every lesson. It is nevertheless a wrong answer with no warning. The new runtime (`src/runtime/expression.js`) has Stata's rule and is tested against the 400 cases.
+
+Not changed: the live interpreter. Under the runtime specification it is frozen so that saved sessions replay as they did, and whether to correct this in place is Dr. Helfrich's decision. A correction would change the replayed result only of a saved command that contains such a chain.
+
+### How far the error reaches, measured
+
+The recorded machine-written expressions were then run through the live interpreter (700 cases; those with extended missing values, which it does not have, were left out). It refused 99, which is the designed behaviour for forms it does not support. Of the 309 it evaluated, 301 agreed with Stata and 8 did not. Seven of the eight are chained comparisons such as `g == id != 0`, the error described above. The eighth is `strpos()` searching an empty string for an empty string: Stata returns 0 and the live interpreter returns 1.
+
+So two behaviours of the live interpreter are known to differ from Stata without a message: comparison chains without parentheses, and `strpos("", "")`. Neither occurs in a lesson. Both are corrected in the new runtime and both are left unchanged in the live one, pending Dr. Helfrich's decision on whether a frozen interpreter should take corrections of this kind.
+
+### Corrected in the live interpreter, 10 November 2026
+
+Dr. Helfrich decided that both should be corrected in place. `src/expression.js` now gives each comparison operator its own level in Stata's order (`!=` and `~=` tightest, then `>`, `<`, `<=`, `>=`, and `==` loosest), and `strpos()` returns 0 when the string searched is empty. Arithmetic precedence in the live interpreter was left as it was.
+
+The evidence is a test that runs the recorded machine-written data expressions through the live interpreter and fails on any value that differs from Stata's. Of the 804 recorded, 196 are left out (errors, by-groups, and those using the variable that holds an extended missing value), 283 are refused, and 325 are evaluated; all 325 agree. Before the correction 321 agreed and 4 did not. Seven hand-written cases, checked in Stata 17 the same day, are tested as well. Two of the seven were first written with the wrong expected value and corrected from Stata's output, which is a fair measure of how unintuitive the rule is.
+
+What changes for a student: a saved command containing an unparenthesised chain of comparisons, or `strpos("", "")`, now replays with Stata's answer where it used to replay with the earlier one. No lesson, check or worked example contains either, and the 86 lesson commands still agree between the two interpreters.
+
+

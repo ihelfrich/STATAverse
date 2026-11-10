@@ -260,3 +260,82 @@ test("subscripts outside generate and replace are refused with guidance", () => 
     .find((r) => r.kind === "error");
   assert.match(error.message, /Subscripts/);
 });
+
+// The machine-written expressions recorded from Stata for the new runtime
+// are also run here. The live interpreter may refuse a form it does not
+// support, but an expression it evaluates has to give Stata's values. Cases
+// that use x are left out because x holds an extended missing value, which
+// the live interpreter does not have.
+test("the live interpreter agrees with Stata wherever it evaluates the recorded random expressions", () => {
+  const recorded = JSON.parse(
+    fs.readFileSync(
+      new URL("./fixtures/stata-runtime-expressions.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const SYSMISS = 8.98846567431158e307;
+  const value = (v, type) =>
+    type.startsWith("str")
+      ? v
+      : typeof v === "number"
+        ? v
+        : v.startsWith(".")
+          ? null
+          : type === "float"
+            ? Math.fround(Number(v))
+            : Number(v);
+  const n = recorded.variables[0][2].length;
+  const rows = Array.from({ length: n }, (_, i) =>
+    Object.fromEntries(
+      recorded.variables.map(([name, type, values]) => [
+        name,
+        value(values[i], type),
+      ]),
+    ),
+  );
+  const columns = recorded.variables.map(([name, type]) => ({
+    name,
+    type: type.startsWith("str") ? "string" : "numeric",
+  }));
+  let evaluated = 0;
+  for (const c of recorded.data) {
+    if (c.rc !== 0 || c.by || /\bx\b/.test(c.expression)) continue;
+    let actual;
+    try {
+      const fn = compileExpression(c.expression, columns);
+      actual = rows.map((r, i) => fn(r, i, n, rows));
+    } catch {
+      continue;
+    }
+    evaluated += 1;
+    actual.forEach((got, i) => {
+      const want = c.values[i];
+      const wantMissing = typeof want === "number" && want >= SYSMISS;
+      if (got === null || got === undefined)
+        assert.ok(wantMissing, `${c.expression} row ${i + 1}: missing`);
+      else if (typeof got === "string")
+        assert.equal(got, want, `${c.expression} row ${i + 1}`);
+      else
+        assert.ok(
+          !wantMissing &&
+            Math.abs(got - want) <= 1e-6 * Math.max(1, Math.abs(want)),
+          `${c.expression} row ${i + 1}: ${got} vs ${want}`,
+        );
+    });
+  }
+  assert.ok(evaluated >= 300, `only ${evaluated} cases evaluated`);
+});
+
+test("comparisons bind as Stata binds them and strpos finds nothing in an empty string", () => {
+  const scalar = (e) => compileExpression(e, [])({}, 0, 1, [{}]);
+  // Stata 17: display 2 == 1 < 3 gives 0, because < binds tighter than ==.
+  assert.equal(scalar("2 == 1 < 3"), 0);
+  assert.equal(scalar("3 > 2 != 1"), 1);
+  assert.equal(scalar("3 > 2 ~= 1"), 1);
+  assert.equal(scalar("1 < 2 > 0"), 0);
+  assert.equal(scalar("-2^2"), -4);
+  assert.equal(scalar("2 + 3 * 4 == 14"), 1);
+  assert.equal(scalar('strpos("", "")'), 0);
+  assert.equal(scalar('strpos("abc", "")'), 1);
+  assert.equal(scalar('strpos("abc", "c")'), 3);
+});

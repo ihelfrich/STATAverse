@@ -1,0 +1,7084 @@
+{
+  "source": "Recorded from installed Stata by tools/check-expressions-native.mjs under version 17. Numeric results were written with %21x and are exact doubles; data cases are generate r = EXP after summarize price, with scalars k = 3 and ks = txt.",
+  "variables": [
+    ["id", "byte", [1, 2, 3, 4, 5, 6]],
+    ["x", "double", ["1.5", "-2", ".", "0", ".a", "100"]],
+    ["f", "float", ["0.1", "0.2", "0.3", "1", ".", "16777217"]],
+    ["g", "byte", [1, 1, 2, 2, 3, 3]],
+    ["s", "str", ["apple", "Banana split", "", "  pad  ", "x", "naïve"]],
+    ["price", "double", [10, 20, 30, 40, 50, 60]],
+    ["weight", "double", [1, 2, 3, 4, 5, 6]],
+    ["wage", "double", [6, 5, 4, 3, 2, 1]]
+  ],
+  "scalar": [
+    { "expression": "1+2*3", "number": 7 },
+    { "expression": "(1+2)*3", "number": 9 },
+    { "expression": "-2^2", "number": -4 },
+    { "expression": "2^-1", "number": 0.5 },
+    { "expression": "2^3^2", "number": 64 },
+    { "expression": "-2^-2", "number": -0.25 },
+    { "expression": "5 - -3", "number": 8 },
+    { "expression": "+3", "number": 3 },
+    { "expression": "--3", "number": 3 },
+    { "expression": "2*-3", "number": -6 },
+    { "expression": "10/4", "number": 2.5 },
+    { "expression": "7/2*2", "number": 7 },
+    { "expression": "0.1*3/3", "number": 0.1 },
+    { "expression": "8/2/2", "number": 2 },
+    { "expression": "2-3+4", "number": 3 },
+    { "expression": "0.1+0.2", "number": 0.30000000000000004 },
+    { "expression": "1e308*10", "number": 8.98846567431158e307 },
+    { "expression": "-1e308*10", "number": 8.98846567431158e307 },
+    { "expression": "2^1024", "number": 8.98846567431158e307 },
+    { "expression": "2^1023", "number": 8.98846567431158e307 },
+    { "expression": "0^0", "number": 1 },
+    { "expression": "0^-1", "number": 8.98846567431158e307 },
+    { "expression": "(-8)^(1/3)", "number": 8.98846567431158e307 },
+    { "expression": "(-8)^2", "number": 64 },
+    { "expression": "(-2)^3", "number": -8 },
+    { "expression": "(-2)^0.5", "number": 8.98846567431158e307 },
+    { "expression": "4^0.5", "number": 2 },
+    { "expression": ".5+.5", "number": 1 },
+    { "expression": "1.e2", "number": 100 },
+    { "expression": "1e+2", "number": 100 },
+    { "expression": "3e-1", "number": 0.3 },
+    { "expression": "1/0", "number": 8.98846567431158e307 },
+    { "expression": "0/0", "number": 8.98846567431158e307 },
+    { "expression": "./2", "number": 8.98846567431158e307 },
+    { "expression": ".a+1", "number": 8.98846567431158e307 },
+    { "expression": ".a*.b", "number": 8.98846567431158e307 },
+    { "expression": "-.a", "number": 8.98846567431158e307 },
+    { "expression": "1e400", "number": 8.98846567431158e307 },
+    { "expression": "8.9884656743115785e307", "number": 8.988465674311579e307 },
+    { "expression": "8.99e307", "number": 8.99e307 },
+    { "expression": "1.0X+3", "number": 8 },
+    { "expression": "!0", "number": 1 },
+    { "expression": "!5", "number": 0 },
+    { "expression": "!.", "number": 0 },
+    { "expression": "!0^2", "number": 1 },
+    { "expression": "~1", "number": 0 },
+    { "expression": "!!3", "number": 1 },
+    { "expression": "-!0", "number": -1 },
+    { "expression": "1<2", "number": 1 },
+    { "expression": "2<1", "number": 0 },
+    { "expression": ".>1e300", "number": 1 },
+    { "expression": ".a>.", "number": 1 },
+    { "expression": ".<.a", "number": 1 },
+    { "expression": ".==.", "number": 1 },
+    { "expression": ".a==.", "number": 0 },
+    { "expression": ".a!=.b", "number": 1 },
+    { "expression": "1==1.0", "number": 1 },
+    { "expression": "0.1==float(0.1)", "number": 0 },
+    { "expression": "1!=2", "number": 1 },
+    { "expression": "1~=2", "number": 1 },
+    { "expression": "3>=3", "number": 1 },
+    { "expression": "1<2<3", "number": 1 },
+    { "expression": "3>2>1", "number": 0 },
+    { "expression": "1&0", "number": 0 },
+    { "expression": "1&.", "number": 1 },
+    { "expression": "0|.", "number": 1 },
+    { "expression": "1|0&0", "number": 1 },
+    { "expression": "0&0|1", "number": 1 },
+    { "expression": "!1|1", "number": 1 },
+    { "expression": "5&-1", "number": 1 },
+    { "expression": "1+1==2", "number": 1 },
+    { "expression": "2==1+1", "number": 1 },
+    { "expression": "1<2&2<3", "number": 1 },
+    { "expression": "-1<0", "number": 1 },
+    { "expression": "1 == 1 == 1", "number": 1 },
+    { "expression": "!0 == 1", "number": 1 },
+    { "expression": "1 = 1", "rc": 198 },
+    { "expression": "\"a\"<\"b\"", "number": 1 },
+    { "expression": "\"a\"==\"a\"", "number": 1 },
+    { "expression": "\"B\"<\"a\"", "number": 1 },
+    { "expression": "\"abc\"<\"abd\"", "number": 1 },
+    { "expression": "\"\"<\"a\"", "number": 1 },
+    { "expression": "\"a\"!=\"A\"", "number": 1 },
+    { "expression": "\"a\"+\"b\"==\"ab\"", "number": 1 },
+    { "expression": "\"a\"==1", "rc": 109 },
+    { "expression": "\"a\"+1", "rc": 109 },
+    { "expression": "-\"a\"", "rc": 109 },
+    { "expression": "\"a\"&1", "rc": 109 },
+    { "expression": "!\"a\"", "rc": 109 },
+    { "expression": "\"a\"*2", "string": "aa" },
+    { "expression": "\"a\"-\"b\"", "rc": 109 },
+    { "expression": "abs(-3)", "number": 3 },
+    { "expression": "abs(.)", "number": 8.98846567431158e307 },
+    { "expression": "ceil(2.1)", "number": 3 },
+    { "expression": "ceil(-2.1)", "number": -2 },
+    { "expression": "floor(-2.1)", "number": -3 },
+    { "expression": "floor(.)", "number": 8.98846567431158e307 },
+    { "expression": "int(-2.7)", "number": -2 },
+    { "expression": "int(1e20)", "number": 100000000000000000000 },
+    { "expression": "trunc(2.7)", "number": 2 },
+    { "expression": "round(2.5)", "number": 3 },
+    { "expression": "round(-2.5)", "number": -2 },
+    { "expression": "round(3.5)", "number": 4 },
+    { "expression": "round(0.5)", "number": 1 },
+    { "expression": "round(2.567,0.01)", "number": 2.57 },
+    { "expression": "round(2.5,2)", "number": 2 },
+    { "expression": "round(7,5)", "number": 5 },
+    { "expression": "round(1.005,.01)", "number": 1 },
+    { "expression": "round(5,0)", "number": 5 },
+    { "expression": "round(5,-2)", "number": 4 },
+    { "expression": "round(.)", "number": 8.98846567431158e307 },
+    { "expression": "round(5,.)", "number": 8.98846567431158e307 },
+    { "expression": "sign(-2)", "number": -1 },
+    { "expression": "sign(0)", "number": 0 },
+    { "expression": "sign(.)", "number": 8.98846567431158e307 },
+    { "expression": "sqrt(16)", "number": 4 },
+    { "expression": "sqrt(-1)", "number": 8.98846567431158e307 },
+    { "expression": "sqrt(2)", "number": 1.4142135623730951 },
+    { "expression": "exp(1)", "number": 2.718281828459045 },
+    { "expression": "exp(710)", "number": 8.98846567431158e307 },
+    { "expression": "exp(-750)", "number": 0 },
+    { "expression": "ln(1)", "number": 0 },
+    { "expression": "ln(0)", "number": 8.98846567431158e307 },
+    { "expression": "ln(-1)", "number": 8.98846567431158e307 },
+    { "expression": "log(10)", "number": 2.302585092994046 },
+    { "expression": "log10(1000)", "number": 2.9999999999999996 },
+    { "expression": "log10(0)", "number": 8.98846567431158e307 },
+    { "expression": "mod(7,3)", "number": 1 },
+    { "expression": "mod(-7,3)", "number": 2 },
+    { "expression": "mod(7,-3)", "number": 8.98846567431158e307 },
+    { "expression": "mod(7,0)", "number": 8.98846567431158e307 },
+    { "expression": "mod(5.5,2)", "number": 1.5 },
+    { "expression": "mod(.,2)", "number": 8.98846567431158e307 },
+    { "expression": "min(1,2,3)", "number": 1 },
+    { "expression": "min(.,2)", "number": 2 },
+    { "expression": "min(.,.)", "number": 8.98846567431158e307 },
+    { "expression": "max(1,.a,3)", "number": 3 },
+    { "expression": "max(.a,.b)", "number": 8.98846567431158e307 },
+    { "expression": "max(.b,.a)", "number": 8.98846567431158e307 },
+    { "expression": "cond(1,2,3)", "number": 2 },
+    { "expression": "cond(0,2,3)", "number": 3 },
+    { "expression": "cond(.,2,3)", "number": 2 },
+    { "expression": "cond(.,2,3,4)", "number": 4 },
+    { "expression": "cond(.a,2,3,4)", "number": 4 },
+    { "expression": "inrange(5,1,10)", "number": 1 },
+    { "expression": "inrange(.,1,10)", "number": 0 },
+    { "expression": "inrange(5,.,10)", "number": 1 },
+    { "expression": "inrange(5,1,.)", "number": 1 },
+    { "expression": "inrange(5,.,.)", "number": 1 },
+    { "expression": "inrange(.,.,.)", "number": 0 },
+    { "expression": "inrange(.a,1,.b)", "number": 0 },
+    { "expression": "inlist(3,1,2,3)", "number": 1 },
+    { "expression": "inlist(.,1,.)", "number": 1 },
+    { "expression": "inlist(4,1,2)", "number": 0 },
+    { "expression": "missing(.)", "number": 1 },
+    { "expression": "missing(.a)", "number": 1 },
+    { "expression": "missing(1)", "number": 0 },
+    { "expression": "missing(1,.)", "number": 1 },
+    { "expression": "missing(\"\")", "number": 1 },
+    { "expression": "missing(\"a\")", "number": 0 },
+    { "expression": "missing(1,\"\")", "number": 1 },
+    { "expression": "mi(.)", "number": 1 },
+    { "expression": "float(0.1)", "number": 0.10000000149011612 },
+    { "expression": "float(16777217)", "number": 16777216 },
+    { "expression": "float(1e39)", "number": 8.98846567431158e307 },
+    { "expression": "float(.a)", "number": 8.990660123939097e307 },
+    { "expression": "clip(5,1,3)", "number": 3 },
+    { "expression": "clip(0,1,3)", "number": 1 },
+    { "expression": "clip(.,1,3)", "number": 8.98846567431158e307 },
+    { "expression": "clip(2,.,3)", "number": 2 },
+    { "expression": "clip(2,3,1)", "number": 8.98846567431158e307 },
+    { "expression": "comb(5,2)", "number": 10 },
+    { "expression": "comb(5,6)", "number": 8.98846567431158e307 },
+    { "expression": "comb(5.5,2)", "number": 8.98846567431158e307 },
+    { "expression": "lnfactorial(5)", "number": 4.787491742782046 },
+    { "expression": "lnfactorial(-1)", "number": 8.98846567431158e307 },
+    { "expression": "logit(.5)", "number": 0 },
+    { "expression": "logit(0)", "number": 8.98846567431158e307 },
+    { "expression": "invlogit(0)", "number": 0.5 },
+    { "expression": "invlogit(2)", "number": 0.8807970779778823 },
+    { "expression": "invlogit(800)", "number": 1 },
+    { "expression": "normal(0)", "number": 0.5 },
+    { "expression": "normal(1.96)", "number": 0.9750021048517796 },
+    { "expression": "normal(-3)", "number": 0.0013498980316300946 },
+    { "expression": "normal(-10)", "number": 7.619853024160527e-24 },
+    { "expression": "normal(8)", "number": 0.9999999999999993 },
+    { "expression": "normal(.)", "number": 8.98846567431158e307 },
+    { "expression": "normalden(0)", "number": 0.39894228040143265 },
+    { "expression": "normalden(1)", "number": 0.24197072451914334 },
+    { "expression": "normalden(1,2)", "number": 0.17603266338214973 },
+    { "expression": "normalden(1,0,2)", "number": 0.17603266338214973 },
+    { "expression": "invnormal(.975)", "number": 1.9599639845400536 },
+    { "expression": "invnormal(.5)", "number": 0 },
+    { "expression": "invnormal(0)", "number": 8.98846567431158e307 },
+    { "expression": "invnormal(1)", "number": 8.98846567431158e307 },
+    { "expression": "invnormal(1e-10)", "number": -6.361340902404056 },
+    { "expression": "invnormal(.001)", "number": -3.090232306167813 },
+    { "expression": "invnormal(.3)", "number": -0.5244005127080407 },
+    { "expression": "_pi", "number": 3.141592653589793 },
+    { "expression": "reldif(1,2)", "number": 0.3333333333333333 },
+    { "expression": "reldif(.,.)", "number": 0 },
+    { "expression": "max()", "rc": 198 },
+    { "expression": "abs()", "rc": 198 },
+    { "expression": "abs(1,2)", "rc": 198 },
+    { "expression": "nosuchfn(1)", "rc": 133 },
+    { "expression": "sqrt(", "rc": 132 },
+    { "expression": "1 +", "rc": 198 },
+    { "expression": "(1+2", "rc": 132 },
+    { "expression": "1 2", "rc": 198 },
+    { "expression": "x", "rc": 111 },
+    { "expression": "abs(\"a\")", "rc": 109 },
+    { "expression": "strlen(\"abc\")", "number": 3 },
+    { "expression": "length(\"naïve\")", "number": 6 },
+    { "expression": "ustrlen(\"naïve\")", "number": 5 },
+    { "expression": "strlen(\"\")", "number": 0 },
+    { "expression": "strlen(3)", "rc": 109 },
+    { "expression": "strpos(\"abc\",\"c\")", "number": 3 },
+    { "expression": "strpos(\"abc\",\"z\")", "number": 0 },
+    { "expression": "strpos(\"abc\",\"\")", "number": 1 },
+    { "expression": "strpos(\"naïve\",\"v\")", "number": 5 },
+    { "expression": "ustrpos(\"naïve\",\"v\")", "number": 4 },
+    { "expression": "strrpos(\"abcabc\",\"b\")", "number": 5 },
+    { "expression": "strrpos(\"abc\",\"\")", "number": 3 },
+    { "expression": "real(\"3.5\")", "number": 3.5 },
+    { "expression": "real(\"abc\")", "number": 8.98846567431158e307 },
+    { "expression": "real(\" 12 \")", "number": 12 },
+    { "expression": "real(\"1e3\")", "number": 1000 },
+    { "expression": "real(\".\")", "number": 8.98846567431158e307 },
+    { "expression": "real(\".a\")", "number": 8.990660123939097e307 },
+    { "expression": "real(\"1,000\")", "number": 8.98846567431158e307 },
+    { "expression": "real(\"-.5\")", "number": -0.5 },
+    { "expression": "real(\"\")", "number": 8.98846567431158e307 },
+    { "expression": "wordcount(\"a b  c\")", "number": 3 },
+    { "expression": "wordcount(\"\")", "number": 0 },
+    { "expression": "wordcount(`\"a \"b c\" d\"')", "number": 4 },
+    { "expression": "strmatch(\"apple\",\"a*e\")", "number": 1 },
+    { "expression": "strmatch(\"apple\",\"a?ple\")", "number": 1 },
+    { "expression": "strmatch(\"apple\",\"b*\")", "number": 0 },
+    { "expression": "strmatch(\"apple\",\"APPLE\")", "number": 0 },
+    { "expression": "strmatch(\"a.c\",\"a.c\")", "number": 1 },
+    { "expression": "strmatch(\"abc\",\"a.c\")", "number": 0 },
+    { "expression": "regexm(\"abc123\",\"[0-9]+\")", "number": 1 },
+    { "expression": "regexm(\"abc\",\"^b\")", "number": 0 },
+    { "expression": "regexm(\"abc\",\"B\")", "number": 0 },
+    { "expression": "\"a\"+\"b\"", "string": "ab" },
+    { "expression": "strupper(\"aBc\")", "string": "ABC" },
+    { "expression": "upper(\"naïve\")", "string": "NAïVE" },
+    { "expression": "ustrupper(\"naïve\")", "string": "NAÏVE" },
+    { "expression": "lower(\"ABC\")", "string": "abc" },
+    { "expression": "ustrlower(\"NAÏVE\")", "string": "naïve" },
+    {
+      "expression": "strproper(\"hello wORLD-foo bar2baz\")",
+      "string": "Hello World-Foo Bar2Baz"
+    },
+    { "expression": "proper(\"mcdonald's\")", "string": "Mcdonald'S" },
+    { "expression": "strtrim(\"  a b  \")", "string": "a b" },
+    { "expression": "trim(\"  a b  \")", "string": "a b" },
+    { "expression": "ltrim(\"  a b  \")", "string": "a b  " },
+    { "expression": "rtrim(\"  a b  \")", "string": "  a b" },
+    { "expression": "stritrim(\"a   b  c\")", "string": "a b c" },
+    { "expression": "substr(\"abcdef\",2,3)", "string": "bcd" },
+    { "expression": "substr(\"abcdef\",-2,2)", "string": "ef" },
+    { "expression": "substr(\"abcdef\",2,.)", "string": "bcdef" },
+    { "expression": "substr(\"abcdef\",0,2)", "string": "" },
+    { "expression": "substr(\"abcdef\",7,1)", "string": "" },
+    { "expression": "substr(\"abcdef\",3,0)", "string": "" },
+    { "expression": "substr(\"abcdef\",.,2)", "string": "" },
+    { "expression": "substr(\"abcdef\",-9,2)", "string": "" },
+    { "expression": "substr(\"abcdef\",2.9,1.9)", "string": "b" },
+    { "expression": "usubstr(\"naïve\",3,2)", "string": "ïv" },
+    { "expression": "usubstr(\"naïve\",-2,.)", "string": "ve" },
+    { "expression": "subinstr(\"aXbXc\",\"X\",\"-\",.)", "string": "a-b-c" },
+    { "expression": "subinstr(\"aXbXc\",\"X\",\"-\",1)", "string": "a-bXc" },
+    { "expression": "subinstr(\"aXbXc\",\"X\",\"-\",0)", "string": "aXbXc" },
+    { "expression": "subinstr(\"abc\",\"\",\"-\",.)", "string": "abc" },
+    { "expression": "subinstr(\"aaa\",\"a\",\"aa\",.)", "string": "aaaaaa" },
+    { "expression": "subinword(\"a ab a\",\"a\",\"X\",.)", "string": "X ab X" },
+    { "expression": "strreverse(\"abc\")", "string": "cba" },
+    { "expression": "reverse(\"abc\")", "string": "cba" },
+    { "expression": "word(\"a b c\",2)", "string": "b" },
+    { "expression": "word(\"a b c\",-1)", "string": "c" },
+    { "expression": "word(\"a b c\",5)", "string": "" },
+    { "expression": "word(\"a b c\",0)", "string": "" },
+    { "expression": "word(`\"a \"b c\" d\"',2)", "string": "\"b" },
+    { "expression": "char(65)", "string": "A" },
+    { "expression": "abbrev(\"abcdefghijklmnop\",8)", "string": "abcdef~p" },
+    { "expression": "abbrev(\"abc\",8)", "string": "abc" },
+    { "expression": "regexr(\"abc123\",\"[0-9]+\",\"X\")", "string": "abcX" },
+    { "expression": "regexr(\"abc\",\"z\",\"X\")", "string": "abc" },
+    {
+      "expression": "cond(regexm(\"abc123\",\"([a-z]+)([0-9]+)\"), regexs(2), \"none\")",
+      "string": ""
+    },
+    {
+      "expression": "cond(regexm(\"abc123\",\"([a-z]+)([0-9]+)\"), regexs(0), \"none\")",
+      "string": "abc123"
+    },
+    { "expression": "cond(1,\"yes\",\"no\")", "string": "yes" },
+    { "expression": "cond(1,\"yes\",2)", "rc": 109 },
+    { "expression": "strupper(3)", "rc": 109 },
+    { "expression": "substr(\"abc\",1)", "rc": 198 },
+    { "expression": "itrim(\"a  b\")", "string": "a b" },
+    { "expression": "mdy(1,1,1960)", "number": 0 },
+    { "expression": "mdy(11,10,2026)", "number": 24420 },
+    { "expression": "mdy(2,30,2020)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(2,29,2020)", "number": 21974 },
+    { "expression": "mdy(2,29,2021)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(13,1,2020)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(1,1,1800)", "number": -58438 },
+    { "expression": "mdy(1.5,1,2000)", "number": 14610 },
+    { "expression": "mdy(1,1,99)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(12,31,9999)", "number": 2936549 },
+    { "expression": "mdy(.,1,2000)", "number": 8.98846567431158e307 },
+    { "expression": "year(0)", "number": 1960 },
+    { "expression": "year(24420)", "number": 2026 },
+    { "expression": "month(24420)", "number": 11 },
+    { "expression": "day(24420)", "number": 10 },
+    { "expression": "dow(24420)", "number": 2 },
+    { "expression": "doy(24420)", "number": 314 },
+    { "expression": "quarter(24420)", "number": 4 },
+    { "expression": "halfyear(24420)", "number": 2 },
+    { "expression": "week(24420)", "number": 45 },
+    { "expression": "year(-1)", "number": 1959 },
+    { "expression": "day(-1)", "number": 31 },
+    { "expression": "year(.)", "number": 8.98846567431158e307 },
+    { "expression": "dow(-1)", "number": 4 },
+    { "expression": "year(24420.9)", "number": 2026 },
+    { "expression": "ym(2026,11)", "number": 802 },
+    { "expression": "yq(2026,4)", "number": 267 },
+    { "expression": "ym(2026,13)", "number": 8.98846567431158e307 },
+    { "expression": "yh(2026,2)", "number": 133 },
+    { "expression": "yw(2026,45)", "number": 3476 },
+    { "expression": "mofd(24420)", "number": 802 },
+    { "expression": "qofd(24420)", "number": 267 },
+    { "expression": "yofd(24420)", "number": 2026 },
+    { "expression": "hofd(24420)", "number": 133 },
+    { "expression": "wofd(24420)", "number": 3476 },
+    { "expression": "dofm(802)", "number": 24411 },
+    { "expression": "dofq(267)", "number": 24380 },
+    { "expression": "dofy(2026)", "number": 24107 },
+    { "expression": "dofh(133)", "number": 24288 },
+    { "expression": "mofd(-1)", "number": -1 },
+    { "expression": "dofm(-1)", "number": -31 },
+    { "expression": "td(10nov2026)", "number": 24420 },
+    { "expression": "td(1jan1960)", "number": 0 },
+    { "expression": "tm(2026m11)", "number": 802 },
+    { "expression": "tq(2026q4)", "number": 267 },
+    { "expression": "ty(2026)", "rc": 133 },
+    { "expression": "date(\"11/10/2026\",\"MDY\")", "number": 24420 },
+    { "expression": "date(\"10nov2026\",\"DMY\")", "number": 24420 },
+    { "expression": "date(\"2026-11-10\",\"YMD\")", "number": 24420 },
+    { "expression": "date(\"November 10, 2026\",\"MDY\")", "number": 24420 },
+    { "expression": "date(\"10 November 2026\",\"DMY\")", "number": 24420 },
+    { "expression": "date(\"11/10/26\",\"MD20Y\")", "number": 24420 },
+    {
+      "expression": "date(\"11/10/26\",\"MDY\")",
+      "number": 8.98846567431158e307
+    },
+    { "expression": "date(\"20261110\",\"YMD\")", "number": 24420 },
+    { "expression": "date(\"xx\",\"MDY\")", "number": 8.98846567431158e307 },
+    {
+      "expression": "date(\"2/30/2020\",\"MDY\")",
+      "number": 8.98846567431158e307
+    },
+    { "expression": "date(\"11/10/2026\",\"DMY\")", "number": 24390 },
+    { "expression": "daily(\"1jan1960\",\"DMY\")", "number": 0 },
+    { "expression": "date(\"Nov 10 2026\",\"MDY\")", "number": 24420 },
+    { "expression": "date(\"10.11.2026\",\"DMY\")", "number": 24420 },
+    { "expression": "floor(.a)", "number": 8.990660123939097e307 },
+    { "expression": "ceil(.a)", "number": 8.990660123939097e307 },
+    { "expression": "round(.a)", "number": 8.990660123939097e307 },
+    { "expression": "round(.a,2)", "number": 8.990660123939097e307 },
+    { "expression": "trunc(.a)", "number": 8.990660123939097e307 },
+    { "expression": "abs(.a)", "number": 8.98846567431158e307 },
+    { "expression": "sqrt(.a)", "number": 8.98846567431158e307 },
+    { "expression": "sign(.a)", "number": 8.98846567431158e307 },
+    { "expression": "exp(.a)", "number": 8.98846567431158e307 },
+    { "expression": "ln(.a)", "number": 8.98846567431158e307 },
+    { "expression": "mod(.a,2)", "number": 8.98846567431158e307 },
+    { "expression": "clip(.a,1,2)", "number": 8.990660123939097e307 },
+    { "expression": "cond(1,.a,2)", "number": 8.990660123939097e307 },
+    { "expression": "max(.a)", "rc": 198 },
+    { "expression": "min(.b,.a)", "number": 8.98846567431158e307 },
+    { "expression": "max(.,.a)", "number": 8.98846567431158e307 },
+    { "expression": "-(.a)", "number": 8.98846567431158e307 },
+    { "expression": ".a^2", "number": 8.98846567431158e307 },
+    { "expression": ".a/1", "number": 8.98846567431158e307 },
+    { "expression": "year(.a)", "number": 8.98846567431158e307 },
+    { "expression": "mdy(.a,1,2000)", "number": 8.98846567431158e307 },
+    { "expression": "real(\".b\")", "number": 8.992854573566614e307 },
+    { "expression": "int(.)", "number": 8.98846567431158e307 },
+    { "expression": "1 ==2", "number": 0 },
+    { "expression": "2*\"ab\"", "string": "abab" },
+    { "expression": "\"ab\"*0", "string": "" },
+    { "expression": "\"a\"*-1", "string": "" },
+    { "expression": "\"a\"*.", "string": "" },
+    { "expression": "!.a", "number": 0 },
+    { "expression": ".b&0", "number": 0 },
+    { "expression": ".b|0", "number": 1 },
+    { "expression": "missing(.z)", "number": 1 },
+    { "expression": "1E3", "number": 1000 },
+    { "expression": "1d3", "number": 1000 },
+    { "expression": ".a<.b", "number": 1 },
+    { "expression": "x[1]", "rc": 111 },
+    { "expression": "2(3)", "rc": 133 },
+    { "expression": "1,2", "rc": 101 },
+    { "expression": "_n", "number": 1 },
+    { "expression": "_N", "number": 0 },
+    { "expression": "sum(1)", "number": 1 },
+    { "expression": "(1)", "number": 1 },
+    { "expression": "((2))+1", "number": 3 },
+    { "expression": "1e", "rc": 198 },
+    { "expression": "1..2", "rc": 198 },
+    { "expression": "5.", "number": 5 },
+    { "expression": "abs (3)", "rc": 111 },
+    { "expression": "strlen(\"a\" + \"bc\")", "number": 3 },
+    { "expression": "1<>2", "rc": 198 },
+    { "expression": "!", "rc": 198 },
+    { "expression": "1--", "rc": 198 },
+    { "expression": "2^^3", "rc": 198 },
+    { "expression": "min(1,\"a\")", "rc": 109 },
+    { "expression": "inlist(\"a\",\"a\",1)", "rc": 109 },
+    { "expression": "inlist(1)", "rc": 198 },
+    { "expression": "inrange(1,2)", "rc": 198 },
+    { "expression": "cond(1,2)", "rc": 198 },
+    { "expression": "float()", "rc": 198 },
+    { "expression": "mod(5)", "rc": 198 },
+    { "expression": "2^0.5", "number": 1.414213562373095 },
+    { "expression": "10^-2", "number": 0.010000000000000002 },
+    { "expression": "1/3", "number": 0.3333333333333333 },
+    { "expression": "1-0.9", "number": 0.09999999999999998 },
+    { "expression": "100*1.1", "number": 110.00000000000001 },
+    { "expression": "3*0.1", "number": 0.30000000000000004 },
+    { "expression": "1e-320*1", "number": 1e-320 },
+    { "expression": "-0", "number": 0 },
+    { "expression": "0*-1", "number": 0 },
+    { "expression": "1/-0", "number": 8.98846567431158e307 },
+    { "expression": "5/2", "number": 2.5 },
+    { "expression": "-7/2", "number": -3.5 },
+    { "expression": "2^62*4", "number": 18446744073709552000 },
+    { "expression": "sqrt(1e308)*1e200", "number": 8.98846567431158e307 },
+    { "expression": "abs(-0)", "number": 0 },
+    { "expression": "1 >= .", "number": 0 },
+    { "expression": "-. ", "number": 8.98846567431158e307 },
+    { "expression": "- -.", "number": 8.98846567431158e307 },
+    { "expression": "~0", "number": 1 },
+    { "expression": "1 ~= 1", "number": 0 },
+    { "expression": "1 ! = 1", "number": 0 },
+    { "expression": "strlen(\"a\")+1", "number": 2 },
+    { "expression": "\"a\" + \"b\" + \"c\"", "string": "abc" },
+    { "expression": "\"abc\"==\"abc \"", "number": 0 },
+    { "expression": "\"a\">=\"\"", "number": 1 },
+    { "expression": "min(3)", "rc": 198 },
+    { "expression": "max(2,2)", "number": 2 },
+    { "expression": "cond(2>1,10,20)+1", "number": 11 },
+    { "expression": "ttail(10,2)", "number": 0.036694017385370196 },
+    { "expression": "ttail(4,0.72)", "number": 0.25567579430893245 },
+    { "expression": "ttail(1,1)", "number": 0.24999999999999978 },
+    { "expression": "ttail(100,-1)", "number": 0.8401379221079381 },
+    { "expression": "ttail(10,0)", "number": 0.5 },
+    { "expression": "ttail(2.5,3)", "number": 0.036288047774515914 },
+    { "expression": "ttail(1e6,2)", "number": 0.0227502669256596 },
+    { "expression": "ttail(10,.)", "number": 8.98846567431158e307 },
+    { "expression": "ttail(0,1)", "number": 8.98846567431158e307 },
+    { "expression": "ttail(-1,1)", "number": 8.98846567431158e307 },
+    { "expression": "ttail(10,40)", "number": 1.1404288715428737e-12 },
+    { "expression": "t(10,1.5)", "number": 0.9177463367772799 },
+    { "expression": "t(10,-1.5)", "number": 0.08225366322272007 },
+    { "expression": "invttail(10,0.025)", "number": 2.228138851986273 },
+    { "expression": "invttail(4,.05)", "number": 2.1318467863266486 },
+    { "expression": "invttail(1,.3)", "number": 0.726542528005362 },
+    { "expression": "invttail(10,.9)", "number": -1.3721836411103352 },
+    { "expression": "invttail(10,.5)", "number": 0 },
+    { "expression": "invttail(10,0)", "number": 8.98846567431158e307 },
+    { "expression": "invttail(10,1)", "number": 8.98846567431158e307 },
+    { "expression": "invttail(120,.005)", "number": 2.6174211451068663 },
+    { "expression": "invt(10,.975)", "number": 2.228138851986273 },
+    { "expression": "Ftail(1,4,0.52)", "number": 0.5107378546216463 },
+    { "expression": "Ftail(3,20,2.5)", "number": 0.08884375193768927 },
+    { "expression": "Ftail(2,10,0)", "number": 1 },
+    { "expression": "Ftail(5,5,100)", "number": 0.00005242913357854926 },
+    { "expression": "Ftail(0,1,1)", "number": 8.98846567431158e307 },
+    { "expression": "F(2,10,3)", "number": 0.904632568359375 },
+    { "expression": "invFtail(2,10,.05)", "number": 4.102821015130397 },
+    { "expression": "invFtail(1,4,.5)", "number": 0.5486321704130304 },
+    { "expression": "invF(2,10,.95)", "number": 4.102821015130397 },
+    { "expression": "chi2(3,2.5)", "number": 0.5247089166569773 },
+    { "expression": "chi2tail(3,2.5)", "number": 0.4752910833430227 },
+    {
+      "expression": "chi2tail(1,3.841458820694124)",
+      "number": 0.050000000000000065
+    },
+    { "expression": "chi2tail(10,50)", "number": 2.6690834249044957e-7 },
+    { "expression": "chi2tail(0,1)", "number": 8.98846567431158e307 },
+    { "expression": "chi2tail(3,0)", "number": 1 },
+    { "expression": "invchi2(3,.5)", "number": 2.3659738843753475 },
+    { "expression": "invchi2tail(2,.05)", "number": 5.991464547107979 },
+    { "expression": "invchi2tail(1,.05)", "number": 3.8414588206941227 },
+    { "expression": "lngamma(4.5)", "number": 2.4537365708424423 },
+    { "expression": "lngamma(0.5)", "number": 0.5723649429247 },
+    { "expression": "lngamma(100)", "number": 359.1342053695754 },
+    { "expression": "lngamma(0)", "number": 8.98846567431158e307 },
+    { "expression": "ibeta(2,3,.4)", "number": 0.5248 },
+    { "expression": "ibeta(.5,.5,.9)", "number": 0.7951672353008666 },
+    { "expression": "ibeta(2,3,0)", "number": 0 },
+    { "expression": "ibeta(2,3,1)", "number": 1 },
+    { "expression": "gammap(2,1.5)", "number": 0.4421745996289254 },
+    { "expression": "gammap(.5,10)", "number": 0.999992255783569 },
+    { "expression": "gammap(3,0)", "number": 0 }
+  ],
+  "data": [
+    {
+      "expression": "x+1",
+      "by": false,
+      "rc": 0,
+      "values": [2.5, -1, 8.98846567431158e307, 1, 8.98846567431158e307, 101],
+      "type": "float"
+    },
+    {
+      "expression": "x*f",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.15000000223517418, -0.4000000059604645, 8.98846567431158e307, 0,
+        8.98846567431158e307, 1677721600
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "f==0.1",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "f==float(0.1)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    { "expression": "f==.1f", "by": false, "rc": 198, "values": [] },
+    {
+      "expression": "x>1",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "x>=.",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x==.a",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(x)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x<.",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-x",
+      "by": false,
+      "rc": 0,
+      "values": [-1.5, 2, 8.98846567431158e307, 0, 8.98846567431158e307, -100],
+      "type": "float"
+    },
+    {
+      "expression": "!x",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x^2",
+      "by": false,
+      "rc": 0,
+      "values": [2.25, 4, 8.98846567431158e307, 0, 8.98846567431158e307, 10000],
+      "type": "float"
+    },
+    {
+      "expression": "_n",
+      "by": false,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "_N",
+      "by": false,
+      "rc": 0,
+      "values": [6, 6, 6, 6, 6, 6],
+      "type": "float"
+    },
+    {
+      "expression": "_n==_N",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "x[1]",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+      "type": "float"
+    },
+    {
+      "expression": "x[_n-1]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 1.5, -2, 8.98846567431158e307, 0,
+        8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[_n+1]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100,
+        8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[0]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[_N]",
+      "by": false,
+      "rc": 0,
+      "values": [100, 100, 100, 100, 100, 100],
+      "type": "float"
+    },
+    {
+      "expression": "x[7]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[.]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[2.7]",
+      "by": false,
+      "rc": 0,
+      "values": [-2, -2, -2, -2, -2, -2],
+      "type": "float"
+    },
+    {
+      "expression": "x[-1]",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "s[_n-1]",
+      "by": false,
+      "rc": 0,
+      "values": ["", "apple", "Banana split", "", "  pad  ", "x"],
+      "type": "str12"
+    },
+    {
+      "expression": "x[id[2]]",
+      "by": false,
+      "rc": 0,
+      "values": [-2, -2, -2, -2, -2, -2],
+      "type": "float"
+    },
+    {
+      "expression": "sum(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, -0.5, -0.5, -0.5, -0.5, 99.5],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 3, 6, 10, 15, 21],
+      "type": "float"
+    },
+    {
+      "expression": "sum(x)+sum(id)",
+      "by": false,
+      "rc": 0,
+      "values": [2.5, 2.5, 5.5, 9.5, 14.5, 120.5],
+      "type": "float"
+    },
+    {
+      "expression": "sum(sum(id))",
+      "by": false,
+      "rc": 0,
+      "values": [1, 4, 10, 20, 35, 56],
+      "type": "float"
+    },
+    {
+      "expression": "sum(f)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.10000000149011612, 0.30000000447034836, 0.6000000163912773,
+        1.6000000163912773, 1.6000000163912773, 16777217.600000016
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id>2)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 2, 3, 4],
+      "type": "float"
+    },
+    {
+      "expression": "_pi*id",
+      "by": false,
+      "rc": 0,
+      "values": [
+        3.141592653589793, 6.283185307179586, 9.42477796076938,
+        12.566370614359172, 15.707963267948966, 18.84955592153876
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "pr",
+      "by": false,
+      "rc": 0,
+      "values": [10, 20, 30, 40, 50, 60],
+      "type": "float"
+    },
+    { "expression": "w", "by": false, "rc": 111, "values": [] },
+    { "expression": "nosuch", "by": false, "rc": 111, "values": [] },
+    {
+      "expression": "price/id",
+      "by": false,
+      "rc": 0,
+      "values": [10, 10, 10, 10, 10, 10],
+      "type": "float"
+    },
+    {
+      "expression": "id/0",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "s",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "s+s",
+      "by": false,
+      "rc": 0,
+      "values": [
+        "appleapple",
+        "Banana splitBanana split",
+        "",
+        "  pad    pad  ",
+        "xx",
+        "naïvenaïve"
+      ],
+      "type": "str24"
+    },
+    {
+      "expression": "s==\"x\"",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(s)",
+      "by": false,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "upper(s)",
+      "by": false,
+      "rc": 0,
+      "values": ["APPLE", "BANANA SPLIT", "", "  PAD  ", "X", "NAïVE"],
+      "type": "str12"
+    },
+    {
+      "expression": "substr(s,1,3)",
+      "by": false,
+      "rc": 0,
+      "values": ["app", "Ban", "", "  p", "x", "na�"],
+      "type": "str3"
+    },
+    { "expression": "s+1", "by": false, "rc": 109, "values": [] },
+    { "expression": "x+s", "by": false, "rc": 109, "values": [] },
+    {
+      "expression": "cond(x>0,s,\"neg\")",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "neg", "", "neg", "x", "naïve"],
+      "type": "str6"
+    },
+    { "expression": "cond(x>0,1,\"a\")", "by": false, "rc": 109, "values": [] },
+    {
+      "expression": "cond(x<., x, 0)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, -2, 0, 0, 0, 100],
+      "type": "float"
+    },
+    {
+      "expression": "max(x,f,id)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, 2, 3, 4, 5, 16777216],
+      "type": "float"
+    },
+    {
+      "expression": "min(x,id)",
+      "by": false,
+      "rc": 0,
+      "values": [1, -2, 3, 0, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "inlist(s,\"x\",\"apple\")",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "inlist(id,1,3,5)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "inrange(x,0,10)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(s,1)",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "Banana", "", "pad", "x", "naïve"],
+      "type": "str6"
+    },
+    {
+      "expression": "strpos(s,\"a\")",
+      "by": false,
+      "rc": 0,
+      "values": [1, 2, 0, 4, 0, 2],
+      "type": "float"
+    },
+    {
+      "expression": "id*(g==2)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 3, 4, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "g[_n-1]==g",
+      "by": false,
+      "rc": 0,
+      "values": [0, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "real(s)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "float(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "f*1",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+        8.98846567431158e307, 16777216
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "f+0.1",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.20000000149011612, 0.3000000029802322, 0.40000001192092893, 1.1,
+        8.98846567431158e307, 16777216.1
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "id/3",
+      "by": false,
+      "rc": 0,
+      "values": [
+        0.3333333333333333, 0.6666666666666666, 1, 1.3333333333333333,
+        1.6666666666666667, 2
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "mod(id,2)",
+      "by": false,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "round(price/7,0.1)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        1.4000000000000001, 2.9000000000000004, 4.3, 5.7, 7.1000000000000005,
+        8.6
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "year(mdy(id,1,2020))",
+      "by": false,
+      "rc": 0,
+      "values": [2020, 2020, 2020, 2020, 2020, 2020],
+      "type": "float"
+    },
+    {
+      "expression": "int(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "x*.",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": ".z",
+      "by": false,
+      "rc": 0,
+      "values": [
+        9.045521364627034e307, 9.045521364627034e307, 9.045521364627034e307,
+        9.045521364627034e307, 9.045521364627034e307, 9.045521364627034e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(s)>3 & x<.",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "s<\"b\"",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "s!=\"\"",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "1",
+      "by": false,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"lit\"",
+      "by": false,
+      "rc": 0,
+      "values": ["lit", "lit", "lit", "lit", "lit", "lit"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(s)",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "abs(x)",
+      "by": false,
+      "rc": 0,
+      "values": [1.5, 2, 8.98846567431158e307, 0, 8.98846567431158e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "k+id",
+      "by": false,
+      "rc": 0,
+      "values": [4, 5, 6, 7, 8, 9],
+      "type": "float"
+    },
+    {
+      "expression": "scalar(k)*2",
+      "by": false,
+      "rc": 0,
+      "values": [6, 6, 6, 6, 6, 6],
+      "type": "float"
+    },
+    {
+      "expression": "ks+s",
+      "by": false,
+      "rc": 0,
+      "values": [
+        "txtapple",
+        "txtBanana split",
+        "txt",
+        "txt  pad  ",
+        "txtx",
+        "txtnaïve"
+      ],
+      "type": "str15"
+    },
+    { "expression": "scalar(nosuch)", "by": false, "rc": 111, "values": [] },
+    {
+      "expression": "r(N)+0",
+      "by": false,
+      "rc": 0,
+      "values": [6, 6, 6, 6, 6, 6],
+      "type": "float"
+    },
+    {
+      "expression": "r(mean)",
+      "by": false,
+      "rc": 0,
+      "values": [35, 35, 35, 35, 35, 35],
+      "type": "float"
+    },
+    {
+      "expression": "r(nosuch)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "e(N)",
+      "by": false,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    { "expression": "ID", "by": false, "rc": 111, "values": [] },
+    {
+      "expression": "strtrim(s)",
+      "by": false,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "pad", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "strproper(s)",
+      "by": false,
+      "rc": 0,
+      "values": ["Apple", "Banana Split", "", "  Pad  ", "X", "NaïVe"],
+      "type": "str12"
+    },
+    {
+      "expression": "id[_n-1]+id[_n+1]",
+      "by": false,
+      "rc": 0,
+      "values": [8.98846567431158e307, 4, 6, 8, 10, 8.98846567431158e307],
+      "type": "float"
+    },
+    {
+      "expression": "x==x[_n-1]",
+      "by": false,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(x>0)+(f>0)",
+      "by": false,
+      "rc": 0,
+      "values": [2, 1, 2, 1, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "id in 1",
+      "by": false,
+      "rc": 0,
+      "values": [
+        1, 8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    { "expression": "", "by": false, "rc": 198, "values": [] },
+    {
+      "expression": "_n",
+      "by": true,
+      "rc": 0,
+      "values": [1, 2, 1, 2, 1, 2],
+      "type": "float"
+    },
+    {
+      "expression": "_N",
+      "by": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "x[1]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        1.5, 1.5, 8.98846567431158e307, 8.98846567431158e307,
+        8.990660123939097e307, 8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x[_n-1]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 1.5, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id)",
+      "by": true,
+      "rc": 0,
+      "values": [1, 3, 3, 7, 5, 11],
+      "type": "float"
+    },
+    {
+      "expression": "x[_N]",
+      "by": true,
+      "rc": 0,
+      "values": [-2, -2, 0, 0, 100, 100],
+      "type": "float"
+    },
+    {
+      "expression": "id[0]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "_n==1",
+      "by": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "id[_N]-id[1]",
+      "by": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "id[3]",
+      "by": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sum(id)/_N",
+      "by": true,
+      "rc": 0,
+      "values": [0.5, 1.5, 1.5, 3.5, 2.5, 5.5],
+      "type": "float"
+    },
+    {
+      "expression": "sign(.)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(max((.a <= price), x) <= cond(max(2.5, x), sign(g), _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(., int(g), cond(0, price, f)) + (.a != abs(3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 3, 3, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "max(_n, ceil(x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 3, 4, 5, 100],
+      "type": "float"
+    },
+    {
+      "expression": "(1 * cond(price, price, 0)) | g > ((1 & 2.5) != price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "1",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sign((x / _n)) <= (.a ^ 1) > (id <= (g >= price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "g != !g >= missing(cond(3, x, 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "floor(.a) / int(.) / id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(mod(ceil(.), -price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "3",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "(!mod(., 3) != floor(cond(3, 3, id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(min(_n, id) ^ (f <= f)) / (x / _n) != max((f - id), .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "2.5",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2.5, 2.5, 2.5, 2.5, 2.5, 2.5],
+      "type": "float"
+    },
+    {
+      "expression": "(cond((g & 3), -price, f) / sign(.a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "!!(f >= 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(!f, ((_n - g) <= (3 & 2.5)), (!1 / 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((3 < id) < mod(1, 0)) <= (f == f) >= -(1 < price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(-round(3) == ceil(price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((2.5 * 1) >= -2.5) != (id * _n) < --price",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "missing(f) <= (_n != _n) <= _n",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(2.5 ^ g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2.5, 2.5, 6.25, 6.25, 15.625, 15.625],
+      "type": "float"
+    },
+    {
+      "expression": "-abs(2.5) | !3 <= 3",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(. <= ((.a - _n) < (price != g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": ".",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "_n",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "mod(max(id, !x), ((g >= x) != _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(mod((f == price), cond(f, .a, 0)) / ceil(price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "floor((sqrt(x) | (price >= price)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "0",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(3 | (missing(_n) <= (1 <= 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": ".a",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.990660123939097e307, 8.990660123939097e307, 8.990660123939097e307,
+        8.990660123939097e307, 8.990660123939097e307, 8.990660123939097e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(0 / sign(missing(_n)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(!-g & cond(2.5, int(x), floor(3)))",
+      "by": false,
+      "random": true,
+      "rc": 198,
+      "values": []
+    },
+    {
+      "expression": "x == price + ceil(abs(f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(int(abs(x)) | (min(id, x) == (price == _n)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "price > (0 ^ .) < max((0 > .), floor(1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(floor(1) < (min(1, .a) & f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "int(id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "((x != (2.5 != f)) | !price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-g > -x + _n",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!max(x, sign(.a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt((3 + x)) + sign(f) - sign(-id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        4.121320343559642, 3, 8.98846567431158e307, 3.732050807568877,
+        8.98846567431158e307, 12.14889156509222
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "abs(((g | g) != price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((!1 > cond(_n, 3, 2.5)) < _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!1 - (2.5 - 2.5) ^ ((f / .) <= (1 | x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -1, -1, -1, -1, -1],
+      "type": "float"
+    },
+    {
+      "expression": "mod(cond((price / 1), .a, 2.5), floor((. * 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(-sqrt(price) >= f)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-!(. != 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(missing(cond(3, .a, 1)) > _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(floor(!id) != g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "_n == (_n > .a) - price",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "int(_n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "--0 > x <= 3",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!2.5 < max(.a, 1) * !(id <= id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "min(min((0 + 1), 3), 2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(id | -.a) > (. ^ 2.5) < 0",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((2.5 - _n) | max(0, _n)) ^ . >= mod(2.5, _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "g & round(.) <= min(.a, (_n | .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "g != !1 ^ !(. >= f)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((. & 3) * g) * (. | _n) | (3 ^ g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "price",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [10, 20, 30, 40, 50, 60],
+      "type": "float"
+    },
+    {
+      "expression": ". <= f / min(-1, min(3, x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "g",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 2, 2, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "int(min(f, id)) * round(3) < -!id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "sign(-.a)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": ". + (g != .a) / .a",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "1 < x <= ((3 < .) * (g | 2.5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "g * mod(.a, 3) + (cond(id, id, 1) <= -3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "-_n != ceil(0) + (3 >= (_n - _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(x - price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        -8.5, -22, 8.98846567431158e307, -40, 8.98846567431158e307, 40
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "max(min(2.5, 3), (.a > .)) != min(1, 2.5) ^ id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((-3 - floor(2.5)) * !round(g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "floor(((f == 2.5) | (price >= x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "mod((x - (f == g)), ceil((x | 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0.5, 0, 8.98846567431158e307, 0, 8.98846567431158e307, 0],
+      "type": "float"
+    },
+    {
+      "expression": "floor(x) ^ floor(id) - .a",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "id * missing(.a) < mod((.a ^ 1), (f - price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(min((. | 2.5), 2.5) / (!price < missing(3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "abs((2.5 * (.a | g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2.5, 2.5, 2.5, 2.5, 2.5, 2.5],
+      "type": "float"
+    },
+    {
+      "expression": "(f < min(g, 2.5)) + cond(_n, x, 1) == id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "3 - (x & 1) * (abs(.a) >= max(x, .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 3, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "((mod(x, 0) / (_n * g)) != (x < !1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(abs(mod(f, _n)) <= missing(x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!x <= min(x, id) >= .a",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "floor(cond(ceil(price), (1 ^ x), (_n * id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 8.98846567431158e307, 1, 8.98846567431158e307, 1],
+      "type": "float"
+    },
+    {
+      "expression": "min(3, min(price, price)) | (price == 1) != ((_n >= .a) >= !f)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(_n & cond((x < .a), (id == .a), (_n + x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(mod(g, x) == g) + ceil(f) == (!3 != -0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(floor(max(f, f)) * g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 2, 8.98846567431158e307, 50331648],
+      "type": "float"
+    },
+    {
+      "expression": "!((.a | g) * (id + id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "_n - id | (!. != !2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!(_n <= _n) != (3 / _n) != (cond(.a, ., price) != (f >= price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((round(3) == price) * int((. & price)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(0 * (2.5 ^ x)) + round(id) <= cond(f, (.a / g), min(3, x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "mod(mod(sign(0), (1 - id)), ((0 - .a) ^ (2.5 ^ id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(0 * 3) ^ cond(1, g, g) > id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": ".a > price < (sign(g) < (id / g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-(. - .a) != cond(3, g, x) | (cond(_n, x, .) < mod(x, f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt(3) > cond(0, price, price) & price",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "mod(!ceil(price), missing((_n - id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "round((. < min(2.5, x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(-cond(1, g, .) & mod(max(0, .a), cond(0, x, .a)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "round(-g) + (price < 1) * cond((id & _n), ., max(price, x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(ceil(min(., g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 2, 2, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "(abs(x) > .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-(x & !x)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "mod(x, min(mod(1, .a), (2.5 <= f)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 0
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "round(((3 & g) ^ (g == id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!((. / g) * (2.5 ^ 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(sign(1) | max(1, 2.5)) <= -.a * 0",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(((. == .a) < (f >= g)) / ((. <= 0) | sqrt(x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 8.98846567431158e307, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt(min((.a != 1), !.))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-g",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -1, -2, -2, -3, -3],
+      "type": "float"
+    },
+    {
+      "expression": "_n + 2.5 != ((1 & 3) + (.a >= price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "0 > mod(id, 1) <= f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "max(!x, min(round(g), x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 2, 1, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "((.a - id) <= int(1)) >= (3 >= .) >= ((. - 3) + 2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "floor(0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((-id | .) ^ (min(3, x) | sqrt(g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-round(max(1, x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-2, -1, -1, -1, -1, -100],
+      "type": "float"
+    },
+    {
+      "expression": "(sign((g & .)) / -(.a == 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "-!-1",
+      "by": false,
+      "random": true,
+      "rc": 198,
+      "values": []
+    },
+    {
+      "expression": "_n | 2.5 + .",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "x",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "((0 / _n) * ceil(price)) - (. > x) + 2.5",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1.5, 1.5, 2.5, 1.5, 2.5, 1.5],
+      "type": "float"
+    },
+    {
+      "expression": "sign(sign(.a)) + max(2.5, g) & id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "min(int(sign(_n)), missing(cond(price, g, x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((.a != 3) != cond(0, 0, g)) * id & ((_n / f) <= .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((0 ^ 1) + x)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1.5, -2, 8.98846567431158e307, 0, 8.98846567431158e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "max(mod(x, .a), id) != (3 > .) <= !(3 | 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "min(cond(x, x, 0), .) - min(f, 1) >= floor(mod(_n, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!(. ^ .) + id <= ceil((f | f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "mod((0 < price), (.a / 2.5)) - id != floor((_n <= 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!sign(f) == .a + 1",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "floor(-3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-3, -3, -3, -3, -3, -3],
+      "type": "float"
+    },
+    {
+      "expression": "((_n * 2.5) | (min(1, price) <= (0 & _n)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(. + ceil(3)) <= max(0, .) ^ abs((2.5 > .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(((g == 0) / 1) + ((_n + .) >= (1 | id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((x * f) * g) - min(2.5, id) > ((f ^ 3) != (2.5 ^ _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "mod((. >= price), min(_n, 2.5)) != (x != .) <= (-0 / sign(_n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-min(ceil(x), 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, 2, -1, 0, -1, -1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(sqrt(1), (_n ^ f), !2.5) <= cond(1, 1, g) & sign(mod(1, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(-x != (3 | f)) | (. != f) >= !id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!cond(x, x, x) / (id * 3) ^ mod(sqrt(0), mod(1, _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [8.98846567431158e307, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(int(!2.5) <= (mod(f, x) / 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(cond((3 + price), (.a < x), (3 == g)) / ceil((g - g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(x) / max(_n, 3) >= f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "max(2.5, round(min(1, id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2.5, 2.5, 2.5, 2.5, 2.5, 2.5],
+      "type": "float"
+    },
+    {
+      "expression": "(int((price - .a)) <= ((2.5 + 1) <= !id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "max(2.5, 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2.5, 2.5, 2.5, 2.5, 2.5, 2.5],
+      "type": "float"
+    },
+    {
+      "expression": "(sqrt(f) >= .a) == cond(0, id, .) + mod(!g, (f | x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "floor((max(0, g) >= 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(((3 * .) == id) | (mod(g, 3) / 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "price == ceil(f) | !id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(.)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-((price | x) <= (2.5 > f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -1, -1, -1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((-. - 2.5) * -3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "cond(min(0, g), (3 <= x), (g < 3)) != price <= -g",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "mod(., (f | (g >= 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "round((cond(_n, 0, 0) + round(id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "min(.a, cond(price, (2.5 >= 2.5), (. > x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!(missing(id) * id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((x < .a) < floor(f)) != (3 ^ _n) & g",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(min(3, missing(.a)) - (mod(2.5, x) < f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+        8.98846567431158e307, 16777216
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "((.a + f) / floor(price)) - (f / f) - int((0 != g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(.a, 3, price) <= .a) >= !. & sign((id > id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(f >= cond(.a, .a, price)) + (id <= g) * min(., mod(1, f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0.09999998658895493, 0, 0, 0, 8.98846567431158e307, 0],
+      "type": "float"
+    },
+    {
+      "expression": ".a & (. ^ x) == (price + round(.))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "floor(min(x, 0)) != mod(_n, .a) > id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(price & floor(price)) < f ^ (cond(.a, 3, g) & cond(g, 2.5, .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(mod(sign(0), (price & x)) == ((g > .a) + -id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-cond(g, g, x) - missing(_n) * cond(round(.a), (.a <= 2.5), ceil(id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -1, -2, -2, -3, -3],
+      "type": "float"
+    },
+    {
+      "expression": "(0 + round(id)) >= (.a <= price) | abs((_n - 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(.a >= sign((_n + 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(3 < .a) >= (id * .a) != ((0 * .a) * cond(f, _n, 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "ceil((. & 1)) != cond(.a, 2.5, g) * f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(floor((3 != price)) ^ (-0 <= (.a / 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt(id) > abs(x) <= missing((x - f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(max(0, x) / abs(_n)) * mod(f, _n) > ((.a ^ .) + (id + .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((price ^ x) | (g != 2.5)) == cond(f, _n, x) <= min((.a - 0), (_n == _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "sign((price * (f <= 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(x + (.a < 0)) == !. < (_n | 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond((f ^ price), (x == price), f) ^ id | (sign(_n) / int(.))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "mod(price, min(2.5, id)) * (1 < f) - cond((.a > 2.5), (id * 1), .a)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -2, -3, -4, -5, -6],
+      "type": "float"
+    },
+    {
+      "expression": "((f >= f) < (_n < price)) ^ 2.5 ^ !x",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(!(f > price) != ceil(max(f, 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(abs(_n) <= .) + sqrt(.a) != cond(round(.a), mod(., 2.5), int(_n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "2.5 <= max(id, 0) / -(_n != id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(abs(.) * (id | g)) <= min(x, x) == mod(-0, !2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!0 < (1 & 3) > ((0 != 0) / (id | 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(!max(1, 3) | sqrt(1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "abs((1 <= x)) & (0 - _n) & ((.a < f) - (.a ^ price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(-id, ceil(.a), (f == 2.5)) > -x * floor((2.5 * _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "3 != g == max(int(g), (f ^ id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!(. * (id < 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "1 == sign(.) + cond(id, (0 <= 1), (price * price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "max(g, !(price != f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 2, 2, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "(sign((. != id)) < -abs(.))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(!(price * 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "price ^ !2.5 > (. ^ -f)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((price < x) - -.)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "cond(., (price == .), (2.5 + 2.5)) > (3 - g) / 1",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "0 > -_n < price",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "max((mod(1, 0) == missing(.a)), ((.a / 0) ^ price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(. <= (3 - .)) != (id >= .) | sqrt((price == g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "2.5 <= floor(.a) + 2.5",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!max((2.5 / _n), int(3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(mod(2.5, .) ^ !id) == .a * max(-3, (3 ^ _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(g, min(sqrt(f), -.), mod(.a, mod(1, price)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        0.3162277683729184, 0.4472135988319589, 0.5477225683874355, 1,
+        8.98846567431158e307, 4096
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(-(.a > x) * -(0 == 2.5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(id, -1, -x) - abs(3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-4, -4, -4, -4, -4, -4],
+      "type": "float"
+    },
+    {
+      "expression": "(. | (3 == (1 / id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(min(cond(f, 1, 2.5), floor(.a)) ^ ceil(sign(g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-!1 >= max(f, x) - ((. > .a) > -2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": ".a > min(1, 0) & (. | (_n >= 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((. != g) != cond(2.5, id, f)) != (f & id) < 0",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(((x * 3) / max(3, _n)) ^ ((.a + id) + (price | 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sign(price) > -price > 2.5",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(int(!1) & round(id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "abs(!x)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!max(_n, x) + .a > id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(cond((x > .), max(1, f), floor(1)) <= ((f != g) <= (3 - 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((0 * 3) / (x > g)) >= x < (max(price, id) ^ g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ceil((3 / g)) > (_n | id) != ((f == 2.5) | min(0, f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond((x != (1 != g)), (. / _n), ceil(abs(1)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "int(sign((price & .a)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sign(.a)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(id + ((0 < 3) - -x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3.5, 1, 8.98846567431158e307, 5, 8.98846567431158e307, 107],
+      "type": "float"
+    },
+    {
+      "expression": "(. ^ ceil(_n)) < !. <= abs((id + .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((x - 0) > 1) <= -1 ^ (mod(., .a) < (3 ^ g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(price, id, .) == (. * g)) == -_n != (int(1) | -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "x > (price < id) | (!price ^ (f & g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((f | id) | round(g)) <= f ^ (2.5 / (f < f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((. & 1) < price) == (x * 1) != (min(1, _n) < (_n == x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((_n | f) | -2.5) & (id / 3) <= (round(.a) <= (_n >= f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "min(((f | 1) + floor(f)), int(!price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt(mod((price <= _n), -_n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "x > (. == 0) != round(-2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((int(3) | (g < id)) <= 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((. == f) / 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "int(x) > mod(3, 3) != (sign(0) - _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "round(sqrt(2.5)) <= cond(f, 1, 1) - f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "min((_n ^ .), round(price)) / (. - price) + (.a != sqrt(.))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(((.a == .a) - sign(_n)) & !(. & price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((g - g) < min(price, 0)) | x & ((id / x) ^ !f)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt(f) & -price == (f - (0 < .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "min(x, ((1 != price) >= !1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, -2, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(id * min(_n, .a)) * (x == .) < f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(_n, f, f) < mod(3, 0)) | 2.5 ^ (int(g) * (3 <= 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "missing(2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-sign(3) / (2.5 / .a) + cond((f == .a), _n, (g > x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(floor(.) & 1) == !g < min(f, (3 >= id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": ".a + (2.5 == 1) < cond(floor(f), ceil(price), g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(min(-x, !0), (-3 < 0), price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 40, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(id >= ((1 < .) < mod(id, .a)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-cond(cond(3, ., price), 2.5, .a)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-2.5, -2.5, -2.5, -2.5, -2.5, -2.5],
+      "type": "float"
+    },
+    {
+      "expression": "(missing(price) - (f != f)) == (id <= f) - mod(max(0, f), (_n < id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "abs(_n) * round(price) < abs((. < x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((_n + (g - price)) <= g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(min(-., 1) <= (!g > missing(x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "2.5 | (3 / .) + (0 == max(f, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!-(0 - _n)",
+      "by": false,
+      "random": true,
+      "rc": 198,
+      "values": []
+    },
+    {
+      "expression": "f <= (g < .a) + mod(f, !2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-price",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-10, -20, -30, -40, -50, -60],
+      "type": "float"
+    },
+    {
+      "expression": "ceil((0 | (_n <= price)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "min(!(x + price), ((id / 0) == (0 * .a)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "_n / (price > id) - round(1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 2, 3, 4, 5],
+      "type": "float"
+    },
+    {
+      "expression": "((cond(f, price, f) - !3) * 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [10, 20, 30, 40, 50, 60],
+      "type": "float"
+    },
+    {
+      "expression": "min(cond(1, price, 1), (id ^ 1)) <= (x | id) - cond(!g, sqrt(_n), floor(price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(x) >= min(3, price) & cond((1 == .a), (1 & .), max(1, 2.5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(0 * int(3)) == (price - 0) > sign(1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(abs(.) < int(2.5)) - (g != 1) / (_n >= -id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, -1, -1, -1, -1],
+      "type": "float"
+    },
+    {
+      "expression": "((id <= price) * (f >= g)) > cond(., _n, 2.5) ^ ceil(id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-f * !f | -abs(g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "min((-g - (1 - .a)), 2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2.5, 2.5, 2.5, 2.5, 2.5, 2.5],
+      "type": "float"
+    },
+    {
+      "expression": "3 / -0 | min(mod(price, 3), -price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(sqrt(.) < (1 & f)) / !price | !!1",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-min(max(g, _n), max(3, f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -2, -3, -3, -3, -6],
+      "type": "float"
+    },
+    {
+      "expression": "(!. >= -.) - round(_n) * id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -4, -9, -16, -25, -36],
+      "type": "float"
+    },
+    {
+      "expression": "(price > 0) < (x < 3) - ceil(missing(f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(!0 & (max(1, _n) * min(., .a)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "2.5 | missing(f) + f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "f * mod(., id) + id",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "min((floor(g) * (g - .a)), .a)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "max(x, (_n * id)) | -_n | missing(_n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond((id ^ 0), ., 2.5) * (id / _n) == (. <= (. == 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!sqrt(g) < .a != (min(., f) * (3 ^ _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(1 <= (id | id)) < 1 <= (3 ^ mod(id, x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(-f - (id & g)) ^ sqrt(price) | -(1 | _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "1 ^ (f | .a) & f",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "mod((price <= mod(0, 2.5)), mod(mod(x, x), round(f)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "mod(1, (sign(0) < (_n >= .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(price - round(_n)) > x <= (-2.5 == _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "int(max(., id)) ^ (.a != 0) < (_n - cond(g, 3, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(-.a != 2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, f, mod((_n - id), (f != 1)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+        8.98846567431158e307, 16777216
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(sign((f * id)) <= min((f - g), (3 ^ f)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((x < _n) ^ 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((1 != price) >= abs(2.5)) != (2.5 < price) / max((. | 0), (price | _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((_n == x) & x) & (. + x) <= 3",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(!round(g) | min(f, (id + .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "max(mod(.a, 1), int(price)) ^ (0 ^ 1) ^ ((g > .a) & (0 * 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "abs(!id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": ". < sign(.) > !(0 / _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(sqrt(abs(2.5)) > 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond((mod(3, f) / (2.5 + 1)), floor((g <= .)), round((. < 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(2.5, 1, f) <= .) ^ (.a <= _n) < (int(id) * (x ^ f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(((id >= 3) ^ max(price, .a)) == (sqrt(price) + (g < 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-(_n == 2.5) + f + (price <= price)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        1.1000000014901161, 1.2000000029802322, 1.300000011920929, 2,
+        8.98846567431158e307, 16777217
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "g == f - (max(0, price) - !0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!(g + _n) - floor(g) - 0",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -1, -2, -2, -3, -3],
+      "type": "float"
+    },
+    {
+      "expression": "(round(.) & sqrt(0)) - (2.5 - 1) ^ (g + (x == .a))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1.5, -1.5, -2.25, -2.25, -5.0625, -3.375],
+      "type": "float"
+    },
+    {
+      "expression": "round(0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "abs((2.5 | 3)) < (g * id) & (sign(f) != id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "max(f, min(max(price, .a), ceil(3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 16777216],
+      "type": "float"
+    },
+    {
+      "expression": "(f | (min(2.5, 0) > -x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(cond(abs(x), g, (0 <= .a)), missing(_n), round(sqrt(3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "!0 <= (.a - 1) + floor(1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!-round(g)",
+      "by": false,
+      "random": true,
+      "rc": 198,
+      "values": []
+    },
+    {
+      "expression": "abs(((1 * g) * price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [10, 20, 60, 80, 150, 180],
+      "type": "float"
+    },
+    {
+      "expression": "sqrt(((id < price) == (.a == _n)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(.a, 3, (price < f)) * g != -3",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "0 | 3 - ((2.5 + .) < mod(g, 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(floor(x) * ((f == .a) + .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sign((id | (2.5 - 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-missing((1 + price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "sign(-3) / (g / .a) - (int(id) - (id * 2.5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "floor(x)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100],
+      "type": "float"
+    },
+    {
+      "expression": "((price / (price & g)) / ((0 == 0) ^ missing(2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [10, 20, 30, 40, 50, 60],
+      "type": "float"
+    },
+    {
+      "expression": "!(int(2.5) & int(1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "max(abs(missing(f)), !(1 != g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "abs(mod(2.5, _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0.5, 0.5, 2.5, 2.5, 2.5, 2.5],
+      "type": "float"
+    },
+    {
+      "expression": "round(-(g == id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((-0 + (f < id)) <= (. ^ (_n ^ 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "mod((0 != sign(1)), ((g > .a) & 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "((.a <= 1) - f) < floor(_n) | _n",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(_n > (. | ceil(1)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(_n == missing(mod(g, g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(int(min(x, f)) > ceil(floor(_n)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "g == id != 0",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(max(1, .a), max(f, g), (price ^ .)) != g * (.a ^ id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-f != cond(1, .a, price) * int(cond(g, 1, 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "_n * (. < 2.5) - ((f - .) | (3 * 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1, -1, -1, -1, -1, -1],
+      "type": "float"
+    },
+    {
+      "expression": "(min(1, 0) ^ f) - g <= mod((price <= 3), max(x, x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(max((3 | g), (0 >= f)) == -(. + g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((cond(2.5, ., 0) < price) <= min((.a < .a), cond(g, 2.5, f)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(((f < 1) & -id) >= cond(., (id == id), mod(.a, 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(round((_n ^ .)) == (. <= (id == 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(.)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "sign((_n >= id)) == (2.5 <= price) | x",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!ceil(ceil(price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(.a ^ g) != (.a <= 2.5) == max((x > 2.5), (1 - 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "-.",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(((price >= .) + .) > !-1)",
+      "by": false,
+      "random": true,
+      "rc": 198,
+      "values": []
+    },
+    {
+      "expression": "_n <= (g > price) != ((0 <= _n) | max(_n, 2.5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond((g < 3), ., !_n) | -1 <= int(int(1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(round(f) < (f <= _n)) != .a | mod((x + f), (. | 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond((f > _n), (g == 2.5), -1) * min(2.5, 3) * (max(f, 3) / (3 + _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [-1.875, -1.5, -1.25, -1.0714285714285714, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(((0 <= 1) | .) <= (price + mod(f, price)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sign(!(3 - 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "int((_n >= cond(_n, 0, 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(missing(_n) <= (floor(g) * max(2.5, .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "sign((price <= .)) / missing(id) * mod(sqrt(x), (x + 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "floor(cond(g, !.a, price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "max(cond(mod(1, .a), (id <= _n), (2.5 + g)), !.)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "price ^ g ^ int(missing(.))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [10, 20, 900, 1600, 125000, 216000],
+      "type": "float"
+    },
+    {
+      "expression": "--(3 - 2.5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      "type": "float"
+    },
+    {
+      "expression": "cond((.a | !3), 1, max(min(.a, price), (.a >= price)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 2, 2, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "((3 & .) <= (_n * g)) < 3 ^ !round(.a)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "id < max(0, id) - (x | sign(price))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-((0 + .a) * (3 | x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "mod(mod(price, id), x) - (_n >= 0) + round(g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        0, 8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 2
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(cond(price, id, _n) < x) | int(price) * ((. + price) * x)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((_n >= cond(g, ., x)) < .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": ". <= (0 & price) != abs((id - _n))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(int(id) == -price) != mod(.a, 2.5) - 2.5",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "f > .a | (2.5 + (x != .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "!(abs(3) >= (price * .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "min(((id | .a) != (price * x)), ((id <= 2.5) == (f / .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(int(.a) <= .a) > (price != 2.5) | (max(., id) | missing(3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "((-f >= (2.5 & _n)) != cond(min(x, price), (0 - 0), cond(1, 1, 2.5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 1, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "max(((. != g) != (id / _n)), _n)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 3, 4, 5, 6],
+      "type": "float"
+    },
+    {
+      "expression": "ceil((price != 3)) * (.a & 3) + ceil(g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 3, 3, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "(((.a / 0) <= 1) / abs(1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-.a & (g > 3) ^ (floor(id) | id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((cond(1, price, f) > cond(id, .a, 3)) < (-1 > (. - .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(((price | 3) <= .a) >= cond((x == 0), cond(x, 2.5, 3), floor(3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(!x - mod(0, .)) + round(3) < (_n + 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "min(.a, max((. != 1), abs(g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 2, 2, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "ceil(((3 | _n) | (id * 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "mod(--price, sqrt(missing(_n)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "(!(1 & id) != missing(int(x)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "-(max(f, x) / floor(x))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        -1.5, 0.10000000149011612, 8.98846567431158e307, 8.98846567431158e307,
+        8.98846567431158e307, -167772.16
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "missing(g) <= round(_n) / (id >= .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(3 <= ((1 - f) | sqrt(.a)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "((price ^ price) != (. / .a)) == x < min(cond(price, x, _n), max(price, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(-. < (2.5 | _n)) + (id / price) - mod(-x, (g & f))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        -0.4, 0.1, 8.98846567431158e307, 0.1, 8.98846567431158e307, 0.1
+      ],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr((\"\" + s), \" b \", \"\", 5) > substr(\"\", 1, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strproper(((s + s) + substr(\"Ab c\", 5, .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "Appleapple",
+        "Banana Splitbanana Split",
+        "",
+        "  Pad    Pad  ",
+        "Xx",
+        "NaïVenaïVe"
+      ],
+      "type": "str24"
+    },
+    {
+      "expression": "subinstr(s, s, \"Ab c\", id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "strlen(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\" b \", \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"Ab c\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "Ab c", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "missing(((\"Ab c\" + \"Ab c\") + substr(\"xyz\", 1, 2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"Ab c\", stritrim(\"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(subinstr(word(\" b \", 2), \"xyz\", \"xyz\", .) + ltrim(\"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\"\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(subinstr(cond(g, s, \"\"), \" b \", \"\", 0), id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "split", "", "", "", ""],
+      "type": "str5"
+    },
+    {
+      "expression": "strpos(upper(substr(\"Ab c\", id, 2)), cond(., \" b \", \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"\" != \"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(upper(\"a\"), 1, 1), s, \"xyz\", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["A", "A", "A", "A", "A", "A"],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(\"\", substr(s, 0, 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(word(subinstr(\"Ab c\", \" b \", \" b \", 3), 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(cond(-2, cond(5, s, \"a\"), \"a\"), -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "split", "", "pad", "x", "naïve"],
+      "type": "str6"
+    },
+    {
+      "expression": "wordcount((s + s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 3, 0, 2, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"xyz\", g, 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["x", "x", "y", "y", "z", "z"],
+      "type": "str1"
+    },
+    {
+      "expression": "cond(1, \"a\", subinstr(lower(\"\"), \"xyz\", \"xyz\", .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(substr(ltrim(\" b \"), 1, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "missing(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "rtrim(\" b \") == substr(word(\"Ab c\", 5), 1, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(substr(s, ., -1), 1, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "ltrim((subinstr(\" b \", \"a\", \" b \", 5) + \"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b a", "b a", "b a", "b a", "b a", "b a"],
+      "type": "str3"
+    },
+    {
+      "expression": "lower(strproper(word(\" b \", 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(lower(\"\"), -2, 5) > upper(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(ltrim(\" b \") + ((\"\" + \"Ab c\") + (\"Ab c\" + \"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz",
+        "b Ab cAb cxyz"
+      ],
+      "type": "str13"
+    },
+    {
+      "expression": "subinstr(s, \"Ab c\", \" b \", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "substr(substr(\"xyz\", 0, .), g, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"Ab c\", \"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"xyz\", -2, 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(substr(lower(\" b \"), 0, 1), -1, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\" b \"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "rtrim(ltrim(word(\"Ab c\", 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(substr(s, -2, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(trim(word(\"a\", 5)), id, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(word(word(\"xyz\", -1), 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(trim(strproper(s)), strreverse(\" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(word(trim(\" b \"), 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(subinstr(\"Ab c\", \"xyz\", s, 2), 3, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(\"Ab c\" + substr(word(s, 1), 2, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab cp", "Ab ca", "Ab c", "Ab cad", "Ab c", "Ab caï"],
+      "type": "str7"
+    },
+    {
+      "expression": "strlen(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(cond(1, substr(\" b \", 0, -2), \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos((rtrim(\"Ab c\") + stritrim(\" b \")), subinstr(\"a\", \"\", s, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(3, trim(\"a\"), ltrim(subinstr(\"xyz\", \"a\", \"xyz\", 5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(rtrim((\" b \" + s)), ltrim(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 2, 0, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(cond(-2, \"Ab c\", \"\")) > ((\"Ab c\" + \"Ab c\") + \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "s",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "wordcount(cond(5, (\"a\" + \" b \"), trim(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "word(word(\" b \", 3), g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(substr((s + s), 2, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["PP", "AN", "", " P", "X", "A�"],
+      "type": "str2"
+    },
+    {
+      "expression": "(s + word(\"xyz\", g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["applexyz", "Banana splitxyz", "", "  pad  ", "x", "naïve"],
+      "type": "str15"
+    },
+    {
+      "expression": "strreverse(substr(substr(s, 0, g), -1, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(subinstr(\"Ab c\", s, \"\", -2), cond(g, \"a\", \"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "trim(subinstr(cond(., \"Ab c\", s), \"Ab c\", \" b \", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "b", "b", "b", "b"],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(upper(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(cond(-1, trim(\" b \"), \" b \"), 5, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "trim(subinstr(trim(\"\"), s, \"\", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(\" b \", rtrim(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(subinstr(\"Ab c\", \"Ab c\", s, 5)) == word(\"xyz\", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(\"a\", 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\"xyz\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(\"\", \"a\", \"a\", .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(subinstr(subinstr(\"Ab c\", \"\", s, g), \" b \", \"\", -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(\"xyz\", cond(g, s, s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 3, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(lower(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "trim(substr(word(s, 1), -2, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["l", "na", "", "ad", "", "ve"],
+      "type": "str2"
+    },
+    {
+      "expression": "strlen(lower(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 4, 4, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, trim((\" b \" + \"\")), lower(stritrim(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "b", "b", "b", "b"],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strproper(\" b \") >= lower(word(\"Ab c\", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(substr(substr(s, 0, -2), -1, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(subinstr((\" b \" + \"Ab c\"), \" b \", \"a\", 5), lower(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(\" b \", \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(subinstr(strproper(\"Ab c\"), \" b \", \"Ab c\", id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab C", "Ab C", "Ab C", "Ab C", "Ab C", "Ab C"],
+      "type": "str4"
+    },
+    {
+      "expression": "substr(cond(5, \"xyz\", \" b \"), -2, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(\"\", id) >= (rtrim(\"a\") + (\"Ab c\" + \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(2, \" b \", \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "strrpos(word(\"xyz\", -2), cond(id, \"Ab c\", s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(substr(\"Ab c\", -1, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strreverse(strproper(\"Ab c\")) <= (cond(5, \"Ab c\", \" b \") + \"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(cond(-1, word(\"a\", id), \"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strproper((rtrim(\"xyz\") + rtrim(\"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C",
+        "Xyzab C"
+      ],
+      "type": "str7"
+    },
+    {
+      "expression": "((\"Ab c\" + \"\") + substr(s, -2, 3)) != s",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "(\"xyz\" + cond(g, \"\", \" b \")) < lower(subinstr(\"Ab c\", \"a\", \"\", 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(substr(\"a\", -2, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(strproper(subinstr(\"Ab c\", \"xyz\", \"xyz\", 5)), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab C", "Ab C", "b C", "b C", " C", " C"],
+      "type": "str4"
+    },
+    {
+      "expression": "strpos(s, (\"\" + s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(cond(3, cond(-1, s, \"\"), substr(\"Ab c\", 5, 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "lower(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["ab c", "ab c", "ab c", "ab c", "ab c", "ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "substr(substr(s, 0, -2), -2, 2) > \"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "\"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(cond(5, trim(s), \"xyz\"), strproper(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(s, g, 2) >= lower(trim(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(cond(id, substr(s, 2, .), \"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 0, 1, 0, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(substr(ltrim(\" b \"), g, -1), id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "trim(strproper(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab C", "Ab C", "Ab C", "Ab C", "Ab C", "Ab C"],
+      "type": "str4"
+    },
+    {
+      "expression": "substr(word((\" b \" + \"Ab c\"), .), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(substr(subinstr(\"\", \"\", s, -1), ., 3), ., 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(substr(word(\" b \", g), 1, 3), rtrim(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount((\"Ab c\" + trim(\"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "substr(lower(subinstr(\"a\", s, s, 2)), g, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(\" b \", 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(cond(id, substr(\"a\", ., 3), substr(\"a\", g, 3)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(s, 0, 5), \"xyz\", \" b \", .) <= strproper((\" b \" + \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(2, substr(\"\", id, -1), (s + s)) != \"Ab c\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "upper(stritrim(subinstr(s, \" b \", \"Ab c\", -2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["APPLE", "BANANA SPLIT", "", "  PAD  ", "X", "NAïVE"],
+      "type": "str12"
+    },
+    {
+      "expression": "strpos(\"a\", substr(\" b \", ., -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(subinstr((\"a\" + \"xyz\"), \" b \", \"Ab c\", g), s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 2, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"Ab c\", strreverse(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(substr(\"Ab c\", 0, id), 1, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(stritrim(stritrim(\"Ab c\")), trim(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"a\", ., 2) == substr(strproper(s), 1, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(cond(id, \"Ab c\", substr(\"a\", id, id)), .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(strreverse(strproper(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(\"xyz\" + \"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "subinstr(substr(\" b \", ., 1), \"a\", \"a\", id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(trim((\" b \" + s)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [7, 14, 1, 7, 3, 8],
+      "type": "float"
+    },
+    {
+      "expression": "cond(g, substr(cond(0, \"Ab c\", \"a\"), g, 5), cond(3, substr(s, 0, .), upper(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "stritrim(upper(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["AB C", "AB C", "AB C", "AB C", "AB C", "AB C"],
+      "type": "str4"
+    },
+    {
+      "expression": "wordcount(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(strproper(\"xyz\"), \" b \", s, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Xyz", "Xyz", "Xyz", "Xyz", "Xyz", "Xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(ltrim(s), \"\", \"xyz\", 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(strreverse(\"a\"), 3, 2), \"a\", \"xyz\", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(cond(0, substr(\"Ab c\", -2, 3), \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(upper(\"Ab c\"), 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "cond(., \"\", \" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "lower(substr(subinstr(\"\", \" b \", \"Ab c\", 0), id, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "rtrim(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "missing(substr(substr(\"Ab c\", 3, 5), ., .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr((word(\" b \", -1) + subinstr(\"Ab c\", \" b \", s, 1)), -1, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["c", "c", "c", "c", "c", "c"],
+      "type": "str1"
+    },
+    {
+      "expression": "(subinstr(substr(s, id, 2), \" b \", s, g) + s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apapple", "anBanana split", "", "ad  pad  ", "x", "enaïve"],
+      "type": "str14"
+    },
+    {
+      "expression": "substr(\" b \", -1, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" ", " ", " ", " ", " ", " "],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(lower(\"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word((\"\" + \"\"), 3) < substr(trim(\"\"), ., .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, word((\" b \" + \" b \"), 5), subinstr(substr(\"Ab c\", ., 1), \"Ab c\", \" b \", .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strproper(strproper(substr(s, 2, 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(\"xyz\", s, \"xyz\", 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyzyz", "xyz"],
+      "type": "str5"
+    },
+    {
+      "expression": "rtrim(trim(substr(\"\", 5, .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "word(\" b \", -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(substr(word(\"Ab c\", .), id, -1), substr(\"\", 0, .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(substr(strproper(\"Ab c\"), 0, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(strproper(cond(id, \"a\", \"a\")), -2, 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(s + \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "appleAb c",
+        "Banana splitAb c",
+        "Ab c",
+        "  pad  Ab c",
+        "xAb c",
+        "naïveAb c"
+      ],
+      "type": "str16"
+    },
+    {
+      "expression": "strlen(rtrim(substr(s, g, 2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 0, 2, 0, 2],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(ltrim(\" b \"), substr(\"Ab c\", g, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(\" b \" + \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        " b Ab c",
+        " b Ab c",
+        " b Ab c",
+        " b Ab c",
+        " b Ab c",
+        " b Ab c"
+      ],
+      "type": "str7"
+    },
+    {
+      "expression": "wordcount(rtrim((\"Ab c\" + \" b \")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(word(subinstr(\"\", s, \"a\", -1), id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(stritrim(subinstr(\" b \", \"\", s, -2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr((\"Ab c\" + substr(\"\", -1, 3)), \"xyz\", \"xyz\", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "Ab c", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "\"Ab c\" < (\" b \" + substr(s, 0, -2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(upper(substr(\"\", g, 2)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"xyz\" != (subinstr(\"\", \"xyz\", \" b \", -2) + s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(substr(word(\" b \", 5), 1, 3), s, s, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen((word(\" b \", -2) + substr(\"xyz\", id, 0)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(substr(subinstr(\"xyz\", \"xyz\", \"a\", 2), g, g), -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "\"xyz\" != substr(\"a\", -1, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "cond(2, ltrim(\"xyz\"), upper(\" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "word(\"Ab c\", -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab", "Ab", "Ab", "Ab", "Ab", "Ab"],
+      "type": "str2"
+    },
+    {
+      "expression": "strrpos(s, \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 6, 0, 4, 0, 2],
+      "type": "float"
+    },
+    {
+      "expression": "strproper((\"xyz\" + strreverse(\"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Xyzzyx", "Xyzzyx", "Xyzzyx", "Xyzzyx", "Xyzzyx", "Xyzzyx"],
+      "type": "str6"
+    },
+    {
+      "expression": "missing(cond(3, (\"xyz\" + \"xyz\"), stritrim(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, word((\" b \" + \"xyz\"), 1), \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "b", "b", "b", "b"],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(word(subinstr(\"Ab c\", \"a\", \"\", .), 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(upper(stritrim(\"a\")), -1, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(substr(cond(g, \"Ab c\", \"\"), id, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(word(substr(\"a\", 0, 5), 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"Ab c\", -2, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" ", " ", " c", " c", " c", " c"],
+      "type": "str2"
+    },
+    {
+      "expression": "strlen((substr(s, 3, 3) + (\"Ab c\" + \"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [7, 7, 4, 7, 4, 7],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(substr((\" b \" + \"xyz\"), 5, .), stritrim(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "upper(cond(-2, upper(\"xyz\"), rtrim(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["XYZ", "XYZ", "XYZ", "XYZ", "XYZ", "XYZ"],
+      "type": "str3"
+    },
+    {
+      "expression": "stritrim(substr(\"Ab c\", 0, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(substr(substr(\"xyz\", -2, 2), 1, id), 1, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["y", "yz", "yz", "yz", "yz", "yz"],
+      "type": "str2"
+    },
+    {
+      "expression": "missing(strreverse(subinstr(\"xyz\", \"\", \"\", g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(subinstr(word(\"xyz\", -1), s, \"Ab c\", g), strreverse(\"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(strreverse(\" b \")) > \" b \"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(substr(cond(g, \" b \", \" b \"), 0, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(s, 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(upper(subinstr(\"a\", \"xyz\", \"\", 0)), word(\" b \", 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "missing(rtrim(substr(\"Ab c\", id, 5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "word(\"a\", 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(subinstr(subinstr(\"Ab c\", s, \" b \", 5), \"Ab c\", \" b \", 2), ., id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(\"xyz\", ., id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "stritrim(\"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "wordcount(cond(id, substr(\"a\", id, 2), upper(\"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(\" b \", 2) != substr(substr(\"a\", -1, 1), g, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "substr(subinstr(\"\", \"xyz\", \" b \", g), -1, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos((lower(\" b \") + \"xyz\"), strreverse(\" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"\" >= substr((s + \"\"), g, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "missing(substr(subinstr(\"a\", \"xyz\", \"Ab c\", id), 1, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(subinstr(subinstr(\" b \", \"a\", s, .), \"Ab c\", \"xyz\", 0) + \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b a", " b a", " b a", " b a", " b a", " b a"],
+      "type": "str4"
+    },
+    {
+      "expression": "strproper(subinstr(rtrim(s), \"\", \"xyz\", -2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Apple", "Banana Split", "", "  Pad", "X", "NaïVe"],
+      "type": "str12"
+    },
+    {
+      "expression": "subinstr(strproper(\"a\"), \"Ab c\", \"\", .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["A", "A", "A", "A", "A", "A"],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(cond(-2, cond(-2, \"a\", \"\"), (\"Ab c\" + \"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"xyz\" == substr(ltrim(\"a\"), 5, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "\"a\" >= \"Ab c\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(cond(-1, (\"a\" + \"a\"), upper(\"a\")), \"a\", \"xyz\", 0)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["aa", "aa", "aa", "aa", "aa", "aa"],
+      "type": "str2"
+    },
+    {
+      "expression": "word(s, -2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "Banana", "", "", "", ""],
+      "type": "str6"
+    },
+    {
+      "expression": "strlen(upper(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(trim(\"Ab c\"), \" b \", \"xyz\", -2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(subinstr(\"\", \"a\", \"a\", .), \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(5, subinstr(\"xyz\", \" b \", \"\", 5), \"a\") >= substr(word(\"a\", 0), 1, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"a\", 0, g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(substr(\"xyz\", 3, .) + ltrim((\"\" + s)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["zapple", "zBanana split", "z", "zpad  ", "zx", "znaïve"],
+      "type": "str13"
+    },
+    {
+      "expression": "substr(substr(\"a\", id, g), 0, -2) == ltrim(word(\"\", 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr(\"Ab c\", g, 2) > substr(substr(\" b \", 1, -1), g, 3)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "strlen(cond(1, substr(\" b \", -2, 0), strreverse(\"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(substr(\" b \", g, 0), (\"Ab c\" + \"a\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(-1, \"xyz\", subinstr(lower(\" b \"), \"\", s, .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyz", "xyz", "xyz", "xyz", "xyz", "xyz"],
+      "type": "str3"
+    },
+    {
+      "expression": "strproper(substr(word(\" b \", 0), 5, id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strpos(\"a\", \"\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"xyz\", cond(2, s, s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(1, subinstr((\"Ab c\" + \"a\"), \"xyz\", s, 5), word(substr(\" b \", 3, -2), 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab ca", "Ab ca", "Ab ca", "Ab ca", "Ab ca", "Ab ca"],
+      "type": "str5"
+    },
+    {
+      "expression": "rtrim(cond(5, (\" b \" + \"xyz\"), \"Ab c\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b xyz", " b xyz", " b xyz", " b xyz", " b xyz", " b xyz"],
+      "type": "str6"
+    },
+    {
+      "expression": "strrpos(\"\", \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(\"a\", s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(upper(substr(\"Ab c\", 0, 2)), \"\", \" b \", .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "subinstr(substr((s + \"Ab c\"), id, 2), \"Ab c\", \" b \", id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["ap", "an", " c", "ad", "c", "eA"],
+      "type": "str2"
+    },
+    {
+      "expression": "substr(\"\", -2, id)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "subinstr(\" b \", \"Ab c\", \"\", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "trim(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(substr(substr(s, -2, 0), id, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(strreverse(substr(\"\", -2, 0)), word(\"xyz\", 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(trim(strproper(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(s) == \" b \"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(s, \"\", s, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "strpos(subinstr(substr(s, 1, 1), \"\", \" b \", -2), cond(., s, \"\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 1, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(g, \" b \", strproper((\"Ab c\" + \"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "strpos(substr(\" b \", 0, -1), cond(-1, \"\", \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "trim(strproper(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Apple", "Banana Split", "", "Pad", "X", "NaïVe"],
+      "type": "str12"
+    },
+    {
+      "expression": "substr(substr(\"\", 3, .), id, -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "rtrim(cond(-1, \"Ab c\", (\"\" + \" b \")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab c", "Ab c", "Ab c", "Ab c", "Ab c", "Ab c"],
+      "type": "str4"
+    },
+    {
+      "expression": "subinstr(substr(word(\" b \", g), 1, 5), \" b \", \"Ab c\", 1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b", "b", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(((\"xyz\" + \"\") + substr(s, 3, id)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["XYZP", "XYZNA", "XYZ", "XYZPAD ", "XYZ", "XYZïVE"],
+      "type": "str7"
+    },
+    {
+      "expression": "substr((\"a\" + s), 2, 0) == upper(ltrim(s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 1, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "cond(-1, substr(\" b \", 2, 0), substr(word(\"Ab c\", .), ., 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing((subinstr(\"\", s, \"a\", 2) + word(\"Ab c\", 5)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(\"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 4, 4, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(trim(word(\"Ab c\", g)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 1, 1, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(cond(2, \" b \", substr(\"xyz\", 0, g)), s)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 3, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(s, \"Ab c\", \" b \", 1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 2, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount((subinstr(\" b \", \"Ab c\", \"Ab c\", 1) + \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [2, 2, 2, 2, 2, 2],
+      "type": "float"
+    },
+    {
+      "expression": "missing(substr((\"\" + s), 0, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strreverse(substr(substr(\"a\", 0, -1), g, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(substr(strreverse(\" b \"), ., -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "upper(stritrim(\"xyz\"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["XYZ", "XYZ", "XYZ", "XYZ", "XYZ", "XYZ"],
+      "type": "str3"
+    },
+    {
+      "expression": "substr(word(s, .), 1, 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "(s + word(s, -1))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "appleapple",
+        "Banana splitsplit",
+        "",
+        "  pad  pad",
+        "xx",
+        "naïvenaïve"
+      ],
+      "type": "str17"
+    },
+    {
+      "expression": "missing(substr(\"\", 5, 0))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"xyz\" != subinstr(\"Ab c\", s, s, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(rtrim(subinstr(s, \"xyz\", \"a\", .)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 5, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "(\"a\" + \" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a b ", "a b ", "a b ", "a b ", "a b ", "a b "],
+      "type": "str4"
+    },
+    {
+      "expression": "strlen(substr((\"\" + \"\"), 0, 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "ltrim(\"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["a", "a", "a", "a", "a", "a"],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(word(\"Ab c\", .), g, .)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr(\" b \", 2, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["b ", "b ", "b ", "b ", "b ", "b "],
+      "type": "str2"
+    },
+    {
+      "expression": "strreverse(\"xyz\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["zyx", "zyx", "zyx", "zyx", "zyx", "zyx"],
+      "type": "str3"
+    },
+    {
+      "expression": "strlen(word(\" b \", id))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(lower(strproper(\"xyz\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "stritrim(\" b \")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", " b ", " b ", " b ", " b "],
+      "type": "str3"
+    },
+    {
+      "expression": "rtrim(word(rtrim(\"a\"), 3))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "substr((strreverse(\" b \") + subinstr(\"\", \"Ab c\", \"\", -1)), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [" b ", " b ", "b ", "b ", " ", " "],
+      "type": "str3"
+    },
+    {
+      "expression": "lower((\"\" + \"Ab c\")) >= \"a\"",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strrpos(word(cond(5, \"a\", \"\"), 0), subinstr(\" b \", \"xyz\", s, 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(((\" b \" + \"a\") + \" b \"))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(word(subinstr(\"xyz\", \"\", \"\", 2), .))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "subinstr(\"\", \"\", \"\", g)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "cond(., s, ltrim(strreverse(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["apple", "Banana split", "", "  pad  ", "x", "naïve"],
+      "type": "str12"
+    },
+    {
+      "expression": "(trim(strreverse(s)) + \"a\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["elppaa", "tilps ananaBa", "a", "dapa", "xa", "ev��ana"],
+      "type": "str13"
+    },
+    {
+      "expression": "strlen(stritrim(trim(\"Ab c\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [4, 4, 4, 4, 4, 4],
+      "type": "float"
+    },
+    {
+      "expression": "strlen(cond(5, s, (\" b \" + \"a\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [5, 12, 0, 7, 1, 6],
+      "type": "float"
+    },
+    {
+      "expression": "substr(strproper(upper(\"Ab c\")), 1, 2)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Ab", "Ab", "Ab", "Ab", "Ab", "Ab"],
+      "type": "str2"
+    },
+    {
+      "expression": "subinstr(word(\"\", g), \"a\", \" b \", -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strrpos(\" b \", substr(\" b \", 0, g))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [3, 3, 3, 3, 3, 3],
+      "type": "float"
+    },
+    {
+      "expression": "(lower(\"Ab c\") + \"Ab c\")",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c",
+        "ab cAb c"
+      ],
+      "type": "str8"
+    },
+    {
+      "expression": "upper(ltrim((\"a\" + s)))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["AAPPLE", "ABANANA SPLIT", "A", "A  PAD  ", "AX", "ANAïVE"],
+      "type": "str13"
+    },
+    {
+      "expression": "word(substr(word(\"Ab c\", 1), 3, 5), 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "missing(substr(rtrim(\" b \"), 0, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "strpos(substr(\"\", ., g), substr(s, -2, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "(\"xyz\" + ltrim(strreverse(\" b \")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["xyzb ", "xyzb ", "xyzb ", "xyzb ", "xyzb ", "xyzb "],
+      "type": "str5"
+    },
+    {
+      "expression": "strpos(\" b \", cond(id, \"Ab c\", s))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(strreverse(strreverse(\"\")))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "word(s, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["", "", "", "", "", ""],
+      "type": "str1"
+    },
+    {
+      "expression": "strlen(substr(\"xyz\", 3, 2))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 1, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "\"\" > substr(substr(\"xyz\", 2, 2), ., -1)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [0, 0, 0, 0, 0, 0],
+      "type": "float"
+    },
+    {
+      "expression": "wordcount(subinstr(cond(id, s, \"xyz\"), s, \"a\", 5))",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": [1, 1, 0, 1, 1, 1],
+      "type": "float"
+    },
+    {
+      "expression": "substr((strproper(s) + \"\"), g, 5)",
+      "by": false,
+      "random": true,
+      "rc": 0,
+      "values": ["Apple", "Banan", "", " Pad ", "", "ïVe"],
+      "type": "str5"
+    }
+  ]
+}
