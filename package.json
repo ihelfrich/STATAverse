@@ -17,7 +17,8 @@
     "test:legacy": "node tools/verify-legacy-transition.mjs",
     "test:loading": "node tools/verify-practice-loading.mjs",
     "coverage:corpus": "node tools/corpus-coverage.mjs --write",
-    "differential": "node tools/differential.mjs --write"
+    "differential": "node tools/differential.mjs --write",
+    "probe:students": "node tools/student-probe.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",
