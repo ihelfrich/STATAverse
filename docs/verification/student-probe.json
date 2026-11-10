@@ -1,7 +1,7 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 125,
+  "run": 145,
   "refused": [
     {
       "command": "table sector",
@@ -39,94 +39,9 @@
       "message": "command bsample is unrecognized r(199);"
     },
     {
-      "command": "graph bar wage, over(sector)",
-      "rc": 198,
-      "message": "graph bar is not available yet r(198);"
-    },
-    {
-      "command": "graph bar (mean) wage, over(sector)",
-      "rc": 198,
-      "message": "graph bar is not available yet r(198);"
-    },
-    {
-      "command": "graph box wage, over(sector)",
-      "rc": 198,
-      "message": "graph box is not available yet r(198);"
-    },
-    {
-      "command": "graph hbar wage, over(sector)",
-      "rc": 198,
-      "message": "graph hbar is not available yet r(198);"
-    },
-    {
       "command": "graph pie, over(sector)",
       "rc": 198,
       "message": "graph pie is not available yet r(198);"
-    },
-    {
-      "command": "kdensity wage",
-      "rc": 199,
-      "message": "command kdensity is unrecognized r(199);"
-    },
-    {
-      "command": "twoway lfitci wage education",
-      "rc": 198,
-      "message": "lfitci is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "twoway qfit wage education",
-      "rc": 198,
-      "message": "qfit is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "twoway bar wage education",
-      "rc": 198,
-      "message": "bar is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "twoway area wage education",
-      "rc": 198,
-      "message": "area is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "twoway kdensity wage",
-      "rc": 198,
-      "message": "kdensity is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "twoway histogram wage",
-      "rc": 198,
-      "message": "histogram is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "twoway lowess wage education",
-      "rc": 198,
-      "message": "lowess is not a twoway plot type available here r(198);"
-    },
-    {
-      "command": "lowess wage education",
-      "rc": 199,
-      "message": "command lowess is unrecognized r(199);"
-    },
-    {
-      "command": "histogram wage, bin(8) normal frequency",
-      "rc": 198,
-      "message": "option normal is not available in the browser yet r(198);"
-    },
-    {
-      "command": "tsline wage",
-      "rc": 199,
-      "message": "command tsline is unrecognized r(199);"
-    },
-    {
-      "command": "qnorm wage",
-      "rc": 199,
-      "message": "command qnorm is unrecognized r(199);"
-    },
-    {
-      "command": "pnorm wage",
-      "rc": 199,
-      "message": "command pnorm is unrecognized r(199);"
     },
     {
       "command": "which regress",
@@ -159,24 +74,9 @@
       "message": "estat esample is not available yet r(321);"
     },
     {
-      "command": "rvfplot",
-      "rc": 199,
-      "message": "command rvfplot is unrecognized r(199);"
-    },
-    {
-      "command": "avplot education",
-      "rc": 199,
-      "message": "command avplot is unrecognized r(199);"
-    },
-    {
       "command": "avplots",
       "rc": 199,
       "message": "command avplots is unrecognized r(199);"
-    },
-    {
-      "command": "lvr2plot",
-      "rc": 199,
-      "message": "command lvr2plot is unrecognized r(199);"
     },
     {
       "command": "testnl _b[education] = _b[experience]^2",
