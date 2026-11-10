@@ -158,3 +158,15 @@ test("graphs that are not available say so", () => {
   for (const command of ["graph pie, over(g)", "twoway rcap y x x", "avplot g"])
     assert.notEqual(run(`regress y x\n${command}`).result.rc, 0, command);
 });
+
+test("ac and pac draw the correlations corrgram reports", () => {
+  const { result } = run(
+    "tsset x\nac x, lags(3)\npac x, lags(3)\ncorrgram x, lags(3)",
+  );
+  assert.equal(result.rc, 0);
+  const graphs = result.output.filter((o) => o.graph).map((o) => o.graph);
+  assert.equal(graphs.length, 2);
+  // x is 1 to 6: its first autocorrelation is 0.5.
+  assert.match(graphs[0].description, /lags 1 to 3: 0\.500,/);
+  assert.match(result.output.at(-1).lines.join("\n"), /^1\s+0\.5000\s/m);
+});
