@@ -1,7 +1,7 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 154,
+  "run": 161,
   "refused": [
     {
       "command": "table sector",
@@ -29,16 +29,6 @@
       "message": "command notes is unrecognized r(199);"
     },
     {
-      "command": "sample 50",
-      "rc": 199,
-      "message": "command sample is unrecognized r(199);"
-    },
-    {
-      "command": "bsample",
-      "rc": 199,
-      "message": "command bsample is unrecognized r(199);"
-    },
-    {
       "command": "graph pie, over(sector)",
       "rc": 198,
       "message": "graph pie is not available yet r(198);"
@@ -62,11 +52,6 @@
       "command": "anova wage sectorn",
       "rc": 199,
       "message": "command anova is unrecognized r(199);"
-    },
-    {
-      "command": "regress wage education experience, vce(bootstrap)",
-      "rc": 198,
-      "message": "vce(bootstrap) is not available yet r(198);"
     },
     {
       "command": "estat esample",
@@ -219,29 +204,9 @@
       "message": "command tssmooth is unrecognized r(199);"
     },
     {
-      "command": "bootstrap: regress wage education",
-      "rc": 199,
-      "message": "command bootstrap is unrecognized r(199);"
-    },
-    {
-      "command": "bootstrap _b, reps(20): regress wage education",
-      "rc": 199,
-      "message": "command bootstrap is unrecognized r(199);"
-    },
-    {
-      "command": "simulate m=r(mean), reps(10): summarize wage",
-      "rc": 199,
-      "message": "command simulate is unrecognized r(199);"
-    },
-    {
       "command": "permute high _b[high], reps(10): regress wage high",
       "rc": 199,
       "message": "command permute is unrecognized r(199);"
-    },
-    {
-      "command": "jackknife: regress wage education",
-      "rc": 199,
-      "message": "command jackknife is unrecognized r(199);"
     },
     {
       "command": "svyset id",

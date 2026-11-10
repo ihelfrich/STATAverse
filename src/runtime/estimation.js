@@ -572,7 +572,15 @@ export function coefficientHeader(model, level, label = model.depvar) {
   ];
 }
 
+/** Set by the resampling module: runs vce(bootstrap) and vce(jackknife). */
+export const hooks = { resamplingVce: null };
 function regress(session, text, ctx) {
+  const requested = /\bvce\s*\(((?:[^()]|\([^()]*\))*)\)/.exec(text)?.[1];
+  if (
+    requested &&
+    hooks.resamplingVce?.(session, "regress", text, requested, ctx)
+  )
+    return;
   const parsed = session.parse(
       "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta | noHEader EForm(string) CLuster(varname) ABSorb(varname)]",
       text,

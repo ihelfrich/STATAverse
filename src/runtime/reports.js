@@ -590,11 +590,12 @@ export function list(session, text, ctx) {
       items.map((item, k) => item.padStart(widths[k])).join("   ");
   ctx.out("");
   if (parsed.options.clean) {
-    const indent = parsed.options.noobs ? "" : "    ";
+    // Without observation numbers the rows start one column further in.
+    const indent = parsed.options.noobs ? " " : "    ";
     ctx.out(`${indent}   ${line(variables.map((v) => v.name))}`);
     cells.forEach((row, k) =>
       ctx.out(
-        `${parsed.options.noobs ? "" : number(rows[k]).trimEnd()}   ${line(row)}`,
+        `${parsed.options.noobs ? " " : number(rows[k]).trimEnd()}   ${line(row)}`,
       ),
     );
     return;
