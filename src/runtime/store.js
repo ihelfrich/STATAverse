@@ -152,7 +152,8 @@ export class Dataset {
         }
       }
     }
-    this.unsortFrom(name);
+    // The data stay sorted on a key that replace did not actually change.
+    if (changed) this.unsortFrom(name);
     return { changed, from, to: variable.type };
   }
 

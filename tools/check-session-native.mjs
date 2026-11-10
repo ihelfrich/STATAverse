@@ -157,7 +157,7 @@ export async function readCases(file = "tools/session-cases.txt") {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const cases = [...(await readCases()), ...randomDoFiles(120)],
+  const cases = [...(await readCases()), ...randomDoFiles(300)],
     folder = await fs.mkdtemp(
       path.join(os.tmpdir(), "stataverse-session-native-"),
     );
