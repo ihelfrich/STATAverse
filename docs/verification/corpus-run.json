@@ -223,10 +223,10 @@
     },
     {
       "file": "CodeLibrary/scripts/05_moderation_mastery.do",
-      "commands": 29,
-      "rc": 101,
-      "stoppedAt": "regress performance c.firm_size_c##c.comp_c",
-      "message": "factor-variable and time-series operators not allowed"
+      "commands": 36,
+      "rc": 132,
+      "stoppedAt": "display \"{err} the firm size-performance relationship.\"\"",
+      "message": "too few quotes"
     },
     {
       "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",

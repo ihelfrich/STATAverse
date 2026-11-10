@@ -75,8 +75,15 @@ test("do-files leave the same data, macros and results as native Stata", () => {
           model.estimable[k] || /b\./.test(n) ? n : "o." + n,
         ),
         // Stata names a likelihood model's coefficients by equation.
-        expectedNames = matrix.names.map((n) => n.replace(/^[^:]+:/, ""));
-      if (names.join(" ") !== expectedNames.join(" "))
+        // and marks base and omitted cells of an interaction inside the name.
+        plain = (n) =>
+          n
+            .replace(/^[^:]+:/, "")
+            .replace(/(\d+)[bo]+\./g, "$1.")
+            .replace(/\bco\./g, "c.")
+            .replace(/^o\./, ""),
+        expectedNames = matrix.names.map(plain);
+      if (names.map(plain).join(" ") !== expectedNames.join(" "))
         fail(`${name} names [${names}] vs [${matrix.names}]`);
       const scale = Math.max(...matrix.values.map(Math.abs));
       if (

@@ -434,3 +434,15 @@ codebook g
 codebook name
 codebook small big flag
 codebook y g, compact
+=== interactions
+@EST
+generate byte h = mod(_n, 2)
+regress y c.x1##c.x2
+regress y i.g##c.x1
+regress y i.g#c.x1
+regress y x2 i.g#c.x1
+regress y i.g##i.h
+regress y c.x1#c.x2
+regress y x1 c.x1#c.x1
+regress y g#h
+regress y i.g i.h#c.x1

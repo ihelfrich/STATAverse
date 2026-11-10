@@ -1041,3 +1041,23 @@ drop fitted xb
 local t = _b[x1] / _se[x1] > 10
 capture display _b[nosuch]
 local rc2 = _rc
+=== interaction-cc | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y c.x1##c.x2
+=== interaction-ic | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y i.g##c.x1
+=== interaction-ic-only | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y i.g#c.x1
+=== interaction-ii | e: N df_m rss | matrices: e(b)
+@EST
+generate byte h = mod(_n, 2)
+regress y i.g##i.h
+=== interaction-bare | e: N df_m rss | matrices: e(b)
+@EST
+generate byte h = mod(_n, 2)
+regress y g#h
+=== interaction-square | e: N df_m rss | matrices: e(b) e(V)
+@EST
+regress y x1 c.x1#c.x1

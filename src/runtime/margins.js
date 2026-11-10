@@ -39,6 +39,11 @@ function margins(session, text, ctx) {
       `margins is not available after ${model.command} yet`,
       322,
     );
+  if (model.columns.some((c) => (c.term.components?.length ?? 1) > 1))
+    throw new StataError(
+      "margins is not available yet for a model with interactions",
+      322,
+    );
   const [mean, slope, curve] = link,
     parsed = session.parse(
       "[anything] [, DYdx(string) AT(string) ATMeans Level(cilevel) noSE POST]",

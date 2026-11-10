@@ -6,7 +6,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
-import { count, labelled } from "./reports.js";
+import { count } from "./reports.js";
 import {
   RULE,
   describeLinear,
@@ -17,6 +17,7 @@ import {
   linear,
   predict as predictT,
   quadratic,
+  termRows,
   test as testT,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
@@ -88,34 +89,15 @@ function zTable(session, model, level, transform) {
       `${model.depvar.padStart(12)} | ${head}  ${robust ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
       "-------------+----------------------------------------------------------------",
     ];
-  let previous = null;
-  model.names.forEach((name, k) => {
-    // Levels of a factor variable are grouped under its name, as in regress.
-    const column = model.columns[k],
-      factor = column?.term.factor;
-    if (
-      previous !== null &&
-      (factor || previous.factor) &&
-      (column?.term ?? "cons") !== previous.term
-    )
-      lines.push("             |");
-    if (factor && column.term !== previous?.term)
-      lines.push(`${factor.name.padStart(12)} |`);
-    previous = { term: column?.term ?? "cons", factor };
-    if (column?.base) return;
-    const label = factor
-      ? `${labelled(session, factor, column.level)}  `.padStart(13)
-      : `${name.padStart(12)} `;
-    if (!model.estimable[k])
-      return lines.push(`${label}|          0  (omitted)`);
-    const b = model.b[k],
-      se = Math.sqrt(model.V[k][k]),
-      z = b / se,
-      show = transform ? Math.exp : (v) => v;
-    lines.push(
-      `${label}|${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`,
-    );
-  });
+  const show = transform ? Math.exp : (v) => v;
+  lines.push(
+    ...termRows(session, model, (k) => {
+      const b = model.b[k],
+        se = Math.sqrt(model.V[k][k]),
+        z = b / se;
+      return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+    }),
+  );
   lines.push(RULE);
   if (transform && model.constant) lines.push(transform[2]);
   return lines;
@@ -145,8 +127,13 @@ function maximumLikelihood(kind) {
       ),
       options = parsed.options,
       rows = session.rows(parsed, null),
-      { dependent, columns, sample } = design(session, parsed.anything, rows),
       constant = options.constant !== false,
+      { dependent, columns, sample } = design(
+        session,
+        parsed.anything,
+        rows,
+        constant,
+      ),
       robust = !!options.robust || /^r/.test(options.vce ?? ""),
       n = sample.length;
     if (!n) throw new StataError("no observations", 2000);
@@ -631,7 +618,9 @@ function predict(session, text, ctx) {
   session.select(parsed, null, (i) => {
     if (
       model.columns.some((c) =>
-        isMissing((c.term.variable ?? c.term.factor).data[i]),
+        (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
+          isMissing(v.data[i]),
+        ),
       )
     )
       return;

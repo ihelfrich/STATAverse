@@ -52,8 +52,13 @@ export const quadratic = (v, m) =>
   );
 
 // ----- the model -----
-/** Reads "y x1 i.g" into a dependent variable and design columns. */
-export function design(session, text, rows) {
+/**
+ * Reads "y x1 i.g c.x1#c.x2 i.g##c.x1" into a dependent variable and design
+ * columns. Each term is a product of components, a component being a
+ * continuous variable or the levels of a factor. A bare name is continuous
+ * on its own and a factor inside an interaction, as in Stata.
+ */
+export function design(session, text, rows, constant = true) {
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) throw new StataError("varlist required", 100);
   const numeric = (name) => {
@@ -62,52 +67,149 @@ export function design(session, text, rows) {
       throw new StataError("string variables may not be used", 109);
     return variable;
   };
-  const dependent = numeric(tokens[0]),
-    terms = [];
-  for (const token of tokens.slice(1)) {
-    const m = /^(i|c)\.(.+)$/.exec(token);
-    if (m && m[1] === "i") terms.push({ factor: numeric(m[2]) });
-    else if (/[#.]/.test(m ? "" : token))
+  const component = (word, inInteraction) => {
+    const m = /^(i|c)\.(.+)$/.exec(word);
+    if (!m && /[.()]/.test(word))
       throw new StataError(
-        `${token}: interactions and time-series operators are not available yet`,
+        `${word}: this factor-variable or time-series operator is not available yet`,
         198,
       );
+    return {
+      variable: numeric(m ? m[2] : word),
+      factor: m ? m[1] === "i" : inInteraction,
+    };
+  };
+  const dependent = numeric(tokens[0]),
+    terms = [],
+    add = (components) => {
+      const [only] = components;
+      terms.push({
+        components,
+        variables: components.map((c) => c.variable),
+        // Kept for code that asks whether a term is one plain variable or
+        // one factor.
+        variable:
+          components.length === 1 && !only.factor ? only.variable : undefined,
+        factor:
+          components.length === 1 && only.factor ? only.variable : undefined,
+        header: components
+          .map((c) => (c.factor ? c.variable.name : `c.${c.variable.name}`))
+          .join("#"),
+      });
+    };
+  for (const token of tokens.slice(1)) {
+    if (token.includes("##")) {
+      const parts = token.split("##");
+      if (parts.length !== 2)
+        throw new StataError(`${token}: only two-way ## is available yet`, 198);
+      const pair = parts.map((part) => component(part, true));
+      add([pair[0]]);
+      add([pair[1]]);
+      add(pair);
+    } else if (token.includes("#"))
+      add(token.split("#").map((part) => component(part, true)));
+    else if (/^(i|c)\./.test(token)) add([component(token, false)]);
     else
-      for (const name of session.varlist(m ? m[2] : token))
-        terms.push({ variable: numeric(name) });
+      for (const name of session.varlist(token)) add([component(name, false)]);
   }
   const sample = rows.filter(
     (i) =>
       !isMissing(dependent.data[i]) &&
-      terms.every((t) => !isMissing((t.variable ?? t.factor).data[i])),
+      terms.every((t) => t.variables.every((v) => !isMissing(v.data[i]))),
   );
+  const levelsOf = new Map();
+  for (const term of terms)
+    for (const c of term.components) {
+      if (!c.factor || levelsOf.has(c.variable)) continue;
+      const levels = [...new Set(sample.map((i) => c.variable.data[i]))].sort(
+        (a, b) => a - b,
+      );
+      if (levels.some((level) => !Number.isInteger(level) || level < 0))
+        throw new StataError(
+          `${c.variable.name}: factor variables may not contain noninteger values`,
+          452,
+        );
+      levelsOf.set(c.variable, levels);
+    }
+  // Columns already accepted, orthogonalised, to test later ones against.
+  const basis = [];
+  const independent = (column) => {
+    let rest = sample.map(column.value);
+    const original = rest.reduce((t, v) => t + v * v, 0);
+    for (const q of basis) {
+      const weight = rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+      rest = rest.map((v, k) => v - weight * q.vector[k]);
+    }
+    const norm = rest.reduce((t, v) => t + v * v, 0);
+    if (!(original > 0 && norm > 1e-9 * original)) return false;
+    basis.push({ vector: rest, norm });
+    return true;
+  };
+  if (constant) independent({ value: () => 1 });
   const columns = [];
   for (const term of terms) {
     if (term.variable) {
-      columns.push({
+      const column = {
         name: term.variable.name,
         value: (i) => term.variable.data[i],
         term,
-      });
+      };
+      independent(column);
+      columns.push(column);
       continue;
     }
-    const levels = [...new Set(sample.map((i) => term.factor.data[i]))].sort(
-      (a, b) => a - b,
-    );
-    if (levels.some((level) => !Number.isInteger(level) || level < 0))
-      throw new StataError(
-        `${term.factor.name}: factor variables may not contain noninteger values`,
-        452,
-      );
-    levels.forEach((level, k) =>
-      columns.push({
-        name: `${level}${k ? "" : "b"}.${term.factor.name}`,
-        value: (i) => Number(term.factor.data[i] === level),
-        term,
-        level,
-        base: k === 0,
-      }),
-    );
+    // Every combination of factor levels, the first factor varying slowest.
+    let cells = [[]];
+    for (const c of term.components)
+      if (c.factor)
+        cells = cells.flatMap((cell) =>
+          levelsOf.get(c.variable).map((level) => [...cell, level]),
+        );
+    const factors = term.components.filter((c) => c.factor),
+      continuous = term.components.filter((c) => !c.factor),
+      made = cells.map((cell) => {
+        const bases = cell.filter(
+          (level, k) => level === levelsOf.get(factors[k].variable)[0],
+        ).length;
+        return {
+          name: term.components
+            .map((c) =>
+              c.factor
+                ? `${cell[factors.indexOf(c)]}.${c.variable.name}`
+                : `c.${c.variable.name}`,
+            )
+            .join("#"),
+          value: (i) => {
+            let product = 1;
+            factors.forEach((c, k) => {
+              if (c.variable.data[i] !== cell[k]) product = 0;
+            });
+            if (product)
+              for (const c of continuous) product *= c.variable.data[i];
+            return product;
+          },
+          term,
+          levels: cell,
+          level: cell[0],
+          bases,
+        };
+      });
+    if (term.factor)
+      // A factor on its own: the first level is the base.
+      made.forEach((column, k) => {
+        column.base = k === 0;
+        if (k === 0) column.name = column.name.replace(".", "b.");
+        else independent(column);
+      });
+    else if (factors.length)
+      // In an interaction, cells at base levels give way first: a cell is
+      // kept only if it adds something to what is already in the model.
+      [...made]
+        .sort((a, b) => a.bases - b.bases)
+        .forEach((column) => {
+          column.base = !independent(column);
+        });
+    columns.push(...made);
   }
   return { dependent, columns, sample };
 }
@@ -115,8 +217,13 @@ export function design(session, text, rows) {
 function fit(session, parsed, by) {
   const rows = session.rows(parsed, by),
     options = parsed.options,
-    { dependent, columns, sample } = design(session, parsed.anything, rows),
     constant = options.constant !== false,
+    { dependent, columns, sample } = design(
+      session,
+      parsed.anything,
+      rows,
+      constant,
+    ),
     vceText = options.vce ?? (options.robust ? "robust" : ""),
     clusterMatch = /^cl(?:u(?:s(?:t(?:er?)?)?)?)?\s+(\S+)$/.exec(
       vceText.trim(),
@@ -304,34 +411,66 @@ function fit(session, parsed, by) {
   };
 }
 
-export function coefficientRows(session, model, level) {
-  const critical = invttail(model.df_r, (1 - level / 100) / 2),
-    out = [];
-  let previous = null;
+/**
+ * The rows of a coefficient table, laid out by term as Stata lays them out:
+ * plain variables one after another, a factor or interaction as a headed
+ * group of level rows, a term with a single row on its own line, and blank
+ * rows between groups. cells(k) gives the text after the bar for
+ * coefficient k.
+ */
+export function termRows(session, model, cells) {
+  const out = [],
+    blocks = [];
   model.names.forEach((name, k) => {
     const column = model.columns[k],
-      factor = column?.term.factor;
-    if (
-      previous !== null &&
-      (factor || previous.factor) &&
-      (column?.term ?? "cons") !== previous.term
-    )
+      term = column?.term ?? "_cons",
+      last = blocks.at(-1);
+    if (last && last.term === term) last.items.push(k);
+    else blocks.push({ term, items: [k] });
+  });
+  let previousPlain = true;
+  blocks.forEach((block, b) => {
+    const plain =
+        block.term === "_cons" ? previousPlain : !!block.term.variable,
+      shown = block.items.filter((k) => !model.columns[k]?.base);
+    if (b && !(plain && previousPlain)) out.push("             |");
+    else if (b && block.term === "_cons" && !previousPlain)
       out.push("             |");
-    if (factor && column.term !== previous?.term)
-      out.push(`${factor.name.padStart(12)} |`);
-    previous = { term: column?.term ?? "cons", factor };
-    if (column?.base) return;
-    const label = factor
-      ? `${labelled(session, factor, column.level)}  `.padStart(13)
-      : `${name.padStart(12)} `;
-    if (!model.estimable[k]) return out.push(`${label}|          0  (omitted)`);
-    const se = Math.sqrt(model.V[k][k]),
-      t = model.b[k] / se;
-    out.push(
-      `${label}|${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`,
-    );
+    previousPlain =
+      block.term === "_cons" ? previousPlain : !!block.term.variable;
+    const row = (label, k) =>
+      out.push(
+        model.estimable[k]
+          ? `${label}|${cells(k)}`
+          : `${label}|          0  (omitted)`,
+      );
+    if (block.term === "_cons" || block.term.variable)
+      return row(
+        `${model.names[block.items[0]].padStart(12)} `,
+        block.items[0],
+      );
+    if (shown.length === 1)
+      return row(`${model.names[shown[0]].padStart(12)} `, shown[0]);
+    out.push(`${block.term.header.padStart(12)} |`);
+    const factors = block.term.components.filter((c) => c.factor);
+    for (const k of shown)
+      row(
+        `${model.columns[k].levels
+          .map((level, j) => labelled(session, factors[j].variable, level))
+          .join(" ")}  `.padStart(13),
+        k,
+      );
   });
   return out;
+}
+
+export function coefficientRows(session, model, level) {
+  const critical = invttail(model.df_r, (1 - level / 100) / 2);
+  return termRows(session, model, (k) => {
+    const se = Math.sqrt(model.V[k][k]),
+      t = model.b[k] / se;
+    return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+  });
 }
 export function coefficientHeader(model, level, label = model.depvar) {
   const robust = model.vce !== "ols",
@@ -448,7 +587,9 @@ export function predict(session, text, ctx) {
     );
     if (
       model.columns.some((c) =>
-        isMissing((c.term.variable ?? c.term.factor).data[i]),
+        (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
+          isMissing(v.data[i]),
+        ),
       )
     )
       return;
