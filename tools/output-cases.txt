@@ -524,3 +524,28 @@ tabulate g h, chi2
 tabulate g cl, chi2
 summarize y, meanonly
 display r(mean)
+=== matrices
+@EST
+regress y x1 x2
+matrix b = e(b)
+matrix list b
+matrix V = e(V)
+matrix list V
+matrix A = (1, 2.5 \ -3, 4)
+matrix list A
+matrix C = J(2, 3, 0)
+matrix list C
+matrix I3 = I(3)
+matrix list I3
+matrix T = A'
+matrix list T
+display b[1,1]
+display V[2,2]
+display A[2,1] + 1
+display rowsof(A) " " colsof(C)
+display el(A, 1, 2)
+matrix D = A
+matrix drop A
+capture noisily matrix list A
+matrix list D
+capture noisily matrix Z = nosuch

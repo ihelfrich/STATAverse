@@ -14,6 +14,7 @@ import { applyFormat, stringOf } from "./format.js";
 import { formatNumber } from "./values.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
 import { timeSeriesOperator } from "./panel.js";
+import { matrixAccess } from "./matrix.js";
 
 const MAX_STEPS = 200000;
 // c(current_date) in Stata's form, such as "10 Nov 2026".
@@ -52,6 +53,7 @@ export class Session {
       results: this.results,
       state: this.state,
       rc: () => this.rc,
+      matrix: matrixAccess(this),
       coefficient: (kind, name) => {
         const model = this.estimates;
         // Without a model, Stata reports the name as not found.

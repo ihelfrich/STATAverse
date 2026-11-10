@@ -1,7 +1,7 @@
 {
   "basis": "Each do-file run from the start in a fresh session of the new runtime, with the site's datasets available. Finishing is not agreement with Stata; it means no command was refused.",
   "files": 38,
-  "finished": 7,
+  "finished": 8,
   "results": [
     {
       "file": "ScriptLibrary/scripts/append-files.do",
@@ -223,10 +223,8 @@
     },
     {
       "file": "CodeLibrary/scripts/05_moderation_mastery.do",
-      "commands": 115,
-      "rc": 199,
-      "stoppedAt": "matrix b = r(b)",
-      "message": "command matrix is unrecognized"
+      "commands": 226,
+      "rc": 0
     },
     {
       "file": "CodeLibrary/scripts/06_panel_data_toolkit.do",

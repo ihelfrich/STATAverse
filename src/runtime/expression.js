@@ -244,6 +244,17 @@ export function compileExpression(source, scope = {}) {
 
   function variable(name) {
     const names = dataset?.names ?? [];
+    if (!names.includes(name) && scope.matrix?.has(name) && isOp("[")) {
+      at++;
+      const row = numeric(or());
+      if (!take(","))
+        throw invalid("a matrix element needs a row and a column");
+      const column = numeric(or());
+      if (!take("]")) throw new StataError("too few ')' or ']'", 132);
+      return node(N, (i, env) =>
+        scope.matrix.element(name, row(i, env), column(i, env)),
+      );
+    }
     let resolved = null;
     try {
       resolved = resolveVariable(name, names);
@@ -305,6 +316,28 @@ export function compileExpression(source, scope = {}) {
       return node(
         typeof value === "string" ? S : N,
         () => scope.results?.[name]?.[inner.value] ?? MISSING,
+      );
+    }
+    if (
+      (name === "rowsof" || name === "colsof" || name === "el") &&
+      scope.matrix
+    ) {
+      const target = tokens[at++];
+      if (target?.type !== "name") throw invalid();
+      if (name !== "el") {
+        if (!take(")")) throw invalid();
+        const size =
+          name === "rowsof" ? scope.matrix.rows : scope.matrix.columns;
+        size(target.value);
+        return node(N, () => size(target.value));
+      }
+      if (!take(",")) throw invalid();
+      const row = numeric(or());
+      if (!take(",")) throw invalid();
+      const column = numeric(or());
+      if (!take(")")) throw invalid();
+      return node(N, (i, env) =>
+        scope.matrix.element(target.value, row(i, env), column(i, env)),
       );
     }
     const args = [];

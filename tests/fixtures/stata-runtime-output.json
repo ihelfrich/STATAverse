@@ -4325,6 +4325,121 @@
         { "command": "summarize y, meanonly", "lines": [] },
         { "command": "display r(mean)", "lines": ["13.858333"] }
       ]
+    },
+    {
+      "id": "matrices",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\nmatrix b = e(b)\nmatrix list b\nmatrix V = e(V)\nmatrix list V\nmatrix A = (1, 2.5 \\ -3, 4)\nmatrix list A\nmatrix C = J(2, 3, 0)\nmatrix list C\nmatrix I3 = I(3)\nmatrix list I3\nmatrix T = A'\nmatrix list T\ndisplay b[1,1]\ndisplay V[2,2]\ndisplay A[2,1] + 1\ndisplay rowsof(A) \" \" colsof(C)\ndisplay el(A, 1, 2)\nmatrix D = A\nmatrix drop A\ncapture noisily matrix list A\nmatrix list D\ncapture noisily matrix Z = nosuch\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        {
+          "command": "regress y x1 x2",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        12",
+            "-------------+----------------------------------   F(2, 9)         =   1576.48",
+            "       Model |  556.879577         2  278.439789   Prob > F        =    0.0000",
+            "    Residual |  1.58958956         9  .176621062   R-squared       =    0.9972",
+            "-------------+----------------------------------   Adj R-squared   =    0.9965",
+            "       Total |  558.469167        11  50.7699242   Root MSE        =    .42026",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.779353   .0894761    19.89   0.000     1.576944    1.981762",
+            "          x2 |    .411714   .1761495     2.34   0.044     .0132361    .8101919",
+            "       _cons |   .5702008   .3282093     1.74   0.116    -.1722603    1.312662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "matrix b = e(b)", "lines": [] },
+        {
+          "command": "matrix list b",
+          "lines": [
+            "b[1,3]",
+            "           x1         x2      _cons",
+            "y1  1.7793532    .411714  .57020076"
+          ]
+        },
+        { "command": "matrix V = e(V)", "lines": [] },
+        {
+          "command": "matrix list V",
+          "lines": [
+            "symmetric V[3,3]",
+            "               x1          x2       _cons",
+            "   x1   .00800597",
+            "   x2  -.01449451   .03102866",
+            "_cons   .00859653  -.03558893   .10772134"
+          ]
+        },
+        { "command": "matrix A = (1, 2.5 \\ -3, 4)", "lines": [] },
+        {
+          "command": "matrix list A",
+          "lines": ["A[2,2]", "     c1   c2", "r1    1  2.5", "r2   -3    4"]
+        },
+        { "command": "matrix C = J(2, 3, 0)", "lines": [] },
+        {
+          "command": "matrix list C",
+          "lines": [
+            "C[2,3]",
+            "    c1  c2  c3",
+            "r1   0   0   0",
+            "r2   0   0   0"
+          ]
+        },
+        { "command": "matrix I3 = I(3)", "lines": [] },
+        {
+          "command": "matrix list I3",
+          "lines": [
+            "symmetric I3[3,3]",
+            "    c1  c2  c3",
+            "r1   1",
+            "r2   0   1",
+            "r3   0   0   1"
+          ]
+        },
+        { "command": "matrix T = A'", "lines": [] },
+        {
+          "command": "matrix list T",
+          "lines": ["T[2,2]", "     r1   r2", "c1    1   -3", "c2  2.5    4"]
+        },
+        { "command": "display b[1,1]", "lines": ["1.7793532"] },
+        { "command": "display V[2,2]", "lines": [".03102866"] },
+        { "command": "display A[2,1] + 1", "lines": ["-2"] },
+        { "command": "display rowsof(A) \" \" colsof(C)", "lines": ["2 3"] },
+        { "command": "display el(A, 1, 2)", "lines": ["2.5"] },
+        { "command": "matrix D = A", "lines": [] },
+        { "command": "matrix drop A", "lines": [] },
+        {
+          "command": "capture noisily matrix list A",
+          "lines": ["matrix A not found"]
+        },
+        {
+          "command": "matrix list D",
+          "lines": ["D[2,2]", "     c1   c2", "r1    1  2.5", "r2   -3    4"]
+        },
+        {
+          "command": "capture noisily matrix Z = nosuch",
+          "lines": ["nosuch not found"]
+        }
+      ]
     }
   ]
 }

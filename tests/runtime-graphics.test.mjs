@@ -92,3 +92,17 @@ test("function plots draw a curve of an expression in x", () => {
   assert.equal(marks(last.graph.svg, "polyline"), 1);
   assert.equal(run("twoway function y = exp(-x), range(5 0)").result.rc, 198);
 });
+
+test("margins leaves r(b) and r(V) for matrix commands", () => {
+  const { session, result } = run(
+    "regress y c.x##c.g\nmargins, dydx(x) at(g=(1 3))\nmatrix b = r(b)\nmatrix V = r(V)\nlocal first = b[1,1]\nlocal se = sqrt(V[2,2])",
+  );
+  assert.equal(result.rc, 0);
+  const { points } = session.margins;
+  assert.equal(
+    Number(result.locals.get("first")).toFixed(10),
+    points[0].value.toFixed(10),
+  );
+  assert.ok(Number(result.locals.get("se")) > 0);
+  assert.equal(session.matrices.get("V").values.length, 2);
+});

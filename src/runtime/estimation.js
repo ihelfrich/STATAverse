@@ -99,13 +99,15 @@ export function design(session, text, rows, constant = true) {
     };
   for (const token of tokens.slice(1)) {
     if (token.includes("##")) {
-      const parts = token.split("##");
-      if (parts.length !== 2)
-        throw new StataError(`${token}: only two-way ## is available yet`, 198);
-      const pair = parts.map((part) => component(part, true));
-      add([pair[0]]);
-      add([pair[1]]);
-      add(pair);
+      // a##b##c is (a##b)##c: each new part is added on its own and
+      // crossed with every term so far, giving Stata's order
+      // a b a#b c a#c b#c a#b#c.
+      let expanded = [];
+      for (const part of token.split("##")) {
+        const next = component(part, true);
+        expanded = [...expanded, [next], ...expanded.map((t) => [...t, next])];
+      }
+      expanded.forEach(add);
     } else if (token.includes("#"))
       add(token.split("#").map((part) => component(part, true)));
     else if (/^(i|c)\./.test(token)) add([component(token, false)]);
@@ -232,6 +234,9 @@ export function design(session, text, rows, constant = true) {
         .forEach((column) => {
           column.base = !independent(column);
         });
+    // A product of continuous variables joins the columns later cells are
+    // tested against.
+    else made.forEach((column) => independent(column));
     columns.push(...made);
   }
   return { dependent, columns, sample };

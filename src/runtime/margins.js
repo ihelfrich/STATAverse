@@ -372,7 +372,29 @@ function margins(session, text, ctx) {
     );
   ctx.out("");
   const values = results.filter((r) => !r.group && !r.heading);
-  session.results.r = { N: n, level };
+  // r(b) and r(V): the estimates and their covariance, from the same
+  // gradients that gave the standard errors.
+  const labels = values.map((r, j) => (r.wrt ?? r.label.trim()) || `m${j + 1}`),
+    covariance = values.map((a) =>
+      values.map((b2) =>
+        a.gradient.reduce(
+          (t, ga, i) =>
+            t +
+            ga * b2.gradient.reduce((u, gb, j) => u + model.V[i][j] * gb, 0),
+          0,
+        ),
+      ),
+    );
+  session.results.r = {
+    N: n,
+    level,
+    "matrix:b": {
+      rowNames: ["r1"],
+      colNames: labels,
+      values: [values.map((r) => r.value)],
+    },
+    "matrix:V": { rowNames: labels, colNames: labels, values: covariance },
+  };
   // Kept for marginsplot: each estimate with its interval and where it
   // sits on the horizontal axis.
   const varying = atNames.find(

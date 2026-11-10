@@ -1079,3 +1079,11 @@ quietly centile y, centile(10 50 90)
 local c1 = round(r(c_1), 1e-6)
 local c2 = round(r(c_2), 1e-6)
 local n = r(N)
+=== interaction-three-way | e: N df_m rss | matrices: e(b) e(V)
+@EST
+generate double z = mod(_n, 3) + x2 / 10
+regress y c.x1##c.x2##c.z
+=== interaction-three-way-factor | e: N df_m rss | matrices: e(b)
+@EST
+generate byte h = mod(_n, 2)
+regress y i.h##c.x1##c.x2
