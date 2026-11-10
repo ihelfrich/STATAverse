@@ -22,6 +22,9 @@ import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { QUANTILE_COMMANDS } from "./quantile.js";
 import { RESAMPLING_COMMANDS } from "./resampling.js";
 import { MORE_DATA_COMMANDS } from "./more-data.js";
+import { TABLE_COMMANDS } from "./tables.js";
+import { GLM_COMMANDS } from "./glm.js";
+import { TIMESERIES_COMMANDS } from "./timeseries.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
@@ -1135,8 +1138,18 @@ function egen(session, text, ctx) {
   if (label) data.get(name).label = label;
 }
 
-function collapse(session, text) {
-  const [head, optionSplit] = splitAtComma(text),
+function collapse(session, text, ctx) {
+  const [fullHead, optionSplit] = splitAtComma(text),
+    // [aweight=exp] and the like, wherever it stands before the comma.
+    weightClause = /\[\s*([A-Za-z]+)\s*=\s*([^\]]+)\]/.exec(fullHead),
+    head = weightClause ? fullHead.replace(weightClause[0], " ") : fullHead,
+    weightType = weightClause
+      ? ["fweight", "aweight", "pweight", "iweight"].find(
+          (name) =>
+            name.startsWith(weightClause[1].toLowerCase()) &&
+            weightClause[1].length >= 2,
+        )
+      : null,
     optionText = optionSplit ?? "",
     parsed = session.parse(
       "[if] [in] [, BY(varlist) CW Fast]",
@@ -1163,6 +1176,66 @@ function collapse(session, text) {
         targets.push({ name: source, source, stat });
   }
   if (!targets.length) throw new StataError("varlist required", 100);
+  if (weightClause && !weightType)
+    throw new StataError(`${weightClause[1]} is not a kind of weight`, 198);
+  const weights = weightType
+    ? evaluateAll(session.compile(weightClause[2]), data.n)
+    : null;
+  if (weights?.some((w) => !isMissing(w) && w < 0))
+    throw new StataError("negative weights encountered", 402);
+  if (
+    weightType === "fweight" &&
+    weights.some((w) => !isMissing(w) && !Number.isInteger(w))
+  )
+    throw new StataError("may not use noninteger frequency weights", 401);
+  const unweighted = ["count", "min", "max", "first", "last"];
+  if (weightType && weightType !== "fweight") {
+    const refused = targets.find(
+      (t) =>
+        !unweighted.includes(t.stat) &&
+        !["mean", "sum", "total"].includes(t.stat) &&
+        !(t.stat === "sd" && weightType === "aweight"),
+    );
+    if (refused)
+      throw new StataError(
+        `(${refused.stat}) with ${weightType}s is not available yet`,
+        198,
+      );
+    if (weightType === "aweight" && targets.some((t) => t.stat === "count"))
+      ctx.out("(note: aweights not used to compute counts)");
+  }
+  /** One statistic of a column over a group of rows, with any weights. */
+  const weighted = (stat, column, group) => {
+    const use = group.filter(
+      (i) =>
+        !isMissing(column[i]) &&
+        (!weights || (!isMissing(weights[i]) && weights[i] !== 0)),
+    );
+    if (!weights || (unweighted.includes(stat) && weightType !== "fweight"))
+      return statistic(stat)(
+        weights ? use.map((i) => column[i]) : present(column, group),
+      );
+    if (weightType === "fweight")
+      return statistic(stat)(
+        use.flatMap((i) => new Array(weights[i]).fill(column[i])),
+      );
+    if (!use.length) return stat === "mean" || stat === "sd" ? MISSING : 0;
+    const sumW = use.reduce((t, i) => t + weights[i], 0),
+      sumWX = use.reduce((t, i) => t + weights[i] * column[i], 0),
+      mean = sumWX / sumW;
+    if (stat === "mean") return mean;
+    // An analytic weight is rescaled to sum to the group's size; a
+    // sampling weight is used as it is.
+    if (stat === "sum" || stat === "total")
+      return weightType === "aweight" ? mean * use.length : sumWX;
+    return use.length > 1
+      ? Math.sqrt(
+          (use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
+            sumW) *
+            (use.length / (use.length - 1)),
+        )
+      : MISSING;
+  };
   const names = targets.map((t) => t.name);
   if (new Set(names).size !== names.length)
     throw new StataError("a target variable is named twice", 198);
@@ -1209,14 +1282,15 @@ function collapse(session, text) {
   for (const target of targets) {
     const column = numericColumn(session, target.source),
       source = data.get(target.source),
-      fn = statistic(target.stat),
-      values = order.map((group) => fn(present(column, group)));
+      values = order.map((group) => weighted(target.stat, column, group));
     // Counts are stored as long and extremes keep the source type. Other
     // statistics are double when the source is double or long (or a sum),
     // and float otherwise.
     const type =
       target.stat === "count"
-        ? "long"
+        ? weightType === "fweight"
+          ? "double"
+          : "long"
         : ["min", "max", "first", "last"].includes(target.stat)
           ? source.type
           : ["sum", "total"].includes(target.stat) ||
@@ -1349,6 +1423,9 @@ export const COMMANDS = [
   ...QUANTILE_COMMANDS,
   ...RESAMPLING_COMMANDS,
   ...MORE_DATA_COMMANDS,
+  ...TABLE_COMMANDS,
+  ...GLM_COMMANDS,
+  ...TIMESERIES_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   ...DELIMITED_COMMANDS,

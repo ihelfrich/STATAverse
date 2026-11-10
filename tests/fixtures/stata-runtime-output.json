@@ -8519,6 +8519,813 @@
       ]
     },
     {
+      "id": "tables-anova",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate t = _n\ngenerate w = 1 + mod(_n, 4) / 2\ngenerate byte fw = 1 + mod(_n, 2)\ntable grp\ntable grp d\ntable grp, statistic(mean z)\ntable grp, statistic(mean z) statistic(sd z) statistic(count z)\ntable grp d, statistic(mean z)\ntable d, statistic(median x1) statistic(min x1) statistic(max x1) statistic(total n)\ntable grp if x1 > 3, statistic(frequency) statistic(percent)\ntable d grp, statistic(sd x2)\nproportion grp\nproportion d, level(90)\nproportion fw if x1 > 2\nanova z grp\nanova z grp d\nanova z grp##d\nanova x1 d fw d#fw\nanova z grp c.x1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate w = 1 + mod(_n, 4) / 2", "lines": [] },
+        { "command": "generate byte fw = 1 + mod(_n, 2)", "lines": [] },
+        {
+          "command": "table grp",
+          "lines": [
+            "--------------------",
+            "        |  Frequency",
+            "--------+-----------",
+            "grp     |",
+            "  1     |          6",
+            "  2     |          7",
+            "  3     |          7",
+            "  Total |         20",
+            "--------------------"
+          ]
+        },
+        {
+          "command": "table grp d",
+          "lines": [
+            "-------------------------",
+            "        |         d",
+            "        |  0    1   Total",
+            "--------+----------------",
+            "grp     |",
+            "  1     |  3    3       6",
+            "  2     |  1    6       7",
+            "  3     |  4    3       7",
+            "  Total |  8   12      20",
+            "-------------------------"
+          ]
+        },
+        {
+          "command": "table grp, statistic(mean z)",
+          "lines": [
+            "-------------------",
+            "        |      Mean",
+            "--------+----------",
+            "grp     |",
+            "  1     |  2.666667",
+            "  2     |         4",
+            "  3     |  4.857143",
+            "  Total |       3.9",
+            "-------------------"
+          ]
+        },
+        {
+          "command": "table grp, statistic(mean z) statistic(sd z) statistic(count z)",
+          "lines": [
+            "----------------------------------------------------------------------",
+            "        |      Mean   Standard deviation   Number of nonmissing values",
+            "--------+-------------------------------------------------------------",
+            "grp     |",
+            "  1     |  2.666667              1.21106                             6",
+            "  2     |         4             1.632993                             7",
+            "  3     |  4.857143             2.410295                             7",
+            "  Total |       3.9              1.97084                            20",
+            "----------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table grp d, statistic(mean z)",
+          "lines": [
+            "-----------------------------------------",
+            "        |                 d",
+            "        |         0          1      Total",
+            "--------+--------------------------------",
+            "grp     |",
+            "  1     |  2.666667   2.666667   2.666667",
+            "  2     |         3   4.166667          4",
+            "  3     |      3.25          7   4.857143",
+            "  Total |         3        4.5        3.9",
+            "-----------------------------------------"
+          ]
+        },
+        {
+          "command": "table d, statistic(median x1) statistic(min x1) statistic(max x1) statistic(total n)",
+          "lines": [
+            "---------------------------------------------------------",
+            "        |  Median   Minimum value   Maximum value   Total",
+            "        |      x1              x1              x1       n",
+            "--------+------------------------------------------------",
+            "d       |",
+            "  0     |       3               1             6.9      16",
+            "  1     |    6.15             2.2             9.4      73",
+            "  Total |    4.95               1             9.4      89",
+            "---------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table grp if x1 > 3, statistic(frequency) statistic(percent)",
+          "lines": [
+            "------------------------------",
+            "        |  Frequency   Percent",
+            "--------+---------------------",
+            "grp     |",
+            "  1     |          5     33.33",
+            "  2     |          5     33.33",
+            "  3     |          5     33.33",
+            "  Total |         15    100.00",
+            "------------------------------"
+          ]
+        },
+        {
+          "command": "table d grp, statistic(sd x2)",
+          "lines": [
+            "----------------------------------------------------",
+            "        |                     grp",
+            "        |         1          2          3      Total",
+            "--------+-------------------------------------------",
+            "d       |",
+            "  0     |  1.193035          .   .6551081   .7704359",
+            "  1     |  1.021437   1.215593    .321455     1.1828",
+            "  Total |  1.030372   1.110555   .8957572   1.027964",
+            "----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion grp",
+          "lines": [
+            "Proportion estimation                       Number of obs = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "         grp |",
+            "          1  |         .3   .1024695      .1337051    .5433889",
+            "          2  |        .35   .1066536      .1679447    .5895694",
+            "          3  |        .35   .1066536      .1679447    .5895694",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion d, level(90)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           d |",
+            "          0  |         .4   .1095445      .2324189    .5947826",
+            "          1  |         .6   .1095445      .4052174    .7675811",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion fw if x1 > 2",
+          "lines": [
+            "Proportion estimation                       Number of obs = 17",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "          fw |",
+            "          1  |   .5294118   .1210578      .2865282     .759122",
+            "          2  |   .4705882   .1210578       .240878    .7134718",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "anova z grp",
+          "lines": [
+            "                         Number of obs =         20    R-squared     =  0.2115",
+            "                         Root MSE      =    1.85013    Adj R-squared =  0.1187",
+            "",
+            "                  Source | Partial SS         df         MS        F    Prob>F",
+            "              -----------+----------------------------------------------------",
+            "                   Model |  15.609524          2   7.8047619      2.28  0.1327",
+            "                         |",
+            "                     grp |  15.609524          2   7.8047619      2.28  0.1327",
+            "                         |",
+            "                Residual |  58.190476         17   3.4229692",
+            "              -----------+----------------------------------------------------",
+            "                   Total |       73.8         19   3.8842105"
+          ]
+        },
+        {
+          "command": "anova z grp d",
+          "lines": [
+            "                         Number of obs =         20    R-squared     =  0.3952",
+            "                         Root MSE      =    1.67027    Adj R-squared =  0.2818",
+            "",
+            "                  Source | Partial SS         df         MS        F    Prob>F",
+            "              -----------+----------------------------------------------------",
+            "                   Model |  29.163409          3   9.7211362      3.48  0.0406",
+            "                         |",
+            "                     grp |  18.363409          2   9.1817043      3.29  0.0635",
+            "                       d |  13.553885          1   13.553885      4.86  0.0425",
+            "                         |",
+            "                Residual |  44.636591         16    2.789787",
+            "              -----------+----------------------------------------------------",
+            "                   Total |       73.8         19   3.8842105"
+          ]
+        },
+        {
+          "command": "anova z grp##d",
+          "lines": [
+            "                         Number of obs =         20    R-squared     =  0.5540",
+            "                         Root MSE      =    1.53336    Adj R-squared =  0.3947",
+            "",
+            "                  Source | Partial SS         df         MS        F    Prob>F",
+            "              -----------+----------------------------------------------------",
+            "                   Model |  40.883333          5   8.1766667      3.48  0.0298",
+            "                         |",
+            "                     grp |  19.760025          2   9.8800125      4.20  0.0372",
+            "                       d |  10.002874          1   10.002874      4.25  0.0582",
+            "                   grp#d |  11.719925          2   5.8599624      2.49  0.1186",
+            "                         |",
+            "                Residual |  32.916667         14   2.3511905",
+            "              -----------+----------------------------------------------------",
+            "                   Total |       73.8         19   3.8842105"
+          ]
+        },
+        {
+          "command": "anova x1 d fw d#fw",
+          "lines": [
+            "                         Number of obs =         20    R-squared     =  0.3289",
+            "                         Root MSE      =    2.24354    Adj R-squared =  0.2030",
+            "",
+            "                  Source | Partial SS         df         MS        F    Prob>F",
+            "              -----------+----------------------------------------------------",
+            "                   Model |  39.462762          3   13.154254      2.61  0.0870",
+            "                         |",
+            "                       d |  38.494414          1   38.494414      7.65  0.0138",
+            "                      fw |  .33163147          1   .33163147      0.07  0.8007",
+            "                    d#fw |  .89919669          1   .89919669      0.18  0.6782",
+            "                         |",
+            "                Residual |  80.535238         16   5.0334524",
+            "              -----------+----------------------------------------------------",
+            "                   Total |    119.998         19   6.3156842"
+          ]
+        },
+        {
+          "command": "anova z grp c.x1",
+          "lines": [
+            "                         Number of obs =         20    R-squared     =  0.4320",
+            "                         Root MSE      =    1.61855    Adj R-squared =  0.3256",
+            "",
+            "                  Source | Partial SS         df         MS        F    Prob>F",
+            "              -----------+----------------------------------------------------",
+            "                   Model |  31.884835          3   10.628278      4.06  0.0254",
+            "                         |",
+            "                     grp |  14.235871          2   7.1179354      2.72  0.0964",
+            "                      x1 |  16.275311          1   16.275311      6.21  0.0240",
+            "                         |",
+            "                Residual |  41.915165         16   2.6196978",
+            "              -----------+----------------------------------------------------",
+            "                   Total |       73.8         19   3.8842105"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "glm-models",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate t = _n\ngenerate w = 1 + mod(_n, 4) / 2\ngenerate byte fw = 1 + mod(_n, 2)\nglm z x1 x2\nglm d x1 x2, family(binomial)\nglm n x1 x2, family(poisson)\nglm d x1 x2, family(binomial) link(probit)\nglm d x1, family(binomial) link(cloglog) nolog\nglm n x1 if d == 1, family(poisson) level(90)\ncloglog d x1 x2\ncloglog d x1, nolog level(90)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate w = 1 + mod(_n, 4) / 2", "lines": [] },
+        { "command": "generate byte fw = 1 + mod(_n, 2)", "lines": [] },
+        {
+          "command": "glm z x1 x2",
+          "lines": [
+            "Iteration 0:  Log likelihood = -16.408662",
+            "",
+            "Generalized linear models                         Number of obs   =         20",
+            "Optimization     : ML                             Residual df     =         17",
+            "                                                  Scale parameter =   .3554069",
+            "Deviance         =  6.041917097                   (1/df) Deviance =   .3554069",
+            "Pearson          =  6.041917097                   (1/df) Pearson  =   .3554069",
+            "",
+            "Variance function: V(u) = 1                       [Gaussian]",
+            "Link function    : g(u) = u                       [Identity]",
+            "",
+            "                                                  AIC             =   1.940866",
+            "Log likelihood   = -16.40866155                   BIC             =  -44.88553",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           z | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736   .0551513     5.03   0.000      .169279    .3854682",
+            "          x2 |   1.600971   .1348304    11.87   0.000     1.336708    1.865234",
+            "       _cons |  -.9717534   .3922387    -2.48   0.013    -1.740527   -.2029797",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm d x1 x2, family(binomial)",
+          "lines": [
+            "Iteration 0:  Log likelihood = -9.7456692",
+            "Iteration 1:  Log likelihood = -9.6598642",
+            "Iteration 2:  Log likelihood = -9.6598297",
+            "Iteration 3:  Log likelihood = -9.6598297",
+            "",
+            "Generalized linear models                         Number of obs   =         20",
+            "Optimization     : ML                             Residual df     =         17",
+            "                                                  Scale parameter =          1",
+            "Deviance         =  19.31965938                   (1/df) Deviance =   1.136451",
+            "Pearson          =  18.05675976                   (1/df) Pearson  =   1.062162",
+            "",
+            "Variance function: V(u) = u*(1-u)                 [Bernoulli]",
+            "Link function    : g(u) = ln(u/(1-u))             [Logit]",
+            "",
+            "                                                  AIC             =   1.265983",
+            "Log likelihood   = -9.659829692                   BIC             =  -31.60779",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6361992   .2955838     2.15   0.031     .0568656    1.215533",
+            "          x2 |   .2592395   .5476942     0.47   0.636    -.8142214      1.3327",
+            "       _cons |   -3.10253   1.862374    -1.67   0.096    -6.752716    .5476555",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm n x1 x2, family(poisson)",
+          "lines": [
+            "Iteration 0:  Log likelihood =  -35.67416",
+            "Iteration 1:  Log likelihood = -35.468454",
+            "Iteration 2:  Log likelihood =  -35.46816",
+            "Iteration 3:  Log likelihood =  -35.46816",
+            "",
+            "Generalized linear models                         Number of obs   =         20",
+            "Optimization     : ML                             Residual df     =         17",
+            "                                                  Scale parameter =          1",
+            "Deviance         =  12.09664279                   (1/df) Deviance =   .7115672",
+            "Pearson          =  9.839153949                   (1/df) Pearson  =   .5787738",
+            "",
+            "Variance function: V(u) = u                       [Poisson]",
+            "Link function    : g(u) = ln(u)                   [Log]",
+            "",
+            "                                                  AIC             =   3.846816",
+            "Log likelihood   = -35.46815965                   BIC             =  -38.83081",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           n | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2864064   .0493037     5.81   0.000     .1897729    .3830398",
+            "          x2 |  -.0147621   .1108136    -0.13   0.894    -.2319527    .2024285",
+            "       _cons |  -.1491795   .3739152    -0.40   0.690    -.8820398    .5836807",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm d x1 x2, family(binomial) link(probit)",
+          "lines": [
+            "Iteration 0:  Log likelihood = -9.7141332",
+            "Iteration 1:  Log likelihood = -9.6213858",
+            "Iteration 2:  Log likelihood = -9.6213574",
+            "Iteration 3:  Log likelihood = -9.6213574",
+            "",
+            "Generalized linear models                         Number of obs   =         20",
+            "Optimization     : ML                             Residual df     =         17",
+            "                                                  Scale parameter =          1",
+            "Deviance         =  19.24271485                   (1/df) Deviance =   1.131924",
+            "Pearson          =   17.8946149                   (1/df) Pearson  =   1.052624",
+            "",
+            "Variance function: V(u) = u*(1-u)                 [Bernoulli]",
+            "Link function    : g(u) = invnorm(u)              [Probit]",
+            "",
+            "                                                  AIC             =   1.262136",
+            "Log likelihood   = -9.621357424                   BIC             =  -31.68473",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3798325   .1633394     2.33   0.020     .0596932    .6999717",
+            "          x2 |   .1567492   .3253741     0.48   0.630    -.4809723    .7944707",
+            "       _cons |  -1.856845   1.037788    -1.79   0.074    -3.890873    .1771824",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm d x1, family(binomial) link(cloglog) nolog",
+          "lines": [
+            "Generalized linear models                         Number of obs   =         20",
+            "Optimization     : ML                             Residual df     =         18",
+            "                                                  Scale parameter =          1",
+            "Deviance         =  19.60623372                   (1/df) Deviance =   1.089235",
+            "Pearson          =  17.74346266                   (1/df) Pearson  =   .9857479",
+            "",
+            "Variance function: V(u) = u*(1-u)                 [Bernoulli]",
+            "Link function    : g(u) = ln(-ln(1-u))            [Complementary log–log]",
+            "",
+            "                                                  AIC             =   1.180312",
+            "Log likelihood   = -9.803116859                   BIC             =  -34.31695",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3890177   .1691757     2.30   0.021     .0574394    .7205961",
+            "       _cons |    -2.0222   .9743314    -2.08   0.038    -3.931855    -.112546",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm n x1 if d == 1, family(poisson) level(90)",
+          "lines": [
+            "Iteration 0:  Log likelihood = -22.786194",
+            "Iteration 1:  Log likelihood = -22.749334",
+            "Iteration 2:  Log likelihood =  -22.74932",
+            "Iteration 3:  Log likelihood =  -22.74932",
+            "",
+            "Generalized linear models                         Number of obs   =         12",
+            "Optimization     : ML                             Residual df     =         10",
+            "                                                  Scale parameter =          1",
+            "Deviance         =  3.010871516                   (1/df) Deviance =   .3010872",
+            "Pearson          =  3.008314299                   (1/df) Pearson  =   .3008314",
+            "",
+            "Variance function: V(u) = u                       [Poisson]",
+            "Link function    : g(u) = ln(u)                   [Log]",
+            "",
+            "                                                  AIC             =   4.124887",
+            "Log likelihood   = -22.74932002                   BIC             =  -21.83819",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           n | Coefficient  std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2227458   .0609409     3.66   0.000      .122507    .3229847",
+            "       _cons |   .3305748   .4464582     0.74   0.459    -.4037835    1.064933",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "cloglog d x1 x2",
+          "lines": [
+            "Iteration 0:  Log likelihood =  -12.63839",
+            "Iteration 1:  Log likelihood = -9.6020361",
+            "Iteration 2:  Log likelihood = -9.4753311",
+            "Iteration 3:  Log likelihood = -9.4747288",
+            "Iteration 4:  Log likelihood = -9.4747287",
+            "",
+            "Complementary log–log regression                Number of obs     =         20",
+            "                                                Zero outcomes     =          8",
+            "                                                Nonzero outcomes  =         12",
+            "",
+            "                                                LR chi2(2)        =       7.97",
+            "Log likelihood = -9.4747287                     Prob > chi2       =     0.0186",
+            "",
+            "------------------------------------------------------------------------------",
+            "           d | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    .414007   .1894192     2.19   0.029     .0427521    .7852619",
+            "          x2 |   .3336833   .4228065     0.79   0.430    -.4950022    1.162369",
+            "       _cons |  -2.829903   1.532372    -1.85   0.065    -5.833297    .1734911",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "cloglog d x1, nolog level(90)",
+          "lines": [
+            "Complementary log–log regression                Number of obs     =         20",
+            "                                                Zero outcomes     =          8",
+            "                                                Nonzero outcomes  =         12",
+            "",
+            "                                                LR chi2(1)        =       7.31",
+            "Log likelihood = -9.8031169                     Prob > chi2       =     0.0068",
+            "",
+            "------------------------------------------------------------------------------",
+            "           d | Coefficient  Std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3890177   .1691757     2.30   0.021     .1107484     .667287",
+            "       _cons |    -2.0222   .9743313    -2.08   0.038    -3.624832   -.4195677",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "timeseries",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate t = _n\ngenerate w = 1 + mod(_n, 4) / 2\ngenerate byte fw = 1 + mod(_n, 2)\ntsset t\ncorrgram z, lags(6)\ncorrgram x1\ncorrgram n, lags(4)\ntssmooth ma zs = z, window(2 1 2)\ntssmooth ma zs2 = z, window(3)\ntssmooth ma zs3 = z, window(0 1 3)\ntssmooth exponential ze = z, parms(.4)\ntssmooth exponential xe = x1, parms(.25)\nlist z zs zs2 zs3 ze xe in 1/8\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate w = 1 + mod(_n, 4) / 2", "lines": [] },
+        { "command": "generate byte fw = 1 + mod(_n, 2)", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 20", "        Delta: 1 unit"]
+        },
+        {
+          "command": "corrgram z, lags(6)",
+          "lines": [
+            "                                          -1       0       1 -1       0       1",
+            " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+            "-------------------------------------------------------------------------------",
+            "1       -0.2508  -0.3265   1.4568  0.2274        --|                --|",
+            "2        0.0905  -0.0233   1.6571  0.4367          |                  |",
+            "3        0.2001   0.4245   2.6938  0.4413          |-                 |---",
+            "4        0.0780   0.5165   2.8613  0.5813          |                  |----",
+            "5       -0.1280   0.0806   3.3423  0.6474         -|                  |",
+            "6        0.1211   0.1152   3.8034  0.7033          |                  |"
+          ]
+        },
+        {
+          "command": "corrgram x1",
+          "lines": [
+            "                                          -1       0       1 -1       0       1",
+            " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+            "-------------------------------------------------------------------------------",
+            "1        0.8349   1.0141   16.144  0.0001          |------            |--------",
+            "2        0.6826   0.6735   27.535  0.0000          |-----             |-----",
+            "3        0.5456   0.5322   35.238  0.0000          |----              |----",
+            "4        0.4001  -0.5244   39.641  0.0000          |---           ----|",
+            "5        0.2790   0.1350   41.924  0.0000          |--                |-",
+            "6        0.1516  -0.2734   42.647  0.0000          |-               --|",
+            "7        0.0374  -0.5896   42.694  0.0000          |              ----|",
+            "8       -0.0657  -1.0402   42.853  0.0000          |          --------|"
+          ]
+        },
+        {
+          "command": "corrgram n, lags(4)",
+          "lines": [
+            "                                          -1       0       1 -1       0       1",
+            " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+            "-------------------------------------------------------------------------------",
+            "1        0.6277   0.7532   9.1244  0.0025          |-----             |------",
+            "2        0.6209   0.9456   18.547  0.0001          |----              |-------",
+            "3        0.3564   0.4345   21.834  0.0001          |--                |---",
+            "4        0.4237   0.8613   26.772  0.0000          |---               |------"
+          ]
+        },
+        {
+          "command": "tssmooth ma zs = z, window(2 1 2)",
+          "lines": [
+            "The smoother applied was",
+            "     (1/5)*[x(t-2) + x(t-1) + 1*x(t) + x(t+1) + x(t+2)]; x(t)= z",
+            "Note: Missing values are given a weight of zero in the smoother."
+          ]
+        },
+        {
+          "command": "tssmooth ma zs2 = z, window(3)",
+          "lines": [
+            "The smoother applied was",
+            "     (1/3)*[x(t-3) + x(t-2) + x(t-1) + 0*x(t)]; x(t)= z",
+            "Note: Missing values are given a weight of zero in the smoother."
+          ]
+        },
+        {
+          "command": "tssmooth ma zs3 = z, window(0 1 3)",
+          "lines": [
+            "The smoother applied was",
+            "     (1/4)*[1*x(t) + x(t+1) + x(t+2) + x(t+3)]; x(t)= z",
+            "Note: Missing values are given a weight of zero in the smoother."
+          ]
+        },
+        {
+          "command": "tssmooth exponential ze = z, parms(.4)",
+          "lines": [
+            "exponential coefficient  =       0.4000",
+            "sum-of-squared residuals =       88.394",
+            "root mean squared error  =       2.1023"
+          ]
+        },
+        {
+          "command": "tssmooth exponential xe = x1, parms(.25)",
+          "lines": [
+            "exponential coefficient  =       0.2500",
+            "sum-of-squared residuals =       39.382",
+            "root mean squared error  =       1.4032"
+          ]
+        },
+        {
+          "command": "list z zs zs2 zs3 ze xe in 1/8",
+          "lines": [
+            "     +------------------------------------------------------+",
+            "     | z         zs        zs2    zs3         ze         xe |",
+            "     |------------------------------------------------------|",
+            "  1. | 3   2.666667          .    2.5        3.2       2.91 |",
+            "  2. | 1        2.5          3      3       3.12     2.4325 |",
+            "  3. | 4          3          2   3.25      2.272   2.199375 |",
+            "  4. | 2        2.8   2.666667   3.75     2.9632   2.149531 |",
+            "  5. | 5        3.8   2.333333      4    2.57792   2.162148 |",
+            "     |------------------------------------------------------|",
+            "  6. | 2        3.6   3.666667      3   3.546752   2.346611 |",
+            "  7. | 6        3.4          3   3.75   2.928051   2.534958 |",
+            "  8. | 3        3.4   4.333333   3.25   4.156831   2.751219 |",
+            "     +------------------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "collapse-weights",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate t = _n\ngenerate w = 1 + mod(_n, 4) / 2\ngenerate byte fw = 1 + mod(_n, 2)\nformat x1 %12.0g\npreserve\ncollapse (mean) mz=z mx=x1 (sd) sz=z (sum) tz=z (count) nz=z (max) hz=z [aweight=w], by(grp)\nlist\ndescribe\nrestore\npreserve\ncollapse (mean) mz=z (sd) sz=z (sum) tz=z (count) nz=z (median) dz=z [fweight=fw], by(grp)\nlist\nrestore\npreserve\ncollapse (mean) z x1 [aweight=w]\nlist\nrestore\ncollapse (mean) mz=z (sum) tz=z [pweight=w], by(d)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate w = 1 + mod(_n, 4) / 2", "lines": [] },
+        { "command": "generate byte fw = 1 + mod(_n, 2)", "lines": [] },
+        { "command": "format x1 %12.0g", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (mean) mz=z mx=x1 (sd) sz=z (sum) tz=z (count) nz=z (max) hz=z [aweight=w], by(grp)",
+          "lines": ["(note: aweights not used to compute counts)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------------+",
+            "     | grp          mz            mx          sz          tz   nz   hz |",
+            "     |-----------------------------------------------------------------|",
+            "  1. |   1   2.6521739   4.908695652   1.1470353   15.913043    6    4 |",
+            "  2. |   2   4.3333333             5   1.5796741   30.333333    7    6 |",
+            "  3. |   3   4.6521739   5.026086957   2.3751762   32.565217    7    8 |",
+            "     +-----------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "grp             byte    %8.0g",
+            "mz              double  %10.0g                (mean) z",
+            "mx              double  %12.0g                (mean) x1",
+            "sz              double  %10.0g                (sd) z",
+            "tz              double  %10.0g                (sum) z",
+            "nz              long    %10.0g                (count) z",
+            "hz              double  %10.0g                (max) z",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: grp",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (mean) mz=z (sd) sz=z (sum) tz=z (count) nz=z (median) dz=z [fweight=fw], by(grp)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------------------------+",
+            "     | grp          mz          sz   tz   nz   dz |",
+            "     |--------------------------------------------|",
+            "  1. |   1   2.5555556   1.2360331   23    9    2 |",
+            "  2. |   2           4   1.6124515   44   11    5 |",
+            "  3. |   3         4.9   2.0248457   49   10    5 |",
+            "     +--------------------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (mean) z x1 [aweight=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------+",
+            "     |         z            x1 |",
+            "     |-------------------------|",
+            "  1. | 3.8857143   4.978571429 |",
+            "     +-------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "collapse (mean) mz=z (sum) tz=z [pweight=w], by(d)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     | d          mz   tz |",
+            "     |--------------------|",
+            "  1. | 0   2.9677419   46 |",
+            "  2. | 1   4.6153846   90 |",
+            "     +--------------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

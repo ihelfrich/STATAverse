@@ -1,23 +1,8 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 166,
+  "run": 177,
   "refused": [
-    {
-      "command": "table sector",
-      "rc": 199,
-      "message": "command table is unrecognized r(199);"
-    },
-    {
-      "command": "table sector, statistic(mean wage)",
-      "rc": 199,
-      "message": "command table is unrecognized r(199);"
-    },
-    {
-      "command": "proportion sectorn",
-      "rc": 199,
-      "message": "command proportion is unrecognized r(199);"
-    },
     {
       "command": "inspect wage",
       "rc": 199,
@@ -47,11 +32,6 @@
       "command": "drawnorm z1 z2",
       "rc": 199,
       "message": "command drawnorm is unrecognized r(199);"
-    },
-    {
-      "command": "anova wage sectorn",
-      "rc": 199,
-      "message": "command anova is unrecognized r(199);"
     },
     {
       "command": "estat esample",
@@ -97,16 +77,6 @@
       "command": "hausman m1 m2",
       "rc": 498,
       "message": "                  ---- Coefficients ----              |      (b)          (B)            (b-B)     sqrt(diag(V_b-V_B))  "
-    },
-    {
-      "command": "cloglog high education",
-      "rc": 199,
-      "message": "command cloglog is unrecognized r(199);"
-    },
-    {
-      "command": "glm wage education, family(gaussian)",
-      "rc": 199,
-      "message": "command glm is unrecognized r(199);"
     },
     {
       "command": "reghdfe wage education, absorb(sectorn)",
@@ -184,26 +154,6 @@
       "message": "command dfuller is unrecognized r(199);"
     },
     {
-      "command": "corrgram wage",
-      "rc": 199,
-      "message": "command corrgram is unrecognized r(199);"
-    },
-    {
-      "command": "ac wage",
-      "rc": 199,
-      "message": "command ac is unrecognized r(199);"
-    },
-    {
-      "command": "pac wage",
-      "rc": 199,
-      "message": "command pac is unrecognized r(199);"
-    },
-    {
-      "command": "tssmooth ma w3 = wage, window(2 1 2)",
-      "rc": 199,
-      "message": "command tssmooth is unrecognized r(199);"
-    },
-    {
       "command": "permute high _b[high], reps(10): regress wage high",
       "rc": 199,
       "message": "command permute is unrecognized r(199);"
@@ -262,11 +212,6 @@
       "command": "describe using x",
       "rc": 101,
       "message": "using not allowed r(101);"
-    },
-    {
-      "command": "collapse (mean) wage [aweight=experience], by(sector)",
-      "rc": 198,
-      "message": "experience] invalid name r(198);"
     },
     {
       "command": "cross using x",
