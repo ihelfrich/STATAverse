@@ -140,3 +140,19 @@ test("number lists and variable lists reject malformed input", () => {
   assert.throws(() => expandVarlist("L.price", names), { code: 101 });
   assert.throws(() => expandVarlist("price-", names), { code: 198 });
 });
+
+test("an option listed after a bar is recognised and refused, not ignored", () => {
+  const declaration = "varlist [, Detail | ROW COLumn Level(cilevel)]";
+  assert.deepEqual(applySyntax(declaration, "price, detail", context).options, {
+    detail: true,
+  });
+  for (const line of ["price, row", "price, col", "price, level(90)"])
+    assert.throws(() => applySyntax(declaration, line, context), {
+      code: 198,
+      message: /not available in the browser yet/,
+    });
+  assert.throws(() => applySyntax(declaration, "price, bogus", context), {
+    code: 198,
+    message: /not allowed/,
+  });
+});

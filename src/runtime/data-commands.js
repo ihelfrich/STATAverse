@@ -102,7 +102,7 @@ function widerType(a, b) {
 }
 function append(session, text) {
   const parsed = session.parse(
-      "using/ [, GENerate(name) KEEP(string) FORCE noLabel noNOTEs]",
+      "using/ [, GENerate(name) FORCE | KEEP(string) noLabel noNOTEs]",
       text,
     ),
     other = load(session, fileName(parsed.using)),
@@ -186,7 +186,7 @@ function merge(session, text, ctx) {
   if (m[1] === "m:m")
     throw invalid("merge m:m is not available; it rarely does what is wanted");
   const parsed = session.parse(
-      "varlist using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) noLabel NOREPort UPDATE REPLACE FORCE]",
+      "varlist using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort | noLabel UPDATE REPLACE FORCE SORTED noNOTEs]",
       m[2],
     ),
     data = session.data,
@@ -560,7 +560,7 @@ function expandCommand(session, text, ctx) {
   if (!text.trim() || /^(if|in)\b/.test(text.trim()))
     throw new StataError("=exp required", 100);
   const parsed = session.parse(
-      "=exp [if] [in] [, Generate(name)]",
+      "=exp [if] [in] [, | Generate(name)]",
       "= " + text.replace(/^\s*=?/, ""),
     ),
     compiled = session.compile(parsed.exp),
@@ -672,7 +672,7 @@ function targets(parsed, action) {
 
 function destring(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [, Generate(string) replace force IGnore(string) PERCENT DPcomma]",
+      "[varlist] [, Generate(string) replace force IGnore(string) PERCENT | DPcomma FLOAT]",
       text,
     ),
     names = targets(parsed, "destring"),

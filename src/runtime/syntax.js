@@ -156,10 +156,17 @@ export function parseDeclaration(declaration) {
     else current += c;
   }
   push();
+  let unavailable = false;
   for (const element of elements) {
     const { text } = element;
     let m;
     if (element.inOptions) {
+      // Options after a bar are ones Stata has and this runtime does not
+      // act on yet. Naming one is refused, so it is never silently ignored.
+      if (text === "|") {
+        unavailable = true;
+        continue;
+      }
       if (text === "*") {
         parsed.star = true;
         continue;
@@ -188,7 +195,8 @@ export function parseDeclaration(declaration) {
             ? "asis"
             : kind,
         default: kind === "integer" || kind === "real" ? rest[0] : undefined,
-        required: !element.optional,
+        required: !element.optional && !unavailable,
+        unavailable,
       });
     } else if ((m = POSITIONAL.exec(text))) {
       const specs = {};
@@ -606,6 +614,11 @@ export function applySyntax(declaration, text, context) {
       continue;
     }
     const { option, on } = match;
+    if (option.unavailable)
+      throw new StataError(
+        `option ${option.name} is not available in the browser yet`,
+        198,
+      );
     if (seen.has(option))
       throw new StataError(`option ${option.name} not allowed`, 198);
     seen.add(option);
@@ -626,7 +639,7 @@ export function applySyntax(declaration, text, context) {
     }
   }
   for (const option of decl.options) {
-    if (seen.has(option)) continue;
+    if (seen.has(option) || option.unavailable) continue;
     if (option.required)
       throw new StataError(`option ${option.name}() required`, 198);
     if (option.kind === "cilevel") {

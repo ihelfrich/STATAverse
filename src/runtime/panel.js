@@ -176,7 +176,7 @@ function xtreg(session, text, ctx) {
   if (!panel?.id)
     throw new StataError("panel variable not set; use xtset varname ...", 459);
   const parsed = session.parse(
-      "anything [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel)]",
+      "anything [if] [in] [, FE RE Robust VCE(string) Level(cilevel) | BE MLE PA SA THeta]",
       text,
     ),
     options = parsed.options,
@@ -205,7 +205,6 @@ function xtreg(session, text, ctx) {
     groups = [...new Set(groupOf)],
     G = groups.length,
     members = new Map(groups.map((key) => [key, []]));
-  if (options.be) throw new StataError("xtreg, be is not available yet", 198);
   if (!N) throw new StataError("no observations", 2000);
   groupOf.forEach((key, i) => members.get(key).push(i));
   const sizes = groups.map((key) => members.get(key).length),

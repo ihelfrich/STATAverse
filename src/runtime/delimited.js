@@ -100,7 +100,7 @@ function changedSinceSave(session) {
 
 function importDelimited(session, text, ctx) {
   const parsed = session.parse(
-      "[anything] [using/] [, clear DELIMiters(string) VARNames(string) CASE(string) STRINGcols(string) ENCoding(string) BINDQuotes(string) STRIPQuotes(string) ROWRange(string) COLRange(string) ASDOUBle ASFLoat]",
+      "[anything] [using/] [, clear DELIMiters(string) VARNames(string) CASE(string) STRINGcols(string) ENCoding(string) ASDOUBle ASFLoat | BINDQuotes(string) STRIPQuotes(string) ROWRange(string) COLRange(string) NUMERICcols(string) DECIMALSeparator(string) GROUPSeparator(string)]",
       text,
     ),
     name = fileName(parsed.using ?? parsed.anything ?? ""),
@@ -208,7 +208,7 @@ function invalidOption(option) {
 
 function exportDelimited(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] using/ [if] [in] [, replace DELIMiter(string) NOVARNames NOLabel Quote DATAfmt]",
+      "[varlist] using/ [if] [in] [, replace DELIMiter(string) NOVARNames NOLabel Quote | DATAfmt]",
       text,
     ),
     name = fileName(parsed.using),

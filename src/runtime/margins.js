@@ -47,7 +47,7 @@ function margins(session, text, ctx) {
     );
   const [mean, slope, curve] = link,
     parsed = session.parse(
-      "[anything] [, DYdx(string) AT(string) ATMeans Level(cilevel) noSE POST]",
+      "[anything] [, DYdx(string) AT(string) ATMeans Level(cilevel) | noSE POST EYex(string) DYex(string) EYdx(string) OVER(varlist) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
       text,
     ),
     options = parsed.options,

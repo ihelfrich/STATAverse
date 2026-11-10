@@ -309,7 +309,7 @@ function twoway(session, text, ctx, single) {
 
 function histogram(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal TItle(string) XTItle(string) YTItle(string) *]",
+      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent TItle(string) XTItle(string) YTItle(string) * | NORMal KDENsity ADDLabels]",
       text,
     ),
     options = parsed.options,

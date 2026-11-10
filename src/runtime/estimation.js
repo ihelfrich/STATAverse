@@ -508,7 +508,7 @@ export function coefficientHeader(model, level, label = model.depvar) {
 
 function regress(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, noCONStant Robust VCE(string) Level(cilevel) noHEader Beta]",
+      "anything [if] [in] [, noCONStant Robust VCE(string) Level(cilevel) | noHEader Beta EForm(string) CLuster(varname) ABSorb(varname)]",
       text,
     ),
     model = fit(session, parsed, null),
@@ -593,7 +593,10 @@ export function estimates(session) {
 
 export function predict(session, text, ctx) {
   const model = estimates(session),
-    parsed = session.parse("newvarname [if] [in] [, XB Residuals STDP]", text),
+    parsed = session.parse(
+      "newvarname [if] [in] [, XB Residuals STDP | STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFITS SCores]",
+      text,
+    ),
     options = parsed.options,
     chosen = ["xb", "residuals", "stdp"].filter((name) => options[name]);
   if (chosen.length > 1)
@@ -777,7 +780,7 @@ export function lincom(session, text, ctx) {
 
 function correlate(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Covariance Means]",
+      "[varlist] [if] [in] [, Covariance | Means WRAP]",
       text,
     ),
     variables = parsed.varlist
@@ -878,7 +881,7 @@ delete TABSTAT.q;
 
 function tabstat(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(numeric) [if] [in] [, Statistics(string) BY(varname) Columns(string) noTotal Missing Format]",
+      "varlist(numeric) [if] [in] [, Statistics(string) BY(varname) Columns(string) noTotal | Missing Format LONGstub SAVE]",
       text,
     ),
     names = (parsed.options.statistics ?? "mean").split(/\s+/).filter(Boolean),

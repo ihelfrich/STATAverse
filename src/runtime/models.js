@@ -361,7 +361,7 @@ function ivregress(session, text, ctx) {
       198,
     );
   const parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) Level(cilevel) noCONStant SMALL First]",
+      "[if] [in] [, Robust VCE(string) Level(cilevel) | noCONStant SMALL First]",
       m[7],
     ),
     names = (part) => (part.trim() ? session.varlist(part) : []),

@@ -176,9 +176,9 @@
     {
       "file": "ScriptLibrary/scripts/winsorize-outliers.do",
       "commands": 1,
-      "rc": 199,
+      "rc": 111,
       "stoppedAt": "centile sales, centile(1 99)",
-      "message": "command centile is unrecognized"
+      "message": "variable sales not found"
     },
     {
       "file": "CodeLibrary/scripts/00_regression_plain_english.do",
@@ -187,10 +187,10 @@
     },
     {
       "file": "CodeLibrary/scripts/01_endogeneity_simulator.do",
-      "commands": 54,
-      "rc": 321,
-      "stoppedAt": "estat firststage",
-      "message": "estat firststage is not available yet"
+      "commands": 53,
+      "rc": 198,
+      "stoppedAt": "quietly ivregress 2sls y (x = z), vce(robust) first",
+      "message": "option first is not available in the browser yet"
     },
     {
       "file": "CodeLibrary/scripts/01b_endogeneity_intuition.do",
@@ -209,10 +209,10 @@
     },
     {
       "file": "CodeLibrary/scripts/03_anti_patterns.do",
-      "commands": 158,
-      "rc": 321,
-      "stoppedAt": "estat firststage",
-      "message": "estat firststage is not available yet"
+      "commands": 156,
+      "rc": 198,
+      "stoppedAt": "ivregress 2sls y (x = z_weak), first",
+      "message": "option first is not available in the browser yet"
     },
     {
       "file": "CodeLibrary/scripts/04_assumption_checker.do",

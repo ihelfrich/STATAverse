@@ -517,3 +517,10 @@ logit d c.x1##c.x2
 margins, dydx(x1)
 margins, dydx(x1) at(x2=(1 3))
 margins, dydx(x1) atmeans
+=== tabulate-chi2
+@EST
+generate byte h = mod(_n, 2)
+tabulate g h, chi2
+tabulate g cl, chi2
+summarize y, meanonly
+display r(mean)

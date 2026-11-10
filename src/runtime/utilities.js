@@ -46,7 +46,7 @@ function levelsof(session, text, ctx) {
 
 function ds(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [, HAS(string) NOT(string) Alpha Detail]",
+      "[varlist] [, HAS(string) NOT(string) Alpha | Detail Varwidth(integer 12) Skip(integer 2)]",
       text,
     ),
     filter = (spec, keep) => (variable) => {
@@ -297,7 +297,7 @@ function six(value) {
 
 function codebook(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Compact Header Notes Mv Tabulate(integer 9) Problems Detail]",
+      "[varlist] [if] [in] [, Compact Tabulate(integer 9) | Header Notes Mv Problems Detail]",
       text,
     ),
     data = session.data,

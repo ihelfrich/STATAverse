@@ -4266,6 +4266,65 @@
           ]
         }
       ]
+    },
+    {
+      "id": "tabulate-chi2",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngenerate byte h = mod(_n, 2)\ntabulate g h, chi2\ntabulate g cl, chi2\nsummarize y, meanonly\ndisplay r(mean)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        { "command": "generate byte h = mod(_n, 2)", "lines": [] },
+        {
+          "command": "tabulate g h, chi2",
+          "lines": [
+            "           |           h",
+            "         g |         0          1 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |         2          2 |         4",
+            "         2 |         2          2 |         4",
+            "         3 |         2          2 |         4",
+            "-----------+----------------------+----------",
+            "     Total |         6          6 |        12",
+            "",
+            "          Pearson chi2(2) =   0.0000   Pr = 1.000"
+          ]
+        },
+        {
+          "command": "tabulate g cl, chi2",
+          "lines": [
+            "           |                     cl",
+            "         g |         1          2          3          4 |     Total",
+            "-----------+--------------------------------------------+----------",
+            "         1 |         2          1          0          1 |         4",
+            "         2 |         0          2          1          1 |         4",
+            "         3 |         0          0          2          2 |         4",
+            "-----------+--------------------------------------------+----------",
+            "     Total |         2          3          3          4 |        12",
+            "",
+            "          Pearson chi2(6) =   8.5000   Pr = 0.204"
+          ]
+        },
+        { "command": "summarize y, meanonly", "lines": [] },
+        { "command": "display r(mean)", "lines": ["13.858333"] }
+      ]
     }
   ]
 }

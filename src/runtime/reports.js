@@ -3,6 +3,7 @@
 // tests/runtime-output.test.mjs compares them with text recorded from
 // installed Stata.
 import { applyFormat } from "./format.js";
+import { chi2tail } from "./distributions.js";
 import {
   MISSING,
   formatNumber,
@@ -92,11 +93,13 @@ const SUMMARY_RULE =
   "-------------+---------------------------------------------------------";
 export function summarize(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Detail MEANonly Format SEParator(integer 5)]",
+      "[varlist] [if] [in] [, Detail MEANonly SEParator(integer 5) | Format]",
       text,
     ),
     rows = scope(session, parsed, ctx);
   let last = null;
+  // meanonly computes the results and prints nothing.
+  if (parsed.options.meanonly) ctx = { ...ctx, out: () => {} };
   if (!parsed.options.detail) {
     ctx.out("");
     ctx.out(
@@ -208,7 +211,7 @@ function wrap(text, width) {
 
 export function tabulate(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [, Missing NOLabel SORT NOFreq ROW COLumn CELL CHI2]",
+      "varlist(min=1 max=2) [if] [in] [, Missing NOLabel SORT CHI2 | NOFreq ROW COLumn CELL EXact LRchi2 Gamma TAUb V EXPected]",
       text,
     ),
     rows = scope(session, parsed, ctx),
@@ -286,7 +289,7 @@ export function tabulate(session, text, ctx) {
     columnTitle = title(1).slice(0, span),
     rowHeading = wrap(title(0), 10);
   ctx.out(
-    `           |${" ".repeat(Math.max(0, Math.floor((span - columnTitle.length) / 2)))}${columnTitle}`,
+    `           |${" ".repeat(Math.max(0, Math.ceil((span - columnTitle.length) / 2)))}${columnTitle}`,
   );
   rowHeading.forEach((line, k) =>
     ctx.out(
@@ -323,13 +326,19 @@ export function tabulate(session, text, ctx) {
         chi2 += (n - expected) ** 2 / expected;
       }),
     );
-    session.results.r.chi2 = chi2;
+    const df = (levels[0].length - 1) * (levels[1].length - 1),
+      p = chi2tail(df, chi2);
+    Object.assign(session.results.r, { chi2, p });
+    ctx.out(
+      `          Pearson chi2(${df}) = ${applyFormat(chi2, "%8.4f")}   Pr = ${applyFormat(p, "%5.3f")}`,
+    );
+    ctx.out("");
   }
 }
 
 export function list(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) Divider SEPBY(varlist) noHeader]",
+      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) | Divider SEPBY(varlist) noHeader STRing(integer 0) Table Display]",
       text,
     ),
     rows = scope(session, parsed, ctx),
@@ -377,7 +386,10 @@ export function list(session, text, ctx) {
 
 export function describe(session, text, ctx) {
   const whole = !text.replace(/,.*$/, "").trim(),
-    names = session.parse("[varlist] [, Short Simple Fullnames]", text).varlist,
+    names = session.parse(
+      "[varlist] [, Fullnames | Short Simple Numbers Replace]",
+      text,
+    ).varlist,
     data = session.data,
     rule = "-".repeat(session.settings.linesize ?? 80);
   ctx.out("");
