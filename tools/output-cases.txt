@@ -1,0 +1,154 @@
+=== counts
+@BASE
+count
+count if x > 0
+count if id > 100
+=== summarize
+@BASE
+summarize
+summarize x f
+summarize f if g > 1
+summarize s
+summarize x if id > 10
+=== summarize-wide
+clear
+set obs 3
+generate double big = 123456789.123 * _n
+generate double small = 0.000012345 * _n
+generate a_very_long_variable_name = _n
+generate long count = 1000000 * _n
+summarize
+=== summarize-many
+clear
+set obs 4
+generate a = _n
+generate b = _n^2
+generate c = 1/_n
+generate d = -_n
+generate e = _n*1000
+generate f = 0
+generate g = .
+summarize
+summarize, separator(2)
+=== summarize-detail
+@BASE
+summarize id, detail
+summarize f, detail
+=== tabulate-one
+@BASE
+tabulate g
+tabulate s
+tabulate x
+tabulate x, missing
+tabulate g if id > 2
+tabulate g, sort
+=== tabulate-labelled
+@BASE
+label variable g "Group of the unit"
+label define gl 1 "one" 2 "two" 3 "a long label here"
+label values g gl
+tabulate g
+tabulate g, nolabel
+=== tabulate-two
+@BASE
+tabulate g id
+tabulate g s
+=== list
+@BASE
+list
+list id x in 1/3
+list id s if g > 1
+list f
+list, clean
+list id s, noobs
+list id x, separator(2)
+list id x, separator(0)
+=== list-formats
+@BASE
+format x %9.2f
+format f %5.1f
+label define gl 1 "one" 2 "two"
+label values g gl
+list id x f g
+list id g, nolabel
+=== display
+display "hello"
+display 2 + 2
+display "a" "b" 3
+display 1/3
+display %9.2f 3.14159 " and " %5.0f 2.5
+display "x" _col(10) "y"
+display _skip(4) "z"
+display "one" _newline "two"
+display 1e10
+display "The mean is " 35.5 "."
+display 10/4 ", " 2^10
+display as text "plain" as result " result"
+=== describe
+@BASE
+label variable x "The X variable"
+label data "Test data"
+describe
+describe id x
+=== messages-generate
+@BASE
+generate y = x * 2
+generate z = 1
+generate w = . if id > 3
+replace z = 2
+replace z = 3 in 1
+replace z = 3 in 1
+generate byte b = 1
+replace b = 300 in 1
+replace b = 0.5 in 2
+replace s = "longer than twelve" in 1
+drop if id > 5
+keep if id > 1
+drop in 1
+keep in 1/2
+drop if id > 100
+=== messages-errors
+@BASE
+capture noisily generate id = 1
+capture noisily generate q = nosuch + 1
+capture noisily generate q = s + 1
+capture noisily replace nosuch = 1
+capture noisily summarize nosuch
+capture noisily frobnicate
+capture noisily generate q = 
+capture noisily by g: generate q = 1
+capture noisily assert x > 0
+capture noisily assert 1 == 2
+capture noisily confirm variable nosuch
+capture noisily drop nosuch
+capture noisily rename x id
+capture noisily generate 1x = 1
+capture noisily display sqrt(
+capture noisily display nosuchfn(1)
+capture noisily generate q = 1 if
+capture noisily list in 9
+capture noisily sort nosuch
+capture noisily isid g
+capture noisily label values s gl
+=== messages-compress
+@BASE
+generate double d = id
+generate long big = id * 1000
+generate str20 pad = s
+compress
+recast byte x
+recast int f, force
+recast double id
+=== by-reports
+@BASE
+bysort g: summarize id
+by g: count
+by g: list id x
+by g: tabulate id
+=== egen-collapse
+@BASE
+egen m = mean(x)
+egen mg = mean(x), by(g)
+egen c = count(x) if id > 2
+collapse (mean) x (count) n = id, by(g)
+list

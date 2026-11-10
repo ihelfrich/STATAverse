@@ -200,7 +200,7 @@ export function compileExpression(source, scope = {}) {
     }
     if (token.type === "op" && token.value === "(") {
       const inner = or();
-      if (!take(")")) throw new StataError("unmatched open parenthesis", 132);
+      if (!take(")")) throw new StataError("too few ')' or ']'", 132);
       return inner;
     }
     if (token.type !== "name")
@@ -241,7 +241,7 @@ export function compileExpression(source, scope = {}) {
       return node(text ? S : N, (i) => dataset.get(resolved).data[i] ?? empty);
     }
     const index = numeric(or());
-    if (!take("]")) throw new StataError("unmatched open bracket", 132);
+    if (!take("]")) throw new StataError("too few ')' or ']'", 132);
     return node(text ? S : N, (i, env) => {
       const k = index(i, env),
         count = env?.count ?? dataset.n;
@@ -281,14 +281,13 @@ export function compileExpression(source, scope = {}) {
       );
     }
     const args = [];
-    if (at >= tokens.length)
-      throw new StataError("unmatched open parenthesis", 132);
+    if (at >= tokens.length) throw new StataError("too few ')' or ']'", 132);
     if (!take(")")) {
       do args.push(or());
       while (take(","));
       if (!take(")")) {
         if (at >= tokens.length)
-          throw new StataError("unmatched open parenthesis", 132);
+          throw new StataError("too few ')' or ']'", 132);
         throw invalid();
       }
     }

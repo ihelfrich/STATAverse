@@ -9,6 +9,18 @@ import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
 import {
+  count,
+  countCommand,
+  describe,
+  list,
+  moments,
+  percentile,
+  perGroup,
+  present,
+  summarize,
+  tabulate,
+} from "./reports.js";
+import {
   MISSING,
   byteLength,
   coerce,
@@ -25,56 +37,8 @@ import {
 
 const exitSignal = (kind, code = 0) => new Signal(kind, code);
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
-const g9 = (value, width) => applyFormat(value, "%9.0g").trim().padStart(width);
-const count = (n) => applyFormat(n, "%14.0gc").trim();
 
 // ----- statistics shared by summarize, egen, collapse and tabstat -----
-export function percentile(sorted, p) {
-  const n = sorted.length;
-  if (!n) return MISSING;
-  const position = (n * p) / 100;
-  if (Math.abs(position - Math.round(position)) < 1e-9) {
-    const k = Math.round(position);
-    if (k <= 0) return sorted[0];
-    if (k >= n) return sorted[n - 1];
-    return (sorted[k - 1] + sorted[k]) / 2;
-  }
-  return sorted[Math.min(n - 1, Math.floor(position))];
-}
-export function moments(values) {
-  const n = values.length;
-  if (!n)
-    return {
-      n: 0,
-      sum: 0,
-      mean: MISSING,
-      variance: MISSING,
-      sd: MISSING,
-      min: MISSING,
-      max: MISSING,
-    };
-  let sum = 0,
-    min = Infinity,
-    max = -Infinity;
-  for (const v of values) {
-    sum += v;
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-  const mean = sum / n;
-  let ss = 0;
-  for (const v of values) ss += (v - mean) ** 2;
-  const variance = n > 1 ? ss / (n - 1) : MISSING;
-  return {
-    n,
-    sum,
-    mean,
-    variance,
-    sd: n > 1 ? Math.sqrt(variance) : MISSING,
-    min,
-    max,
-  };
-}
 const STATISTICS = {
   mean: (v) => moments(v).mean,
   sum: (v) => moments(v).sum,
@@ -105,11 +69,6 @@ const statistic = (name) => {
         Number(p[1]),
       );
   return null;
-};
-const present = (column, rows) => {
-  const out = [];
-  for (const i of rows) if (!isMissing(column[i])) out.push(column[i]);
-  return out;
 };
 
 // ----- helpers -----
@@ -345,6 +304,8 @@ export function displayText(session, text, asMacro = false) {
     } else {
       // An expression may be written with blanks around its operators.
       while (
+        // A quoted string is always an item of its own.
+        !/^("|`")/.test(word) &&
         k + 1 < words.length &&
         (/[-+*/^&|<>=!~,]$/.test(word) ||
           /^([-+*/^&|<>=,]|[!~]=)/.test(words[k + 1]))
@@ -416,11 +377,11 @@ function replace(session, text, ctx) {
   });
   variable.data = before;
   const result = session.data.replace(name, raw, rows);
+  if (result.to !== beforeType)
+    ctx.out(`variable ${name} was ${beforeType} now ${result.to}`);
   ctx.out(
     `(${count(result.changed)} real change${result.changed === 1 ? "" : "s"} made)`,
   );
-  if (result.to !== beforeType)
-    ctx.out(`variable ${name} was ${beforeType} now ${result.to}`);
 }
 
 // ----- observations and variables -----
@@ -501,8 +462,13 @@ function recast(session, text, ctx) {
       );
   }
 }
+const BYTES = { byte: 1, int: 2, long: 4, float: 4, double: 8 };
+const bytesOf = (type) =>
+  BYTES[type] ?? (type === "strL" ? 0 : Number(type.slice(3)));
 function compress(session, text, ctx) {
-  const names = session.parse("[varlist]", text).varlist;
+  const names = session.parse("[varlist]", text).varlist,
+    changes = [];
+  let saved = 0;
   for (const name of names) {
     const variable = session.data.get(name),
       before = variable.type;
@@ -519,16 +485,28 @@ function compress(session, text, ctx) {
     }
     if (target !== before) {
       session.data.recast(name, target, { force: true });
-      ctx.out(`variable ${name} was ${before} now ${target}`);
+      saved += (bytesOf(before) - bytesOf(target)) * session.data.n;
+      changes.push(`  variable ${name} was ${before} now ${target}`);
     }
   }
+  changes.sort().forEach(ctx.out);
+  ctx.out(`  (${count(saved)} bytes saved)`);
 }
 
-function setCommand(session, text) {
+function setCommand(session, text, ctx) {
   const [what, ...rest] = text.trim().split(/\s+/);
   if (/^ob(s)?$/.test(what)) {
-    const n = session.scalar(rest.join(" "));
+    const n = session.scalar(rest.join(" ")),
+      before = session.data.n;
     session.data.setObservations(n);
+    if (n !== before)
+      ctx.out(
+        `Number of observations (_N) was ${count(before)}, now ${count(n)}.`,
+      );
+  } else if (/^li(n(e(s(i(ze?)?)?)?)?)?$/.test(what)) {
+    const size = Number(rest[0]);
+    if (!(size >= 40 && size <= 255)) throw invalid();
+    session.settings.linesize = size;
   } else if (what === "type") {
     if (!["float", "double"].includes(rest[0])) throw invalid();
     session.data.defaultType = rest[0];
@@ -539,7 +517,7 @@ function setCommand(session, text) {
   } else if (what === "seed") session.settings.seed = Number(rest[0]);
   // Settings that only affect how Stata's own windows behave are accepted.
   else if (
-    !/^(mo(re?)?|linesize|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|showbaselevels|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
+    !/^(mo(re?)?|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|showbaselevels|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
       what,
     )
   )
@@ -560,280 +538,6 @@ function clear(session, text) {
 }
 
 // ----- reports -----
-function countCommand(session, text, ctx) {
-  const parsed = session.parse("[if] [in]", text),
-    n = session.rows(parsed, ctx.by ? { groups: [ctx.group] } : null).length;
-  ctx.out("  " + count(n));
-  session.results.r = { N: n };
-}
-
-function summarize(session, text, ctx) {
-  const parsed = session.parse(
-      "[varlist] [if] [in] [, Detail MEANonly Format SEParator(integer 5)]",
-      text,
-    ),
-    rows = session.rows(parsed, ctx.by ? { groups: [ctx.group] } : null);
-  let last = null;
-  if (!parsed.options.detail) {
-    ctx.out("");
-    ctx.out(
-      "    Variable |        Obs        Mean    Std. dev.       Min        Max",
-    );
-    ctx.out(
-      "-------------+---------------------------------------------------------",
-    );
-  }
-  parsed.varlist.forEach((name, k) => {
-    const variable = session.data.get(name),
-      values = isStringType(variable.type) ? [] : present(variable.data, rows),
-      m = moments(values);
-    last = { values, m };
-    if (parsed.options.detail) return detail(ctx, variable, values, m);
-    if (k && parsed.options.separator && k % parsed.options.separator === 0)
-      ctx.out(
-        "-------------+---------------------------------------------------------",
-      );
-    const label = (
-      name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name
-    ).padStart(12);
-    ctx.out(
-      m.n
-        ? `${label} |${count(m.n).padStart(11)}${g9(m.mean, 12)}${g9(m.sd, 12)}${g9(m.min, 11)}${g9(m.max, 11)}`
-        : `${label} |${"0".padStart(11)}`,
-    );
-  });
-  if (!last) return;
-  const { m, values } = last;
-  session.results.r = m.n
-    ? {
-        N: m.n,
-        sum_w: m.n,
-        mean: m.mean,
-        Var: m.variance,
-        sd: m.sd,
-        min: m.min,
-        max: m.max,
-        sum: m.sum,
-      }
-    : { N: 0, sum_w: 0, sum: 0 };
-  if (parsed.options.detail && m.n) {
-    const sorted = [...values].sort((a, b) => a - b),
-      central = (power) =>
-        values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
-      m2 = central(2);
-    Object.assign(session.results.r, {
-      skewness: m2 ? central(3) / m2 ** 1.5 : MISSING,
-      kurtosis: m2 ? central(4) / m2 ** 2 : MISSING,
-      ...Object.fromEntries(
-        [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => [
-          "p" + p,
-          percentile(sorted, p),
-        ]),
-      ),
-    });
-  }
-}
-function detail(ctx, variable, values, m) {
-  const sorted = [...values].sort((a, b) => a - b),
-    p = (q) => g9(percentile(sorted, q), 13);
-  ctx.out("");
-  ctx.out(
-    (variable.label || variable.name).padStart(
-      38 + Math.floor((variable.label || variable.name).length / 2),
-    ),
-  );
-  ctx.out("-------------------------------------------------------------");
-  if (!m.n) return ctx.out("no observations");
-  ctx.out("      Percentiles      Smallest");
-  [1, 5, 10, 25].forEach((q, k) =>
-    ctx.out(` ${String(q).padStart(2)}%${p(q)}${g9(sorted[k] ?? MISSING, 15)}`),
-  );
-  ctx.out(`50%${p(50)}                      Mean        ${g9(m.mean, 11)}`);
-  [75, 90, 95, 99].forEach((q) => ctx.out(`${q}%${p(q)}`));
-  ctx.out(
-    `Obs ${count(m.n)}   Std. dev. ${g9(m.sd, 0)}   Variance ${g9(m.variance, 0)}`,
-  );
-}
-
-function labelled(session, variable, value) {
-  if (typeof value === "string") return value;
-  const map = session.data.valueLabels.get(variable.valueLabel);
-  return (
-    map?.get(value) ??
-    (isMissing(value)
-      ? missingName(value)
-      : applyFormat(value, variable.format).trim())
-  );
-}
-
-function tabulate(session, text, ctx) {
-  const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [, Missing NOLabel SORT NOFreq ROW COLumn CELL CHI2]",
-      text,
-    ),
-    rows = session.rows(parsed, ctx.by ? { groups: [ctx.group] } : null),
-    variables = parsed.varlist.map((name) => session.data.get(name)),
-    keep = rows.filter((i) =>
-      variables.every((v) => {
-        const value = v.data[i];
-        return (
-          parsed.options.missing ||
-          !(typeof value === "string" ? value === "" : isMissing(value))
-        );
-      }),
-    ),
-    order = (a, b) => (a < b ? -1 : a > b ? 1 : 0),
-    levels = variables.map((v) =>
-      [...new Set(keep.map((i) => v.data[i]))].sort(order),
-    ),
-    show = (k, value) =>
-      parsed.options.nolabel && typeof value !== "string"
-        ? formatNumber(value)
-        : labelled(session, variables[k], value);
-  if (!keep.length) {
-    ctx.out("no observations");
-    session.results.r = { N: 0 };
-    return;
-  }
-  if (variables.length === 1) {
-    const counts = new Map(levels[0].map((value) => [value, 0]));
-    for (const i of keep)
-      counts.set(variables[0].data[i], counts.get(variables[0].data[i]) + 1);
-    let entries = [...counts];
-    if (parsed.options.sort) entries = entries.sort((a, b) => b[1] - a[1]);
-    const title = (variables[0].label || variables[0].name)
-      .slice(0, 12)
-      .padStart(12);
-    ctx.out("");
-    ctx.out(`${title} |      Freq.     Percent        Cum.`);
-    ctx.out("-------------+-----------------------------------");
-    let running = 0;
-    for (const [value, n] of entries) {
-      running += n;
-      ctx.out(
-        `${show(0, value).slice(0, 12).padStart(12)} |${count(n).padStart(11)}${applyFormat((100 * n) / keep.length, "%11.2f")}${applyFormat((100 * running) / keep.length, "%11.2f")}`,
-      );
-    }
-    ctx.out("-------------+-----------------------------------");
-    ctx.out(
-      `${"Total".padStart(12)} |${count(keep.length).padStart(11)}${applyFormat(100, "%11.2f")}`,
-    );
-    session.results.r = { N: keep.length, r: entries.length };
-    return;
-  }
-  const table = levels[0].map(() => levels[1].map(() => 0));
-  for (const i of keep)
-    table[levels[0].indexOf(variables[0].data[i])][
-      levels[1].indexOf(variables[1].data[i])
-    ]++;
-  const width = Math.max(
-    10,
-    ...levels[1].map((value) => show(1, value).length + 2),
-  );
-  ctx.out("");
-  ctx.out(`${"".padStart(11)}| ${variables[1].label || variables[1].name}`);
-  ctx.out(
-    `${(variables[0].label || variables[0].name).slice(0, 10).padStart(10)} |${levels[1].map((value) => show(1, value).padStart(width)).join("")} |${"Total".padStart(10)}`,
-  );
-  ctx.out(`-----------+${"-".repeat(width * levels[1].length + 1)}+----------`);
-  table.forEach((cells, r) =>
-    ctx.out(
-      `${show(0, levels[0][r]).slice(0, 10).padStart(10)} |${cells.map((n) => count(n).padStart(width)).join("")} |${count(cells.reduce((a, b) => a + b, 0)).padStart(10)}`,
-    ),
-  );
-  ctx.out(`-----------+${"-".repeat(width * levels[1].length + 1)}+----------`);
-  ctx.out(
-    `${"Total".padStart(10)} |${levels[1].map((_, c) => count(table.reduce((t, cells) => t + cells[c], 0)).padStart(width)).join("")} |${count(keep.length).padStart(10)}`,
-  );
-  session.results.r = {
-    N: keep.length,
-    r: levels[0].length,
-    c: levels[1].length,
-  };
-  if (parsed.options.chi2) {
-    let chi2 = 0;
-    const rowTotals = table.map((cells) => cells.reduce((a, b) => a + b, 0)),
-      columnTotals = levels[1].map((_, c) =>
-        table.reduce((t, cells) => t + cells[c], 0),
-      );
-    table.forEach((cells, r) =>
-      cells.forEach((n, c) => {
-        const expected = (rowTotals[r] * columnTotals[c]) / keep.length;
-        chi2 += (n - expected) ** 2 / expected;
-      }),
-    );
-    session.results.r.chi2 = chi2;
-  }
-}
-
-function list(session, text, ctx) {
-  const parsed = session.parse(
-      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) Divider SEPBY(varlist) noHeader]",
-      text,
-    ),
-    rows = session.rows(parsed, ctx.by ? { groups: [ctx.group] } : null),
-    variables = parsed.varlist.map((name) => session.data.get(name));
-  if (!rows.length) return;
-  const cells = rows.map((i) =>
-      variables.map((v) =>
-        parsed.options.label === false || typeof v.data[i] === "string"
-          ? typeof v.data[i] === "string"
-            ? v.data[i]
-            : applyFormat(v.data[i], v.format).trim()
-          : labelled(session, v, v.data[i]),
-      ),
-    ),
-    widths = variables.map((v, k) =>
-      Math.max(v.name.length, ...cells.map((row) => row[k].length)),
-    ),
-    number = String(rows.at(-1) + 1).length + 1,
-    line = (items, left) =>
-      items
-        .map((item, k) =>
-          isStringType(variables[k].type) && !left
-            ? item.padEnd(widths[k])
-            : item.padStart(widths[k]),
-        )
-        .join("   "),
-    inner =
-      widths.reduce((total, w) => total + w, 0) + 3 * (widths.length - 1) + 2,
-    margin = " ".repeat(number + 2);
-  ctx.out("");
-  ctx.out(`${margin}+${"-".repeat(inner)}+`);
-  ctx.out(`${margin}| ${line(variables.map((v) => v.name))} |`);
-  ctx.out(`${margin}|${"-".repeat(inner)}|`);
-  cells.forEach((row, k) => {
-    if (k && parsed.options.separator && k % parsed.options.separator === 0)
-      ctx.out(`${margin}|${"-".repeat(inner)}|`);
-    ctx.out(`${(rows[k] + 1 + ".").padStart(number + 1)} | ${line(row)} |`);
-  });
-  ctx.out(`${margin}+${"-".repeat(inner)}+`);
-}
-
-function describe(session, text, ctx) {
-  const names = session.parse(
-      "[varlist] [, Short Simple Fullnames]",
-      text,
-    ).varlist,
-    data = session.data;
-  ctx.out("");
-  ctx.out(`Contains data${data.label ? "  " + data.label : ""}`);
-  ctx.out(` Observations:${count(data.n).padStart(14)}`);
-  ctx.out(`    Variables:${count(data.variables.length).padStart(14)}`);
-  ctx.out("-".repeat(79));
-  ctx.out("Variable      Storage   Display    Value");
-  ctx.out("    name         type    format    label      Variable label");
-  ctx.out("-".repeat(79));
-  for (const name of names) {
-    const v = data.get(name);
-    ctx.out(
-      `${v.name.padEnd(15)} ${v.type.padEnd(7)} ${v.format.padEnd(9)} ${v.valueLabel.padEnd(10)} ${v.label}`,
-    );
-  }
-  ctx.out("-".repeat(79));
-  ctx.out(`Sorted by: ${data.sortedBy.join(" ")}`);
-  session.results.r = { N: data.n, k: data.variables.length };
-}
 
 // ----- labels and formats -----
 function label(session, text) {
@@ -1200,8 +904,12 @@ function egen(session, text, ctx) {
     }
   }
   if (fcn === "seq" && !type) type = inferType(values);
-  const sorted = [...data.sortedBy];
-  data.generate(name, values, { type: type || undefined });
+  const sorted = [...data.sortedBy],
+    made = data.generate(name, values, { type: type || undefined });
+  if (made.missing)
+    ctx.out(
+      `(${count(made.missing)} missing value${made.missing === 1 ? "" : "s"} generated)`,
+    );
   data.sortedBy = sorted;
   if (fcn === "group" || fcn === "tag")
     data.get(name).label = `${fcn}(${argument.trim()})`;
@@ -1328,22 +1036,6 @@ const command = (name, minimum, run, byable = false) => ({
   byable,
 });
 // A command under by: runs once per group, with a heading for each.
-const perGroup = (run) => (session, text, ctx) => {
-  if (!ctx.by) return run(session, text, ctx);
-  for (const group of ctx.by.groups) {
-    ctx.out("");
-    ctx.out(
-      "-> " +
-        ctx.by.keys
-          .map(
-            (key) =>
-              `${key} = ${labelled(session, session.data.get(key), session.data.get(key).data[group.start])}`,
-          )
-          .join(", "),
-    );
-    run(session, text, { ...ctx, group });
-  }
-};
 
 export const COMMANDS = [
   command("generate", 1, generate, true),

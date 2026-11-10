@@ -1,0 +1,1060 @@
+{
+  "source": "Recorded from installed Stata's text log by tools/check-output-native.mjs under version 17, with linesize 200. Leading and trailing blank lines of each command's output are removed.",
+  "cases": [
+    {
+      "id": "counts",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncount\ncount if x > 0\ncount if id > 100\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "count", "lines": ["  6"] },
+        { "command": "count if x > 0", "lines": ["  4"] },
+        { "command": "count if id > 100", "lines": ["  0"] }
+      ]
+    },
+    {
+      "id": "summarize",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize\nsummarize x f\nsummarize f if g > 1\nsummarize s\nsummarize x if id > 10\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "summarize",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          id |          6         3.5    1.870829          1          6",
+            "           x |          4      24.875    50.10385         -2        100",
+            "           f |          5         .82    1.003494         .1        2.5",
+            "           g |          6           2    .8944272          1          3",
+            "           s |          0"
+          ]
+        },
+        {
+          "command": "summarize x f",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |          4      24.875    50.10385         -2        100",
+            "           f |          5         .82    1.003494         .1        2.5"
+          ]
+        },
+        {
+          "command": "summarize f if g > 1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           f |          3    1.266667    1.123981         .3        2.5"
+          ]
+        },
+        {
+          "command": "summarize s",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           s |          0"
+          ]
+        },
+        {
+          "command": "summarize x if id > 10",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |          0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summarize-wide",
+      "source": "clear\nset obs 3\ngenerate double big = 123456789.123 * _n\ngenerate double small = 0.000012345 * _n\ngenerate a_very_long_variable_name = _n\ngenerate long count = 1000000 * _n\nsummarize\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate double big = 123456789.123 * _n", "lines": [] },
+        { "command": "generate double small = 0.000012345 * _n", "lines": [] },
+        { "command": "generate a_very_long_variable_name = _n", "lines": [] },
+        { "command": "generate long count = 1000000 * _n", "lines": [] },
+        {
+          "command": "summarize",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         big |          3    2.47e+08    1.23e+08   1.23e+08   3.70e+08",
+            "       small |          3    .0000247    .0000123   .0000123    .000037",
+            "a_very_lon~e |          3           2           1          1          3",
+            "       count |          3     2000000     1000000    1000000    3000000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summarize-many",
+      "source": "clear\nset obs 4\ngenerate a = _n\ngenerate b = _n^2\ngenerate c = 1/_n\ngenerate d = -_n\ngenerate e = _n*1000\ngenerate f = 0\ngenerate g = .\nsummarize\nsummarize, separator(2)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate a = _n", "lines": [] },
+        { "command": "generate b = _n^2", "lines": [] },
+        { "command": "generate c = 1/_n", "lines": [] },
+        { "command": "generate d = -_n", "lines": [] },
+        { "command": "generate e = _n*1000", "lines": [] },
+        { "command": "generate f = 0", "lines": [] },
+        {
+          "command": "generate g = .",
+          "lines": ["(4 missing values generated)"]
+        },
+        {
+          "command": "summarize",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           a |          4         2.5    1.290994          1          4",
+            "           b |          4         7.5    6.557439          1         16",
+            "           c |          4    .5208333    .3359274        .25          1",
+            "           d |          4        -2.5    1.290994         -4         -1",
+            "           e |          4        2500    1290.994       1000       4000",
+            "-------------+---------------------------------------------------------",
+            "           f |          4           0           0          0          0",
+            "           g |          0"
+          ]
+        },
+        {
+          "command": "summarize, separator(2)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           a |          4         2.5    1.290994          1          4",
+            "           b |          4         7.5    6.557439          1         16",
+            "-------------+---------------------------------------------------------",
+            "           c |          4    .5208333    .3359274        .25          1",
+            "           d |          4        -2.5    1.290994         -4         -1",
+            "-------------+---------------------------------------------------------",
+            "           e |          4        2500    1290.994       1000       4000",
+            "           f |          4           0           0          0          0",
+            "-------------+---------------------------------------------------------",
+            "           g |          0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summarize-detail",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize id, detail\nsummarize f, detail\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "summarize id, detail",
+          "lines": [
+            "                             id",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   6",
+            "25%            2              4       Sum of wgt.           6",
+            "",
+            "50%          3.5                      Mean                3.5",
+            "                        Largest       Std. dev.      1.870829",
+            "75%            5              3",
+            "90%            6              4       Variance            3.5",
+            "95%            6              5       Skewness              0",
+            "99%            6              6       Kurtosis       1.731429"
+          ]
+        },
+        {
+          "command": "summarize f, detail",
+          "lines": [
+            "                              f",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%           .1             .1",
+            " 5%           .1             .2",
+            "10%           .1             .3       Obs                   5",
+            "25%           .2              1       Sum of wgt.           5",
+            "",
+            "50%           .3                      Mean                .82",
+            "                        Largest       Std. dev.      1.003494",
+            "75%            1             .2",
+            "90%          2.5             .3       Variance          1.007",
+            "95%          2.5              1       Skewness       1.105091",
+            "99%          2.5            2.5       Kurtosis       2.606078"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-one",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ntabulate g\ntabulate s\ntabulate x\ntabulate x, missing\ntabulate g if id > 2\ntabulate g, sort\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "tabulate g",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          2       33.33       33.33",
+            "          2 |          2       33.33       66.67",
+            "          3 |          2       33.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |          6      100.00"
+          ]
+        },
+        {
+          "command": "tabulate s",
+          "lines": [
+            "           s |      Freq.     Percent        Cum.",
+            "-------------+-----------------------------------",
+            "Banana split |          1       20.00       20.00",
+            "       apple |          1       20.00       40.00",
+            "        kiwi |          1       20.00       60.00",
+            "         pad |          1       20.00       80.00",
+            "           x |          1       20.00      100.00",
+            "-------------+-----------------------------------",
+            "       Total |          5      100.00"
+          ]
+        },
+        {
+          "command": "tabulate x",
+          "lines": [
+            "          x |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "         -2 |          1       25.00       25.00",
+            "          0 |          1       25.00       50.00",
+            "        1.5 |          1       25.00       75.00",
+            "        100 |          1       25.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          4      100.00"
+          ]
+        },
+        {
+          "command": "tabulate x, missing",
+          "lines": [
+            "          x |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "         -2 |          1       16.67       16.67",
+            "          0 |          1       16.67       33.33",
+            "        1.5 |          1       16.67       50.00",
+            "        100 |          1       16.67       66.67",
+            "          . |          1       16.67       83.33",
+            "         .a |          1       16.67      100.00",
+            "------------+-----------------------------------",
+            "      Total |          6      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g if id > 2",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          2 |          2       50.00       50.00",
+            "          3 |          2       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          4      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g, sort",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          2       33.33       33.33",
+            "          2 |          2       33.33       66.67",
+            "          3 |          2       33.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |          6      100.00"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-labelled",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nlabel variable g \"Group of the unit\"\nlabel define gl 1 \"one\" 2 \"two\" 3 \"a long label here\"\nlabel values g gl\ntabulate g\ntabulate g, nolabel\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "label variable g \"Group of the unit\"", "lines": [] },
+        {
+          "command": "label define gl 1 \"one\" 2 \"two\" 3 \"a long label here\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "tabulate g",
+          "lines": [
+            "Group of the unit |      Freq.     Percent        Cum.",
+            "------------------+-----------------------------------",
+            "              one |          2       33.33       33.33",
+            "              two |          2       33.33       66.67",
+            "a long label here |          2       33.33      100.00",
+            "------------------+-----------------------------------",
+            "            Total |          6      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g, nolabel",
+          "lines": [
+            "   Group of |",
+            "   the unit |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          2       33.33       33.33",
+            "          2 |          2       33.33       66.67",
+            "          3 |          2       33.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |          6      100.00"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-two",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ntabulate g id\ntabulate g s\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "tabulate g id",
+          "lines": [
+            "           |                                id",
+            "         g |         1          2          3          4          5          6 |     Total",
+            "-----------+------------------------------------------------------------------+----------",
+            "         1 |         1          1          0          0          0          0 |         2",
+            "         2 |         0          0          1          1          0          0 |         2",
+            "         3 |         0          0          0          0          1          1 |         2",
+            "-----------+------------------------------------------------------------------+----------",
+            "     Total |         1          1          1          1          1          1 |         6"
+          ]
+        },
+        {
+          "command": "tabulate g s",
+          "lines": [
+            "           |                           s",
+            "         g | Banana ..      apple       kiwi        pad          x |     Total",
+            "-----------+-------------------------------------------------------+----------",
+            "         1 |         1          1          0          0          0 |         2",
+            "         2 |         0          0          0          1          0 |         1",
+            "         3 |         0          0          1          0          1 |         2",
+            "-----------+-------------------------------------------------------+----------",
+            "     Total |         1          1          1          1          1 |         5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "list",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nlist\nlist id x in 1/3\nlist id s if g > 1\nlist f\nlist, clean\nlist id s, noobs\nlist id x, separator(2)\nlist id x, separator(0)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | id     x     f   g              s |",
+            "     |-----------------------------------|",
+            "  1. |  1   1.5    .1   1          apple |",
+            "  2. |  2    -2    .2   1   Banana split |",
+            "  3. |  3     .    .3   2                |",
+            "  4. |  4     0     1   2            pad |",
+            "  5. |  5    .a     .   3              x |",
+            "     |-----------------------------------|",
+            "  6. |  6   100   2.5   3           kiwi |",
+            "     +-----------------------------------+"
+          ]
+        },
+        {
+          "command": "list id x in 1/3",
+          "lines": [
+            "     +----------+",
+            "     | id     x |",
+            "     |----------|",
+            "  1. |  1   1.5 |",
+            "  2. |  2    -2 |",
+            "  3. |  3     . |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "list id s if g > 1",
+          "lines": [
+            "     +-----------+",
+            "     | id      s |",
+            "     |-----------|",
+            "  3. |  3        |",
+            "  4. |  4    pad |",
+            "  5. |  5      x |",
+            "  6. |  6   kiwi |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "list f",
+          "lines": [
+            "     +-----+",
+            "     |   f |",
+            "     |-----|",
+            "  1. |  .1 |",
+            "  2. |  .2 |",
+            "  3. |  .3 |",
+            "  4. |   1 |",
+            "  5. |   . |",
+            "     |-----|",
+            "  6. | 2.5 |",
+            "     +-----+"
+          ]
+        },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       id     x     f   g              s",
+            "  1.    1   1.5    .1   1          apple",
+            "  2.    2    -2    .2   1   Banana split",
+            "  3.    3     .    .3   2",
+            "  4.    4     0     1   2            pad",
+            "  5.    5    .a     .   3              x",
+            "  6.    6   100   2.5   3           kiwi"
+          ]
+        },
+        {
+          "command": "list id s, noobs",
+          "lines": [
+            "  +-------------------+",
+            "  | id              s |",
+            "  |-------------------|",
+            "  |  1          apple |",
+            "  |  2   Banana split |",
+            "  |  3                |",
+            "  |  4            pad |",
+            "  |  5              x |",
+            "  |-------------------|",
+            "  |  6           kiwi |",
+            "  +-------------------+"
+          ]
+        },
+        {
+          "command": "list id x, separator(2)",
+          "lines": [
+            "     +----------+",
+            "     | id     x |",
+            "     |----------|",
+            "  1. |  1   1.5 |",
+            "  2. |  2    -2 |",
+            "     |----------|",
+            "  3. |  3     . |",
+            "  4. |  4     0 |",
+            "     |----------|",
+            "  5. |  5    .a |",
+            "  6. |  6   100 |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "list id x, separator(0)",
+          "lines": [
+            "     +----------+",
+            "     | id     x |",
+            "     |----------|",
+            "  1. |  1   1.5 |",
+            "  2. |  2    -2 |",
+            "  3. |  3     . |",
+            "  4. |  4     0 |",
+            "  5. |  5    .a |",
+            "  6. |  6   100 |",
+            "     +----------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "list-formats",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nformat x %9.2f\nformat f %5.1f\nlabel define gl 1 \"one\" 2 \"two\"\nlabel values g gl\nlist id x f g\nlist id g, nolabel\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "format x %9.2f", "lines": [] },
+        { "command": "format f %5.1f", "lines": [] },
+        { "command": "label define gl 1 \"one\" 2 \"two\"", "lines": [] },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "list id x f g",
+          "lines": [
+            "     +-------------------------+",
+            "     | id        x     f     g |",
+            "     |-------------------------|",
+            "  1. |  1     1.50   0.1   one |",
+            "  2. |  2    -2.00   0.2   one |",
+            "  3. |  3        .   0.3   two |",
+            "  4. |  4     0.00   1.0   two |",
+            "  5. |  5       .a     .     3 |",
+            "     |-------------------------|",
+            "  6. |  6   100.00   2.5     3 |",
+            "     +-------------------------+"
+          ]
+        },
+        {
+          "command": "list id g, nolabel",
+          "lines": [
+            "     +--------+",
+            "     | id   g |",
+            "     |--------|",
+            "  1. |  1   1 |",
+            "  2. |  2   1 |",
+            "  3. |  3   2 |",
+            "  4. |  4   2 |",
+            "  5. |  5   3 |",
+            "     |--------|",
+            "  6. |  6   3 |",
+            "     +--------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "display",
+      "source": "display \"hello\"\ndisplay 2 + 2\ndisplay \"a\" \"b\" 3\ndisplay 1/3\ndisplay %9.2f 3.14159 \" and \" %5.0f 2.5\ndisplay \"x\" _col(10) \"y\"\ndisplay _skip(4) \"z\"\ndisplay \"one\" _newline \"two\"\ndisplay 1e10\ndisplay \"The mean is \" 35.5 \".\"\ndisplay 10/4 \", \" 2^10\ndisplay as text \"plain\" as result \" result\"\n",
+      "commands": [
+        { "command": "display \"hello\"", "lines": ["hello"] },
+        { "command": "display 2 + 2", "lines": ["4"] },
+        { "command": "display \"a\" \"b\" 3", "lines": ["ab3"] },
+        { "command": "display 1/3", "lines": [".33333333"] },
+        {
+          "command": "display %9.2f 3.14159 \" and \" %5.0f 2.5",
+          "lines": ["     3.14 and     2"]
+        },
+        { "command": "display \"x\" _col(10) \"y\"", "lines": ["x        y"] },
+        { "command": "display _skip(4) \"z\"", "lines": ["    z"] },
+        {
+          "command": "display \"one\" _newline \"two\"",
+          "lines": ["one", "two"]
+        },
+        { "command": "display 1e10", "lines": ["1.000e+10"] },
+        {
+          "command": "display \"The mean is \" 35.5 \".\"",
+          "lines": ["The mean is 35.5."]
+        },
+        { "command": "display 10/4 \", \" 2^10", "lines": ["2.5, 1024"] },
+        {
+          "command": "display as text \"plain\" as result \" result\"",
+          "lines": ["plain result"]
+        }
+      ]
+    },
+    {
+      "id": "describe",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nlabel variable x \"The X variable\"\nlabel data \"Test data\"\ndescribe\ndescribe id x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "label variable x \"The X variable\"", "lines": [] },
+        { "command": "label data \"Test data\"", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             6                  Test data",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "x               double  %10.0g                The X variable",
+            "f               float   %9.0g",
+            "g               byte    %8.0g",
+            "s               str12   %12s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe id x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "x               double  %10.0g                The X variable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "messages-generate",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate y = x * 2\ngenerate z = 1\ngenerate w = . if id > 3\nreplace z = 2\nreplace z = 3 in 1\nreplace z = 3 in 1\ngenerate byte b = 1\nreplace b = 300 in 1\nreplace b = 0.5 in 2\nreplace s = \"longer than twelve\" in 1\ndrop if id > 5\nkeep if id > 1\ndrop in 1\nkeep in 1/2\ndrop if id > 100\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "generate y = x * 2",
+          "lines": ["(2 missing values generated)"]
+        },
+        { "command": "generate z = 1", "lines": [] },
+        {
+          "command": "generate w = . if id > 3",
+          "lines": ["(6 missing values generated)"]
+        },
+        { "command": "replace z = 2", "lines": ["(6 real changes made)"] },
+        { "command": "replace z = 3 in 1", "lines": ["(1 real change made)"] },
+        { "command": "replace z = 3 in 1", "lines": ["(0 real changes made)"] },
+        { "command": "generate byte b = 1", "lines": [] },
+        {
+          "command": "replace b = 300 in 1",
+          "lines": ["variable b was byte now int", "(1 real change made)"]
+        },
+        {
+          "command": "replace b = 0.5 in 2",
+          "lines": ["variable b was int now float", "(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"longer than twelve\" in 1",
+          "lines": ["variable s was str12 now str18", "(1 real change made)"]
+        },
+        { "command": "drop if id > 5", "lines": ["(1 observation deleted)"] },
+        { "command": "keep if id > 1", "lines": ["(1 observation deleted)"] },
+        { "command": "drop in 1", "lines": ["(1 observation deleted)"] },
+        { "command": "keep in 1/2", "lines": ["(1 observation deleted)"] },
+        { "command": "drop if id > 100", "lines": ["(0 observations deleted)"] }
+      ]
+    },
+    {
+      "id": "messages-errors",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncapture noisily generate id = 1\ncapture noisily generate q = nosuch + 1\ncapture noisily generate q = s + 1\ncapture noisily replace nosuch = 1\ncapture noisily summarize nosuch\ncapture noisily frobnicate\ncapture noisily generate q = \ncapture noisily by g: generate q = 1\ncapture noisily assert x > 0\ncapture noisily assert 1 == 2\ncapture noisily confirm variable nosuch\ncapture noisily drop nosuch\ncapture noisily rename x id\ncapture noisily generate 1x = 1\ncapture noisily display sqrt(\ncapture noisily display nosuchfn(1)\ncapture noisily generate q = 1 if\ncapture noisily list in 9\ncapture noisily sort nosuch\ncapture noisily isid g\ncapture noisily label values s gl\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "capture noisily generate id = 1",
+          "lines": ["variable id already defined"]
+        },
+        {
+          "command": "capture noisily generate q = nosuch + 1",
+          "lines": ["nosuch not found"]
+        },
+        {
+          "command": "capture noisily generate q = s + 1",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily replace nosuch = 1",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily summarize nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily frobnicate",
+          "lines": ["command frobnicate is unrecognized"]
+        },
+        {
+          "command": "capture noisily generate q =",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily by g: generate q = 1",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "capture noisily assert x > 0",
+          "lines": ["2 contradictions in 6 observations", "assertion is false"]
+        },
+        {
+          "command": "capture noisily assert 1 == 2",
+          "lines": ["assertion is false"]
+        },
+        {
+          "command": "capture noisily confirm variable nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily drop nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily rename x id",
+          "lines": ["variable id already defined"]
+        },
+        {
+          "command": "capture noisily generate 1x = 1",
+          "lines": ["1x invalid name"]
+        },
+        {
+          "command": "capture noisily display sqrt(",
+          "lines": ["too few ')' or ']'"]
+        },
+        {
+          "command": "capture noisily display nosuchfn(1)",
+          "lines": ["unknown function nosuchfn()"]
+        },
+        {
+          "command": "capture noisily generate q = 1 if",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily list in 9",
+          "lines": ["observation numbers out of range"]
+        },
+        {
+          "command": "capture noisily sort nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily isid g",
+          "lines": ["variable g does not uniquely identify the observations"]
+        },
+        {
+          "command": "capture noisily label values s gl",
+          "lines": ["may not label strings"]
+        }
+      ]
+    },
+    {
+      "id": "messages-compress",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate double d = id\ngenerate long big = id * 1000\ngenerate str20 pad = s\ncompress\nrecast byte x\nrecast int f, force\nrecast double id\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "generate double d = id", "lines": [] },
+        { "command": "generate long big = id * 1000", "lines": [] },
+        {
+          "command": "generate str20 pad = s",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "compress",
+          "lines": [
+            "  variable big was long now int",
+            "  variable d was double now byte",
+            "  variable pad was str20 now str12",
+            "  (102 bytes saved)"
+          ]
+        },
+        {
+          "command": "recast byte x",
+          "lines": ["x:  1 value would be changed; not changed"]
+        },
+        { "command": "recast int f, force", "lines": ["f:  4 values changed"] },
+        { "command": "recast double id", "lines": [] }
+      ]
+    },
+    {
+      "id": "by-reports",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nbysort g: summarize id\nby g: count\nby g: list id x\nby g: tabulate id\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "bysort g: summarize id",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          id |          2         1.5    .7071068          1          2",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          id |          2         3.5    .7071068          3          4",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          id |          2         5.5    .7071068          5          6"
+          ]
+        },
+        {
+          "command": "by g: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "  2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "  2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "  2"
+          ]
+        },
+        {
+          "command": "by g: list id x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "     +----------+",
+            "     | id     x |",
+            "     |----------|",
+            "  1. |  1   1.5 |",
+            "  2. |  2    -2 |",
+            "     +----------+",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "     +--------+",
+            "     | id   x |",
+            "     |--------|",
+            "  1. |  3   . |",
+            "  2. |  4   0 |",
+            "     +--------+",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "",
+            "     +----------+",
+            "     | id     x |",
+            "     |----------|",
+            "  1. |  5    .a |",
+            "  2. |  6   100 |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "by g: tabulate id",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "         id |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          1       50.00       50.00",
+            "          2 |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "         id |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          3 |          1       50.00       50.00",
+            "          4 |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "",
+            "         id |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          5 |          1       50.00       50.00",
+            "          6 |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "egen-collapse",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\negen m = mean(x)\negen mg = mean(x), by(g)\negen c = count(x) if id > 2\ncollapse (mean) x (count) n = id, by(g)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte id double x float f byte g str12 s",
+          "lines": [
+            "           id           x          f         g             s",
+            "  1. 1 1.5 0.1 1 \"apple\"",
+            "  2. 2 -2 0.2 1 \"Banana split\"",
+            "  3. 3 . 0.3 2 \"\"",
+            "  4. 4 0 1 2 \"pad\"",
+            "  5. 5 .a . 3 \"x\"",
+            "  6. 6 100 2.5 3 \"kiwi\"",
+            "  7. end"
+          ]
+        },
+        { "command": "egen m = mean(x)", "lines": [] },
+        { "command": "egen mg = mean(x), by(g)", "lines": [] },
+        {
+          "command": "egen c = count(x) if id > 2",
+          "lines": ["(2 missing values generated)"]
+        },
+        { "command": "collapse (mean) x (count) n = id, by(g)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------+",
+            "     | g      x   n |",
+            "     |--------------|",
+            "  1. | 1   -.25   2 |",
+            "  2. | 2      0   2 |",
+            "  3. | 3    100   2 |",
+            "     +--------------+"
+          ]
+        }
+      ]
+    }
+  ]
+}
