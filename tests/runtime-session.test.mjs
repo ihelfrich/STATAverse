@@ -53,6 +53,29 @@ test("do-files leave the same data, macros and results as native Stata", () => {
       if (!close(actual, value))
         fail(`r(${name}): ${show(actual)} vs ${show(value)}`);
     }
+    // Estimation results are compared to 1 part in 10^9.
+    const near = (x, y, scale = 1) =>
+      x === y || Math.abs(x - y) <= 1e-9 * Math.max(scale, Math.abs(y));
+    for (const [name, value] of Object.entries(c.eValues ?? {})) {
+      const actual = session.results.e[name] ?? 2 ** 1023;
+      if (!near(actual, value))
+        fail(`e(${name}): ${show(actual)} vs ${show(value)}`);
+    }
+    for (const [name, matrix] of Object.entries(c.matrixValues ?? {})) {
+      const model = session.estimates,
+        values = name === "e(b)" ? model.b : model.V.flat(),
+        names = model.names.map((n, k) =>
+          model.estimable[k] || /b\./.test(n) ? n : "o." + n,
+        );
+      if (names.join(" ") !== matrix.names.join(" "))
+        fail(`${name} names [${names}] vs [${matrix.names}]`);
+      const scale = Math.max(...matrix.values.map(Math.abs));
+      if (
+        values.length !== matrix.values.length ||
+        values.some((v, k) => Math.abs(v - matrix.values[k]) > 1e-9 * scale)
+      )
+        fail(`${name}: ${values} vs ${matrix.values}`);
+    }
     if (session.data.n !== c.observations)
       fail(`observations ${session.data.n} vs ${c.observations}`);
     if (session.data.sortedBy.join(" ") !== c.sortedBy.join(" "))

@@ -43,11 +43,15 @@ const SKIPPED = new Map([
 // 10^14; everything else must be the identical double.
 const APPROXIMATE =
   /normal|lnfactorial|logit|comb\(|\^\(?-?[\d.]*\.\d|\^-|exp\(|log10|ln\(|log\(/;
+// Distribution functions are compared to 1 part in 10^11.
+const DISTRIBUTION = /^(t|F|chi2|inv|lngamma|ibeta|gammap)/;
 
 const show = (v) => (typeof v === "number" ? (missingName(v) ?? v) : v);
 function same(actual, expected, expression) {
   if (actual === expected) return true;
   if (typeof actual !== "number" || typeof expected !== "number") return false;
+  if (DISTRIBUTION.test(expression))
+    return Math.abs(actual - expected) <= 1e-11 * Math.abs(expected);
   if (!APPROXIMATE.test(expression)) return false;
   return Math.abs(actual - expected) <= 1e-14 * Math.abs(expected);
 }

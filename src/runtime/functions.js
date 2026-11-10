@@ -12,6 +12,18 @@ import {
   parseNumber,
 } from "./values.js";
 
+import {
+  Ftail,
+  chi2tail,
+  gammap,
+  ibeta,
+  invFtail,
+  invchi2tail,
+  invttail,
+  lngamma,
+  ttail,
+} from "./distributions.js";
+
 const N = "numeric",
   S = "string",
   ANY = "any";
@@ -415,6 +427,50 @@ export const FUNCTIONS = {
       return sd > 0 ? density((x - mean) / sd) / sd : MISSING;
     },
   },
+
+  lngamma: one(lngamma),
+  ibeta: { args: [N, N, N], returns: N, fn: ibeta },
+  gammap: { args: [N, N], returns: N, fn: gammap },
+  ttail: { args: [N, N], returns: N, fn: ttail },
+  t: {
+    args: [N, N],
+    returns: N,
+    fn: (df, t) => {
+      const tail = ttail(df, t);
+      return tail >= 2 ** 1023 ? tail : 1 - tail;
+    },
+  },
+  invttail: { args: [N, N], returns: N, fn: invttail },
+  invt: {
+    args: [N, N],
+    returns: N,
+    fn: (df, p) => {
+      const value = invttail(df, 1 - p);
+      return value >= 2 ** 1023 ? value : value + 0;
+    },
+  },
+  Ftail: { args: [N, N, N], returns: N, fn: Ftail },
+  F: {
+    args: [N, N, N],
+    returns: N,
+    fn: (a, b, x) => {
+      const tail = Ftail(a, b, x);
+      return tail >= 2 ** 1023 ? tail : 1 - tail;
+    },
+  },
+  invFtail: { args: [N, N, N], returns: N, fn: invFtail },
+  invF: { args: [N, N, N], returns: N, fn: (a, b, p) => invFtail(a, b, 1 - p) },
+  chi2tail: { args: [N, N], returns: N, fn: chi2tail },
+  chi2: {
+    args: [N, N],
+    returns: N,
+    fn: (df, x) => {
+      const tail = chi2tail(df, x);
+      return tail >= 2 ** 1023 ? tail : 1 - tail;
+    },
+  },
+  invchi2tail: { args: [N, N], returns: N, fn: invchi2tail },
+  invchi2: { args: [N, N], returns: N, fn: (df, p) => invchi2tail(df, 1 - p) },
 
   // dates
   mdy: { args: [N, N, N], returns: N, fn: mdy },

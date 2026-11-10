@@ -152,3 +152,44 @@ egen mg = mean(x), by(g)
 egen c = count(x) if id > 2
 collapse (mean) x (count) n = id, by(g)
 list
+=== regress
+@EST
+regress y x1
+regress y x1 x2
+regress y x1 x2, noconstant
+regress y x1 x2, robust
+regress y x1 x2, vce(cluster cl)
+regress y x1 x2, level(90)
+regress y x1 if g > 1
+regress y i.g
+regress y x1 i.g
+=== postestimation
+@EST
+regress y x1 x2
+test x1
+test x1 x2
+test x1 = x2
+test x1 = 2
+lincom x1 + x2
+lincom x1 - x2, level(90)
+predict yhat
+predict res, residuals
+list yhat res in 1/3
+=== correlate
+@EST
+correlate y x1 x2
+correlate y x1, covariance
+correlate
+=== tabstat
+@EST
+tabstat y x1
+tabstat y x1 x2, statistics(mean sd n)
+tabstat y, by(g)
+tabstat y x1, by(g) statistics(mean median min max)
+tabstat y x1, statistics(n mean) columns(statistics)
+=== regress-collinear
+@EST
+generate x3 = x1 + x2
+generate x4 = 2*x1 + 1
+regress y x1 x2 x3
+regress y x1 x4, robust

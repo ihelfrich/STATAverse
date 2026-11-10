@@ -8,6 +8,7 @@ import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
+import { ESTIMATION_COMMANDS } from "./estimation.js";
 import {
   count,
   countCommand,
@@ -1038,6 +1039,7 @@ const command = (name, minimum, run, byable = false) => ({
 // A command under by: runs once per group, with a heading for each.
 
 export const COMMANDS = [
+  ...ESTIMATION_COMMANDS,
   command("generate", 1, generate, true),
   command("replace", 7, replace, true),
   command("egen", 4, egen, true),

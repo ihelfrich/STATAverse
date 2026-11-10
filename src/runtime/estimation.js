@@ -1,0 +1,802 @@
+// Linear regression and what follows it: regress, predict, test and lincom,
+// plus correlate and tabstat. regress leaves one result object in
+// session.estimates; the post-estimation commands read only that object, so
+// they will serve later estimators without change.
+import { StataError } from "./errors.js";
+import { compileExpression } from "./expression.js";
+import { applyFormat } from "./format.js";
+import { Ftail, invttail, ttail } from "./distributions.js";
+import { count, labelled, moments, percentile, present } from "./reports.js";
+import { splitAtComma } from "./syntax.js";
+import { MISSING, isMissing, isName, isStringType } from "./values.js";
+
+const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
+const RULE = "-".repeat(78);
+
+// ----- small dense linear algebra -----
+/** Inverse of a symmetric positive definite matrix by Cholesky. */
+function invertSymmetric(a) {
+  const n = a.length,
+    l = a.map((row) => row.slice());
+  for (let j = 0; j < n; j++) {
+    for (let k = 0; k < j; k++)
+      for (let i = j; i < n; i++) l[i][j] -= l[i][k] * l[j][k];
+    if (!(l[j][j] > 0)) return null;
+    const root = Math.sqrt(l[j][j]);
+    for (let i = j; i < n; i++) l[i][j] /= root;
+  }
+  // Invert the triangular factor, then form L^-T L^-1.
+  const inverse = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let j = 0; j < n; j++) {
+    inverse[j][j] = 1 / l[j][j];
+    for (let i = j + 1; i < n; i++) {
+      let sum = 0;
+      for (let k = j; k < i; k++) sum -= l[i][k] * inverse[k][j];
+      inverse[i][j] = sum / l[i][i];
+    }
+  }
+  const out = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j <= i; j++) {
+      let sum = 0;
+      for (let k = i; k < n; k++) sum += inverse[k][i] * inverse[k][j];
+      out[i][j] = out[j][i] = sum;
+    }
+  return out;
+}
+const quadratic = (v, m) =>
+  v.reduce(
+    (total, vi, i) =>
+      total + vi * m[i].reduce((t, mij, j) => t + mij * v[j], 0),
+    0,
+  );
+
+// ----- the model -----
+/** Reads "y x1 i.g" into a dependent variable and design columns. */
+function design(session, text, rows) {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) throw new StataError("varlist required", 100);
+  const numeric = (name) => {
+    const variable = session.data.get(session.varlist(name)[0]);
+    if (isStringType(variable.type))
+      throw new StataError("string variables may not be used", 109);
+    return variable;
+  };
+  const dependent = numeric(tokens[0]),
+    terms = [];
+  for (const token of tokens.slice(1)) {
+    const m = /^(i|c)\.(.+)$/.exec(token);
+    if (m && m[1] === "i") terms.push({ factor: numeric(m[2]) });
+    else if (/[#.]/.test(m ? "" : token))
+      throw new StataError(
+        `${token}: interactions and time-series operators are not available yet`,
+        198,
+      );
+    else
+      for (const name of session.varlist(m ? m[2] : token))
+        terms.push({ variable: numeric(name) });
+  }
+  const sample = rows.filter(
+    (i) =>
+      !isMissing(dependent.data[i]) &&
+      terms.every((t) => !isMissing((t.variable ?? t.factor).data[i])),
+  );
+  const columns = [];
+  for (const term of terms) {
+    if (term.variable) {
+      columns.push({
+        name: term.variable.name,
+        value: (i) => term.variable.data[i],
+        term,
+      });
+      continue;
+    }
+    const levels = [...new Set(sample.map((i) => term.factor.data[i]))].sort(
+      (a, b) => a - b,
+    );
+    if (levels.some((level) => !Number.isInteger(level) || level < 0))
+      throw new StataError(
+        `${term.factor.name}: factor variables may not contain noninteger values`,
+        452,
+      );
+    levels.forEach((level, k) =>
+      columns.push({
+        name: `${level}${k ? "" : "b"}.${term.factor.name}`,
+        value: (i) => Number(term.factor.data[i] === level),
+        term,
+        level,
+        base: k === 0,
+      }),
+    );
+  }
+  return { dependent, columns, sample };
+}
+
+function fit(session, parsed, by) {
+  const rows = session.rows(parsed, by),
+    options = parsed.options,
+    { dependent, columns, sample } = design(session, parsed.anything, rows),
+    constant = options.constant !== false,
+    vceText = options.vce ?? (options.robust ? "robust" : ""),
+    clusterMatch = /^cl(?:u(?:s(?:t(?:er?)?)?)?)?\s+(\S+)$/.exec(
+      vceText.trim(),
+    ),
+    cluster = clusterMatch
+      ? session.data.get(session.varlist(clusterMatch[1])[0])
+      : null,
+    robust = !!cluster || /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
+  if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
+    throw new StataError(`vce(${vceText}) is not available yet`, 198);
+  const obs = cluster
+      ? sample.filter((i) => !isMissing(cluster.data[i]))
+      : sample,
+    n = obs.length;
+  if (!n) throw new StataError("no observations", 2000);
+  const y = obs.map((i) => dependent.data[i]),
+    active = columns.filter((c) => !c.base),
+    x = active.map((c) => obs.map(c.value)),
+    mean = (v) => v.reduce((a, b) => a + b, 0) / n,
+    ybar = constant ? mean(y) : 0,
+    xbar = x.map((v) => (constant ? mean(v) : 0)),
+    yc = y.map((v) => v - ybar),
+    xc = x.map((v, k) => v.map((value) => value - xbar[k]));
+  // Choose columns by pivoting: at each step take the column with the most
+  // variation left after those already chosen, as Stata does, so which of
+  // two collinear variables is omitted does not depend on their order.
+  const cross = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0),
+    original = xc.map((column) => cross(column, column)),
+    remaining = xc.map((column) => column.slice()),
+    chosen = new Set();
+  for (;;) {
+    let best = -1,
+      size = 0;
+    remaining.forEach((column, k) => {
+      if (chosen.has(k)) return;
+      const norm = cross(column, column);
+      if (norm > 1e-11 * original[k] && norm > size * (1 + 1e-12)) {
+        best = k;
+        size = norm;
+      }
+    });
+    if (best < 0) break;
+    chosen.add(best);
+    const pivot = remaining[best].slice();
+    remaining.forEach((column, k) => {
+      if (chosen.has(k)) return;
+      const weight = cross(column, pivot) / size;
+      remaining[k] = column.map((v, i) => v - weight * pivot[i]);
+    });
+  }
+  const kept = xc.map((_, k) => k).filter((k) => chosen.has(k));
+  active.forEach((column, k) => {
+    if (!chosen.has(k)) column.omitted = true;
+  });
+  const s = kept.map((a) => kept.map((b) => cross(xc[a], xc[b]))),
+    a = kept.length ? invertSymmetric(s) : [];
+  if (!a) throw new StataError("the regressors are too collinear to fit", 198);
+  const xy = kept.map((k) => cross(xc[k], yc)),
+    slopes = a.map((row) => row.reduce((t, v, j) => t + v * xy[j], 0)),
+    intercept = constant
+      ? ybar - kept.reduce((t, k, j) => t + xbar[k] * slopes[j], 0)
+      : 0,
+    fitted = y.map(
+      (_, i) =>
+        intercept + kept.reduce((t, k, j) => t + x[k][i] * slopes[j], 0),
+    ),
+    residuals = y.map((v, i) => v - fitted[i]),
+    rss = cross(residuals, residuals),
+    tss = cross(yc, yc),
+    mss = tss - rss,
+    rank = kept.length + (constant ? 1 : 0),
+    dfModel = kept.length,
+    dfResidual = n - rank;
+  // (Z'Z)^-1 for Z = [kept columns, 1], assembled from the centred inverse.
+  const size = rank,
+    bread = Array.from({ length: size }, () => new Array(size).fill(0));
+  a.forEach((row, i) => row.forEach((v, j) => (bread[i][j] = v)));
+  if (constant) {
+    const means = kept.map((k) => xbar[k]),
+      am = a.map((row) => row.reduce((t, v, j) => t + v * means[j], 0)),
+      last = size - 1;
+    am.forEach((v, i) => (bread[i][last] = bread[last][i] = -v));
+    bread[last][last] = 1 / n + means.reduce((t, v, i) => t + v * am[i], 0);
+  }
+  const z = (i) => [...kept.map((k) => x[k][i]), ...(constant ? [1] : [])];
+  let covariance,
+    clusters = null;
+  if (!robust) {
+    const s2 = rss / dfResidual;
+    covariance = bread.map((row) => row.map((v) => v * s2));
+  } else {
+    const meat = Array.from({ length: size }, () => new Array(size).fill(0)),
+      add = (score) =>
+        score.forEach((si, i) =>
+          score.forEach((sj, j) => (meat[i][j] += si * sj)),
+        );
+    let scale;
+    if (cluster) {
+      const sums = new Map();
+      obs.forEach((row, i) => {
+        const key = cluster.data[row],
+          score = z(i).map((v) => v * residuals[i]),
+          sum = sums.get(key) ?? new Array(size).fill(0);
+        score.forEach((v, k) => (sum[k] += v));
+        sums.set(key, sum);
+      });
+      for (const sum of sums.values()) add(sum);
+      clusters = sums.size;
+      scale = (clusters / (clusters - 1)) * ((n - 1) / (n - rank));
+    } else {
+      for (let i = 0; i < n; i++) add(z(i).map((v) => v * residuals[i]));
+      scale = n / (n - rank);
+    }
+    const bm = bread.map((row) =>
+      meat[0].map((_, j) => row.reduce((t, v, k) => t + v * meat[k][j], 0)),
+    );
+    covariance = bm.map((row) =>
+      bread[0].map(
+        (_, j) => scale * row.reduce((t, v, k) => t + v * bread[k][j], 0),
+      ),
+    );
+  }
+  const dfTest = cluster ? clusters - 1 : dfResidual;
+  let F = MISSING;
+  if (dfModel > 0) {
+    if (!robust) F = mss / dfModel / (rss / dfResidual);
+    else {
+      const block = covariance
+          .slice(0, dfModel)
+          .map((row) => row.slice(0, dfModel)),
+        inverse = invertSymmetric(block);
+      if (inverse) F = quadratic(slopes, inverse) / dfModel;
+    }
+  }
+  // Coefficients in the order of the design, with base and omitted columns
+  // held at zero, then the constant.
+  const names = [...columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
+    position = new Map();
+  kept.forEach((k, j) => position.set(active[k].name, j));
+  if (constant) position.set("_cons", size - 1);
+  const b = names.map((name) => {
+      const at = position.get(name);
+      return at === undefined
+        ? 0
+        : at === size - 1 && constant
+          ? intercept
+          : slopes[at];
+    }),
+    V = names.map((r) =>
+      names.map((c) => {
+        const i = position.get(r),
+          j = position.get(c);
+        return i === undefined || j === undefined ? 0 : covariance[i][j];
+      }),
+    );
+  return {
+    command: "regress",
+    depvar: dependent.name,
+    names,
+    b,
+    V,
+    columns,
+    constant,
+    estimable: names.map((name) => position.has(name)),
+    N: n,
+    df_m: dfModel,
+    df_r: dfTest,
+    rank,
+    F,
+    rss,
+    mss,
+    tss,
+    r2: tss ? mss / tss : MISSING,
+    r2_a: tss
+      ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
+      : MISSING,
+    rmse: Math.sqrt(rss / dfResidual),
+    ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1),
+    vce: cluster ? "cluster" : robust ? "robust" : "ols",
+    clusters,
+    clusterName: cluster?.name,
+    dfResidual,
+    level: options.level,
+  };
+}
+
+function coefficientRows(session, model, level) {
+  const critical = invttail(model.df_r, (1 - level / 100) / 2),
+    out = [];
+  let previous = null;
+  model.names.forEach((name, k) => {
+    const column = model.columns[k],
+      factor = column?.term.factor;
+    if (
+      previous !== null &&
+      (factor || previous.factor) &&
+      (column?.term ?? "cons") !== previous.term
+    )
+      out.push("             |");
+    if (factor && column.term !== previous?.term)
+      out.push(`${factor.name.padStart(12)} |`);
+    previous = { term: column?.term ?? "cons", factor };
+    if (column?.base) return;
+    const label = factor
+      ? `${labelled(session, factor, column.level)}  `.padStart(13)
+      : `${name.padStart(12)} `;
+    if (!model.estimable[k]) return out.push(`${label}|          0  (omitted)`);
+    const se = Math.sqrt(model.V[k][k]),
+      t = model.b[k] / se;
+    out.push(
+      `${label}|${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`,
+    );
+  });
+  return out;
+}
+function coefficientHeader(model, level, label = model.depvar) {
+  const robust = model.vce !== "ols",
+    interval = `[${g(level, "%9.0g")}% conf. interval]`;
+  return [
+    RULE,
+    ...(robust ? ["             |               Robust"] : []),
+    `${label.padStart(12)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|     ${interval}`,
+    "-------------+----------------------------------------------------------------",
+  ];
+}
+
+function regress(session, text, ctx) {
+  const parsed = session.parse(
+      "anything [if] [in] [, noCONStant Robust VCE(string) Level(cilevel) noHEader Beta]",
+      text,
+    ),
+    model = fit(session, parsed, null),
+    level = parsed.options.level,
+    stat = (label, value, wide) =>
+      wide
+        ? `${label.padEnd(18)}=${value.padStart(11)}`
+        : `   ${label.padEnd(16)}=${value.padStart(10)}`,
+    fLabel = `F(${model.df_m}, ${model.df_r})`,
+    p = isMissing(model.F) ? MISSING : Ftail(model.df_m, model.df_r, model.F),
+    wide = model.vce !== "ols",
+    side = [
+      stat("Number of obs", count(model.N), wide),
+      stat(fLabel, applyFormat(model.F, "%9.2f").trim(), wide),
+      stat("Prob > F", applyFormat(p, "%6.4f").trim(), wide),
+      stat("R-squared", applyFormat(model.r2, "%6.4f").trim(), wide),
+      ...(wide
+        ? []
+        : [stat("Adj R-squared", applyFormat(model.r2_a, "%6.4f").trim())]),
+      stat("Root MSE", g(model.rmse, "%9.5g"), wide),
+    ];
+  session.estimates = model;
+  session.results.e = {
+    N: model.N,
+    df_m: model.df_m,
+    df_r: model.df_r,
+    F: model.F,
+    r2: model.r2,
+    r2_a: model.r2_a,
+    rmse: model.rmse,
+    mss: model.mss,
+    rss: model.rss,
+    ll: model.ll,
+    rank: model.rank,
+    ...(model.clusters ? { N_clust: model.clusters } : {}),
+    cmd: "regress",
+    depvar: model.depvar,
+    vce: model.vce,
+  };
+  for (const column of model.columns)
+    if (column.omitted)
+      ctx.out(`note: ${column.name} omitted because of collinearity.`);
+  ctx.out("");
+  if (wide) {
+    side.forEach((line, k) =>
+      ctx.out((k ? "" : "Linear regression").padEnd(48) + line),
+    );
+    if (model.clusters) {
+      ctx.out("");
+      ctx.out(
+        `(Std. err. adjusted for ${count(model.clusters)} clusters in ${model.clusterName})`.padStart(
+          78,
+        ),
+      );
+    } else ctx.out("");
+  } else {
+    const n11 = (value) => g(value, "%11.0g").padStart(12),
+      totalDf = model.N - (model.constant ? 1 : 0),
+      row = (label, ss, df) =>
+        `${label.padStart(12)} |${n11(ss)}${count(df).padStart(10)}${n11(ss / df)}`,
+      left = [
+        "      Source |       SS           df       MS   ",
+        "-------------+----------------------------------",
+        row("Model", model.mss, model.df_m),
+        row("Residual", model.rss, model.dfResidual),
+        "-------------+----------------------------------",
+        row("Total", model.tss, totalDf),
+      ];
+    left.forEach((line, k) => ctx.out(line.padEnd(48) + side[k]));
+    ctx.out("");
+  }
+  coefficientHeader(model, level).forEach(ctx.out);
+  coefficientRows(session, model, level).forEach(ctx.out);
+  ctx.out(RULE);
+  ctx.out("");
+}
+
+function estimates(session) {
+  if (!session.estimates) throw new StataError("last estimates not found", 301);
+  return session.estimates;
+}
+
+function predict(session, text, ctx) {
+  const model = estimates(session),
+    parsed = session.parse("newvarname [if] [in] [, XB Residuals STDP]", text),
+    options = parsed.options,
+    chosen = ["xb", "residuals", "stdp"].filter((name) => options[name]);
+  if (chosen.length > 1)
+    throw new StataError("only one statistic may be requested", 198);
+  if (!chosen.length) ctx.out("(option xb assumed; fitted values)");
+  const data = session.data,
+    dependent = data.get(model.depvar),
+    values = new Array(data.n).fill(MISSING);
+  let missing = 0;
+  session.select(parsed, null, (i) => {
+    let xb = 0;
+    const row = model.names.map((name, k) =>
+      name === "_cons" ? 1 : model.columns[k].value(i),
+    );
+    if (
+      model.columns.some((c) =>
+        isMissing((c.term.variable ?? c.term.factor).data[i]),
+      )
+    )
+      return;
+    row.forEach((v, k) => (xb += v * model.b[k]));
+    values[i] = options.residuals
+      ? isMissing(dependent.data[i])
+        ? MISSING
+        : dependent.data[i] - xb
+      : options.stdp
+        ? Math.sqrt(quadratic(row, model.V))
+        : xb;
+  });
+  for (const v of values) if (isMissing(v)) missing++;
+  const sorted = [...data.sortedBy];
+  data.generate(parsed.varlist[0], values, {
+    type: parsed.typed[0] ? parsed.types[0] : undefined,
+  });
+  data.sortedBy = sorted;
+  data.get(parsed.varlist[0]).label = options.residuals
+    ? "Residuals"
+    : options.stdp
+      ? "S.E. of the prediction"
+      : "Fitted values";
+  if (missing)
+    ctx.out(
+      `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
+    );
+}
+
+/**
+ * Reads a linear expression in the coefficients, such as "x1 - x2" or
+ * "2*x1 + _cons", into weights and a constant by evaluating it with each
+ * coefficient set to one in turn.
+ */
+function linear(model, text) {
+  const usable = model.names.filter((name) => isName(name) || name === "_cons"),
+    evaluate = (values) => {
+      const compiled = compileExpression(text, { scalars: new Map(values) });
+      if (compiled.type !== "numeric")
+        throw new StataError("type mismatch", 109);
+      return compiled.evaluate(0, { start: 0, count: 0, sums: [] });
+    },
+    zero = usable.map((name) => [name, 0]);
+  let constant;
+  try {
+    constant = evaluate(zero);
+  } catch (error) {
+    if (error.code === 111)
+      throw new StataError(
+        error.message.replace(" not found", " not found"),
+        111,
+      );
+    throw error;
+  }
+  const weights = model.names.map((name) => {
+    if (!usable.includes(name)) return 0;
+    const at = (value) =>
+      evaluate(zero.map(([n]) => [n, n === name ? value : 0])) - constant;
+    const one = at(1);
+    if (Math.abs(at(2) - 2 * one) > 1e-9 * Math.max(1, Math.abs(one)))
+      throw new StataError(
+        "not possible with test: the expression is not linear",
+        131,
+      );
+    return one;
+  });
+  return { weights, constant };
+}
+function describeLinear(model, weights, constant) {
+  let text = "";
+  weights.forEach((w, k) => {
+    if (!w) return;
+    const size = Math.abs(w) === 1 ? "" : `${g(Math.abs(w))}*`;
+    text += text
+      ? ` ${w < 0 ? "-" : "+"} ${size}${model.names[k]}`
+      : `${w < 0 ? "-" : ""}${size}${model.names[k]}`;
+  });
+  return `${text} = ${g(-constant + 0)}`;
+}
+
+function test(session, text, ctx) {
+  const model = estimates(session),
+    [head] = splitAtComma(text),
+    groups = head.match(/\([^()]*\)/g),
+    specs = groups
+      ? groups.map((s) => s.slice(1, -1))
+      : /=/.test(head)
+        ? [head]
+        : head.trim().split(/\s+/).filter(Boolean);
+  if (!specs.length) throw new StataError("nothing to test", 198);
+  const constraints = specs.map((spec) => {
+    const sides = spec.split(/==?/);
+    if (sides.length > 2) throw new StataError("invalid syntax", 198);
+    return linear(
+      model,
+      sides.length === 2 ? `(${sides[0]}) - (${sides[1]})` : spec,
+    );
+  });
+  constraints.forEach((c, k) =>
+    ctx.out(
+      ` (${String(k + 1).padStart(2)})  ${describeLinear(model, c.weights, c.constant)}`,
+    ),
+  );
+  const q = constraints.length,
+    difference = constraints.map(
+      (c) => c.weights.reduce((t, w, k) => t + w * model.b[k], 0) + c.constant,
+    ),
+    middle = constraints.map((a) =>
+      constraints.map((b) =>
+        a.weights.reduce(
+          (t, wa, i) =>
+            t + wa * b.weights.reduce((u, wb, j) => u + model.V[i][j] * wb, 0),
+          0,
+        ),
+      ),
+    ),
+    inverse = invertSymmetric(middle);
+  if (!inverse) throw new StataError("the constraints are redundant", 111);
+  const F = quadratic(difference, inverse) / q,
+    p = Ftail(q, model.df_r, F);
+  ctx.out("");
+  ctx.out(
+    `       F(${String(q).padStart(3)},${String(model.df_r).padStart(6)}) =${applyFormat(F, "%8.2f")}`,
+  );
+  ctx.out(`            Prob > F =${applyFormat(p, "%10.4f")}`);
+  ctx.out("");
+  session.results.r = { F, p, df: q, df_r: model.df_r, drop: 0 };
+}
+
+function lincom(session, text, ctx) {
+  const model = estimates(session),
+    parsed = session.parse("anything [, Level(cilevel)]", text),
+    { weights, constant } = linear(model, parsed.anything),
+    estimate = weights.reduce((t, w, k) => t + w * model.b[k], 0) + constant,
+    se = Math.sqrt(quadratic(weights, model.V)),
+    level = parsed.options.level,
+    critical = invttail(model.df_r, (1 - level / 100) / 2),
+    t = estimate / se,
+    p = 2 * ttail(model.df_r, Math.abs(t));
+  if (constant)
+    throw new StataError("lincom does not allow a constant term", 198);
+  ctx.out("");
+  ctx.out(` ( 1)  ${describeLinear(model, weights, 0)}`);
+  ctx.out("");
+  coefficientHeader({ ...model, vce: "ols" }, level).forEach(ctx.out);
+  ctx.out(
+    `${"(1)".padStart(12)} |${g(estimate).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(p, "%8.3f")}${g(estimate - critical * se).padStart(13)}${g(estimate + critical * se).padStart(12)}`,
+  );
+  ctx.out(RULE);
+  ctx.out("");
+  session.results.r = {
+    estimate,
+    se,
+    df: model.df_r,
+    t,
+    p,
+    lb: estimate - critical * se,
+    ub: estimate + critical * se,
+    level,
+  };
+}
+
+function correlate(session, text, ctx) {
+  const parsed = session.parse(
+      "[varlist] [if] [in] [, Covariance Means]",
+      text,
+    ),
+    variables = parsed.varlist
+      .map((name) => session.data.get(name))
+      .filter((v) => !isStringType(v.type)),
+    rows = session
+      .rows(parsed, null)
+      .filter((i) => variables.every((v) => !isMissing(v.data[i]))),
+    n = rows.length;
+  if (!n) throw new StataError("no observations", 2000);
+  const columns = variables.map((v) => rows.map((i) => v.data[i])),
+    means = columns.map((c) => c.reduce((a, b) => a + b, 0) / n),
+    covariance = (a, b) =>
+      columns[a].reduce(
+        (t, v, i) => t + (v - means[a]) * (columns[b][i] - means[b]),
+        0,
+      ) /
+      (n - 1),
+    C = columns.map((_, a) => columns.map((_, b) => covariance(a, b))),
+    shown = (a, b) =>
+      parsed.options.covariance
+        ? g(C[a][b], "%9.6g").padStart(9)
+        : applyFormat(C[a][b] / Math.sqrt(C[a][a] * C[b][b]), "%9.4f"),
+    short = (name) =>
+      name.length > 8 ? name.slice(0, 6) + "~" + name.at(-1) : name;
+  ctx.out(`(obs=${count(n)})`);
+  ctx.out("");
+  ctx.out(
+    `             |${variables.map((v) => short(v.name).padStart(9)).join("")}`,
+  );
+  ctx.out(`-------------+${"-".repeat(9 * variables.length)}`);
+  variables.forEach((v, a) =>
+    ctx.out(
+      `${(v.name.length > 12 ? v.name.slice(0, 10) + "~" + v.name.at(-1) : v.name).padStart(12)} |${variables
+        .slice(0, a + 1)
+        .map((_, b) => shown(a, b))
+        .join("")}`,
+    ),
+  );
+  ctx.out("");
+  session.results.r = {
+    N: n,
+    // rho is returned without the covariance option, the moments with it.
+    ...(variables.length > 1 && !parsed.options.covariance
+      ? { rho: C[0][1] / Math.sqrt(C[0][0] * C[1][1]) }
+      : {}),
+    ...(parsed.options.covariance
+      ? {
+          Var_1: C[0][0],
+          ...(variables.length > 1 ? { cov_12: C[0][1], Var_2: C[1][1] } : {}),
+        }
+      : {}),
+  };
+}
+
+const TABSTAT = {
+  mean: ["Mean", (v) => moments(v).mean],
+  n: ["N", (v) => v.length],
+  count: ["N", (v) => v.length],
+  sum: ["Sum", (v) => moments(v).sum],
+  min: ["Min", (v) => moments(v).min],
+  max: ["Max", (v) => moments(v).max],
+  sd: ["SD", (v) => moments(v).sd],
+  variance: ["Variance", (v) => moments(v).variance],
+  range: [
+    "Range",
+    (v) => (v.length ? moments(v).max - moments(v).min : MISSING),
+  ],
+  cv: ["CV", (v) => (v.length > 1 ? moments(v).sd / moments(v).mean : MISSING)],
+  semean: [
+    "SE(mean)",
+    (v) => (v.length > 1 ? moments(v).sd / Math.sqrt(v.length) : MISSING),
+  ],
+  iqr: [
+    "IQR",
+    (v) => {
+      const s = [...v].sort((a, b) => a - b);
+      return s.length ? percentile(s, 75) - percentile(s, 25) : MISSING;
+    },
+  ],
+};
+for (const p of [1, 5, 10, 25, 50, 75, 90, 95, 99])
+  TABSTAT["p" + p] = [
+    "p" + p,
+    (v) =>
+      percentile(
+        [...v].sort((a, b) => a - b),
+        p,
+      ),
+  ];
+Object.assign(TABSTAT, {
+  median: TABSTAT.p50,
+  q: null,
+  var: TABSTAT.variance,
+  me: TABSTAT.mean,
+});
+delete TABSTAT.q;
+
+function tabstat(session, text, ctx) {
+  const parsed = session.parse(
+      "varlist(numeric) [if] [in] [, Statistics(string) BY(varname) Columns(string) noTotal Missing Format]",
+      text,
+    ),
+    names = (parsed.options.statistics ?? "mean").split(/\s+/).filter(Boolean),
+    stats = names.map((name) => {
+      const entry = TABSTAT[name.toLowerCase()];
+      if (!entry) throw new StataError(`unknown statistic: ${name}`, 198);
+      return entry;
+    }),
+    variables = parsed.varlist.map((name) => session.data.get(name)),
+    rows = session.rows(parsed, null),
+    cell = (variable, subset, stat) =>
+      g(stat[1](present(variable.data, subset))).padStart(10),
+    byVariable = parsed.options.by ? session.data.get(parsed.options.by) : null;
+  ctx.out("");
+  if (!byVariable) {
+    if (/^s/.test(parsed.options.columns ?? "")) {
+      ctx.out(`    Variable |${stats.map((s) => s[0].padStart(10)).join("")}`);
+      ctx.out(`-------------+${"-".repeat(10 * stats.length)}`);
+      for (const v of variables)
+        ctx.out(
+          `${v.name.padStart(12)} |${stats.map((s) => cell(v, rows, s)).join("")}`,
+        );
+      ctx.out("-".repeat(14 + 10 * stats.length));
+    } else {
+      ctx.out(
+        `   Stats |${variables.map((v) => v.name.padStart(10)).join("")}`,
+      );
+      ctx.out(`---------+${"-".repeat(10 * variables.length)}`);
+      for (const s of stats)
+        ctx.out(
+          `${s[0].padStart(8)} |${variables.map((v) => cell(v, rows, s)).join("")}`,
+        );
+      ctx.out("-".repeat(10 + 10 * variables.length));
+    }
+    ctx.out("");
+    return;
+  }
+  const levels = [...new Set(rows.map((i) => byVariable.data[i]))]
+      .filter(
+        (value) =>
+          !(typeof value === "number" && isMissing(value)) && value !== "",
+      )
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    line = `---------+${"-".repeat(10 * variables.length)}`,
+    block = (label, subset) =>
+      stats.forEach((s, k) =>
+        ctx.out(
+          `${(k ? "" : label).slice(0, 8).padStart(8)} |${variables.map((v) => cell(v, subset, s)).join("")}`,
+        ),
+      );
+  ctx.out(
+    stats.length === 1
+      ? `Summary for variables: ${variables.map((v) => v.name).join(" ")}`
+      : `Summary statistics: ${stats.map((s) => s[0]).join(", ")}`,
+  );
+  ctx.out(
+    `Group variable: ${byVariable.name}${byVariable.label ? ` (${byVariable.label})` : ""}`,
+  );
+  ctx.out("");
+  ctx.out(
+    `${byVariable.name.slice(0, 8).padStart(8)} |${(stats.length === 1 && variables.length === 1 ? [stats[0][0]] : variables.map((v) => v.name)).map((item) => item.padStart(10)).join("")}`,
+  );
+  ctx.out(line);
+  levels.forEach((level, k) => {
+    if (k && stats.length > 1) ctx.out(line);
+    block(
+      labelled(session, byVariable, level),
+      rows.filter((i) => byVariable.data[i] === level),
+    );
+  });
+  if (parsed.options.total !== false) {
+    ctx.out(line);
+    block("Total", rows);
+  }
+  ctx.out("-".repeat(10 + 10 * variables.length));
+  ctx.out("");
+}
+
+export const ESTIMATION_COMMANDS = [
+  { name: "regress", minimum: 3, run: regress },
+  { name: "predict", minimum: 7, run: predict },
+  { name: "test", minimum: 4, run: test },
+  { name: "lincom", minimum: 6, run: lincom },
+  { name: "correlate", minimum: 3, run: correlate },
+  { name: "tabstat", minimum: 7, run: tabstat },
+];

@@ -7,10 +7,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -140,10 +144,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -263,10 +271,14 @@
       "locals": ["rc"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "rc": "198" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -329,10 +341,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -413,10 +429,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": ["g", "id"],
       "variables": [
@@ -516,10 +536,14 @@
       "locals": ["rc", "rc2"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "rc": "5", "rc2": "0" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": ["g"],
       "variables": [
@@ -584,10 +608,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 2,
       "sortedBy": [],
       "variables": [
@@ -615,10 +643,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": ["s"],
       "variables": [
@@ -691,10 +723,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -832,10 +868,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -962,10 +1002,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 3,
       "sortedBy": ["g"],
       "variables": [
@@ -1017,10 +1061,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 3,
       "sortedBy": ["g"],
       "variables": [
@@ -1098,10 +1146,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 1,
       "sortedBy": [],
       "variables": [
@@ -1129,10 +1181,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 2,
       "sortedBy": ["g"],
       "variables": [
@@ -1179,6 +1235,8 @@
       ],
       "globals": ["G"],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": "5",
@@ -1202,6 +1260,8 @@
       },
       "globalValues": { "G": "7" },
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1212,10 +1272,14 @@
       "locals": ["i", "j", "k"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "i": "4", "j": "3", "k": "5" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1226,6 +1290,8 @@
       "locals": ["v", "w", "e1", "s", "esclen", "dollarlen", "empty"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "v": "two",
@@ -1238,6 +1304,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1248,10 +1316,14 @@
       "locals": ["out"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "out": "[a][b][c d][e]" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1262,6 +1334,8 @@
       "locals": ["out", "o2", "o3", "o4"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "out": "x f g",
@@ -1271,6 +1345,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1327,6 +1403,8 @@
       "locals": ["s", "d", "e", "f", "never", "i"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "s": "55",
@@ -1338,6 +1416,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1348,10 +1428,14 @@
       "locals": ["out", "i"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "out": "2 4 6", "i": "8" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1362,10 +1446,14 @@
       "locals": ["r", "ok", "never"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "r": "mid", "ok": "1", "never": "" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1376,10 +1464,14 @@
       "locals": ["out"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "out": "11 12 21 22" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1390,10 +1482,14 @@
       "locals": ["s", "t"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "s": "7", "t": "3 and 4" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1404,6 +1500,8 @@
       "locals": ["m", "o", "rc1", "rc2"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "m": "-.1666666666666667",
@@ -1413,6 +1511,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1469,10 +1569,14 @@
       "locals": ["seen", "rc", "outer"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "seen": "99|1", "rc": "111", "outer": "1" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1483,6 +1587,8 @@
       "locals": ["a", "b", "c", "d", "e", "f", "g"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": "198",
@@ -1495,6 +1601,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -1505,6 +1613,8 @@
       "locals": ["a", "b", "c", "d", "e", "f", "g"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": "110",
@@ -1517,6 +1627,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1573,10 +1685,14 @@
       "locals": ["a", "b", "c"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "9", "b": "459", "c": "109" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1633,6 +1749,8 @@
       "locals": ["a", "b", "c", "d", "e", "f", "g", "t", "fm", "h", "i"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": "The X",
@@ -1649,6 +1767,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1705,6 +1825,8 @@
       "locals": ["a", "b", "c", "d", "e", "f"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": "%9.2f",
@@ -1716,6 +1838,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1772,10 +1896,14 @@
       "locals": ["n1", "n2", "rc", "rc2"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "n1": "2", "n2": "6", "rc": "622", "rc2": "621" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1832,10 +1960,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1932,10 +2064,14 @@
       "locals": ["rc"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "rc": "110" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -1992,6 +2128,8 @@
       "locals": ["a", "b"],
       "globals": [],
       "r": ["N", "mean", "sd", "Var", "min", "max", "sum", "sum_w"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "6", "b": "4" },
       "globalValues": {},
@@ -2005,6 +2143,8 @@
         "sum": 3.800000011920929,
         "sum_w": 3
       },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2076,6 +2216,8 @@
         "mean",
         "sd"
       ],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
@@ -2095,6 +2237,8 @@
         "mean": 3.5,
         "sd": 1.8708286933869707
       },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2166,6 +2310,8 @@
         "mean",
         "sd"
       ],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
@@ -2185,6 +2331,8 @@
         "mean": 0.8200000032782555,
         "sd": 1.0034938940722284
       },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2241,10 +2389,14 @@
       "locals": ["m"],
       "globals": [],
       "r": ["N", "sum", "sum_w"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "m": "." },
       "globalValues": {},
       "rValues": { "N": 0, "sum": 0, "sum_w": 0 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2301,10 +2453,14 @@
       "locals": [],
       "globals": [],
       "r": ["N"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": { "N": 0 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2361,10 +2517,14 @@
       "locals": [],
       "globals": [],
       "r": ["N", "mean", "max"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": { "N": 6, "mean": 3.5, "max": 6 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2421,10 +2581,14 @@
       "locals": [],
       "globals": [],
       "r": ["N", "r"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": { "N": 6, "r": 3 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2481,10 +2645,14 @@
       "locals": [],
       "globals": [],
       "r": ["N", "r"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": { "N": 6, "r": 6 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2541,10 +2709,14 @@
       "locals": [],
       "globals": [],
       "r": ["N", "r", "c"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": { "N": 5, "r": 3, "c": 5 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2601,10 +2773,14 @@
       "locals": ["x", "y", "rc"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "x": "6", "y": "txt!", "rc": "111" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -2615,10 +2791,14 @@
       "locals": ["t", "n"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "t": "double", "n": "2" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 2,
       "sortedBy": [],
       "variables": [
@@ -2638,10 +2818,14 @@
       "locals": ["m"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "m": "7" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2698,6 +2882,8 @@
       "locals": ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": " 3.14",
@@ -2712,6 +2898,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -2722,10 +2910,14 @@
       "locals": ["a", "b", "c"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "1", "b": "2", "c": "" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -2736,10 +2928,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 110,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2804,10 +3000,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 199,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -2818,6 +3018,8 @@
       "locals": ["a", "b", "c", "d", "e", "f", "g"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "a": "1",
@@ -2830,6 +3032,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -2840,10 +3044,14 @@
       "locals": ["n", "k"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "n": "0", "k": "0" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -2854,10 +3062,14 @@
       "locals": ["n"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "n": "6" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -2930,10 +3142,14 @@
       "locals": ["a"],
       "globals": [],
       "r": ["N", "mean"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "2" },
       "globalValues": {},
       "rValues": { "N": 2, "mean": 5.5 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": ["g"],
       "variables": [
@@ -2990,6 +3206,8 @@
       "locals": ["u", "d", "un", "in", "mi", "sz", "po", "so", "isin"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {
         "u": "a b c",
@@ -3004,6 +3222,8 @@
       },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -3014,10 +3234,14 @@
       "locals": ["t", "u", "len"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "t": "a+b-c", "u": "a+b+c", "len": "5" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 0,
       "sortedBy": [],
       "variables": []
@@ -3028,10 +3252,14 @@
       "locals": ["n", "rc"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "n": "6", "rc": "110" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -3096,10 +3324,14 @@
       "locals": ["a", "b", "c", "d"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "109", "b": "109", "c": "109", "d": "109" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -3156,10 +3388,14 @@
       "locals": ["rc"],
       "globals": [],
       "r": ["N"],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "rc": "198" },
       "globalValues": {},
       "rValues": { "N": 2 },
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -3216,10 +3452,14 @@
       "locals": ["a", "b"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "1", "b": "3" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -3287,10 +3527,14 @@
       "locals": ["a", "b", "c", "d"],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": { "a": "3", "b": "1", "c": "1", "d": "2" },
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -3347,10 +3591,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 5,
       "sortedBy": [],
       "variables": [
@@ -3404,10 +3652,14 @@
       "locals": [],
       "globals": [],
       "r": [],
+      "e": [],
+      "matrices": [],
       "rc": 0,
       "localValues": {},
       "globalValues": {},
       "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
       "observations": 6,
       "sortedBy": [],
       "variables": [
@@ -3453,6 +3705,1294 @@
           "valueLabel": "",
           "label": "",
           "values": ["app", "Ban", "", "pad", "x", "kiw"]
+        }
+      ]
+    },
+    {
+      "id": "regress-ols",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [
+        "N",
+        "df_m",
+        "df_r",
+        "F",
+        "r2",
+        "r2_a",
+        "rmse",
+        "mss",
+        "rss",
+        "ll",
+        "rank"
+      ],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 2,
+        "df_r": 9,
+        "F": 1576.4812255401455,
+        "r2": 0.997153666389389,
+        "r2_a": 0.9965211478092532,
+        "rmse": 0.42026308685728037,
+        "mss": 556.8795771070934,
+        "rss": 1.5895895595732898,
+        "ll": -4.898677565380934,
+        "rank": 3
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [1.77935318085956, 0.4117139990581271, 0.5702007616863636]
+        },
+        "e(V)": {
+          "rows": 3,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [
+            0.008005972838153843, -0.014494506791634571, 0.00859652996367132,
+            -0.014494506791634571, 0.031028659748559034, -0.03558893246918057,
+            0.00859652996367132, -0.03558893246918057, 0.10772134458010933
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "regress-robust",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2, robust\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "r2", "rmse"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 2,
+        "df_r": 9,
+        "F": 1957.332238357762,
+        "r2": 0.997153666389389,
+        "rmse": 0.42026308685728037
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [1.77935318085956, 0.4117139990581271, 0.5702007616863636]
+        },
+        "e(V)": {
+          "rows": 3,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [
+            0.008887314269893677, -0.014347718631727948, 0.00952754772855513,
+            -0.014347718631727948, 0.026194337120306964, -0.026584300626654806,
+            0.00952754772855513, -0.026584300626654806, 0.05966184449536554
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "regress-cluster",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2, vce(cluster cl)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "N_clust"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 2,
+        "df_r": 3,
+        "F": 9407.235148628793,
+        "N_clust": 4
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [1.77935318085956, 0.4117139990581271, 0.5702007616863636]
+        },
+        "e(V)": {
+          "rows": 3,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [
+            0.017288379991731065, -0.031559046809652824, 0.03239507692489266,
+            -0.031559046809652824, 0.05832832980069637, -0.06448312804993515,
+            0.03239507692489266, -0.06448312804993515, 0.1015795372153026
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "regress-noconstant",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2, noconstant\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "r2", "r2_a", "rmse", "mss", "rss"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 2,
+        "df_r": 10,
+        "F": 6739.110242629782,
+        "r2": 0.9992586123565427,
+        "r2_a": 0.9991103348278512,
+        "rmse": 0.46072490445592673,
+        "mss": 2860.987325624141,
+        "rss": 2.122674375859228
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 2,
+          "names": ["x1", "x2"],
+          "values": [1.7338492192050732, 0.6000966866362316]
+        },
+        "e(V)": {
+          "rows": 2,
+          "columns": 2,
+          "names": ["x1", "x2"],
+          "values": [
+            0.008797280409703694, -0.014006524621525003, -0.014006524621525003,
+            0.02316011448484164
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "regress-factor",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 i.g\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "r2"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 3,
+        "df_r": 8,
+        "F": 594.8907033685321,
+        "r2": 0.9955373880393952
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 5,
+          "names": ["x1", "1b.g", "2.g", "3.g", "_cons"],
+          "values": [
+            1.9591397849462364, 0, 0.002150537634406182, 0.1793010752688144,
+            1.0634408602150565
+          ]
+        },
+        "e(V)": {
+          "rows": 5,
+          "columns": 5,
+          "names": ["x1", "1b.g", "2.g", "3.g", "_cons"],
+          "values": [
+            0.003349773095155511, 0, -0.008374432737888774,
+            -0.01674886547577755, -0.013399092380622046, 0, 0, 0, 0, 0,
+            -0.008374432737888774, 0, 0.17670053076945316, 0.11975438815180947,
+            -0.0443844935108105, -0.01674886547577755, 0, 0.11975438815180947,
+            0.23950877630361897, -0.010886762559255393, -0.013399092380622046,
+            0, -0.0443844935108105, -0.010886762559255393, 0.1314785939848538
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "regress-collinear",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngenerate x3 = 2*x1 + 1\nregress y x1 x3 x2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "rank", "F"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 12,
+        "df_m": 2,
+        "df_r": 9,
+        "rank": 3,
+        "F": 1576.4812255401466
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 4,
+          "names": ["o.x1", "x3", "x2", "_cons"],
+          "values": [
+            0, 0.88967659042978, 0.4117139990581271, -0.31947582874341585
+          ]
+        },
+        "e(V)": {
+          "rows": 4,
+          "columns": 4,
+          "names": ["o.x1", "x3", "x2", "_cons"],
+          "values": [
+            0, 0, 0, 0, 0, 0.002001493209538459, -0.00724725339581728,
+            0.0022967717722971953, 0, -0.00724725339581728, 0.03102865974855901,
+            -0.028341679073363272, 0, 0.0022967717722971953,
+            -0.028341679073363272, 0.10112630782597645
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        },
+        {
+          "name": "x3",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25]
+        }
+      ]
+    },
+    {
+      "id": "regress-sample",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nreplace x2 = . in 5\nregress y x1 x2 if g > 1\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["N", "df_m", "df_r", "F", "r2", "rmse"],
+      "matrices": ["e(b)", "e(V)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {
+        "N": 7,
+        "df_m": 2,
+        "df_r": 4,
+        "F": 307.89544518515754,
+        "r2": 0.9935462104039476,
+        "rmse": 0.5672536730244683
+      },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [1.8689937106918282, 0.3213836477987352, 0.221069182389936]
+        },
+        "e(V)": {
+          "rows": 3,
+          "columns": 3,
+          "names": ["x1", "x2", "_cons"],
+          "values": [
+            0.038486000214729595, -0.05475697446416606, -0.042730099397063,
+            -0.05475697446416606, 0.09482728418292749, -0.022839498324546598,
+            -0.042730099397063, -0.022839498324546598, 0.5068055767459504
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            2, 1.5, 3.1, 2.2, 8.98846567431158e307, 3.3, 5.1, 4.4, 6.2, 5, 7.3,
+            6.1
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "test-equal",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\ntest x1 = x2\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "p", "df", "df_r"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 27.496863765939867,
+        "p": 0.000532103866192953,
+        "df": 1,
+        "df_r": 9
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "test-joint-robust",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2, robust\ntest x1 x2\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "p", "df", "df_r"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 1957.332238357762,
+        "p": 1.3257996829914885e-12,
+        "df": 2,
+        "df_r": 9
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "test-several",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\ntest (x1 = 1) (x2 = 0.5)\n",
+      "locals": [],
+      "globals": [],
+      "r": ["F", "p", "df", "df_r"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "F": 220.676051166368,
+        "p": 2.2547916477100626e-8,
+        "df": 2,
+        "df_r": 9
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "lincom-values",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\nlincom 2*x1 - x2\n",
+      "locals": [],
+      "globals": [],
+      "r": ["estimate", "se", "df", "t", "p", "lb", "ub"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "estimate": 3.146992362660993,
+        "se": 0.3478944930114771,
+        "df": 9,
+        "t": 9.045824023886382,
+        "p": 0.000008190439202515439,
+        "lb": 2.36000034339703,
+        "ub": 3.933984381924956
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "predict-values",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\nregress y x1 x2\npredict yhat\npredict double res, residuals\npredict se, stdp\npredict part if g == 2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        },
+        {
+          "name": "yhat",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "Fitted values",
+          "values": [
+            3.1729819774627686, 4.746478080749512, 7.184573650360107,
+            8.593384742736816, 11.113822937011719, 12.604975700378418,
+            15.125414848327637, 16.616567611694336, 19.137006759643555,
+            20.42230224609375, 23.148597717285156, 24.433895111083984
+          ]
+        },
+        {
+          "name": "res",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "Residuals",
+          "values": [
+            -0.07298194066217745, 0.15352187800732597, 0.015426298654761972,
+            0.20661571694751757, 0.3861773377833284, -0.5049760437355442,
+            0.17458557710027023, -0.7165678044186006, 0.06299381641720814,
+            -0.022302565572601907, -0.3485979442658511, 0.6661056737443403
+          ]
+        },
+        {
+          "name": "se",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "S.E. of the prediction",
+          "values": [
+            0.23812025785446167, 0.22408035397529602, 0.19821830093860626,
+            0.20754094421863556, 0.16063246130943298, 0.1677122712135315,
+            0.1717730462551117, 0.1573755145072937, 0.21164745092391968,
+            0.22500158846378326, 0.26771026849746704, 0.2555265426635742
+          ]
+        },
+        {
+          "name": "part",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "Fitted values",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.593384742736816, 11.113822937011719, 12.604975700378418,
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 23.148597717285156, 8.98846567431158e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "correlate-values",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ncorrelate y x1\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N", "rho", "cov_12", "Var_1", "Var_2"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "N": 12,
+        "rho": 0.9977103555748025,
+        "cov_12": 8.98846567431158e307,
+        "Var_1": 8.98846567431158e307,
+        "Var_2": 8.98846567431158e307
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "no-estimates",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ncapture test x1\nlocal a = _rc\ncapture predict z\nlocal b = _rc\ncapture lincom x1\nlocal c = _rc\n",
+      "locals": ["a", "b", "c"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "a": "301", "b": "301", "c": "301" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "correlate-covariance",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ncorrelate y x1, covariance\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N", "rho", "cov_12", "Var_1", "Var_2"],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "N": 12,
+        "rho": 8.98846567431158e307,
+        "cov_12": 25.63181818181818,
+        "Var_1": 50.76992424242423,
+        "Var_2": 12.999999999999998
+      },
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        }
+      ]
+    },
+    {
+      "id": "regress-collinear-order",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngenerate x3 = x1 + x2\nregress y x3 x1 x2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": ["df_m", "rank"],
+      "matrices": ["e(b)"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": { "df_m": 2, "rank": 3 },
+      "matrixValues": {
+        "e(b)": {
+          "rows": 1,
+          "columns": 4,
+          "names": ["x3", "o.x1", "x2", "_cons"],
+          "values": [
+            1.7793531203975501, 0, -1.3676389418919392, 0.5702005029879835
+          ]
+        }
+      },
+      "observations": 12,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "y",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3.1, 4.9, 7.2, 8.8, 11.5, 12.1, 15.3, 15.9, 19.2, 20.4, 22.8, 25.1
+          ]
+        },
+        {
+          "name": "x1",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        },
+        {
+          "name": "x2",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1.5, 3.1, 2.2, 4, 3.3, 5.1, 4.4, 6.2, 5, 7.3, 6.1]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3]
+        },
+        {
+          "name": "cl",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+        },
+        {
+          "name": "x3",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            3, 3.5, 6.099999904632568, 6.199999809265137, 9, 9.300000190734863,
+            12.100000381469727, 12.399999618530273, 15.199999809265137, 15,
+            18.299999237060547, 18.100000381469727
+          ]
         }
       ]
     }

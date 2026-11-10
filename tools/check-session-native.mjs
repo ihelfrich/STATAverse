@@ -20,6 +20,22 @@ input byte id double x float f byte g str12 s
 6 100 2.5 3 "kiwi"
 end`;
 
+export const EST = `clear
+input double y double x1 double x2 byte g byte cl
+3.1 1 2.0 1 1
+4.9 2 1.5 1 1
+7.2 3 3.1 1 2
+8.8 4 2.2 2 2
+11.5 5 4.0 2 2
+12.1 6 3.3 2 3
+15.3 7 5.1 3 3
+15.9 8 4.4 3 3
+19.2 9 6.2 3 4
+20.4 10 5.0 1 4
+22.8 11 7.3 2 4
+25.1 12 6.1 3 4
+end`;
+
 export async function readCases(file = "tools/session-cases.txt") {
   const text = await fs.readFile(file, "utf8");
   return text
@@ -40,10 +56,13 @@ export async function readCases(file = "tools/session-cases.txt") {
           body
             .join("\n")
             .replace(/^@BASE$/m, BASE)
+            .replace(/^@EST$/m, EST)
             .trimEnd() + "\n",
         locals: named("locals"),
         globals: named("globals"),
         r: named("r"),
+        e: named("e"),
+        matrices: named("matrices"),
       };
     });
 }
@@ -71,6 +90,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
           (name) =>
             `file write out "${k}" _tab "r" _tab "${name}" _tab (string(r(${name}), "%21x")) _n`,
         ),
+        ...c.e.map(
+          (name) =>
+            `file write out "${k}" _tab "e" _tab "${name}" _tab (string(e(${name}), "%21x")) _n`,
+        ),
+        ...c.matrices.flatMap((name) => [
+          `matrix __m = ${name}`,
+          "local __rows = rowsof(__m)",
+          "local __cols = colsof(__m)",
+          "local __names : colfullnames __m",
+          `file write out "${k}" _tab "matrix" _tab "${name}" _tab "\`__rows'" _tab "\`__cols'" _tab "\`__names'" _n`,
+          "forvalues __i = 1/`__rows' {",
+          "forvalues __j = 1/`__cols' {",
+          `file write out "${k}" _tab "cell" _tab "${name}" _tab (string(__m[\`__i', \`__j'], "%21x")) _n`,
+          "}",
+          "}",
+        ]),
         ...c.locals.map(
           (name) =>
             `file write out "${k}" _tab "local" _tab "${name}" _tab \`"[\`${name}']"' _n`,
@@ -108,6 +143,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "scalar drop _all",
       "capture label drop _all",
       "macro drop _all",
+      "discard",
       "set type float",
       `capture noisily do "wrap-${k}.do"`,
     );
@@ -125,6 +161,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     localValues: {},
     globalValues: {},
     rValues: {},
+    eValues: {},
+    matrixValues: {},
     observations: null,
     sortedBy: [],
     variables: [],
@@ -136,6 +174,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       c = results[Number(k)];
     if (kind === "rc") c.rc = Number(rest[0]);
     else if (kind === "r") c.rValues[rest[0]] = hexToDouble(rest[1]);
+    else if (kind === "e") c.eValues[rest[0]] = hexToDouble(rest[1]);
+    else if (kind === "matrix")
+      c.matrixValues[rest[0]] = {
+        rows: Number(rest[1]),
+        columns: Number(rest[2]),
+        names: (rest[3] ?? "").split(" ").filter(Boolean),
+        values: [],
+      };
+    else if (kind === "cell")
+      c.matrixValues[rest[0]].values.push(hexToDouble(rest[1]));
     else if (kind === "local")
       c.localValues[rest[0]] = rest.slice(1).join("\t").slice(1, -1);
     else if (kind === "global")

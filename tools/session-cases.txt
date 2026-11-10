@@ -530,3 +530,67 @@ recast byte id
 recast int x
 recast int x, force
 recast str3 s, force
+=== regress-ols | e: N df_m df_r F r2 r2_a rmse mss rss ll rank | matrices: e(b) e(V)
+@EST
+regress y x1 x2
+=== regress-robust | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+regress y x1 x2, robust
+=== regress-cluster | e: N df_m df_r F N_clust | matrices: e(b) e(V)
+@EST
+regress y x1 x2, vce(cluster cl)
+=== regress-noconstant | e: N df_m df_r F r2 r2_a rmse mss rss | matrices: e(b) e(V)
+@EST
+regress y x1 x2, noconstant
+=== regress-factor | e: N df_m df_r F r2 | matrices: e(b) e(V)
+@EST
+regress y x1 i.g
+=== regress-collinear | e: N df_m df_r rank F | matrices: e(b) e(V)
+@EST
+generate x3 = 2*x1 + 1
+regress y x1 x3 x2
+=== regress-sample | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+replace x2 = . in 5
+regress y x1 x2 if g > 1
+=== test-equal | r: F p df df_r
+@EST
+regress y x1 x2
+test x1 = x2
+=== test-joint-robust | r: F p df df_r
+@EST
+regress y x1 x2, robust
+test x1 x2
+=== test-several | r: F p df df_r
+@EST
+regress y x1 x2
+test (x1 = 1) (x2 = 0.5)
+=== lincom-values | r: estimate se df t p lb ub
+@EST
+regress y x1 x2
+lincom 2*x1 - x2
+=== predict-values
+@EST
+regress y x1 x2
+predict yhat
+predict double res, residuals
+predict se, stdp
+predict part if g == 2
+=== correlate-values | r: N rho cov_12 Var_1 Var_2
+@EST
+correlate y x1
+=== no-estimates | locals: a b c
+@EST
+capture test x1
+local a = _rc
+capture predict z
+local b = _rc
+capture lincom x1
+local c = _rc
+=== correlate-covariance | r: N rho cov_12 Var_1 Var_2
+@EST
+correlate y x1, covariance
+=== regress-collinear-order | e: df_m rank | matrices: e(b)
+@EST
+generate x3 = x1 + x2
+regress y x3 x1 x2
