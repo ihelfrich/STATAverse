@@ -1087,3 +1087,11 @@ regress y c.x1##c.x2##c.z
 @EST
 generate byte h = mod(_n, 2)
 regress y i.h##c.x1##c.x2
+=== macro-suffix-increment | locals: n m rc w
+local n = 1
+local n++
+local m = 5
+local m --
+capture local k = ++ + 3
+local rc = _rc
+local w : word count

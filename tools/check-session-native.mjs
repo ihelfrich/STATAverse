@@ -125,6 +125,94 @@ export function randomDoFiles(count, seed = 4242) {
   return cases;
 }
 
+/** Machine-written do-files of macros, loops and conditions; no data. */
+export function randomControlFlow(count, seed = 99) {
+  let state = seed;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  const pick = (items) => items[Math.floor(next() * items.length)];
+  const whole = (low, high) => low + Math.floor(next() * (high - low + 1));
+  const cases = [];
+  for (let k = 0; k < count; k++) {
+    const lines = ["local n = 1", 'local out ""'];
+    const simple = (indent, loopVar) => {
+      const roll = next();
+      if (roll < 0.3)
+        return `${indent}local n = \`n' ${pick(["+", "*", "-"])} ${loopVar ? `\`${loopVar}'` : whole(1, 4)}`;
+      if (roll < 0.55)
+        return `${indent}local out \`out' ${loopVar ? `\`${loopVar}'` : pick(["a", "b", "7"])}`;
+      if (roll < 0.7) return `${indent}local ${pick(["++n", "--n"])}`;
+      if (roll < 0.85)
+        return `${indent}local out "\`out'${pick(["x", "-", "q"])}"`;
+      return `${indent}local n = mod(\`n', ${whole(2, 7)}) + ${whole(0, 3)}`;
+    };
+    const block = (indent, depth, loopVar) => {
+      const out = [];
+      for (let s = 0; s < whole(1, 3); s++) {
+        const roll = next();
+        if (depth > 0 && roll < 0.25) {
+          const v = pick(["i", "j", "k"]) + depth,
+            from = whole(1, 3),
+            range = pick([
+              `${from}/${from + whole(0, 4)}`,
+              `${from}(2)${from + 6}`,
+              `${from + 3}(-1)${from}`,
+            ]);
+          out.push(
+            `${indent}forvalues ${v} = ${range} {`,
+            ...block(indent + "  ", depth - 1, v),
+            `${indent}}`,
+          );
+        } else if (depth > 0 && roll < 0.4) {
+          const v = pick(["w", "u"]) + depth;
+          out.push(
+            `${indent}foreach ${v} in ${pick(["1 2 3", "4 5", "2 2 9", "a b"])} {`,
+            ...block(indent + "  ", depth - 1, null).map((l) => l),
+            `${indent}}`,
+          );
+        } else if (depth > 0 && roll < 0.6) {
+          const test = `${pick(["mod(`n', 2) == 0", "`n' > 3", "`n' < 0", "`n' == 1", "abs(`n') >= 5"])}`;
+          out.push(
+            `${indent}if ${test} {`,
+            ...block(indent + "  ", depth - 1, loopVar),
+            `${indent}}`,
+          );
+          if (next() < 0.6)
+            out.push(
+              `${indent}else {`,
+              ...block(indent + "  ", depth - 1, loopVar),
+              `${indent}}`,
+            );
+        } else if (depth > 0 && roll < 0.68) {
+          out.push(
+            `${indent}while abs(\`n') < ${whole(3, 9)} {`,
+            `${indent}  local n = \`n' * 2 + 1`,
+            `${indent}}`,
+          );
+        } else out.push(simple(indent, loopVar));
+      }
+      return out;
+    };
+    lines.push(...block("", 3, null));
+    lines.push(
+      "local words : word count `out'",
+      'local len = strlen("`out\'")',
+    );
+    cases.push({
+      id: `random-flow-${k + 1}`,
+      source: lines.join("\n") + "\n",
+      locals: ["n", "out", "words", "len"],
+      globals: [],
+      r: [],
+      e: [],
+      matrices: [],
+    });
+  }
+  return cases;
+}
+
 export async function readCases(file = "tools/session-cases.txt") {
   const text = await fs.readFile(file, "utf8");
   return text
@@ -157,7 +245,11 @@ export async function readCases(file = "tools/session-cases.txt") {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const cases = [...(await readCases()), ...randomDoFiles(300)],
+  const cases = [
+      ...(await readCases()),
+      ...randomDoFiles(300),
+      ...randomControlFlow(150),
+    ],
     folder = await fs.mkdtemp(
       path.join(os.tmpdir(), "stataverse-session-native-"),
     );

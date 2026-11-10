@@ -39,6 +39,8 @@ function tokenize(source) {
       rest = source.slice(i);
     let m;
     if (/\s/.test(c)) i++;
+    // Stata reads ++ as one symbol, which no expression may contain.
+    else if (rest.startsWith("++")) throw invalid("++ invalid");
     else if (c === "`" && source[i + 1] === '"') {
       let depth = 1,
         j = i + 2;

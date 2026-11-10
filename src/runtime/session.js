@@ -431,13 +431,17 @@ export class Session {
         }
       });
     } else if ((m = /^if\s+(.*)$/.exec(header))) {
-      frame.lastIf = this.truth(m[1]);
-      if (frame.lastIf) body();
+      // The outcome is recorded after the body runs, so that an if inside
+      // the body cannot decide whether this block's else runs.
+      const taken = this.truth(m[1]);
+      if (taken) body();
+      frame.lastIf = taken;
     } else if ((m = /^else(?:\s+if\s+(.*))?$/.exec(header))) {
       if (frame.lastIf === null) throw new StataError("else without if", 198);
       if (!frame.lastIf) {
-        frame.lastIf = m[1] === undefined ? true : this.truth(m[1]);
-        if (frame.lastIf) body();
+        const taken = m[1] === undefined ? true : this.truth(m[1]);
+        if (taken) body();
+        frame.lastIf = taken;
       }
     } else if (
       /^(cap(t(u(re?)?)?)?|qui(e(t(ly?)?)?)?|n(o(i(s(i(ly?)?)?)?)?)?)(\s+(cap(t(u(re?)?)?)?|qui(e(t(ly?)?)?)?|n(o(i(s(i(ly?)?)?)?)?)?))*$/.test(

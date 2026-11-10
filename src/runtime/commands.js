@@ -111,13 +111,10 @@ function defineMacro(session, frame, map, text) {
   let m;
   if ((m = /^(\+\+|--)\s*(\w+)$/.exec(text.trim()))) {
     const value = Number(map.get(m[2]) ?? 0) + (m[1] === "++" ? 1 : -1);
-    return void map.set(m[2], formatNumber(value));
+    return void map.set(m[2], macroValue(session, value));
   }
-  if ((m = /^(\w+)\s*(\+\+|--)$/.exec(text.trim()))) {
-    const value = Number(map.get(m[1]) ?? 0) + (m[2] === "++" ? 1 : -1);
-    return void map.set(m[1], formatNumber(value));
-  }
-  m = /^(\S+?)\s*(?:(=|:)\s*([\s\S]*)|\s+([\s\S]*))?$/.exec(text.trim());
+  // Only the prefix forms increment: local n++ stores the text "++".
+  m = /^(\w+)\s*(?:(=|:)\s*([\s\S]*)|([\s\S]*))?$/.exec(text.trim());
   if (!m) throw invalid();
   const name = m[1];
   if (m[2] === "=") {
@@ -134,8 +131,8 @@ export function extendedFunction(session, frame, source) {
   const text = source.trim(),
     data = session.data;
   let m;
-  if ((m = /^word\s+count\s+([\s\S]*)$/.exec(text)))
-    return String(macroWords(m[1]).length);
+  if ((m = /^word\s+count(?:\s+([\s\S]*))?$/.exec(text)))
+    return String(macroWords(m[1] ?? "").length);
   if ((m = /^word\s+(-?\d+)\s+of\s+([\s\S]*)$/.exec(text))) {
     const words = macroWords(m[2]),
       k = Number(m[1]);
@@ -1346,9 +1343,10 @@ export const COMMANDS = [
       } catch {
         continue;
       }
-      ctx.frame.lastIf = truth;
       if (truth)
         session.runLine(words.slice(k).join(" "), ctx.frame, ctx.output);
+      // Recorded after the command, as for a braced block.
+      ctx.frame.lastIf = truth;
       return;
     }
     throw invalid();
@@ -1356,8 +1354,8 @@ export const COMMANDS = [
   command("else", 4, (session, text, ctx) => {
     if (ctx.frame.lastIf === null) throw invalid("else without if");
     if (!ctx.frame.lastIf) {
-      ctx.frame.lastIf = true;
       session.runLine(text, ctx.frame, ctx.output);
+      ctx.frame.lastIf = true;
     }
   }),
   command("program", 2, (session, text) => {
