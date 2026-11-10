@@ -1,8 +1,9 @@
 {
   "origin": "https://ihelfrich.github.io",
-  "checkedAt": "2026-11-10T02:25:48.119Z",
+  "checkedAt": "2026-11-10T02:28:46.824Z",
   "base": "/learn/stata/",
   "checks": [
+    "public legacy links preserve paths, encoded query strings and fragments at the canonical site",
     "nested-path command execution, saved practice and scoped service worker",
     "site navigation opens the guided do-file builder; generated code and saved plan work at the canonical subdirectory",
     "reported categorical interaction and continuous interaction run at the public subdirectory; predictions, coefficient interpretation, reload and undo work",
