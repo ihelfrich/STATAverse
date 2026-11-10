@@ -8,3 +8,12 @@ export class StataError extends Error {
     this.hint = hint;
   }
 }
+
+// Control flow that is not an error: exit, continue and continue, break.
+export class Signal extends Error {
+  constructor(kind, code = 0) {
+    super(kind);
+    this.kind = kind;
+    this.code = code;
+  }
+}

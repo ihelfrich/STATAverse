@@ -211,7 +211,7 @@ export function parseDeclaration(declaration) {
 const notAllowed = (what) => new StataError(`${what} not allowed`, 101);
 
 // Finds where each clause of the part before the comma begins.
-function clauses(head) {
+function clauses(head, expAllowed = true) {
   const found = [];
   // A weight is a top-level [ ... ] that follows a blank; x[_n-1] is not one.
   let depth = 0;
@@ -236,7 +236,13 @@ function clauses(head) {
   // =exp can only come before every other clause.
   const limit = found[0]?.at ?? head.length;
   for (let i = 0; i < limit; i++)
-    if (flags[i] && head[i] === "=" && !/[=!~<>]/.test(head[i - 1] ?? "")) {
+    if (
+      flags[i] &&
+      head[i] === "=" &&
+      !/[=!~<>]/.test(head[i - 1] ?? "") &&
+      // Where no =exp is declared, == belongs to an expression.
+      (expAllowed || head[i + 1] !== "=")
+    ) {
       found.unshift({ kind: "exp", at: i, after: i + 1 });
       break;
     }
@@ -259,7 +265,7 @@ function depthBefore(head, flags, i) {
   return quoted ? 1 : depth;
 }
 
-function splitAtComma(text) {
+export function splitAtComma(text) {
   let comma = -1;
   scan(text, (i, c, top) => {
     if (top && c === ",") {
@@ -316,10 +322,13 @@ function checkCount(count, specs, kind) {
 function newVariables(text, context) {
   const names = [],
     types = [],
+    typed = [],
+    labels = [],
     tokens = text.split(/\s+/).filter(Boolean);
   for (let i = 0; i < tokens.length; i++) {
     let type = context.defaultType ?? "float",
       token = tokens[i];
+    typed.push(isType(token) || token === "str");
     if (isType(token) || token === "str") {
       type = token;
       token = tokens[++i];
@@ -335,8 +344,9 @@ function newVariables(text, context) {
       throw new StataError(`variable ${name} already defined`, 110);
     names.push(name);
     types.push(type);
+    labels.push(token.split(":")[1] ?? "");
   }
-  return { names, types };
+  return { names, types, typed, labels };
 }
 
 function existingVariables(text, specs, context) {
@@ -477,7 +487,7 @@ export function applySyntax(declaration, text, context) {
     locals = {},
     result = { locals, options: {} },
     [head, optionText] = splitAtComma(text),
-    found = clauses(head),
+    found = clauses(head, !!decl.exp),
     leading = head.slice(0, found[0]?.at ?? head.length).trim();
 
   for (const kind of ["exp", "if", "in", "using", "weight"]) {
@@ -515,7 +525,9 @@ export function applySyntax(declaration, text, context) {
       result.varlist = [];
       result.types = [];
     } else {
-      const { names, types } = newVariables(leading, context);
+      const { names, types, typed, labels } = newVariables(leading, context);
+      result.typed = typed;
+      result.labels = labels;
       checkCount(names.length, position.specs, position.kind);
       locals.varlist = names.join(" ");
       locals.typlist = types.join(" ");

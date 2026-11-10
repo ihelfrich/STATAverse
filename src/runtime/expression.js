@@ -211,6 +211,7 @@ export function compileExpression(source, scope = {}) {
     if (name === "_N")
       return node(N, (i, env) => env?.count ?? dataset?.n ?? 0);
     if (name === "_pi") return node(N, () => Math.PI);
+    if (name === "_rc") return node(N, () => scope.rc?.() ?? 0);
     return variable(name);
   };
 
@@ -254,6 +255,16 @@ export function compileExpression(source, scope = {}) {
 
   function call(name) {
     at++; // the opening parenthesis
+    if (name === "c") {
+      const inner = tokens[at++];
+      if (inner?.type !== "name" || !take(")")) throw invalid();
+      const value = scope.system?.(inner.value);
+      if (value === undefined)
+        throw new StataError(`c(${inner.value}) not available`, 198);
+      return node(typeof value === "string" ? S : N, () =>
+        scope.system(inner.value),
+      );
+    }
     if (name === "r" || name === "e" || name === "scalar") {
       const inner = tokens[at++];
       if (inner?.type !== "name" || !take(")")) throw invalid();

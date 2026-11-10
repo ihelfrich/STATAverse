@@ -1,0 +1,3460 @@
+{
+  "source": "Recorded from installed Stata by tools/check-session-native.mjs under version 17. Each case is a do-file run with include; numeric values were written with %21x and are exact.",
+  "cases": [
+    {
+      "id": "generate-basic",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate y = x*2\ngenerate byte b = id > 3\ngenerate str3 t = substr(s,1,3)\ngenerate z = f == 0.1\ngenerate double d = f\ngenerate str s2 = \"abc\"\ngenerate long l = 1e9\ngenerate int i = 40000\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "y",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [3, -4, 8.98846567431158e307, 0, 8.98846567431158e307, 200]
+        },
+        {
+          "name": "b",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0, 0, 0, 1, 1, 1]
+        },
+        {
+          "name": "t",
+          "type": "str3",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["app", "Ban", "", "pad", "x", "kiw"]
+        },
+        {
+          "name": "z",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0, 0, 0, 0, 0, 0]
+        },
+        {
+          "name": "d",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "s2",
+          "type": "str3",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["abc", "abc", "abc", "abc", "abc", "abc"]
+        },
+        {
+          "name": "l",
+          "type": "long",
+          "format": "%12.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1000000000, 1000000000, 1000000000, 1000000000, 1000000000,
+            1000000000
+          ]
+        },
+        {
+          "name": "i",
+          "type": "int",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generate-if-in",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate y = id if x > 0\ngenerate w = id in 2/4\ngenerate v = 1 if g==2 in 3/6\ngenerate a = 1 in l\ngenerate b = 1 in -2/l\ngenerate c = 1 in f/2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "y",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 8.98846567431158e307, 3, 8.98846567431158e307, 5, 6]
+        },
+        {
+          "name": "w",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 2, 3, 4, 8.98846567431158e307,
+            8.98846567431158e307
+          ]
+        },
+        {
+          "name": "v",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 1, 1,
+            8.98846567431158e307, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "a",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 8.98846567431158e307, 1
+          ]
+        },
+        {
+          "name": "b",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 1, 1
+          ]
+        },
+        {
+          "name": "c",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1, 1, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 8.98846567431158e307
+          ]
+        }
+      ]
+    },
+    {
+      "id": "replace-sequential",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate c = 1\nreplace c = c[_n-1] + 1 in 2/l\nreplace x = 0 if missing(x)\nreplace s = upper(s) if strlen(s) < 5\ncapture replace c = 5 in 9\nlocal rc = _rc\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "rc": "198" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1.5, -2, 0, 0, 0, 100]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "PAD", "X", "KIWI"]
+        },
+        {
+          "name": "c",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        }
+      ]
+    },
+    {
+      "id": "replace-promote",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate byte b = 1\nreplace b = id*100\ngenerate byte h = 1\nreplace h = 0.5 in 1\ngenerate int big = 1\nreplace big = 100000 in 2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "b",
+          "type": "int",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [100, 200, 300, 400, 500, 600]
+        },
+        {
+          "name": "h",
+          "type": "float",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0.5, 1, 1, 1, 1, 1]
+        },
+        {
+          "name": "big",
+          "type": "long",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 100000, 1, 1, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "by-generate",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nbysort g (id): generate n = _n\nby g: generate N = _N\nby g: generate first = x[1]\nby g: generate run = sum(id)\nby g: replace n = 0 if _n == _N\nbysort g: egen bm = mean(id)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": ["g", "id"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "n",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 0, 1, 0, 1, 0]
+        },
+        {
+          "name": "N",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 2, 2, 2, 2, 2]
+        },
+        {
+          "name": "first",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, 1.5, 8.98846567431158e307, 8.98846567431158e307,
+            8.990660123939097e307, 8.990660123939097e307
+          ]
+        },
+        {
+          "name": "run",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 3, 3, 7, 5, 11]
+        },
+        {
+          "name": "bm",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1.5, 1.5, 3.5, 3.5, 5.5, 5.5]
+        }
+      ]
+    },
+    {
+      "id": "by-not-sorted",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsort x\ncapture by g: generate q = 1\nlocal rc = _rc\ncapture by g, sort: generate q2 = 1\nlocal rc2 = _rc\n",
+      "locals": ["rc", "rc2"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "rc": "5", "rc2": "0" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1, 3, 4, 6, 5]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            -2, 1.5, 8.98846567431158e307, 0, 100, 8.990660123939097e307
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.20000000298023224, 0.10000000149011612, 0.30000001192092896, 1,
+            2.5, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["Banana split", "apple", "", "pad", "kiwi", "x"]
+        },
+        {
+          "name": "q2",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 1, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "drop-keep",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ndrop if x > 50\ndrop in 1\nkeep if g < 3\ndrop f\nkeep id s\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 4]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["Banana split", "pad"]
+        }
+      ]
+    },
+    {
+      "id": "sort-gsort",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngsort -g id\ngenerate o = _n\nsort s\ngenerate o2 = _n\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": ["s"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [3, 2, 1, 6, 4, 5]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, -2, 1.5, 100, 0, 8.990660123939097e307
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.30000001192092896, 0.20000000298023224, 0.10000000149011612, 2.5,
+            1, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 1, 1, 3, 2, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["", "Banana split", "apple", "kiwi", "pad", "x"]
+        },
+        {
+          "name": "o",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [3, 6, 5, 2, 4, 1]
+        },
+        {
+          "name": "o2",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        }
+      ]
+    },
+    {
+      "id": "egen-statistics",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\negen m = mean(x)\negen t = total(x)\negen mn = min(x), by(g)\negen mx = max(f), by(g)\negen sd = sd(f)\negen c = count(x), by(g)\negen md = median(id), by(g)\negen double dm = mean(f)\negen mi = mean(x) if id > 1\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "m",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [24.875, 24.875, 24.875, 24.875, 24.875, 24.875]
+        },
+        {
+          "name": "t",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [99.5, 99.5, 99.5, 99.5, 99.5, 99.5]
+        },
+        {
+          "name": "mn",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [-2, -2, 0, 0, 100, 100]
+        },
+        {
+          "name": "mx",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0.20000000298023224, 0.20000000298023224, 1, 1, 2.5, 2.5]
+        },
+        {
+          "name": "sd",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.0034939050674438, 1.0034939050674438, 1.0034939050674438,
+            1.0034939050674438, 1.0034939050674438, 1.0034939050674438
+          ]
+        },
+        {
+          "name": "c",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 2, 1, 1, 1, 1]
+        },
+        {
+          "name": "md",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1.5, 1.5, 3.5, 3.5, 5.5, 5.5]
+        },
+        {
+          "name": "dm",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.8200000032782555, 0.8200000032782555, 0.8200000032782555,
+            0.8200000032782555, 0.8200000032782555, 0.8200000032782555
+          ]
+        },
+        {
+          "name": "mi",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 32.66666793823242, 32.66666793823242,
+            32.66666793823242, 32.66666793823242, 32.66666793823242
+          ]
+        }
+      ]
+    },
+    {
+      "id": "egen-group-tag",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\negen grp = group(g)\negen tg = tag(g)\negen sgrp = group(s)\negen rt = rowtotal(x f)\negen rm = rowmean(x f)\negen rmiss = rowmiss(x f)\negen rk = rank(f)\negen sq = seq()\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "grp",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "group(g)",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "tg",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "tag(g)",
+          "values": [1, 0, 1, 0, 1, 0]
+        },
+        {
+          "name": "sgrp",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "group(s)",
+          "values": [2, 1, 8.98846567431158e307, 4, 5, 3]
+        },
+        {
+          "name": "rt",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.600000023841858, -1.7999999523162842, 0.30000001192092896, 1, 0,
+            102.5
+          ]
+        },
+        {
+          "name": "rm",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.800000011920929, -0.8999999761581421, 0.30000001192092896, 0.5,
+            8.98846567431158e307, 51.25
+          ]
+        },
+        {
+          "name": "rmiss",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0, 0, 1, 0, 2, 0]
+        },
+        {
+          "name": "rk",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "rank of (f)      ",
+          "values": [1, 2, 3, 4, 8.98846567431158e307, 5]
+        },
+        {
+          "name": "sq",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        }
+      ]
+    },
+    {
+      "id": "collapse-by",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncollapse (mean) x f (count) n = id (max) mxid = id, by(g)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 3,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "(mean) x",
+          "values": [-0.25, 0, 100]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "(mean) f",
+          "values": [0.15000000596046448, 0.6499999761581421, 2.5]
+        },
+        {
+          "name": "n",
+          "type": "long",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(count) id",
+          "values": [2, 2, 2]
+        },
+        {
+          "name": "mxid",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(max) id",
+          "values": [2, 4, 6]
+        }
+      ]
+    },
+    {
+      "id": "collapse-many",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncollapse (sum) x (sd) sdf = f (median) md = id (min) f (first) s1=id (last) s2=id (p25) p = id, by(g)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 3,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "(sum) x",
+          "values": [-0.5, 0, 100]
+        },
+        {
+          "name": "sdf",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "(sd) f",
+          "values": [
+            0.0707106813788414, 0.4949747323989868, 8.98846567431158e307
+          ]
+        },
+        {
+          "name": "md",
+          "type": "float",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(p 50) id",
+          "values": [1.5, 3.5, 5.5]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "(min) f",
+          "values": [0.10000000149011612, 0.30000001192092896, 2.5]
+        },
+        {
+          "name": "s1",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(first) id",
+          "values": [1, 3, 5]
+        },
+        {
+          "name": "s2",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(last) id",
+          "values": [2, 4, 6]
+        },
+        {
+          "name": "p",
+          "type": "float",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "(p 25) id",
+          "values": [1, 3, 5]
+        }
+      ]
+    },
+    {
+      "id": "collapse-all",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncollapse (mean) x f\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 1,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "(mean) x",
+          "values": [24.875]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "(mean) f",
+          "values": [0.8199999928474426]
+        }
+      ]
+    },
+    {
+      "id": "collapse-if",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncollapse x if id > 2, by(g)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 2,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 3]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "(mean) x",
+          "values": [0, 100]
+        }
+      ]
+    },
+    {
+      "id": "macros-basic",
+      "source": "local a = 2 + 3\nlocal b \"hello world\"\nlocal c `a' + 1\nlocal d = `a' * 2\nlocal e : word count `b'\nlocal f : word 2 of `b'\nlocal g = \"str\" + \"ing\"\nlocal h = 1/3\nlocal i = 1e10\nlocal j = 0.1\nglobal G = 7\nlocal k = $G + 1\nlocal l \"${G}x\"\nlocal m = strlen(\"`b'\")\nlocal n `\"quoted \"inner\" text\"'\nlocal o = .\nlocal p = -0.5\nlocal q = 100000000\nlocal r2 = 123456789.123\n",
+      "locals": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r2"
+      ],
+      "globals": ["G"],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": "5",
+        "b": "hello world",
+        "c": "5 + 1",
+        "d": "10",
+        "e": "2",
+        "f": "world",
+        "g": "string",
+        "h": ".3333333333333333",
+        "i": "10000000000",
+        "j": ".1",
+        "k": "8",
+        "l": "7x",
+        "m": "11",
+        "n": "quoted \"inner\" text",
+        "o": ".",
+        "p": "-.5",
+        "q": "100000000",
+        "r2": "123456789.123"
+      },
+      "globalValues": { "G": "7" },
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "macros-increment",
+      "source": "local i = 1\nlocal ++i\nlocal i = `i' + 1\nlocal j = `i++'\nlocal k = `++i'\nlocal --i\n",
+      "locals": ["i", "j", "k"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "i": "4", "j": "3", "k": "5" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "macros-nested",
+      "source": "local x1 \"one\"\nlocal x2 \"two\"\nlocal n 2\nlocal v \"`x`n''\"\nlocal name x1\nlocal w \"``name''\"\nlocal e1 = `=2+2' + 1\nlocal s \"`=upper(\"abc\")'\"\nlocal esc \"\\`not'\"\nlocal dollar \"\\$G\"\nlocal esclen : length local esc\nlocal dollarlen : length local dollar\nlocal empty \"`undefined'\"\n",
+      "locals": ["v", "w", "e1", "s", "esclen", "dollarlen", "empty"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "v": "two",
+        "w": "one",
+        "e1": "5",
+        "s": "ABC",
+        "esclen": "5",
+        "dollarlen": "2",
+        "empty": ""
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "foreach-in",
+      "source": "foreach w in a b \"c d\" e {\n  local out \"`out'[`w']\"\n}\n",
+      "locals": ["out"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "out": "[a][b][c d][e]" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "foreach-of",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nforeach v of varlist x-g {\n  local out `out' `v'\n}\nlocal list \"p q r\"\nforeach w of local list {\n  local o2 `o2'`w'\n}\nforeach n of numlist 1/3 5 {\n  local o3 `o3' `n'\n}\nforeach v of newlist n1 n2 {\n  local o4 `o4' `v'\n}\n",
+      "locals": ["out", "o2", "o3", "o4"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "out": "x f g",
+        "o2": "pqr",
+        "o3": "1 2 3 5",
+        "o4": "n1 n2"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "forvalues",
+      "source": "local s = 0\nforvalues i = 1/10 {\n  local s = `s' + `i'\n}\nforvalues i = 10(-3)1 {\n  local d `d' `i'\n}\nforvalues i = 1 3 to 9 {\n  local e `e' `i'\n}\nforvalues i = 0(0.25)1 {\n  local f `f' `i'\n}\nforvalues i = 5/1 {\n  local never `never' `i'\n}\n",
+      "locals": ["s", "d", "e", "f", "never", "i"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "s": "55",
+        "d": "10 7 4 1",
+        "e": "1 3 5 7 9",
+        "f": "0 .25 .5 .75 1",
+        "never": "",
+        "i": ""
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "while-continue",
+      "source": "local i 0\nwhile `i' < 10 {\n  local ++i\n  if mod(`i',2) continue\n  if `i' > 6 continue, break\n  local out `out' `i'\n}\n",
+      "locals": ["out", "i"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "out": "2 4 6", "i": "8" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "if-else",
+      "source": "local x 5\nif `x' < 3 {\n  local r low\n}\nelse if `x' < 7 {\n  local r mid\n}\nelse {\n  local r high\n}\nif \"`r'\" == \"mid\" local ok 1\nelse local ok 0\nif 0 local never 1\n",
+      "locals": ["r", "ok", "never"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "r": "mid", "ok": "1", "never": "" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "nested-loops",
+      "source": "foreach a in 1 2 {\n  forvalues b = 1/2 {\n    local out `out' `a'`b'\n  }\n}\n",
+      "locals": ["out"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "out": "11 12 21 22" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "program-args",
+      "source": "program define addup, rclass\n  args a b\n  return scalar sum = `a' + `b'\n  return local txt \"`a' and `b'\"\nend\naddup 3 4\nlocal s = r(sum)\nlocal t \"`r(txt)'\"\n",
+      "locals": ["s", "t"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "s": "7", "t": "3 and 4" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "program-syntax",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nprogram define mymean, rclass\n  syntax varname [if] [, Detail]\n  quietly summarize `varlist' `if'\n  return scalar m = r(mean)\n  return local opt \"`detail'\"\nend\nmymean x if id < 5, d\nlocal m = r(m)\nlocal o \"`r(opt)'\"\ncapture mymean nosuch\nlocal rc1 = _rc\ncapture mymean x, bogus\nlocal rc2 = _rc\n",
+      "locals": ["m", "o", "rc1", "rc2"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "m": "-.1666666666666667",
+        "o": "detail",
+        "rc1": "111",
+        "rc2": "198"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "program-scope",
+      "source": "local outer 1\nprogram define inner\n  local outer 99\n  global fromprog \"`outer'\"\nend\ninner\nlocal seen \"$fromprog|`outer'\"\ncapture program drop nosuchprog\nlocal rc = _rc\n",
+      "locals": ["seen", "rc", "outer"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "seen": "99|1", "rc": "111", "outer": "1" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "capture-codes",
+      "source": "capture generate x =\nlocal a = _rc\ncapture nosuchcommand\nlocal b = _rc\ncapture confirm variable nosuch\nlocal c = _rc\ncapture assert 1 == 2\nlocal d = _rc\ncapture error 42\nlocal e = _rc\ncapture display 1\nlocal f = _rc\ncapture {\n  display 1\n  error 7\n}\nlocal g = _rc\n",
+      "locals": ["a", "b", "c", "d", "e", "f", "g"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": "198",
+        "b": "199",
+        "c": "111",
+        "d": "9",
+        "e": "42",
+        "f": "0",
+        "g": "7"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "confirm",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nconfirm variable x\ncapture confirm new variable x\nlocal a = _rc\ncapture confirm numeric variable s\nlocal b = _rc\ncapture confirm string variable x\nlocal c = _rc\ncapture confirm number abc\nlocal d = _rc\ncapture confirm integer number 2.5\nlocal e = _rc\nconfirm number 2.5\ncapture confirm existence\nlocal f = _rc\nconfirm name abc\ncapture confirm name 1abc\nlocal g = _rc\n",
+      "locals": ["a", "b", "c", "d", "e", "f", "g"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": "110",
+        "b": "7",
+        "c": "7",
+        "d": "7",
+        "e": "7",
+        "f": "6",
+        "g": "7"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "assert-isid",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nassert id > 0\ncapture assert x > 0\nlocal a = _rc\nisid id\ncapture isid g\nlocal b = _rc\nassert f < 3 | f >= .\ncapture assert s == 1\nlocal c = _rc\n",
+      "locals": ["a", "b", "c"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "a": "9", "b": "459", "c": "109" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "labels",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nlabel variable x \"The X\"\nlabel define gl 1 \"one\" 2 \"two\"\nlabel values g gl\nlocal a : variable label x\nlocal b : value label g\nlocal c : label gl 2\nlocal d : label gl 7\nlabel define gl 3 \"three\", add\ncapture label define gl 1 \"uno\"\nlocal e = _rc\nlabel define gl 1 \"uno\", modify\nlocal f : label gl 1\nlabel data \"My data\"\nlocal g : data label\nlocal t : type s\nlocal fm : format f\ncapture label values s gl\nlocal h = _rc\nlabel values g .\nlocal i : value label g\n",
+      "locals": ["a", "b", "c", "d", "e", "f", "g", "t", "fm", "h", "i"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": "The X",
+        "b": "gl",
+        "c": "two",
+        "d": "7",
+        "e": "110",
+        "f": "uno",
+        "g": "My data",
+        "t": "str12",
+        "fm": "%9.0g",
+        "h": "181",
+        "i": ""
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "The X",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "formats",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nformat x %9.2f\nlocal a : format x\nformat %td id\nlocal b : format id\ncapture format s %9.2f\nlocal c = _rc\ncapture format x %9s\nlocal d = _rc\nlocal e : display %9.2f x[1]\nlocal f : display x[6] \" and \" f[1]\n",
+      "locals": ["a", "b", "c", "d", "e", "f"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": "%9.2f",
+        "b": "%td",
+        "c": "120",
+        "d": "120",
+        "e": "     1.50",
+        "f": "100 and .1"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%td",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%9.2f",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "preserve-restore",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\npreserve\ndrop if id > 2\nlocal n1 = _N\nrestore\nlocal n2 = _N\ncapture restore\nlocal rc = _rc\npreserve\ncapture preserve\nlocal rc2 = _rc\nrestore, not\n",
+      "locals": ["n1", "n2", "rc", "rc2"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "n1": "2", "n2": "6", "rc": "622", "rc2": "621" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "compress",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate double d = id\ngenerate long big = id*1000\ngenerate float h = 0.5\ngenerate str20 pad = s\ngenerate double frac = id/4\ncompress\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "d",
+          "type": "byte",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "big",
+          "type": "int",
+          "format": "%12.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1000, 2000, 3000, 4000, 5000, 6000]
+        },
+        {
+          "name": "h",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+        },
+        {
+          "name": "pad",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "frac",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0.25, 0.5, 0.75, 1, 1.25, 1.5]
+        }
+      ]
+    },
+    {
+      "id": "order-rename",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\norder s g\nrename x ex\norder f, last\norder id, after(s)\ncapture rename ex g\nlocal rc = _rc\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "rc": "110" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "ex",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "count-summarize",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncount\nlocal a = r(N)\ncount if x > 0\nlocal b = r(N)\nsummarize f if g > 1\n",
+      "locals": ["a", "b"],
+      "globals": [],
+      "r": ["N", "mean", "sd", "Var", "min", "max", "sum", "sum_w"],
+      "rc": 0,
+      "localValues": { "a": "6", "b": "4" },
+      "globalValues": {},
+      "rValues": {
+        "N": 3,
+        "mean": 1.2666666706403096,
+        "sd": 1.123981014879597,
+        "Var": 1.2633333218097689,
+        "min": 0.30000001192092896,
+        "max": 2.5,
+        "sum": 3.800000011920929,
+        "sum_w": 3
+      },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "summarize-detail",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize id, detail\n",
+      "locals": [],
+      "globals": [],
+      "r": [
+        "p1",
+        "p5",
+        "p10",
+        "p25",
+        "p50",
+        "p75",
+        "p90",
+        "p95",
+        "p99",
+        "skewness",
+        "kurtosis",
+        "N",
+        "mean",
+        "sd"
+      ],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "p1": 1,
+        "p5": 1,
+        "p10": 1,
+        "p25": 2,
+        "p50": 3.5,
+        "p75": 5,
+        "p90": 6,
+        "p95": 6,
+        "p99": 6,
+        "skewness": 0,
+        "kurtosis": 1.7314285714285718,
+        "N": 6,
+        "mean": 3.5,
+        "sd": 1.8708286933869707
+      },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "summarize-detail-float",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize f, detail\n",
+      "locals": [],
+      "globals": [],
+      "r": [
+        "p1",
+        "p5",
+        "p10",
+        "p25",
+        "p50",
+        "p75",
+        "p90",
+        "p95",
+        "p99",
+        "skewness",
+        "kurtosis",
+        "N",
+        "mean",
+        "sd"
+      ],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {
+        "p1": 0.10000000149011612,
+        "p5": 0.10000000149011612,
+        "p10": 0.10000000149011612,
+        "p25": 0.20000000298023224,
+        "p50": 0.30000001192092896,
+        "p75": 1,
+        "p90": 2.5,
+        "p95": 2.5,
+        "p99": 2.5,
+        "skewness": 1.1050909718441446,
+        "kurtosis": 2.6060777180218,
+        "N": 5,
+        "mean": 0.8200000032782555,
+        "sd": 1.0034938940722284
+      },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "summarize-empty",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize x if id > 10\nlocal m = r(mean)\n",
+      "locals": ["m"],
+      "globals": [],
+      "r": ["N", "sum", "sum_w"],
+      "rc": 0,
+      "localValues": { "m": "." },
+      "globalValues": {},
+      "rValues": { "N": 0, "sum": 0, "sum_w": 0 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "summarize-string",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize s\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "N": 0 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "summarize-last-of-list",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsummarize x f id\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N", "mean", "max"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "N": 6, "mean": 3.5, "max": 6 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-one",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ntabulate g\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N", "r"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "N": 6, "r": 3 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-missing",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ntabulate x, missing\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N", "r"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "N": 6, "r": 6 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-two",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ntabulate g s\n",
+      "locals": [],
+      "globals": [],
+      "r": ["N", "r", "c"],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": { "N": 5, "r": 3, "c": 5 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "scalars",
+      "source": "scalar a = 2\nscalar b = a^2\nscalar s = \"txt\"\nlocal x = a + b\nlocal y = s + \"!\"\nscalar drop a\ncapture display a\nlocal rc = _rc\n",
+      "locals": ["x", "y", "rc"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "x": "6", "y": "txt!", "rc": "111" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "set-type",
+      "source": "set type double\nclear\nset obs 2\ngenerate x = 0.1\nlocal t : type x\ncount if x == 0.1\nlocal n = r(N)\nset type float\n",
+      "locals": ["t", "n"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "t": "double", "n": "2" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 2,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0.1, 0.1]
+        }
+      ]
+    },
+    {
+      "id": "tempvar",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ntempvar t\ngenerate `t' = id * 2\nsummarize `t'\nlocal m = r(mean)\ndrop `t'\n",
+      "locals": ["m"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "m": "7" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "display-local",
+      "source": "local a : display %5.2f 3.14159\nlocal b : display 1/3\nlocal c : display \"a\" \"b\" 3 + 4\nlocal d : display %9.0g 1234567.891\nlocal e : display _skip(3) \"x\"\nlocal f : display %-8s \"ab\" \"|\"\nlocal g : display 5 -3\nlocal h : display 2 3\nlocal i : display \"x\" _col(10) \"y\"\n",
+      "locals": ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": " 3.14",
+        "b": ".33333333",
+        "c": "ab7",
+        "d": "  1234568",
+        "e": "   x",
+        "f": "ab      |",
+        "g": "2",
+        "h": "23",
+        "i": "x{col 10}y"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "exit-flow",
+      "source": "local a 1\nif 1 {\n  local b 2\n  exit\n}\nlocal c 3\n",
+      "locals": ["a", "b", "c"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "a": "1", "b": "2", "c": "" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "error-stops",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ngenerate y = 1\ngenerate y = 2\ngenerate z = 3\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 110,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "y",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 1, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "unknown-command",
+      "source": "frobnicate x\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 199,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "comments-delimit",
+      "source": "* comment line\nlocal a 1 // trailing\nlocal b = 1 + /// continued\n   2\n/* block\ncomment */ local c 3\n#delimit ;\nlocal d = 4\n  + 5;\nlocal e 6;\n#delimit cr\nlocal f \"has // inside quotes\"\nlocal g = 2 * /* inline */ 3\n",
+      "locals": ["a", "b", "c", "d", "e", "f", "g"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "a": "1",
+        "b": "3",
+        "c": "3",
+        "d": "9",
+        "e": "6",
+        "f": "has // inside quotes",
+        "g": "6"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "drop-all",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ndrop _all\nlocal n = _N\nlocal k = c(k)\n",
+      "locals": ["n", "k"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "n": "0", "k": "0" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "abbreviations",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nsu i\nlocal n = r(N)\ngen t = i + 1\ng u = 1\n",
+      "locals": ["n"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "n": "6" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "t",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [2, 3, 4, 5, 6, 7]
+        },
+        {
+          "name": "u",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 1, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "by-reports",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nbysort g: count\nlocal a = r(N)\nby g: summarize id\n",
+      "locals": ["a"],
+      "globals": [],
+      "r": ["N", "mean"],
+      "rc": 0,
+      "localValues": { "a": "2" },
+      "globalValues": {},
+      "rValues": { "N": 2, "mean": 5.5 },
+      "observations": 6,
+      "sortedBy": ["g"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "macro-lists",
+      "source": "local A \"a b c b\"\nlocal B \"b d\"\nlocal u : list uniq A\nlocal d : list dups A\nlocal un : list A | B\nlocal in : list A & B\nlocal mi : list A - B\nlocal sz : list sizeof A\nlocal po : list posof \"c\" in A\nlocal so : list sort A\nlocal isin : list B in A\n",
+      "locals": ["u", "d", "un", "in", "mi", "sz", "po", "so", "isin"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {
+        "u": "a b c",
+        "d": "b",
+        "un": "a b c b d",
+        "in": "b",
+        "mi": "a b c",
+        "sz": "4",
+        "po": "3",
+        "so": "a b b c",
+        "isin": "0"
+      },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "subinstr-extended",
+      "source": "local s \"a-b-c\"\nlocal t : subinstr local s \"-\" \"+\"\nlocal u : subinstr local s \"-\" \"+\", all\nlocal len : length local s\n",
+      "locals": ["t", "u", "len"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "t": "a+b-c", "u": "a+b+c", "len": "5" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 0,
+      "sortedBy": [],
+      "variables": []
+    },
+    {
+      "id": "quietly-capture-blocks",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nquietly {\n  generate q = 1\n  count\n}\nlocal n = r(N)\ncapture {\n  generate q = 2\n}\nlocal rc = _rc\nnoisily display \"x\"\n",
+      "locals": ["n", "rc"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "n": "6", "rc": "110" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "q",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 1, 1, 1, 1]
+        }
+      ]
+    },
+    {
+      "id": "type-mismatch",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncapture replace s = 1\nlocal a = _rc\ncapture replace x = \"a\"\nlocal b = _rc\ncapture generate byte t = \"a\"\nlocal c = _rc\ncapture generate str3 u = 1\nlocal d = _rc\n",
+      "locals": ["a", "b", "c", "d"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "a": "109", "b": "109", "c": "109", "d": "109" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "in-ranges",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncapture generate d = 1 in 7\nlocal rc = _rc\ncount in 2/3\n",
+      "locals": ["rc"],
+      "globals": [],
+      "r": ["N"],
+      "rc": 0,
+      "localValues": { "rc": "198" },
+      "globalValues": {},
+      "rValues": { "N": 2 },
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "if-strings",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncount if s == \"pad\"\nlocal a = r(N)\ncount if s > \"b\"\nlocal b = r(N)\ngenerate t = 1 if inlist(s, \"x\", \"kiwi\")\n",
+      "locals": ["a", "b"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "a": "1", "b": "3" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        },
+        {
+          "name": "t",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 8.98846567431158e307,
+            8.98846567431158e307, 1, 1
+          ]
+        }
+      ]
+    },
+    {
+      "id": "missing-comparisons",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\ncount if x > 50\nlocal a = r(N)\ncount if x > 50 & x < .\nlocal b = r(N)\ncount if x == .a\nlocal c = r(N)\ncount if x >= .\nlocal d = r(N)\n",
+      "locals": ["a", "b", "c", "d"],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": { "a": "3", "b": "1", "c": "1", "d": "2" },
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1.5, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100
+          ]
+        },
+        {
+          "name": "f",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str12",
+          "format": "%12s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["apple", "Banana split", "", "pad", "x", "kiwi"]
+        }
+      ]
+    },
+    {
+      "id": "from-nothing",
+      "source": "clear\nset obs 5\ngenerate id = _n\ngenerate sq = id^2\ngenerate double r = sqrt(id)\ngenerate lag = sq[_n-1]\ngenerate cum = sum(id)\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 5,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5]
+        },
+        {
+          "name": "sq",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 4, 9, 16, 25]
+        },
+        {
+          "name": "r",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            1, 1.4142135623730951, 1.7320508075688772, 2, 2.23606797749979
+          ]
+        },
+        {
+          "name": "lag",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [8.98846567431158e307, 1, 4, 9, 16]
+        },
+        {
+          "name": "cum",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 3, 6, 10, 15]
+        }
+      ]
+    },
+    {
+      "id": "recast-command",
+      "source": "clear\ninput byte id double x float f byte g str12 s\n1 1.5 0.1 1 \"apple\"\n2 -2 0.2 1 \"Banana split\"\n3 . 0.3 2 \"\"\n4 0 1 2 \"pad\"\n5 .a . 3 \"x\"\n6 100 2.5 3 \"kiwi\"\nend\nrecast double f\nrecast byte id\nrecast int x\nrecast int x, force\nrecast str3 s, force\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 2, 3, 4, 5, 6]
+        },
+        {
+          "name": "x",
+          "type": "int",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, -2, 8.98846567431158e307, 0, 8.990660123939097e307, 100]
+        },
+        {
+          "name": "f",
+          "type": "double",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.10000000149011612, 0.20000000298023224, 0.30000001192092896, 1,
+            8.98846567431158e307, 2.5
+          ]
+        },
+        {
+          "name": "g",
+          "type": "byte",
+          "format": "%8.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [1, 1, 2, 2, 3, 3]
+        },
+        {
+          "name": "s",
+          "type": "str3",
+          "format": "%9s",
+          "valueLabel": "",
+          "label": "",
+          "values": ["app", "Ban", "", "pad", "x", "kiw"]
+        }
+      ]
+    }
+  ]
+}

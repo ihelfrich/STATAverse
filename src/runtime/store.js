@@ -39,6 +39,8 @@ export class Dataset {
     this.sortedBy = [];
     this.defaultType = defaultType;
     this.label = "";
+    // Value labels: label name to a Map from number to text.
+    this.valueLabels = new Map();
   }
 
   get names() {
@@ -133,7 +135,8 @@ export class Dataset {
     let changed = 0;
     if (text) {
       const needed = widthType(assigned);
-      if (stringWidth(needed) > stringWidth(from)) variable.type = needed;
+      if (stringWidth(needed) > stringWidth(from))
+        this.retype(variable, needed);
       for (const i of rows)
         if (variable.data[i] !== values[i]) {
           variable.data[i] = values[i];
@@ -170,8 +173,19 @@ export class Dataset {
       if (next[i] !== variable.data[i]) wouldChange++;
     if (wouldChange && !force) return { recast: false, wouldChange };
     variable.data = next;
-    variable.type = type;
+    this.retype(variable, type);
     return { recast: true, wouldChange };
+  }
+
+  // A string variable still showing its default format follows its width.
+  retype(variable, type) {
+    if (
+      isStringType(type) &&
+      isStringType(variable.type) &&
+      variable.format === defaultFormat(variable.type)
+    )
+      variable.format = defaultFormat(type);
+    variable.type = type;
   }
 
   /** Stable sort. Each key is a name, or { name, descending }. */
@@ -263,6 +277,9 @@ export class Dataset {
       sortedBy: [...this.sortedBy],
       defaultType: this.defaultType,
       label: this.label,
+      valueLabels: new Map(
+        [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
+      ),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
     };
   }
@@ -270,6 +287,9 @@ export class Dataset {
     Object.assign(this, {
       ...snapshot,
       sortedBy: [...snapshot.sortedBy],
+      valueLabels: new Map(
+        [...snapshot.valueLabels].map(([name, map]) => [name, new Map(map)]),
+      ),
       variables: snapshot.variables.map((v) => ({
         ...v,
         data: v.data.slice(),
