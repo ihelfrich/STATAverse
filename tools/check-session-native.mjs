@@ -36,6 +36,95 @@ input double y double x1 double x2 byte g byte cl
 25.1 12 6.1 3 4
 end`;
 
+/**
+ * Machine-written do-files: a few data commands in a row over the base
+ * data, from a fixed seed. They reach orderings of generate, replace, by,
+ * sort and drop that the written cases do not.
+ */
+export function randomDoFiles(count, seed = 4242) {
+  let state = seed;
+  const next = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+  const pick = (items) => items[Math.floor(next() * items.length)];
+  const cases = [];
+  for (let k = 0; k < count; k++) {
+    const numeric = ["id", "x", "f", "g"],
+      lines = [];
+    let made = 0,
+      sorted = false;
+    const value = () => {
+        const roll = next();
+        if (roll < 0.35)
+          return pick([...numeric, "_n", "_N", "1", "2.5", ".", "0.1"]);
+        if (roll < 0.6)
+          return `${pick(numeric)} ${pick(["+", "-", "*", "/"])} ${pick([...numeric, "2", "0.5", "3"])}`;
+        if (roll < 0.7) return `${pick(numeric)}[_n${pick(["-1", "+1"])}]`;
+        if (roll < 0.8) return `sum(${pick(numeric)})`;
+        if (roll < 0.9)
+          return `cond(${pick(numeric)} > ${pick(["1", "2", "0.2"])}, ${pick(numeric)}, ${pick(["0", ".", "-1"])})`;
+        return `${pick(["abs", "int", "floor", "sqrt", "round"])}(${pick(numeric)})`;
+      },
+      condition = () =>
+        `${pick(numeric)} ${pick(["<", ">", "==", "!=", ">=", "<="])} ${pick(["1", "2", "3", "0.2", ".", "g", "id"])}`,
+      qualifier = () => {
+        const roll = next();
+        return roll < 0.5
+          ? ""
+          : roll < 0.85
+            ? ` if ${condition()}`
+            : ` in ${pick(["1/2", "2", "l", "f/3", "2/l"])}`;
+      };
+    for (let step = 0; step < 6; step++) {
+      const roll = next();
+      if (roll < 0.3) {
+        const name = `v${++made}`;
+        lines.push(
+          `generate ${pick(["", "", "byte ", "int ", "long ", "double ", "float "])}${name} = ${value()}${qualifier()}`,
+        );
+        numeric.push(name);
+      } else if (roll < 0.5)
+        lines.push(
+          `replace ${pick(numeric.filter((n) => n !== "id"))} = ${value()}${qualifier()}`,
+        );
+      else if (roll < 0.62) {
+        const name = `v${++made}`;
+        lines.push(
+          `bysort g (id): generate ${pick(["", "double "])}${name} = ${value()}`,
+        );
+        numeric.push(name);
+        sorted = true;
+      } else if (roll < 0.7 && sorted)
+        lines.push(
+          `by g: replace ${pick(numeric.filter((n) => n !== "id" && n !== "g"))} = ${value()}`,
+        );
+      else if (roll < 0.78) {
+        lines.push(pick(["sort id", "gsort -id", "sort g id", "sort s id"]));
+        sorted = false;
+      } else if (roll < 0.86)
+        lines.push(`${pick(["drop", "keep"])} if ${condition()}`);
+      else if (roll < 0.93) {
+        const name = `v${++made}`;
+        lines.push(
+          `egen ${name} = ${pick(["mean", "total", "max", "min", "count", "sd"])}(${pick(numeric)})${next() < 0.5 ? ", by(g)" : ""}`,
+        );
+        numeric.push(name);
+      } else lines.push(pick(["compress", "drop in 1", "recast double f"]));
+    }
+    cases.push({
+      id: `random-${k + 1}`,
+      source: `${BASE}\n${lines.join("\n")}\n`,
+      locals: [],
+      globals: [],
+      r: [],
+      e: [],
+      matrices: [],
+    });
+  }
+  return cases;
+}
+
 export async function readCases(file = "tools/session-cases.txt") {
   const text = await fs.readFile(file, "utf8");
   return text
@@ -68,7 +157,7 @@ export async function readCases(file = "tools/session-cases.txt") {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const cases = await readCases(),
+  const cases = [...(await readCases()), ...randomDoFiles(120)],
     folder = await fs.mkdtemp(
       path.join(os.tmpdir(), "stataverse-session-native-"),
     );

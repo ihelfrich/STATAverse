@@ -526,6 +526,8 @@ const bytesOf = (type) =>
 function compress(session, text, ctx) {
   const names = session.parse("[varlist]", text).varlist,
     changes = [];
+  // With no observations there is nothing to measure, and types stay.
+  if (!session.data.n) return void ctx.out("  (0 bytes saved)");
   let saved = 0;
   for (const name of names) {
     const variable = session.data.get(name),
@@ -864,6 +866,9 @@ function egen(session, text, ctx) {
   if (!isName(name)) throw invalid(`${name} invalid name`);
   if (data.has(name))
     throw new StataError(`variable ${name} already defined`, 110);
+  // With no observations and by(), Stata's egen finds nothing to work on.
+  if (!data.n && (parsed.options.by || ctx.by))
+    throw new StataError("no observations to group", 111);
   const rows = session.rows(parsed, null),
     selected = new Set(rows),
     values = new Array(data.n).fill(MISSING);

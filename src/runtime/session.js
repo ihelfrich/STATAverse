@@ -337,6 +337,9 @@ export class Session {
       };
     const command = findCommand(word);
     if (command) {
+      // With no observations there are no groups, and by runs nothing:
+      // even generate creates no variable.
+      if (flags.by && !flags.by.groups.length && command.byable) return;
       if (flags.by && !command.byable)
         throw new StataError(
           `${command.name} may not be combined with by`,
