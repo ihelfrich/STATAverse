@@ -1095,3 +1095,701 @@ local m --
 capture local k = ++ + 3
 local rc = _rc
 local w : word count
+=== diagnostics-hettest | r: chi2 df p
+@EST
+regress y x1 x2
+estat hettest
+=== diagnostics-hettest-varlist | r: chi2 df p
+@EST
+regress y x1 x2
+estat hettest x1 cl
+=== diagnostics-ovtest | r: F df df_r p
+@EST
+regress y x1 x2
+estat ovtest
+=== diagnostics-ovtest-factor | r: F df df_r p
+@EST
+regress y x2 i.g
+estat ovtest
+=== diagnostics-testparm | r: F df df_r p drop
+@EST
+regress y x1 x2
+testparm x1 x2
+=== diagnostics-testparm-factor | r: F df df_r p
+@EST
+regress y x1 i.g
+testparm i.g
+=== diagnostics-imtest | r: chi2_h df_h chi2_s df_s chi2_k df_k chi2_t df_t
+@EST
+regress y x1 x2
+estat imtest
+=== diagnostics-predict
+@EST
+regress y x1 x2 if cl > 1
+predict double h, hat
+predict double rs, rstandard
+predict double rt, rstudent
+predict double cd, cooksd
+predict double sr, stdr
+predict double sf, stdf
+predict float lev if g > 1, leverage
+=== diagnostics-hc2 | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+regress y x1 x2, vce(hc2)
+=== diagnostics-hc3 | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+@EST
+regress y x1 i.g, vce(hc3)
+=== everyday-ci | r: mean se lb ub N level
+@EST
+replace x2 = . in 3
+ci means y x2, level(90)
+=== everyday-spearman | r: rho p N
+@EST
+replace x2 = . in 3
+spearman y x2
+=== everyday-spearman-ties | r: rho p N
+@EST
+spearman g cl
+=== everyday-pwcorr | r: rho N
+@EST
+replace x2 = . in 3
+pwcorr y x2
+=== everyday-data
+@EST
+clonevar yy = y
+clonevar gg = g if x1 > 4
+tabulate g, generate(d)
+tabulate cl if x1 > 3, generate(c)
+=== weights-aweight | e: N df_m df_r F r2 r2_a rmse mss rss | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+regress z x1 x2 [aweight=w]
+=== weights-fweight | e: N df_m df_r F r2 r2_a rmse mss rss | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+regress z x1 x2 [fweight=fw]
+=== weights-pweight | e: N df_m df_r F r2 rmse | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+regress z x1 x2 [pweight=w]
+=== weights-summarize | r: N sum_w mean Var sd min max sum
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+summarize z [aweight=w]
+=== weights-summarize-fw | r: N sum_w mean Var sd min max sum
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+summarize z [fweight=fw]
+=== compare-lrtest | r: chi2 df p
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+quietly logit d x1
+estimates store a
+quietly logit d x1 x2
+estimates store b
+lrtest a b
+=== iv-firststage | r: mineig
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+ivregress 2sls z x2 (x1 = n w)
+estat firststage
+=== iv-endogenous | r: df wudf_r p_wu wu p_durbin durbin
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+ivregress 2sls z x2 (x1 = n w)
+estat endogenous
+=== iv-overid | r: df p_sargan sargan p_basmann basmann
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+ivregress 2sls z x2 (x1 = n w)
+estat overid
+=== areg-basic | e: N df_m df_r F r2 r2_a rmse mss rss tss df_a F_absorb p_absorb | matrices: e(b) e(V)
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+areg z x1 x2, absorb(fw)
+=== tests-prtest | r: N P se lb ub z p_l p p_u
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+prtest d == .4
+=== tests-prtest-by | r: N1 P1 N2 P2 P_diff z p
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+prtest d, by(fw)
+=== tests-sdtest | r: p p_l p_u sd chi2 df N
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+sdtest z == 2
+=== tests-sdtest-by | r: p p_l p_u sd_1 sd_2 F df_1 df_2 N
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+sdtest z, by(d)
+=== tests-ranksum | r: N N_1 N_2 sum_obs sum_exp Var_a z p p_exact p_l_exact p_u_exact
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+ranksum z, by(d)
+=== tests-signrank | r: N N_pos N_neg N_tie sum_pos sum_neg Var_a z p p_exact p_l_exact p_u_exact
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+signrank z = n
+=== tests-oneway | r: N mss df_m rss df_r F chi2bart df_bart
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+oneway z grp
+=== tests-kwallis | r: p_adj p chi2_adj df chi2
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+kwallis z, by(grp)
+=== tests-fisher | r: N r c chi2 p p_exact p1_exact
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+tabulate d fw, chi2 exact
+=== utilities-pctile | r: r1 r2 r3
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+pctile pz = z, nq(4)
+pctile double px = x1, nq(5)
+cumul z, generate(cz) equal
+_pctile x1, p(10 50 90)
+=== utilities-missing
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+mvdecode z n, mv(1)
+mvencode z, mv(99)
+separate x1, by(d)
+split name, parse(e)
+=== utilities-fillin
+clear
+input byte d double x1 double x2 byte n double z
+0 1.0 2.1 0 3
+0 1.5 1.2 1 1
+0 2.0 3.3 0 4
+1 2.2 0.9 2 2
+0 2.9 2.8 1 5
+0 3.1 1.1 3 2
+1 3.4 3.9 2 6
+0 4.0 2.0 4 3
+1 4.2 0.7 3 1
+1 4.8 3.1 5 5
+0 5.1 1.9 2 4
+1 5.5 2.6 6 4
+1 6.0 0.8 4 2
+1 6.3 3.5 7 7
+0 6.9 1.4 5 2
+1 7.2 2.2 9 5
+1 7.8 3.0 6 6
+1 8.1 1.0 8 3
+1 8.8 2.4 11 5
+1 9.4 3.6 10 8
+end
+generate w = 1 + mod(_n, 3)
+generate byte fw = 1 + mod(_n, 2)
+generate byte grp = 1 + mod(_n, 3)
+generate str3 name = cond(d, "yes", "no")
+insobs 2
+fillin d grp
+sort d grp x1

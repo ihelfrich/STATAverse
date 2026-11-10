@@ -2,6 +2,8 @@
 // plus correlate and tabstat. regress leaves one result object in
 // session.estimates; the post-estimation commands read only that object, so
 // they will serve later estimators without change.
+import { evaluateAll } from "./expression.js";
+import { leverageStatistic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
 import { applyFormat } from "./format.js";
@@ -242,7 +244,7 @@ export function design(session, text, rows, constant = true) {
   return { dependent, columns, sample };
 }
 
-function fit(session, parsed, by) {
+export function fit(session, parsed, by) {
   const rows = session.rows(parsed, by),
     options = parsed.options,
     constant = options.constant !== false,
@@ -259,18 +261,46 @@ function fit(session, parsed, by) {
     cluster = clusterMatch
       ? session.data.get(session.varlist(clusterMatch[1])[0])
       : null,
-    robust = !!cluster || /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
+    hc = /^hc[23]$/.exec(vceText.trim())?.[0] ?? null,
+    robust =
+      !!cluster ||
+      !!hc ||
+      parsed.weight?.type === "pweight" ||
+      /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
   if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
     throw new StataError(`vce(${vceText}) is not available yet`, 198);
-  const obs = cluster
+  let obs = cluster
       ? sample.filter((i) => !isMissing(cluster.data[i]))
       : sample,
-    n = obs.length;
+    w = null,
+    sumW;
+  const wtype = parsed.weight?.type;
+  if (wtype) {
+    const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
+    obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
+    if (obs.some((i) => all[i] < 0))
+      throw new StataError("negative weights encountered", 402);
+    sumW = obs.reduce((t, i) => t + all[i], 0);
+    if (wtype === "fweight") {
+      if (obs.some((i) => !Number.isInteger(all[i])))
+        throw new StataError("may not use noninteger frequency weights", 401);
+      // A frequency weight stands for that many identical observations.
+      obs = obs.flatMap((i) => new Array(all[i]).fill(i));
+    } else {
+      // Analytic and sampling weights are rescaled to sum to N.
+      const scale = obs.length / sumW;
+      w = obs.map((i) => all[i] * scale);
+    }
+  }
+  const n = obs.length;
   if (!n) throw new StataError("no observations", 2000);
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base),
     x = active.map((c) => obs.map(c.value)),
-    mean = (v) => v.reduce((a, b) => a + b, 0) / n,
+    mean = (v) =>
+      (w
+        ? v.reduce((a, b, i) => a + w[i] * b, 0)
+        : v.reduce((a, b) => a + b, 0)) / n,
     ybar = constant ? mean(y) : 0,
     xbar = x.map((v) => (constant ? mean(v) : 0)),
     yc = y.map((v) => v - ybar),
@@ -278,7 +308,10 @@ function fit(session, parsed, by) {
   // Choose columns by pivoting: at each step take the column with the most
   // variation left after those already chosen, as Stata does, so which of
   // two collinear variables is omitted does not depend on their order.
-  const cross = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0),
+  const cross = (a, b) =>
+      w
+        ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
+        : a.reduce((t, v, i) => t + v * b[i], 0),
     original = xc.map((column) => cross(column, column)),
     remaining = xc.map((column) => column.slice()),
     chosen = new Set();
@@ -353,7 +386,7 @@ function fit(session, parsed, by) {
       const sums = new Map();
       obs.forEach((row, i) => {
         const key = cluster.data[row],
-          score = z(i).map((v) => v * residuals[i]),
+          score = z(i).map((v) => v * residuals[i] * (w ? w[i] : 1)),
           sum = sums.get(key) ?? new Array(size).fill(0);
         score.forEach((v, k) => (sum[k] += v));
         sums.set(key, sum);
@@ -361,8 +394,22 @@ function fit(session, parsed, by) {
       for (const sum of sums.values()) add(sum);
       clusters = sums.size;
       scale = (clusters / (clusters - 1)) * ((n - 1) / (n - rank));
+    } else if (hc) {
+      // HC2 divides each squared residual by 1 - h, HC3 by its square.
+      for (let i = 0; i < n; i++) {
+        const row = z(i),
+          h = row.reduce(
+            (t, a, r) =>
+              t + a * row.reduce((u, b, c) => u + bread[r][c] * b, 0),
+            0,
+          ),
+          weight = residuals[i] / (hc === "hc2" ? Math.sqrt(1 - h) : 1 - h);
+        add(row.map((v) => v * weight));
+      }
+      scale = 1;
     } else {
-      for (let i = 0; i < n; i++) add(z(i).map((v) => v * residuals[i]));
+      for (let i = 0; i < n; i++)
+        add(z(i).map((v) => v * residuals[i] * (w ? w[i] : 1)));
       scale = n / (n - rank);
     }
     const bm = bread.map((row) =>
@@ -431,6 +478,16 @@ function fit(session, parsed, by) {
     rmse: Math.sqrt(rss / dfResidual),
     ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1),
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
+    sumW,
+    wtype,
+    vcetype: hc ? `Robust ${hc.toUpperCase()}` : robust ? "Robust" : "",
+    xtxInverse: names.map((r) =>
+      names.map((c) => {
+        const i = position.get(r),
+          j = position.get(c);
+        return i === undefined || j === undefined ? 0 : bread[i][j];
+      }),
+    ),
     clusters,
     clusterName: cluster?.name,
     sample: obs,
@@ -505,7 +562,11 @@ export function coefficientHeader(model, level, label = model.depvar) {
     interval = `[${g(level, "%9.0g")}% conf. interval]`;
   return [
     RULE,
-    ...(robust ? ["             |               Robust"] : []),
+    ...(robust
+      ? [
+          `             |${" ".repeat(Math.max(0, 18 - (model.vcetype ?? "Robust").length / 2))}${model.vcetype ?? "Robust"}`,
+        ]
+      : []),
     `${label.padStart(12)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|     ${interval}`,
     "-------------+----------------------------------------------------------------",
   ];
@@ -513,7 +574,7 @@ export function coefficientHeader(model, level, label = model.depvar) {
 
 function regress(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, noCONStant Robust VCE(string) Level(cilevel) | noHEader Beta EForm(string) CLuster(varname) ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta | noHEader EForm(string) CLuster(varname) ABSorb(varname)]",
       text,
     ),
     model = fit(session, parsed, null),
@@ -562,6 +623,8 @@ function regress(session, text, ctx) {
   for (const column of model.columns)
     if (column.omitted)
       ctx.out(`note: ${column.name} omitted because of collinearity.`);
+  if (model.wtype && model.wtype !== "fweight")
+    ctx.out(`(sum of wgt is ${g(model.sumW, "%10.0g")})`);
   ctx.out("");
   if (wide) {
     side.forEach((line, k) =>
@@ -591,8 +654,40 @@ function regress(session, text, ctx) {
     left.forEach((line, k) => ctx.out(line.padEnd(48) + side[k]));
     ctx.out("");
   }
-  coefficientHeader(model, level).forEach(ctx.out);
-  coefficientRows(session, model, level).forEach(ctx.out);
+  if (parsed.options.beta) {
+    const robust = model.vce !== "ols",
+      sd = (values) => {
+        const m = values.reduce((a, b) => a + b, 0) / values.length;
+        return Math.sqrt(
+          values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
+        );
+      },
+      dependent = session.data.get(model.depvar),
+      sdY = sd(model.sample.map((i) => dependent.data[i]));
+    ctx.out(RULE);
+    if (robust)
+      ctx.out(
+        `             |${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
+      );
+    ctx.out(
+      `${model.depvar.padStart(12)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
+    );
+    ctx.out(
+      "-------------+----------------------------------------------------------------",
+    );
+    termRows(session, model, (k) => {
+      const se = Math.sqrt(model.V[k][k]),
+        t = model.b[k] / se,
+        beta =
+          model.names[k] === "_cons"
+            ? MISSING
+            : (model.b[k] * sd(model.sample.map(model.columns[k].value))) / sdY;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
+    }).forEach(ctx.out);
+  } else {
+    coefficientHeader(model, level).forEach(ctx.out);
+    coefficientRows(session, model, level).forEach(ctx.out);
+  }
   ctx.out(RULE);
   ctx.out("");
 }
@@ -605,14 +700,42 @@ export function estimates(session) {
 export function predict(session, text, ctx) {
   const model = estimates(session),
     parsed = session.parse(
-      "newvarname [if] [in] [, XB Residuals STDP | STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFITS SCores]",
+      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat | DFITS SCores]",
       text,
     ),
     options = parsed.options,
-    chosen = ["xb", "residuals", "stdp"].filter((name) => options[name]);
+    extra = [
+      "stdf",
+      "stdr",
+      "rstandard",
+      "rstudent",
+      "cooksd",
+      "leverage",
+      "hat",
+    ].filter((name) => options[name]),
+    chosen = ["xb", "residuals", "stdp", ...extra].filter(
+      (name) => options[name],
+    );
   if (chosen.length > 1)
     throw new StataError("only one statistic may be requested", 198);
   if (!chosen.length) ctx.out("(option xb assumed; fitted values)");
+  if (extra.length) {
+    const made = leverageStatistic(session, model, extra[0]),
+      keep = new Set(session.rows(parsed, null)),
+      order = [...session.data.sortedBy],
+      result = made.values.map((v, i) => (keep.has(i) ? v : MISSING)),
+      empty = result.filter((v) => isMissing(v)).length;
+    session.data.generate(parsed.varlist[0], result, {
+      type: parsed.typed[0] ? parsed.types[0] : undefined,
+    });
+    session.data.sortedBy = order;
+    session.data.get(parsed.varlist[0]).label = made.label;
+    if (empty)
+      ctx.out(
+        `(${count(empty)} missing value${empty === 1 ? "" : "s"} generated)`,
+      );
+    return;
+  }
   const data = session.data,
     dependent = data.get(model.depvar),
     values = new Array(data.n).fill(MISSING);

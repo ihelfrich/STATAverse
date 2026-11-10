@@ -322,6 +322,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "clear",
       "capture program drop _all",
       "scalar drop _all",
+      "capture estimates clear",
       "capture label drop _all",
       "macro drop _all",
       "discard",
