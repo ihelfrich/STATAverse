@@ -995,3 +995,34 @@ input byte d double x1 double x2 byte n double z
 end
 regress n x1 x2
 estat ic
+=== runiform-seed
+clear
+set obs 6
+set seed 12345
+generate double u = runiform()
+generate double v = runiform(2, 5)
+set seed 12345
+generate double again = runiform()
+set seed 1
+generate double other = runiform() if _n > 2
+=== random-other | locals: n same lo hi
+clear
+set obs 200
+set seed 7
+generate double z = rnormal()
+generate double w = rnormal(10, 2)
+generate k = runiformint(1, 6)
+generate b = rbinomial(10, .3)
+generate p = rpoisson(4)
+quietly count if z < . & w < . & inrange(k, 1, 6) & inrange(b, 0, 10) & p >= 0
+local n = r(N)
+set seed 7
+generate double z2 = rnormal()
+quietly count if z == z2
+local same = r(N)
+quietly summarize k
+local lo = r(min)
+local hi = r(max)
+keep in 1
+keep k
+replace k = 0

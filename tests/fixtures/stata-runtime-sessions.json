@@ -6802,6 +6802,96 @@
           "values": [3, 1, 4, 2, 5, 2, 6, 3, 1, 5, 4, 4, 2, 7, 2, 5, 6, 3, 5, 8]
         }
       ]
+    },
+    {
+      "id": "runiform-seed",
+      "source": "clear\nset obs 6\nset seed 12345\ngenerate double u = runiform()\ngenerate double v = runiform(2, 5)\nset seed 12345\ngenerate double again = runiform()\nset seed 1\ngenerate double other = runiform() if _n > 2\n",
+      "locals": [],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": {},
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 6,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "u",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.35762972288842587, 0.40044261704406126, 0.6893833170027684,
+            0.5597355706411157, 0.5744512939917109, 0.2076905268617547
+          ]
+        },
+        {
+          "name": "v",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            2.085988097765555, 4.066773433638351, 3.408030077289368,
+            2.621457787319321, 2.0117967571780166, 2.0390891345401405
+          ]
+        },
+        {
+          "name": "again",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            0.35762972288842587, 0.40044261704406126, 0.6893833170027684,
+            0.5597355706411157, 0.5744512939917109, 0.2076905268617547
+          ]
+        },
+        {
+          "name": "other",
+          "type": "double",
+          "format": "%10.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [
+            8.98846567431158e307, 8.98846567431158e307, 0.13387664401253263,
+            0.13640703636619722, 0.4512149038445382, 0.02102422841672713
+          ]
+        }
+      ]
+    },
+    {
+      "id": "random-other",
+      "source": "clear\nset obs 200\nset seed 7\ngenerate double z = rnormal()\ngenerate double w = rnormal(10, 2)\ngenerate k = runiformint(1, 6)\ngenerate b = rbinomial(10, .3)\ngenerate p = rpoisson(4)\nquietly count if z < . & w < . & inrange(k, 1, 6) & inrange(b, 0, 10) & p >= 0\nlocal n = r(N)\nset seed 7\ngenerate double z2 = rnormal()\nquietly count if z == z2\nlocal same = r(N)\nquietly summarize k\nlocal lo = r(min)\nlocal hi = r(max)\nkeep in 1\nkeep k\nreplace k = 0\n",
+      "locals": ["n", "same", "lo", "hi"],
+      "globals": [],
+      "r": [],
+      "e": [],
+      "matrices": [],
+      "rc": 0,
+      "localValues": { "n": "200", "same": "200", "lo": "1", "hi": "6" },
+      "globalValues": {},
+      "rValues": {},
+      "eValues": {},
+      "matrixValues": {},
+      "observations": 1,
+      "sortedBy": [],
+      "variables": [
+        {
+          "name": "k",
+          "type": "float",
+          "format": "%9.0g",
+          "valueLabel": "",
+          "label": "",
+          "values": [0]
+        }
+      ]
     }
   ]
 }

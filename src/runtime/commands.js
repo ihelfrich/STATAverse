@@ -520,7 +520,14 @@ function setCommand(session, text, ctx) {
     const level = Number(rest[0]);
     if (!(level >= 10 && level <= 99.99)) throw invalid();
     session.settings.level = level;
-  } else if (what === "seed") session.settings.seed = Number(rest[0]);
+  } else if (what === "seed") {
+    const seed = session.scalar(rest.join(" "));
+    if (!(seed >= 0 && seed <= 2147483647))
+      throw new StataError("seed must be between 0 and 2,147,483,647", 198);
+    session.settings.seed = seed;
+    session.state.seed = seed;
+    session.state.rng = null;
+  }
   // Settings that only affect how Stata's own windows behave are accepted.
   else if (
     !/^(mo(re?)?|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|showbaselevels|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
