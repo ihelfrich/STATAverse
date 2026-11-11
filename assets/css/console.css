@@ -296,7 +296,7 @@
   background: transparent;
 }
 #console-output:empty::before {
-  content: "Results appear here.\A\ARun the do-file, or type a command below\Aand press Enter.";
+  content: "Results appear here.";
   white-space: pre-wrap;
   color: var(--results-dim);
   font-family: var(--sans);
@@ -1511,4 +1511,372 @@ body.is-dropping::after {
   .console-tab-name {
     margin-left: 0;
   }
+}
+
+/* ===== The streamlined page: one bar, one status line, the work. ===== */
+/* Everything else is in the More menu or in a drawer below. */
+.console-layout {
+  padding-top: 18px;
+  gap: 14px 28px;
+}
+.console-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.console-heading h1 {
+  font-size: 26px;
+  letter-spacing: -0.6px;
+  margin: 0;
+}
+.console-heading > p {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.console-heading > p span {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+  background: #fff;
+}
+.console-editor .console-bar {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 0;
+  margin-bottom: 0;
+}
+.console-editor .console-modes {
+  margin-right: 4px;
+}
+.console-bar .primary-button,
+.console-bar .quiet-button {
+  font-size: 14px;
+  padding: 6px 16px;
+}
+.console-bar [hidden] {
+  display: none;
+}
+.console-gap {
+  flex: 1;
+}
+.console-pick select,
+.console-menu > summary {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 6px 10px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 6px;
+  background: #fff;
+  max-width: 190px;
+}
+.console-menu {
+  position: relative;
+}
+.console-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.console-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.console-menu > summary::after {
+  content: " ▾";
+  color: var(--muted);
+}
+.console-menu[open] > summary {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.console-menu[open] > summary::after {
+  color: #fff;
+}
+.console-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 12;
+  width: 264px;
+  max-height: min(74vh, 560px);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--pane-edge);
+  border-radius: 10px;
+  box-shadow: 0 14px 32px rgba(24, 36, 52, 0.2);
+  padding: 6px 8px 8px;
+}
+.console-menu-group {
+  padding: 6px 0;
+}
+.console-menu-group[hidden] {
+  display: none;
+}
+.console-menu-group + .console-menu-group:not([hidden]) {
+  border-top: 1px solid var(--line);
+}
+.console-menu-group h3 {
+  margin: 2px 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.console-menu-group > button,
+.console-menu-group > label {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+.console-menu-group > button:hover:not(:disabled) {
+  background: var(--mint);
+}
+.console-menu-group > button:disabled {
+  color: #8a94a3;
+  cursor: default;
+}
+.console-menu-group > label select,
+.console-menu-group > label input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 5px 6px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 5px;
+  background: #fff;
+}
+.console-menu-group > .console-switch {
+  padding-left: 32px;
+  border-radius: 6px;
+}
+.console-menu-group > .console-switch[aria-pressed="true"],
+.console-menu-group > #console-fox[aria-pressed="true"] {
+  background: none;
+  color: var(--ink);
+  font-weight: 650;
+}
+.console-menu-group > .console-switch[aria-pressed="true"]::after {
+  content: " ✓";
+}
+.console-menu-group > .console-switch[aria-pressed="true"]::before {
+  border-color: #000;
+}
+#console-status {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  min-height: 1.4em;
+}
+#console-source {
+  height: clamp(300px, calc(100vh - 262px), 760px);
+  min-height: 0;
+}
+#console-output {
+  height: clamp(260px, calc(100vh - 300px), 722px);
+}
+.console-results .console-bar {
+  min-height: 46px;
+}
+.console-results {
+  top: 8px;
+}
+.console-tabs {
+  margin-bottom: 0;
+}
+.map-names {
+  margin: 0 0 6px;
+}
+.map-scroll {
+  max-height: clamp(320px, calc(100vh - 300px), 760px);
+}
+.map-names-none {
+  color: var(--muted);
+}
+
+/* ----- the drawers under the work ----- */
+.console-drawers {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.console-drawer {
+  background: #fff;
+  border: 1px solid var(--pane-edge);
+  border-radius: 8px;
+  min-width: 0;
+}
+.console-drawer > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.console-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+.console-drawer > summary::before {
+  content: "▸";
+  color: var(--muted);
+  width: 10px;
+}
+.console-drawer[open] > summary::before {
+  content: "▾";
+}
+.console-drawer > summary h2 {
+  margin: 0;
+  font-size: 14.5px;
+}
+.console-drawer > summary span {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+.console-drawer > :not(summary) {
+  margin: 0 14px 12px;
+}
+.console-drawer #console-memory {
+  margin: 0;
+}
+.console-drawer .console-own {
+  border: 1px dashed #9aa8bd;
+  padding: 10px 12px;
+}
+.console-drawer .console-own p {
+  margin: 0;
+}
+.console-drawer .console-own p span {
+  display: inline-block;
+  color: var(--muted);
+}
+#console-datasets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0 24px;
+}
+#console-datasets li {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 7px 0;
+}
+#console-datasets details {
+  flex: 1;
+  min-width: 0;
+}
+#console-datasets summary {
+  cursor: pointer;
+  font-size: 13.5px;
+}
+#console-datasets summary code {
+  font-family: var(--mono);
+  color: #0f2f86;
+  margin-right: 8px;
+}
+#console-datasets details p {
+  margin: 6px 0 4px;
+}
+#console-datasets button {
+  align-self: flex-start;
+  margin: 0;
+  padding: 3px 12px;
+}
+.console-about p {
+  max-width: 74ch;
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.console-drawer .console-find {
+  margin-top: 0;
+}
+@media (max-width: 900px) {
+  .console-heading {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .console-gap {
+    display: none;
+  }
+  #console-source {
+    height: clamp(240px, 50vh, 520px);
+  }
+  .console-menu-panel {
+    right: auto;
+    left: 0;
+  }
+}
+
+/* ----- a map card: its title and command; the rest when it is opened ----- */
+.map-kind {
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+.map-kind::after {
+  content: " ▸";
+  font-weight: 400;
+  color: var(--muted);
+}
+.map-kind[aria-expanded="true"]::after {
+  content: " ▾";
+}
+.map-step.is-open {
+  box-shadow: 0 6px 18px rgba(24, 36, 52, 0.16);
+  z-index: 1;
+}
+.map-fields .map-foot {
+  flex-wrap: wrap;
+}
+.map-remove {
+  width: auto;
+  height: auto;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--pane-edge);
+  color: var(--red);
+  background: #fff;
+}
+.map-peek {
+  display: block;
+  margin-top: 6px;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid #1c7c4a;
+  border-radius: 999px;
+  background: #fff;
+  color: #145c37;
+  cursor: pointer;
+}
+.map-step[data-state="error"] .map-peek {
+  border-color: var(--red);
+  color: var(--red);
+}
+.map-step {
+  padding-bottom: 10px;
 }

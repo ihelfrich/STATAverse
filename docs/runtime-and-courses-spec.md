@@ -295,3 +295,14 @@ The Console page was rebuilt in the same change. It now has a command line under
 **Download.** `src/console-project.js` packs the do-files, the datasets they use and a README into `stata-project.zip` (`src/console-zip.js`, stored entries). So that the folder runs in Stata on the student's computer, each `sysuse` of a site dataset is rewritten as `use "data/name.dta"` and the dataset is written as a format-118 `.dta` file with its types and labels. A three-file project made from a map was unzipped and run in installed Stata with no errors and the same coefficients as the Console.
 
 **Menus.** An Insert menu of command patterns in six groups; the map's add-a-step menu grouped with a line on what each step does; variable names above the map to put in the field last used.
+
+## Console round of 11 November 2026 (third): less on the first screen
+
+A first-time walk through the live page at 1280 by 800 found the Run button below the fold, 973 words and 30 controls shown in the do-file view, the first card of the map out of view, and a garbled line in the empty Results window. The page was rebuilt on one rule: the first screen is the editor, Run and Results, and everything else is one deliberate step away.
+
+- **One bar.** Write or Map, Run, Examples, More. Run is the same button in both views. Run selection appears only while lines are selected. The status line sits under the bar.
+- **More.** Insert a command, new, rename and delete do-file (or, in the map, open as do-files and tidy), download the project, download the data in memory as `.dta`, clear the session, classic colours and the fox. It closes after a choice, on Escape and on a click away.
+- **Drawers under the work.** Variables (opens by itself the first time there is data), Data (teaching datasets as a name and a Load button, the description on request; own files), Commands, About. The "start from a dataset" picker is gone: the Data drawer does that.
+- **Tabs** appear with the second do-file.
+- **Map.** The tree is laid out from the top left, so the first step is in view. A card shows its title and its command; selecting the title opens its fields, Run to here, add a step and Remove. A card that has run shows Result.
+- **Words.** 41 shown in the do-file view and 74 in the map, from 973 and 1,104. A browser test holds the do-file view under 45 and checks that Run is in view on a laptop and on a phone.

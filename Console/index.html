@@ -11,7 +11,7 @@
     <meta name="robots" content="noindex" />
     <title>Console (preview) · STATAverse</title>
     <link rel="stylesheet" href="../assets/css/learn.css" />
-    <link rel="stylesheet" href="../assets/css/console.css?v=8208171f0e" />
+    <link rel="stylesheet" href="../assets/css/console.css?v=a8a0731279" />
   </head>
   <body class="console-page" data-pagefind-ignore="all">
     <a class="skip-link" href="#main">Skip to the console</a>
@@ -33,18 +33,11 @@
     <main id="main" class="console-layout" tabindex="-1">
       <header class="console-heading">
         <h1>Console</h1>
-        <p>
-          Write a do-file and run it, build one as a map of linked steps, or
-          type one command at a time under the results. Every command here is
-          compared with installed Stata before it is kept. This is a preview:
-          files on your disk, survey and survival commands and community
-          packages are not here, and <a href="../Learn/">Practice</a> remains
-          the place for guided lessons.
-        </p>
+        <p>Write Stata and run it here. <span>Preview</span></p>
       </header>
       <section class="console-editor" aria-labelledby="editor-title">
+        <h2 id="editor-title" class="sr-only">Do-file</h2>
         <div class="console-bar">
-          <h2 id="editor-title">Do-file</h2>
           <div
             class="console-modes"
             role="group"
@@ -57,49 +50,113 @@
               Map
             </button>
           </div>
-          <div class="console-choices" id="console-choices">
-            <label
-              >Insert
-              <select id="console-insert">
-                <option value="">a command</option>
-              </select></label
-            >
-            <label
-              >Example
-              <select id="console-example">
-                <option value="">choose one</option>
-              </select></label
-            >
-            <label
-              >Start from
-              <select id="console-dataset">
-                <option value="">no data</option>
-              </select></label
-            >
-          </div>
+          <button
+            type="button"
+            class="primary-button"
+            id="console-run"
+            title="Ctrl or ⌘ + Enter"
+            disabled
+          >
+            Run
+          </button>
+          <button
+            type="button"
+            class="quiet-button"
+            id="console-run-selection"
+            title="Ctrl or ⌘ + Shift + Enter"
+            hidden
+          >
+            Run selection
+          </button>
+          <button type="button" class="quiet-button" id="console-stop" hidden>
+            Stop
+          </button>
+          <span class="console-gap"></span>
+          <label class="console-pick" id="console-example-pick"
+            ><span class="sr-only">Examples</span>
+            <select id="console-example">
+              <option value="">Examples</option>
+            </select></label
+          >
+          <label class="console-pick" id="map-starter-pick" hidden
+            ><span class="sr-only">Example maps</span>
+            <select id="map-starter">
+              <option value="">Example maps</option>
+            </select></label
+          >
+          <details class="console-menu" id="console-more">
+            <summary>More</summary>
+            <div class="console-menu-panel">
+              <div class="console-menu-group" data-for="write">
+                <h3>Do-file</h3>
+                <label
+                  >Insert a command
+                  <select id="console-insert">
+                    <option value="">choose one</option>
+                  </select></label
+                >
+                <button type="button" id="console-tab-new">New do-file</button>
+                <label
+                  >Rename this file
+                  <input
+                    id="console-tab-name"
+                    type="text"
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                /></label>
+                <button type="button" id="console-tab-delete">
+                  Delete this file
+                </button>
+              </div>
+              <div class="console-menu-group" data-for="map" hidden>
+                <h3>Map</h3>
+                <button type="button" id="map-export">Open as do-files</button>
+                <button type="button" id="map-tidy">Tidy the layout</button>
+              </div>
+              <div class="console-menu-group">
+                <h3>Project</h3>
+                <button type="button" id="console-download">
+                  Download project (.zip)
+                </button>
+                <button type="button" id="console-download-data">
+                  Download data in memory (.dta)
+                </button>
+                <button type="button" id="console-reset" disabled>
+                  Clear session
+                </button>
+              </div>
+              <div class="console-menu-group">
+                <h3>View</h3>
+                <button
+                  type="button"
+                  class="console-switch"
+                  id="console-scheme"
+                  aria-pressed="false"
+                >
+                  Classic colours
+                </button>
+                <button
+                  type="button"
+                  class="console-switch"
+                  id="console-fox"
+                  aria-pressed="true"
+                >
+                  Fox
+                </button>
+              </div>
+            </div>
+          </details>
         </div>
-        <div class="console-tabs" id="console-tabs-bar">
+        <p id="console-status" role="status">Loading the interpreter…</p>
+        <noscript><p>The console requires JavaScript.</p></noscript>
+        <div class="console-tabs" id="console-tabs-bar" hidden>
           <div
             class="console-tablist"
             id="console-tabs"
             role="group"
             aria-label="Do-files in this project"
           ></div>
-          <button type="button" class="console-tab-add" id="console-tab-new">
-            + New file
-          </button>
-          <label class="console-tab-name"
-            >Name
-            <input
-              id="console-tab-name"
-              type="text"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="off"
-          /></label>
-          <button type="button" class="console-tab-add" id="console-tab-delete">
-            Delete file
-          </button>
         </div>
         <div class="console-code">
           <div class="console-gutter" id="console-gutter" aria-hidden="true">
@@ -120,24 +177,6 @@
           ></textarea>
         </div>
         <div class="console-map" id="console-map" hidden>
-          <div class="map-tools">
-            <label
-              >Start from
-              <select id="map-starter">
-                <option value="">choose a map</option>
-              </select></label
-            >
-            <button type="button" class="primary-button" id="map-run">
-              Run the map
-            </button>
-            <button type="button" class="quiet-button" id="map-tidy">
-              Tidy the map
-            </button>
-            <button type="button" class="quiet-button" id="map-export">
-              Open as do-files
-            </button>
-            <span id="map-status" role="status"></span>
-          </div>
           <div class="map-names">
             <span id="map-names-title">Variables</span>
             <ul id="map-names" aria-labelledby="map-names-title"></ul>
@@ -148,52 +187,7 @@
               <ol class="map-steps" id="map-steps"></ol>
             </div>
           </div>
-          <p class="console-hint">
-            Each card is one step and shows the Stata it writes. Add a step
-            after any card; two steps after the same card are branches. After a
-            run, Result on a card shows what that step printed. Select a
-            variable above to put it in the field you last used. Drag a card by
-            its title to move it.
-          </p>
         </div>
-        <div class="console-actions">
-          <button
-            type="button"
-            class="primary-button"
-            id="console-run"
-            disabled
-          >
-            Run do-file
-          </button>
-          <button
-            type="button"
-            class="quiet-button"
-            id="console-run-selection"
-            disabled
-          >
-            Run selection
-          </button>
-          <button type="button" class="quiet-button" id="console-download">
-            Download project
-          </button>
-          <button type="button" class="quiet-button" id="console-stop" hidden>
-            Stop
-          </button>
-          <button
-            type="button"
-            class="quiet-button"
-            id="console-reset"
-            disabled
-          >
-            Clear session
-          </button>
-        </div>
-        <p class="console-hint" id="console-keys">
-          Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the lines
-          you have selected.
-        </p>
-        <p id="console-status" role="status">Loading the interpreter…</p>
-        <noscript><p>The console requires JavaScript.</p></noscript>
       </section>
       <section
         class="console-mapcode"
@@ -202,35 +196,15 @@
         hidden
       >
         <div class="console-bar">
-          <h2 id="mapcode-title">The do-files this map writes</h2>
+          <h2 id="mapcode-title">Do-file</h2>
         </div>
         <div class="mapcode-view" id="mapcode-view" tabindex="0"></div>
-        <p class="console-hint">
-          The lines a card writes light up when you point at the card or change
-          it. Select a line to go to its card.
-        </p>
       </section>
       <section class="console-results" aria-labelledby="results-title">
         <div class="console-bar">
           <h2 id="results-title">Results</h2>
           <p class="fox-says" id="fox-says" role="status"></p>
           <div class="fox-seat" id="fox-seat"></div>
-          <button
-            type="button"
-            class="console-switch"
-            id="console-fox"
-            aria-pressed="true"
-          >
-            Fox
-          </button>
-          <button
-            type="button"
-            class="console-switch"
-            id="console-scheme"
-            aria-pressed="false"
-          >
-            Classic colours
-          </button>
         </div>
         <div class="console-window" id="console-window">
           <pre
@@ -249,97 +223,113 @@
               spellcheck="false"
               autocapitalize="off"
               autocomplete="off"
-              placeholder="type a command and press Enter"
+              placeholder="type a command, press Enter"
               disabled
             />
           </form>
         </div>
       </section>
-      <section class="console-variables" aria-labelledby="variables-title">
-        <h2 id="variables-title">Variables</h2>
-        <p id="console-memory">No data in memory.</p>
-        <div
-          class="console-scroll"
-          tabindex="0"
-          role="group"
-          aria-labelledby="variables-title"
-        >
-          <table id="console-variable-table" hidden>
-            <caption>
-              Select a name to put it in the do-file.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Type</th>
-                <th scope="col">Format</th>
-                <th scope="col">Label</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <p class="console-files">
-          Files in this session: <span id="console-files">none</span>
-        </p>
-      </section>
-      <section class="console-data" aria-labelledby="data-title">
-        <h2 id="data-title">Datasets</h2>
-        <p>
-          All of these are invented for teaching. The larger ones were simulated
-          with a known answer built in, which each description states, so you
-          can check whether a method recovers it.
-        </p>
-        <ul id="console-datasets"></ul>
-        <h3 id="own-title">Your own data</h3>
-        <div class="console-own" id="console-drop">
-          <p>
-            <label for="console-file">Add a file from your computer</label>
+      <div class="console-drawers">
+        <details class="console-drawer" id="drawer-variables">
+          <summary>
+            <h2 id="variables-title">Variables</h2>
+            <span id="console-memory">No data in memory.</span>
+          </summary>
+          <div
+            class="console-scroll"
+            tabindex="0"
+            role="group"
+            aria-labelledby="variables-title"
+          >
+            <table id="console-variable-table" hidden>
+              <caption>
+                Select a name to use it.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Format</th>
+                  <th scope="col">Label</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+        <details class="console-drawer" id="drawer-data">
+          <summary>
+            <h2 id="data-title">Data</h2>
+            <span>Teaching datasets, or add your own</span>
+          </summary>
+          <div class="console-own" id="console-drop">
+            <p>
+              <label for="console-file">Add your own file</label>
+              <input
+                type="file"
+                id="console-file"
+                multiple
+                accept=".csv,.tsv,.txt,.dta,.do,text/csv,text/plain"
+              />
+              <span>CSV, text, Stata .dta or .do. It stays in this tab.</span>
+            </p>
+            <ul id="console-own" aria-label="Your files"></ul>
+          </div>
+          <ul id="console-datasets" aria-labelledby="data-title"></ul>
+          <p class="console-files">
+            Files in this session: <span id="console-files">none</span>
+          </p>
+        </details>
+        <details class="console-drawer" id="drawer-commands">
+          <summary>
+            <h2 id="console-scope">Commands</h2>
+            <span id="console-count"></span>
+          </summary>
+          <p class="console-find">
+            <label for="console-filter">Look for a command</label>
             <input
-              type="file"
-              id="console-file"
-              multiple
-              accept=".csv,.tsv,.txt,.dta,.do,text/csv,text/plain"
+              id="console-filter"
+              type="search"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              placeholder="for example, margins"
             />
+            <span id="console-found" role="status"></span>
           </p>
-          <p>
-            CSV, tab-separated and text files, Stata .dta files, and do-files.
-            You can also drop files anywhere on this page. A file stays in this
-            browser tab: it is not uploaded anywhere, and it is gone when you
-            close or reload the page.
-          </p>
-          <ul id="console-own" aria-labelledby="own-title"></ul>
-        </div>
-      </section>
-      <section class="console-scope" aria-labelledby="console-scope">
-        <h2 id="console-scope">What runs here</h2>
-        <p class="console-find">
-          <label for="console-filter">Look for a command</label>
-          <input
-            id="console-filter"
-            type="search"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            placeholder="for example, margins"
-          />
-          <span id="console-found" role="status"></span>
-        </p>
-        <ul id="console-commands"></ul>
-        <p>
-          <code>sysuse</code> loads this site's own teaching datasets. Stata's
-          example datasets, such as <code>auto</code>, belong to StataCorp and
-          are not included, so a tutorial written for them will not reproduce
-          its numbers here.
-        </p>
-        <p>
-          Nothing you type or add leaves this browser. The do-files and the map
-          are kept in this browser so that they are here when you return; the
-          session's data and the files you add are not kept.
-        </p>
-      </section>
+          <ul id="console-commands"></ul>
+        </details>
+        <details class="console-drawer" id="drawer-about">
+          <summary>
+            <h2 id="about-title">About</h2>
+            <span>What this is, and what it is not</span>
+          </summary>
+          <div class="console-about">
+            <p>
+              Each command here is compared with installed Stata before it is
+              kept. It is still a preview: survey and survival commands, Excel
+              files and community packages are not here. For guided lessons, use
+              <a href="../Learn/">Practice</a>.
+            </p>
+            <p>
+              <code>sysuse</code> loads this site's teaching datasets. Stata's
+              own examples, such as <code>auto</code>, belong to StataCorp and
+              are not included.
+            </p>
+            <p>
+              Nothing you type or add leaves this browser. Your do-files and map
+              are kept here between visits; data and added files are not.
+            </p>
+            <p>
+              Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the
+              selected lines. Up and Down at the command line recall earlier
+              commands.
+            </p>
+          </div>
+        </details>
+      </div>
     </main>
-    <script type="module" src="../assets/js/console.js?v=8208171f0e"></script>
+    <script type="module" src="../assets/js/console.js?v=a8a0731279"></script>
     <script src="../assets/js/site.js" defer></script>
   </body>
 </html>
