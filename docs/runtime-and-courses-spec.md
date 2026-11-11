@@ -306,3 +306,17 @@ A first-time walk through the live page at 1280 by 800 found the Run button belo
 - **Tabs** appear with the second do-file.
 - **Map.** The tree is laid out from the top left, so the first step is in view. A card shows its title and its command; selecting the title opens its fields, Run to here, add a step and Remove. A card that has run shows Result.
 - **Words.** 41 shown in the do-file view and 74 in the map, from 973 and 1,104. A browser test holds the do-file view under 45 and checks that Run is in view on a laptop and on a phone.
+
+## Console round of 11 November 2026 (fourth): a command and its output are one thing
+
+The page was tidy but nothing tied its parts together. This round adds one idea and keeps the rest quiet: every line that ran knows what it printed, and the reverse.
+
+- **Source lines.** Each output record now carries the line of the do-file its command started on (`record.line`). A command inside a loop names its own line; what a program or a do-file run with `do` prints belongs to the line that called it. The splitter's start line was wrong for indented commands and is fixed.
+- **Gutter.** A line that ran has a tick on the gutter's edge; the line that stopped a run is red and has a band behind it until it is edited or run again. The ticks arrive with the results.
+- **Both directions.** The caret on a line lights its block in Results and brings it into view (moving the caret does; typing does not). Pointing at a block shows its line; selecting its command puts the caret there, opening the right do-file first.
+- **Editing.** Marks stay on their lines as text is added or removed around them, and a mark is dropped when its own line changes (`shift` in `src/console-links.js`).
+- **Map.** A card lights its blocks in Results; selecting a command in Results finds its card. Joins have an end on each card and a finished join is drawn along its length.
+- **Results.** Table rules are drawn as a hairline over the dashes, which are still the text that is selected and copied; the classic colours keep the dashes. A run that stops is scrolled to its error.
+- **Motion.** Three durations and two curves as custom properties; drawers, the menu and a card's fields open from where they are attached. All of it is off under reduced motion.
+
+Not done: a self-hosted typeface (needs font files added to the repository), and the fox looking at the failed line. Motion was judged from stills, and Safari is still untested here. Selecting a command in Results is a pointer action; from the keyboard the link runs from the do-file to Results only.

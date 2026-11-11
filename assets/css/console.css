@@ -1880,3 +1880,234 @@ body.is-dropping::after {
 .map-step {
   padding-bottom: 10px;
 }
+
+/* ----- one set of timings; a command and its output are one thing -----
+   Everything that moves on this page uses these three durations and two
+   curves. Motion answers something the student did; nothing loops but a
+   run in progress. */
+.console-page {
+  --quick: 0.12s;
+  --move: 0.22s;
+  --slow: 0.42s;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --spring: cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  --link: #1f50cd;
+  --link-wash: rgba(31, 80, 205, 0.06);
+  --fault-wash: rgba(163, 41, 39, 0.08);
+  --gutter-width: 47px;
+}
+
+/* The gutter: a line that has run carries a tick on the gutter's edge. */
+.gutter-line {
+  display: block;
+  position: relative;
+  transition: color var(--quick) var(--ease);
+}
+.gutter-line::after {
+  content: "";
+  position: absolute;
+  right: -10px;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px 0 0 2px;
+  background: transparent;
+  transform-origin: center;
+}
+.gutter-line[data-state="done"] {
+  color: #3d4b61;
+}
+.gutter-line[data-state="done"]::after {
+  background: var(--link);
+}
+.gutter-line[data-state="error"] {
+  color: var(--results-error);
+  font-weight: 700;
+}
+.gutter-line[data-state="error"]::after {
+  background: var(--results-error);
+}
+.gutter-line.is-arriving::after {
+  animation: gutter-tick var(--move) var(--spring) var(--wait, 0ms) backwards;
+}
+@keyframes gutter-tick {
+  from {
+    transform: scaleY(0);
+  }
+}
+.gutter-line.is-active {
+  color: var(--ink);
+  font-weight: 700;
+}
+.gutter-line.is-pointed {
+  color: var(--link);
+  font-weight: 700;
+}
+
+/* The bands behind the text of the do-file. */
+.console-band {
+  position: absolute;
+  left: var(--gutter-width);
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  background: var(--link-wash);
+  box-shadow: inset 2px 0 0 transparent;
+}
+.console-band.has-result {
+  box-shadow: inset 2px 0 0 var(--link);
+}
+.console-code:not(:focus-within) #console-band {
+  visibility: hidden;
+}
+.console-band.is-ghost {
+  background: rgba(31, 80, 205, 0.1);
+  box-shadow: inset 2px 0 0 var(--link);
+}
+.console-band.is-fault {
+  background: var(--fault-wash);
+  box-shadow: inset 2px 0 0 var(--results-error);
+}
+.console-band.is-flash {
+  animation: band-flash 0.9s var(--ease);
+}
+@keyframes band-flash {
+  from {
+    background: rgba(31, 80, 205, 0.26);
+  }
+}
+
+/* A command and what it printed, in the Results window. */
+.console-record {
+  display: block;
+  width: max-content;
+  min-width: calc(100% + 10px);
+  margin-left: -10px;
+  padding-left: 8px;
+  border-left: 2px solid transparent;
+  transition:
+    border-color var(--quick) var(--ease),
+    background-color var(--move) var(--ease);
+}
+.console-record.is-linked {
+  border-left-color: var(--results-command);
+  background: color-mix(in srgb, var(--results-command) 6%, transparent);
+}
+.console-record.has-line > .console-command,
+.is-mapping .console-record[data-step] > .console-command {
+  cursor: pointer;
+}
+.console-record.has-line > .console-command:hover,
+.is-mapping .console-record[data-step] > .console-command:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.map-output-log .console-record {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* Table rules are drawn as a line; the dashes are still there to copy. */
+.console-rule {
+  color: transparent;
+  background: linear-gradient(var(--results-rule-ink, #8b97a9) 0 0) 0 52% / 100%
+    1px no-repeat;
+}
+.console-rule::selection {
+  color: var(--results-ink);
+}
+.console-window[data-scheme="classic"] .console-rule,
+.console-error .console-rule {
+  color: inherit;
+  background: none;
+}
+@media (forced-colors: active) {
+  .console-rule {
+    color: inherit;
+    background: none;
+  }
+}
+
+/* Drawers and the menu open from where they are attached. */
+.console-drawer {
+  interpolate-size: allow-keywords;
+}
+.console-drawer::details-content {
+  height: 0;
+  overflow: clip;
+  transition:
+    height var(--move) var(--ease),
+    content-visibility var(--move) allow-discrete;
+}
+.console-drawer[open]::details-content {
+  height: auto;
+}
+.console-menu[open] > :not(summary) {
+  transform-origin: top right;
+  transition: transform var(--quick) var(--ease);
+  @starting-style {
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+/* The map: joins have ends, a finished join is drawn along its length,
+   and an opened card unrolls from its title. */
+.map-port {
+  fill: #fff;
+  stroke: #8fa0b8;
+  stroke-width: 1.5;
+  transition: stroke var(--move) var(--ease);
+}
+.map-link[data-state="running"] ~ .map-port {
+  stroke: var(--green);
+}
+.map-link[data-state="done"] ~ .map-port {
+  stroke: #1c7c4a;
+  fill: #1c7c4a;
+}
+.map-link[data-state="error"] ~ .map-port {
+  stroke: var(--red);
+}
+.map-link[data-state="done"] {
+  animation: map-run var(--slow) var(--ease);
+}
+@keyframes map-run {
+  from {
+    stroke-dasharray: 0 2000;
+  }
+  to {
+    stroke-dasharray: 2000 0;
+  }
+}
+.map-step .map-fields {
+  transition: clip-path var(--move) var(--ease);
+  clip-path: inset(0 -8px -8px -8px);
+  @starting-style {
+    clip-path: inset(0 -8px 100% -8px);
+  }
+}
+.map-step.is-found {
+  animation: map-found 0.9s var(--ease);
+}
+@keyframes map-found {
+  from {
+    box-shadow: 0 0 0 6px rgba(31, 80, 205, 0.3);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gutter-line.is-arriving::after,
+  .console-band.is-flash,
+  .map-link[data-state="done"],
+  .map-step.is-found {
+    animation: none;
+  }
+  .console-record,
+  .console-drawer::details-content,
+  .console-menu[open] > :not(summary),
+  .map-step .map-fields,
+  .map-port {
+    transition: none;
+  }
+}

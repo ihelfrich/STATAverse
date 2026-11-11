@@ -47,6 +47,7 @@ export function mountMap({
   run,
   render,
   colour,
+  pointed = () => {},
 }) {
   let map = null,
     focused = null,
@@ -128,12 +129,16 @@ export function mountMap({
         x2 = to.offsetLeft,
         y2 = to.offsetTop + Math.min(to.offsetHeight / 2, 30),
         bend = Math.max(24, Math.abs(x2 - x1) / 2);
-      paths
-        .get(step.id)
-        .setAttribute(
-          "d",
-          `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2 - 7} ${y2}`,
-        );
+      const path = paths.get(step.id),
+        [out, into] = [path.nextSibling, path.nextSibling.nextSibling];
+      path.setAttribute(
+        "d",
+        `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2 - 7} ${y2}`,
+      );
+      out.setAttribute("cx", x1);
+      out.setAttribute("cy", y1);
+      into.setAttribute("cx", x2 - 7);
+      into.setAttribute("cy", y2);
     }
   }
 
@@ -172,6 +177,17 @@ export function mountMap({
       row.classList.toggle("is-linked", on && Number(row.dataset.step) === id);
     for (const [key, item] of cards)
       item.classList.toggle("is-linked", on && key === id);
+    pointed(id, on);
+  }
+  /** Brings a card into view and lights it, from somewhere else. */
+  function reveal(id) {
+    const item = cards.get(id);
+    if (!item) return;
+    point(id, true);
+    item.scrollIntoView({ block: "nearest", inline: "nearest" });
+    item.classList.remove("is-found");
+    void item.offsetWidth;
+    item.classList.add("is-found");
   }
   code.addEventListener("click", (event) => {
     const row = event.target.closest(".mapcode-line");
@@ -527,7 +543,16 @@ export function mountMap({
         path.dataset.state = states.get(id) ?? "";
         if (fresh.has(id)) path.classList.add("is-new");
         paths.set(id, path);
-        links.append(path);
+        // A join has an end on each card it ties together.
+        const join = document.createElementNS(SVG, "g");
+        join.append(path);
+        for (const r of [2.5, 3.5]) {
+          const port = document.createElementNS(SVG, "circle");
+          port.setAttribute("class", "map-port");
+          port.setAttribute("r", r);
+          join.append(port);
+        }
+        links.append(join);
       }
       refresh(step);
     }
@@ -660,5 +685,7 @@ export function mountMap({
       draw();
     },
     insert,
+    point,
+    reveal,
   };
 }

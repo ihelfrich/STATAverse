@@ -691,3 +691,109 @@ test("the first screen is the editor, Run and Results; the rest is one step away
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test("a line of the do-file and what it printed point at each other", async ({
+  page,
+}) => {
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  const source = page.locator("#console-source"),
+    lineOf = (pattern) =>
+      source.evaluate(
+        (node, text) =>
+          node.value.split("\n").findIndex((line) => line.startsWith(text)) + 1,
+        pattern,
+      ),
+    caretOn = (line) =>
+      source.evaluate((node, to) => {
+        let at = 0;
+        for (let k = 1; k < to; k++) at = node.value.indexOf("\n", at) + 1;
+        node.focus();
+        node.setSelectionRange(at, at);
+      }, line),
+    ticks = () =>
+      page
+        .locator(".gutter-line[data-state]")
+        .evaluateAll((nodes) => nodes.map((node) => Number(node.textContent)));
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toContainText("Ran 9");
+  // Every line that ran is ticked in the gutter; comments and blanks are not.
+  const regress = await lineOf("regress");
+  expect(await ticks()).toHaveLength(9);
+  expect(await ticks()).toContain(regress);
+  // The caret on a line lights what that line printed.
+  await caretOn(regress);
+  const lit = page.locator(".console-record.is-linked");
+  await expect(lit).toHaveCount(1);
+  await expect(lit).toContainText(". regress score hours attendance");
+  await expect(page.locator("#console-band")).toBeVisible();
+  // Selecting a command in Results puts the caret on its line.
+  await page
+    .locator(".console-record.has-line .console-command", {
+      hasText: "tabulate",
+    })
+    .click();
+  await expect(source).toBeFocused();
+  expect(
+    await source.evaluate(
+      (node) => node.value.slice(0, node.selectionStart).split("\n").length,
+    ),
+  ).toBe(await lineOf("tabulate"));
+  // A line added above moves the ticks down with their lines.
+  const before = await ticks();
+  await source.evaluate((node) => node.setSelectionRange(0, 0));
+  await page.keyboard.type("* a note\n");
+  expect(await ticks()).toEqual(before.map((line) => line + 1));
+  // Editing a line that ran removes its tick; the others stay.
+  await caretOn((await lineOf("regress")) + 0);
+  await page.keyboard.type(" ");
+  expect(await ticks()).toHaveLength(8);
+  // A run that stops marks the line that stopped it, and shows the error.
+  await source.evaluate((node) => {
+    node.setSelectionRange(node.value.length, node.value.length);
+  });
+  await page.keyboard.type("\nsummarize nosuchvar\ndisplay 1");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toContainText(
+    "return code 111",
+  );
+  const stopped = page.locator('.gutter-line[data-state="error"]');
+  await expect(stopped).toHaveCount(1);
+  expect(Number(await stopped.textContent())).toBe(
+    await lineOf("summarize nosuchvar"),
+  );
+  await expect(page.locator("#console-fault")).toBeVisible();
+  await expect(page.locator(".console-error").last()).toBeInViewport();
+  // Table rules are drawn, and are still text.
+  await expect(page.locator(".console-rule").first()).toHaveText(/^-{4,}/);
+  // Clearing the session clears the marks.
+  await menu(page, "#console-reset");
+  await expect(page.locator(".gutter-line[data-state]")).toHaveCount(0);
+  await expect(page.locator("#console-fault")).toBeHidden();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test("a map card and its results point at each other", async ({ page }) => {
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await page.locator("#console-mode-map").click();
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toContainText("Ran");
+  const model = page.locator('.map-step[data-kind="model"]').first();
+  await model.hover();
+  await expect(page.locator(".console-record.is-linked").first()).toContainText(
+    ". regress",
+  );
+  await expect(page.locator(".map-port")).not.toHaveCount(0);
+  // Selecting a command in Results finds its card.
+  await page
+    .locator(".console-record[data-step] .console-command", {
+      hasText: "estimates store",
+    })
+    .first()
+    .click();
+  await expect(page.locator(".map-step.is-linked")).toContainText(
+    "estimates store",
+  );
+});
