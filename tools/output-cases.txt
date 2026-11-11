@@ -2131,3 +2131,21 @@ margins, dydx(x1) at(x1=(2 6))
 margins, dydx(x1) at(x1=(2 6)) predict(outcome(1))
 margins, at(x1=2 x2=(1 3))
 margins, at(x1=(2 6)) atmeans
+=== binary-factors
+clear
+set obs 40
+generate id = ceil(_n/4)
+generate t = mod(_n, 4) + 1
+generate treated = mod(_n, 2)
+generate smoker = mod(floor(_n/3), 2)
+generate bp_before = 140 + mod(_n*7, 23)
+generate y = 100 + 3*treated - 2*smoker + 4*treated*smoker + 0.3*bp_before + mod(_n*11, 13)/3
+regress y i.treated bp_before i.smoker
+quietly regress y i.treated##i.smoker bp_before
+margins smoker, dydx(treated)
+margins, dydx(treated) at(smoker=(0 1))
+margins smoker, dydx(bp_before)
+margins, dydx(*)
+xtset id t
+xtsum y bp_before
+tabstat y bp_before, by(smoker) statistics(mean sd)

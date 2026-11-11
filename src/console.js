@@ -3,13 +3,17 @@
 // it runs in the page. Only the do-file text is kept between visits, under a
 // key no other page reads.
 import { COMMANDS } from "./runtime/commands.js";
-import { DATASETS } from "./datasets.js";
+import { LIBRARY } from "./console-datasets.js";
 import { createConsoleSession } from "./console-session.js";
 import { EXAMPLES } from "./console-examples.js";
 import { highlight } from "./console-highlight.js";
+import { mountMap } from "./console-map.js";
+import { createFox } from "./console-fox.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
+  MODE_KEY = "stataverse:console:mode",
+  FOX_KEY = "stataverse:console:fox",
   MAX_OUTPUT = 400000;
 const EXAMPLE = EXAMPLES[0].text;
 const $ = (id) => document.getElementById(id);
@@ -173,7 +177,14 @@ function showVariables(memory) {
     insert.className = "console-name";
     insert.textContent = variable.name;
     insert.title = `Put ${variable.name} in the do-file`;
-    insert.addEventListener("click", () => typeInto(variable.name, false));
+    insert.addEventListener("click", () => {
+      // In the map a name goes to the field last used there.
+      if (mapping) {
+        if (!map.insert(variable.name))
+          status.textContent =
+            "Select a field in a step first; the name goes there.";
+      } else typeInto(variable.name, false);
+    });
     name.append(insert);
     row.append(name);
     // A variable this run created is marked for a moment.
@@ -299,25 +310,21 @@ function busy(running) {
   picker.disabled = running;
   examples.disabled = running;
   commandLine.disabled = running;
+  map.setBusy(running);
+  for (const button of document.querySelectorAll("#console-datasets button"))
+    button.disabled = running;
   runSelection.disabled = running || !selectedLines().trim();
   stop.hidden = !running || !worker;
   status.dataset.state = running ? "running" : "idle";
 }
 
-async function execute(text = source.value, what = "do-file") {
-  if (!text.trim()) {
-    status.textContent = `The ${what} is empty.`;
-    return;
-  }
-  save();
-  busy(true);
-  status.textContent = "Running…";
-  const started = performance.now();
+/** Runs text in the session and shows what it printed; null after a fault. */
+async function perform(text) {
   let result;
   try {
     result = await ask({ kind: "run", source: text });
   } catch (error) {
-    if (error.stopped) return;
+    if (error.stopped) return null;
     // Anything that is not a Stata error is a fault in the interpreter.
     append(
       `\nThe interpreter stopped unexpectedly: ${error.message}\n`,
@@ -325,18 +332,81 @@ async function execute(text = source.value, what = "do-file") {
     );
     status.textContent =
       "The interpreter stopped unexpectedly. Please report the do-file that caused this.";
+    status.dataset.state = "error";
+    fox.idle();
     busy(false);
-    return;
+    return null;
   }
   show(result.output);
   showVariables(result.memory);
+  return result;
+}
+function finish(rc, commands, started) {
   const seconds = ((performance.now() - started) / 1000).toFixed(2);
-  status.textContent = result.rc
-    ? `Stopped at an error, return code ${result.rc}. Commands before it took effect.`
-    : `Ran ${result.output.length} command${result.output.length === 1 ? "" : "s"} in ${seconds} seconds.`;
-  status.dataset.state = result.rc ? "error" : "done";
+  status.textContent = rc
+    ? `Stopped at an error, return code ${rc}. Commands before it took effect.`
+    : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
   busy(false);
-  status.dataset.state = result.rc ? "error" : "done";
+  status.dataset.state = rc ? "error" : "done";
+  if (rc) fox.failed(rc);
+  else fox.done();
+}
+function begin() {
+  save();
+  busy(true);
+  status.textContent = "Running…";
+  fox.running();
+  return performance.now();
+}
+
+async function execute(text = source.value, what = "do-file") {
+  if (!text.trim()) {
+    status.textContent = `The ${what} is empty.`;
+    return;
+  }
+  const started = begin(),
+    result = await perform(text);
+  if (result) finish(result.rc, result.output.length, started);
+}
+
+/**
+ * Runs the steps of a map one at a time, so that each card can show whether
+ * it ran. A model that ran is then asked for its coefficients, which the
+ * card shows beside its variables; that question prints nothing.
+ */
+async function runSteps(entries, mark) {
+  if (!entries.length) {
+    status.textContent = "No step in the map is filled in yet.";
+    return;
+  }
+  const started = begin();
+  let commands = 0;
+  for (const entry of entries) {
+    mark(entry.id, "running");
+    const result = await perform(entry.lines.join("\n"));
+    if (!result) return mark(entry.id, "error");
+    commands += result.output.length;
+    mark(entry.id, result.rc ? "error" : "done");
+    if (result.rc) return finish(result.rc, commands, started);
+    const terms = entry.guard ? [] : map.termsOf(entry.id);
+    if (terms.length) {
+      const estimates = {};
+      for (const term of terms) {
+        try {
+          const reply = await ask({
+              kind: "run",
+              source: `display %9.3g _b[${term}]`,
+            }),
+            value = reply.output.at(-1)?.lines.join("").trim();
+          if (!reply.rc && value) estimates[term] = value;
+        } catch {
+          break;
+        }
+      }
+      map.setEstimates(entry.id, estimates);
+    }
+  }
+  finish(0, commands, started);
 }
 
 async function newSession(message) {
@@ -346,7 +416,7 @@ async function newSession(message) {
   status.textContent = message;
 }
 
-for (const [id, data] of Object.entries(DATASETS)) {
+for (const [id, data] of Object.entries(LIBRARY)) {
   const option = document.createElement("option");
   option.value = id;
   option.textContent = `${id}: ${data.title}`;
@@ -354,10 +424,109 @@ for (const [id, data] of Object.entries(DATASETS)) {
 }
 for (const example of EXAMPLES) {
   const option = document.createElement("option");
+  let group = [...examples.children].find((g) => g.label === example.group);
+  if (!group) {
+    group = document.createElement("optgroup");
+    group.label = example.group;
+    examples.append(group);
+  }
   option.value = example.id;
   option.textContent = example.title;
-  examples.append(option);
+  group.append(option);
 }
+
+// ----- the datasets, each with what was built into it -----
+for (const entry of Object.values(LIBRARY)) {
+  const item = document.createElement("li"),
+    title = document.createElement("h3"),
+    name = document.createElement("code"),
+    size = document.createElement("p"),
+    about = document.createElement("p"),
+    load = document.createElement("button");
+  name.textContent = entry.id;
+  title.append(name, entry.title);
+  size.className = "data-size";
+  size.textContent = `${entry.data.rows.length.toLocaleString("en-US")} rows, ${entry.data.columns.length} variables. ${entry.unit}.`;
+  about.textContent = entry.description;
+  load.type = "button";
+  load.className = "quiet-button";
+  load.textContent = `Load ${entry.id}`;
+  load.addEventListener("click", async () => {
+    await execute(`sysuse ${entry.id}, clear\ndescribe`, "command");
+    $("results-title").scrollIntoView({ block: "start" });
+  });
+  item.append(title, size, about, load);
+  $("console-datasets").append(item);
+}
+
+// ----- Ols the fox -----
+const foxSeat = $("fox-seat"),
+  foxSwitch = $("console-fox"),
+  fox = createFox({ host: foxSeat, says: $("fox-says"), still });
+function setFox(shown) {
+  foxSeat.hidden = !shown;
+  foxSwitch.setAttribute("aria-pressed", String(shown));
+  if (!shown) $("fox-says").textContent = "";
+}
+try {
+  setFox(localStorage.getItem(FOX_KEY) !== "hidden");
+} catch {
+  setFox(true);
+}
+foxSwitch.addEventListener("click", () => {
+  const shown = foxSeat.hidden;
+  setFox(shown);
+  try {
+    localStorage.setItem(FOX_KEY, shown ? "shown" : "hidden");
+  } catch {
+    // The choice then lasts for this visit only.
+  }
+});
+
+// ----- write the do-file, or build it as a map -----
+const map = mountMap({
+    steps: $("map-steps"),
+    links: $("map-links"),
+    canvas: $("map-canvas"),
+    starter: $("map-starter"),
+    library: LIBRARY,
+    run: runSteps,
+  }),
+  layout = document.querySelector(".console-layout");
+let mapping = false;
+function setMode(toMap) {
+  mapping = toMap;
+  layout.classList.toggle("is-mapping", toMap);
+  $("console-map").hidden = !toMap;
+  document.querySelector(".console-code").hidden = toMap;
+  $("console-choices").hidden = toMap;
+  $("console-keys").hidden = toMap;
+  runSelection.hidden = toMap;
+  run.textContent = toMap ? "Run the map" : "Run do-file";
+  $("editor-title").textContent = toMap ? "Map" : "Do-file";
+  $("console-mode-write").setAttribute("aria-pressed", String(!toMap));
+  $("console-mode-map").setAttribute("aria-pressed", String(toMap));
+  if (toMap) map.draw();
+  else paint();
+  try {
+    localStorage.setItem(MODE_KEY, toMap ? "map" : "write");
+  } catch {
+    // The choice then lasts for this visit only.
+  }
+}
+$("console-mode-write").addEventListener("click", () => setMode(false));
+$("console-mode-map").addEventListener("click", () => setMode(true));
+$("map-tidy").addEventListener("click", () => map.tidy());
+$("map-export").addEventListener("click", () => {
+  const text = map.script();
+  setMode(false);
+  typeInto(text, true);
+  source.setSelectionRange(0, 0);
+  source.scrollTop = 0;
+  follow();
+  status.textContent =
+    "The map was written to the do-file. Undo there brings your own text back.";
+});
 source.value = saved() ?? EXAMPLE;
 paint();
 
@@ -408,7 +577,7 @@ scheme.addEventListener("click", () => {
   }
 });
 
-run.addEventListener("click", () => execute());
+run.addEventListener("click", () => (mapping ? map.runAll() : execute()));
 runSelection.addEventListener("click", () =>
   execute(selectedLines(), "selection"),
 );
@@ -420,6 +589,7 @@ stop.addEventListener("click", async () => {
   worker = null;
   interrupted?.reject(Object.assign(new Error("stopped"), { stopped: true }));
   append("\n--Break--\n", "console-error");
+  fox.idle();
   status.textContent = "Stopped. Starting a new session…";
   await startWorker();
   await newSession(
@@ -429,6 +599,8 @@ stop.addEventListener("click", async () => {
 });
 reset.addEventListener("click", async () => {
   output.textContent = "";
+  fox.idle();
+  fox.say("");
   await newSession("The session was cleared. The do-file text is unchanged.");
 });
 picker.addEventListener("change", () =>
@@ -510,5 +682,10 @@ $("console-file").addEventListener("change", async (event) => {
 
 await startWorker();
 await newSession("Ready.");
+try {
+  if (localStorage.getItem(MODE_KEY) === "map") setMode(true);
+} catch {
+  // The page then opens on the do-file.
+}
 document.body.dataset.consoleRunner = worker ? "worker" : "page";
 busy(false);

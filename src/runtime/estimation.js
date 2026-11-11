@@ -515,14 +515,20 @@ export function termRows(session, model, cells) {
   });
   let previousPlain = true;
   blocks.forEach((block, b) => {
-    const plain =
-        block.term === "_cons" ? previousPlain : !!block.term.variable,
-      shown = block.items.filter((k) => !model.columns[k]?.base);
+    const shown = block.items.filter((k) => !model.columns[k]?.base),
+      // A factor with one level to show, such as a 0/1 variable, is printed
+      // on one row like a plain variable, with no blank rows around it.
+      alone =
+        block.term !== "_cons" &&
+        !block.term.variable &&
+        block.term.components.length === 1 &&
+        shown.length === 1,
+      plain =
+        block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
     if (b && !(plain && previousPlain)) out.push("             |");
     else if (b && block.term === "_cons" && !previousPlain)
       out.push("             |");
-    previousPlain =
-      block.term === "_cons" ? previousPlain : !!block.term.variable;
+    previousPlain = block.term === "_cons" ? previousPlain : plain;
     const row = (label, k) =>
       out.push(
         model.estimable[k]
@@ -534,9 +540,28 @@ export function termRows(session, model, cells) {
         `${model.names[block.items[0]].padStart(12)} `,
         block.items[0],
       );
-    if (shown.length === 1)
+    // So is a product of continuous variables, though with blank rows.
+    if (
+      alone ||
+      (shown.length === 1 && block.term.components.every((c) => !c.factor))
+    )
       return row(`${model.names[shown[0]].padStart(12)} `, shown[0]);
-    out.push(`${block.term.header.padStart(12)} |`);
+    // A header too long for the column is broken after a #.
+    const parts = block.term.header.split("#"),
+      pieces = [];
+    for (const part of parts) {
+      const last = pieces.at(-1);
+      if (last !== undefined && `${last}#${part}`.length <= 12)
+        pieces[pieces.length - 1] = `${last}#${part}`;
+      else pieces.push(part);
+    }
+    pieces.forEach((piece, k) =>
+      out.push(
+        k < pieces.length - 1
+          ? `${`${piece}#`.padStart(13)}|`
+          : `${piece.padStart(12)} |`,
+      ),
+    );
     const factors = block.term.components.filter((c) => c.factor);
     for (const k of shown)
       row(
@@ -1166,7 +1191,16 @@ function tabstat(session, text, ctx) {
   );
   ctx.out("");
   ctx.out(
-    `${byVariable.name.slice(0, 8).padStart(8)} |${(stats.length === 1 && variables.length === 1 ? [stats[0][0]] : variables.map((v) => v.name)).map((item) => item.padStart(10)).join("")}`,
+    `${byVariable.name.slice(0, 8).padStart(8)} |${(stats.length === 1 &&
+    variables.length === 1
+      ? [stats[0][0]]
+      : variables.map((v) =>
+          // A long name is shortened as Stata's abbrev() does.
+          v.name.length > 8 ? `${v.name.slice(0, 6)}~${v.name.at(-1)}` : v.name,
+        )
+    )
+      .map((item) => item.padStart(10))
+      .join("")}`,
   );
   ctx.out(line);
   levels.forEach((level, k) => {

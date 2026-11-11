@@ -3,10 +3,11 @@
 import { Session } from "./runtime/session.js";
 import { Dataset } from "./runtime/store.js";
 import { addTextFile } from "./runtime/delimited.js";
-import { DATASETS, createDataset, toCSV } from "./datasets.js";
+import { toCSV } from "./datasets.js";
+import { LIBRARY } from "./console-datasets.js";
 
 const library = Object.fromEntries(
-  Object.keys(DATASETS).map((id) => [id, createDataset(id)]),
+  Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
 );
 
 export function createConsoleSession() {
@@ -29,7 +30,7 @@ export function createConsoleSession() {
     session.library = library;
     // Each site dataset is also there as a CSV file, as lessons expect.
     for (const [id, data] of Object.entries(library))
-      addTextFile(session, DATASETS[id].file ?? `${id}.csv`, toCSV(data));
+      addTextFile(session, LIBRARY[id].file, toCSV(data));
     for (const [name, text] of added) addTextFile(session, name, text);
     if (dataset && library[dataset])
       session.data = Dataset.fromRows(library[dataset]);

@@ -14174,6 +14174,179 @@
       ]
     },
     {
+      "id": "binary-factors",
+      "source": "clear\nset obs 40\ngenerate id = ceil(_n/4)\ngenerate t = mod(_n, 4) + 1\ngenerate treated = mod(_n, 2)\ngenerate smoker = mod(floor(_n/3), 2)\ngenerate bp_before = 140 + mod(_n*7, 23)\ngenerate y = 100 + 3*treated - 2*smoker + 4*treated*smoker + 0.3*bp_before + mod(_n*11, 13)/3\nregress y i.treated bp_before i.smoker\nquietly regress y i.treated##i.smoker bp_before\nmargins smoker, dydx(treated)\nmargins, dydx(treated) at(smoker=(0 1))\nmargins smoker, dydx(bp_before)\nmargins, dydx(*)\nxtset id t\nxtsum y bp_before\ntabstat y bp_before, by(smoker) statistics(mean sd)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate t = mod(_n, 4) + 1", "lines": [] },
+        { "command": "generate treated = mod(_n, 2)", "lines": [] },
+        { "command": "generate smoker = mod(floor(_n/3), 2)", "lines": [] },
+        { "command": "generate bp_before = 140 + mod(_n*7, 23)", "lines": [] },
+        {
+          "command": "generate y = 100 + 3*treated - 2*smoker + 4*treated*smoker + 0.3*bp_before + mod(_n*11, 13)/3",
+          "lines": []
+        },
+        {
+          "command": "regress y i.treated bp_before i.smoker",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(3, 36)        =     51.14",
+            "       Model |  336.125549         3   112.04185   Prob > F        =    0.0000",
+            "    Residual |  78.8677712        36  2.19077142   R-squared       =    0.8100",
+            "-------------+----------------------------------   Adj R-squared   =    0.7941",
+            "       Total |   414.99332        39  10.6408544   Root MSE        =    1.4801",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   1.treated |   4.789293    .490849     9.76   0.000     3.793805    5.784781",
+            "   bp_before |   .2240281   .0357134     6.27   0.000      .151598    .2964581",
+            "    1.smoker |   .7325885   .4940368     1.48   0.147    -.2693645    1.734542",
+            "       _cons |   112.5715   5.436425    20.71   0.000     101.5459    123.5971",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly regress y i.treated##i.smoker bp_before",
+          "lines": []
+        },
+        {
+          "command": "margins smoker, dydx(treated)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 40",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  1.treated",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "0.treated    |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "1.treated    |",
+            "      smoker |",
+            "          0  |   2.800596   .5201546     5.38   0.000     1.744626    3.856566",
+            "          1  |   6.788259    .521501    13.02   0.000     5.729556    7.846962",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(treated) at(smoker=(0 1))",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 40",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  1.treated",
+            "1._at: smoker = 0",
+            "2._at: smoker = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "0.treated    |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "1.treated    |",
+            "         _at |",
+            "          1  |   2.800596   .5201546     5.38   0.000     1.744626    3.856566",
+            "          2  |   6.788259    .521501    13.02   0.000     5.729556    7.846962",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins smoker, dydx(bp_before)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 40",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  bp_before",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "bp_before    |",
+            "      smoker |",
+            "          0  |    .210679   .0268576     7.84   0.000     .1561551    .2652029",
+            "          1  |    .210679   .0268576     7.84   0.000     .1561551    .2652029",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 40",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  1.treated 1.smoker bp_before",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   1.treated |   4.794427   .3675709    13.04   0.000     4.048219    5.540636",
+            "    1.smoker |   .7110246   .3699783     1.92   0.063    -.0400713    1.462121",
+            "   bp_before |    .210679   .0268576     7.84   0.000     .1561551    .2652029",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtsum y bp_before",
+          "lines": [
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "y        overall |  149.2167   3.262032      142.3   155.6333 |     N =      40",
+            "         between |              .774925   148.1417     150.45 |     n =      10",
+            "         within  |             3.175931   142.6917   155.2417 |     T =       4",
+            "                 |                                            |",
+            "bp_bef~e overall |    151.25   6.682353        140        162 |     N =      40",
+            "         between |             2.068279        148     155.25 |     n =      10",
+            "         within  |             6.380057     140.75     161.75 |     T =       4"
+          ]
+        },
+        {
+          "command": "tabstat y bp_before, by(smoker) statistics(mean sd)",
+          "lines": [
+            "Summary statistics: Mean, SD",
+            "Group variable: smoker",
+            "",
+            "  smoker |         y  bp_bef~e",
+            "---------+--------------------",
+            "       0 |     148.3       152",
+            "         |  1.910911  6.496963",
+            "---------+--------------------",
+            "       1 |  150.1333     150.5",
+            "         |  4.052304  6.947169",
+            "---------+--------------------",
+            "   Total |  149.2167    151.25",
+            "         |  3.262032  6.682353",
+            "------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

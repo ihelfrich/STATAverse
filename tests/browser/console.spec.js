@@ -254,3 +254,130 @@ test("results arrive at once when motion is reduced", async ({ page }) => {
   const graph = page.locator("img.console-graph");
   expect(await graph.getAttribute("src")).not.toContain("keyframes");
 });
+
+test("the map builds a do-file from linked steps and runs it step by step", async ({
+  page,
+}) => {
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await page.locator("#console-mode-map").click();
+  await expect(page.locator("#console-map")).toBeVisible();
+  await expect(page.locator(".console-code")).toBeHidden();
+  const steps = page.locator(".map-step");
+  await expect(steps).toHaveCount(7);
+  await expect(page.locator(".map-link")).toHaveCount(6);
+  await expect(steps.first().locator(".map-code")).toHaveText(
+    "sysuse schools, clear",
+  );
+
+  // Running the map marks each step and prints its results.
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran 7 commands in/);
+  await expect(page.locator('.map-step[data-state="done"]')).toHaveCount(7);
+  await expect(page.locator("#console-output")).toContainText(
+    ". regress posttest treated pretest ses, vce(cluster school)",
+  );
+  // A model that ran shows its coefficients beside its variables.
+  await expect(
+    page.locator('.map-step[data-kind="model"] .map-estimate').first(),
+  ).toHaveText(/^-?[\d.]+$/);
+
+  // A step added after a model can ask about that model; it starts open.
+  const model = page.locator('.map-step[data-kind="model"]').last();
+  await model.locator(".map-add").selectOption("after");
+  await expect(steps).toHaveCount(8);
+  const fresh = page
+    .locator(".map-step", { has: page.locator('[data-field="what"]:visible') })
+    .last();
+  await fresh.locator('[data-field="what"]').selectOption("estat ic");
+  await expect(fresh.locator(".map-code")).toHaveText("estat ic");
+  await fresh.locator(".map-run").click();
+  await expect(page.locator("#console-output")).toContainText(
+    "Akaike's information criterion",
+  );
+
+  // A step that is not filled in says so and cannot be run alone.
+  await steps.first().locator(".map-add").selectOption("generate");
+  const empty = page.locator('.map-step[data-complete="false"]');
+  await expect(empty).toHaveCount(1);
+  await expect(empty.locator(".map-run")).toBeDisabled();
+  // A name selected in Variables goes to the field last used in the map.
+  await empty.locator('[data-field="expression"]').focus();
+  await page.locator(".console-name", { hasText: /^pretest$/ }).click();
+  await expect(empty.locator('[data-field="expression"]')).toHaveValue(
+    "pretest",
+  );
+  await empty.locator('[data-field="name"]').fill("copy");
+  await expect(
+    page.locator(".map-code", { hasText: "generate copy = pretest" }),
+  ).toHaveCount(1);
+
+  // The map is kept, and can be written out as a do-file.
+  await page.reload();
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await expect(page.locator(".map-step")).toHaveCount(9);
+  await page.locator("#map-export").click();
+  await expect(page.locator("#console-source")).toHaveValue(
+    /^sysuse schools, clear\n[^]*estat ic\ngenerate copy = pretest\n$/,
+  );
+  await expect(page.locator("#console-source")).toHaveValue(/estat ic/);
+  await expect(page.locator("#console-map")).toBeHidden();
+
+  // Another starting map replaces it; a failing step is marked.
+  await page.locator("#console-mode-map").click();
+  await page.locator("#map-starter").selectOption("trial");
+  await expect(page.locator(".map-step")).toHaveCount(7);
+  await expect(page.locator(".map-code").nth(1)).toHaveText(
+    "keep if smoker == 1",
+  );
+  const keep = page.locator('.map-step[data-kind="keep"]');
+  await keep.locator(".map-edit").click();
+  await keep.locator('[data-field="condition"]').fill("nothing == 1");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/return code 111/);
+  await expect(keep).toHaveAttribute("data-state", "error");
+  await expect(page.locator("#fox-says")).toContainText("r(111)");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test("the fox gives a tip and can be hidden; datasets load from their cards", async ({
+  page,
+}) => {
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  const fox = page.locator("#fox-seat .fox");
+  await expect(fox).toBeVisible();
+  await fox.click();
+  await expect(page.locator("#fox-says")).not.toBeEmpty();
+  await page.locator("#console-fox").click();
+  await expect(fox).toBeHidden();
+  await expect(page.locator("#fox-says")).toBeEmpty();
+  await page.reload();
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await expect(page.locator("#fox-seat .fox")).toBeHidden();
+  await expect(page.locator("#console-fox")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+
+  await expect(page.locator("#console-datasets li")).toHaveCount(9);
+  await page.getByRole("button", { name: "Load trade" }).click();
+  await expect(page.locator("#console-memory")).toContainText(
+    "240 observations, 9 variables",
+  );
+  await expect(page.locator("#console-output")).toContainText(
+    "Exporting country",
+  );
+  // The example menu is grouped, and every example is offered.
+  await expect(page.locator("#console-example optgroup")).toHaveCount(4);
+  await expect(page.locator("#console-example option")).toHaveCount(20);
+  await page.locator("#console-example").selectOption("gravity");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran \d+ commands/);
+  await expect(page.locator("#console-output")).toContainText(
+    "Poisson regression",
+  );
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});

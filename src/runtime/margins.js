@@ -242,9 +242,51 @@ function margins(session, text, ctx) {
             return name;
           });
     dydx = wanted;
+    // Effects can be asked for at each at() setting or at each level of one
+    // factor; either way they are listed under the variable they belong to.
+    if (
+      marginVariables.length > 1 ||
+      (marginVariables.length && sets.length > 1)
+    )
+      throw new StataError(
+        "margins with dydx() takes one factor variable or several at() settings here, not both",
+        198,
+      );
+    const [over] = marginVariables,
+      several = !!over || sets.length > 1,
+      group = over ?? "_at",
+      cells = over
+        ? levelsOf(over).map((lv) => ({
+            label: labelled(session, factors.get(over), lv),
+            set: new Map(sets[0]).set(over, lv),
+          }))
+        : sets.map((set, s) => ({ label: String(s + 1), set }));
     for (const name of wanted) {
       const set = sets[0];
-      if (factors.has(name)) {
+      if (factors.has(name) && several) {
+        const [first, ...others] = levelsOf(name);
+        results.push({
+          heading: `${`${first}.${name}`.padEnd(13)}|  (base outcome)`,
+        });
+        for (const lv of others) {
+          results.push({ rule: true });
+          results.push({
+            heading: `${`${lv}.${name}`.padEnd(13)}|`,
+            wrt: `${lv}.${name}`,
+          });
+          results.push({ group });
+          for (const cell of cells)
+            results.push({
+              label: `${cell.label}  `.padStart(13),
+              ...difference(
+                prediction(new Map(cell.set).set(name, lv)),
+                prediction(new Map(cell.set).set(name, first)),
+              ),
+              factor: "_at",
+              discrete: true,
+            });
+        }
+      } else if (factors.has(name)) {
         const [first, ...others] = levelsOf(name),
           atBase = prediction(new Map(set).set(name, first));
         results.push({ group: name });
@@ -257,17 +299,16 @@ function margins(session, text, ctx) {
           });
       } else {
         const variable = variables.find((v) => v.name === name);
-        if (sets.length > 1) {
-          // One effect for each at() setting, under the variable's name.
+        if (several) {
+          // One effect for each setting, under the variable's name.
           results.push({ heading: `${name.padEnd(13)}|`, wrt: name });
-          results.push({ group: "_at" });
-          sets.forEach((each, s) =>
+          results.push({ group });
+          for (const cell of cells)
             results.push({
-              label: `${s + 1}  `.padStart(13),
-              ...effect(each, variable),
+              label: `${cell.label}  `.padStart(13),
+              ...effect(cell.set, variable),
               factor: "_at",
-            }),
-          );
+            });
         } else
           results.push({
             label: `${name.padStart(12)} `,
@@ -379,8 +420,31 @@ function margins(session, text, ctx) {
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );
+  // With dydx(), a factor with one level to show is one row, as 1.female.
+  if (dydx)
+    for (let k = 0; k < results.length - 1; k++) {
+      const [head, row, after] = [results[k], results[k + 1], results[k + 2]];
+      if (
+        !head.group ||
+        head.heading ||
+        !row.factor ||
+        row.group ||
+        (after && after.factor === row.factor && !after.group)
+      )
+        continue;
+      row.label = `${`${row.label.trim()}.${head.group}`.padStart(12)} `;
+      row.single = true;
+      results.splice(k, 1);
+    }
   let previous = null;
   for (const result of results) {
+    if (result.rule) {
+      ctx.out(
+        "-------------+----------------------------------------------------------------",
+      );
+      previous = null;
+      continue;
+    }
     if (result.heading) {
       if (previous) ctx.out("             |");
       ctx.out(result.heading);
@@ -388,10 +452,11 @@ function margins(session, text, ctx) {
       continue;
     }
     if (result.group) {
-      if (previous && !previous.group) ctx.out("             |");
+      if (previous && !previous.group && !previous.single)
+        ctx.out("             |");
       ctx.out(`${result.group.padStart(12)} |`);
     } else {
-      if (previous && previous.factor && !result.factor)
+      if (previous && previous.factor && !previous.single && !result.factor)
         ctx.out("             |");
       const se = Math.sqrt(quadratic(result.gradient, model.V)),
         z = result.value / se;
@@ -403,12 +468,15 @@ function margins(session, text, ctx) {
     previous = result;
   }
   ctx.out(RULE);
-  if (dydx && results.some((r) => r.factor && r.factor !== "_at"))
+  if (
+    dydx &&
+    results.some((r) => r.discrete || (r.factor && r.factor !== "_at"))
+  )
     ctx.out(
       "Note: dy/dx for factor levels is the discrete change from the base level.",
     );
   ctx.out("");
-  const values = results.filter((r) => !r.group && !r.heading);
+  const values = results.filter((r) => !r.group && !r.heading && !r.rule);
   // r(b) and r(V): the estimates and their covariance, from the same
   // gradients that gave the standard errors.
   const labels = values.map((r, j) => (r.wrt ?? r.label.trim()) || `m${j + 1}`),
