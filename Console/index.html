@@ -11,7 +11,7 @@
     <meta name="robots" content="noindex" />
     <title>Console (preview) · STATAverse</title>
     <link rel="stylesheet" href="../assets/css/learn.css" />
-    <link rel="stylesheet" href="../assets/css/console.css" />
+    <link rel="stylesheet" href="../assets/css/console.css?v=8208171f0e" />
   </head>
   <body class="console-page" data-pagefind-ignore="all">
     <a class="skip-link" href="#main">Skip to the console</a>
@@ -59,6 +59,12 @@
           </div>
           <div class="console-choices" id="console-choices">
             <label
+              >Insert
+              <select id="console-insert">
+                <option value="">a command</option>
+              </select></label
+            >
+            <label
               >Example
               <select id="console-example">
                 <option value="">choose one</option>
@@ -71,6 +77,29 @@
               </select></label
             >
           </div>
+        </div>
+        <div class="console-tabs" id="console-tabs-bar">
+          <div
+            class="console-tablist"
+            id="console-tabs"
+            role="group"
+            aria-label="Do-files in this project"
+          ></div>
+          <button type="button" class="console-tab-add" id="console-tab-new">
+            + New file
+          </button>
+          <label class="console-tab-name"
+            >Name
+            <input
+              id="console-tab-name"
+              type="text"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+          /></label>
+          <button type="button" class="console-tab-add" id="console-tab-delete">
+            Delete file
+          </button>
         </div>
         <div class="console-code">
           <div class="console-gutter" id="console-gutter" aria-hidden="true">
@@ -98,12 +127,20 @@
                 <option value="">choose a map</option>
               </select></label
             >
+            <button type="button" class="primary-button" id="map-run">
+              Run the map
+            </button>
             <button type="button" class="quiet-button" id="map-tidy">
               Tidy the map
             </button>
             <button type="button" class="quiet-button" id="map-export">
-              Put this in the do-file
+              Open as do-files
             </button>
+            <span id="map-status" role="status"></span>
+          </div>
+          <div class="map-names">
+            <span id="map-names-title">Variables</span>
+            <ul id="map-names" aria-labelledby="map-names-title"></ul>
           </div>
           <div class="map-scroll" id="map-scroll">
             <div class="map-canvas" id="map-canvas">
@@ -113,9 +150,10 @@
           </div>
           <p class="console-hint">
             Each card is one step and shows the Stata it writes. Add a step
-            after any card; two steps after the same card are branches. Drag a
-            card by its title to move it. Selecting a name in Variables puts it
-            in the field you last used.
+            after any card; two steps after the same card are branches. After a
+            run, Result on a card shows what that step printed. Select a
+            variable above to put it in the field you last used. Drag a card by
+            its title to move it.
           </p>
         </div>
         <div class="console-actions">
@@ -135,6 +173,9 @@
           >
             Run selection
           </button>
+          <button type="button" class="quiet-button" id="console-download">
+            Download project
+          </button>
           <button type="button" class="quiet-button" id="console-stop" hidden>
             Stop
           </button>
@@ -153,6 +194,21 @@
         </p>
         <p id="console-status" role="status">Loading the interpreter…</p>
         <noscript><p>The console requires JavaScript.</p></noscript>
+      </section>
+      <section
+        class="console-mapcode"
+        id="console-mapcode"
+        aria-labelledby="mapcode-title"
+        hidden
+      >
+        <div class="console-bar">
+          <h2 id="mapcode-title">The do-files this map writes</h2>
+        </div>
+        <div class="mapcode-view" id="mapcode-view" tabindex="0"></div>
+        <p class="console-hint">
+          The lines a card writes light up when you point at the card or change
+          it. Select a line to go to its card.
+        </p>
       </section>
       <section class="console-results" aria-labelledby="results-title">
         <div class="console-bar">
@@ -226,16 +282,6 @@
         <p class="console-files">
           Files in this session: <span id="console-files">none</span>
         </p>
-        <p class="console-files">
-          <label for="console-file"
-            >Add a CSV or text file from your computer</label
-          >
-          <input
-            type="file"
-            id="console-file"
-            accept=".csv,.tsv,.txt,text/csv,text/plain"
-          />
-        </p>
       </section>
       <section class="console-data" aria-labelledby="data-title">
         <h2 id="data-title">Datasets</h2>
@@ -245,6 +291,25 @@
           can check whether a method recovers it.
         </p>
         <ul id="console-datasets"></ul>
+        <h3 id="own-title">Your own data</h3>
+        <div class="console-own" id="console-drop">
+          <p>
+            <label for="console-file">Add a file from your computer</label>
+            <input
+              type="file"
+              id="console-file"
+              multiple
+              accept=".csv,.tsv,.txt,.dta,.do,text/csv,text/plain"
+            />
+          </p>
+          <p>
+            CSV, tab-separated and text files, Stata .dta files, and do-files.
+            You can also drop files anywhere on this page. A file stays in this
+            browser tab: it is not uploaded anywhere, and it is gone when you
+            close or reload the page.
+          </p>
+          <ul id="console-own" aria-labelledby="own-title"></ul>
+        </div>
       </section>
       <section class="console-scope" aria-labelledby="console-scope">
         <h2 id="console-scope">What runs here</h2>
@@ -268,13 +333,13 @@
           its numbers here.
         </p>
         <p>
-          Nothing you type leaves this browser. The do-file text is kept in this
-          browser so that it is here when you return; the session's data are not
-          kept.
+          Nothing you type or add leaves this browser. The do-files and the map
+          are kept in this browser so that they are here when you return; the
+          session's data and the files you add are not kept.
         </p>
       </section>
     </main>
-    <script type="module" src="../assets/js/console.js"></script>
+    <script type="module" src="../assets/js/console.js?v=8208171f0e"></script>
     <script src="../assets/js/site.js" defer></script>
   </body>
 </html>

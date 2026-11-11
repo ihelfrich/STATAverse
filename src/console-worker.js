@@ -11,7 +11,13 @@ self.onmessage = ({ data }) => {
         ? session.run(source)
         : kind === "file"
           ? session.addFile(data.name, data.text)
-          : session.reset(dataset);
+          : kind === "data"
+            ? session.addData(data.name, data.bytes)
+            : kind === "remove"
+              ? session.removeFile(data.name)
+              : kind === "export"
+                ? session.exportData()
+                : session.reset(dataset);
     self.postMessage({ id, ok: true, ...result });
   } catch (error) {
     // Anything that reaches here is a fault in the interpreter itself.

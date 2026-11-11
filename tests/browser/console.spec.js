@@ -124,10 +124,18 @@ test("a student's own CSV file can be added and imported", async ({ page }) => {
       'Worker,Wage,Region\n1,21.5,"North, coastal"\n2,,South\n3,30,North\n',
     ),
   });
+  // The file is loaded at once, with the command that did it in Results.
   await expect(page.locator("#console-status")).toContainText(
-    'import delimited using "my wages.csv", clear',
+    "Added my wages.csv.",
+  );
+  await expect(page.locator("#console-output")).toContainText(
+    '. import delimited using "my wages.csv", clear',
+  );
+  await expect(page.locator("#console-memory")).toContainText(
+    "3 observations, 3 variables",
   );
   await expect(page.locator("#console-files")).toContainText("my wages.csv");
+  await expect(page.locator("#console-own li")).toHaveCount(1);
   await page
     .locator("#console-source")
     .fill('import delimited using "my wages.csv", clear\nsummarize wage\nlist');
@@ -255,7 +263,7 @@ test("results arrive at once when motion is reduced", async ({ page }) => {
   expect(await graph.getAttribute("src")).not.toContain("keyframes");
 });
 
-test("the map builds a do-file from linked steps and runs it step by step", async ({
+test("the map builds do-files from linked steps and runs them step by step", async ({
   page,
 }) => {
   await page.goto("/Console/");
@@ -263,24 +271,36 @@ test("the map builds a do-file from linked steps and runs it step by step", asyn
   await page.locator("#console-mode-map").click();
   await expect(page.locator("#console-map")).toBeVisible();
   await expect(page.locator(".console-code")).toBeHidden();
-  const steps = page.locator(".map-step");
+  const steps = page.locator(".map-step"),
+    code = page.locator("#mapcode-view");
   await expect(steps).toHaveCount(7);
   await expect(page.locator(".map-link")).toHaveCount(6);
   await expect(steps.first().locator(".map-code")).toHaveText(
     "sysuse schools, clear",
   );
+  // The do-file the map writes is beside it, a line for each command.
+  await expect(code.locator(".mapcode-line")).toHaveCount(7);
+  await expect(code).toContainText("main.do");
+  // The dataset's variables are offered before anything has run.
+  await expect(page.locator(".map-name")).toHaveCount(9);
 
-  // Running the map marks each step and prints its results.
-  await page.locator("#console-run").click();
-  await expect(page.locator("#console-status")).toHaveText(/Ran 7 commands in/);
+  // Running the map marks each step and keeps each step's result on its card.
+  await page.locator("#map-run").click();
+  await expect(page.locator("#map-status")).toHaveText(/Ran 7 commands in/);
   await expect(page.locator('.map-step[data-state="done"]')).toHaveCount(7);
   await expect(page.locator("#console-output")).toContainText(
     ". regress posttest treated pretest ses, vce(cluster school)",
   );
-  // A model that ran shows its coefficients beside its variables.
-  await expect(
-    page.locator('.map-step[data-kind="model"] .map-estimate').first(),
-  ).toHaveText(/^-?[\d.]+$/);
+  const firstModel = page.locator('.map-step[data-kind="model"]').first();
+  await expect(firstModel.locator(".map-estimate").first()).toHaveText(
+    /^-?[\d.]+$/,
+  );
+  await firstModel.locator(".map-peek").click();
+  await expect(firstModel.locator(".map-output")).toContainText(
+    "Std. err. adjusted for 24 clusters in school",
+  );
+  await firstModel.locator(".map-output-close").click();
+  await expect(page.locator(".map-output")).toHaveCount(0);
 
   // A step added after a model can ask about that model; it starts open.
   const model = page.locator('.map-step[data-kind="model"]').last();
@@ -291,6 +311,7 @@ test("the map builds a do-file from linked steps and runs it step by step", asyn
     .last();
   await fresh.locator('[data-field="what"]').selectOption("estat ic");
   await expect(fresh.locator(".map-code")).toHaveText("estat ic");
+  await expect(code.locator(".mapcode-line")).toHaveCount(8);
   await fresh.locator(".map-run").click();
   await expect(page.locator("#console-output")).toContainText(
     "Akaike's information criterion",
@@ -301,9 +322,9 @@ test("the map builds a do-file from linked steps and runs it step by step", asyn
   const empty = page.locator('.map-step[data-complete="false"]');
   await expect(empty).toHaveCount(1);
   await expect(empty.locator(".map-run")).toBeDisabled();
-  // A name selected in Variables goes to the field last used in the map.
+  // A variable chosen above the map goes to the field last used.
   await empty.locator('[data-field="expression"]').focus();
-  await page.locator(".console-name", { hasText: /^pretest$/ }).click();
+  await page.locator(".map-name", { hasText: /^pretest$/ }).click();
   await expect(empty.locator('[data-field="expression"]')).toHaveValue(
     "pretest",
   );
@@ -311,31 +332,53 @@ test("the map builds a do-file from linked steps and runs it step by step", asyn
   await expect(
     page.locator(".map-code", { hasText: "generate copy = pretest" }),
   ).toHaveCount(1);
+  // The line it wrote appears in the do-file, marked as just changed.
+  await expect(
+    code.locator(".mapcode-line", { hasText: "generate copy = pretest" }),
+  ).toHaveCount(1);
 
-  // The map is kept, and can be written out as a do-file.
+  // Steps after "Start a do-file" go to a file of their own.
+  const last = page.locator('.map-step[data-kind="generate"]');
+  await last.locator(".map-add").selectOption("file");
+  const file = page.locator('.map-step[data-kind="file"]');
+  await file.locator('[data-field="name"]').fill("checks");
+  await file.locator(".map-add").selectOption("look");
+  await expect(code.locator(".mapcode-name")).toHaveText([
+    "main.do",
+    "checks.do",
+  ]);
+  await expect(code).toContainText('do "checks.do"');
+
+  // The map is kept, and can be opened as do-files that run together.
   await page.reload();
   await expect(page.locator("#console-status")).toHaveText("Ready.");
-  await expect(page.locator(".map-step")).toHaveCount(9);
+  await expect(page.locator(".map-step")).toHaveCount(11);
   await page.locator("#map-export").click();
-  await expect(page.locator("#console-source")).toHaveValue(
-    /^sysuse schools, clear\n[^]*estat ic\ngenerate copy = pretest\n$/,
-  );
-  await expect(page.locator("#console-source")).toHaveValue(/estat ic/);
   await expect(page.locator("#console-map")).toBeHidden();
+  await expect(page.locator(".console-tab")).toHaveText([
+    "main.do",
+    "checks.do",
+  ]);
+  await expect(page.locator("#console-source")).toHaveValue(
+    /^sysuse schools, clear\n[^]*estat ic\ngenerate copy = pretest\ndo "checks.do"\n$/,
+  );
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran \d+ commands/);
+  await expect(page.locator("#console-output")).toContainText(
+    '. do "checks.do"',
+  );
 
-  // Another starting map replaces it; a failing step is marked.
+  // Another starting map replaces it; a failing step says why on its card.
   await page.locator("#console-mode-map").click();
   await page.locator("#map-starter").selectOption("trial");
   await expect(page.locator(".map-step")).toHaveCount(7);
-  await expect(page.locator(".map-code").nth(1)).toHaveText(
-    "keep if smoker == 1",
-  );
   const keep = page.locator('.map-step[data-kind="keep"]');
   await keep.locator(".map-edit").click();
   await keep.locator('[data-field="condition"]').fill("nothing == 1");
-  await page.locator("#console-run").click();
-  await expect(page.locator("#console-status")).toHaveText(/return code 111/);
+  await page.locator("#map-run").click();
+  await expect(page.locator("#map-status")).toHaveText(/return code 111/);
   await expect(keep).toHaveAttribute("data-state", "error");
+  await expect(keep.locator(".map-problem")).toContainText("nothing not found");
   await expect(page.locator("#fox-says")).toContainText("r(111)");
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
@@ -380,4 +423,150 @@ test("the fox gives a tip and can be hidden; datasets load from their cards", as
   );
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
+});
+
+test("a project has several do-files, a menu of patterns, and downloads as a folder", async ({
+  page,
+}) => {
+  await page.goto("/Console/");
+  const status = page.locator("#console-status"),
+    source = page.locator("#console-source");
+  await expect(status).toHaveText("Ready.");
+  await expect(page.locator(".console-tab")).toHaveText(["main.do"]);
+  await expect(page.locator("#console-tab-delete")).toBeDisabled();
+
+  // A second file, named, that the first one runs.
+  await page.locator("#console-tab-new").click();
+  await page.locator("#console-tab-name").fill("clean data");
+  await page.locator("#console-tab-name").press("Enter");
+  await expect(page.locator(".console-tab")).toHaveText([
+    "main.do",
+    "clean_data.do",
+  ]);
+  await source.fill("generate lwage = ln(wage)\n");
+  await page.locator(".console-tab", { hasText: "main.do" }).click();
+  await source.fill(
+    'sysuse labor, clear\ndo "clean_data.do"\nsummarize lwage\n',
+  );
+  await page.locator("#console-run").click();
+  await expect(status).toHaveText(/Ran \d+ commands/);
+  await expect(page.locator("#console-output")).toContainText(
+    ". generate lwage = ln(wage)",
+  );
+  await expect(page.locator("#console-memory")).toContainText("12 variables");
+
+  // The Insert menu puts a pattern on its own line at the cursor.
+  await source.press("ControlOrMeta+End");
+  await page.locator("#console-insert").selectOption({
+    label: "Average effects: margins, dydx(*)",
+  });
+  await expect(source).toHaveValue(/summarize lwage\nmargins, dydx\(\*\)\n$/);
+  await expect(page.locator("#console-insert optgroup")).toHaveCount(6);
+
+  // Both files are kept between visits.
+  await page.reload();
+  await expect(status).toHaveText("Ready.");
+  await expect(page.locator(".console-tab")).toHaveText([
+    "main.do",
+    "clean_data.do",
+  ]);
+
+  // The project downloads as a zip: the do-files, the data and a note.
+  const waiting = page.waitForEvent("download");
+  await page.locator("#console-download").click();
+  const download = await waiting;
+  expect(download.suggestedFilename()).toBe("stata-project.zip");
+  const bytes = await (await download.createReadStream()).toArray(),
+    text = Buffer.concat(bytes).toString("latin1");
+  for (const name of [
+    "stata-project/main.do",
+    "stata-project/clean_data.do",
+    "stata-project/data/labor.dta",
+    "stata-project/README.txt",
+  ])
+    expect(text).toContain(name);
+  // On the student's computer sysuse becomes use of the copy in data/.
+  expect(text).toContain('use "data/labor.dta", clear');
+  expect(text).not.toContain("sysuse labor");
+
+  await page.locator(".console-tab", { hasText: "clean_data.do" }).click();
+  await page.locator("#console-tab-delete").click();
+  await expect(page.locator(".console-tab")).toHaveText(["main.do"]);
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test("a Stata .dta file and a do-file can be added, and a map started from the data", async ({
+  page,
+}) => {
+  const fs = await import("node:fs");
+  await page.goto("/Console/");
+  const status = page.locator("#console-status");
+  await expect(status).toHaveText("Ready.");
+  await page.locator("#console-file").setInputFiles([
+    {
+      name: "fromstata.dta",
+      mimeType: "application/octet-stream",
+      buffer: fs.readFileSync("tests/fixtures/dta/fromstata118.dta"),
+    },
+    {
+      name: "extra steps.do",
+      mimeType: "text/plain",
+      buffer: Buffer.from("describe\n"),
+    },
+  ]);
+  await expect(status).toContainText(
+    "Added fromstata.dta: 3 rows, 7 variables.",
+  );
+  await expect(status).toContainText("Opened extra_steps.do");
+  await expect(page.locator("#console-output")).toContainText(
+    '. use "fromstata.dta", clear',
+  );
+  await expect(page.locator("#console-output")).toContainText(
+    "A double, with a long label",
+  );
+  await expect(page.locator("#console-memory")).toContainText(
+    "3 observations, 7 variables",
+  );
+  await expect(page.locator(".console-tab")).toHaveText([
+    "main.do",
+    "extra_steps.do",
+  ]);
+
+  // A file that is not data is refused with a reason.
+  await page.locator("#console-file").setInputFiles({
+    name: "book.xlsx",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("PK"),
+  });
+  await expect(status).toContainText("book.xlsx cannot be read here");
+  await page.locator("#console-file").setInputFiles({
+    name: "broken.dta",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("not a dataset at all"),
+  });
+  await expect(status).toContainText("this is not a Stata .dta file");
+  await expect(page.locator("#console-own li")).toHaveCount(1);
+
+  // A map can start from the file, and a download carries it.
+  await page.getByRole("button", { name: "Start a map from it" }).click();
+  await expect(page.locator(".map-step")).toHaveCount(1);
+  await expect(page.locator(".map-code")).toHaveText(
+    'use "fromstata.dta", clear',
+  );
+  await page.locator(".map-add").selectOption("look");
+  await page.locator("#map-run").click();
+  await expect(page.locator("#map-status")).toHaveText(/Ran 2 commands/);
+  const waiting = page.waitForEvent("download");
+  await page.locator("#console-download").click();
+  const bytes = await (await (await waiting).createReadStream()).toArray(),
+    text = Buffer.concat(bytes).toString("latin1");
+  expect(text).toContain("stata-project/fromstata.dta");
+  expect(text).toContain('use "fromstata.dta", clear');
+
+  await page.getByRole("button", { name: "Remove fromstata.dta" }).click();
+  await expect(page.locator("#console-own li")).toHaveCount(0);
+  await expect(page.locator("#console-files")).not.toContainText(
+    "fromstata.dta",
+  );
 });

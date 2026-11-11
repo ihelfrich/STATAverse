@@ -9,9 +9,13 @@ import { EXAMPLES } from "./console-examples.js";
 import { highlight } from "./console-highlight.js";
 import { mountMap } from "./console-map.js";
 import { createFox } from "./console-fox.js";
+import { SNIPPETS } from "./console-snippets.js";
+import { projectZip } from "./console-project.js";
+import { doName } from "./console-map-model.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
+  PROJECT_KEY = "stataverse:console:project:v1",
   MODE_KEY = "stataverse:console:mode",
   FOX_KEY = "stataverse:console:fox",
   MAX_OUTPUT = 400000;
@@ -42,9 +46,14 @@ function startWorker() {
       resolve(false);
     };
     try {
-      candidate = new Worker(new URL("./console-worker.js", import.meta.url), {
-        type: "module",
-      });
+      // The worker carries the page's stamp, so the two are always a pair.
+      candidate = new Worker(
+        new URL(
+          `./console-worker.js${new URL(import.meta.url).search}`,
+          import.meta.url,
+        ),
+        { type: "module" },
+      );
     } catch {
       return resolve(false);
     }
@@ -82,7 +91,13 @@ function ask(message) {
           ? local.run(message.source)
           : message.kind === "file"
             ? local.addFile(message.name, message.text)
-            : local.reset(message.dataset),
+            : message.kind === "data"
+              ? local.addData(message.name, message.bytes)
+              : message.kind === "remove"
+                ? local.removeFile(message.name)
+                : message.kind === "export"
+                  ? local.exportData()
+                  : local.reset(message.dataset),
       );
     } catch (error) {
       return Promise.reject(error);
@@ -94,21 +109,120 @@ function ask(message) {
   });
 }
 
-// ----- the page -----
-function saved() {
+// ----- the project: one or more do-files, kept between visits -----
+function loadProject() {
   try {
-    const text = localStorage.getItem(KEY);
-    return typeof text === "string" && text.length < 200000 ? text : null;
+    const kept = JSON.parse(localStorage.getItem(PROJECT_KEY));
+    if (
+      kept &&
+      Array.isArray(kept.files) &&
+      kept.files.length &&
+      kept.files.length <= 30 &&
+      kept.files.every(
+        (file) =>
+          file &&
+          typeof file.name === "string" &&
+          /^[A-Za-z0-9_-]{1,60}\.do$/.test(file.name) &&
+          typeof file.text === "string" &&
+          file.text.length < 200000,
+      )
+    )
+      return {
+        files: kept.files.map(({ name, text }) => ({ name, text })),
+        active: Math.min(kept.files.length - 1, Math.max(0, kept.active | 0)),
+      };
   } catch {
-    return null;
+    // Fall through to the single do-file of earlier visits.
   }
-}
-function save() {
+  let text = null;
   try {
-    localStorage.setItem(KEY, source.value);
+    text = localStorage.getItem(KEY);
+  } catch {
+    text = null;
+  }
+  return {
+    files: [
+      {
+        name: "main.do",
+        text: typeof text === "string" && text.length < 200000 ? text : EXAMPLE,
+      },
+    ],
+    active: 0,
+  };
+}
+const project = loadProject();
+function save() {
+  project.files[project.active].text = source.value;
+  try {
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(project));
   } catch {
     // Storage can be full or unavailable; the page still works without it.
   }
+}
+/** A name no file in the project has yet, starting from a wanted one. */
+function freeName(wanted, except = -1) {
+  let name = doName(wanted);
+  for (
+    let k = 2;
+    project.files.some((file, j) => j !== except && file.name === name);
+    k++
+  )
+    name = doName(wanted).replace(/\.do$/, `_${k}.do`);
+  return name;
+}
+function showTabs() {
+  const list = $("console-tabs");
+  list.textContent = "";
+  project.files.forEach((file, k) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "console-tab";
+    tab.textContent = file.name;
+    tab.setAttribute("aria-pressed", String(k === project.active));
+    tab.addEventListener("click", () => openFile(k));
+    list.append(tab);
+  });
+  $("console-tab-name").value = project.files[project.active].name;
+  $("console-tab-delete").disabled = project.files.length < 2;
+  run.textContent = mapping
+    ? "Run the map"
+    : project.files.length > 1
+      ? `Run ${project.files[project.active].name}`
+      : "Run do-file";
+}
+function openFile(k) {
+  save();
+  project.active = k;
+  source.value = project.files[k].text;
+  source.scrollTop = 0;
+  save();
+  showTabs();
+  paint();
+}
+/** Adds do-files to the project, replacing any of the same name. */
+function addDoFiles(files, open = true) {
+  save();
+  let first = -1;
+  for (const file of files) {
+    const name = doName(file.name);
+    let at = project.files.findIndex((each) => each.name === name);
+    if (at < 0) at = project.files.push({ name, text: "" }) - 1;
+    project.files[at].text = file.text;
+    if (first < 0) first = at;
+  }
+  if (open && first >= 0) {
+    project.active = first;
+    source.value = project.files[first].text;
+  }
+  save();
+  showTabs();
+  paint();
+}
+/** Gives the session every do-file, so that one can run another with do. */
+async function shareFiles() {
+  save();
+  for (const file of project.files)
+    await ask({ kind: "file", name: file.name, text: file.text });
 }
 
 // ----- the editor: line numbers and colour behind the text -----
@@ -197,6 +311,12 @@ function showVariables(memory) {
     body.append(row);
   }
   table.hidden = !memory.variables.length;
+  map.setNames(
+    memory.variables
+      .map((variable) => variable.name)
+      // estimates store keeps a marker variable that is not the student's.
+      .filter((name) => !name.startsWith("_est_")),
+  );
   $("console-files").textContent = memory.files.length
     ? memory.files.join(", ")
     : "none";
@@ -260,26 +380,31 @@ function graphOf(graph) {
   figure.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   return figure;
 }
+/** One command and what it printed, as it appears in the Results window. */
+function recordNode(record) {
+  const block = document.createElement("span"),
+    command = document.createElement("span");
+  block.className = "console-record";
+  command.className = "console-command";
+  command.textContent = `. ${record.command}`;
+  block.append(command, "\n");
+  if (record.lines.length) {
+    const lines = linesOf(record.lines.join("\n") + "\n", !!record.rc);
+    lines.classList.add("console-lines");
+    if (record.rc) lines.classList.add("console-error");
+    lines.style.setProperty("--rows", Math.min(record.lines.length, 14));
+    block.append(lines);
+  }
+  if (record.graph) block.append(graphOf(record.graph), "\n");
+  block.append("\n");
+  return block;
+}
 function show(records) {
   const blocks = [],
     // A long run arrives at once; a short one is typed and printed.
     lively = !still.matches && records.length <= 60;
   records.forEach((record, k) => {
-    const block = document.createElement("span"),
-      command = document.createElement("span");
-    block.className = "console-record";
-    command.className = "console-command";
-    command.textContent = `. ${record.command}`;
-    block.append(command, "\n");
-    if (record.lines.length) {
-      const lines = linesOf(record.lines.join("\n") + "\n", !!record.rc);
-      lines.classList.add("console-lines");
-      if (record.rc) lines.classList.add("console-error");
-      lines.style.setProperty("--rows", Math.min(record.lines.length, 14));
-      block.append(lines);
-    }
-    if (record.graph) block.append(graphOf(record.graph), "\n");
-    block.append("\n");
+    const block = recordNode(record);
     if (lively) {
       block.classList.add("is-arriving");
       block.style.setProperty("--wait", `${Math.min(k * 90, 1400)}ms`);
@@ -311,6 +436,8 @@ function busy(running) {
   examples.disabled = running;
   commandLine.disabled = running;
   map.setBusy(running);
+  $("map-run").disabled = running;
+  $("console-download").disabled = running;
   for (const button of document.querySelectorAll("#console-datasets button"))
     button.disabled = running;
   runSelection.disabled = running || !selectedLines().trim();
@@ -348,6 +475,7 @@ function finish(rc, commands, started) {
     : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
   busy(false);
   status.dataset.state = rc ? "error" : "done";
+  $("map-status").textContent = status.textContent;
   if (rc) fox.failed(rc);
   else fox.done();
 }
@@ -355,6 +483,7 @@ function begin() {
   save();
   busy(true);
   status.textContent = "Running…";
+  $("map-status").textContent = "Running…";
   fox.running();
   return performance.now();
 }
@@ -364,8 +493,10 @@ async function execute(text = source.value, what = "do-file") {
     status.textContent = `The ${what} is empty.`;
     return;
   }
-  const started = begin(),
-    result = await perform(text);
+  const started = begin();
+  // Every do-file of the project is there for do, run and include.
+  await shareFiles();
+  const result = await perform(text);
   if (result) finish(result.rc, result.output.length, started);
 }
 
@@ -377,6 +508,7 @@ async function execute(text = source.value, what = "do-file") {
 async function runSteps(entries, mark) {
   if (!entries.length) {
     status.textContent = "No step in the map is filled in yet.";
+    $("map-status").textContent = status.textContent;
     return;
   }
   const started = begin();
@@ -386,7 +518,7 @@ async function runSteps(entries, mark) {
     const result = await perform(entry.lines.join("\n"));
     if (!result) return mark(entry.id, "error");
     commands += result.output.length;
-    mark(entry.id, result.rc ? "error" : "done");
+    mark(entry.id, result.rc ? "error" : "done", result);
     if (result.rc) return finish(result.rc, commands, started);
     const terms = entry.guard ? [] : map.termsOf(entry.id);
     if (terms.length) {
@@ -489,8 +621,13 @@ const map = mountMap({
     links: $("map-links"),
     canvas: $("map-canvas"),
     starter: $("map-starter"),
+    code: $("mapcode-view"),
+    names: $("map-names"),
     library: LIBRARY,
+    uploads: () => [...uploads.keys()],
     run: runSteps,
+    render: recordNode,
+    colour: (text) => highlight(text, COMMANDS),
   }),
   layout = document.querySelector(".console-layout");
 let mapping = false;
@@ -498,11 +635,14 @@ function setMode(toMap) {
   mapping = toMap;
   layout.classList.toggle("is-mapping", toMap);
   $("console-map").hidden = !toMap;
+  $("console-mapcode").hidden = !toMap;
+  $("console-tabs-bar").hidden = toMap;
+  run.hidden = toMap;
   document.querySelector(".console-code").hidden = toMap;
   $("console-choices").hidden = toMap;
   $("console-keys").hidden = toMap;
   runSelection.hidden = toMap;
-  run.textContent = toMap ? "Run the map" : "Run do-file";
+  showTabs();
   $("editor-title").textContent = toMap ? "Map" : "Do-file";
   $("console-mode-write").setAttribute("aria-pressed", String(!toMap));
   $("console-mode-map").setAttribute("aria-pressed", String(toMap));
@@ -517,18 +657,97 @@ function setMode(toMap) {
 $("console-mode-write").addEventListener("click", () => setMode(false));
 $("console-mode-map").addEventListener("click", () => setMode(true));
 $("map-tidy").addEventListener("click", () => map.tidy());
+$("map-run").addEventListener("click", () => map.runAll());
 $("map-export").addEventListener("click", () => {
-  const text = map.script();
+  const files = map.files();
   setMode(false);
-  typeInto(text, true);
-  source.setSelectionRange(0, 0);
-  source.scrollTop = 0;
-  follow();
+  addDoFiles(files);
   status.textContent =
-    "The map was written to the do-file. Undo there brings your own text back.";
+    files.length > 1
+      ? `The map was written to ${files.length} do-files. Run main.do to run them all.`
+      : "The map was written to main.do.";
 });
-source.value = saved() ?? EXAMPLE;
+source.value = project.files[project.active].text;
+showTabs();
 paint();
+
+// ----- the do-files of the project -----
+$("console-tab-new").addEventListener("click", () => {
+  save();
+  project.active = project.files.push({ name: freeName("part"), text: "" }) - 1;
+  source.value = "";
+  save();
+  showTabs();
+  paint();
+  $("console-tab-name").select();
+});
+$("console-tab-name").addEventListener("change", (event) => {
+  const file = project.files[project.active],
+    name = freeName(event.target.value, project.active);
+  status.textContent = name === file.name ? "" : `${file.name} is now ${name}.`;
+  file.name = name;
+  save();
+  showTabs();
+});
+$("console-tab-delete").addEventListener("click", () => {
+  if (project.files.length < 2) return;
+  const [gone] = project.files.splice(project.active, 1);
+  project.active = Math.max(0, project.active - 1);
+  source.value = project.files[project.active].text;
+  save();
+  showTabs();
+  paint();
+  status.textContent = `${gone.name} was deleted.`;
+});
+
+// ----- a menu of command patterns -----
+const insert = $("console-insert");
+for (const group of SNIPPETS) {
+  const section = document.createElement("optgroup");
+  section.label = group.group;
+  group.items.forEach(([label, text], k) => {
+    const option = new Option(
+      `${label}: ${text.split("\n")[0]}`,
+      `${group.group}\n${k}`,
+    );
+    section.append(option);
+  });
+  insert.append(section);
+}
+insert.addEventListener("change", () => {
+  const [name, index] = insert.value.split("\n"),
+    item = SNIPPETS.find((group) => group.group === name)?.items[index];
+  insert.value = "";
+  if (!item) return;
+  // The pattern goes on a line of its own, at the cursor.
+  const { selectionStart: at, value } = source,
+    before = at > 0 && value[at - 1] !== "\n" ? "\n" : "";
+  source.setSelectionRange(at, at);
+  typeInto(`${before}${item[1]}\n`, false);
+  status.textContent = `Inserted "${item[0]}". Change the names to your own.`;
+});
+
+// ----- the whole project as a folder to run in Stata -----
+function hand(bytes, name, type) {
+  const link = document.createElement("a"),
+    url = URL.createObjectURL(new Blob([bytes], { type }));
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+$("console-download").addEventListener("click", () => {
+  save();
+  const files = mapping ? map.files() : project.files,
+    added = [...uploads].map(([name, data]) => ({ name, data })),
+    bytes = projectZip(files, added);
+  document.body.dataset.downloaded = String(bytes.length);
+  hand(bytes, "stata-project.zip", "application/zip");
+  status.textContent = `Downloaded stata-project.zip: ${files.map((file) => file.name).join(", ")}, the data they use, and a note on running it in Stata.`;
+  $("map-status").textContent = "Downloaded stata-project.zip.";
+});
 
 // ----- what runs here, with a filter -----
 const names = [...new Set(COMMANDS.map((command) => command.name))].sort(),
@@ -592,6 +811,7 @@ stop.addEventListener("click", async () => {
   fox.idle();
   status.textContent = "Stopped. Starting a new session…";
   await startWorker();
+  for (const [name, data] of uploads) await sendUpload(name, data);
   await newSession(
     "Stopped. The session was cleared; the do-file text is unchanged.",
   );
@@ -662,22 +882,149 @@ commandLine.addEventListener("keydown", (event) => {
   );
   commandLine.value = history[recalled] ?? "";
 });
+// ----- the student's own files -----
+// Kept on the page as well as in the session, so that they can go into a
+// downloaded project and be given to a new session after Stop.
+const uploads = new Map();
+function showUploads() {
+  const list = $("console-own");
+  list.textContent = "";
+  for (const name of uploads.keys()) {
+    const item = document.createElement("li"),
+      title = document.createElement("code"),
+      dta = /\.dta$/i.test(name),
+      command = dta
+        ? `use "${name}", clear`
+        : `import delimited using "${name}", clear`,
+      load = document.createElement("button"),
+      build = document.createElement("button"),
+      remove = document.createElement("button");
+    title.textContent = name;
+    load.type = build.type = remove.type = "button";
+    load.className = build.className = remove.className = "quiet-button";
+    load.textContent = `Load ${name}`;
+    load.addEventListener("click", () =>
+      execute(`${command}\ndescribe`, "command"),
+    );
+    build.textContent = "Start a map from it";
+    build.addEventListener("click", () => {
+      setMode(true);
+      map.startFrom(name);
+      $("editor-title").scrollIntoView({ block: "start" });
+    });
+    remove.textContent = "Remove";
+    remove.setAttribute("aria-label", `Remove ${name}`);
+    remove.addEventListener("click", async () => {
+      uploads.delete(name);
+      const result = await ask({ kind: "remove", name });
+      showVariables(result.memory);
+      showUploads();
+      status.textContent = `${name} was removed.`;
+    });
+    item.append(title, load, build, remove);
+    list.append(item);
+  }
+  if (mapping) map.draw();
+}
+async function sendUpload(name, data) {
+  return typeof data === "string"
+    ? ask({ kind: "file", name, text: data })
+    : ask({ kind: "data", name, bytes: data });
+}
+/** Takes files from the picker or a drop. Returns what to tell the student. */
+async function takeFiles(list) {
+  const notes = [],
+    scripts = [];
+  let loaded = "";
+  for (const file of list) {
+    // The name is kept as it is, apart from anything like a folder.
+    const name = file.name.replace(/[\\/]+/g, "_");
+    if (file.size > 5_000_000) {
+      notes.push(
+        `${file.name} is larger than 5 MB, more than this page reads.`,
+      );
+      continue;
+    }
+    if (/\.(xlsx?|sav|rds|rdata|sas7bdat|parquet|zip)$/i.test(name)) {
+      notes.push(
+        `${file.name} cannot be read here. Save it as CSV or as a Stata .dta file and add that.`,
+      );
+      continue;
+    }
+    try {
+      if (/\.dta$/i.test(name)) {
+        const bytes = new Uint8Array(await file.arrayBuffer()),
+          result = await sendUpload(name, bytes);
+        uploads.set(name, bytes);
+        showVariables(result.memory);
+        notes.push(
+          `Added ${name}: ${result.rows.toLocaleString("en-US")} rows, ${result.variables} variables.`,
+        );
+        loaded = `use "${name}", clear`;
+        continue;
+      }
+      const text = await file.text();
+      if (text.includes("\0")) {
+        notes.push(`${file.name} is not a text file, so it was not added.`);
+        continue;
+      }
+      if (/\.do$/i.test(name)) {
+        scripts.push({ name, text });
+        continue;
+      }
+      const result = await sendUpload(name, text);
+      uploads.set(name, text);
+      showVariables(result.memory);
+      notes.push(`Added ${name}.`);
+      loaded = `import delimited using "${name}", clear`;
+    } catch (error) {
+      notes.push(`${file.name}: ${error.message}.`);
+    }
+  }
+  if (scripts.length) {
+    addDoFiles(scripts);
+    notes.push(
+      `Opened ${scripts.map((file) => doName(file.name)).join(", ")} in the do-file editor.`,
+    );
+  }
+  showUploads();
+  // One data file is loaded straight away, so there is something to see.
+  if (loaded && !run.disabled) {
+    await execute(`${loaded}\ndescribe`, "command");
+    notes.push(
+      "It is in memory now; the command that loaded it is in Results.",
+    );
+  }
+  if (notes.length) status.textContent = notes.join(" ");
+}
 $("console-file").addEventListener("change", async (event) => {
-  const [file] = event.target.files;
+  const list = [...event.target.files];
   event.target.value = "";
-  if (!file) return;
-  if (file.size > 5_000_000) {
-    status.textContent = `${file.name} is larger than 5 MB, which is more than this page reads.`;
-    return;
-  }
-  const text = await file.text();
-  if (text.includes("\0")) {
-    status.textContent = `${file.name} is not a text file. Save it as CSV first; .dta and .xlsx files cannot be read here yet.`;
-    return;
-  }
-  const result = await ask({ kind: "file", name: file.name, text });
-  showVariables(result.memory);
-  status.textContent = `Added ${file.name}. Read it with: import delimited using "${file.name}", clear`;
+  await takeFiles(list);
+});
+// Files dropped anywhere on the page are taken the same way.
+let dragging = 0;
+const carriesFiles = (event) =>
+  [...(event.dataTransfer?.types ?? [])].includes("Files");
+document.addEventListener("dragenter", (event) => {
+  if (!carriesFiles(event)) return;
+  dragging++;
+  document.body.classList.add("is-dropping");
+});
+document.addEventListener("dragleave", (event) => {
+  if (!carriesFiles(event)) return;
+  dragging = Math.max(0, dragging - 1);
+  if (!dragging) document.body.classList.remove("is-dropping");
+});
+document.addEventListener("dragover", (event) => {
+  if (carriesFiles(event)) event.preventDefault();
+});
+document.addEventListener("drop", async (event) => {
+  if (!carriesFiles(event)) return;
+  event.preventDefault();
+  dragging = 0;
+  document.body.classList.remove("is-dropping");
+  await takeFiles([...event.dataTransfer.files]);
 });
 
 await startWorker();

@@ -1,0 +1,92 @@
+// Turns the do-files of a Console project into a folder that runs in Stata
+// on the student's own computer: the do-files, the data they use, and a
+// note on how to run them.
+import { Dataset } from "./runtime/store.js";
+import { LIBRARY } from "./console-datasets.js";
+import { writeDta } from "./console-dta.js";
+import { zip } from "./console-zip.js";
+
+const SYSUSE = /^(\s*)sysuse\s+("?)([A-Za-z_]\w*)(?:\.dta)?\2\s*(,.*)?$/;
+
+/**
+ * A do-file as it should read on the student's computer: sysuse of one of
+ * this site's datasets becomes use of the copy in the data folder. The names
+ * of the datasets used are added to `used`.
+ */
+export function localise(text, used = new Set()) {
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = SYSUSE.exec(line);
+      if (!m || !LIBRARY[m[3]]) return line;
+      used.add(m[3]);
+      return `${m[1]}use "data/${m[3]}.dta"${m[4] ?? ""}`;
+    })
+    .join("\n");
+}
+/** One of the site's datasets as a .dta file, with its labels and types. */
+export function datasetFile(id, now) {
+  const data = Dataset.fromRows(LIBRARY[id].data).snapshot();
+  data.label = LIBRARY[id].title.slice(0, 80);
+  return writeDta(data, now);
+}
+function readme(files, used, added) {
+  const main = files.some((file) => file.name === "main.do")
+    ? "main.do"
+    : files[0].name;
+  return [
+    "A Stata project from the STATAverse Console",
+    "===========================================",
+    "",
+    "To run it in Stata on your own computer:",
+    "",
+    "  1. Unzip this folder.",
+    "  2. In Stata, change to the folder. For example:",
+    '       cd "C:/Users/you/Downloads/stata-project"',
+    `  3. Type:  do ${main}`,
+    "",
+    "What is here",
+    "------------",
+    ...files.map((file) => `  ${file.name}`),
+    ...[...used].map(
+      (id) =>
+        `  data/${id}.dta    ${LIBRARY[id].title} (invented for teaching)`,
+    ),
+    ...added.map((file) => `  ${file.name}    a file you added`),
+    "",
+    used.size
+      ? 'In the Console these datasets are loaded with sysuse. Stata on your\ncomputer does not have them, so each sysuse line was rewritten as\nuse "data/name.dta" and the datasets are in the data folder.'
+      : "",
+    "",
+    "The Console reproduces Stata's results command by command, but it is not",
+    "Stata. If a number here differs from what you saw in the browser, Stata is",
+    "the authority. Commands that draw random numbers give different draws.",
+    "",
+  ]
+    .filter((line, k, all) => line !== "" || all[k - 1] !== "")
+    .join("\r\n");
+}
+/**
+ * The project as the bytes of a .zip file. files: [{ name, text }]; added:
+ * the student's own files as [{ name, data }] with text or bytes.
+ */
+export function projectZip(files, added = [], now = new Date()) {
+  const used = new Set(),
+    entries = files.map((file) => ({
+      name: file.name,
+      data: localise(file.text, used).replace(/\r?\n/g, "\r\n"),
+    })),
+    // Only the added files a do-file mentions are worth carrying.
+    mentioned = added.filter((file) =>
+      files.some((each) => each.text.includes(file.name)),
+    );
+  for (const id of used)
+    entries.push({ name: `data/${id}.dta`, data: datasetFile(id, now) });
+  for (const file of mentioned)
+    entries.push({ name: file.name, data: file.data });
+  entries.push({ name: "README.txt", data: readme(files, used, mentioned) });
+  return zip(
+    entries.map((entry) => ({ ...entry, name: `stata-project/${entry.name}` })),
+    now,
+  );
+}
