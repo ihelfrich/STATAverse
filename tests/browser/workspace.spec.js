@@ -177,3 +177,79 @@ test("workspace reports blocked storage", async ({ page }) => {
     "could not save",
   );
 });
+
+// A write in another tab reaches this tab's copy of localStorage a moment
+// after it is made. This test reproduces that moment exactly: the practice
+// tab keeps reading the old value and its storage event is held back, as was
+// observed in Chrome under load, until after it has saved.
+test("an import the practice tab has not yet received is restored when its notice arrives", async ({
+  page,
+  context,
+}) => {
+  // Storage notices are routed through a gate that can hold them back.
+  await page.addInitScript(() => {
+    const add = window.addEventListener.bind(window),
+      held = [];
+    window.addEventListener = (type, listener, options) =>
+      type === "storage"
+        ? add(
+            type,
+            (event) => {
+              if (window.lagging) held.push([listener, event]);
+              else listener(event);
+            },
+            options,
+          )
+        : add(type, listener, options);
+    window.catchUp = () => {
+      window.lagging = false;
+      for (const [listener, event] of held.splice(0)) listener(event);
+    };
+  });
+  await page.goto("/Learn/");
+  await page.locator("#run").click();
+  await expect(page.locator("#save-status")).toContainText("saved");
+  await page.evaluate(() => {
+    const key = "stataverse:practice:v2",
+      read = Storage.prototype.getItem,
+      write = Storage.prototype.setItem;
+    let own = read.call(localStorage, key);
+    // The tab sees its own writes at once and nothing from elsewhere.
+    Storage.prototype.getItem = function (name) {
+      return name === key && window.lagging ? own : read.call(this, name);
+    };
+    Storage.prototype.setItem = function (name, value) {
+      if (name === key) own = String(value);
+      return write.call(this, name, value);
+    };
+    window.lagging = true;
+  });
+  const workspace = await context.newPage();
+  await workspace.goto("/Workspace/");
+  workspace.once("dialog", (dialog) => dialog.accept());
+  await workspace.locator("#workspace-import").setInputFiles(upload(backup));
+  await expect(workspace.locator("#workspace-status")).toContainText(
+    "imported",
+  );
+  // The practice tab saves without having seen the import.
+  await page.getByText("Your notes", { exact: true }).click();
+  await page.locator("#student-notes").fill("Typed before the import arrived");
+  await page.locator("#run").click();
+  await expect(page.locator("#save-status")).toContainText("saved");
+  const stored = () =>
+    workspace.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("stataverse:practice:v2")).lessons[
+          "first-commands"
+        ].note,
+    );
+  await expect.poll(stored).toBe("Typed before the import arrived");
+  // The notice arrives: the import is put back and saving stops.
+  await page.evaluate(() => window.catchUp());
+  await expect(page.locator("#storage-warning")).toContainText("another tab");
+  await expect.poll(stored).toBe("Rows are students");
+  await page.locator("#student-notes").fill("Typed after the warning");
+  await page.locator("#run").click();
+  expect(await stored()).toBe("Rows are students");
+  await workspace.close();
+});

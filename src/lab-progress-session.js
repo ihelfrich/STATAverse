@@ -2,6 +2,9 @@ import {
   LAB_PROGRESS_KEY,
   emptyLabProgress,
   parseLabProgress,
+  MARKER_WINDOW_MS,
+  labProgressMarker,
+  stampLabProgress,
   validateLabProgress,
   withLabProgressLock,
 } from "./lab-progress.js";
@@ -12,8 +15,12 @@ export class LabProgressSession {
     read = () => localStorage.getItem(LAB_PROGRESS_KEY),
     write = (text) => localStorage.setItem(LAB_PROGRESS_KEY, text),
     lock = withLabProgressLock,
+    marker = labProgressMarker,
+    now = () => Date.now(),
     onStatus = () => {},
   } = {}) {
+    this.marker = marker;
+    this.now = now;
     this.read = read;
     this.write = write;
     this.lock = lock;
@@ -75,15 +82,13 @@ export class LabProgressSession {
   }
   async drain() {
     try {
-      while (this.canSave && this.savedRevision < this.revision)
-        await this.lock(() => {
-          if (!this.canSave || this.read() !== this.raw)
-            throw new Error("changed");
-          const text = JSON.stringify(this.value);
-          this.write(text);
-          this.raw = text;
-          this.savedRevision = this.revision;
-        });
+      while (this.canSave && this.savedRevision < this.revision) {
+        // The lock is held until the attempt settles where the lock waits
+        // for its callback; the attempt is awaited here in any case.
+        let attempt;
+        await this.lock(() => (attempt = this.attempt()));
+        await attempt;
+      }
       return this.canSave;
     } catch (error) {
       this.warn(
@@ -92,6 +97,37 @@ export class LabProgressSession {
           : "This browser could not save lab progress. You can continue in this session; export your work before leaving.",
       );
       return false;
+    }
+  }
+  /** One write, made while the lock is held. */
+  async attempt() {
+    const marked = await this.marker.get(),
+      revision = this.revision;
+    if (!this.canSave || this.read() !== this.raw) throw new Error("changed");
+    // localStorage agreed, but this tab may not have received another
+    // tab's write yet. A marker from a different write that is still
+    // recent means exactly that. An old marker that differs was left
+    // behind by a writer that keeps no marker, and is replaced.
+    if (
+      marked &&
+      marked.generation !== this.generation() &&
+      this.now() - marked.at < MARKER_WINDOW_MS
+    )
+      throw new Error("changed");
+    const value = stampLabProgress(this.value),
+      text = JSON.stringify(value);
+    this.write(text);
+    this.value = { ...this.value, generation: value.generation };
+    this.raw = text;
+    this.savedRevision = revision;
+    await this.marker.set(value.generation);
+  }
+  /** The generation of the record this session last read or wrote. */
+  generation() {
+    try {
+      return this.raw === null ? undefined : JSON.parse(this.raw).generation;
+    } catch {
+      return undefined;
     }
   }
   close() {

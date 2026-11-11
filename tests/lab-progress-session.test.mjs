@@ -187,3 +187,69 @@ test("repeated clears of an empty lab record invalidate an earlier pending save"
   assert.equal(next.generation, secondClear.generation);
   f.session.close();
 });
+
+// Another tab's write can be missing from this tab's copy of localStorage
+// for a moment even while this tab holds the lock. These cases stand in for
+// that: read() keeps returning the old text although a marked write exists.
+function markerFixture(marked) {
+  const state = { marked, sets: [] };
+  return {
+    state,
+    marker: {
+      get: async () => state.marked,
+      set: async (generation) => {
+        state.sets.push(generation);
+        state.marked = { generation, at: 1000 };
+        return true;
+      },
+    },
+  };
+}
+
+test("a save is refused when another tab's recent write has not reached this tab's storage", async () => {
+  const m = markerFixture({ generation: "written-elsewhere", at: 995 }),
+    f = fixture({ marker: m.marker, now: () => 1000 });
+  assert.equal(await f.session.update(addFirst), false);
+  assert.deepEqual(f.writes, []);
+  assert.equal(f.session.canSave, false);
+  assert.match(f.session.message, /changed in another tab/);
+});
+
+test("a save proceeds past an old marker left by a writer that keeps none, and replaces it", async () => {
+  const m = markerFixture({ generation: "long-ago", at: 0 }),
+    f = fixture({ marker: m.marker, now: () => 60000 });
+  assert.equal(await f.session.update(addFirst), true);
+  assert.equal(f.writes.length, 1);
+  const written = JSON.parse(f.writes[0]);
+  assert.deepEqual(m.state.sets, [written.generation]);
+});
+
+test("each save carries a new generation and a session keeps saving after its own writes", async () => {
+  const m = markerFixture(undefined),
+    f = fixture({ marker: m.marker, now: () => 1000 });
+  assert.equal(await f.session.update(addFirst), true);
+  assert.equal(
+    await f.session.update((value) =>
+      saveLabDraft(value, "iv-stages", draft()),
+    ),
+    true,
+  );
+  const generations = f.writes.map((text) => JSON.parse(text).generation);
+  assert.equal(new Set(generations).size, 2);
+  assert.deepEqual(m.state.sets, generations);
+  assert.equal(f.session.canSave, true);
+});
+
+test("without IndexedDB the session saves as before on the localStorage check alone", async () => {
+  const f = fixture({
+    marker: { get: async () => undefined, set: async () => false },
+  });
+  assert.equal(await f.session.update(addFirst), true);
+  f.replace(JSON.stringify(renewLabProgress()));
+  assert.equal(
+    await f.session.update((value) =>
+      saveLabDraft(value, "iv-stages", draft()),
+    ),
+    false,
+  );
+});

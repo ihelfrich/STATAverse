@@ -96,6 +96,80 @@ export function renewLabProgress(value = emptyLabProgress()) {
     Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
   return { ...validateLabProgress(value), generation };
 }
+const newGeneration = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+/** The same record under a generation no earlier write has carried. */
+export const stampLabProgress = (value) => ({
+  ...validateLabProgress(value),
+  generation: newGeneration(),
+});
+
+// A tab can hold the lock and still read an old copy of localStorage: a
+// write made in another tab reaches this one a moment later. The generation
+// of the last write is therefore also kept in IndexedDB, whose reads are
+// consistent across tabs, with the time it was written.
+const MARKER_DB = "stataverse-lab-progress",
+  MARKER_STORE = "marker",
+  MARKER_KEY = "last-write";
+function markerStore(mode) {
+  return new Promise((resolve, reject) => {
+    const request = globalThis.indexedDB.open(MARKER_DB, 1);
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore(MARKER_STORE);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result,
+        transaction = db.transaction(MARKER_STORE, mode);
+      transaction.oncomplete = () => db.close();
+      transaction.onabort = () => db.close();
+      resolve(transaction);
+    };
+  });
+}
+export const labProgressMarker = {
+  /** { generation, at } of the last marked write, or undefined. */
+  async get() {
+    try {
+      const transaction = await markerStore("readonly");
+      return await new Promise((resolve, reject) => {
+        const request = transaction.objectStore(MARKER_STORE).get(MARKER_KEY);
+        request.onsuccess = () => {
+          const value = request.result;
+          resolve(
+            value &&
+              typeof value.generation === "string" &&
+              typeof value.at === "number"
+              ? value
+              : undefined,
+          );
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch {
+      // Without IndexedDB the check falls back to localStorage alone.
+      return undefined;
+    }
+  },
+  async set(generation) {
+    try {
+      const transaction = await markerStore("readwrite");
+      await new Promise((resolve, reject) => {
+        transaction
+          .objectStore(MARKER_STORE)
+          .put({ generation, at: Date.now() }, MARKER_KEY);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+/** How long after a marked write another tab's copy may still be old. */
+export const MARKER_WINDOW_MS = 10000;
 export const withLabProgressLock = (callback) =>
   globalThis.navigator?.locks
     ? navigator.locks.request(LAB_PROGRESS_LOCK, callback)
