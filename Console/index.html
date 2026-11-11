@@ -34,17 +34,30 @@
       <header class="console-heading">
         <h1>Console</h1>
         <p>
-          Write a do-file and run it, or type one command at a time under the
-          results. Every command here is compared with installed Stata before it
-          is kept. This is a preview: files on your disk, survey and survival
-          commands and community packages are not here, and
-          <a href="../Learn/">Practice</a> remains the place for guided lessons.
+          Write a do-file and run it, build one as a map of linked steps, or
+          type one command at a time under the results. Every command here is
+          compared with installed Stata before it is kept. This is a preview:
+          files on your disk, survey and survival commands and community
+          packages are not here, and <a href="../Learn/">Practice</a> remains
+          the place for guided lessons.
         </p>
       </header>
       <section class="console-editor" aria-labelledby="editor-title">
         <div class="console-bar">
           <h2 id="editor-title">Do-file</h2>
-          <div class="console-choices">
+          <div
+            class="console-modes"
+            role="group"
+            aria-label="How to build the do-file"
+          >
+            <button type="button" id="console-mode-write" aria-pressed="true">
+              Write
+            </button>
+            <button type="button" id="console-mode-map" aria-pressed="false">
+              Map
+            </button>
+          </div>
+          <div class="console-choices" id="console-choices">
             <label
               >Example
               <select id="console-example">
@@ -77,6 +90,34 @@
             rows="16"
           ></textarea>
         </div>
+        <div class="console-map" id="console-map" hidden>
+          <div class="map-tools">
+            <label
+              >Start from
+              <select id="map-starter">
+                <option value="">choose a map</option>
+              </select></label
+            >
+            <button type="button" class="quiet-button" id="map-tidy">
+              Tidy the map
+            </button>
+            <button type="button" class="quiet-button" id="map-export">
+              Put this in the do-file
+            </button>
+          </div>
+          <div class="map-scroll" id="map-scroll">
+            <div class="map-canvas" id="map-canvas">
+              <svg class="map-links" id="map-links" aria-hidden="true"></svg>
+              <ol class="map-steps" id="map-steps"></ol>
+            </div>
+          </div>
+          <p class="console-hint">
+            Each card is one step and shows the Stata it writes. Add a step
+            after any card; two steps after the same card are branches. Drag a
+            card by its title to move it. Selecting a name in Variables puts it
+            in the field you last used.
+          </p>
+        </div>
         <div class="console-actions">
           <button
             type="button"
@@ -106,7 +147,7 @@
             Clear session
           </button>
         </div>
-        <p class="console-hint">
+        <p class="console-hint" id="console-keys">
           Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the lines
           you have selected.
         </p>
@@ -116,6 +157,16 @@
       <section class="console-results" aria-labelledby="results-title">
         <div class="console-bar">
           <h2 id="results-title">Results</h2>
+          <p class="fox-says" id="fox-says" role="status"></p>
+          <div class="fox-seat" id="fox-seat"></div>
+          <button
+            type="button"
+            class="console-switch"
+            id="console-fox"
+            aria-pressed="true"
+          >
+            Fox
+          </button>
           <button
             type="button"
             class="console-switch"
@@ -185,6 +236,15 @@
             accept=".csv,.tsv,.txt,text/csv,text/plain"
           />
         </p>
+      </section>
+      <section class="console-data" aria-labelledby="data-title">
+        <h2 id="data-title">Datasets</h2>
+        <p>
+          All of these are invented for teaching. The larger ones were simulated
+          with a known answer built in, which each description states, so you
+          can check whether a method recovers it.
+        </p>
+        <ul id="console-datasets"></ul>
       </section>
       <section class="console-scope" aria-labelledby="console-scope">
         <h2 id="console-scope">What runs here</h2>

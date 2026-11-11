@@ -1271,7 +1271,10 @@ function collapse(session, text, ctx) {
   result.defaultType = data.defaultType;
   result.valueLabels = data.valueLabels;
   result.n = order.length;
-  for (const k of by) {
+  // The by variables keep the order they had in the data, whatever order
+  // by() lists them in; the statistics follow.
+  const position = (name) => data.variables.findIndex((v) => v.name === name);
+  for (const k of [...by].sort((a, b) => position(a) - position(b))) {
     const v = data.get(k);
     result.generate(
       k,

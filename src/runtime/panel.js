@@ -658,7 +658,7 @@ function xtsum(session, text, ctx) {
       ctx.out(
         line(
           "overall",
-          name.slice(0, 8),
+          name.length > 8 ? `${name.slice(0, 6)}~${name.at(-1)}` : name,
           cell(overall, 10),
           sd(values, overall, N - 1),
           Math.min(...values),
@@ -685,7 +685,10 @@ function xtsum(session, text, ctx) {
           sd(deviations, overall, N - 1),
           Math.min(...deviations),
           Math.max(...deviations),
-          ` T-bar =${g(N / n).padStart(8)}`,
+          // A balanced panel has a T; an unbalanced one an average, T-bar.
+          [...byGroup.values()].every((list) => list.length === N / n)
+            ? `     T =${g(N / n).padStart(8)}`
+            : ` T-bar =${g(N / n).padStart(8)}`,
         ),
       );
     });
