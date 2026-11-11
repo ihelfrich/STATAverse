@@ -28,7 +28,6 @@ const source = $("console-source"),
   runSelection = $("console-run-selection"),
   stop = $("console-stop"),
   reset = $("console-reset"),
-  picker = $("console-dataset"),
   examples = $("console-example"),
   commandLine = $("console-command"),
   still = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -184,11 +183,13 @@ function showTabs() {
   });
   $("console-tab-name").value = project.files[project.active].name;
   $("console-tab-delete").disabled = project.files.length < 2;
+  // One file needs no tabs; the bar appears with the second.
+  $("console-tabs-bar").hidden = mapping || project.files.length < 2;
   run.textContent = mapping
-    ? "Run the map"
+    ? "Run map"
     : project.files.length > 1
       ? `Run ${project.files[project.active].name}`
-      : "Run do-file";
+      : "Run";
 }
 function openFile(k) {
   save();
@@ -276,7 +277,8 @@ function selectedLines() {
 }
 
 // ----- the variables -----
-let known = null;
+let known = null,
+  opened = false;
 function showVariables(memory) {
   const table = $("console-variable-table"),
     body = table.querySelector("tbody"),
@@ -311,6 +313,11 @@ function showVariables(memory) {
     body.append(row);
   }
   table.hidden = !memory.variables.length;
+  // The list opens by itself the first time there is something in it.
+  if (memory.variables.length && !opened) {
+    opened = true;
+    $("drawer-variables").open = true;
+  }
   map.setNames(
     memory.variables
       .map((variable) => variable.name)
@@ -429,18 +436,21 @@ function show(records) {
     output.scrollTop = first.offsetTop - output.offsetTop - 8;
   else output.scrollTop = output.scrollHeight;
 }
+/** Run selection is offered only while lines are selected in the editor. */
+function offerSelection() {
+  runSelection.hidden = mapping || run.disabled || !selectedLines().trim();
+}
 function busy(running) {
   run.disabled = running;
   reset.disabled = running;
-  picker.disabled = running;
   examples.disabled = running;
   commandLine.disabled = running;
   map.setBusy(running);
-  $("map-run").disabled = running;
   $("console-download").disabled = running;
+  $("console-download-data").disabled = running;
   for (const button of document.querySelectorAll("#console-datasets button"))
     button.disabled = running;
-  runSelection.disabled = running || !selectedLines().trim();
+  offerSelection();
   stop.hidden = !running || !worker;
   status.dataset.state = running ? "running" : "idle";
 }
@@ -475,15 +485,16 @@ function finish(rc, commands, started) {
     : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
   busy(false);
   status.dataset.state = rc ? "error" : "done";
-  $("map-status").textContent = status.textContent;
   if (rc) fox.failed(rc);
   else fox.done();
+  // On a narrow screen the results are below the editor; go to them.
+  if (!mapping && window.matchMedia("(max-width: 900px)").matches)
+    $("results-title").scrollIntoView({ block: "start" });
 }
 function begin() {
   save();
   busy(true);
   status.textContent = "Running…";
-  $("map-status").textContent = "Running…";
   fox.running();
   return performance.now();
 }
@@ -508,7 +519,6 @@ async function execute(text = source.value, what = "do-file") {
 async function runSteps(entries, mark) {
   if (!entries.length) {
     status.textContent = "No step in the map is filled in yet.";
-    $("map-status").textContent = status.textContent;
     return;
   }
   const started = begin();
@@ -542,18 +552,12 @@ async function runSteps(entries, mark) {
 }
 
 async function newSession(message) {
-  const result = await ask({ kind: "reset", dataset: picker.value });
+  const result = await ask({ kind: "reset", dataset: "" });
   known = null;
   showVariables(result.memory);
   status.textContent = message;
 }
 
-for (const [id, data] of Object.entries(LIBRARY)) {
-  const option = document.createElement("option");
-  option.value = id;
-  option.textContent = `${id}: ${data.title}`;
-  picker.append(option);
-}
 for (const example of EXAMPLES) {
   const option = document.createElement("option");
   let group = [...examples.children].find((g) => g.label === example.group);
@@ -567,27 +571,27 @@ for (const example of EXAMPLES) {
   group.append(option);
 }
 
-// ----- the datasets, each with what was built into it -----
+// ----- the datasets: a name and a Load button, the rest on request -----
 for (const entry of Object.values(LIBRARY)) {
   const item = document.createElement("li"),
-    title = document.createElement("h3"),
+    more = document.createElement("details"),
+    title = document.createElement("summary"),
     name = document.createElement("code"),
-    size = document.createElement("p"),
     about = document.createElement("p"),
     load = document.createElement("button");
   name.textContent = entry.id;
   title.append(name, entry.title);
-  size.className = "data-size";
-  size.textContent = `${entry.data.rows.length.toLocaleString("en-US")} rows, ${entry.data.columns.length} variables. ${entry.unit}.`;
-  about.textContent = entry.description;
+  about.textContent = `${entry.data.rows.length.toLocaleString("en-US")} rows, ${entry.data.columns.length} variables. ${entry.description}`;
+  more.append(title, about);
   load.type = "button";
   load.className = "quiet-button";
-  load.textContent = `Load ${entry.id}`;
+  load.textContent = "Load";
+  load.setAttribute("aria-label", `Load ${entry.id}`);
   load.addEventListener("click", async () => {
     await execute(`sysuse ${entry.id}, clear\ndescribe`, "command");
     $("results-title").scrollIntoView({ block: "start" });
   });
-  item.append(title, size, about, load);
+  item.append(more, load);
   $("console-datasets").append(item);
 }
 
@@ -636,13 +640,13 @@ function setMode(toMap) {
   layout.classList.toggle("is-mapping", toMap);
   $("console-map").hidden = !toMap;
   $("console-mapcode").hidden = !toMap;
-  $("console-tabs-bar").hidden = toMap;
-  run.hidden = toMap;
   document.querySelector(".console-code").hidden = toMap;
-  $("console-choices").hidden = toMap;
-  $("console-keys").hidden = toMap;
-  runSelection.hidden = toMap;
+  $("console-example-pick").hidden = toMap;
+  $("map-starter-pick").hidden = !toMap;
+  for (const group of document.querySelectorAll("[data-for]"))
+    group.hidden = (group.dataset.for === "map") !== toMap;
   showTabs();
+  offerSelection();
   $("editor-title").textContent = toMap ? "Map" : "Do-file";
   $("console-mode-write").setAttribute("aria-pressed", String(!toMap));
   $("console-mode-map").setAttribute("aria-pressed", String(toMap));
@@ -657,7 +661,6 @@ function setMode(toMap) {
 $("console-mode-write").addEventListener("click", () => setMode(false));
 $("console-mode-map").addEventListener("click", () => setMode(true));
 $("map-tidy").addEventListener("click", () => map.tidy());
-$("map-run").addEventListener("click", () => map.runAll());
 $("map-export").addEventListener("click", () => {
   const files = map.files();
   setMode(false);
@@ -679,7 +682,8 @@ $("console-tab-new").addEventListener("click", () => {
   save();
   showTabs();
   paint();
-  $("console-tab-name").select();
+  source.focus();
+  status.textContent = `Started ${project.files[project.active].name}. More has Rename.`;
 });
 $("console-tab-name").addEventListener("change", (event) => {
   const file = project.files[project.active],
@@ -746,7 +750,6 @@ $("console-download").addEventListener("click", () => {
   document.body.dataset.downloaded = String(bytes.length);
   hand(bytes, "stata-project.zip", "application/zip");
   status.textContent = `Downloaded stata-project.zip: ${files.map((file) => file.name).join(", ")}, the data they use, and a note on running it in Stata.`;
-  $("map-status").textContent = "Downloaded stata-project.zip.";
 });
 
 // ----- what runs here, with a filter -----
@@ -823,13 +826,6 @@ reset.addEventListener("click", async () => {
   fox.say("");
   await newSession("The session was cleared. The do-file text is unchanged.");
 });
-picker.addEventListener("change", () =>
-  newSession(
-    picker.value
-      ? `Started a new session with the ${picker.value} data in memory.`
-      : "Started a new session with no data in memory.",
-  ),
-);
 examples.addEventListener("change", () => {
   const example = EXAMPLES.find((e) => e.id === examples.value);
   examples.value = "";
@@ -855,8 +851,7 @@ source.addEventListener("input", () => {
 });
 source.addEventListener("scroll", follow);
 document.addEventListener("selectionchange", () => {
-  if (document.activeElement === source)
-    runSelection.disabled = run.disabled || !selectedLines().trim();
+  if (document.activeElement === source) offerSelection();
 });
 
 // ----- the command line under the results -----
@@ -910,7 +905,7 @@ function showUploads() {
     build.addEventListener("click", () => {
       setMode(true);
       map.startFrom(name);
-      $("editor-title").scrollIntoView({ block: "start" });
+      $("main").scrollIntoView({ block: "start" });
     });
     remove.textContent = "Remove";
     remove.setAttribute("aria-label", `Remove ${name}`);
@@ -1025,6 +1020,35 @@ document.addEventListener("drop", async (event) => {
   dragging = 0;
   document.body.classList.remove("is-dropping");
   await takeFiles([...event.dataTransfer.files]);
+});
+
+$("console-count").textContent = `${names.length} run here`;
+
+// ----- the More menu: closes after a choice, on Escape and on a click away -----
+const more = $("console-more");
+more.addEventListener("click", (event) => {
+  if (event.target.closest("button:not(.console-switch)")) more.open = false;
+});
+for (const control of more.querySelectorAll("select, input"))
+  control.addEventListener("change", () => {
+    more.open = false;
+  });
+document.addEventListener("click", (event) => {
+  if (more.open && !more.contains(event.target)) more.open = false;
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !more.open) return;
+  more.open = false;
+  more.querySelector("summary").focus();
+});
+$("console-download-data").addEventListener("click", async () => {
+  const result = await ask({ kind: "export" });
+  if (!result.memory.variables.length) {
+    status.textContent = "There is no data in memory to download.";
+    return;
+  }
+  hand(result.bytes, "data.dta", "application/octet-stream");
+  status.textContent = `Downloaded data.dta: ${result.memory.observations.toLocaleString("en-US")} observations, ${result.memory.variables.length} variables, as a Stata dataset.`;
 });
 
 await startWorker();

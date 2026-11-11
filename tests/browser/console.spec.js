@@ -1,6 +1,30 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+// Controls that are not needed at first sit in the More menu and in drawers.
+async function menu(page, selector) {
+  const more = page.locator("#console-more");
+  if ((await more.getAttribute("open")) === null)
+    await more.locator("summary").click();
+  if (selector) await page.locator(selector).click();
+}
+async function drawer(page, id) {
+  const box = page.locator(`#drawer-${id}`);
+  if ((await box.getAttribute("open")) === null)
+    await box.locator("> summary").click();
+}
+// A map card shows its fields and actions once its title is selected.
+async function openCard(card) {
+  if (
+    (await card.locator(".map-kind").getAttribute("aria-expanded")) !== "true"
+  )
+    await card.locator(".map-kind").click();
+}
+async function addAfter(card, kind) {
+  await openCard(card);
+  await card.locator(".map-add").selectOption(kind);
+}
+
 for (const fallback of [false, true])
   test(`the console runs a do-file on the new runtime through ${fallback ? "the page" : "a worker"}`, async ({
     page,
@@ -70,14 +94,15 @@ for (const fallback of [false, true])
     );
 
     // Starting from a site dataset, and clearing the session.
-    await page.locator("#console-dataset").selectOption("study");
+    await drawer(page, "data");
+    await page.getByRole("button", { name: "Load study" }).click();
     await expect(page.locator("#console-memory")).toContainText(
       "24 observations, 5 variables",
     );
     await source.fill("sysuse auto");
     await page.locator("#console-run").click();
     await expect(output).toContainText("This site's datasets are");
-    await page.locator("#console-reset").click();
+    await menu(page, "#console-reset");
     await expect(output).toHaveText("");
 
     const scan = await new AxeBuilder({ page }).analyze();
@@ -147,7 +172,7 @@ test("a student's own CSV file can be added and imported", async ({ page }) => {
     "3 observations, 3 variables",
   );
   // The file survives clearing the session.
-  await page.locator("#console-reset").click();
+  await menu(page, "#console-reset");
   await expect(page.locator("#console-files")).toContainText("my wages.csv");
 });
 
@@ -201,8 +226,8 @@ test("the console's command line, examples and editor tools work", async ({
     document.dispatchEvent(new Event("selectionchange"));
   });
   const selection = page.locator("#console-run-selection");
-  await expect(selection).toBeEnabled();
-  await page.locator("#console-reset").click();
+  await expect(selection).toBeVisible();
+  await menu(page, "#console-reset");
   await source.evaluate((area) => {
     area.focus();
     area.setSelectionRange(14, 18);
@@ -216,12 +241,16 @@ test("the console's command line, examples and editor tools work", async ({
   // A variable's name goes into the do-file where the cursor is.
   await command.fill("sysuse study, clear");
   await command.press("Enter");
+  await expect(page.locator("#console-memory")).toContainText(
+    "24 observations",
+  );
   await source.fill("summarize ");
   await page.locator(".console-name", { hasText: "attendance" }).click();
   await expect(source).toHaveValue("summarize attendance");
 
   // The classic colours are kept for the next visit.
   const scheme = page.locator("#console-scheme");
+  await menu(page);
   await scheme.click();
   await expect(page.locator("#console-window")).toHaveAttribute(
     "data-scheme",
@@ -241,6 +270,7 @@ test("the console's command line, examples and editor tools work", async ({
   await expect(scheme).toHaveAttribute("aria-pressed", "true");
 
   // The list of commands can be searched.
+  await drawer(page, "commands");
   await page.locator("#console-filter").fill("marg");
   await expect(page.locator("#console-commands li:visible")).toHaveText([
     "margins",
@@ -285,8 +315,8 @@ test("the map builds do-files from linked steps and runs them step by step", asy
   await expect(page.locator(".map-name")).toHaveCount(9);
 
   // Running the map marks each step and keeps each step's result on its card.
-  await page.locator("#map-run").click();
-  await expect(page.locator("#map-status")).toHaveText(/Ran 7 commands in/);
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran 7 commands in/);
   await expect(page.locator('.map-step[data-state="done"]')).toHaveCount(7);
   await expect(page.locator("#console-output")).toContainText(
     ". regress posttest treated pretest ses, vce(cluster school)",
@@ -304,7 +334,7 @@ test("the map builds do-files from linked steps and runs them step by step", asy
 
   // A step added after a model can ask about that model; it starts open.
   const model = page.locator('.map-step[data-kind="model"]').last();
-  await model.locator(".map-add").selectOption("after");
+  await addAfter(model, "after");
   await expect(steps).toHaveCount(8);
   const fresh = page
     .locator(".map-step", { has: page.locator('[data-field="what"]:visible') })
@@ -318,7 +348,7 @@ test("the map builds do-files from linked steps and runs them step by step", asy
   );
 
   // A step that is not filled in says so and cannot be run alone.
-  await steps.first().locator(".map-add").selectOption("generate");
+  await addAfter(steps.first(), "generate");
   const empty = page.locator('.map-step[data-complete="false"]');
   await expect(empty).toHaveCount(1);
   await expect(empty.locator(".map-run")).toBeDisabled();
@@ -339,10 +369,10 @@ test("the map builds do-files from linked steps and runs them step by step", asy
 
   // Steps after "Start a do-file" go to a file of their own.
   const last = page.locator('.map-step[data-kind="generate"]');
-  await last.locator(".map-add").selectOption("file");
+  await addAfter(last, "file");
   const file = page.locator('.map-step[data-kind="file"]');
   await file.locator('[data-field="name"]').fill("checks");
-  await file.locator(".map-add").selectOption("look");
+  await addAfter(file, "look");
   await expect(code.locator(".mapcode-name")).toHaveText([
     "main.do",
     "checks.do",
@@ -353,7 +383,7 @@ test("the map builds do-files from linked steps and runs them step by step", asy
   await page.reload();
   await expect(page.locator("#console-status")).toHaveText("Ready.");
   await expect(page.locator(".map-step")).toHaveCount(11);
-  await page.locator("#map-export").click();
+  await menu(page, "#map-export");
   await expect(page.locator("#console-map")).toBeHidden();
   await expect(page.locator(".console-tab")).toHaveText([
     "main.do",
@@ -373,10 +403,10 @@ test("the map builds do-files from linked steps and runs them step by step", asy
   await page.locator("#map-starter").selectOption("trial");
   await expect(page.locator(".map-step")).toHaveCount(7);
   const keep = page.locator('.map-step[data-kind="keep"]');
-  await keep.locator(".map-edit").click();
+  await openCard(keep);
   await keep.locator('[data-field="condition"]').fill("nothing == 1");
-  await page.locator("#map-run").click();
-  await expect(page.locator("#map-status")).toHaveText(/return code 111/);
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/return code 111/);
   await expect(keep).toHaveAttribute("data-state", "error");
   await expect(keep.locator(".map-problem")).toContainText("nothing not found");
   await expect(page.locator("#fox-says")).toContainText("r(111)");
@@ -393,7 +423,7 @@ test("the fox gives a tip and can be hidden; datasets load from their cards", as
   await expect(fox).toBeVisible();
   await fox.click();
   await expect(page.locator("#fox-says")).not.toBeEmpty();
-  await page.locator("#console-fox").click();
+  await menu(page, "#console-fox");
   await expect(fox).toBeHidden();
   await expect(page.locator("#fox-says")).toBeEmpty();
   await page.reload();
@@ -405,6 +435,7 @@ test("the fox gives a tip and can be hidden; datasets load from their cards", as
   );
 
   await expect(page.locator("#console-datasets li")).toHaveCount(9);
+  await drawer(page, "data");
   await page.getByRole("button", { name: "Load trade" }).click();
   await expect(page.locator("#console-memory")).toContainText(
     "240 observations, 9 variables",
@@ -436,7 +467,8 @@ test("a project has several do-files, a menu of patterns, and downloads as a fol
   await expect(page.locator("#console-tab-delete")).toBeDisabled();
 
   // A second file, named, that the first one runs.
-  await page.locator("#console-tab-new").click();
+  await menu(page, "#console-tab-new");
+  await menu(page);
   await page.locator("#console-tab-name").fill("clean data");
   await page.locator("#console-tab-name").press("Enter");
   await expect(page.locator(".console-tab")).toHaveText([
@@ -457,6 +489,7 @@ test("a project has several do-files, a menu of patterns, and downloads as a fol
 
   // The Insert menu puts a pattern on its own line at the cursor.
   await source.press("ControlOrMeta+End");
+  await menu(page);
   await page.locator("#console-insert").selectOption({
     label: "Average effects: margins, dydx(*)",
   });
@@ -473,7 +506,7 @@ test("a project has several do-files, a menu of patterns, and downloads as a fol
 
   // The project downloads as a zip: the do-files, the data and a note.
   const waiting = page.waitForEvent("download");
-  await page.locator("#console-download").click();
+  await menu(page, "#console-download");
   const download = await waiting;
   expect(download.suggestedFilename()).toBe("stata-project.zip");
   const bytes = await (await download.createReadStream()).toArray(),
@@ -490,7 +523,7 @@ test("a project has several do-files, a menu of patterns, and downloads as a fol
   expect(text).not.toContain("sysuse labor");
 
   await page.locator(".console-tab", { hasText: "clean_data.do" }).click();
-  await page.locator("#console-tab-delete").click();
+  await menu(page, "#console-tab-delete");
   await expect(page.locator(".console-tab")).toHaveText(["main.do"]);
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
@@ -549,24 +582,112 @@ test("a Stata .dta file and a do-file can be added, and a map started from the d
   await expect(page.locator("#console-own li")).toHaveCount(1);
 
   // A map can start from the file, and a download carries it.
+  await drawer(page, "data");
   await page.getByRole("button", { name: "Start a map from it" }).click();
   await expect(page.locator(".map-step")).toHaveCount(1);
   await expect(page.locator(".map-code")).toHaveText(
     'use "fromstata.dta", clear',
   );
-  await page.locator(".map-add").selectOption("look");
-  await page.locator("#map-run").click();
-  await expect(page.locator("#map-status")).toHaveText(/Ran 2 commands/);
+  await addAfter(page, "look");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran 2 commands/);
   const waiting = page.waitForEvent("download");
-  await page.locator("#console-download").click();
+  await menu(page, "#console-download");
   const bytes = await (await (await waiting).createReadStream()).toArray(),
     text = Buffer.concat(bytes).toString("latin1");
   expect(text).toContain("stata-project/fromstata.dta");
   expect(text).toContain('use "fromstata.dta", clear');
 
+  await page.locator("#console-mode-write").click();
   await page.getByRole("button", { name: "Remove fromstata.dta" }).click();
   await expect(page.locator("#console-own li")).toHaveCount(0);
   await expect(page.locator("#console-files")).not.toContainText(
     "fromstata.dta",
   );
+});
+
+test("the first screen is the editor, Run and Results; the rest is one step away", async ({
+  page,
+}) => {
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  // Run is in view without scrolling, on a laptop and on a phone.
+  await expect(page.locator("#console-run")).toBeInViewport();
+  await expect(page.locator("#console-source")).toBeInViewport();
+  // Nothing below the work is open until it is asked for.
+  for (const id of ["variables", "data", "commands", "about"])
+    await expect(page.locator(`#drawer-${id}`)).not.toHaveAttribute("open");
+  await expect(page.locator(".console-menu-panel")).toBeHidden();
+  await expect(page.locator("#console-tabs-bar")).toBeHidden();
+  await expect(page.locator("#console-run-selection")).toBeHidden();
+  // The words a new visitor meets before doing anything are few.
+  const words = await page.evaluate(() => {
+    let count = 0;
+    const walker = document.createTreeWalker(
+      document.querySelector("main"),
+      NodeFilter.SHOW_TEXT,
+    );
+    for (let node; (node = walker.nextNode());) {
+      const parent = node.parentElement;
+      if (
+        parent.closest(
+          "#console-source, #console-highlight, #console-gutter, option, .sr-only",
+        ) ||
+        !parent.checkVisibility()
+      )
+        continue;
+      count += (node.textContent.trim().match(/\S+/g) ?? []).length;
+    }
+    return count;
+  });
+  expect(words).toBeLessThan(45);
+  expect(words).toBeGreaterThan(5);
+
+  // The menu opens, offers its groups, and closes on Escape and after a choice.
+  await page.locator("#console-more > summary").click();
+  await expect(page.locator(".console-menu-panel")).toBeVisible();
+  await expect(page.locator(".console-menu-group:visible h3")).toHaveText([
+    "Do-file",
+    "Project",
+    "View",
+  ]);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".console-menu-panel")).toBeHidden();
+  await page.locator("#console-more > summary").click();
+  await page.locator("#console-tab-new").click();
+  await expect(page.locator(".console-menu-panel")).toBeHidden();
+  // A second file brings the tabs.
+  await expect(page.locator(".console-tab")).toHaveText(["main.do", "part.do"]);
+
+  // Running opens the list of variables by itself, once.
+  await page.locator(".console-tab", { hasText: "main.do" }).click();
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran \d+ commands/);
+  await expect(page.locator("#drawer-variables")).toHaveAttribute("open", "");
+  await expect(page.locator("#console-memory")).toContainText(
+    "24 observations",
+  );
+
+  // In the map the first step is in view, and the menu offers the map's tools.
+  await page.locator("#console-mode-map").click();
+  await expect(page.locator(".map-step").first()).toBeInViewport();
+  await expect(page.locator("#console-run")).toHaveText("Run map");
+  await page.locator("#console-more > summary").click();
+  await expect(page.locator(".console-menu-group:visible h3")).toHaveText([
+    "Map",
+    "Project",
+    "View",
+  ]);
+  // A card shows one control until its title is selected.
+  const card = page.locator(".map-step").nth(1);
+  await page.keyboard.press("Escape");
+  await expect(card.locator("button:visible, select:visible")).toHaveCount(1);
+  await card.locator(".map-kind").click();
+  await expect(card.locator(".map-run")).toBeVisible();
+  // The data in memory downloads as a Stata dataset.
+  const waiting = page.waitForEvent("download");
+  await menu(page, "#console-download-data");
+  expect((await waiting).suggestedFilename()).toBe("data.dta");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
 });

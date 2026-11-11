@@ -89,16 +89,11 @@ export function mountMap({
       },
       at = new Map();
     const place = (step, depth, top) => {
-      const room = span(step),
-        below = children(step),
-        block =
-          below.reduce((sum, child) => sum + span(child), 0) +
-          DOWN * Math.max(0, below.length - 1);
-      at.set(step.id, {
-        x: EDGE + depth * (WIDTH + ACROSS),
-        y: top + (room - height(step)) / 2,
-      });
-      let y = top + (room - block) / 2;
+      const below = children(step);
+      // A step sits level with the first step after it, so the map reads
+      // from the top left and the first step is in view when it opens.
+      at.set(step.id, { x: EDGE + depth * (WIDTH + ACROSS), y: top });
+      let y = top;
       for (const child of below) {
         place(child, depth + 1, y);
         y += span(child) + DOWN;
@@ -129,9 +124,9 @@ export function mountMap({
       const from = cards.get(step.parent),
         to = cards.get(step.id),
         x1 = from.offsetLeft + WIDTH,
-        y1 = from.offsetTop + from.offsetHeight / 2,
+        y1 = from.offsetTop + Math.min(from.offsetHeight / 2, 30),
         x2 = to.offsetLeft,
-        y2 = to.offsetTop + Math.min(to.offsetHeight / 2, 60),
+        y2 = to.offsetTop + Math.min(to.offsetHeight / 2, 30),
         bend = Math.max(24, Math.abs(x2 - x1) / 2);
       paths
         .get(step.id)
@@ -186,7 +181,7 @@ export function mountMap({
     if (!item) return;
     point(id, true);
     item.scrollIntoView({ block: "center", inline: "center" });
-    item.querySelector(".map-edit:not([hidden]), input, select")?.focus();
+    item.querySelector(".map-kind")?.focus();
   });
 
   // ----- the variable names, to put in a field -----
@@ -202,8 +197,7 @@ export function mountMap({
       item.append(button);
       names.append(item);
     }
-    if (!list.length)
-      names.append(el("li", "map-names-none", "run a step to see them"));
+    if (!list.length) names.append(el("li", "map-names-none", "none yet"));
   }
   /** The names in the dataset the first step loads, before anything runs. */
   function expected() {
@@ -331,22 +325,23 @@ export function mountMap({
     const kind = KINDS[step.kind],
       item = el("li", "map-step"),
       head = el("div", "map-head"),
-      title = el("span", "map-kind", kind.title),
+      title = el("button", "map-kind", kind.title),
       label = describe(step);
+    title.type = "button";
     item.dataset.kind = step.kind;
     item.dataset.state = states.get(step.id) ?? "";
     item.setAttribute("aria-label", label);
-    const edit = el("button", "map-edit"),
-      form = el("div", "map-fields"),
+    // A card shows its title and its command. Selecting the title opens
+    // the card: its fields, and what can be done with it.
+    const form = el("div", "map-fields"),
       shut = () => {
         const visible = open.has(step.id) || !complete(step);
         form.hidden = !visible;
-        edit.textContent = visible ? "Done" : "Edit";
-        edit.setAttribute("aria-expanded", String(visible));
-        edit.hidden = !complete(step);
+        item.classList.toggle("is-open", visible);
+        title.setAttribute("aria-expanded", String(visible));
       };
-    edit.type = "button";
-    edit.addEventListener("click", () => {
+    title.addEventListener("click", () => {
+      if (item.dataset.dragged) return;
       if (open.has(step.id)) open.delete(step.id);
       else open.add(step.id);
       shut();
@@ -354,21 +349,7 @@ export function mountMap({
       if (!form.hidden) form.querySelector("input, select, textarea")?.focus();
     });
     item.shut = shut;
-    head.append(title, el("span", "map-state"), edit);
-    if (step.parent !== null) {
-      const remove = el("button", "map-remove", "×");
-      remove.type = "button";
-      remove.setAttribute(
-        "aria-label",
-        `Remove ${label} and the steps after it`,
-      );
-      remove.addEventListener("click", () => {
-        removeStep(map, step.id);
-        save();
-        draw();
-      });
-      head.append(remove);
-    }
+    head.append(title, el("span", "map-state"));
     item.append(head);
     drag(head, step, item);
     item.addEventListener("pointerenter", () => point(step.id, true));
@@ -438,13 +419,6 @@ export function mountMap({
       wrap.append(caption, control);
       form.append(wrap);
     }
-    item.append(form);
-    if (kind.model) item.append(el("div", "map-paths"));
-    item.append(el("code", "map-code"));
-    const problem = el("p", "map-problem");
-    problem.hidden = true;
-    item.append(problem);
-
     const foot = el("div", "map-foot"),
       go = el("button", "map-run", "Run to here"),
       peek = el("button", "map-peek", "Result"),
@@ -456,7 +430,7 @@ export function mountMap({
     peek.setAttribute("aria-expanded", "false");
     peek.addEventListener("click", () => openOutput(step, item, peek));
     more.setAttribute("aria-label", `Add a step after ${label}`);
-    more.append(new Option("Add a step…", ""));
+    more.append(new Option("+ Step", ""));
     for (const group of GROUPS) {
       const section = el("optgroup");
       section.label = group;
@@ -475,21 +449,37 @@ export function mountMap({
       save();
       draw({ id: added.id }, true);
     });
-    foot.append(go, peek, more);
-    item.append(foot);
+    foot.append(go, more);
+    if (step.parent !== null) {
+      const remove = el("button", "map-remove", "Remove");
+      remove.type = "button";
+      remove.title = "Remove this step and the steps after it";
+      remove.addEventListener("click", () => {
+        removeStep(map, step.id);
+        save();
+        draw(undefined, true);
+      });
+      foot.append(remove);
+    }
+    form.append(foot);
+    item.append(form);
+    if (kind.model) item.append(el("div", "map-paths"));
+    item.append(el("code", "map-code"));
+    const problem = el("p", "map-problem");
+    problem.hidden = true;
+    item.append(problem, peek);
     return item;
   }
   function drag(handle, step, item) {
     handle.addEventListener("pointerdown", (event) => {
-      if (event.target.closest("button") || event.button) return;
+      if (event.button) return;
       const startX = event.clientX - item.offsetLeft,
         startY = event.clientY - item.offsetTop;
       let moved = false;
-      handle.setPointerCapture(event.pointerId);
       const move = (e) => {
         const x = Math.max(0, e.clientX - startX),
           y = Math.max(0, e.clientY - startY);
-        if (!moved && Math.hypot(x - item.offsetLeft, y - item.offsetTop) < 4)
+        if (!moved && Math.hypot(x - item.offsetLeft, y - item.offsetTop) < 5)
           return;
         moved = true;
         item.classList.add("is-dragged");
@@ -498,19 +488,22 @@ export function mountMap({
         join();
       };
       const end = () => {
-        handle.removeEventListener("pointermove", move);
-        handle.removeEventListener("pointerup", end);
-        handle.removeEventListener("pointercancel", end);
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", end);
+        document.removeEventListener("pointercancel", end);
         item.classList.remove("is-dragged");
         if (!moved) return;
+        // The click that ends a drag does not also open the card.
+        item.dataset.dragged = "true";
+        setTimeout(() => delete item.dataset.dragged, 0);
         step.x = item.offsetLeft;
         step.y = item.offsetTop;
         save();
         arrange();
       };
-      handle.addEventListener("pointermove", move);
-      handle.addEventListener("pointerup", end);
-      handle.addEventListener("pointercancel", end);
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", end);
+      document.addEventListener("pointercancel", end);
     });
   }
 
