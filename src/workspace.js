@@ -5,6 +5,7 @@ import {
   parseLabProgress,
   withLabProgressLock,
   renewLabProgress,
+  labProgressMarker,
 } from "./lab-progress.js";
 import { INVESTIGATION_CATALOG } from "./labs/investigation-catalog.js";
 const $ = (selector) => document.querySelector(selector);
@@ -191,7 +192,13 @@ $("#workspace-import").addEventListener("change", async (event) => {
       report("Import canceled. Your saved work is unchanged.");
       return;
     }
-    await withLabProgressLock(() => writeAtomically(changes));
+    await withLabProgressLock(async () => {
+      writeAtomically(changes);
+      // Mark the write so that a lab tab still holding an older copy of
+      // localStorage does not save over the imported record.
+      const labs = changes.find(([key]) => key === LAB_PROGRESS_KEY);
+      if (labs) await labProgressMarker.set(JSON.parse(labs[1]).generation);
+    });
     refresh();
     report(
       "Backup imported. Reload any open practice or lab tab to use the imported work.",
@@ -208,14 +215,16 @@ $("[data-clear-notes]").addEventListener("click", async () => {
   )
     return;
   try {
-    await withLabProgressLock(() =>
+    const cleared = renewLabProgress();
+    await withLabProgressLock(async () => {
       writeAtomically([
         ...keys()
           .filter((key) => key !== LAB_PROGRESS_KEY)
           .map((key) => [key, null]),
-        [LAB_PROGRESS_KEY, JSON.stringify(renewLabProgress())],
-      ]),
-    );
+        [LAB_PROGRESS_KEY, JSON.stringify(cleared)],
+      ]);
+      await labProgressMarker.set(cleared.generation);
+    });
     refresh();
     report(
       "STATAverse saved work cleared on this device. Reload any open practice tab.",
