@@ -797,3 +797,39 @@ test("a map card and its results point at each other", async ({ page }) => {
     "estimates store",
   );
 });
+
+test("the monospace is served by the site and keeps columns aligned", async ({
+  page,
+}) => {
+  const remote = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "font") remote.push(request.url());
+  });
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toContainText("Ran 9");
+  const measured = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const output = document.getElementById("console-output"),
+      per = (text) => {
+        const span = document.createElement("span");
+        span.textContent = text;
+        output.append(span);
+        const width = span.getBoundingClientRect().width / text.length;
+        span.remove();
+        return width;
+      };
+    return {
+      loaded: document.fonts.check('13px "Geist Mono Variable"'),
+      widths: ["iiii", "MMMM", "----+----", ">= != -> <=", "0123"].map(per),
+    };
+  });
+  expect(measured.loaded).toBe(true);
+  // Every character is as wide as every other; no ligature joins two.
+  for (const width of measured.widths)
+    expect(Math.abs(width - measured.widths[0])).toBeLessThan(0.01);
+  expect(remote.length).toBeGreaterThan(0);
+  for (const url of remote)
+    expect(new URL(url).origin).toBe(new URL(page.url()).origin);
+});

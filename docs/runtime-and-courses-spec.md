@@ -320,3 +320,5 @@ The page was tidy but nothing tied its parts together. This round adds one idea 
 - **Motion.** Three durations and two curves as custom properties; drawers, the menu and a card's fields open from where they are attached. All of it is off under reduced motion.
 
 Not done: a self-hosted typeface (needs font files added to the repository), and the fox looking at the failed line. Motion was judged from stills, and Safari is still untested here. Selecting a command in Results is a pointer action; from the keyboard the link runs from the do-file to Results only.
+
+**Typeface (later on 11 November).** The Console's code and Results are set in Geist Mono, served from `assets/fonts/` (the same file, license and provenance the hub site already serves; no remote font request). Ligatures are off for the whole page, because the font would otherwise join runs of dashes and break table columns; a browser test checks that every character has the same width and that the font comes from the site's own origin. The page chrome keeps the site's text face, which the lesson pages share.
