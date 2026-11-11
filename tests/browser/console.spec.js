@@ -821,7 +821,10 @@ test("the monospace is served by the site and keeps columns aligned", async ({
         return width;
       };
     return {
-      loaded: document.fonts.check('13px "Geist Mono Variable"'),
+      loaded: [...document.fonts].some(
+        (face) =>
+          face.family.includes("STATAverse Mono") && face.status === "loaded",
+      ),
       widths: ["iiii", "MMMM", "----+----", ">= != -> <=", "0123"].map(per),
     };
   });
@@ -829,7 +832,8 @@ test("the monospace is served by the site and keeps columns aligned", async ({
   // Every character is as wide as every other; no ligature joins two.
   for (const width of measured.widths)
     expect(Math.abs(width - measured.widths[0])).toBeLessThan(0.01);
-  expect(remote.length).toBeGreaterThan(0);
+  // One copy of the font is fetched, not two.
+  expect(remote).toHaveLength(1);
   for (const url of remote)
     expect(new URL(url).origin).toBe(new URL(page.url()).origin);
 });

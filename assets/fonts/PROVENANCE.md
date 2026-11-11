@@ -10,3 +10,5 @@ The Console's monospace is served from this directory. The page makes no remote 
 - License: SIL Open Font License 1.1; see `OFL-Geist.txt`.
 
 The file and the license text are byte-for-byte copies of the ones the hub site (`ihelfrich/ihelfrich.github.io`, `public/fonts/`) already serves; its `PROVENANCE.md` records the original verification of 18 August 2026.
+
+The Console declares this copy as "STATAverse Mono" and lists the hub's "Geist Mono Variable" before it, so that inside the hub the page uses the copy the hub has already loaded and fetches this one only when the site is served on its own.
