@@ -1,20 +1,23 @@
-// The page side of the Console's map: steps drawn as cards joined by lines.
-// The cards are ordinary form controls in the order they run, so the map can
-// be read and filled in from the keyboard; dragging only rearranges it.
+// The page side of the Console's map: steps drawn as cards joined by lines,
+// beside the do-files they write. The cards are ordinary form controls in
+// the order they run, so the map can be read and filled in from the
+// keyboard; dragging only rearranges it.
 import {
+  GROUPS,
   KINDS,
   STARTERS,
   addStep,
   build,
   complete,
   fieldsOf,
+  fileOf,
+  files,
   followsModel,
   linesOf,
   pathTo,
   removeStep,
   restore,
   rootOf,
-  script,
   sequence,
   stepOf,
 } from "./console-map-model.js";
@@ -32,14 +35,30 @@ const el = (tag, className, text) => {
   return node;
 };
 
-export function mountMap({ steps, links, canvas, starter, library, run }) {
+export function mountMap({
+  steps,
+  links,
+  canvas,
+  starter,
+  code,
+  names,
+  library,
+  uploads,
+  run,
+  render,
+  colour,
+}) {
   let map = null,
     focused = null,
-    fresh = new Set();
+    fresh = new Set(),
+    shown = null,
+    busy = false,
+    known = [];
   // Cards show their command; the one being edited also shows its fields.
   const open = new Set(),
     cards = new Map(),
     states = new Map(),
+    results = new Map(),
     paths = new Map();
   try {
     map = restore(JSON.parse(localStorage.getItem(KEY)));
@@ -57,6 +76,7 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
 
   // ----- where each card sits -----
   function arrange() {
+    if (!cards.size || !steps.offsetParent) return;
     const height = (step) => cards.get(step.id).offsetHeight,
       children = (step) => map.steps.filter((s) => s.parent === step.id),
       span = (step) => {
@@ -122,6 +142,89 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     }
   }
 
+  // ----- the do-files the map writes, beside it -----
+  let written = new Map();
+  function write(changed) {
+    const before = written;
+    written = new Map();
+    code.textContent = "";
+    for (const file of files(map)) {
+      const block = el("div", "mapcode-file"),
+        listing = el("pre", "mapcode-lines");
+      block.append(el("h3", "mapcode-name", file.name));
+      if (!file.lines.length)
+        listing.append(el("span", "mapcode-empty", "(nothing yet)"));
+      file.lines.forEach((line, k) => {
+        const row = el("span", "mapcode-line"),
+          key = `${file.name}\n${k}`;
+        row.dataset.step = line.step;
+        row.append(colour(line.text));
+        written.set(key, line.text);
+        // A line that is new or different from a moment ago is marked.
+        if (changed && before.size && before.get(key) !== line.text)
+          row.classList.add("is-changed");
+        listing.append(row, "\n");
+      });
+      block.append(listing);
+      code.append(block);
+    }
+    if (shown !== null) point(shown, true);
+  }
+  /** Lights the lines a card wrote, and the card a line belongs to. */
+  function point(id, on) {
+    shown = on ? id : null;
+    for (const row of code.querySelectorAll(".mapcode-line"))
+      row.classList.toggle("is-linked", on && Number(row.dataset.step) === id);
+    for (const [key, item] of cards)
+      item.classList.toggle("is-linked", on && key === id);
+  }
+  code.addEventListener("click", (event) => {
+    const row = event.target.closest(".mapcode-line");
+    if (!row) return;
+    const id = Number(row.dataset.step),
+      item = cards.get(id);
+    if (!item) return;
+    point(id, true);
+    item.scrollIntoView({ block: "center", inline: "center" });
+    item.querySelector(".map-edit:not([hidden]), input, select")?.focus();
+  });
+
+  // ----- the variable names, to put in a field -----
+  function showNames(list) {
+    known = list;
+    names.textContent = "";
+    for (const name of list) {
+      const item = el("li"),
+        button = el("button", "map-name", name);
+      button.type = "button";
+      button.title = `Put ${name} in the field you last used`;
+      button.addEventListener("click", () => insert(name));
+      item.append(button);
+      names.append(item);
+    }
+    if (!list.length)
+      names.append(el("li", "map-names-none", "run a step to see them"));
+  }
+  /** The names in the dataset the first step loads, before anything runs. */
+  function expected() {
+    const dataset = rootOf(map).fields.dataset ?? "";
+    return library[dataset]?.data.columns.map((column) => column.name) ?? [];
+  }
+  function insert(name) {
+    const step = focused && stepOf(map, focused.id),
+      control = step
+        ? cards.get(step.id)?.querySelector(`[data-field="${focused.field}"]`)
+        : null;
+    if (!control || control.options || control.closest("[hidden]"))
+      return false;
+    const before = control.value;
+    control.value =
+      before && !/[\s(=]$/.test(before) ? `${before} ${name}` : before + name;
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.focus();
+    return true;
+  }
+
   // ----- one card -----
   function describe(step) {
     const position = sequence(map)
@@ -131,14 +234,20 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
   }
   function refresh(step) {
     const card = cards.get(step.id),
-      lines = linesOf(step);
+      kind = KINDS[step.kind],
+      lines = kind.file
+        ? complete(step)
+          ? [`do "${kind.file(step.fields)}"`]
+          : []
+        : linesOf(step);
     card.querySelector(".map-code").textContent = lines.length
       ? lines.join("\n")
       : "Fill in the fields above.";
     card.dataset.complete = String(complete(step));
-    card.shut();
     card.querySelector(".map-run").disabled = busy || !complete(step);
+    card.shut();
     diagram(step, card);
+    outcome(step, card);
   }
   // A model is also drawn as its variables with arrows to the outcome.
   function diagram(step, card) {
@@ -146,7 +255,7 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     if (!holder) return;
     holder.textContent = "";
     const fields = step.fields,
-      outcome = String(fields.outcome ?? "").trim(),
+      target = String(fields.outcome ?? "").trim(),
       endogenous =
         fields.command === "ivregress 2sls"
           ? String(fields.extra ?? "").split("=")[0]
@@ -156,7 +265,7 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
         .split(/\s+/)
         .filter(Boolean)
         .slice(0, 8);
-    holder.hidden = !outcome || !terms.length;
+    holder.hidden = !target || !terms.length;
     if (holder.hidden) return;
     const from = el("span", "map-from");
     for (const term of terms) {
@@ -171,8 +280,52 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     holder.append(
       from,
       el("span", "map-arrow"),
-      el("span", "map-pill map-outcome", outcome),
+      el("span", "map-pill map-outcome", target),
     );
+  }
+  // What the step printed when it last ran: an error on the card itself,
+  // and the whole output behind a button.
+  function outcome(step, card) {
+    const result = results.get(step.id),
+      peek = card.querySelector(".map-peek"),
+      problem = card.querySelector(".map-problem");
+    problem.hidden = !result?.rc;
+    problem.textContent = result?.rc
+      ? result.records
+          .at(-1)
+          .lines.filter((line) => line.trim())
+          .slice(0, 3)
+          .join(" ")
+      : "";
+    peek.hidden = !result || !result.records.length;
+  }
+  function closeOutput() {
+    for (const panel of steps.querySelectorAll(".map-output")) panel.remove();
+    for (const button of steps.querySelectorAll(".map-peek"))
+      button.setAttribute("aria-expanded", "false");
+  }
+  function openOutput(step, card, button) {
+    const already = card.querySelector(".map-output");
+    closeOutput();
+    if (already) return;
+    const result = results.get(step.id);
+    if (!result) return;
+    const panel = el("div", "map-output"),
+      close = el("button", "map-output-close", "Close"),
+      log = el("pre", "map-output-log");
+    close.type = "button";
+    close.addEventListener("click", () => {
+      closeOutput();
+      button.focus();
+    });
+    panel.tabIndex = 0;
+    panel.setAttribute("role", "group");
+    panel.setAttribute("aria-label", `What ${describe(step)} printed`);
+    for (const record of result.records) log.append(render(record));
+    panel.append(close, log);
+    card.append(panel);
+    button.setAttribute("aria-expanded", "true");
+    panel.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
   function card(step) {
     const kind = KINDS[step.kind],
@@ -186,10 +339,10 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     const edit = el("button", "map-edit"),
       form = el("div", "map-fields"),
       shut = () => {
-        const shown = open.has(step.id) || !complete(step);
-        form.hidden = !shown;
-        edit.textContent = shown ? "Done" : "Edit";
-        edit.setAttribute("aria-expanded", String(shown));
+        const visible = open.has(step.id) || !complete(step);
+        form.hidden = !visible;
+        edit.textContent = visible ? "Done" : "Edit";
+        edit.setAttribute("aria-expanded", String(visible));
         edit.hidden = !complete(step);
       };
     edit.type = "button";
@@ -218,6 +371,9 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     }
     item.append(head);
     drag(head, step, item);
+    item.addEventListener("pointerenter", () => point(step.id, true));
+    item.addEventListener("pointerleave", () => point(step.id, false));
+    item.addEventListener("focusin", () => point(step.id, true));
 
     for (const field of fieldsOf(step)) {
       const wrap = el("label", "map-field"),
@@ -226,8 +382,22 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
       if (field.type === "dataset") {
         control = el("select");
         control.append(new Option("no data (start empty)", ""));
+        const site = el("optgroup");
+        site.label = "This site's datasets";
         for (const entry of Object.values(library))
-          control.append(new Option(`${entry.id}: ${entry.title}`, entry.id));
+          site.append(new Option(`${entry.id}: ${entry.title}`, entry.id));
+        control.append(site);
+        const own = uploads().filter((name) => !/\.do$/i.test(name));
+        // A file named by a saved map is offered even before it is added
+        // again, so that the choice is not silently changed.
+        const wanted = fileOf(step.fields.dataset ?? "");
+        if (wanted && !own.includes(wanted)) own.push(wanted);
+        if (own.length) {
+          const mine = el("optgroup");
+          mine.label = "Your files";
+          for (const name of own) mine.append(new Option(name, `file:${name}`));
+          control.append(mine);
+        }
       } else if (field.options) {
         control = el("select");
         for (const option of field.options) control.append(new Option(option));
@@ -253,12 +423,16 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
         step.fields[field.id] = control.value;
         open.add(step.id);
         delete step.estimates;
+        results.delete(step.id);
         save();
         // A choice can change which fields apply, so the map is drawn again.
-        if (control.options) draw({ id: step.id, field: field.id });
-        else {
+        if (control.options) {
+          draw({ id: step.id, field: field.id }, true);
+          if (field.type === "dataset") showNames(expected());
+        } else {
           refresh(step);
           arrange();
+          write(true);
         }
       });
       wrap.append(caption, control);
@@ -267,18 +441,31 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     item.append(form);
     if (kind.model) item.append(el("div", "map-paths"));
     item.append(el("code", "map-code"));
+    const problem = el("p", "map-problem");
+    problem.hidden = true;
+    item.append(problem);
 
     const foot = el("div", "map-foot"),
       go = el("button", "map-run", "Run to here"),
+      peek = el("button", "map-peek", "Result"),
       more = el("select", "map-add");
     go.type = "button";
     go.addEventListener("click", () => start(pathTo(map, step.id)));
+    peek.type = "button";
+    peek.hidden = true;
+    peek.setAttribute("aria-expanded", "false");
+    peek.addEventListener("click", () => openOutput(step, item, peek));
     more.setAttribute("aria-label", `Add a step after ${label}`);
-    more.append(new Option("Add a step after…", ""));
-    for (const [id, next] of Object.entries(KINDS)) {
-      if (id === "data") continue;
-      if (next.needsModel && !followsModel(map, step.id)) continue;
-      more.append(new Option(next.title, id));
+    more.append(new Option("Add a step…", ""));
+    for (const group of GROUPS) {
+      const section = el("optgroup");
+      section.label = group;
+      for (const [id, next] of Object.entries(KINDS)) {
+        if (id === "data" || next.group !== group) continue;
+        if (next.needsModel && !followsModel(map, step.id)) continue;
+        section.append(new Option(`${next.title}: ${next.hint}`, id));
+      }
+      if (section.children.length) more.append(section);
     }
     more.addEventListener("change", () => {
       if (!more.value) return;
@@ -286,9 +473,9 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
       fresh = new Set([added.id]);
       open.add(added.id);
       save();
-      draw({ id: added.id });
+      draw({ id: added.id }, true);
     });
-    foot.append(go, more);
+    foot.append(go, peek, more);
     item.append(foot);
     return item;
   }
@@ -328,7 +515,7 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
   }
 
   // ----- the whole map -----
-  function draw(focus) {
+  function draw(focus, changed = false) {
     steps.textContent = "";
     links.textContent = "";
     cards.clear();
@@ -359,6 +546,8 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
       }, 700);
     fresh = new Set();
     arrange();
+    write(changed);
+    if (!known.length) showNames(expected());
     if (focus) {
       const target = cards
         .get(focus.id)
@@ -368,26 +557,40 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
       target?.focus({ preventScroll: false });
     }
   }
-  function mark(id, state) {
+  function mark(id, state, result) {
     states.set(id, state);
+    if (result) {
+      // Guard commands (preserve, restore) share the card of their branch.
+      const before = results.get(id);
+      results.set(id, {
+        rc: result.rc,
+        records: [...(before?.records ?? []), ...result.output],
+      });
+    }
     const item = cards.get(id);
-    if (item) item.dataset.state = state;
+    if (item) {
+      item.dataset.state = state;
+      const step = stepOf(map, id);
+      if (step) outcome(step, item);
+    }
     const path = paths.get(id);
     if (path) path.dataset.state = state;
     if (state === "running")
       item?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
-  let busy = false;
   async function start(entries) {
     if (busy) return;
+    closeOutput();
     states.clear();
+    results.clear();
     for (const step of map.steps) mark(step.id, "");
     await run(
       entries.filter((entry) => entry.lines.length),
       mark,
     );
+    arrange();
   }
-  window.addEventListener("resize", () => cards.size && arrange());
+  window.addEventListener("resize", arrange);
 
   for (const entry of STARTERS)
     starter.append(new Option(entry.title, entry.id));
@@ -397,15 +600,21 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
     if (!chosen) return;
     map = build(chosen.tree);
     states.clear();
+    results.clear();
     open.clear();
     fresh = new Set(map.steps.map((step) => step.id));
     save();
+    showNames(expected());
     draw();
   });
 
   return {
     draw,
-    script: () => script(map),
+    files: () =>
+      files(map).map((file) => ({
+        name: file.name,
+        text: file.lines.map((line) => line.text).join("\n") + "\n",
+      })),
     runAll: () => start(sequence(map)),
     tidy() {
       for (const step of map.steps) {
@@ -422,6 +631,7 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
         if (button) button.disabled = running || !complete(step);
       }
     },
+    setNames: (list) => showNames(list.length ? list : expected()),
     /** The plain variable names of a model step, for reading coefficients. */
     termsOf(id) {
       const step = stepOf(map, id);
@@ -446,19 +656,16 @@ export function mountMap({ steps, links, canvas, starter, library, run }) {
         arrange();
       }
     },
-    /** Puts a variable name in the field last used; false when none was. */
-    insert(name) {
-      const step = focused && stepOf(map, focused.id),
-        control = step
-          ? cards.get(step.id)?.querySelector(`[data-field="${focused.field}"]`)
-          : null;
-      if (!control || control.options) return false;
-      const before = control.value;
-      control.value =
-        before && !/\s$/.test(before) ? `${before} ${name}` : before + name;
-      control.dispatchEvent(new Event("input", { bubbles: true }));
-      control.focus();
-      return true;
+    /** Starts the map again from one of the student's files. */
+    startFrom(name) {
+      map = build(["data", { dataset: `file:${name}` }]);
+      states.clear();
+      results.clear();
+      open.clear();
+      save();
+      known = [];
+      draw();
     },
+    insert,
   };
 }

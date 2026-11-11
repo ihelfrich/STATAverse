@@ -289,3 +289,24 @@ await fs.writeFile(
     2,
   ) + "\n",
 );
+
+// The Console's page names its script and stylesheet with a stamp of their
+// contents, so a browser can never pair a new page with an older script it
+// has kept. The script passes the same stamp on to its worker.
+{
+  const { createHash } = await import("node:crypto");
+  const stamp = createHash("sha256");
+  for (const file of [
+    "assets/js/console.js",
+    "assets/js/console-worker.js",
+    "assets/css/console.css",
+  ])
+    stamp.update(await fs.readFile(file));
+  const version = stamp.digest("hex").slice(0, 10),
+    page = await fs.readFile("Console/index.html", "utf8"),
+    stamped = page.replace(
+      /(assets\/(?:js\/console\.js|css\/console\.css))(?:\?v=[0-9a-f]+)?"/g,
+      `$1?v=${version}"`,
+    );
+  if (stamped !== page) await fs.writeFile("Console/index.html", stamped);
+}

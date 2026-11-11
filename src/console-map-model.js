@@ -35,16 +35,41 @@ const EXTRA = {
   areg: { label: "Absorb the groups of", placeholder: "school" },
 };
 
+/** The file name behind a dataset choice that is one of the student's files. */
+export const fileOf = (dataset) =>
+  dataset.startsWith("file:") ? dataset.slice(5) : "";
+/** The command that loads a dataset choice: a site dataset or an added file. */
+function loadLine(dataset) {
+  const file = fileOf(dataset);
+  if (!dataset) return "clear";
+  if (!file) return `sysuse ${dataset}, clear`;
+  return /\.dta$/i.test(file)
+    ? `use "${file}", clear`
+    : `import delimited using "${file}", clear`;
+}
+/** A do-file name made from what was typed: letters, digits, _ and -. */
+export const doName = (typed) =>
+  (text(typed)
+    .replace(/\.do$/i, "")
+    .replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "part") + ".do";
+
+// The groups the "add a step" menu shows, in order.
+export const GROUPS = ["Data", "Look", "Model", "Organise"];
+
 export const KINDS = {
   data: {
     title: "Load data",
+    group: "Data",
+    hint: "Load one of the site's datasets or a file you added",
     changes: true,
     fields: [{ id: "dataset", label: "Dataset", type: "dataset" }],
-    lines: (f) =>
-      text(f.dataset) ? [`sysuse ${text(f.dataset)}, clear`] : ["clear"],
+    lines: (f) => [loadLine(text(f.dataset))],
   },
   keep: {
     title: "Keep some rows",
+    group: "Data",
+    hint: "Drop the rows that do not meet a condition",
     changes: true,
     fields: [
       {
@@ -58,6 +83,8 @@ export const KINDS = {
   },
   generate: {
     title: "New variable",
+    group: "Data",
+    hint: "Make a variable from an expression",
     changes: true,
     fields: [
       { id: "name", label: "Name", placeholder: "lwage", required: true },
@@ -72,6 +99,8 @@ export const KINDS = {
   },
   look: {
     title: "Look at the data",
+    group: "Look",
+    hint: "summarize, describe, tabulate, list or correlate",
     fields: [
       {
         id: "how",
@@ -102,6 +131,8 @@ export const KINDS = {
   },
   graph: {
     title: "Graph",
+    group: "Look",
+    hint: "A scatter, line, histogram or density",
     fields: [
       { id: "how", label: "Kind", options: Object.keys(GRAPHS) },
       {
@@ -124,6 +155,8 @@ export const KINDS = {
   },
   model: {
     title: "Model",
+    group: "Model",
+    hint: "regress, logit, ivregress, xtreg and others",
     model: true,
     fields: [
       {
@@ -190,6 +223,8 @@ export const KINDS = {
   },
   after: {
     title: "After the model",
+    group: "Model",
+    hint: "margins, test, predict and estat, for the model before it",
     needsModel: true,
     fields: [
       {
@@ -234,6 +269,8 @@ export const KINDS = {
   },
   command: {
     title: "Any commands",
+    group: "Organise",
+    hint: "Type any Stata commands yourself",
     changes: true,
     fields: [
       {
@@ -250,8 +287,26 @@ export const KINDS = {
         .map((line) => line.replace(/\s+$/, ""))
         .filter((line) => line.trim()),
   },
+  file: {
+    title: "Start a do-file",
+    group: "Organise",
+    hint: "The steps after this go in a file of their own, run from here with do",
+    fields: [
+      {
+        id: "name",
+        label: "File name",
+        placeholder: "analysis",
+        required: true,
+      },
+    ],
+    // The steps after this one are written to that file; this file runs it.
+    lines: () => [],
+    file: (f) => doName(f.name),
+  },
   note: {
     title: "Note",
+    group: "Organise",
+    hint: "A comment line that says why a step is there",
     fields: [
       {
         id: "text",
@@ -345,19 +400,33 @@ function changes(map, step) {
  */
 export function sequence(map) {
   const out = [];
-  const walk = (step) => {
+  const walk = (step, depth) => {
     out.push({ id: step.id, lines: linesOf(step), skipped: !complete(step) });
     const children = childrenOf(map, step.id);
     children.forEach((child, k) => {
-      const guard = k < children.length - 1 && changes(map, child);
-      if (guard) out.push({ id: child.id, lines: ["preserve"], guard: true });
-      walk(child);
-      if (guard) out.push({ id: child.id, lines: ["restore"], guard: true });
+      const guard = k < children.length - 1 && changes(map, child),
+        [before, after] = guard ? guardLines(child, depth) : [];
+      if (guard) out.push({ id: child.id, lines: [before], guard: true });
+      walk(child, depth + (guard ? 1 : 0));
+      if (guard) out.push({ id: child.id, lines: [after], guard: true });
     });
   };
   const root = rootOf(map);
-  if (root) walk(root);
+  if (root) walk(root, 0);
   return out;
+}
+/**
+ * The two commands that keep the data for the branches after one. Stata
+ * holds one preserved copy at a time, so a branch inside a preserved branch
+ * keeps its copy in a file of its own.
+ */
+function guardLines(child, depth) {
+  return depth
+    ? [
+        `save "_branch_${child.id}", replace`,
+        `use "_branch_${child.id}", clear`,
+      ]
+    : ["preserve", "restore"];
 }
 /** The steps from the first one down to a step: what "run to here" runs. */
 export function pathTo(map, id) {
@@ -370,6 +439,45 @@ export function pathTo(map, id) {
     });
   return path;
 }
+/**
+ * The do-files a map stands for: main.do, and one more for each "Start a
+ * do-file" step. Every line carries the step it came from, so the page can
+ * show which card wrote it.
+ */
+export function files(map) {
+  const out = [{ name: "main.do", lines: [] }],
+    taken = new Set(["main.do"]);
+  const walk = (step, file, depth) => {
+    const kind = KINDS[step.kind],
+      add = (text) => file.lines.push({ text, step: step.id });
+    let below = file;
+    if (!complete(step)) add(`* (the step "${kind.title}" is not filled in)`);
+    else if (kind.file) {
+      let name = kind.file(step.fields);
+      for (let k = 2; taken.has(name); k++)
+        name = name.replace(/(_\d+)?\.do$/, `_${k}.do`);
+      taken.add(name);
+      below = { name, lines: [] };
+      out.push(below);
+      add(`do "${name}"`);
+    } else {
+      if (step.kind === "note" && file.lines.length) add("");
+      for (const line of kind.lines(step.fields)) add(line);
+    }
+    const children = childrenOf(map, step.id);
+    children.forEach((child, k) => {
+      const guard = k < children.length - 1 && changes(map, child),
+        [before, after] = guard ? guardLines(child, depth) : [];
+      if (guard) below.lines.push({ text: before, step: child.id });
+      walk(child, below, depth + (guard ? 1 : 0));
+      if (guard) below.lines.push({ text: after, step: child.id });
+    });
+  };
+  const root = rootOf(map);
+  if (root) walk(root, out[0], 0);
+  return out;
+}
+
 /** The do-file a map stands for, with each step's title as a comment. */
 export function script(map) {
   const out = [];
