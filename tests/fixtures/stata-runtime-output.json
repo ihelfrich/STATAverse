@@ -9803,6 +9803,715 @@
       ]
     },
     {
+      "id": "margins-more",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate int cnt = n\nreplace cnt = 14 in 3\nreplace cnt = 0 in 12\nreplace cnt = 21 in 17\ngenerate byte cat = 1 + (z > 2) + (z > 5)\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate t = _n\nquietly tobit z x1 x2, ll(2)\nmargins\nmargins, dydx(*)\nmargins, at(x1=(2 6))\nquietly nbreg cnt x1 x2\nmargins\nmargins, dydx(x1)\nquietly glm d x1 x2, family(binomial)\nmargins\nmargins, dydx(*)\nquietly glm n x1 x2, family(poisson)\nmargins, dydx(x1) atmeans\nquietly glm z x1 x2\nmargins, dydx(*)\nquietly glm d x1 x2, family(binomial) link(probit)\nmargins, dydx(x1)\nquietly cloglog d x1 x2\nmargins\nmargins, dydx(*)\nquietly qreg z x1 x2\nmargins, dydx(*)\nquietly areg z x1 x2, absorb(grp)\nmargins, dydx(*)\ntsset t\nquietly newey z x1 x2, lag(1)\nmargins, dydx(*)\nquietly prais z x1 x2\nmargins, dydx(*)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate int cnt = n", "lines": [] },
+        {
+          "command": "replace cnt = 14 in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace cnt = 0 in 12",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace cnt = 21 in 17",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate byte cat = 1 + (z > 2) + (z > 5)", "lines": [] },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "quietly tobit z x1 x2, ll(2)", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   3.712174   .1617667    22.95   0.000     3.372314    4.052033",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3097874   .0601081     5.15   0.000     .1835051    .4360698",
+            "          x2 |   1.814403   .1713772    10.59   0.000     1.454353    2.174453",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(x1=(2 6))",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: x1 = 2",
+            "2._at: x1 = 6",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         _at |",
+            "          1  |   2.779713   .2657698    10.46   0.000     2.221352    3.338075",
+            "          2  |   4.018863   .1607828    25.00   0.000     3.681071    4.356655",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly nbreg cnt x1 x2", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    5.65841   1.006169     5.62   0.000     3.686354    7.630465",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events, predict()",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |     1.0972   .4705234     2.33   0.020      .174991    2.019409",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly glm d x1 x2, family(binomial)", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean d, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |         .6   .0890311     6.74   0.000     .4255023    .7744977",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean d, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1008571   .0212701     4.74   0.000     .0591684    .1425458",
+            "          x2 |   .0410974   .0852069     0.48   0.630     -.125905    .2080998",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly glm n x1 x2, family(poisson)", "lines": [] },
+        {
+          "command": "margins, dydx(x1) atmeans",
+          "lines": [
+            "Conditional marginal effects                                Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean n, predict()",
+            "dy/dx wrt:  x1",
+            "At: x1 =  5.01 (mean)",
+            "    x2 = 2.175 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.003271   .1438985     6.97   0.000     .7212348    1.285306",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly glm z x1 x2", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean z, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736   .0551513     5.03   0.000      .169279    .3854682",
+            "          x2 |   1.600971   .1348304    11.87   0.000     1.336708    1.865234",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly glm d x1 x2, family(binomial) link(probit)",
+          "lines": []
+        },
+        {
+          "command": "margins, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean d, predict()",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1021988   .0215253     4.75   0.000       .06001    .1443875",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly cloglog d x1 x2", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(d), predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .6023886   .0875157     6.88   0.000      .430861    .7739162",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(d), predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .0977643   .0201168     4.86   0.000     .0583361    .1371925",
+            "          x2 |   .0787965   .0913892     0.86   0.389    -.1003231    .2579162",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly qreg z x1 x2", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: IID",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3185841    .076073     4.19   0.000     .1694837    .4676845",
+            "          x2 |   1.557522   .1859786     8.37   0.000     1.193011    1.922033",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly areg z x1 x2, absorb(grp)", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2810573   .0487961     5.76   0.000     .1770508    .3850638",
+            "          x2 |   1.486166   .1271926    11.68   0.000     1.215061     1.75727",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 20", "        Delta: 1 unit"]
+        },
+        { "command": "quietly newey z x1 x2, lag(1)", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: Newey–West",
+            "",
+            "Expression: Fitted values, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2773736   .0486208     5.70   0.000     .1820786    .3726686",
+            "          x2 |   1.600971   .1419109    11.28   0.000     1.322831    1.879111",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly prais z x1 x2", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .2745935   .0430825     6.37   0.000     .1901534    .3590337",
+            "          x2 |   1.632264   .1521581    10.73   0.000      1.33404    1.930489",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "margins-outcomes",
+      "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate int cnt = n\nreplace cnt = 14 in 3\nreplace cnt = 0 in 12\nreplace cnt = 21 in 17\ngenerate byte cat = 1 + (z > 2) + (z > 5)\ngenerate byte grp = 1 + mod(_n, 3)\ngenerate t = _n\nquietly ologit cat x1 x2\nmargins\nmargins, dydx(x1)\nmargins, dydx(*)\nmargins, predict(outcome(2))\nmargins, dydx(x1) predict(outcome(3))\nmargins, atmeans\nmargins, dydx(x2) atmeans predict(outcome(1))\nmargins, level(90) predict(outcome(3))\nquietly oprobit cat x1 x2\nmargins\nmargins, dydx(*) atmeans\nquietly mlogit grp x1 x2\nmargins\nmargins, dydx(*)\nmargins, dydx(x1) predict(outcome(1))\nmargins, atmeans predict(outcome(3))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte d double x1 double x2 byte n double z",
+          "lines": [
+            "            d          x1          x2         n           z",
+            "  1. 0 1.0 2.1 0 3",
+            "  2. 0 1.5 1.2 1 1",
+            "  3. 0 2.0 3.3 0 4",
+            "  4. 1 2.2 0.9 2 2",
+            "  5. 0 2.9 2.8 1 5",
+            "  6. 0 3.1 1.1 3 2",
+            "  7. 1 3.4 3.9 2 6",
+            "  8. 0 4.0 2.0 4 3",
+            "  9. 1 4.2 0.7 3 1",
+            " 10. 1 4.8 3.1 5 5",
+            " 11. 0 5.1 1.9 2 4",
+            " 12. 1 5.5 2.6 6 4",
+            " 13. 1 6.0 0.8 4 2",
+            " 14. 1 6.3 3.5 7 7",
+            " 15. 0 6.9 1.4 5 2",
+            " 16. 1 7.2 2.2 9 5",
+            " 17. 1 7.8 3.0 6 6",
+            " 18. 1 8.1 1.0 8 3",
+            " 19. 1 8.8 2.4 11 5",
+            " 20. 1 9.4 3.6 10 8",
+            " 21. end"
+          ]
+        },
+        { "command": "generate int cnt = n", "lines": [] },
+        {
+          "command": "replace cnt = 14 in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace cnt = 0 in 12",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace cnt = 21 in 17",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate byte cat = 1 + (z > 2) + (z > 5)", "lines": [] },
+        { "command": "generate byte grp = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "quietly ologit cat x1 x2", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(cat==1), predict(pr outcome(1))",
+            "2._predict: Pr(cat==2), predict(pr outcome(2))",
+            "3._predict: Pr(cat==3), predict(pr outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    _predict |",
+            "          1  |   .2999999   .0394018     7.61   0.000     .2227737    .3772261",
+            "          2  |   .5000002   .0531908     9.40   0.000      .395748    .6042523",
+            "          3  |   .1999999    .035732     5.60   0.000     .1299666    .2700333",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "dy/dx wrt: x1",
+            "",
+            "1._predict: Pr(cat==1), predict(pr outcome(1))",
+            "2._predict: Pr(cat==2), predict(pr outcome(2))",
+            "3._predict: Pr(cat==3), predict(pr outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "x1           |",
+            "    _predict |",
+            "          1  |  -.0340858   .0227156    -1.50   0.133    -.0786075     .010436",
+            "          2  |   .0060538   .0227404     0.27   0.790    -.0385165    .0506241",
+            "          3  |   .0280319     .00744     3.77   0.000     .0134497    .0426142",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "dy/dx wrt: x1 x2",
+            "",
+            "1._predict: Pr(cat==1), predict(pr outcome(1))",
+            "2._predict: Pr(cat==2), predict(pr outcome(2))",
+            "3._predict: Pr(cat==3), predict(pr outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "x1           |",
+            "    _predict |",
+            "          1  |  -.0340858   .0227156    -1.50   0.133    -.0786075     .010436",
+            "          2  |   .0060538   .0227404     0.27   0.790    -.0385165    .0506241",
+            "          3  |   .0280319     .00744     3.77   0.000     .0134497    .0426142",
+            "-------------+----------------------------------------------------------------",
+            "x2           |",
+            "    _predict |",
+            "          1  |  -.2626227   .1134872    -2.31   0.021    -.4850535   -.0401919",
+            "          2  |   .0466432   .1647138     0.28   0.777    -.2761899    .3694763",
+            "          3  |   .2159795   .0721545     2.99   0.003     .0745594    .3573997",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(outcome(2))",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(cat==2), predict(outcome(2))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .5000002   .0531908     9.40   0.000      .395748    .6042523",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x1) predict(outcome(3))",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(cat==3), predict(outcome(3))",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .0280319     .00744     3.77   0.000     .0134497    .0426142",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, atmeans",
+          "lines": [
+            "Adjusted predictions                                        Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(cat==1), predict(pr outcome(1))",
+            "2._predict: Pr(cat==2), predict(pr outcome(2))",
+            "3._predict: Pr(cat==3), predict(pr outcome(3))",
+            "",
+            "At: x1 =  5.01 (mean)",
+            "    x2 = 2.175 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    _predict |",
+            "          1  |   .0020349     .00627     0.32   0.746    -.0102541    .0143238",
+            "          2  |   .9978436    .006759   147.63   0.000     .9845962    1.011091",
+            "          3  |   .0001215   .0005608     0.22   0.828    -.0009776    .0012206",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x2) atmeans predict(outcome(1))",
+          "lines": [
+            "Conditional marginal effects                                Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(cat==1), predict(outcome(1))",
+            "dy/dx wrt:  x2",
+            "At: x1 =  5.01 (mean)",
+            "    x2 = 2.175 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x2 |  -.0171758   .0450253    -0.38   0.703    -.1054239    .0710722",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, level(90) predict(outcome(3))",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(cat==3), predict(outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .1999999    .035732     5.60   0.000     .1412261    .2587738",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly oprobit cat x1 x2", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(cat==1), predict(pr outcome(1))",
+            "2._predict: Pr(cat==2), predict(pr outcome(2))",
+            "3._predict: Pr(cat==3), predict(pr outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    _predict |",
+            "          1  |   .3030649   .0362822     8.35   0.000     .2319531    .3741768",
+            "          2  |   .4982007   .0522244     9.54   0.000     .3958428    .6005586",
+            "          3  |   .1987344   .0374551     5.31   0.000     .1253238    .2721449",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*) atmeans",
+          "lines": [
+            "Conditional marginal effects                                Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "dy/dx wrt: x1 x2",
+            "",
+            "1._predict: Pr(cat==1), predict(pr outcome(1))",
+            "2._predict: Pr(cat==2), predict(pr outcome(2))",
+            "3._predict: Pr(cat==3), predict(pr outcome(3))",
+            "",
+            "At: x1 =  5.01 (mean)",
+            "    x2 = 2.175 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "x1           |",
+            "    _predict |",
+            "          1  |  -.0004845    .002621    -0.18   0.853    -.0056215    .0046525",
+            "          2  |   .0004842   .0026175     0.18   0.853    -.0046461    .0056145",
+            "          3  |   3.20e-07   4.16e-06     0.08   0.939    -7.84e-06    8.48e-06",
+            "-------------+----------------------------------------------------------------",
+            "x2           |",
+            "    _predict |",
+            "          1  |  -.0038096   .0204838    -0.19   0.852    -.0439573     .036338",
+            "          2  |   .0038071   .0204566     0.19   0.852    -.0362871    .0439013",
+            "          3  |   2.52e-06   .0000328     0.08   0.939    -.0000618    .0000668",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly mlogit grp x1 x2", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                          Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(grp==1), predict(pr outcome(1))",
+            "2._predict: Pr(grp==2), predict(pr outcome(2))",
+            "3._predict: Pr(grp==3), predict(pr outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    _predict |",
+            "          1  |         .3    .096844     3.10   0.002     .1101893    .4898107",
+            "          2  |        .35   .1062301     3.29   0.001     .1417929    .5582071",
+            "          3  |        .35   .1019692     3.43   0.001     .1501441    .5498559",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "dy/dx wrt: x1 x2",
+            "",
+            "1._predict: Pr(grp==1), predict(pr outcome(1))",
+            "2._predict: Pr(grp==2), predict(pr outcome(2))",
+            "3._predict: Pr(grp==3), predict(pr outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "x1           |",
+            "    _predict |",
+            "          1  |   .0085019    .040574     0.21   0.834    -.0710217    .0880255",
+            "          2  |  -.0151617   .0436571    -0.35   0.728    -.1007281    .0704047",
+            "          3  |   .0066599   .0415809     0.16   0.873    -.0748372    .0881569",
+            "-------------+----------------------------------------------------------------",
+            "x2           |",
+            "    _predict |",
+            "          1  |  -.1463829   .0878839    -1.67   0.096    -.3186322    .0258663",
+            "          2  |   .0166137   .1012533     0.16   0.870    -.1818391    .2150664",
+            "          3  |   .1297693   .0903057     1.44   0.151    -.0472266    .3067652",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x1) predict(outcome(1))",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(grp==1), predict(outcome(1))",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .0085019    .040574     0.21   0.834    -.0710217    .0880255",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, atmeans predict(outcome(3))",
+          "lines": [
+            "Adjusted predictions                                        Number of obs = 20",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(grp==3), predict(outcome(3))",
+            "At: x1 =  5.01 (mean)",
+            "    x2 = 2.175 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .3455086   .1145038     3.02   0.003     .1210853    .5699319",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

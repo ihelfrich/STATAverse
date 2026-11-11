@@ -97,6 +97,8 @@ for (const c of fixture.cases)
             "more-postestimation",
             "count-quantile",
             "glm-models",
+            "margins-more",
+            "margins-outcomes",
           ].includes(c.id),
         )
       )

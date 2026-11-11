@@ -218,7 +218,7 @@ function qreg(session, text, ctx) {
       df_m: k - 1,
       df_r: df,
       rank: k,
-      vce: "ols",
+      vce: "iid",
       kind: "qreg",
       sample,
     },

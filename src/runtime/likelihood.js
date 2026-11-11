@@ -418,6 +418,17 @@ function ordered(kind) {
         kind,
         sample: f.sample,
         cuts: full.theta.slice(k),
+        // What margins needs: every parameter and the covariates' values.
+        outcomeModel: f.active.every((c) => c.term.variable)
+          ? {
+              theta: full.theta,
+              V: full.V,
+              k,
+              cuts,
+              outcomes: levels,
+              variables: f.active.map((c) => c.term.variable),
+            }
+          : null,
       };
     session.estimates = model;
     session.results.e = {
@@ -570,6 +581,17 @@ function mlogit(session, text, ctx) {
       vce: "oim",
       kind: "mlogit",
       sample: f.sample,
+      outcomeModel: f.active.every((c) => c.term.variable)
+        ? {
+            theta: full.theta,
+            V: full.V,
+            k,
+            constant,
+            others,
+            outcomes,
+            variables: f.active.map((c) => c.term.variable),
+          }
+        : null,
     };
   session.estimates = model;
   session.results.e = {
