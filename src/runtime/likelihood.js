@@ -580,6 +580,9 @@ function mlogit(session, text, ctx) {
       ll_0: ll0,
       vce: "oim",
       kind: "mlogit",
+      // Every outcome's equation name in order, and which one is the base.
+      equations: outcomes.map((_, j) => String(label(j))),
+      baseEquation: base,
       sample: f.sample,
       outcomeModel: f.active.every((c) => c.term.variable)
         ? {

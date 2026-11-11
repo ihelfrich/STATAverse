@@ -82,6 +82,12 @@ function tokenize(source) {
     } else if ((m = /^\.([a-z])?(?![A-Za-z_0-9.])/.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
       i += m[0].length;
+    } else if (
+      (m = /^\[\s*([^\]]+?)\s*\]\s*(_b|_se)\[\s*([^\]]+?)\s*\]/.exec(rest))
+    ) {
+      // [eq]_b[x]: a coefficient of one equation of the last model.
+      push("coefficient", { kind: m[2], name: `${m[1]}:${m[3]}` }, i);
+      i += m[0].length;
     } else if ((m = /^(_b|_se)\[\s*([^\]]+?)\s*\]/.exec(rest))) {
       // _b[x] and _se[x]: a coefficient of the last model and its error.
       push("coefficient", { kind: m[1], name: m[2] }, i);

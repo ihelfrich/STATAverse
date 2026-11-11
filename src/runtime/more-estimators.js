@@ -81,9 +81,110 @@ function unadjusted(model, what) {
     );
 }
 
+// ----- after ivregress gmm -----
+const withConstant = (columns, n) =>
+  Array.from({ length: n }, (_, i) => [...columns.map((c) => c[i]), 1]);
+const crossProduct = (A, B) =>
+  A[0].map((_, a) =>
+    B[0].map((_, c) => A.reduce((t, row, i) => t + row[a] * B[i][c], 0)),
+  );
+const times = (A, B) =>
+  A.map((row) =>
+    B[0].map((_, c) => row.reduce((t, v, k) => t + v * B[k][c], 0)),
+  );
+const apply = (A, v) =>
+  A.map((row) => row.reduce((t, w, k) => t + w * v[k], 0));
+const transpose = (A) => A[0].map((_, c) => A.map((row) => row[c]));
+/** The GMM estimate for a weight matrix, its residuals and J statistic. */
+function gmmWith(Z, X, y, W) {
+  const zx = crossProduct(Z, X),
+    zy = Z[0].map((_, a) => Z.reduce((t, row, i) => t + row[a] * y[i], 0)),
+    xzW = times(transpose(zx), W),
+    A = invertSymmetric(times(xzW, zx));
+  if (!A) throw new StataError("the model is not identified", 481);
+  const b = apply(A, apply(xzW, zy)),
+    residuals = y.map((v, i) => v - X[i].reduce((t, x, k) => t + x * b[k], 0)),
+    n = y.length,
+    moments = Z[0].map(
+      (_, a) => Z.reduce((t, row, i) => t + row[a] * residuals[i], 0) / n,
+    );
+  return { b, residuals, J: n * quadratic(moments, W) };
+}
+const momentCovariance = (Z, e) =>
+  Z[0].map((_, a) =>
+    Z[0].map(
+      (_, c) =>
+        Z.reduce((t, row, i) => t + e[i] * e[i] * row[a] * row[c], 0) /
+        Z.length,
+    ),
+  );
+const robustGmm = (model, what) => {
+  if (!(model.iv.estimator === "gmm" && model.iv.robustWeights))
+    throw new StataError(
+      `estat ${what} after a robust ivregress is not available yet`,
+      198,
+    );
+};
+/** Hansen's J after ivregress gmm. */
+function overidGmm(session, model, ctx) {
+  robustGmm(model, "overid");
+  const f = ivFrame(session, model),
+    df = f.instruments.length - f.endogenous.length;
+  if (df < 1) {
+    ctx.out("no overidentifying restrictions");
+    throw new StataError("", 498);
+  }
+  const J = model.iv.J,
+    p = chi2tail(df, J);
+  ctx.out("");
+  ctx.out(`  Test of overidentifying restriction${df > 1 ? "s" : ""}:`);
+  ctx.out("");
+  ctx.out(`  Hansen's J chi2(${df}) = ${six(J)} (p = ${four(p)})`);
+  ctx.out("");
+  session.results.r = { J_df: df, p_HansenJ: p, HansenJ: J };
+}
+/**
+ * The C statistic after ivregress gmm: the J of the model that treats the
+ * endogenous regressors as exogenous, less the J of the model as fitted
+ * when both use the same moment covariance.
+ */
+function endogenousGmm(session, model, ctx) {
+  robustGmm(model, "endogenous");
+  const f = ivFrame(session, model),
+    X = withConstant([...f.endogenous, ...f.exogenous], f.n),
+    // The instruments as fitted come first, then the regressors on trial.
+    kept = [...f.exogenous, ...f.instruments],
+    Z = withConstant(kept, f.n),
+    wide = Z.map((row, i) => [...row, ...f.endogenous.map((c) => c[i])]),
+    first = gmmWith(wide, X, f.y, invertSymmetric(crossProduct(wide, wide))),
+    S = momentCovariance(wide, first.residuals),
+    W = invertSymmetric(S),
+    inner = invertSymmetric(Z[0].map((_, a) => Z[0].map((_, c) => S[a][c])));
+  if (!W || !inner) throw new StataError("the weight matrix is singular", 506);
+  const C = gmmWith(wide, X, f.y, W).J - gmmWith(Z, X, f.y, inner).J,
+    df = f.endogenous.length,
+    p = chi2tail(df, C);
+  ctx.out("");
+  ctx.out("  Test of endogeneity (orthogonality conditions)");
+  ctx.out("  H0: Variables are exogenous");
+  ctx.out("");
+  ctx.out(
+    `  GMM C statistic chi2(${df}) = ${six(C).padStart(8)}  (p = ${four(p)})`,
+  );
+  ctx.out("");
+  session.results.r = { p_C: p, C, df };
+}
+
 function firststage(session, model, ctx) {
-  unadjusted(model, "firststage");
   const f = ivFrame(session, model);
+  if (model.vce !== "unadjusted") {
+    if (model.iv.estimator === "liml")
+      throw new StataError(
+        "estat firststage after a robust ivregress liml is not available yet",
+        198,
+      );
+    return firststageRobust(f, ctx, session);
+  }
   if (f.endogenous.length > 1)
     throw new StataError(
       "estat firststage with more than one endogenous regressor is not available yet",
@@ -148,7 +249,66 @@ function firststage(session, model, ctx) {
   session.results.r = { mineig: F };
 }
 
+/** The summary table when the variance is robust: a robust F. */
+function firststageRobust(f, ctx, session) {
+  if (f.endogenous.length > 1)
+    throw new StataError(
+      "estat firststage with more than one endogenous regressor is not available yet",
+      198,
+    );
+  const y = f.endogenous[0],
+    full = project([...f.exogenous, ...f.instruments], y),
+    restricted = project(f.exogenous, y),
+    R = withConstant([...f.exogenous, ...f.instruments], f.n),
+    size = R[0].length,
+    df = f.n - size,
+    q = f.instruments.length,
+    bread = invertSymmetric(crossProduct(R, R)),
+    b = apply(
+      bread,
+      R[0].map((_, a) => R.reduce((t, row, i) => t + row[a] * y[i], 0)),
+    ),
+    e = y.map((v, i) => v - R[i].reduce((t, x, k) => t + x * b[k], 0)),
+    meat = momentCovariance(R, e).map((row) => row.map((v) => v * f.n)),
+    V = times(times(bread, meat), bread).map((row) =>
+      row.map((v) => (v * f.n) / df),
+    ),
+    at = f.instruments.map((_, k) => f.exogenous.length + k),
+    inverse = invertSymmetric(at.map((r) => at.map((c) => V[r][c])));
+  if (!inverse) throw new StataError("the instruments are collinear", 506);
+  const F =
+      quadratic(
+        at.map((k) => b[k]),
+        inverse,
+      ) / q,
+    p = Ftail(q, df, F),
+    r2 = full.ess / full.tss,
+    adjusted = 1 - full.rss / df / (full.tss / (f.n - 1)),
+    partial = (restricted.rss - full.rss) / restricted.rss,
+    wide = "  " + "-".repeat(74);
+  ctx.out("");
+  ctx.out("  First-stage regression summary statistics");
+  ctx.out(wide);
+  ctx.out("               |            Adjusted      Partial       Robust");
+  ctx.out(
+    `      Variable |   R-sq.       R-sq.        R-sq.${`F(${q},${df})`.padStart(14)}   Prob > F`,
+  );
+  ctx.out(
+    "  -------------+------------------------------------------------------------",
+  );
+  ctx.out(
+    `${f.iv.endogenous[0].padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
+  );
+  ctx.out(wide);
+  ctx.out("");
+  ctx.out("");
+  session.results.r = {};
+}
+
 function endogenous(session, model, ctx) {
+  if (model.iv.estimator === "liml")
+    throw new StataError("not available after LIML estimator", 321);
+  if (model.iv.estimator === "gmm") return endogenousGmm(session, model, ctx);
   unadjusted(model, "endogenous");
   const f = ivFrame(session, model),
     x = [...f.endogenous, ...f.exogenous],
@@ -185,6 +345,7 @@ function endogenous(session, model, ctx) {
 }
 
 function overid(session, model, ctx) {
+  if (model.iv.estimator === "gmm") return overidGmm(session, model, ctx);
   unadjusted(model, "overid");
   const f = ivFrame(session, model),
     df = f.instruments.length - f.endogenous.length;
@@ -307,6 +468,7 @@ function areg(session, text, ctx) {
     model = {
       command: "areg",
       title: "Linear regression, absorbing indicators",
+      absorb: absorb.name,
       depvar: full.depvar,
       names: [...keep.map((k) => full.names[k]), "_cons"],
       b: [...b, constant],
@@ -322,6 +484,31 @@ function areg(session, text, ctx) {
       F,
       rss: full.rss,
       tss: full.tss,
+      ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(full.rss / n) + 1),
+      // The null model keeps the absorbed indicators.
+      ll_0:
+        -0.5 *
+        n *
+        (Math.log(2 * Math.PI) +
+          Math.log(
+            project(
+              [],
+              (() => {
+                const totals = new Map();
+                for (const i of full.sample) {
+                  const t = totals.get(absorb.data[i]) ?? [0, 0];
+                  t[0] += dependent.data[i];
+                  t[1] += 1;
+                  totals.set(absorb.data[i], t);
+                }
+                return full.sample.map((i) => {
+                  const t = totals.get(absorb.data[i]);
+                  return dependent.data[i] - t[0] / t[1];
+                });
+              })(),
+            ).tss / n,
+          ) +
+          1),
       mss: full.tss - full.rss,
       r2,
       r2_a: r2a,

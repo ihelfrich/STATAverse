@@ -726,6 +726,16 @@ export function predict(session, text, ctx) {
     );
   if (chosen.length > 1)
     throw new StataError("only one statistic may be requested", 198);
+  // Estimators whose predict has no residuals, and GMM, which has no stdp.
+  if (
+    options.residuals &&
+    (["tobit", "nbreg", "glm", "cloglog"].includes(model.kind) ||
+      model.xt === "re" ||
+      model.xt === "be")
+  )
+    throw new StataError("option residuals not allowed", 198);
+  if (options.stdp && model.iv?.estimator === "gmm")
+    throw new StataError("option stdp not allowed with GMM estimator", 198);
   if (!chosen.length) ctx.out("(option xb assumed; fitted values)");
   if (extra.length) {
     if (model.command !== "regress")
@@ -775,17 +785,48 @@ export function predict(session, text, ctx) {
         ? Math.sqrt(quadratic(row, model.V))
         : xb;
   });
+  // areg's residuals leave out the absorbed effect: the mean, within each
+  // absorbed group of the estimation sample, of what xb does not explain.
+  if (options.residuals && model.absorb) {
+    const group = data.get(model.absorb).data,
+      totals = new Map();
+    for (const i of model.sample) {
+      const xb = model.names.reduce(
+          (t, name, k) =>
+            t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
+          0,
+        ),
+        entry = totals.get(group[i]) ?? [0, 0];
+      entry[0] += dependent.data[i] - xb;
+      entry[1] += 1;
+      totals.set(group[i], entry);
+    }
+    values.forEach((v, i) => {
+      if (isMissing(v)) return;
+      const entry = totals.get(group[i]);
+      values[i] = entry ? v - entry[0] / entry[1] : MISSING;
+    });
+  }
   for (const v of values) if (isMissing(v)) missing++;
   const sorted = [...data.sortedBy];
   data.generate(parsed.varlist[0], values, {
     type: parsed.typed[0] ? parsed.types[0] : undefined,
   });
   data.sortedBy = sorted;
+  // Stata's label depends on the estimator and on whether xb was typed.
+  const fitted =
+    model.command === "newey" || (model.command === "regress" && !options.xb);
   data.get(parsed.varlist[0]).label = options.residuals
     ? "Residuals"
     : options.stdp
-      ? "S.E. of the prediction"
-      : "Fitted values";
+      ? model.command === "newey"
+        ? `S.E. of prediction of ${model.depvar}`
+        : "S.E. of the prediction"
+      : fitted
+        ? "Fitted values"
+        : model.command === "areg" && !options.xb
+          ? "Xb"
+          : "Linear prediction";
   if (missing)
     ctx.out(
       `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
@@ -798,29 +839,48 @@ export function predict(session, text, ctx) {
  * coefficient set to one in turn.
  */
 export function linear(model, text) {
-  const usable = model.names.filter((name) => isName(name) || name === "_cons"),
-    evaluate = (values) => {
-      const compiled = compileExpression(text, { scalars: new Map(values) });
+  // Each scalar name the expression may use, with its coefficient. In a
+  // model with several equations [eq]name picks one, and a bare name means
+  // the first equation that has it.
+  const keys = [];
+  let source = text;
+  if (model.names.some((name) => name.includes(":"))) {
+    source = text.replace(
+      /\[\s*([^\]]+?)\s*\]\s*([A-Za-z_]\w*)/g,
+      (all, equation, name) => {
+        const at = model.names.indexOf(`${equation}:${name}`);
+        if (at < 0)
+          throw new StataError(`equation [${equation}] not found`, 303);
+        return `__c${at}`;
+      },
+    );
+    model.names.forEach((name, k) => {
+      keys.push([`__c${k}`, k]);
+      const plain = name.replace(/^[^:]+:/, "");
+      if (
+        (isName(plain) || plain === "_cons") &&
+        !keys.some(([key]) => key === plain)
+      )
+        keys.push([plain, k]);
+    });
+  } else
+    model.names.forEach((name, k) => {
+      if (isName(name) || name === "_cons") keys.push([name, k]);
+    });
+  const evaluate = (values) => {
+      const compiled = compileExpression(source, {
+        scalars: new Map(keys.map(([key, k]) => [key, values[k]])),
+      });
       if (compiled.type !== "numeric")
         throw new StataError("type mismatch", 109);
       return compiled.evaluate(0, { start: 0, count: 0, sums: [] });
     },
-    zero = usable.map((name) => [name, 0]);
-  let constant;
-  try {
+    zero = model.names.map(() => 0),
     constant = evaluate(zero);
-  } catch (error) {
-    if (error.code === 111)
-      throw new StataError(
-        error.message.replace(" not found", " not found"),
-        111,
-      );
-    throw error;
-  }
-  const weights = model.names.map((name) => {
-    if (!usable.includes(name)) return 0;
+  const weights = model.names.map((_, k) => {
+    if (!keys.some(([, at]) => at === k)) return 0;
     const at = (value) =>
-      evaluate(zero.map(([n]) => [n, n === name ? value : 0])) - constant;
+      evaluate(zero.map((v, n) => (n === k ? value : 0))) - constant;
     const one = at(1);
     if (Math.abs(at(2) - 2 * one) > 1e-9 * Math.max(1, Math.abs(one)))
       throw new StataError(
@@ -831,14 +891,31 @@ export function linear(model, text) {
   });
   return { weights, constant };
 }
+/**
+ * Position of the coefficient called name, [eq]name or eq:name in a model,
+ * or -1. A bare name in a model with several equations means the first.
+ */
+export function coefficientIndex(model, name) {
+  const text = name.trim().replace(/^\[\s*([^\]]+?)\s*\]\s*/, "$1:"),
+    exact = model.names.indexOf(text);
+  if (exact >= 0) return exact;
+  if (model.names.some((n) => n.includes(":")))
+    return text.includes(":")
+      ? -1
+      : model.names.findIndex((n) => n.replace(/^[^:]+:/, "") === text);
+  return model.names.indexOf(text.replace(/^[^:]+:/, ""));
+}
 export function describeLinear(model, weights, constant) {
   let text = "";
   weights.forEach((w, k) => {
     if (!w) return;
-    const size = Math.abs(w) === 1 ? "" : `${g(Math.abs(w))}*`;
+    const size = Math.abs(w) === 1 ? "" : `${g(Math.abs(w))}*`,
+      // A coefficient of one equation among several is written [eq]name.
+      qualified = /^([^:]+):(.+)$/.exec(model.names[k]),
+      name = qualified ? `[${qualified[1]}]${qualified[2]}` : model.names[k];
     text += text
-      ? ` ${w < 0 ? "-" : "+"} ${size}${model.names[k]}`
-      : `${w < 0 ? "-" : ""}${size}${model.names[k]}`;
+      ? ` ${w < 0 ? "-" : "+"} ${size}${name}`
+      : `${w < 0 ? (qualified ? "- " : "-") : ""}${size}${name}`;
   });
   return `${text} = ${g(-constant + 0)}`;
 }

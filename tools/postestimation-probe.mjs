@@ -116,6 +116,65 @@ export const FOLLOW = [
   "ereturn list",
 ];
 
+/** Runs the grid in the runtime and sorts each pair against Stata's code. */
+export function measure(fixture) {
+  const missing = [],
+    permissive = [],
+    crashed = [];
+  let bothRun = 0,
+    bothRefuse = 0;
+  ESTIMATORS.forEach(([name, setup], a) =>
+    FOLLOW.forEach((command, b) => {
+      const session = new Session();
+      if (session.run(DATA).rc) throw new Error("the data did not load");
+      if (
+        session.run(
+          setup
+            .split("\n")
+            .map((l) => `quietly ${l}`)
+            .join("\n"),
+        ).rc
+      )
+        throw new Error(`${name} did not fit`);
+      let ours,
+        message = "";
+      try {
+        const result = session.run(command);
+        ours = result.rc;
+        message = (result.output.at(-1)?.lines ?? []).join(" ").slice(0, 110);
+      } catch (error) {
+        crashed.push({
+          estimator: name,
+          command,
+          error: String(error).slice(0, 110),
+        });
+        return;
+      }
+      const stata = fixture.rc[a][b];
+      if (!ours && !stata) bothRun += 1;
+      else if (ours && stata) bothRefuse += 1;
+      else if (ours)
+        missing.push({ estimator: name, command, rc: ours, message });
+      else permissive.push({ estimator: name, command, stataRc: stata });
+    }),
+  );
+  const pairs = ESTIMATORS.length * FOLLOW.length,
+    receipt = {
+      basis:
+        "Each follow-up command tried after each estimator, in installed Stata (recorded) and in the runtime. Agreement means both ran or both refused; printed results are not compared here.",
+      pairs,
+      bothRun,
+      bothRefuse,
+      runsInStataOnly: missing.length,
+      runsHereOnly: permissive.length,
+      crashes: crashed.length,
+      missing,
+      permissive,
+      crashed,
+    };
+  return receipt;
+}
+
 const FIXTURE = "tests/fixtures/stata-postestimation-rc.json";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -177,61 +236,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       `Recorded ${ESTIMATORS.length * FOLLOW.length} pairs from installed Stata.`,
     );
   } else {
-    const fixture = JSON.parse(await fs.readFile(FIXTURE, "utf8")),
-      missing = [],
-      permissive = [],
-      crashed = [];
-    let bothRun = 0,
-      bothRefuse = 0;
-    ESTIMATORS.forEach(([name, setup], a) =>
-      FOLLOW.forEach((command, b) => {
-        const session = new Session();
-        if (session.run(DATA).rc) throw new Error("the data did not load");
-        if (
-          session.run(
-            setup
-              .split("\n")
-              .map((l) => `quietly ${l}`)
-              .join("\n"),
-          ).rc
-        )
-          throw new Error(`${name} did not fit`);
-        let ours,
-          message = "";
-        try {
-          const result = session.run(command);
-          ours = result.rc;
-          message = (result.output.at(-1)?.lines ?? []).join(" ").slice(0, 110);
-        } catch (error) {
-          crashed.push({
-            estimator: name,
-            command,
-            error: String(error).slice(0, 110),
-          });
-          return;
-        }
-        const stata = fixture.rc[a][b];
-        if (!ours && !stata) bothRun += 1;
-        else if (ours && stata) bothRefuse += 1;
-        else if (ours)
-          missing.push({ estimator: name, command, rc: ours, message });
-        else permissive.push({ estimator: name, command, stataRc: stata });
-      }),
-    );
-    const pairs = ESTIMATORS.length * FOLLOW.length,
-      receipt = {
-        basis:
-          "Each follow-up command tried after each estimator, in installed Stata (recorded) and in the runtime. Agreement means both ran or both refused; printed results are not compared here.",
-        pairs,
-        bothRun,
-        bothRefuse,
-        runsInStataOnly: missing.length,
-        runsHereOnly: permissive.length,
-        crashes: crashed.length,
-        missing,
-        permissive,
-        crashed,
-      };
+    const receipt = measure(JSON.parse(await fs.readFile(FIXTURE, "utf8"))),
+      { pairs, bothRun, bothRefuse, missing, permissive, crashed } = receipt;
     await fs.writeFile(
       "docs/verification/postestimation-probe.json",
       JSON.stringify(receipt, null, 2) + "\n",

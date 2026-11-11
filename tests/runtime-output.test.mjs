@@ -99,6 +99,9 @@ for (const c of fixture.cases)
             "glm-models",
             "margins-more",
             "margins-outcomes",
+            "predict-defaults",
+            "mlogit-coefficients",
+            "outcome-predict-margins",
           ].includes(c.id),
         )
       )

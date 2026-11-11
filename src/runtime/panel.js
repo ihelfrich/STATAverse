@@ -493,9 +493,42 @@ function xtreg(session, text, ctx) {
     df_r: df,
     rank: K + 1,
     kind: "xtreg",
+    xt: useBe ? "be" : useFe ? "fe" : "re",
     sample: rows,
     vce: clustered ? "cluster" : "conventional",
   };
+  // The Gaussian log likelihood that estat ic reads: of the within
+  // regression after fe, and of the regression on group means after be.
+  if (useFe || useBe) {
+    const gaussian = (ss, n) =>
+        -0.5 * n * (Math.log(2 * Math.PI) + Math.log(ss / n) + 1),
+      model = session.estimates;
+    if (useFe) {
+      const total = y.reduce((t, v, i) => t + (v - yBar[i]) ** 2, 0);
+      model.ll = gaussian(within.rss, N);
+      model.ll_0 = gaussian(total, N);
+    } else {
+      const firsts = groups.map((key) => members.get(key)[0]),
+        ym = firsts.map((i) => yBar[i]),
+        centre = mean(ym),
+        fitted = firsts.map(
+          (i) =>
+            model.b.at(-1) +
+            active.reduce(
+              (t, c, k) => t + xBar[k][i] * model.b[fullNames.indexOf(c.name)],
+              0,
+            ),
+        );
+      model.ll = gaussian(
+        ym.reduce((t, v, g) => t + (v - fitted[g]) ** 2, 0),
+        G,
+      );
+      model.ll_0 = gaussian(
+        ym.reduce((t, v) => t + (v - centre) ** 2, 0),
+        G,
+      );
+    }
+  }
   session.results.e = {
     N,
     N_g: G,
@@ -566,10 +599,10 @@ function xtreg(session, text, ctx) {
       : "-------------+----------------------------------------------------------------",
   );
   if (!useBe) {
-    ctx.out(`     sigma_u |  ${g(sigmaU, "%10.0g")}`);
-    ctx.out(`     sigma_e |  ${g(Math.sqrt(sigmaE2), "%10.0g")}`);
+    ctx.out(`     sigma_u |  ${g(sigmaU, "%10.0g").padStart(9)}`);
+    ctx.out(`     sigma_e |  ${g(Math.sqrt(sigmaE2), "%10.0g").padStart(9)}`);
     ctx.out(
-      `         rho |  ${g(rho, "%10.0g")}   (fraction of variance due to u_i)`,
+      `         rho |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
     );
     ctx.out(RULE);
   }
