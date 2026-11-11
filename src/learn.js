@@ -39,7 +39,34 @@ const STORAGE = PRACTICE_KEY;
 let saved = emptyStore(),
   storageOK = true,
   storedText = null;
+// What this tab believed was stored just before each of its recent saves,
+// and what it then stored.
+const recentSaves = [],
+  RECENT_SAVE_MS = 10000;
+/**
+ * A write made in another tab reaches this tab a moment after it is made,
+ * so a save here can replace it without having seen it. The notice of that
+ * write still arrives, and shows it: the value the other tab replaced is one
+ * this tab had already saved over. The other tab's record is then put back,
+ * and this tab stops saving, as it would have had the notice come first.
+ */
+function restoreOverwritten(event) {
+  const now = Date.now(),
+    recent = recentSaves.filter((save) => now - save.at < RECENT_SAVE_MS);
+  if (
+    !recent.some((save) => save.before === event.oldValue) ||
+    recent.some((save) => save.text === event.newValue)
+  )
+    return;
+  try {
+    if (event.newValue === null) localStorage.removeItem(STORAGE);
+    else localStorage.setItem(STORAGE, event.newValue);
+  } catch {
+    // The warning below still tells the student to export this session.
+  }
+}
 window.addEventListener("storage", (event) => {
+  if (event.key === STORAGE) restoreOverwritten(event);
   if (event.key === STORAGE || event.key === null)
     storageWarning(
       "Saved practice changed in another tab. Automatic saving in this tab has stopped to protect both copies. Export this work before reloading to use the other saved copy.",
@@ -175,8 +202,9 @@ function persist() {
   if (mode === "free") saved.activeDataset = initialDataset;
   if (!storageOK) return;
   try {
-    // Storage events are asynchronous. A completed worker must not overwrite
-    // an import merely because its event has not reached this tab yet.
+    // This read catches a change the tab has already received. One that
+    // has not arrived yet is handled when its notice does: see
+    // restoreOverwritten.
     if (localStorage.getItem(STORAGE) !== storedText) {
       storageWarning(
         "Saved practice changed in another tab. Automatic saving in this tab has stopped. Export this work before reloading to read the saved copy.",
@@ -187,6 +215,8 @@ function persist() {
     if (new TextEncoder().encode(text).length > MAX_STORE_BYTES)
       throw new Error("Storage size limit");
     localStorage.setItem(STORAGE, text);
+    recentSaves.push({ before: storedText, text, at: Date.now() });
+    if (recentSaves.length > 4) recentSaves.shift();
     storedText = text;
     $("#save-status").textContent = "Progress saved on this device";
   } catch {
