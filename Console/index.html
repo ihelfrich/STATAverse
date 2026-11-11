@@ -32,35 +32,51 @@
     </header>
     <main id="main" class="console-layout" tabindex="-1">
       <header class="console-heading">
-        <p class="eyebrow">Preview</p>
         <h1>Console</h1>
         <p>
-          Write a do-file and run it here. This page uses a new interpreter
-          whose results are compared with installed Stata command by command. It
-          runs macros, loops, programs, <code>by</code> and the commands listed
-          under <a href="#console-scope">What runs here</a>. Files on your disk,
-          <code>margins</code> and many estimators are not here yet;
+          Write a do-file and run it, or type one command at a time under the
+          results. Every command here is compared with installed Stata before it
+          is kept. This is a preview: files on your disk, survey and survival
+          commands and community packages are not here, and
           <a href="../Learn/">Practice</a> remains the place for guided lessons.
         </p>
       </header>
       <section class="console-editor" aria-labelledby="editor-title">
         <div class="console-bar">
           <h2 id="editor-title">Do-file</h2>
-          <label class="console-data"
-            >Start from
-            <select id="console-dataset">
-              <option value="">no data</option>
-            </select></label
-          >
+          <div class="console-choices">
+            <label
+              >Example
+              <select id="console-example">
+                <option value="">choose one</option>
+              </select></label
+            >
+            <label
+              >Start from
+              <select id="console-dataset">
+                <option value="">no data</option>
+              </select></label
+            >
+          </div>
         </div>
-        <label class="sr-only" for="console-source">Do-file text</label>
-        <textarea
-          id="console-source"
-          spellcheck="false"
-          autocapitalize="off"
-          autocomplete="off"
-          rows="16"
-        ></textarea>
+        <div class="console-code">
+          <div class="console-gutter" id="console-gutter" aria-hidden="true">
+            1
+          </div>
+          <pre
+            class="console-highlight"
+            id="console-highlight"
+            aria-hidden="true"
+          ></pre>
+          <label class="sr-only" for="console-source">Do-file text</label>
+          <textarea
+            id="console-source"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            rows="16"
+          ></textarea>
+        </div>
         <div class="console-actions">
           <button
             type="button"
@@ -69,6 +85,14 @@
             disabled
           >
             Run do-file
+          </button>
+          <button
+            type="button"
+            class="quiet-button"
+            id="console-run-selection"
+            disabled
+          >
+            Run selection
           </button>
           <button type="button" class="quiet-button" id="console-stop" hidden>
             Stop
@@ -81,24 +105,73 @@
           >
             Clear session
           </button>
-          <span class="console-hint">Ctrl or ⌘ + Enter runs the do-file.</span>
         </div>
+        <p class="console-hint">
+          Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the lines
+          you have selected.
+        </p>
         <p id="console-status" role="status">Loading the interpreter…</p>
         <noscript><p>The console requires JavaScript.</p></noscript>
       </section>
       <section class="console-results" aria-labelledby="results-title">
-        <h2 id="results-title">Results</h2>
-        <pre
-          id="console-output"
-          role="log"
-          aria-live="polite"
-          aria-labelledby="results-title"
-          tabindex="0"
-        ></pre>
+        <div class="console-bar">
+          <h2 id="results-title">Results</h2>
+          <button
+            type="button"
+            class="console-switch"
+            id="console-scheme"
+            aria-pressed="false"
+          >
+            Classic colours
+          </button>
+        </div>
+        <div class="console-window" id="console-window">
+          <pre
+            id="console-output"
+            role="log"
+            aria-live="polite"
+            aria-labelledby="results-title"
+            tabindex="0"
+          ></pre>
+          <form class="console-prompt" id="console-prompt" autocomplete="off">
+            <label for="console-command">Command</label>
+            <span class="console-dot" aria-hidden="true">.</span>
+            <input
+              id="console-command"
+              type="text"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              placeholder="type a command and press Enter"
+              disabled
+            />
+          </form>
+        </div>
       </section>
       <section class="console-variables" aria-labelledby="variables-title">
         <h2 id="variables-title">Variables</h2>
         <p id="console-memory">No data in memory.</p>
+        <div
+          class="console-scroll"
+          tabindex="0"
+          role="group"
+          aria-labelledby="variables-title"
+        >
+          <table id="console-variable-table" hidden>
+            <caption>
+              Select a name to put it in the do-file.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Type</th>
+                <th scope="col">Format</th>
+                <th scope="col">Label</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
         <p class="console-files">
           Files in this session: <span id="console-files">none</span>
         </p>
@@ -112,28 +185,22 @@
             accept=".csv,.tsv,.txt,text/csv,text/plain"
           />
         </p>
-        <div
-          class="console-scroll"
-          tabindex="0"
-          role="group"
-          aria-labelledby="variables-title"
-        >
-          <table id="console-variable-table" hidden>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Type</th>
-                <th scope="col">Format</th>
-                <th scope="col">Label</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
       </section>
       <section class="console-scope" aria-labelledby="console-scope">
         <h2 id="console-scope">What runs here</h2>
-        <p id="console-commands"></p>
+        <p class="console-find">
+          <label for="console-filter">Look for a command</label>
+          <input
+            id="console-filter"
+            type="search"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            placeholder="for example, margins"
+          />
+          <span id="console-found" role="status"></span>
+        </p>
+        <ul id="console-commands"></ul>
         <p>
           <code>sysuse</code> loads this site's own teaching datasets. Stata's
           example datasets, such as <code>auto</code>, belong to StataCorp and

@@ -132,8 +132,10 @@ function splitPrefix(text) {
   throw new StataError("a command is required after the colon", 198);
 }
 /** The statistics asked for: name=exp or a bare expression. */
-function expressionList(text, stem) {
-  const items = [];
+function expressionList(given, stem) {
+  // Spaces around = belong to one item: "b = r(mean)" is "b=r(mean)".
+  const text = given.replace(/\s*=\s*/g, "="),
+    items = [];
   let depth = 0,
     start = 0;
   const flush = (end) => {
