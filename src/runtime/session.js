@@ -185,6 +185,8 @@ export class Session {
     const output = [],
       frame = this.frame();
     this.steps = 0;
+    this.line = 0;
+    this.inProgram = 0;
     let rc = 0;
     try {
       this.runNodes(parseBlocks(splitCommands(source)), frame, output);
@@ -227,6 +229,8 @@ export class Session {
   runNodes(nodes, frame, output) {
     for (let k = 0; k < nodes.length; k++) {
       const node = nodes[k];
+      // The line of the do-file being run; not of a program or another file.
+      if (!this.doDepth && !this.inProgram) this.line = node.line;
       if (++this.steps > MAX_STEPS)
         throw new StataError(
           "this do-file ran more commands than the browser allows",
@@ -245,22 +249,26 @@ export class Session {
     }
   }
 
-  record(output, command, lines, rc, graph) {
-    output.push(graph ? { command, lines, rc, graph } : { command, lines, rc });
+  record(output, command, lines, rc, graph, line = this.line) {
+    const entry = { command, lines, rc };
+    if (graph) entry.graph = graph;
+    if (line) entry.line = line;
+    output.push(entry);
   }
 
   /** One command line, with its prefixes. Errors stop the run unless captured. */
   runLine(raw, frame, output, inherited = {}) {
     const text = this.expand(raw, frame).trim();
     if (!text) return;
-    const lines = [],
+    const at = this.line,
+      lines = [],
       flags = { quiet: false, capture: false, by: null, ...inherited };
     try {
       this.dispatch(text, frame, flags, lines, output);
     } catch (error) {
       if (!(error instanceof StataError)) {
         if (error instanceof Signal) {
-          this.record(output, raw, lines, 0);
+          this.record(output, raw, lines, 0, undefined, at);
           throw error;
         }
         throw error;
@@ -272,6 +280,8 @@ export class Session {
           raw,
           flags.noisy ? [...lines, error.message] : [],
           0,
+          undefined,
+          at,
         );
         return;
       }
@@ -280,6 +290,8 @@ export class Session {
         raw,
         [...lines, error.message, `r(${error.code});`],
         error.code,
+        undefined,
+        at,
       );
       throw error;
     }
@@ -291,6 +303,7 @@ export class Session {
       flags.quiet || (flags.capture && !flags.noisy) ? [] : lines,
       0,
       flags.graph,
+      at,
     );
   }
 
@@ -502,15 +515,18 @@ export class Session {
     frame.program = { name, options: program.options, by: ctx.by };
     frame.returns = { r: {}, e: {}, s: {} };
     const inner = [];
+    this.inProgram = (this.inProgram ?? 0) + 1;
     try {
       this.runNodes(program.body, frame, inner);
     } catch (error) {
+      this.inProgram -= 1;
       for (const record of inner) record.lines.forEach(ctx.out);
       if (error instanceof Signal && error.kind === "exit") {
         if (error.code) throw new StataError("", error.code);
       } else throw error;
       return;
     }
+    this.inProgram -= 1;
     for (const record of inner) record.lines.forEach(ctx.out);
     if (/\brclass\b/.test(program.options)) this.results.r = frame.returns.r;
     if (/\beclass\b/.test(program.options)) this.results.e = frame.returns.e;

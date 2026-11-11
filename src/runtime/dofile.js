@@ -32,7 +32,7 @@ export function splitCommands(source) {
       else if (c === "*" && next === "/") (comment--, i++);
       continue;
     }
-    if (atCommandStart() && !/\s/.test(c) && current === "") startLine = line;
+    if (atCommandStart() && !/\s/.test(c)) startLine = line;
     if (compound) {
       if (c === "`" && next === '"') compound++;
       else if (c === '"' && next === "'") compound--;

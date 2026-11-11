@@ -7,6 +7,7 @@ import { LIBRARY } from "./console-datasets.js";
 import { createConsoleSession } from "./console-session.js";
 import { EXAMPLES } from "./console-examples.js";
 import { highlight } from "./console-highlight.js";
+import { lineAt, offsetOf, pieces, shift } from "./console-links.js";
 import { mountMap } from "./console-map.js";
 import { createFox } from "./console-fox.js";
 import { SNIPPETS } from "./console-snippets.js";
@@ -199,6 +200,7 @@ function openFile(k) {
   save();
   showTabs();
   paint();
+  point(0, false);
 }
 /** Adds do-files to the project, replacing any of the same name. */
 function addDoFiles(files, open = true) {
@@ -228,13 +230,54 @@ async function shareFiles() {
 
 // ----- the editor: line numbers and colour behind the text -----
 const gutter = $("console-gutter"),
-  painted = $("console-highlight");
+  painted = $("console-highlight"),
+  band = $("console-band"),
+  ghost = $("console-ghost"),
+  fault = $("console-fault");
+// Each file's marks: the line a command started on, and what it printed.
+const marks = new WeakMap(),
+  seen = new WeakMap();
+let caret = 0,
+  linked = [],
+  typed = 0;
+const current = () => project.files[project.active];
+function marksOf(file = current()) {
+  if (!marks.has(file)) marks.set(file, new Map());
+  return marks.get(file);
+}
+function forget(mark) {
+  for (const block of mark.blocks) {
+    block.classList.remove("has-line", "is-linked");
+    block.mark = null;
+  }
+}
+/** Whether a block of the Results window still belongs to a line. */
+const lineOf = (block) =>
+  block?.mark && marksOf(block.file).get(block.mark.line) === block.mark
+    ? block.mark.line
+    : 0;
 function paint() {
   const text = source.value,
-    lines = text.split("\n").length;
-  gutter.textContent = Array.from({ length: lines }, (_, k) => k + 1).join(
-    "\n",
-  );
+    lines = text.split("\n").length,
+    file = current(),
+    was = seen.get(file);
+  // Marks stay on their lines as the text around them changes.
+  if (was !== undefined && was !== text)
+    marks.set(file, shift(marksOf(file), was, text, forget));
+  seen.set(file, text);
+  gutter.textContent = "";
+  if (lines > 3000)
+    gutter.textContent = Array.from({ length: lines }, (_, k) => k + 1).join(
+      "\n",
+    );
+  else
+    for (let k = 1; k <= lines; k++) {
+      const number = document.createElement("span");
+      number.className = "gutter-line";
+      number.textContent = k;
+      gutter.append(number);
+    }
+  paintMarks();
   // Colour is skipped for a very long do-file; the text stays readable.
   const coloured = text.length < 60000;
   source.classList.toggle("is-coloured", coloured);
@@ -246,6 +289,89 @@ function follow() {
   gutter.scrollTop = source.scrollTop;
   painted.scrollTop = source.scrollTop;
   painted.scrollLeft = source.scrollLeft;
+  place();
+}
+/** Shows in the gutter which lines have run, and which one stopped. */
+function paintMarks() {
+  const set = marksOf();
+  for (const number of gutter.children) delete number.dataset.state;
+  for (const [line, mark] of set) {
+    const number = gutter.children[line - 1];
+    if (number) number.dataset.state = mark.state;
+  }
+  gutter.children[caret - 1]?.classList.add("is-active");
+}
+// The bands behind the text: the line the caret is on, the line pointed at
+// from the Results window, and the line that stopped the run.
+let metrics = null;
+function measure() {
+  const style = getComputedStyle(source);
+  metrics = {
+    line: parseFloat(style.lineHeight) || 21,
+    top: parseFloat(style.paddingTop) || 0,
+  };
+}
+window.addEventListener("resize", () => {
+  metrics = null;
+  place();
+});
+function place() {
+  if (!source.offsetParent) return;
+  if (!metrics) measure();
+  const put = (node, line) => {
+    node.hidden = !line;
+    if (!line) return;
+    node.style.height = `${metrics.line}px`;
+    node.style.transform = `translateY(${metrics.top + (line - 1) * metrics.line - source.scrollTop}px)`;
+  };
+  let stopped = 0;
+  for (const [line, mark] of marksOf())
+    if (mark.state === "error") stopped = line;
+  put(band, caret);
+  put(fault, stopped);
+  put(ghost, Number(ghost.dataset.line) || 0);
+  band.classList.toggle("has-result", linked.length > 0);
+}
+/** Brings a block of the Results window into view if it is not already. */
+function bring(block) {
+  const box = output.getBoundingClientRect(),
+    at = block.getBoundingClientRect();
+  if (at.top >= box.top && at.bottom <= box.bottom) return;
+  output.scrollTo({
+    top: output.scrollTop + at.top - box.top - 12,
+    behavior: still.matches ? "auto" : "smooth",
+  });
+}
+/** Makes `line` the current line, and lights what it printed. */
+function point(line, reveal) {
+  gutter.children[caret - 1]?.classList.remove("is-active");
+  caret = line;
+  for (const block of linked) block.classList.remove("is-linked");
+  linked = (marksOf().get(line)?.blocks ?? []).filter(
+    (block) => block.isConnected,
+  );
+  for (const block of linked) block.classList.add("is-linked");
+  gutter.children[caret - 1]?.classList.add("is-active");
+  place();
+  if (reveal && linked.length) bring(linked[0]);
+}
+/** Puts the caret on a line of the do-file and shows that line. */
+function goTo(line) {
+  const at = offsetOf(source.value, line);
+  source.focus({ preventScroll: true });
+  source.setSelectionRange(at, at);
+  if (!metrics) measure();
+  const top = (line - 1) * metrics.line;
+  if (
+    top < source.scrollTop ||
+    top > source.scrollTop + source.clientHeight - 2 * metrics.line
+  )
+    source.scrollTop = Math.max(0, top - source.clientHeight / 3);
+  source.scrollIntoView({ block: "nearest" });
+  point(line, false);
+  band.classList.remove("is-flash");
+  void band.offsetWidth;
+  band.classList.add("is-flash");
 }
 /** Replaces text in the editor so that the browser's undo can restore it. */
 function typeInto(text, selectAll) {
@@ -341,23 +467,23 @@ function append(text, className) {
 }
 // Numbers are marked so that the classic colours can show them as Stata's
 // Results window did; the text of the log is unchanged.
-const NUMBER = /(?<![\w.])-?(?:\d[\d,]*\.?\d*|\.\d+)(?:e[+-]?\d+)?(?![\w])/gi;
+// A table rule is marked too, so that it can be drawn as a line.
 function linesOf(text, plain) {
   const block = document.createElement("span");
   if (plain || text.length > 20000) {
     block.textContent = text;
     return block;
   }
-  let at = 0;
-  for (const m of text.matchAll(NUMBER)) {
-    if (m.index > at) block.append(text.slice(at, m.index));
-    const number = document.createElement("span");
-    number.className = "console-number";
-    number.textContent = m[0];
-    block.append(number);
-    at = m.index + m[0].length;
+  for (const piece of pieces(text)) {
+    if (piece.kind === "text") {
+      block.append(piece.text);
+      continue;
+    }
+    const span = document.createElement("span");
+    span.className = `console-${piece.kind}`;
+    span.textContent = piece.text;
+    block.append(span);
   }
-  if (at < text.length) block.append(text.slice(at));
   return block;
 }
 // Marks in a graph appear in turn: points, then lines, then bars. The rules
@@ -406,8 +532,20 @@ function recordNode(record) {
   block.append("\n");
   return block;
 }
-function show(records) {
-  const blocks = [],
+/**
+ * Adds records to the Results window. `origin` says where they came from:
+ * lines of a do-file ({ file, from, to }) or a step of the map ({ step }).
+ */
+function show(records, origin) {
+  const set = origin?.file ? marksOf(origin.file) : null;
+  if (set)
+    for (const [line, mark] of [...set])
+      if (line > origin.from && line <= origin.to) {
+        forget(mark);
+        set.delete(line);
+      }
+  const fresh = new Map(),
+    blocks = [],
     // A long run arrives at once; a short one is typed and printed.
     lively = !still.matches && records.length <= 60;
   records.forEach((record, k) => {
@@ -420,9 +558,41 @@ function show(records) {
         Math.min(record.command.length + 2, 40),
       );
     }
+    if (origin?.step !== undefined) block.dataset.step = origin.step;
+    if (set && record.line) {
+      const line = record.line + origin.from;
+      let mark = fresh.get(line);
+      if (!mark) {
+        mark = {
+          line,
+          state: "done",
+          blocks: [],
+          wait: Math.min(k * 90, 1400),
+        };
+        fresh.set(line, mark);
+        set.set(line, mark);
+      }
+      if (record.rc) mark.state = "error";
+      mark.blocks.push(block);
+      block.mark = mark;
+      block.file = origin.file;
+      block.classList.add("has-line");
+    }
     output.append(block);
     blocks.push(block);
   });
+  if (set && origin.file === current()) {
+    paintMarks();
+    // The gutter fills in as the results arrive.
+    if (lively)
+      for (const [line, mark] of fresh) {
+        const number = gutter.children[line - 1];
+        if (!number) continue;
+        number.classList.add("is-arriving");
+        number.style.setProperty("--wait", `${mark.wait}ms`);
+      }
+    point(caret, false);
+  }
   if (output.textContent.length > MAX_OUTPUT) {
     while (output.textContent.length > MAX_OUTPUT / 2 && output.firstChild)
       output.firstChild.remove();
@@ -432,7 +602,9 @@ function show(records) {
   }
   // New results that fit are shown whole; longer ones start at their top.
   const first = blocks.find((block) => block.isConnected);
-  if (first && output.scrollHeight - first.offsetTop > output.clientHeight)
+  // A run that stopped ends at its error, so that is what is shown.
+  if (records.at(-1)?.rc) output.scrollTop = output.scrollHeight;
+  else if (first && output.scrollHeight - first.offsetTop > output.clientHeight)
     output.scrollTop = first.offsetTop - output.offsetTop - 8;
   else output.scrollTop = output.scrollHeight;
 }
@@ -456,7 +628,7 @@ function busy(running) {
 }
 
 /** Runs text in the session and shows what it printed; null after a fault. */
-async function perform(text) {
+async function perform(text, origin) {
   let result;
   try {
     result = await ask({ kind: "run", source: text });
@@ -474,7 +646,7 @@ async function perform(text) {
     busy(false);
     return null;
   }
-  show(result.output);
+  show(result.output, origin);
   showVariables(result.memory);
   return result;
 }
@@ -504,10 +676,25 @@ async function execute(text = source.value, what = "do-file") {
     status.textContent = `The ${what} is empty.`;
     return;
   }
+  // What is run from the do-file is tied to the lines it came from.
+  const file = current(),
+    from =
+      what === "selection"
+        ? lineAt(
+            source.value,
+            Math.min(source.selectionStart, source.selectionEnd),
+          ) - 1
+        : 0,
+    origin =
+      what === "do-file" && text === source.value
+        ? { file, from: 0, to: Infinity }
+        : what === "selection"
+          ? { file, from, to: from + text.split("\n").length }
+          : null;
   const started = begin();
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
-  const result = await perform(text);
+  const result = await perform(text, origin);
   if (result) finish(result.rc, result.output.length, started);
 }
 
@@ -525,7 +712,7 @@ async function runSteps(entries, mark) {
   let commands = 0;
   for (const entry of entries) {
     mark(entry.id, "running");
-    const result = await perform(entry.lines.join("\n"));
+    const result = await perform(entry.lines.join("\n"), { step: entry.id });
     if (!result) return mark(entry.id, "error");
     commands += result.output.length;
     mark(entry.id, result.rc ? "error" : "done", result);
@@ -632,6 +819,14 @@ const map = mountMap({
     run: runSteps,
     render: recordNode,
     colour: (text) => highlight(text, COMMANDS),
+    // A card lights what it printed in the Results window.
+    pointed(id, on) {
+      for (const block of output.querySelectorAll(".console-record[data-step]"))
+        block.classList.toggle(
+          "is-linked",
+          on && Number(block.dataset.step) === id,
+        );
+    },
   }),
   layout = document.querySelector(".console-layout");
 let mapping = false;
@@ -822,6 +1017,13 @@ stop.addEventListener("click", async () => {
 });
 reset.addEventListener("click", async () => {
   output.textContent = "";
+  for (const file of project.files) {
+    marksOf(file).forEach(forget);
+    marks.delete(file);
+  }
+  linked = [];
+  paintMarks();
+  place();
   fox.idle();
   fox.say("");
   await newSession("The session was cleared. The do-file text is unchanged.");
@@ -846,12 +1048,53 @@ source.addEventListener("keydown", (event) => {
   }
 });
 source.addEventListener("input", () => {
+  typed = performance.now();
   save();
   paint();
 });
 source.addEventListener("scroll", follow);
 document.addEventListener("selectionchange", () => {
-  if (document.activeElement === source) offerSelection();
+  if (document.activeElement !== source) return;
+  offerSelection();
+  const line = lineAt(source.value, source.selectionStart);
+  // Moving to a line shows what it printed; typing does not move Results.
+  if (line !== caret) point(line, performance.now() - typed > 400);
+});
+source.addEventListener("focus", () =>
+  point(lineAt(source.value, source.selectionStart), false),
+);
+// From the Results window back to the do-file: pointing at a block shows
+// its line, and selecting its command goes there.
+function hint(block) {
+  const line =
+    block && block.file === current() && !mapping ? lineOf(block) : 0;
+  if (Number(ghost.dataset.line || 0) === line) return;
+  gutter.children[Number(ghost.dataset.line) - 1]?.classList.remove(
+    "is-pointed",
+  );
+  ghost.dataset.line = line || "";
+  gutter.children[line - 1]?.classList.add("is-pointed");
+  place();
+}
+output.addEventListener("pointerover", (event) => {
+  const block = event.target.closest?.(".console-record");
+  hint(block);
+  if (mapping && block?.dataset.step)
+    map.point(Number(block.dataset.step), true);
+});
+output.addEventListener("pointerleave", () => hint(null));
+output.addEventListener("click", (event) => {
+  const block = event.target.closest?.(".console-command")?.parentElement;
+  if (!block || !getSelection().isCollapsed) return;
+  if (mapping) {
+    if (block.dataset.step) map.reveal(Number(block.dataset.step));
+    return;
+  }
+  const line = lineOf(block),
+    k = project.files.indexOf(block.file);
+  if (!line || k < 0) return;
+  if (k !== project.active) openFile(k);
+  goTo(line);
 });
 
 // ----- the command line under the results -----
