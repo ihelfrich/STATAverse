@@ -11,6 +11,7 @@ import { parseNumlist } from "./numlist.js";
 import { draw } from "./graphics.js";
 import { count, labelled } from "./reports.js";
 import { isMissing } from "./values.js";
+import { outcomeMargins } from "./outcome-margins.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 // For each link: the mean, its derivative and second derivative in x'b.
@@ -29,12 +30,30 @@ const LINKS = {
   ],
   probit: [normal, density, (e) => -e * density(e)],
   poisson: [Math.exp, Math.exp, Math.exp],
+  cloglog: [
+    (e) => -Math.expm1(-Math.exp(e)),
+    (e) => Math.exp(e - Math.exp(e)),
+    (e) => Math.exp(e - Math.exp(e)) * (1 - Math.exp(e)),
+  ],
 };
+// Estimators whose default prediction is a function of one linear index,
+// with the link that gives it.
+const LINEAR_COMMANDS = ["regress", "tobit", "qreg", "areg", "newey", "prais"];
+function linkOf(model) {
+  if (model.kind === "glm")
+    return LINKS[
+      { identity: "linear", log: "poisson" }[model.link] ?? model.link
+    ];
+  if (model.kind === "nbreg") return LINKS.poisson;
+  if (LINKS[model.kind]) return LINKS[model.kind];
+  return LINEAR_COMMANDS.includes(model.command) ? LINKS.linear : null;
+}
 
 function margins(session, text, ctx) {
-  const model = estimates(session),
-    link =
-      LINKS[model.kind] ?? (model.command === "regress" ? LINKS.linear : null);
+  const model = estimates(session);
+  if (["ologit", "oprobit", "mlogit"].includes(model.kind))
+    return outcomeMargins(session, model, text, ctx);
+  const link = linkOf(model);
   if (!link || !model.sample)
     throw new StataError(
       `margins is not available after ${model.command} yet`,
@@ -266,7 +285,9 @@ function margins(session, text, ctx) {
   } else
     results.push({ label: `${"_cons".padStart(12)} `, ...prediction(sets[0]) });
 
-  const t = model.dist !== "z",
+  // After qreg, newey and prais Stata's margins refers to the normal.
+  const t =
+      model.dist !== "z" && !["qreg", "newey", "prais"].includes(model.command),
     critical = t
       ? invttail(model.df_r, (1 - level / 100) / 2)
       : invnormal(1 - (1 - level / 100) / 2),
@@ -281,15 +302,20 @@ function margins(session, text, ctx) {
         ? "Adjusted predictions"
         : "Predictive margins",
     expression =
-      model.kind === "poisson"
+      model.kind === "poisson" || model.kind === "nbreg"
         ? "Predicted number of events"
-        : model.kind === "logit" || model.kind === "probit"
+        : ["logit", "probit", "cloglog"].includes(model.kind)
           ? `Pr(${model.depvar})`
-          : "Linear prediction",
+          : model.kind === "glm"
+            ? `Predicted mean ${model.depvar}`
+            : model.command === "newey"
+              ? "Fitted values"
+              : "Linear prediction",
     vce =
       {
         ols: "OLS",
-        robust: "Robust",
+        iid: "IID",
+        robust: model.command === "newey" ? "Newey–West" : "Robust",
         cluster: "Robust",
         oim: "OIM",
         unadjusted: "Unadjusted",

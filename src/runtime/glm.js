@@ -202,6 +202,7 @@ function fitGlm(session, parsed, familyName, linkName) {
       ll,
       vce: "oim",
       kind: "glm",
+      link: linkName,
       sample,
     },
     V,
