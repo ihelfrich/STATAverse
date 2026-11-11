@@ -292,7 +292,95 @@ function clonevar(session, text, ctx) {
 const note = (message) => (_session, _text, ctx) => ctx.out(message);
 const quiet = () => {};
 
+/** notes: text attached to the dataset or to a variable. */
+function notes(session, text, ctx) {
+  const store = (session.data.notes ??= new Map()),
+    add = /^\s*(?:([A-Za-z_]\w*)\s*)?:\s*([\s\S]+)$/.exec(text),
+    list = (names) => {
+      for (const name of names) {
+        const items = store.get(name);
+        if (!items?.length) continue;
+        ctx.out("");
+        ctx.out(`${name}:`);
+        items.forEach((item, k) =>
+          ctx.out(`${String(k + 1).padStart(3)}.  ${item}`),
+        );
+      }
+      ctx.out("");
+    };
+  if (add) {
+    const name = add[1] ? session.varlist(add[1])[0] : "_dta";
+    if (!store.has(name)) store.set(name, []);
+    store.get(name).push(add[2].trim());
+    return;
+  }
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words[0] === "drop") {
+    for (const name of words[1] === "_all" || words.length === 1
+      ? [...store.keys()]
+      : words
+          .slice(1)
+          .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w))))
+      store.delete(name);
+    return;
+  }
+  const names =
+    words.length && words[0] !== "list" && words[0] !== "_all"
+      ? words.flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w)))
+      : words.length > 1 && words[0] === "list"
+        ? words
+            .slice(1)
+            .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w)))
+        : ["_dta", ...session.data.names];
+  list(names);
+}
+
+/** numlabel: puts each value in front of its label, or takes it away. */
+function numlabel(session, text, ctx) {
+  const m = /^\s*([^,]*),\s*(add|remove)\b([\s\S]*)$/i.exec(text);
+  if (!m) throw new StataError("either add or remove must be specified", 198);
+  const labels = session.data.valueLabels,
+    names = m[1].trim() ? m[1].trim().split(/\s+/) : [...labels.keys()],
+    adding = m[2].toLowerCase() === "add";
+  if (/\bmask\s*\(/.test(m[3]))
+    throw new StataError("numlabel, mask() is not available yet", 198);
+  if (!labels.size) return ctx.out("(dataset has no value labels)");
+  for (const name of names) {
+    const map = labels.get(name);
+    if (!map) throw new StataError(`value label ${name} not found`, 111);
+    for (const [value, label] of map) {
+      const prefix = `${value}. `;
+      if (adding && !label.startsWith(prefix)) map.set(value, prefix + label);
+      else if (!adding && label.startsWith(prefix))
+        map.set(value, label.slice(prefix.length));
+    }
+  }
+}
+
 export const EVERYDAY_COMMANDS = [
+  { name: "notes", minimum: 4, run: notes },
+  { name: "numlabel", minimum: 8, run: numlabel },
+  {
+    name: "which",
+    minimum: 5,
+    run: (_session, text, ctx) =>
+      ctx.out(
+        `(${text.trim().split(/\s+/)[0] || "that command"}: which reports where Stata keeps a command's file; there are no such files here)`,
+      ),
+  },
+  {
+    name: "query",
+    minimum: 1,
+    run: (session, _text, ctx) => {
+      ctx.out("");
+      ctx.out(`    Settings of this session`);
+      ctx.out(`      set type       ${session.data.defaultType}`);
+      ctx.out(`      set level      ${session.settings.level}`);
+      ctx.out(`      set linesize   ${session.settings.linesize ?? 80}`);
+      ctx.out(`      set seed       ${session.settings.seed}`);
+      ctx.out("");
+    },
+  },
   { name: "mean", minimum: 4, run: mean },
   { name: "ci", minimum: 2, run: ci },
   { name: "pwcorr", minimum: 6, run: pwcorr },
