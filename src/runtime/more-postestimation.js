@@ -351,7 +351,354 @@ function hausman(session, text, ctx) {
   session.results.r = { rank: df, chi2, df, p };
 }
 
+/** Least squares of y on the columns given, with no constant added. */
+function leastSquares(columns, y) {
+  const k = columns.length,
+    inverse = invertSymmetric(
+      columns.map((a) =>
+        columns.map((c) => a.reduce((t, v, i) => t + v * c[i], 0)),
+      ),
+    );
+  if (!inverse) throw new StataError("the regressors are collinear", 198);
+  const xy = columns.map((a) => a.reduce((t, v, i) => t + v * y[i], 0)),
+    b = inverse.map((row) => row.reduce((t, v, j) => t + v * xy[j], 0)),
+    residuals = y.map(
+      (v, i) => v - b.reduce((t, bj, j) => t + bj * columns[j][i], 0),
+    );
+  return {
+    b,
+    inverse,
+    residuals,
+    rss: residuals.reduce((t, e) => t + e * e, 0),
+    k,
+  };
+}
+const durbinWatson = (e) =>
+  e.slice(1).reduce((t, v, i) => t + (v - e[i]) ** 2, 0) /
+  e.reduce((t, v) => t + v * v, 0);
+
+/** Prais-Winsten and Cochrane-Orcutt regression with AR(1) errors. */
+function prais(session, text, ctx) {
+  if (!session.panel?.time)
+    throw new StataError("time variable not set, use tsset varname ...", 111);
+  if (session.panel.id)
+    throw new StataError("prais on panel data is not available yet", 198);
+  const parsed = session.parse(
+      "anything [if] [in] [, CORC TWOstep Level(cilevel) noLOg | Robust VCE(string) RHOtype(string) SSEsearch noCONStant]",
+      text,
+    ),
+    options = parsed.options,
+    base = fit(session, { ...parsed, options: { level: options.level } }, null),
+    time = session.data.get(session.panel.time).data,
+    dependent = session.data.get(base.depvar),
+    used = base.names.map((_, k) => k).filter((k) => base.estimable[k]),
+    rows = [...base.sample].sort((a, b) => time[a] - time[b]);
+  if (rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1))
+    throw new StataError(
+      `${session.panel.time} is not regularly spaced; prais needs a series without gaps here`,
+      198,
+    );
+  const y = rows.map((i) => dependent.data[i]),
+    x = used.map((k) =>
+      rows.map((i) =>
+        base.names[k] === "_cons" ? 1 : base.columns[k].value(i),
+      ),
+    ),
+    n = y.length,
+    original = (b) =>
+      y.map((v, i) => v - b.reduce((t, bj, j) => t + bj * x[j][i], 0)),
+    // Quasi-differences; Prais-Winsten keeps the first observation, scaled.
+    transform = (v, rho) => [
+      ...(options.corc ? [] : [Math.sqrt(1 - rho * rho) * v[0]]),
+      ...v.slice(1).map((value, i) => value - rho * v[i]),
+    ],
+    rhoOf = (e) =>
+      e.slice(1).reduce((t, v, i) => t + v * e[i], 0) /
+      e.slice(0, -1).reduce((t, v) => t + v * v, 0);
+  let b = used.map((k) => base.b[k]),
+    rho = 0,
+    fitted;
+  const log = [0],
+    dwOriginal = durbinWatson(original(b));
+  for (let iteration = 1; iteration <= 100; iteration++) {
+    const next = rhoOf(original(b));
+    fitted = leastSquares(
+      x.map((column) => transform(column, next)),
+      transform(y, next),
+    );
+    b = fitted.b;
+    log.push(next);
+    const change = Math.abs(next - rho);
+    rho = next;
+    if (options.twostep || change < 1e-6) break;
+  }
+  const m = fitted.residuals.length,
+    k = used.length,
+    dfResidual = m - k,
+    s2 = fitted.rss / dfResidual,
+    // The total is the variation of the transformed outcome about its mean.
+    ystar = transform(y, rho),
+    ymean = ystar.reduce((a, c) => a + c, 0) / ystar.length,
+    tss = ystar.reduce((t, v) => t + (v - ymean) ** 2, 0),
+    mss = tss - fitted.rss,
+    dfModel = k - 1,
+    F = mss / dfModel / s2,
+    position = new Map(used.map((j, a) => [j, a])),
+    model = {
+      ...base,
+      command: "prais",
+      b: base.names.map((_, j) => (position.has(j) ? b[position.get(j)] : 0)),
+      V: base.names.map((_, r) =>
+        base.names.map((_, c) =>
+          position.has(r) && position.has(c)
+            ? fitted.inverse[position.get(r)][position.get(c)] * s2
+            : 0,
+        ),
+      ),
+      N: m,
+      df_m: dfModel,
+      df_r: dfResidual,
+      dfResidual,
+      rss: fitted.rss,
+      mss,
+      tss,
+      F,
+      r2: mss / tss,
+      r2_a: 1 - s2 / (tss / (m - 1)),
+      rmse: Math.sqrt(s2),
+      vce: "ols",
+      rho,
+    },
+    level = options.level,
+    stat = (label, value) => `   ${label.padEnd(16)}=${value.padStart(10)}`,
+    n11 = (value) => g(value, "%11.0g").padStart(12),
+    row = (label, ss, df) =>
+      `${label.padStart(12)} |${n11(ss)}${count(df).padStart(10)}${n11(ss / df)}`,
+    side = [
+      stat("Number of obs", count(m)),
+      stat(`F(${dfModel}, ${dfResidual})`, applyFormat(F, "%9.2f").trim()),
+      stat(
+        "Prob > F",
+        applyFormat(Ftail(dfModel, dfResidual, F), "%6.4f").trim(),
+      ),
+      stat("R-squared", applyFormat(model.r2, "%6.4f").trim()),
+      stat("Adj R-squared", applyFormat(model.r2_a, "%6.4f").trim()),
+      stat("Root MSE", "   " + applyFormat(model.rmse, "%7.0g")),
+    ],
+    left = [
+      "      Source |       SS           df       MS   ",
+      "-------------+----------------------------------",
+      row("Model", mss, dfModel),
+      row("Residual", fitted.rss, dfResidual),
+      "-------------+----------------------------------",
+      row("Total", tss, m - 1),
+    ];
+  session.estimates = model;
+  session.results.e = {
+    N: m,
+    df_m: dfModel,
+    df_r: dfResidual,
+    F,
+    r2: model.r2,
+    r2_a: model.r2_a,
+    rmse: model.rmse,
+    mss,
+    rss: fitted.rss,
+    rho,
+    dw: durbinWatson(fitted.residuals),
+    dw_0: dwOriginal,
+    rank: k,
+    cmd: "prais",
+    depvar: model.depvar,
+    vce: "ols",
+  };
+  ctx.out("");
+  if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) {
+    log.forEach((value, j) =>
+      ctx.out(`Iteration ${j}:  rho = ${applyFormat(value, "%6.4f").trim()}`),
+    );
+    ctx.out("");
+  }
+  ctx.out(
+    `${options.corc ? "Cochrane–Orcutt" : "Prais–Winsten"} AR(1) regression with ${options.twostep ? "twostep" : "iterated"} estimates`,
+  );
+  ctx.out("");
+  left.forEach((line, j) => ctx.out(line.padEnd(48) + side[j]));
+  ctx.out("");
+  coefficientHeader(model, level).forEach(ctx.out);
+  coefficientRows(session, model, level).forEach(ctx.out);
+  ctx.out(SPLIT);
+  ctx.out(`         rho |${g(rho).padStart(11)}`);
+  ctx.out(RULE);
+  ctx.out(
+    `Durbin–Watson statistic (original)    = ${applyFormat(dwOriginal, "%8.6f")}`,
+  );
+  ctx.out(
+    `Durbin–Watson statistic (transformed) = ${applyFormat(session.results.e.dw, "%8.6f")}`,
+  );
+  ctx.out("");
+}
+
+// Critical values of the Dickey-Fuller t statistic (Fuller 1996) at sample
+// sizes 25, 50, 100, 250, 500 and infinity, for 1, 5 and 10 percent, as
+// dfuller tabulates and interpolates them.
+const DF_CRITICAL = {
+  noconstant: [
+    [-2.66, -2.62, -2.6, -2.58, -2.58, -2.58],
+    [-1.95, -1.95, -1.95, -1.95, -1.95, -1.95],
+    [-1.6, -1.61, -1.61, -1.62, -1.62, -1.62],
+  ],
+  constant: [
+    [-3.75, -3.58, -3.51, -3.46, -3.44, -3.43],
+    [-3.0, -2.93, -2.89, -2.88, -2.87, -2.86],
+    [-2.63, -2.6, -2.58, -2.57, -2.57, -2.57],
+  ],
+  trend: [
+    [-4.38, -4.15, -4.04, -3.99, -3.98, -3.96],
+    [-3.6, -3.5, -3.45, -3.43, -3.42, -3.41],
+    [-3.24, -3.18, -3.15, -3.13, -3.13, -3.12],
+  ],
+};
+function dfCritical(kind, n) {
+  const steps = [25, 50, 100, 250, 500];
+  return DF_CRITICAL[kind].map((row) => {
+    if (n <= 25) return row[0];
+    if (n > 500) return row[5];
+    const k = steps.findIndex((step) => n <= step);
+    return (
+      row[k - 1] +
+      ((n - steps[k - 1]) / (steps[k] - steps[k - 1])) * (row[k] - row[k - 1])
+    );
+  });
+}
+/** MacKinnon's (1994) approximate p-value for the statistic. */
+function mackinnon(kind, tau) {
+  const surface =
+      kind === "constant"
+        ? tau > -1.61
+          ? {
+              low: -9999,
+              high: 2.74,
+              g: [1.7339, 0.93202, -0.12745, -0.010368],
+            }
+          : { low: -18.83, high: Infinity, g: [2.1659, 1.4412, 0.038269, 0] }
+        : tau > -2.89
+          ? { low: -9999, high: 0.7, g: [2.5261, 0.61654, -0.37956, -0.060285] }
+          : { low: -16.18, high: Infinity, g: [3.2512, 1.6047, 0.049588, 0] },
+    [g0, g1, g2, g3] = surface.g;
+  if (tau < surface.low) return 0;
+  if (tau > surface.high) return 1;
+  return normal(g0 + g1 * tau + g2 * tau ** 2 + g3 * tau ** 3);
+}
+
+function dfuller(session, text, ctx) {
+  if (!session.panel?.time)
+    throw new StataError("time variable not set, use tsset varname ...", 111);
+  if (session.panel.id)
+    throw new StataError("dfuller on panel data is not available yet", 198);
+  const parsed = session.parse(
+      "varname [if] [in] [, Lags(integer 0) TRend noCONStant | DRift REGress]",
+      text,
+    ),
+    options = parsed.options,
+    lags = options.lags,
+    kind = options.trend
+      ? "trend"
+      : options.constant === false
+        ? "noconstant"
+        : "constant",
+    variable = session.data.get(parsed.varlist[0]),
+    time = session.data.get(session.panel.time).data,
+    // Lags reach back before the observations if and in select, as the
+    // time-series operators do; the selection applies to the regression.
+    rows = Array.from({ length: session.data.n }, (_, i) => i)
+      .filter((i) => !isMissing(time[i]))
+      .sort((a, b) => time[a] - time[b]),
+    selected = new Set(session.rows(parsed, null)),
+    y = rows.map((i) => variable.data[i]);
+  if (options.trend && options.constant === false)
+    throw new StataError("trend and noconstant may not be combined", 198);
+  if (
+    y.some((v) => isMissing(v)) ||
+    rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1)
+  )
+    throw new StataError("sample may not contain gaps", 498);
+  const difference = y.slice(1).map((v, i) => v - y[i]),
+    // Observation t uses y[t-1] and the differences at t-1 back to t-lags.
+    start = lags + 1,
+    use = Array.from({ length: y.length - start }, (_, i) => i).filter((i) =>
+      selected.has(rows[start + i]),
+    ),
+    n = use.length,
+    pick = (values) => use.map((i) => values[i]);
+  const columns = [pick(y.slice(start - 1, -1))];
+  for (let k = 1; k <= lags; k++)
+    columns.push(pick(difference.slice(start - 1 - k, difference.length - k)));
+  if (kind === "trend") columns.push(use.map((i) => time[rows[start + i]]));
+  if (kind !== "noconstant") columns.push(new Array(n).fill(1));
+  if (n - columns.length < 1)
+    throw new StataError("insufficient observations", 2001);
+  const fitted = leastSquares(columns, pick(difference.slice(start - 1))),
+    s2 = fitted.rss / (n - columns.length),
+    tau = fitted.b[0] / Math.sqrt(s2 * fitted.inverse[0][0]),
+    critical = dfCritical(kind, n),
+    three = (value) => applyFormat(value, "%6.3f").trim();
+  ctx.out("");
+  if (lags) {
+    ctx.out("Augmented Dickey–Fuller test for unit root");
+    ctx.out("");
+    ctx.out(
+      `${`Variable: ${variable.name}`.padEnd(43)}Number of obs  = ${String(n).padStart(2)}`,
+    );
+    ctx.out(`${" ".repeat(43)}Number of lags = ${String(lags).padStart(2)}`);
+  } else {
+    ctx.out(
+      `${"Dickey–Fuller test for unit root".padEnd(43)}Number of obs  = ${String(n).padStart(2)}`,
+    );
+    ctx.out(
+      `${`Variable: ${variable.name}`.padEnd(43)}Number of lags = ${String(lags).padStart(2)}`,
+    );
+  }
+  ctx.out("");
+  ctx.out(
+    `H0: ${
+      kind === "trend"
+        ? "Random walk with or without drift"
+        : kind === "constant"
+          ? "Random walk without drift, d = 0"
+          : "Random walk without drift, a = 0, d = 0"
+    }`,
+  );
+  ctx.out("");
+  ctx.out(`${" ".repeat(39)}Dickey–Fuller`);
+  ctx.out("                   Test      -------- critical value ---------");
+  ctx.out("              statistic           1%           5%          10%");
+  ctx.out("-".repeat(62));
+  ctx.out(
+    ` Z(t)${three(tau).padStart(18)}${critical.map((v) => three(v).padStart(13)).join("")}`,
+  );
+  ctx.out("-".repeat(62));
+  session.results.r = {
+    N: n,
+    lags,
+    Zt: tau,
+    cv_1: critical[0],
+    cv_5: critical[1],
+    cv_10: critical[2],
+  };
+  if (kind !== "noconstant") {
+    const p = mackinnon(kind, tau);
+    ctx.out(
+      `MacKinnon approximate p-value for Z(t) = ${applyFormat(p, "%6.4f")}.`,
+    );
+    session.results.r.p = p;
+  }
+  ctx.out("");
+}
+
 export const MORE_POSTESTIMATION = [
+  { name: "dfuller", minimum: 7, run: dfuller },
+  { name: "prais", minimum: 5, run: prais },
   { name: "newey", minimum: 5, run: newey },
   { name: "nlcom", minimum: 5, run: nlcom },
   { name: "testnl", minimum: 6, run: testnl },

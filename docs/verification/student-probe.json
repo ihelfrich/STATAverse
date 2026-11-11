@@ -1,7 +1,7 @@
 {
   "basis": "Each line of tools/student-probe.txt run alone in a fresh Console session after a setup on the wages data. Run means no error; it does not mean agreement with Stata. The list is a judgement about what students commonly type.",
   "commands": 228,
-  "run": 177,
+  "run": 185,
   "refused": [
     {
       "command": "inspect wage",
@@ -9,24 +9,9 @@
       "message": "command inspect is unrecognized r(199);"
     },
     {
-      "command": "notes: checked",
-      "rc": 199,
-      "message": "command notes is unrecognized r(199);"
-    },
-    {
       "command": "graph pie, over(sector)",
       "rc": 198,
       "message": "graph pie is not available yet r(198);"
-    },
-    {
-      "command": "which regress",
-      "rc": 199,
-      "message": "command which is unrecognized r(199);"
-    },
-    {
-      "command": "query",
-      "rc": 199,
-      "message": "command query is unrecognized r(199);"
     },
     {
       "command": "drawnorm z1 z2",
@@ -104,16 +89,6 @@
       "message": "command xttab is unrecognized r(199);"
     },
     {
-      "command": "ivregress gmm wage (education = experience)",
-      "rc": 198,
-      "message": "ivregress gmm is not available yet; 2sls is r(198);"
-    },
-    {
-      "command": "ivregress liml wage (education = experience)",
-      "rc": 198,
-      "message": "ivregress liml is not available yet; 2sls is r(198);"
-    },
-    {
       "command": "estat firststage",
       "rc": 301,
       "message": "estat firststage is only available after ivregress r(301);"
@@ -139,19 +114,9 @@
       "message": "command rreg is unrecognized r(199);"
     },
     {
-      "command": "prais wage education",
-      "rc": 199,
-      "message": "command prais is unrecognized r(199);"
-    },
-    {
       "command": "arima wage, ar(1)",
       "rc": 199,
       "message": "command arima is unrecognized r(199);"
-    },
-    {
-      "command": "dfuller wage",
-      "rc": 199,
-      "message": "command dfuller is unrecognized r(199);"
     },
     {
       "command": "permute high _b[high], reps(10): regress wage high",
@@ -227,11 +192,6 @@
       "command": "merge m:m sector using x",
       "rc": 198,
       "message": "merge m:m is not available; it rarely does what is wanted r(198);"
-    },
-    {
-      "command": "numlabel, add",
-      "rc": 199,
-      "message": "command numlabel is unrecognized r(199);"
     },
     {
       "command": "macro list",

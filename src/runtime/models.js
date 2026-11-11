@@ -347,10 +347,97 @@ function maximumLikelihood(kind) {
   };
 }
 
+/** The inverse of a square matrix that need not be definite, or null. */
+function invertGeneral(A) {
+  const n = A.length,
+    m = A.map((row, i) => [
+      ...row,
+      ...Array.from({ length: n }, (_, j) => Number(i === j)),
+    ]);
+  for (let c = 0; c < n; c++) {
+    let pivot = c;
+    for (let r = c + 1; r < n; r++)
+      if (Math.abs(m[r][c]) > Math.abs(m[pivot][c])) pivot = r;
+    if (!(Math.abs(m[pivot][c]) > 1e-300)) return null;
+    [m[c], m[pivot]] = [m[pivot], m[c]];
+    const d = m[c][c];
+    for (let j = 0; j < 2 * n; j++) m[c][j] /= d;
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = m[r][c];
+      for (let j = 0; j < 2 * n; j++) m[r][j] -= f * m[c][j];
+    }
+  }
+  return m.map((row) => row.slice(n));
+}
+/**
+ * The smallest k with |A - kB| = 0 for symmetric A and positive definite
+ * B: the smallest eigenvalue of L^-1 A L^-T, where B = LL', by Jacobi
+ * rotations.
+ */
+function smallestRoot(A, B) {
+  const n = A.length,
+    L = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j <= i; j++) {
+      let sum = B[i][j];
+      for (let k = 0; k < j; k++) sum -= L[i][k] * L[j][k];
+      if (i === j) {
+        if (!(sum > 0))
+          throw new StataError("the instruments are collinear", 198);
+        L[i][i] = Math.sqrt(sum);
+      } else L[i][j] = sum / L[j][j];
+    }
+  // Solve L X = A, then L C' = X': C = L^-1 A L^-T.
+  const forward = (rhs) => {
+      const out = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sum = rhs[i];
+        for (let k = 0; k < i; k++) sum -= L[i][k] * out[k];
+        out[i] = sum / L[i][i];
+      }
+      return out;
+    },
+    half = Array.from({ length: n }, (_, c) => forward(A.map((row) => row[c]))),
+    // half[c] is column c of L^-1 A; its rows solved again give C.
+    C = Array.from({ length: n }, (_, r) =>
+      forward(half.map((columnValues) => columnValues[r])),
+    );
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) off += C[p][q] ** 2;
+    if (off < 1e-30) break;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) {
+        if (Math.abs(C[p][q]) < 1e-300) continue;
+        const theta = (C[q][q] - C[p][p]) / (2 * C[p][q]),
+          t =
+            Math.sign(theta || 1) /
+            (Math.abs(theta) + Math.sqrt(theta * theta + 1)),
+          c = 1 / Math.sqrt(t * t + 1),
+          s2 = t * c;
+        for (let k = 0; k < n; k++) {
+          const a = C[k][p],
+            b2 = C[k][q];
+          C[k][p] = c * a - s2 * b2;
+          C[k][q] = s2 * a + c * b2;
+        }
+        for (let k = 0; k < n; k++) {
+          const a = C[p][k],
+            b2 = C[q][k];
+          C[p][k] = c * a - s2 * b2;
+          C[q][k] = s2 * a + c * b2;
+        }
+      }
+  }
+  return Math.min(...C.map((row, i) => row[i]));
+}
+
 // ----- two-stage least squares -----
 function ivregress(session, text, ctx) {
   const m =
-    /^\s*(2sls|liml|gmm)\s+(\S+)\s+([^()]*)\(([^=()]+)=([^()]+)\)([^(),]*)([\s\S]*)$/.exec(
+    /^\s*(2sls|liml|gmm)\s+(\S+)\s+([^()]*)\(([^=()]+)=([^()]+)\)((?:(?!\b(?:if|in)\b)[^(),])*)([\s\S]*)$/.exec(
       text,
     );
   if (!m)
@@ -358,20 +445,20 @@ function ivregress(session, text, ctx) {
       "ivregress needs an estimator and (endogenous = instruments)",
       198,
     );
-  if (m[1] !== "2sls")
-    throw new StataError(
-      `ivregress ${m[1]} is not available yet; 2sls is`,
-      198,
-    );
-  const parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) Level(cilevel) First | noCONStant SMALL]",
+  const estimator = m[1],
+    parsed = session.parse(
+      "[if] [in] [, Robust VCE(string) Level(cilevel) First WMATrix(string) | noCONStant SMALL Igmm]",
       m[7],
     ),
     names = (part) => (part.trim() ? session.varlist(part) : []),
     endogenous = names(m[4]),
     exogenous = [...names(m[3]), ...names(m[6])],
     instruments = names(m[5]),
-    robust = !!parsed.options.robust || /^r/.test(parsed.options.vce ?? ""),
+    weighting = (parsed.options.wmatrix ?? "robust").trim(),
+    robust =
+      !!parsed.options.robust ||
+      /^r/.test(parsed.options.vce ?? "") ||
+      (estimator === "gmm" && /^r/.test(weighting) && !parsed.options.vce),
     column = (name) => {
       const data = session.data.get(name).data;
       return data;
@@ -417,15 +504,123 @@ function ivregress(session, text, ctx) {
   const xy = fitted[0].map((_, a) =>
       fitted.reduce((t, row, i) => t + row[a] * y[i], 0),
     ),
-    b = bread.map((row) => row.reduce((t, v, k) => t + v * xy[k], 0)),
-    residuals = y.map(
-      (v, i) => v - X[i].reduce((t, value, k) => t + value * b[k], 0),
-    ),
+    twoStage = bread.map((row) => row.reduce((t, v, k) => t + v * xy[k], 0)),
+    residualsOf = (beta) =>
+      y.map((v, i) => v - X[i].reduce((t, value, k) => t + value * beta[k], 0)),
+    columnOf = (rows2, k) => rows2.map((row) => row[k]),
+    solve = (A, v) => A.map((row) => row.reduce((t, a, k) => t + a * v[k], 0));
+  if (estimator === "gmm" && !/^(r|un)/.test(weighting))
+    throw new StataError(
+      `wmatrix(${weighting}) is not available yet; robust and unadjusted are`,
+      198,
+    );
+  let b = twoStage,
+    kClass = null,
+    gmm = null;
+  if (estimator === "liml") {
+    // kappa is the smallest root of |Y'M1 Y - k Y'M Y| = 0, where Y holds
+    // the outcome and the endogenous regressors, M1 removes the exogenous
+    // regressors and M removes every instrument.
+    const exo = matrix(exogenous),
+      residualOn = (A, v) => {
+        const inverse = invertSymmetric(cross(A, A)),
+          coefficient = solve(
+            inverse,
+            A[0].map((_, a) => A.reduce((t, row, i) => t + row[a] * v[i], 0)),
+          );
+        return v.map(
+          (value, i) =>
+            value - A[i].reduce((t, a, k) => t + a * coefficient[k], 0),
+        );
+      },
+      Y = [y, ...endogenous.map((_, k) => columnOf(X, k))],
+      inner = (U) =>
+        U.map((a) => U.map((c) => a.reduce((t, v, i) => t + v * c[i], 0))),
+      M1 = inner(Y.map((v) => residualOn(exo, v))),
+      MZ = Y.map((v) => residualOn(Z, v)),
+      M = inner(MZ),
+      kappa = smallestRoot(M1, M),
+      // (X'(I - kM)X) b = X'(I - kM) y, with MX the residuals of X on Z.
+      MX = X[0].map((_, k) => residualOn(Z, columnOf(X, k))),
+      My = MZ[0],
+      A = X[0].map((_, a) =>
+        X[0].map(
+          (_, c) =>
+            X.reduce((t, row) => t + row[a] * row[c], 0) -
+            kappa * MX[a].reduce((t, v, i) => t + v * MX[c][i], 0),
+        ),
+      ),
+      rhs = X[0].map(
+        (_, a) =>
+          X.reduce((t, row, i) => t + row[a] * y[i], 0) -
+          kappa * MX[a].reduce((t, v, i) => t + v * My[i], 0),
+      ),
+      inverse = invertGeneral(A);
+    if (!inverse) throw new StataError("the model is not identified", 481);
+    b = solve(inverse, rhs);
+    kClass = { kappa, inverse, MX };
+  } else if (estimator === "gmm") {
+    const first = residualsOf(twoStage),
+      rss1 = first.reduce((t, e) => t + e * e, 0),
+      zx = cross(Z, X),
+      zy = Z[0].map((_, a) => Z.reduce((t, row, i) => t + row[a] * y[i], 0)),
+      momentCovariance = (e) =>
+        Z[0].map((_, a) =>
+          Z[0].map(
+            (_, c) =>
+              Z.reduce((t, row, i) => t + e[i] * e[i] * row[a] * row[c], 0) / n,
+          ),
+        ),
+      S = /^r/.test(weighting)
+        ? momentCovariance(first)
+        : cross(Z, Z).map((row) => row.map((v) => (v * rss1) / n / n)),
+      W = invertSymmetric(S);
+    if (!W) throw new StataError("the weight matrix is singular", 506);
+    const xzW = multiply(
+        zx[0].map((_, a) => zx.map((row) => row[a])),
+        W,
+      ),
+      A = invertSymmetric(multiply(xzW, zx));
+    if (!A) throw new StataError("the model is not identified", 481);
+    b = solve(A, solve(xzW, zy));
+    gmm = { W, A, xzW, momentCovariance };
+  }
+  const residuals = residualsOf(b),
     rss = residuals.reduce((t, e) => t + e * e, 0),
     mean = y.reduce((a, c) => a + c, 0) / n,
     tss = y.reduce((t, v) => t + (v - mean) ** 2, 0);
   let V;
-  if (robust) {
+  if (gmm) {
+    // n (X'Z W Z'X)^-1 when the weight matrix is taken as the truth; with
+    // a robust variance the middle is rebuilt from the final residuals.
+    if (robust) {
+      const S2 = gmm.momentCovariance(residuals),
+        middle = multiply(
+          multiply(gmm.xzW, S2),
+          gmm.xzW[0].map((_, a) => gmm.xzW.map((row) => row[a])),
+        );
+      V = multiply(multiply(gmm.A, middle), gmm.A).map((row) =>
+        row.map((v) => v * n),
+      );
+    } else V = gmm.A.map((row) => row.map((v) => v * n));
+    const moments = Z[0].map(
+      (_, a) => Z.reduce((t, row, i) => t + row[a] * residuals[i], 0) / n,
+    );
+    gmm.J =
+      n *
+      moments.reduce(
+        (t, v, a) =>
+          t + v * gmm.W[a].reduce((u, w, c) => u + w * moments[c], 0),
+        0,
+      );
+  } else if (kClass) {
+    if (robust)
+      throw new StataError(
+        "ivregress liml with a robust variance is not available yet",
+        198,
+      );
+    V = kClass.inverse.map((row) => row.map((v) => (v * rss) / n));
+  } else if (robust) {
     const size = b.length,
       meat = Array.from({ length: size }, () => new Array(size).fill(0));
     fitted.forEach((row, i) => {
@@ -438,7 +633,7 @@ function ivregress(session, text, ctx) {
   const namesOut = [...endogenous, ...exogenous, "_cons"],
     model = {
       command: "ivregress",
-      title: "Instrumental-variables 2SLS regression",
+      title: `Instrumental-variables ${estimator === "2sls" ? "2SLS" : estimator.toUpperCase()} regression`,
       dist: "z",
       depvar: dep,
       names: namesOut,
@@ -481,6 +676,9 @@ function ivregress(session, text, ctx) {
     cmd: "ivregress",
     depvar: dep,
     vce: model.vce,
+    estimator,
+    ...(kClass ? { kappa: kClass.kappa } : {}),
+    ...(gmm ? { J: gmm.J } : {}),
   };
   if (parsed.options.first) {
     firstStage(session, model.iv, parsed, ctx);
@@ -490,10 +688,20 @@ function ivregress(session, text, ctx) {
     ["Number of obs", count(n)],
     [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
     ["Prob > chi2", applyFormat(p, "%6.4f").trim()],
-    ["R-squared", applyFormat(model.r2, "%6.4f").trim()],
+    // Stata leaves R-squared out when it would be negative.
+    ...(model.r2 >= 0
+      ? [["R-squared", applyFormat(model.r2, "%6.4f").trim()]]
+      : []),
     ["Root MSE", "    " + applyFormat(model.rmse, "%7.0g")],
-  ].forEach(([label, value], k) =>
-    ctx.out(`${(k ? "" : model.title).padEnd(50)}${side(label, value)}`),
+  ].forEach(([label, value], k, list) =>
+    ctx.out(
+      `${(k
+        ? gmm && k === list.length - 1
+          ? `GMM weight matrix: ${/^r/.test(weighting) ? "Robust" : "Unadjusted"}`
+          : ""
+        : model.title
+      ).padEnd(50)}${side(label, value)}`,
+    ),
   );
   ctx.out("");
   zTable(session, model, parsed.options.level, null).forEach(ctx.out);
