@@ -429,6 +429,11 @@ function dropKeep(keep) {
       );
       return;
     }
+    // drop _all empties the dataset, and is no error when it is empty.
+    if (!keep && text.trim() === "_all" && !data.variables.length) {
+      data.reorder([]);
+      return;
+    }
     const names = session.parse("varlist", text).varlist;
     if (keep) data.keep(names);
     else data.drop(names);

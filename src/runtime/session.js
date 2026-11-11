@@ -15,6 +15,7 @@ import { formatNumber } from "./values.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
+import { coefficientIndex } from "./estimation.js";
 
 const MAX_STEPS = 200000;
 // c(current_date) in Stata's form, such as "10 Nov 2026".
@@ -58,7 +59,7 @@ export class Session {
         const model = this.estimates;
         // Without a model, Stata reports the name as not found.
         if (!model) throw new StataError(`[${name}] not found`, 111);
-        const at = model.names.indexOf(name.replace(/^[^:]+:/, ""));
+        const at = coefficientIndex(model, name);
         if (at < 0) throw new StataError(`[${name}] not found`, 111);
         return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
       },

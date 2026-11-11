@@ -38,8 +38,17 @@ const LINKS = {
 };
 // Estimators whose default prediction is a function of one linear index,
 // with the link that gives it.
-const LINEAR_COMMANDS = ["regress", "tobit", "qreg", "areg", "newey", "prais"];
-function linkOf(model) {
+const LINEAR_COMMANDS = [
+  "regress",
+  "tobit",
+  "qreg",
+  "areg",
+  "newey",
+  "prais",
+  "ivregress",
+  "xtreg",
+];
+export function linkOf(model) {
   if (model.kind === "glm")
     return LINKS[
       { identity: "linear", log: "poisson" }[model.link] ?? model.link
@@ -287,7 +296,8 @@ function margins(session, text, ctx) {
 
   // After qreg, newey and prais Stata's margins refers to the normal.
   const t =
-      model.dist !== "z" && !["qreg", "newey", "prais"].includes(model.command),
+      model.dist !== "z" &&
+      !["qreg", "newey", "prais", "xtreg"].includes(model.command),
     critical = t
       ? invttail(model.df_r, (1 - level / 100) / 2)
       : invnormal(1 - (1 - level / 100) / 2),
@@ -319,6 +329,7 @@ function margins(session, text, ctx) {
         cluster: "Robust",
         oim: "OIM",
         unadjusted: "Unadjusted",
+        conventional: "Conventional",
       }[model.vce] ?? "OLS";
   ctx.out("");
   ctx.out(`${title.padEnd(60)}Number of obs = ${count(n)}`);

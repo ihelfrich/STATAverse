@@ -1,0 +1,12 @@
+{
+  "basis": "Each follow-up command tried after each estimator, in installed Stata (recorded) and in the runtime. Agreement means both ran or both refused; printed results are not compared here.",
+  "pairs": 897,
+  "bothRun": 697,
+  "bothRefuse": 200,
+  "runsInStataOnly": 0,
+  "runsHereOnly": 0,
+  "crashes": 0,
+  "missing": [],
+  "permissive": [],
+  "crashed": []
+}

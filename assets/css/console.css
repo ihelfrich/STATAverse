@@ -1,35 +1,65 @@
+/* The Console: a do-file editor beside a Results window. The page keeps the
+   site's paper, ink and blue; the Results window is the one loud thing. */
+.console-page {
+  --mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --code-size: 13.5px;
+  --code-line: 1.55;
+  --pane: #fff;
+  --pane-edge: #cfd6e1;
+  --results-bg: #fff;
+  --results-ink: #182434;
+  --results-command: #0f2f86;
+  --results-number: inherit;
+  --results-error: #a32927;
+  --results-rule: #e3e7ee;
+  --results-dim: #5a687a;
+}
+.console-window[data-scheme="classic"] {
+  /* Stata's own Results window, as it looked for twenty years. */
+  --results-bg: #000;
+  --results-ink: #58d858;
+  --results-command: #fff;
+  --results-number: #ffe85c;
+  --results-error: #ff7b72;
+  --results-rule: #1e3a1e;
+  --results-dim: #8fb98f;
+  color-scheme: dark;
+}
+
 .console-layout {
-  max-width: 1480px;
+  max-width: 1520px;
   margin: auto;
-  padding: 44px 5vw 80px;
+  padding: 36px 5vw 80px;
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: 28px 40px;
+  gap: 26px 32px;
+  align-items: start;
 }
 .console-heading,
 .console-scope {
   grid-column: 1 / -1;
 }
-.console-heading {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 24px;
-}
 .console-heading h1 {
   font-size: clamp(30px, 4vw, 44px);
   letter-spacing: -1.2px;
-  margin-bottom: 14px;
+  margin: 0 0 10px;
 }
-.console-heading > p:last-child,
-.console-scope p {
-  max-width: 820px;
-  line-height: 1.75;
+.console-heading > p,
+.console-scope > p {
+  max-width: 74ch;
+  line-height: 1.7;
   color: var(--muted);
+  margin: 0;
+}
+.console-scope > p + p {
+  margin-top: 12px;
 }
 .console-layout h2 {
   font-size: 15px;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  margin: 0 0 10px;
+  font-weight: 650;
+  margin: 0;
 }
 .console-editor,
 .console-results,
@@ -38,121 +68,495 @@
 }
 .console-results {
   grid-row: span 2;
+  position: sticky;
+  top: 12px;
 }
 .console-bar {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  min-height: 34px;
+  margin-bottom: 8px;
+}
+.console-choices {
+  display: flex;
+  gap: 6px 14px;
   flex-wrap: wrap;
 }
-.console-data {
-  font-size: 14px;
+.console-choices label {
+  font-size: 13px;
   color: var(--muted);
 }
-.console-data select {
+.console-choices select {
   font: inherit;
-  max-width: 100%;
+  color: var(--ink);
+  max-width: min(100%, 200px);
   padding: 4px 6px;
-}
-#console-source {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 300px;
-  resize: vertical;
-  font-family: var(--mono);
-  font-size: 14px;
-  line-height: 1.55;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 5px;
   background: #fff;
-  color: var(--ink, #172a3a);
+}
+
+/* ----- the editor: numbers, colour, and the text on top ----- */
+.console-code {
+  position: relative;
+  border: 1px solid var(--pane-edge);
+  border-radius: 8px;
+  background: var(--pane);
+  overflow: hidden;
+}
+.console-code:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(31, 80, 205, 0.16);
+}
+.console-gutter,
+.console-highlight,
+#console-source {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--code-size);
+  line-height: var(--code-line);
   tab-size: 4;
   white-space: pre;
+  padding: 14px 14px 14px 58px;
+}
+.console-gutter,
+.console-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.console-gutter {
+  right: auto;
+  width: 46px;
+  padding: 14px 10px 14px 0;
+  text-align: right;
+  color: #7c8798;
+  background: #f4f6f9;
+  border-right: 1px solid var(--results-rule);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.console-highlight {
+  color: var(--ink);
+}
+#console-source {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--ink);
   overflow: auto;
 }
+#console-source.is-coloured {
+  /* The same text is painted by the layer behind. */
+  color: transparent;
+}
+#console-source.is-coloured::selection {
+  color: transparent;
+  background: rgba(31, 80, 205, 0.22);
+}
+.hl-comment {
+  color: #5d6b5f;
+  font-style: italic;
+}
+.hl-command {
+  color: #0f2f86;
+  font-weight: 650;
+}
+.hl-string {
+  color: #8a3b12;
+}
+.hl-macro {
+  color: #6b2c91;
+}
+.hl-number {
+  color: #0b6152;
+}
+
 .console-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+.console-actions button {
+  font-size: 13px;
+}
+.console-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 .console-hint,
 #console-status,
 #console-memory {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--muted);
+  margin: 10px 0 0;
+}
+#console-status {
+  color: var(--ink);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+/* Stata's prompt is a dot. Here it also says what the session is doing. */
+#console-status::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa6b6;
+  transform: translateY(-1px);
+}
+#console-status[data-state="running"]::before {
+  background: var(--green);
+  animation: console-pulse 0.9s ease-in-out infinite;
+}
+#console-status[data-state="done"]::before {
+  background: #0b7a4b;
+}
+#console-status[data-state="error"]::before {
+  background: var(--red);
+}
+@keyframes console-pulse {
+  50% {
+    transform: translateY(-1px) scale(1.7);
+    opacity: 0.45;
+  }
+}
+
+/* ----- the Results window ----- */
+.console-switch {
+  font-size: 13px;
+  padding: 5px 10px 5px 30px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  position: relative;
+}
+.console-switch::before {
+  /* A two-tone swatch: the scheme the button turns on. */
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #000 50%, #58d858 50%);
+  border: 1px solid #000;
+}
+.console-switch[aria-pressed="true"] {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+.console-switch[aria-pressed="true"]::before {
+  border-color: #fff;
+}
+.console-window {
+  border: 1px solid var(--pane-edge);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--results-bg);
+  color: var(--results-ink);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+.console-window:focus-within {
+  border-color: var(--green);
 }
 #console-output {
   margin: 0;
-  min-height: 420px;
-  max-height: 78vh;
+  position: relative;
+  /* Tall enough to read a regression, short enough that the command
+     line under it is on screen when the page opens. */
+  height: clamp(360px, calc(100vh - 390px), 760px);
   overflow: auto;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fbfaf7;
+  padding: 14px 16px;
   font-family: var(--mono);
   font-size: 13px;
   line-height: 1.45;
   white-space: pre;
+  color: inherit;
+  background: transparent;
+}
+#console-output:empty::before {
+  content: "Results appear here.\A\ARun the do-file, or type a command below\Aand press Enter.";
+  white-space: pre-wrap;
+  color: var(--results-dim);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
 }
 .console-command {
+  display: inline-block;
+  color: var(--results-command);
   font-weight: 700;
+  vertical-align: top;
 }
-.console-error {
-  color: var(--red, #a12a2a);
+.console-lines {
+  display: block;
 }
-.console-scroll {
-  overflow: auto;
-  max-height: 320px;
+.console-number {
+  color: var(--results-number);
 }
-#console-variable-table {
-  border-collapse: collapse;
-  font-size: 14px;
-  width: 100%;
-}
-#console-variable-table th,
-#console-variable-table td {
-  text-align: left;
-  padding: 5px 12px 5px 0;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--mono);
-  white-space: nowrap;
-}
-#console-commands {
-  font-family: var(--mono);
-  font-size: 14px;
-}
-@media (max-width: 900px) {
-  .console-layout {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 28px 16px 60px;
-  }
-  .console-results {
-    grid-row: auto;
-  }
-  #console-output {
-    min-height: 260px;
-    font-size: 12px;
-  }
+.console-error,
+.console-error .console-number {
+  color: var(--results-error);
 }
 .console-graph {
   display: block;
   width: min(100%, 640px);
   height: auto;
   margin: 8px 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--results-rule);
+  border-radius: 4px;
   background: #fff;
 }
+
+/* A short run is typed and printed, as it would be at Stata's prompt: the
+   command key by key, then its output a line at a time. */
+.console-record.is-arriving .console-command {
+  animation: console-type calc(var(--keys) * 9ms) steps(var(--keys), end)
+    var(--wait) backwards;
+}
+.console-record.is-arriving .console-lines {
+  animation: console-print calc(var(--rows) * 26ms) steps(var(--rows), end)
+    calc(var(--wait) + var(--keys) * 9ms) backwards;
+}
+.console-record.is-arriving .console-graph {
+  animation: console-develop 0.35s ease-out
+    calc(var(--wait) + var(--keys) * 9ms) backwards;
+}
+@keyframes console-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes console-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes console-develop {
+  from {
+    opacity: 0;
+  }
+}
+
+.console-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--results-rule);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.console-prompt label {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--results-dim);
+}
+.console-dot {
+  font-weight: 700;
+  color: var(--results-command);
+}
+#console-command {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--results-command);
+  caret-color: var(--results-command);
+}
+#console-command::placeholder {
+  color: var(--results-dim);
+  opacity: 1;
+}
+#console-command:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.console-window[data-scheme="classic"] #console-command:focus-visible {
+  outline-color: #ffe85c;
+}
+
+/* ----- variables ----- */
+.console-variables h2 {
+  margin-bottom: 4px;
+}
+#console-memory {
+  margin: 0 0 8px;
+}
+.console-scroll {
+  overflow: auto;
+  max-height: 300px;
+}
+#console-variable-table {
+  border-collapse: collapse;
+  font-size: 13.5px;
+  width: 100%;
+}
+#console-variable-table caption {
+  caption-side: bottom;
+  text-align: left;
+  font-size: 13px;
+  color: var(--muted);
+  padding-top: 8px;
+}
+#console-variable-table th,
+#console-variable-table td {
+  text-align: left;
+  padding: 5px 14px 5px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+#console-variable-table th {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+}
+#console-variable-table td {
+  font-family: var(--mono);
+}
+#console-variable-table td:last-child {
+  font-family: var(--sans);
+  white-space: normal;
+}
+.console-name {
+  font: inherit;
+  padding: 1px 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #0f2f86;
+  font-weight: 650;
+}
+.console-name:hover {
+  background: var(--mint);
+}
+#console-variable-table tr.is-new td {
+  animation: console-new 1.8s ease-out;
+}
+@keyframes console-new {
+  from {
+    background: #fff1b8;
+  }
+}
 .console-files {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--muted);
   overflow-wrap: anywhere;
+  margin: 10px 0 0;
 }
 .console-files label {
   display: block;
   margin-bottom: 4px;
+}
+
+/* ----- what runs here ----- */
+.console-scope {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.console-find {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 10px 0 12px;
+  font-size: 13.5px;
+}
+.console-find label {
+  color: var(--muted);
+}
+#console-filter {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  padding: 6px 10px;
+  width: min(100%, 260px);
+  border: 1px solid var(--pane-edge);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+}
+#console-found {
+  color: var(--ink);
+}
+#console-commands {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  max-width: 1100px;
+}
+#console-commands li[hidden] {
+  display: none;
+}
+#console-commands code {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #e9edf3;
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .console-layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 24px 16px 60px;
+  }
+  .console-results {
+    grid-row: auto;
+    position: static;
+  }
+  #console-output {
+    height: clamp(260px, 56vh, 560px);
+    font-size: 12px;
+  }
+  #console-source {
+    min-height: 240px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .console-record.is-arriving .console-command,
+  .console-record.is-arriving .console-lines,
+  .console-record.is-arriving .console-graph,
+  #console-variable-table tr.is-new td,
+  #console-status[data-state="running"]::before {
+    animation: none;
+  }
+  .console-window {
+    transition: none;
+  }
 }

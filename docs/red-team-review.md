@@ -256,7 +256,6 @@ The assembled main-site style gate found two literal h1 elements in the readerâ€
 
 A subsequent assembled-site offline run failed when opening IV investigations for the first time. The host returned `Vary: Origin`; dynamic module requests supplied Origin, while installation precache requests did not. The worker therefore returned 503 despite holding the module bytes. A deployment-server reproduction with that response header also failed on an unopened Data lab. The worker now permits a header-neutral lookup only for exact public core URLs. The revised deployment test opens and completes an IV task offline under `Vary: Origin`, and retains the foreign-cache isolation assertions. It passed with no page errors. This fix does not bypass arbitrary query or application-cache boundaries.
 
-
 ## Browser programming foundation
 
 The independent interpreter now supports scoped locals, foreach lists, integer forvalues ranges and nested if/else blocks. The installed executable exposed two initial compatibility defects: loop index locals must be removed after the loop, including a prior value of the same name, and foreach varlists must retain repeated variables. Both have executable fixtures. Fourteen constructed cases agree with the installed runtime at relative tolerance 1e-14. One empty-sample variable-expression case remains an explicit r(2000) boundary here; the installed runtime's retained prior first-row value is not adopted as a portable specification. Its unmodified licensed vendor provenance is not established.
@@ -354,8 +353,6 @@ Dr. Helfrich decided that both should be corrected in place. `src/expression.js`
 The evidence is a test that runs the recorded machine-written data expressions through the live interpreter and fails on any value that differs from Stata's. Of the 804 recorded, 196 are left out (errors, by-groups, and those using the variable that holds an extended missing value), 283 are refused, and 325 are evaluated; all 325 agree. Before the correction 321 agreed and 4 did not. Seven hand-written cases, checked in Stata 17 the same day, are tested as well. Two of the seven were first written with the wrong expected value and corrected from Stata's output, which is a fair measure of how unintuitive the rule is.
 
 What changes for a student: a saved command containing an unparenthesised chain of comparisons, or `strpos("", "")`, now replays with Stata's answer where it used to replay with the earlier one. No lesson, check or worked example contains either, and the 86 lesson commands still agree between the two interpreters.
-
-
 
 ### An intermittent browser test, 10 November 2026
 

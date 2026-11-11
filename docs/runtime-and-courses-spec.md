@@ -36,16 +36,16 @@ These would make the result a failure even if the features exist.
 
 ## Constraints that are fixed
 
-| Contract | Current value | Rule |
-| --- | --- | --- |
-| Public routes | 36 HTML routes under `/learn/stata/`, plus the legacy `/STATAverse/` bridge | No route is removed or renamed. New pages are added. |
-| Lesson identity | Lesson IDs and step positions in `src/lessons.js` and its imports | Existing IDs and positions never change. New lessons get new IDs. |
-| Storage keys | `stataverse:practice:v2` (internal schema 3), `stataverse:labs:v1`, `stataverse:do-builder:v1`, `stataverse:progress:*`, `stataverse:user*` | Keys keep their meaning. New state gets new keys. |
-| Backups | Workspace backup versions 2 to 4 | All remain importable. |
-| Worker protocol | `PRACTICE_PROTOCOL = 2` | Unchanged for the existing Practice page until stage 5. |
-| Offline core | 600,000 bytes gzip (553,339 at the last release) | The limit stays. New families load on demand and are cached after first use. |
-| Service worker | Scoped to `/learn/stata/` | Scope unchanged. Cache names keep carrying the release identity. |
-| Release path | Main site builds from the commit pinned in `config/stataverse.json` | Unchanged. Rolling back is reverting the pin. |
+| Contract        | Current value                                                                                                                               | Rule                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Public routes   | 36 HTML routes under `/learn/stata/`, plus the legacy `/STATAverse/` bridge                                                                 | No route is removed or renamed. New pages are added.                         |
+| Lesson identity | Lesson IDs and step positions in `src/lessons.js` and its imports                                                                           | Existing IDs and positions never change. New lessons get new IDs.            |
+| Storage keys    | `stataverse:practice:v2` (internal schema 3), `stataverse:labs:v1`, `stataverse:do-builder:v1`, `stataverse:progress:*`, `stataverse:user*` | Keys keep their meaning. New state gets new keys.                            |
+| Backups         | Workspace backup versions 2 to 4                                                                                                            | All remain importable.                                                       |
+| Worker protocol | `PRACTICE_PROTOCOL = 2`                                                                                                                     | Unchanged for the existing Practice page until stage 5.                      |
+| Offline core    | 600,000 bytes gzip (553,339 at the last release)                                                                                            | The limit stays. New families load on demand and are cached after first use. |
+| Service worker  | Scoped to `/learn/stata/`                                                                                                                   | Scope unchanged. Cache names keep carrying the release identity.             |
+| Release path    | Main site builds from the commit pinned in `config/stataverse.json`                                                                         | Unchanged. Rolling back is reverting the pin.                                |
 
 Two properties of the current code shape the migration and are easy to miss.
 
@@ -90,6 +90,7 @@ What follows is the shape; names inside `src/runtime/` are the builder's to sett
 Each stage ends in a public release through the pinned commit, with its own verification receipt. A stage is done when its commands pass native fixtures, the legacy suite still passes untouched, the offline budget holds and the corpus coverage number is recorded.
 
 **Stage 0. Baseline and safety net.**
+
 - A corpus tool that classifies every command line in the repository's do-files as verified, running but unverified, or unsupported, and reports coverage by command.
 - A differential harness that runs every existing fixture and a set of recorded saved sessions through both engines and reports any difference.
 - The legacy engine moved behind a stable interface without behavioural change.
@@ -102,6 +103,7 @@ Each stage ends in a public release through the pinned commit, with its own veri
 **Stage 3. Estimation contract, tables and graphics.** The estimation layer with `regress` moved onto it, weights, clustered covariance, the post-estimation commands, `estimates store` and `estimates table`, an `esttab`-compatible table command (reimplemented, since the original depends on Mata), `margins` and `marginsplot` for linear and index models, and the `twoway` grammar with `graph bar`, `graph box`, `kdensity` and `lowess`.
 
 **Stage 4. Estimator families.** In this order, each as its own chunk and its own release:
+
 1. `logit`, `probit`, `poisson`, `nbreg`, `ologit`, `oprobit`, `mlogit`, `tobit`.
 2. `xtset`, `tsset`, `xtsum`, `xtreg` (`fe`, `re`, `be`), `areg`, a `reghdfe`-compatible absorbing estimator for multiple fixed effects, `hausman`, `newey`.
 3. `ivregress` (`2sls`, `liml`, `gmm`) with `estat firststage`, `estat overid` and `estat endogenous`, built from `src/labs/iv-model.js`.
@@ -261,3 +263,9 @@ Then `table`, `proportion`, `anova`, `glm`, `cloglog`, `corrgram`, `ac`, `pac`, 
 Then `ivregress liml` and `gmm`, `prais`, `dfuller`, `notes` and `numlabel`. The probe stands at 185 of 228. Left to build: `arima`, `rreg`, `xtlogit`, `contrast` and `pwcompare`, `margins` after the newer estimators, `permute`, `xtdescribe` and `xttab`, `inspect`, `drawnorm`, `outsheet` and `infile`, and `graph pie`.
 
 Then `margins` after `tobit`, `nbreg`, `glm`, `cloglog`, `qreg`, `areg`, `newey`, `prais`, `ologit`, `oprobit` and `mlogit`. The probe is unchanged at 185 of 228, because its one `margins` line already ran; this batch widens what follows a model, which the probe does not sample. Left to build: `arima`, `rreg`, `xtlogit`, `contrast` and `pwcompare`, `permute`, `xtdescribe` and `xttab`, `inspect`, `drawnorm`, `outsheet` and `infile`, `graph pie`, and predicted probabilities from `predict` after the ordered and multinomial models.
+
+A second probe, `tools/postestimation-probe.mjs`, now samples what follows a model: 23 estimators by 39 follow-up commands, each pair run in installed Stata and here. 824 of 897 pairs agree on whether the command runs. The 63 that Stata runs and the Console refuses set the next order of work: `margins` after `ivregress` and `xtreg`; coefficients of `mlogit` addressed without an equation (`test x1`, `lincom`, `_b[x1]`); `predict` probabilities after `ologit`, `oprobit` and `mlogit`; `margins, at()` after the same three; the `estat` tests after `ivregress gmm`; `estat ic` after `areg` and `xtreg`; `predict, residuals` after `logit` and `predict, pr` after `cloglog`. The 10 pairs the Console runs and Stata refuses should be made to refuse.
+
+All 73 disagreements were then closed, and comparing what `predict` stores after every estimator corrected four wrong defaults the return codes had not shown (see the numerical contract). The post-estimation probe reads 897 of 897 and runs as a test.
+
+The Console page was rebuilt in the same change. It now has a command line under the results that runs one command at a time against the session, with Up and Down recalling earlier commands; a menu of six example do-files, each run by a test; an editor with line numbers and colour for commands, comments, strings, macros and numbers; a button and shortcut that run only the selected lines; variable names that can be put into the do-file with a click, with new variables marked after a run; a searchable list of the commands that run; and a choice of Stata's classic Results colours, kept between visits. A short run is typed and printed in turn and the marks of a graph are drawn in; both are skipped when the reader's system asks for reduced motion, and a run of more than 60 commands arrives at once. Writing the examples found two interpreter faults, since fixed: `simulate name = r(x)` failed when spaces surrounded the equals sign, and `drop _all` was an error with nothing in memory. The page is still unlinked and marked noindex.

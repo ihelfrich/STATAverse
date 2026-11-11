@@ -10,6 +10,8 @@ import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import { count } from "./reports.js";
+import { linkOf } from "./margins.js";
+import { outcomePredict } from "./outcome-margins.js";
 import {
   RULE,
   describeLinear,
@@ -643,6 +645,8 @@ function ivregress(session, text, ctx) {
         name,
         value: (i) => column(name)[i],
         term: { variable: session.data.get(name) },
+        evaluate: (get) => get(session.data.get(name)),
+        partial: (get, variable) => Number(variable === session.data.get(name)),
       })),
       constant: true,
       estimable: namesOut.map(() => true),
@@ -656,7 +660,16 @@ function ivregress(session, text, ctx) {
       vce: robust ? "robust" : "unadjusted",
       kind: "ivregress",
       sample: rows,
-      iv: { dep, endogenous, exogenous, instruments, rows },
+      iv: {
+        dep,
+        endogenous,
+        exogenous,
+        instruments,
+        rows,
+        estimator,
+        J: gmm?.J,
+        robustWeights: !!gmm && /^r/.test(weighting),
+      },
     };
   const chi2 = waldChi2(model),
     p = chi2tail(model.df_m, chi2),
@@ -713,10 +726,12 @@ function ivregress(session, text, ctx) {
 // ----- post-estimation that depends on the distribution -----
 function test(session, text, ctx) {
   const model = estimates(session);
-  singleEquation(model, "test");
   if (model.dist !== "z") return testT(session, text, ctx);
-  const [head] = splitAtComma(text),
-    groups = head.match(/\([^()]*\)/g),
+  const [head] = splitAtComma(text);
+  // After mlogit a list of variables is tested in every equation at once.
+  if (model.equations && /^[\sA-Za-z_0-9.]+$/.test(head))
+    return acrossEquations(session, model, head.trim().split(/\s+/), ctx);
+  const groups = head.match(/\([^()]*\)/g),
     specs = groups
       ? groups.map((s) => s.slice(1, -1))
       : /=/.test(head)
@@ -768,17 +783,22 @@ function test(session, text, ctx) {
   );
   ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
   ctx.out("");
-  session.results.r = { chi2, p, df: q, drop: 0 };
+  session.results.r = { drop: 0, chi2, df: q, p };
 }
 
 function lincom(session, text, ctx) {
   const model = estimates(session);
-  singleEquation(model, "lincom");
   if (model.dist !== "z") return lincomT(session, text, ctx);
-  const parsed = session.parse(
-      "anything [, Level(cilevel) OR IRr EForm]",
-      text,
-    ),
+  // [eq]name would read as a weight, so the expression is set aside
+  // before the options are parsed.
+  const [head, tail] = splitAtComma(text),
+    parsed = {
+      ...session.parse(
+        "[, Level(cilevel) OR IRr EForm]",
+        tail === null ? "" : `,${tail}`,
+      ),
+      anything: head.trim(),
+    },
     { weights, constant } = linear(model, parsed.anything),
     estimate = weights.reduce((t, w, k) => t + w * model.b[k], 0) + constant,
     se = Math.sqrt(quadratic(weights, model.V)),
@@ -819,33 +839,118 @@ function lincom(session, text, ctx) {
   };
 }
 
-/** Stops a command that cannot yet read a model with several equations. */
-function singleEquation(model, what) {
-  if (model.kind === "mlogit")
-    throw new StataError(`${what} after mlogit is not available yet`, 198);
+/**
+ * test and testparm after mlogit: each named variable's coefficient is
+ * zero in every equation. Stata lists the base outcome's too and drops it.
+ */
+function acrossEquations(session, model, words, ctx) {
+  const variables = [];
+  for (const word of words)
+    for (const name of /^_cons$/.test(word) ? [word] : session.varlist(word))
+      if (!variables.includes(name)) variables.push(name);
+  const lines = [],
+    dropped = [],
+    at = [];
+  for (const name of variables) {
+    if (!model.names.some((n) => n.replace(/^[^:]+:/, "") === name))
+      throw new StataError(`${name} not found`, 111);
+    model.equations.forEach((equation, j) => {
+      const number = String(lines.length + 1).padStart(2);
+      if (j === model.baseEquation) {
+        lines.push(` (${number})  [${equation}]o.${name} = 0`);
+        dropped.push(lines.length);
+      } else {
+        lines.push(` (${number})  [${equation}]${name} = 0`);
+        at.push(model.names.indexOf(`${equation}:${name}`));
+      }
+    });
+  }
+  const inverse = invertSymmetric(at.map((r) => at.map((c) => model.V[r][c])));
+  if (!inverse) throw new StataError("the constraints are redundant", 111);
+  const chi2 = quadratic(
+      at.map((k) => model.b[k]),
+      inverse,
+    ),
+    p = chi2tail(at.length, chi2);
+  ctx.out("");
+  lines.forEach(ctx.out);
+  dropped.forEach((k) => ctx.out(`       Constraint ${k} dropped`));
+  ctx.out("");
+  ctx.out(
+    `           chi2(${String(at.length).padStart(3)}) =${applyFormat(chi2, "%8.2f")}`,
+  );
+  ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
+  ctx.out("");
+  session.results.r = {
+    ...Object.fromEntries(
+      dropped.map((k, n) => [`dropped_${n + 1}`, k]).reverse(),
+    ),
+    drop: 1,
+    chi2,
+    df: at.length,
+    p,
+  };
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
-  singleEquation(model, "predict");
-  if (
-    (model.kind === "ologit" || model.kind === "oprobit") &&
-    !/,[\s\S]*\b(xb|stdp)\b/.test(text)
-  )
-    throw new StataError(
-      `after ${model.kind}, predict gives the linear prediction with xb; predicted probabilities are not available yet`,
-      198,
-    );
-  if (!model.family) return predictT(session, text, ctx);
-  const [key, describe, label] = model.family.predict,
+  if (["ologit", "oprobit", "mlogit"].includes(model.kind))
+    return outcomePredict(session, model, text, ctx);
+  // nbreg, glm and cloglog predict a mean by default, as the family models
+  // do; what they call it differs.
+  const family =
+    model.family ??
+    {
+      nbreg: {
+        predict: [
+          "n",
+          () => "predicted number of events",
+          "Predicted number of events",
+        ],
+      },
+      glm: {
+        predict: [
+          "mu",
+          () => `predicted mean ${model.depvar}`,
+          `Predicted mean ${model.depvar}`,
+        ],
+      },
+      cloglog: { predict: ["pr", () => `Pr(${model.depvar})`, "Pr"] },
+    }[model.kind];
+  if (!family) return predictT(session, text, ctx);
+  const [key, describe, label] = family.predict,
+    mean = family.mean ?? linkOf(model)[0],
+    pearson = model.kind === "logit",
     parsed = session.parse(
-      `newvarname [if] [in] [, XB ${key === "pr" ? "Pr" : "N"} STDP]`,
+      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${pearson ? " Residuals" : ""}]`,
       text,
     ),
     wantXb = parsed.options.xb,
     data = session.data,
     values = new Array(data.n).fill(MISSING);
-  if (!wantXb && !parsed.options[key] && !parsed.options.stdp)
+  if (
+    !wantXb &&
+    !parsed.options[key] &&
+    !parsed.options.stdp &&
+    !parsed.options.residuals
+  )
     ctx.out(`(option ${key} assumed; ${describe(model)})`);
+  // Pearson residuals after logit are taken over covariate patterns: the
+  // observations of the estimation sample that share every regressor.
+  const patterns = new Map(),
+    patternOf = (i) =>
+      model.names
+        .map((name, k) => (name === "_cons" ? 1 : model.columns[k].value(i)))
+        .join(" ");
+  if (parsed.options.residuals) {
+    const outcome = data.get(model.depvar).data;
+    for (const i of model.sample ?? []) {
+      const key2 = patternOf(i),
+        entry = patterns.get(key2) ?? { m: 0, y: 0 };
+      entry.m += 1;
+      entry.y += Number(outcome[i] !== 0);
+      patterns.set(key2, entry);
+    }
+  }
   session.select(parsed, null, (i) => {
     if (
       model.columns.some((c) =>
@@ -859,11 +964,18 @@ function predict(session, text, ctx) {
         name === "_cons" ? 1 : model.columns[k].value(i),
       ),
       xb = row.reduce((t, v, k) => t + v * model.b[k], 0);
+    if (parsed.options.residuals) {
+      const entry = patterns.get(patternOf(i)),
+        p = mean(xb);
+      if (entry)
+        values[i] = (entry.y - entry.m * p) / Math.sqrt(entry.m * p * (1 - p));
+      return;
+    }
     values[i] = parsed.options.stdp
       ? Math.sqrt(quadratic(row, model.V))
       : wantXb
         ? xb
-        : model.family.mean(xb);
+        : mean(xb);
   });
   const sorted = [...data.sortedBy],
     made = data.generate(parsed.varlist[0], values, {
@@ -876,9 +988,11 @@ function predict(session, text, ctx) {
       : "Linear prediction"
     : parsed.options.stdp
       ? "S.E. of the prediction"
-      : key === "pr"
-        ? `Pr(${model.depvar})`
-        : label;
+      : parsed.options.residuals
+        ? "Pearson residual"
+        : key === "pr"
+          ? `Pr(${model.depvar})`
+          : label;
   if (made.missing)
     ctx.out(
       `(${count(made.missing)} missing value${made.missing === 1 ? "" : "s"} generated)`,
@@ -899,9 +1013,9 @@ function estat(session, text, ctx) {
       k = model.rank,
       aic = -2 * model.ll + 2 * k,
       bic = -2 * model.ll + k * Math.log(model.N);
-    if (model.ll === undefined)
+    if (model.ll === undefined || model.command === "newey")
       throw new StataError(
-        "estat ic is not available after this estimator",
+        "likelihood information not found in last estimation results",
         321,
       );
     ctx.out("");
@@ -922,6 +1036,13 @@ function estat(session, text, ctx) {
     ctx.out("-".repeat(77));
     ctx.out("Note: BIC uses N = number of observations. See [R] IC note.");
     ctx.out("");
+    session.results.r = {
+      "matrix:S": {
+        rowNames: ["."],
+        colNames: ["N", "ll0", "ll", "df", "AIC", "BIC"],
+        values: [[model.N, ll0, model.ll, k, aic, bic]],
+      },
+    };
   } else if (what === "vif") {
     if (model.command !== "regress")
       throw new StataError("estat vif is only available after regress", 301);
@@ -1189,7 +1310,14 @@ export const MODEL_COMMANDS = [
     name: "testparm",
     minimum: 8,
     run: (session, text, ctx) =>
-      testparm(session, estimates(session), text, ctx),
+      estimates(session).equations
+        ? acrossEquations(
+            session,
+            estimates(session),
+            splitAtComma(text)[0].trim().split(/\s+/).filter(Boolean),
+            ctx,
+          )
+        : testparm(session, estimates(session), text, ctx),
   },
   { name: "lincom", minimum: 6, run: lincom },
   { name: "predict", minimum: 7, run: predict },

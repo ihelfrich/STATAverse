@@ -87,6 +87,11 @@ function onlyRegress(model, what) {
 
 function hettest(session, model, text, ctx) {
   onlyRegress(model, "hettest");
+  if (model.vce !== "ols")
+    throw new StataError(
+      "hettest not appropriate after estimation using robust or clustered VCE",
+      498,
+    );
   const [head] = splitAtComma(text),
     parsed = session.parse(
       "[, | Rhs Normal IID Fstat Mtest(string)]",

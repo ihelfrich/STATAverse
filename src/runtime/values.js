@@ -66,6 +66,8 @@ export function coerce(type, value) {
   if (type === "double") return value < -DOUBLE_MAX ? MISSING : value;
   if (type === "float") {
     const single = Math.fround(value);
+    // Stata stores a float smaller in size than 2^-127 as zero.
+    if (single !== 0 && Math.abs(single) < 2 ** -127) return 0;
     return Math.abs(single) > FLOAT_MAX ? MISSING : single;
   }
   const range = INTEGER_RANGE[type];
