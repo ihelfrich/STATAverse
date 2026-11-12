@@ -139,6 +139,8 @@ export class Session {
   /**
    * Calls visit(i, env) for each observation that passes if and in, group by
    * group. parsed is an applySyntax result; by is the by-prefix, if any.
+   * parsed.only, a Set of row indices, further limits the rows; commands use
+   * it to run a sub-model on another model's estimation sample.
    */
   select(parsed, by, visit) {
     if (by && parsed.in)
@@ -153,6 +155,7 @@ export class Session {
         testEnv = { start: group.start, count: group.count, sums: [] };
       for (let i = group.start; i < group.start + group.count; i++) {
         if (i < first - 1 || i > last - 1) continue;
+        if (parsed.only && !parsed.only.has(i)) continue;
         if (condition && condition.evaluate(i, testEnv) === 0) continue;
         visit(i, env, group);
       }
