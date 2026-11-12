@@ -9,6 +9,16 @@ import { splitAtComma } from "./syntax.js";
 import { compileExpression } from "./expression.js";
 import { isMissing, isStringType } from "./values.js";
 import {
+  LOOKS,
+  PLOT_LOOKS,
+  colourOf,
+  looksOf,
+  parseGraph,
+  patternOf,
+  sizeOf,
+  widthOf,
+} from "./graph-looks.js";
+import {
   KERNELS,
   defaultBandwidth,
   densityGrid,
@@ -78,11 +88,11 @@ function extents(layers) {
  * Several drawn graphs on one canvas of the usual size, in a grid of cols
  * columns, with optional overall title, axis titles and note.
  */
-function tile(svgs, { cols, rows, title, xTitle, yTitle, note }) {
+function tile(svgs, { cols, rows, title, subtitle, xTitle, yTitle, note }) {
   if (!cols && !rows) cols = Math.ceil(Math.sqrt(svgs.length));
   if (!cols) cols = Math.ceil(svgs.length / rows);
   rows = Math.ceil(svgs.length / cols);
-  const top = title ? 32 : 0,
+  const top = (title ? 32 : 0) + (subtitle ? 18 : 0),
     left = yTitle ? 24 : 0,
     bottom = (xTitle ? 22 : 0) + (note ? 18 : 0),
     cellW = (WIDTH - left) / cols,
@@ -96,6 +106,10 @@ function tile(svgs, { cols, rows, title, xTitle, yTitle, note }) {
   if (title)
     parts.push(
       `<text x="${WIDTH / 2}" y="22" text-anchor="middle" font-size="16">${escape(title)}</text>`,
+    );
+  if (subtitle)
+    parts.push(
+      `<text x="${WIDTH / 2}" y="${title ? 44 : 22}" text-anchor="middle" font-size="13">${escape(subtitle)}</text>`,
     );
   svgs.forEach((svg, k) => {
     const x = left + (k % cols) * cellW + (cellW - w) / 2,
@@ -169,7 +183,12 @@ function labelOf(session, variable, value) {
  * Draws one panel per group of by(), on common axes: build(rows) returns the
  * layers of one panel, drawn from those rows only.
  */
-function byPanels(session, by, build, { xTitle, yTitle, title, yFromZero }) {
+function byPanels(
+  session,
+  by,
+  build,
+  { xTitle, yTitle, title, yFromZero, looks = {} },
+) {
   const panels = by.groups.map((group) => {
     session.panelRows = group.rows;
     try {
@@ -196,6 +215,11 @@ function byPanels(session, by, build, { xTitle, yTitle, title, yFromZero }) {
           title: p.label,
           xRange,
           yRange,
+          xLines: looks.xLines,
+          yLines: looks.yLines,
+          xTicks: looks.xTicks,
+          yTicks: looks.yTicks,
+          legend: looks.legend,
         }),
       ),
       {
@@ -220,22 +244,39 @@ export function draw({
   xRange,
   yRange,
   xLabels,
+  subtitle,
+  note,
+  caption,
+  xLines = [],
+  yLines = [],
+  xTicks,
+  yTicks,
+  legend = {},
 }) {
   const { xs, ys } = extents(layers);
   if (!xs.length) throw new StataError("no observations", 2000);
-  const xt = ticks(
-      xRange?.[0] ?? Math.min(...xs),
-      xRange?.[1] ?? Math.max(...xs),
-    ),
-    yt = ticks(yRange?.[0] ?? Math.min(...ys), yRange?.[1] ?? Math.max(...ys)),
+  // Room for a subtitle above the plot and a note and caption below it.
+  const below = (note ? 14 : 0) + (caption ? 14 : 0),
+    P = {
+      left: PLOT.left,
+      right: PLOT.right,
+      top: PLOT.top + (subtitle ? 16 : 0),
+      bottom: PLOT.bottom + below,
+    },
+    xt =
+      xTicks ??
+      ticks(xRange?.[0] ?? Math.min(...xs), xRange?.[1] ?? Math.max(...xs)),
+    yt =
+      yTicks ??
+      ticks(yRange?.[0] ?? Math.min(...ys), yRange?.[1] ?? Math.max(...ys)),
     x0 = Math.min(xt[0], ...xs),
     x1 = Math.max(xt.at(-1), ...xs),
     y0 = Math.min(yt[0], ...ys),
     y1 = Math.max(yt.at(-1), ...ys),
-    w = WIDTH - PLOT.left - PLOT.right,
-    h = HEIGHT - PLOT.top - PLOT.bottom,
-    px = (v) => PLOT.left + ((v - x0) / (x1 - x0)) * w,
-    py = (v) => PLOT.top + h - ((v - y0) / (y1 - y0)) * h,
+    w = WIDTH - P.left - P.right,
+    h = HEIGHT - P.top - P.bottom,
+    px = (v) => P.left + ((v - x0) / (x1 - x0)) * w,
+    py = (v) => P.top + h - ((v - y0) / (y1 - y0)) * h,
     n = (v) => v.toFixed(2),
     parts = [];
   parts.push(
@@ -243,25 +284,42 @@ export function draw({
   );
   for (const v of yt)
     parts.push(
-      `<line x1="${PLOT.left}" x2="${WIDTH - PLOT.right}" y1="${n(py(v))}" y2="${n(py(v))}" stroke="#e6e6e6"/>`,
-      `<text x="${PLOT.left - 8}" y="${n(py(v) + 4)}" text-anchor="end">${escape(g(v))}</text>`,
+      `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${n(py(v))}" y2="${n(py(v))}" stroke="#e6e6e6"/>`,
+      `<text x="${P.left - 8}" y="${n(py(v) + 4)}" text-anchor="end">${escape(g(v))}</text>`,
     );
   for (const tick of xLabels ?? xt.map((v) => ({ at: v, text: g(v) })))
     parts.push(
-      `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${PLOT.top + h}" y2="${PLOT.top + h + 5}" stroke="#333333"/>`,
-      `<text x="${n(px(tick.at))}" y="${PLOT.top + h + 20}" text-anchor="middle">${escape(tick.text)}</text>`,
+      `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${P.top + h}" y2="${P.top + h + 5}" stroke="#333333"/>`,
+      `<text x="${n(px(tick.at))}" y="${P.top + h + 20}" text-anchor="middle">${escape(tick.text)}</text>`,
     );
   parts.push(
-    `<line x1="${PLOT.left}" x2="${WIDTH - PLOT.right}" y1="${PLOT.top + h}" y2="${PLOT.top + h}" stroke="#333333"/>`,
-    `<line x1="${PLOT.left}" x2="${PLOT.left}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#333333"/>`,
+    `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${P.top + h}" y2="${P.top + h}" stroke="#333333"/>`,
+    `<line x1="${P.left}" x2="${P.left}" y1="${P.top}" y2="${P.top + h}" stroke="#333333"/>`,
   );
+  // xline() and yline(), where they fall inside the plot.
+  for (const v of xLines)
+    if (v >= x0 && v <= x1)
+      parts.push(
+        `<line x1="${n(px(v))}" x2="${n(px(v))}" y1="${P.top}" y2="${P.top + h}" stroke="#333333" stroke-width="1"/>`,
+      );
+  for (const v of yLines)
+    if (v >= y0 && v <= y1)
+      parts.push(
+        `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${n(py(v))}" y2="${n(py(v))}" stroke="#333333" stroke-width="1"/>`,
+      );
   layers.forEach((layer, k) => {
     const color = layer.color ?? COLORS[k % COLORS.length];
     if (layer.bars)
-      for (const bar of layer.bars)
+      for (const bar of layer.bars) {
         parts.push(
           `<rect x="${n(px(bar.x0))}" y="${n(py(bar.height))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(py(0) - py(bar.height))}" fill="${color}" fill-opacity="0.75" stroke="#ffffff"/>`,
         );
+        // blabel(bar): the bar's height written above it.
+        if (layer.barLabels)
+          parts.push(
+            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) - 4)}" text-anchor="middle" font-size="10">${escape(g(bar.height))}</text>`,
+          );
+      }
     else if (layer.boxes)
       for (const box of layer.boxes) {
         const left = px(box.x - box.width),
@@ -308,7 +366,7 @@ export function draw({
       }
     else if (layer.kind === "line" || layer.kind === "connected") {
       parts.push(
-        `<polyline fill="none" stroke="${color}" stroke-width="2" points="${layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`).join(" ")}"/>`,
+        `<polyline fill="none" stroke="${color}" stroke-width="${layer.stroke ?? 2}"${layer.dashes ? ` stroke-dasharray="${layer.dashes}"` : ""} points="${layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`).join(" ")}"/>`,
       );
       if (layer.kind === "connected")
         for (const p of layer.points)
@@ -316,27 +374,59 @@ export function draw({
             `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5" fill="${color}"/>`,
           );
     } else
-      for (const p of layer.points)
+      layer.points.forEach((p, i) => {
         parts.push(
-          `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="4" fill="${color}" fill-opacity="0.85"/>`,
+          `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}" fill="${color}" fill-opacity="0.85"/>`,
         );
+        // mlabel(): the label to the right of its marker, as Stata puts it.
+        if (layer.labels?.[i])
+          parts.push(
+            `<text x="${n(px(p[0]) + (layer.radius ?? 4) + 3)}" y="${n(py(p[1]) + 4)}" font-size="10">${escape(layer.labels[i])}</text>`,
+          );
+      });
   });
   if (title)
     parts.push(
       `<text x="${WIDTH / 2}" y="24" text-anchor="middle" font-size="16">${escape(title)}</text>`,
     );
+  if (subtitle)
+    parts.push(
+      `<text x="${WIDTH / 2}" y="${title ? 42 : 24}" text-anchor="middle" font-size="13">${escape(subtitle)}</text>`,
+    );
+  if (note)
+    parts.push(
+      `<text x="8" y="${HEIGHT - 6 - (caption ? 14 : 0)}" font-size="11">${escape(note)}</text>`,
+    );
+  if (caption)
+    parts.push(
+      `<text x="8" y="${HEIGHT - 6}" font-size="11">${escape(caption)}</text>`,
+    );
   parts.push(
-    `<text x="${PLOT.left + w / 2}" y="${HEIGHT - 22}" text-anchor="middle">${escape(xTitle)}</text>`,
-    `<text transform="translate(18 ${PLOT.top + h / 2}) rotate(-90)" text-anchor="middle">${escape(yTitle)}</text>`,
+    `<text x="${P.left + w / 2}" y="${HEIGHT - 22 - below}" text-anchor="middle">${escape(xTitle)}</text>`,
+    `<text transform="translate(18 ${P.top + h / 2}) rotate(-90)" text-anchor="middle">${escape(yTitle)}</text>`,
   );
-  const labelled = layers.filter((l) => l.label);
-  if (layers.length > 1)
-    labelled.forEach((layer, k) =>
+  // The legend: every labelled plot when there are several, or those that
+  // legend(order()) names, under the names legend() gives them.
+  if (!legend.off) {
+    const numbers = legend.order
+        ? legend.order
+        : layers.length > 1 || legend.on
+          ? layers.map((_, k) => k + 1)
+          : [],
+      entries = numbers
+        .filter((k) => layers[k - 1])
+        .map((k) => ({
+          layer: layers[k - 1],
+          text: legend.labels?.get(k) ?? layers[k - 1].label,
+        }))
+        .filter((entry) => entry.text);
+    entries.forEach(({ layer, text }, k) =>
       parts.push(
-        `<rect x="${PLOT.left + 8 + k * 150}" y="${HEIGHT - 14}" width="12" height="8" fill="${COLORS[layers.indexOf(layer) % COLORS.length]}"/>`,
-        `<text x="${PLOT.left + 26 + k * 150}" y="${HEIGHT - 6}">${escape(layer.label)}</text>`,
+        `<rect x="${P.left + 8 + k * 150}" y="${HEIGHT - 14 - below}" width="12" height="8" fill="${layer.color ?? COLORS[layers.indexOf(layer) % COLORS.length]}"/>`,
+        `<text x="${P.left + 26 + k * 150}" y="${HEIGHT - 6 - below}">${escape(text)}</text>`,
       ),
     );
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
 }
 
@@ -344,7 +434,13 @@ export function draw({
  * Horizontal bars: one group of bars per category, values along the x axis.
  * groups: [{ label, values }], one value per series.
  */
-export function drawHorizontalBars({ groups, series, xTitle, title }) {
+export function drawHorizontalBars({
+  groups,
+  series,
+  xTitle,
+  title,
+  labelled,
+}) {
   const all = groups.flatMap((group) => group.values);
   if (!all.length) throw new StataError("no observations", 2000);
   const xt = ticks(Math.min(0, ...all), Math.max(0, ...all)),
@@ -370,11 +466,15 @@ export function drawHorizontalBars({ groups, series, xTitle, title }) {
     parts.push(
       `<text x="${left - 8}" y="${n(PLOT.top + (k + 0.5) * band + 4)}" text-anchor="end">${escape(group.label)}</text>`,
     );
-    group.values.forEach((value, s) =>
+    group.values.forEach((value, s) => {
       parts.push(
         `<rect x="${n(Math.min(px(0), px(value)))}" y="${n(top + s * thick)}" width="${n(Math.abs(px(value) - px(0)))}" height="${n(thick)}" fill="${COLORS[s % COLORS.length]}" fill-opacity="0.75" stroke="#ffffff"/>`,
-      ),
-    );
+      );
+      if (labelled)
+        parts.push(
+          `<text x="${n(Math.max(px(0), px(value)) + 4)}" y="${n(top + s * thick + thick / 2 + 4)}" font-size="10">${escape(g(value))}</text>`,
+        );
+    });
   });
   parts.push(
     `<line x1="${n(px(0))}" x2="${n(px(0))}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#333333"/>`,
@@ -410,8 +510,9 @@ function numeric(session, name) {
 // (function y = exp(x), range(0 5)): a curve of an expression in x.
 function functionPlot(session, text) {
   const [head, optionText] = splitAtComma(text),
-    options = session.parse(
-      "[, RAnge(string) N(integer 300) LColor(string) LPattern(string) LWidth(string) *]",
+    options = parseGraph(
+      session,
+      `[, ${OWN.function} ${PLOT_LOOKS} ${LOOKS}]`,
       optionText ? "," + optionText : "",
     ).options,
     expression = head.replace(/^\s*\w+\s*=(?!=)/, "").trim(),
@@ -448,6 +549,9 @@ function functionPlot(session, text) {
   return [
     {
       kind: "line",
+      color: colourOf(options.lcolor, "lcolor"),
+      stroke: widthOf(options.lwidth),
+      dashes: patternOf(options.lpattern),
       points,
       label: expression,
       y: { name: "y", label: "y" },
@@ -535,8 +639,9 @@ export function histogramBars(values, options, text, note) {
 
 // A plot of one variable: twoway histogram and twoway kdensity.
 function univariatePlot(session, kind, text) {
-  const parsed = session.parse(
-      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0) *]",
+  const parsed = parseGraph(
+      session,
+      `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
     ),
     variable = numeric(session, parsed.varlist[0]),
@@ -589,8 +694,9 @@ function plot(session, kind, text) {
   if (kind === "function") return functionPlot(session, text);
   if (kind === "histogram" || kind === "kdensity")
     return univariatePlot(session, kind, text);
-  const parsed = session.parse(
-      "varlist(numeric min=2) [if] [in] [, SORT BWidth(real 0.8) MEAN NOWeight Level(cilevel) BARWidth(real 0) MSymbol(string) MColor(string) LColor(string) LPattern(string) LWidth(string) MSize(string) Connect(string) *]",
+  const parsed = parseGraph(
+      session,
+      `varlist(numeric min=2) [if] [in] [, ${OWN.points} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
     ),
     variables = parsed.varlist.map((name) => session.data.get(name)),
@@ -666,8 +772,23 @@ function plot(session, kind, text) {
       });
       continue;
     }
-    if (parsed.options.sort || kind !== "scatter")
-      points = [...points].sort((a, b) => a[0] - b[0]);
+    // mlabel(): each marker's label, kept with its point through sorting.
+    let labels = null;
+    if (parsed.options.mlabel) {
+      if (kind !== "scatter")
+        throw new StataError("mlabel() is drawn for scatter only", 198);
+      const variable = session.data.get(parsed.options.mlabel);
+      labels = rows
+        .filter((i) => !isMissing(x.data[i]) && !isMissing(y.data[i]))
+        .map((i) => labelOf(session, variable, variable.data[i]));
+    }
+    if (parsed.options.sort || kind !== "scatter") {
+      const order = points
+        .map((_, k) => k)
+        .sort((a, b) => points[a][0] - points[b][0]);
+      points = order.map((k) => points[k]);
+      if (labels) labels = order.map((k) => labels[k]);
+    }
     if (kind === "bar") {
       const gaps = points.slice(1).map((p, k) => p[0] - points[k][0]),
         width =
@@ -689,11 +810,39 @@ function plot(session, kind, text) {
     layers.push({
       kind,
       points,
+      labels,
       label: titleOf(y),
       y,
       x,
     });
   }
+  // mcolor() and msize() are for markers, lcolor() for lines.
+  const markers = colourOf(parsed.options.mcolor, "mcolor"),
+    linesColour = colourOf(parsed.options.lcolor, "lcolor"),
+    radius = sizeOf(parsed.options.msize),
+    stroke = widthOf(parsed.options.lwidth),
+    dashes = patternOf(parsed.options.lpattern);
+  for (const layer of layers) {
+    const marked = layer.kind === "scatter" || layer.kind === "connected";
+    if (marked && markers) layer.color = markers;
+    if (marked && radius) layer.radius = radius;
+    if (!marked && linesColour) layer.color = linesColour;
+    if (stroke !== undefined && layer.kind !== "scatter") layer.stroke = stroke;
+    if (dashes && layer.kind !== "scatter") layer.dashes = dashes;
+  }
+  if (
+    (stroke !== undefined || dashes !== undefined) &&
+    layers.every((l) => l.kind === "scatter")
+  )
+    throw new StataError(
+      "lwidth() and lpattern() are drawn for lines only",
+      198,
+    );
+  if (
+    parsed.options.msize &&
+    !layers.some((l) => l.kind === "scatter" || l.kind === "connected")
+  )
+    throw new StataError("msize() is drawn for markers only", 198);
   return layers;
 }
 
@@ -725,9 +874,28 @@ function plotKind(word) {
   return kind;
 }
 
-function graphOptions(session, text) {
-  return session.parse(
-    "[, TItle(string) XTItle(string) YTItle(string) SUBtitle(string) NOTE(string) LEGend(string) SCHeme(string) NAME(string) SAVing(string) XLAbel(string) YLAbel(string) XSCale(string) YSCale(string) GRAPHRegion(string) PLOTRegion(string) *]",
+// The options of each kind of twoway plot, beside the drawn looks.
+const OWN = {
+  points: "SORT BWidth(real 0.8) MEAN NOWeight Level(cilevel) BARWidth(real 0)",
+  function: "RAnge(string) N(integer 300)",
+  univariate:
+    "BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0)",
+};
+const ownOf = (kind) =>
+  kind === "function"
+    ? OWN.function
+    : kind === "histogram" || kind === "kdensity"
+      ? OWN.univariate
+      : OWN.points;
+/**
+ * The options of the graph as a whole. Written after a single plot or the
+ * last plot of a || list, they are that plot's options too, so its own
+ * options are allowed here and read by the plot.
+ */
+function graphOptions(session, text, own = "") {
+  return parseGraph(
+    session,
+    `[, ${LOOKS} ${PLOT_LOOKS} ${own}]`,
     text ? "," + text : "",
   ).options;
 }
@@ -735,7 +903,8 @@ function graphOptions(session, text) {
 function twoway(session, text, ctx, single) {
   // Plots are written (scatter y x) (line y x), or separated by ||.
   let specs,
-    optionText = "";
+    optionText = "",
+    grouped = false;
   if (single) {
     specs = [`${single} ${text}`];
     optionText = splitAtComma(text)[1] ?? "";
@@ -745,6 +914,7 @@ function twoway(session, text, ctx, single) {
     if (groups && head.trim().startsWith("(")) {
       specs = groups.map((group) => group.slice(1, -1));
       optionText = (options ?? "").trim();
+      grouped = true;
     } else {
       const pieces = text
         .split("||")
@@ -753,7 +923,7 @@ function twoway(session, text, ctx, single) {
       specs = pieces.map((piece, k) => {
         if (k < pieces.length - 1) return piece;
         // Options after the last plot may belong to it (range(), sort) or
-        // to the graph (title()); both readers ignore what is not theirs.
+        // to the graph (title()); each reader allows the other's.
         optionText = splitAtComma(piece)[1] ?? "";
         return piece;
       });
@@ -766,7 +936,13 @@ function twoway(session, text, ctx, single) {
         return plot(session, plotKind(m[1]), m[2]);
       }),
     layers = build(),
-    options = graphOptions(session, optionText),
+    last = /^\s*(\w+)/.exec(specs.at(-1))?.[1],
+    options = graphOptions(
+      session,
+      optionText,
+      grouped || !last ? "" : ownOf(plotKind(last)),
+    ),
+    looks = looksOf(options),
     by = byOption(session, optionText),
     first = layers[0];
   if (!layers.some((l) => l.points.length || l.bars?.length))
@@ -774,13 +950,19 @@ function twoway(session, text, ctx, single) {
   const xTitle = unquote(options.xtitle) || titleOf(first.x),
     yTitle =
       unquote(options.ytitle) || (layers.length === 1 ? titleOf(first.y) : ""),
-    title = unquote(options.title),
+    title = looks.title,
     description = `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points`;
   if (by) {
+    if (looks.subtitle || looks.note || looks.caption)
+      throw new StataError(
+        "with by(), give a note as by(…, note()); subtitle() and caption() are not drawn with by() here",
+        198,
+      );
     const { svg, panels } = byPanels(session, by, build, {
       xTitle,
       yTitle,
       title,
+      looks,
     });
     return ctx.graph({
       svg,
@@ -788,14 +970,15 @@ function twoway(session, text, ctx, single) {
     });
   }
   ctx.graph({
-    svg: draw({ layers, xTitle, yTitle, title }),
+    svg: draw({ layers, xTitle, yTitle, ...looks }),
     description: `${description}.`,
   });
 }
 
 function histogram(session, text, ctx) {
-  const parsed = session.parse(
-      "varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity TItle(string) XTItle(string) YTItle(string) * | ADDLabels]",
+  const parsed = parseGraph(
+      session,
+      `varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
       text,
     ),
     options = parsed.options,
@@ -845,10 +1028,10 @@ function histogram(session, text, ctx) {
   }
   ctx.graph({
     svg: draw({
+      ...looksOf(options),
       layers,
       xTitle: unquote(options.xtitle) || titleOf(variable),
       yTitle: unquote(options.ytitle) || yTitle,
-      title: unquote(options.title),
       yRange: [
         0,
         Math.max(
@@ -871,6 +1054,12 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
   if (options.normal || options.kdensity)
     throw new StataError(
       "normal and kdensity with by() are not available here",
+      198,
+    );
+  const looks = looksOf(options);
+  if (looks.subtitle || looks.note || looks.caption)
+    throw new StataError(
+      "with by(), give a note as by(…, note()); subtitle() and caption() are not drawn with by() here",
       198,
     );
   const whole = histogramBars(values, options, "", () => {}),
@@ -912,8 +1101,9 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
     { svg, panels } = byPanels(session, by, build, {
       xTitle: unquote(options.xtitle) || titleOf(variable),
       yTitle: unquote(options.ytitle) || yTitle,
-      title: unquote(options.title),
+      title: looks.title,
       yFromZero: true,
+      looks,
     });
   ctx.graph({
     svg,
@@ -933,7 +1123,7 @@ function memoryGraph(session, name) {
 function combine(session, text, ctx) {
   const [head, optionText] = splitAtComma(text),
     options = session.parse(
-      "[, Cols(integer 0) Rows(integer 0) TItle(string) NAME(string) NODRAW]",
+      "[, Cols(integer 0) Rows(integer 0) TItle(string) SUBtitle(string) NOTE(string) NAME(string) NODRAW]",
       optionText ? "," + optionText : "",
     ).options,
     names = head.trim().split(/\s+/).filter(Boolean);
@@ -948,7 +1138,13 @@ function combine(session, text, ctx) {
   ctx.graph({
     svg: tile(
       pictures.map((p) => p.svg),
-      { cols: options.cols, rows: options.rows, title: unquote(options.title) },
+      {
+        cols: options.cols,
+        rows: options.rows,
+        title: unquote(options.title),
+        subtitle: unquote(options.subtitle),
+        note: unquote(options.note),
+      },
     ),
     description: `Combined graph of ${names.join(", ")}, ${pictures.length} panels: ${pictures.map((p) => p.description).join(" ")}`,
   });
