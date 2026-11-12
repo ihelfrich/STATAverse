@@ -13,6 +13,7 @@ import {
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
+import { readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const sum = (values) => values.reduce((a, b) => a + b, 0);
@@ -225,9 +226,15 @@ function xtreg(session, text, ctx) {
     ),
     dfFe = N - G - K,
     sigmaE2 = within.rss / dfFe,
-    clustered = !!options.robust || /^(r|cl)/.test(options.vce ?? ""),
+    asked = readVce(session, options, /^conventional$/),
+    clustered = asked.robust,
     level = options.level,
     useFe = !!options.fe;
+  if (asked.cluster && asked.cluster.name !== panel.id)
+    throw new StataError(
+      `vce(cluster ${asked.cluster.name}) is not available yet; xtreg clusters on the panel variable here: vce(cluster ${panel.id})`,
+      198,
+    );
   // R-squared within, between and overall are the squared correlations of
   // the fitted and actual values in each form.
   const rsq = (b) => {
@@ -445,6 +452,30 @@ function xtreg(session, text, ctx) {
     // The covariance uses the residual variance of the transformed regression.
     const s2 = gls.rss / (N - K - 1);
     V = gls.inverse.map((row) => row.map((v) => v * s2));
+    if (clustered) {
+      // The sandwich on the transformed regression, clustered on the panel.
+      const size = K + 1,
+        meat = Array.from({ length: size }, () => new Array(size).fill(0));
+      for (const key of groups) {
+        const score = new Array(size).fill(0);
+        for (const i of members.get(key))
+          for (let a = 0; a < size; a++)
+            score[a] += design[a][i] * gls.residuals[i];
+        for (let a = 0; a < size; a++)
+          for (let c = 0; c < size; c++) meat[a][c] += score[a] * score[c];
+      }
+      const bm = gls.inverse.map((row) =>
+        meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
+      );
+      V = bm.map((row) =>
+        gls.inverse[0].map(
+          (_, c) =>
+            (G / (G - 1)) *
+            ((N - 1) / (N - K - 1)) *
+            row.reduce((t, v, k) => t + v * gls.inverse[k][c], 0),
+        ),
+      );
+    }
     const inverse = invertSymmetric(
       V.slice(0, K).map((row) => row.slice(0, K)),
     );
@@ -547,6 +578,8 @@ function xtreg(session, text, ctx) {
     cmd: "xtreg",
     depvar: dep,
     model: useBe ? "be" : useFe ? "fe" : "re",
+    vce: clustered ? "cluster" : "conventional",
+    ...(clustered ? { vcetype: "Robust", N_clust: G, clustvar: panel.id } : {}),
   };
   const r4 = (value) => applyFormat(value, "%6.4f").trim();
   ctx.out("");

@@ -27,6 +27,7 @@ import {
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
+import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const density = (z) => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
@@ -127,19 +128,21 @@ function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "anything [if] [in] [, noCONStant Robust VCE(string) Level(cilevel) noLOg OR IRr]",
+        "anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr]",
         text,
       ),
       options = parsed.options,
       rows = session.rows(parsed, null),
       constant = options.constant !== false,
-      { dependent, columns, sample } = design(
-        session,
-        parsed.anything,
-        rows,
-        constant,
-      ),
-      robust = !!options.robust || /^r/.test(options.vce ?? ""),
+      { robust, cluster } = readVce(session, options, /^oim$/),
+      {
+        dependent,
+        columns,
+        sample: complete,
+      } = design(session, parsed.anything, rows, constant),
+      sample = cluster
+        ? complete.filter((i) => !noCluster(cluster, i))
+        : complete,
       n = sample.length;
     if (!n) throw new StataError("no observations", 2000);
     const y = sample.map((i) => dependent.data[i]);
@@ -244,24 +247,33 @@ function maximumLikelihood(kind) {
         throw new StataError("convergence not achieved", 430);
     }
     information = invertSymmetric(derivatives().hessian);
-    let V = information;
+    let V = information,
+      clusters = null;
     if (robust) {
-      const meat = Array.from({ length: size }, () => new Array(size).fill(0));
-      x.forEach((row, i) => {
-        const s = family.score(
-          y[i],
-          row.reduce((t, v, k) => t + v * b[k], 0),
+      // Each observation is its own cluster unless one was named; the
+      // correction is G / (G - 1) with G the number of clusters.
+      const scoreOf = (i) => {
+          const s = family.score(
+            y[i],
+            x[i].reduce((t, v, k) => t + v * b[k], 0),
+          );
+          return x[i].map((v) => v * s);
+        },
+        own = { data: sample.map((_, i) => i) },
+        { meat, clusters: G } = clusterMeat(
+          cluster ?? own,
+          cluster ? sample : own.data,
+          scoreOf,
+          size,
+        ),
+        bm = information.map((row) =>
+          meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
         );
-        for (let a = 0; a < size; a++)
-          for (let c = 0; c < size; c++) meat[a][c] += s * s * row[a] * row[c];
-      });
-      const bm = information.map((row) =>
-        meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
-      );
+      if (cluster) clusters = G;
       V = bm.map((row) =>
         information[0].map(
           (_, c) =>
-            (n / (n - 1)) *
+            (G / (G - 1)) *
             row.reduce((t, v, k) => t + v * information[k][c], 0),
         ),
       );
@@ -294,7 +306,9 @@ function maximumLikelihood(kind) {
       rank: size,
       ll,
       ll_0: ll0,
-      vce: robust ? "robust" : "oim",
+      vce: cluster ? "cluster" : robust ? "robust" : "oim",
+      clusters,
+      clusterName: cluster?.name,
       family,
       kind,
       sample,
@@ -324,6 +338,8 @@ function maximumLikelihood(kind) {
       cmd: kind,
       depvar: model.depvar,
       vce: model.vce,
+      ...(robust ? { vcetype: "Robust" } : {}),
+      ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
     };
     ctx.out("");
     if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
@@ -344,6 +360,7 @@ function maximumLikelihood(kind) {
       `${`${word} = ${g(ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(r2, "%6.4f").trim())}`,
     );
     ctx.out("");
+    if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
     zTable(session, model, options.level, transform).forEach(ctx.out);
     ctx.out("");
   };
@@ -449,7 +466,7 @@ function ivregress(session, text, ctx) {
     );
   const estimator = m[1],
     parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) Level(cilevel) First WMATrix(string) | noCONStant SMALL Igmm]",
+      "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) | noCONStant SMALL Igmm]",
       m[7],
     ),
     names = (part) => (part.trim() ? session.varlist(part) : []),
@@ -457,9 +474,10 @@ function ivregress(session, text, ctx) {
     exogenous = [...names(m[3]), ...names(m[6])],
     instruments = names(m[5]),
     weighting = (parsed.options.wmatrix ?? "robust").trim(),
+    asked = readVce(session, parsed.options, /^un(adjusted)?$/),
+    cluster = asked.cluster,
     robust =
-      !!parsed.options.robust ||
-      /^r/.test(parsed.options.vce ?? "") ||
+      asked.robust ||
       (estimator === "gmm" && /^r/.test(weighting) && !parsed.options.vce),
     column = (name) => {
       const data = session.data.get(name).data;
@@ -470,8 +488,17 @@ function ivregress(session, text, ctx) {
     ),
     rows = session
       .rows(parsed, null)
-      .filter((i) => all.every((name) => !isMissing(column(name)[i]))),
+      .filter(
+        (i) =>
+          all.every((name) => !isMissing(column(name)[i])) &&
+          !(cluster && noCluster(cluster, i)),
+      ),
     n = rows.length;
+  if (cluster && estimator !== "2sls")
+    throw new StataError(
+      `ivregress ${estimator} with vce(cluster) is not available yet; ivregress 2sls takes it`,
+      198,
+    );
   if (instruments.length < endogenous.length)
     throw new StataError(
       "equation not identified; must have at least as many instruments not in\nthe regression as there are instrumented variables",
@@ -591,7 +618,8 @@ function ivregress(session, text, ctx) {
     rss = residuals.reduce((t, e) => t + e * e, 0),
     mean = y.reduce((a, c) => a + c, 0) / n,
     tss = y.reduce((t, v) => t + (v - mean) ** 2, 0);
-  let V;
+  let V,
+    clusters = null;
   if (gmm) {
     // n (X'Z W Z'X)^-1 when the weight matrix is taken as the truth; with
     // a robust variance the middle is rebuilt from the final residuals.
@@ -622,6 +650,16 @@ function ivregress(session, text, ctx) {
         198,
       );
     V = kClass.inverse.map((row) => row.map((v) => (v * rss) / n));
+  } else if (cluster) {
+    const { meat, clusters: G } = clusterMeat(
+      cluster,
+      rows,
+      (i) => fitted[i].map((v) => v * residuals[i]),
+      b.length,
+    );
+    clusters = G;
+    // Stata applies no small-sample factor here unless small is given.
+    V = multiply(multiply(bread, meat), bread);
   } else if (robust) {
     const size = b.length,
       meat = Array.from({ length: size }, () => new Array(size).fill(0));
@@ -657,7 +695,9 @@ function ivregress(session, text, ctx) {
       mss: tss - rss,
       r2: 1 - rss / tss,
       rmse: Math.sqrt(rss / n),
-      vce: robust ? "robust" : "unadjusted",
+      vce: cluster ? "cluster" : robust ? "robust" : "unadjusted",
+      clusters,
+      clusterName: cluster?.name,
       kind: "ivregress",
       sample: rows,
       iv: {
@@ -690,6 +730,8 @@ function ivregress(session, text, ctx) {
     depvar: dep,
     vce: model.vce,
     estimator,
+    ...(robust ? { vcetype: "Robust" } : {}),
+    ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
     ...(kClass ? { kappa: kClass.kappa } : {}),
     ...(gmm ? { J: gmm.J } : {}),
   };
@@ -717,6 +759,7 @@ function ivregress(session, text, ctx) {
     ),
   );
   ctx.out("");
+  if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
   zTable(session, model, parsed.options.level, null).forEach(ctx.out);
   ctx.out(`Endogenous: ${endogenous.join(" ")}`);
   ctx.out(`Exogenous:  ${[...exogenous, ...instruments].join(" ")}`);
