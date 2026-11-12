@@ -11,6 +11,7 @@ import { Ftail, invttail, ttail } from "./distributions.js";
 import { count, labelled, moments, percentile, present } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
+import { noCluster } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 export const RULE = "-".repeat(78);
@@ -254,7 +255,13 @@ export function fit(session, parsed, by) {
       rows,
       constant,
     ),
-    vceText = options.vce ?? (options.robust ? "robust" : ""),
+    vceText =
+      options.vce ??
+      (options.cluster
+        ? `cluster ${options.cluster}`
+        : options.robust
+          ? "robust"
+          : ""),
     clusterMatch = /^cl(?:u(?:s(?:t(?:er?)?)?)?)?\s+(\S+)$/.exec(
       vceText.trim(),
     ),
@@ -269,9 +276,7 @@ export function fit(session, parsed, by) {
       /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
   if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
     throw new StataError(`vce(${vceText}) is not available yet`, 198);
-  let obs = cluster
-      ? sample.filter((i) => !isMissing(cluster.data[i]))
-      : sample,
+  let obs = cluster ? sample.filter((i) => !noCluster(cluster, i)) : sample,
     w = null,
     sumW;
   const wtype = parsed.weight?.type;
@@ -607,7 +612,7 @@ function regress(session, text, ctx) {
   )
     return;
   const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta | noHEader EForm(string) CLuster(varname) ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) | noHEader EForm(string) ABSorb(varname)]",
       text,
     ),
     model = fit(session, parsed, null),
