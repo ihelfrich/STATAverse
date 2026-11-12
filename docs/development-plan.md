@@ -18,10 +18,10 @@ Console, `area4.md` lessons, `area5.md` runtime, `area6.md` probe,
 Treat the notes as leads with file references, and confirm a claim in the code
 before building on it.
 
-**First act of the new session.** If this file is still untracked, commit it
-on a `claude/` branch and open its pull request. The package's cleanliness
-flag counts untracked files, so until this file is merged or removed, `main`
-cannot be packaged for release from this checkout.
+**Refreshed 12 November, after PR 30.** This file is on `main`. Section 2
+gives the state at `83c25ec`; section 6a turns section 6 into milestones, says
+which packages can run side by side, and lists the decisions due before the
+first milestone ends. Section 10 is the starting prompt.
 
 ## 1. The goal
 
@@ -57,8 +57,15 @@ them, a map view, nine teaching datasets, the student's own CSV and `.dta`
 files, `.dta` export, a project zip and SVG graphs. The session runs in a
 worker and falls back to the page.
 
-`main` is at `0f615aa` (PR 29). The website repository pins that commit and the
-live page serves it. `npm test` runs 369 unit tests in about three seconds. The
+`main` is at `83c25ec` (PR 30, clustered standard errors). The website
+repository pins that commit (ihelfrich/ihelfrich.github.io#53) and the live
+page serves it; `logit`, `poisson` and `ivregress` under `vce(cluster region)`
+and the `vce(bootstrap)` refusal were checked on the live Console, `xtreg, re`
+and `probit` only in the unit tests. `npm test` runs 374 unit tests in about
+two seconds. The wide probe, rerun at `83c25ec`, runs 361 of 488 cases and
+stops 127 (by group, ran/stopped: data management 61/4, description 30/15,
+tests 14/13, estimation 41/22, post-estimation 59/22, graphs 36/7,
+programming 88/22, dates 18/8, time series 14/14). The
 browser suite had 278 passing runs at the last full check (two Playwright
 projects, both Chrome). This repository has no CI of its own; the website
 repository's deploy workflow builds the pinned commit on GitHub Actions.
@@ -77,7 +84,9 @@ clusters set the order of section 6.
 
 More serious than any refusal: a set of commands return success and show
 something wrong. A refusal tells the student to try something else; these do
-not. All of the following were reproduced at `0f615aa`.
+not. All of the following were reproduced at `0f615aa`; `scalar list`,
+`twoway function`, `scatter, by()`, `graph combine`, `xline()` and the
+`date(…, "DMY", 2050)` case still behave this way at `83c25ec`.
 
 Standard errors (fixed on 12 November in the pull request that carries this
 plan; see `tests/runtime-cluster.test.mjs`): `logit`, `probit`, `poisson` and
@@ -288,15 +297,20 @@ within Phase B the order given is by how soon a student meets the gap.
 ### Phase A. Make wrong answers impossible to miss
 
 **A0. Checks that leave the tree clean (S).** The screenshot and receipt paths
-are hard-coded in five browser specs (`data-lab`, `data-investigations`,
-`do-builder`, `iv-investigations`, `grouped-data`) and in
-`tools/verify-deployment.mjs`. Route them through one environment variable
+are hard-coded in eight browser specs (`data-lab`, `data-investigations`,
+`do-builder`, `iv-investigations`, `grouped-data`, `method-lab`, `iv-lab`,
+`programming`; find them with `grep -n "docs/verification" tests/browser`) and
+in `tools/verify-deployment.mjs`. Route them through one environment variable
 that defaults to an ignored directory, and give `tools/student-probe.mjs` a
 `--write` flag like its neighbours. Done: `npm run check` on a clean tree
 leaves it clean.
 
 **A1. Adopt the wide probe (S).** Move `cases.txt` and `probe.mjs` from the
-probe folder into `tools/`, with a receipt in `docs/verification/`. Add a
+probe folder into `tools/`, with a receipt in `docs/verification/`. The probe
+imports the repository by absolute path; make it relative. The folder's
+`drill.mjs` and `full.mjs` (one case per fresh session, from standard input)
+are worth keeping as a `--drill` mode; `g*.mjs` were one-off graph checks and
+become asserting cases. Add a
 second kind of case that asserts something about the output (a line that must
 appear, a count of panels or of SVG marks, a standard error that must differ
 from the conventional one), so that an ignored option fails the probe. Also
@@ -640,6 +654,61 @@ hub's three font faces by pattern and does not check it found three; the
 Console's typeface depends on one of them. Assert the count, and add a browser
 check of which face the Console resolved.
 
+## 6a. Milestones, lanes and the decisions due now
+
+Section 6 is the full backlog. This section is the order in which it is
+spent. Each milestone ends with a release (section 7) so that the live Console
+never runs far behind `main`, and each one is judged by the wide probe's three
+counts (ran, refused, wrong) rather than by packages closed.
+
+**M1. No silent wrong answers.** A0, A1, A3, A2 (in that order: A3 is small
+and its crashes would otherwise show up as noise in A2's sweep), A4, then E2
+and E3 before the release. A5 joins if he approves it. Done when the wide
+probe has an asserting case for every item in section 2, its "wrong" count is
+zero, `npm run check` leaves the tree clean, and the release is verified live
+by E2's script rather than by hand.
+
+**M2. A student's first week of do-files.** B1, B4, B5, B6, with C3 and C4 in
+the Console lane. These are the forms an introductory problem set reaches
+first (coefficient references after factor variables, `by:` before
+estimators, replay, `tabulate` and `tabstat` options, the common tests), and
+C3 and C4 are the two places the Console can lose a student's work. B13 joins
+here if he approves it, because nearly every problem set ends in a table.
+
+**M3. An applied course's do-files.** B2, B3 (two pull requests), B7. B2 and
+B3 are the two largest internal changes and both touch the names of
+design-matrix columns; do them one after the other, never side by side, and
+rerun B1's cases after each.
+
+**M4. The linking gate.** C1, C2, A6, R0, R1, then R2 put to him with the
+probe's counts. Phases B8 to B15 and D follow, with B14 before any of B15 or
+D3.
+
+**Lanes.** Runtime packages edit `src/runtime/` and the recorders; Console
+packages (C1 to C10) edit `src/console*.js`, `Console/index.html`,
+`assets/css/console.css` and `tests/browser/console.spec.js`; release
+packages (E1 to E3) live in the website repository. Packages in different
+lanes can run as parallel sessions in separate worktrees. Two runtime
+packages run side by side only when neither touches `estimation.js`,
+`models.js`, `varlist.js` or the `COMMANDS` array's abbreviation neighbours;
+B8 (functions) and B6 (tests) are the safest pair. Browser tests run in one
+checkout at a time (section 4), so a parallel session runs unit tests and
+leaves the browser suite to whoever merges.
+
+**Decisions due before M1 ends,** each with a recommendation:
+
+1. A5, CI on pull requests. Recommend yes: it costs one workflow file, catches
+   a dirty build before the pin does, and lets the offline budget be asserted
+   without the website build.
+2. A6, downloading WebKit and Firefox for Playwright. Recommend yes before M4:
+   the worker path, which decides whether Stop exists, has never run outside
+   Chrome.
+3. B13, `eststo` and `esttab` under their familiar names. Recommend yes, with
+   the scope written in B13, because it is the most common last line of a
+   student's do-file that the runtime cannot run.
+
+R1's cost and the order of B15 and the courses can wait until M3.
+
 ## 7. Releasing, as it is done today
 
 The only release input is `commit` in `config/stataverse.json` of
@@ -709,9 +778,9 @@ those the probe sampled.
 > Read `docs/development-plan.md` in `/Users/ian/Developer/STATAverse` in
 > full, then `docs/numerical-contract.md` and the progress notes at the end of
 > `docs/runtime-and-courses-spec.md`. Check the Agent Log and claim the work.
-> If the plan is still untracked, commit it on a branch and open its pull
-> request. Then begin Phase A in order: A0, A1, A2, A3. For each package,
-> scout inline, run a workflow shaped as in section 5, verify every claimed
+> Then begin milestone M1 of section 6a: A0, A1, A3, A2, A4, E2, E3. For each
+> package, scout inline, run a workflow shaped as in section 5, verify every claimed
 > defect by running it, run `npm run format:check` and `npm run check`, and
 > open one pull request. Stop for my go-ahead before merging or deploying, and
-> bring me the decisions in section 8 as they come due.
+> bring me the three decisions in section 6a before M1 ends and the rest of
+> section 8 as they come due.
