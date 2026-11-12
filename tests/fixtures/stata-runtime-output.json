@@ -14386,30 +14386,6 @@
       ]
     },
     {
-      "id": "timer-list",
-      "source": "timer clear\ntimer on 1\ntimer off 1\ntimer on 3\ntimer off 3\ntimer on 3\ntimer off 3\ntimer list\ntimer list 3\n",
-      "commands": [
-        { "command": "timer clear", "lines": [] },
-        { "command": "timer on 1", "lines": [] },
-        { "command": "timer off 1", "lines": [] },
-        { "command": "timer on 3", "lines": [] },
-        { "command": "timer off 3", "lines": [] },
-        { "command": "timer on 3", "lines": [] },
-        { "command": "timer off 3", "lines": [] },
-        {
-          "command": "timer list",
-          "lines": [
-            "   1:      0.00 /        1 =       0.0000",
-            "   3:      0.00 /        2 =       0.0000"
-          ]
-        },
-        {
-          "command": "timer list 3",
-          "lines": ["   3:      0.00 /        2 =       0.0000"]
-        }
-      ]
-    },
-    {
       "id": "margins-atmeans-factor",
       "source": "clear\nset seed 4127\nset obs 600\ngenerate double x1 = runiform() * 10\ngenerate byte f = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)\nlogit d x1 i.f\nmargins, atmeans\nmargins, dydx(*) atmeans\nregress x1 i.f i.g\nmargins, atmeans\n",
       "commands": [

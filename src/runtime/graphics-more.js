@@ -201,7 +201,7 @@ function statisticList(session, text) {
   for (const token of text.match(/\([^)]*\)|\S+/g) ?? []) {
     const m = /^\((\w+)\)$/.exec(token);
     if (m) {
-      if (!STATISTICS[m[1]])
+      if (!STATISTICS[m[1]] && m[1] !== "percent")
         throw new StataError(`(${m[1]}) is not available in graph bar`, 198);
       current = m[1];
     } else
@@ -245,13 +245,22 @@ function graphBar(horizontal) {
     const parts = graphParts(session, text, "STack PERCentages ASYvars"),
       series = statisticList(session, parts.head),
       options = parts.parsed.options;
-    // graph bar, over(g) with no yvars shows the percentage in each group.
-    const frequencies = !series.length;
-    if (frequencies && !parts.over)
+    // With no yvars, graph bar, over(g) shows the percentage of observations
+    // in each group, and graph bar (count), over(g) their number.
+    const frequencies = !series.length,
+      counted = frequencies && /^\(\s*count\s*\)$/.test(parts.head);
+    if (
+      frequencies &&
+      (!parts.over || !/^(\(\s*(count|percent)\s*\))?$/.test(parts.head))
+    )
       throw new StataError("varlist required", 100);
     const total = parts.groups.reduce((t, rows) => t + rows.length, 0),
       heights = frequencies
-        ? [parts.groups.map((rows) => (100 * rows.length) / total)]
+        ? [
+            parts.groups.map((rows) =>
+              counted ? rows.length : (100 * rows.length) / total,
+            ),
+          ]
         : series.map(({ statistic, variable }) =>
             parts.groups.map((rows) => {
               const v = rows
@@ -261,7 +270,7 @@ function graphBar(horizontal) {
             }),
           ),
       names = frequencies
-        ? ["percent"]
+        ? [counted ? "frequency" : "percent"]
         : series.map(
             ({ statistic, variable }) => `${statistic} of ${variable.name}`,
           ),

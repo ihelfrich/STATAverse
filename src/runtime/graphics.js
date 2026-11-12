@@ -50,6 +50,167 @@ export function unquote(text) {
   return t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1) : t;
 }
 
+/** Every x and y value the layers will draw, which set the axes. */
+function extents(layers) {
+  return {
+    xs: layers.flatMap((l) =>
+      l.bars
+        ? l.bars.flatMap((b) => [b.x0, b.x1])
+        : l.boxes
+          ? l.boxes.flatMap((b) => [b.x - b.width, b.x + b.width])
+          : l.points.map((p) => p[0]),
+    ),
+    ys: layers.flatMap((l) =>
+      l.bars
+        ? [0, ...l.bars.map((b) => b.height)]
+        : l.boxes
+          ? l.boxes.flatMap((b) => [b.lower, b.upper, ...b.outside])
+          : l.kind === "band"
+            ? l.points.flatMap((p) => [p[1], p[2]])
+            : l.kind === "area"
+              ? [0, ...l.points.map((p) => p[1])]
+              : l.points.map((p) => p[1]),
+    ),
+  };
+}
+
+/**
+ * Several drawn graphs on one canvas of the usual size, in a grid of cols
+ * columns, with optional overall title, axis titles and note.
+ */
+function tile(svgs, { cols, rows, title, xTitle, yTitle, note }) {
+  if (!cols && !rows) cols = Math.ceil(Math.sqrt(svgs.length));
+  if (!cols) cols = Math.ceil(svgs.length / rows);
+  rows = Math.ceil(svgs.length / cols);
+  const top = title ? 32 : 0,
+    left = yTitle ? 24 : 0,
+    bottom = (xTitle ? 22 : 0) + (note ? 18 : 0),
+    cellW = (WIDTH - left) / cols,
+    cellH = (HEIGHT - top - bottom) / rows,
+    scale = Math.min(cellW / WIDTH, cellH / HEIGHT),
+    w = WIDTH * scale,
+    h = HEIGHT * scale,
+    parts = [
+      `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="#ffffff"/>`,
+    ];
+  if (title)
+    parts.push(
+      `<text x="${WIDTH / 2}" y="22" text-anchor="middle" font-size="16">${escape(title)}</text>`,
+    );
+  svgs.forEach((svg, k) => {
+    const x = left + (k % cols) * cellW + (cellW - w) / 2,
+      y = top + Math.floor(k / cols) * cellH + (cellH - h) / 2;
+    parts.push(
+      svg.replace(
+        /^<svg /,
+        `<svg x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" `,
+      ),
+    );
+  });
+  if (xTitle)
+    parts.push(
+      `<text x="${left + (WIDTH - left) / 2}" y="${HEIGHT - (note ? 24 : 6)}" text-anchor="middle">${escape(xTitle)}</text>`,
+    );
+  if (yTitle)
+    parts.push(
+      `<text transform="translate(16 ${top + (HEIGHT - top - bottom) / 2}) rotate(-90)" text-anchor="middle">${escape(yTitle)}</text>`,
+    );
+  if (note)
+    parts.push(
+      `<text x="8" y="${HEIGHT - 6}" font-size="11">${escape(note)}</text>`,
+    );
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
+}
+
+/**
+ * by(varname [, total cols(#) rows(#) note()]) of a graph command, or null.
+ * One variable only; other suboptions are refused.
+ */
+function byOption(session, optionText) {
+  const m = /\bby\(((?:[^()]|\([^()]*\))*)\)/.exec(optionText ?? "");
+  if (!m) return null;
+  const [head, rest] = splitAtComma(m[1]),
+    names = session.varlist(head.trim());
+  if (names.length !== 1)
+    throw new StataError(
+      "by() with more than one variable is not available here",
+      198,
+    );
+  const options = session.parse(
+      "[, TOTal Cols(integer 0) Rows(integer 0) NOTE(string)]",
+      rest ? "," + rest : "",
+    ).options,
+    variable = session.data.get(names[0]),
+    data = Array.from(variable.data),
+    values = [...new Set(data)]
+      .filter((v) => (typeof v === "string" ? v !== "" : !isMissing(v)))
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return {
+    variable,
+    options,
+    groups: [
+      ...values.map((value) => ({
+        label: labelOf(session, variable, value),
+        rows: new Set(data.flatMap((v, i) => (v === value ? [i] : []))),
+      })),
+      ...(options.total ? [{ label: "Total", rows: null }] : []),
+    ],
+  };
+}
+/** A value as its label, or as Stata prints it. */
+function labelOf(session, variable, value) {
+  if (typeof value === "string") return value;
+  const labels = variable.valueLabel
+    ? session.data.valueLabels?.get(variable.valueLabel)
+    : null;
+  return labels?.get(value) ?? g(value);
+}
+/**
+ * Draws one panel per group of by(), on common axes: build(rows) returns the
+ * layers of one panel, drawn from those rows only.
+ */
+function byPanels(session, by, build, { xTitle, yTitle, title, yFromZero }) {
+  const panels = by.groups.map((group) => {
+    session.panelRows = group.rows;
+    try {
+      return { label: group.label, layers: build() };
+    } finally {
+      session.panelRows = null;
+    }
+  });
+  const { xs, ys } = extents(panels.flatMap((p) => p.layers));
+  if (!xs.length) throw new StataError("no observations", 2000);
+  const xRange = [Math.min(...xs), Math.max(...xs)],
+    yRange = [yFromZero ? 0 : Math.min(...ys), Math.max(...ys)],
+    note =
+      by.options.note !== undefined
+        ? unquote(by.options.note)
+        : `Graphs by ${titleOf(by.variable)}`;
+  return {
+    svg: tile(
+      panels.map((p) =>
+        draw({
+          layers: p.layers.length ? p.layers : [{ points: [], label: "" }],
+          xTitle: "",
+          yTitle: "",
+          title: p.label,
+          xRange,
+          yRange,
+        }),
+      ),
+      {
+        cols: by.options.cols,
+        rows: by.options.rows,
+        title,
+        xTitle,
+        yTitle,
+        note,
+      },
+    ),
+    panels: panels.length,
+  };
+}
+
 /** Draws layers on shared axes. Each layer: { kind, points | bars, label }. */
 export function draw({
   layers,
@@ -60,24 +221,7 @@ export function draw({
   yRange,
   xLabels,
 }) {
-  const xs = layers.flatMap((l) =>
-      l.bars
-        ? l.bars.flatMap((b) => [b.x0, b.x1])
-        : l.boxes
-          ? l.boxes.flatMap((b) => [b.x - b.width, b.x + b.width])
-          : l.points.map((p) => p[0]),
-    ),
-    ys = layers.flatMap((l) =>
-      l.bars
-        ? [0, ...l.bars.map((b) => b.height)]
-        : l.boxes
-          ? l.boxes.flatMap((b) => [b.lower, b.upper, ...b.outside])
-          : l.kind === "band"
-            ? l.points.flatMap((p) => [p[1], p[2]])
-            : l.kind === "area"
-              ? [0, ...l.points.map((p) => p[1])]
-              : l.points.map((p) => p[1]),
-    );
+  const { xs, ys } = extents(layers);
   if (!xs.length) throw new StataError("no observations", 2000);
   const xt = ticks(
       xRange?.[0] ?? Math.min(...xs),
@@ -615,25 +759,37 @@ function twoway(session, text, ctx, single) {
       });
     }
   }
-  const layers = specs.flatMap((spec) => {
-      const m = /^\s*(\w+)\s+([\s\S]*)$/.exec(spec);
-      if (!m) throw new StataError("invalid syntax", 198);
-      return plot(session, plotKind(m[1]), m[2]);
-    }),
+  const build = () =>
+      specs.flatMap((spec) => {
+        const m = /^\s*(\w+)\s+([\s\S]*)$/.exec(spec);
+        if (!m) throw new StataError("invalid syntax", 198);
+        return plot(session, plotKind(m[1]), m[2]);
+      }),
+    layers = build(),
     options = graphOptions(session, optionText),
+    by = byOption(session, optionText),
     first = layers[0];
   if (!layers.some((l) => l.points.length || l.bars?.length))
     throw new StataError("no observations", 2000);
-  const svg = draw({
-    layers,
-    xTitle: unquote(options.xtitle) || titleOf(first.x),
-    yTitle:
+  const xTitle = unquote(options.xtitle) || titleOf(first.x),
+    yTitle =
       unquote(options.ytitle) || (layers.length === 1 ? titleOf(first.y) : ""),
-    title: unquote(options.title),
-  });
+    title = unquote(options.title),
+    description = `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points`;
+  if (by) {
+    const { svg, panels } = byPanels(session, by, build, {
+      xTitle,
+      yTitle,
+      title,
+    });
+    return ctx.graph({
+      svg,
+      description: `${description}, in ${panels} panels by ${by.variable.name}.`,
+    });
+  }
   ctx.graph({
-    svg,
-    description: `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points.`,
+    svg: draw({ layers, xTitle, yTitle, title }),
+    description: `${description}.`,
   });
 }
 
@@ -650,6 +806,8 @@ function histogram(session, text, ctx) {
       .filter((v) => !isMissing(v)),
     n = values.length;
   if (!n) throw new StataError("no observations", 2000);
+  const by = byOption(session, splitAtComma(text)[1]);
+  if (by) return histogramBy(session, parsed, variable, values, by, ctx);
   const { bars, bins, width, start, yTitle, curveScale } = histogramBars(
       values,
       options,
@@ -704,7 +862,136 @@ function histogram(session, text, ctx) {
   session.results.r = { N: n, bin: bins, width, start };
 }
 
+/**
+ * histogram, by(): the bins of the whole sample, the bars of each panel
+ * from its own rows. Stata prints no bin line for a graph by groups.
+ */
+function histogramBy(session, parsed, variable, values, by, ctx) {
+  const options = parsed.options;
+  if (options.normal || options.kdensity)
+    throw new StataError(
+      "normal and kdensity with by() are not available here",
+      198,
+    );
+  const whole = histogramBars(values, options, "", () => {}),
+    { width, start, yTitle } = whole,
+    build = () => {
+      const own = session
+        .rows(parsed, null)
+        .map((i) => variable.data[i])
+        .filter((v) => !isMissing(v));
+      if (!own.length) return [];
+      const n = own.length,
+        counts = new Array(whole.bins).fill(0);
+      for (const v of own)
+        counts[
+          Math.min(
+            whole.bins - 1,
+            Math.max(0, Math.floor((v - start) / width + 1e-9)),
+          )
+        ]++;
+      const scale = options.frequency
+        ? (c) => c
+        : options.percent
+          ? (c) => (100 * c) / n
+          : options.fraction
+            ? (c) => c / n
+            : (c) => c / n / width;
+      return [
+        {
+          bars: counts.map((c, k) => ({
+            x0: start + k * width,
+            x1: start + (k + 1) * width,
+            height: scale(c),
+          })),
+          points: [],
+          label: yTitle,
+        },
+      ];
+    },
+    { svg, panels } = byPanels(session, by, build, {
+      xTitle: unquote(options.xtitle) || titleOf(variable),
+      yTitle: unquote(options.ytitle) || yTitle,
+      title: unquote(options.title),
+      yFromZero: true,
+    });
+  ctx.graph({
+    svg,
+    description: `Histogram of ${titleOf(variable)}: ${whole.bins} bins of width ${g(width)} starting at ${g(start)}, in ${panels} panels by ${by.variable.name}.`,
+  });
+}
+
 const otherGraphs = {};
+// ----- graphs kept in memory by name -----
+const kept = (session) => (session.graphs ??= new Map());
+function memoryGraph(session, name) {
+  const picture = kept(session).get(name);
+  if (!picture) throw new StataError(`graph ${name} not found`, 111);
+  return picture;
+}
+/** Graphs drawn side by side on one canvas, as graph combine draws them. */
+function combine(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    options = session.parse(
+      "[, Cols(integer 0) Rows(integer 0) TItle(string) NAME(string) NODRAW]",
+      optionText ? "," + optionText : "",
+    ).options,
+    names = head.trim().split(/\s+/).filter(Boolean);
+  if (!names.length) throw new StataError("graph names required", 198);
+  const pictures = names.map((name) => {
+    const picture = kept(session).get(name);
+    if (!picture) throw new StataError(`${name} is not a memory graph`, 198);
+    return picture;
+  });
+  if (options.cols < 0 || options.rows < 0)
+    throw new StataError("cols() and rows() must be positive", 198);
+  ctx.graph({
+    svg: tile(
+      pictures.map((p) => p.svg),
+      { cols: options.cols, rows: options.rows, title: unquote(options.title) },
+    ),
+    description: `Combined graph of ${names.join(", ")}, ${pictures.length} panels: ${pictures.map((p) => p.description).join(" ")}`,
+  });
+}
+const memoryGraphs = {
+  combine,
+  display(session, text, ctx) {
+    const name = text.trim().split(/[\s,]+/)[0] || "Graph";
+    ctx.graph(memoryGraph(session, name));
+  },
+  dir(session, text, ctx) {
+    const names = [...kept(session).keys()].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    if (!names.length) return;
+    const width = Math.max(...names.map((name) => name.length)) + 2;
+    ctx.out(
+      `    ${names
+        .map((name) => name.padEnd(width))
+        .join("")
+        .trimEnd()}`,
+    );
+  },
+  rename(session, text) {
+    const [from, to, extra] = text.trim().split(/\s+/);
+    if (!from || !to || extra) throw new StataError("invalid syntax", 198);
+    const picture = memoryGraph(session, from);
+    if (kept(session).has(to))
+      throw new StataError(`graph ${to} already exists`, 110);
+    kept(session).delete(from);
+    kept(session).set(to, picture);
+  },
+  drop(session, text, ctx) {
+    const names = text.trim().split(/\s+/).filter(Boolean);
+    if (names.length === 1 && names[0] === "_all") return kept(session).clear();
+    for (const name of names)
+      if (!kept(session).has(name)) {
+        ctx.out(`graph ${name} not found`);
+        throw new StataError("no graphs dropped", 111);
+      }
+    for (const name of names) kept(session).delete(name);
+  },
+};
 /** Registers graph subcommands defined elsewhere: graph bar, graph box. */
 export function registerGraph(name, run) {
   otherGraphs[name] = run;
@@ -713,17 +1000,16 @@ function graph(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
   if (/^tw(o(w(ay?)?)?)?$/.test(m[1])) return twoway(session, m[2], ctx);
-  if (
-    /^(export|save|drop|close|display|dir|describe|rename|set|use|combine)$/.test(
-      m[1],
-    )
-  ) {
-    if (m[1] === "export" || m[1] === "save")
-      ctx.out(
-        "(graphs stay on this page; use the browser to save the picture)",
-      );
+  if (/^(export|save)$/.test(m[1])) {
+    ctx.out("(graphs stay on this page; use the browser to save the picture)");
     return;
   }
+  if (memoryGraphs[m[1]]) return memoryGraphs[m[1]](session, m[2], ctx);
+  if (/^(close|describe|set|use)$/.test(m[1]))
+    throw new StataError(
+      `graph ${m[1]} is not available here; graphs are drawn on this page and kept by name for graph combine, display, dir, rename and drop`,
+      198,
+    );
   if (otherGraphs[m[1]]) return otherGraphs[m[1]](session, m[2], ctx);
   throw new StataError(`graph ${m[1]} is not available yet`, 198);
 }

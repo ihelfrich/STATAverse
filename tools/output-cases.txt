@@ -2160,16 +2160,6 @@ scalar big = 1e20
 scalar list
 scalar list a s
 scalar dir
-=== timer-list
-timer clear
-timer on 1
-timer off 1
-timer on 3
-timer off 3
-timer on 3
-timer off 3
-timer list
-timer list 3
 === margins-atmeans-factor
 clear
 set seed 4127

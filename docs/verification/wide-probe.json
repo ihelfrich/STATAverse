@@ -1,9 +1,9 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 513,
-  "pass": 357,
+  "pass": 366,
   "refused": 128,
-  "wrong": 28,
+  "wrong": 19,
   "crash": 0,
   "groups": {
     "dm": {
@@ -37,9 +37,9 @@
       "crash": 0
     },
     "graph": {
-      "pass": 26,
+      "pass": 35,
       "refused": 8,
-      "wrong": 28,
+      "wrong": 19,
       "crash": 0
     },
     "prog": {
@@ -1479,7 +1479,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||histogram wage, by(female) width(5)"
     },
     {
@@ -1524,12 +1524,12 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway (qfit wage experience) (scatter wage experience), by(female)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway scatter wage education, by(region) scheme(s2mono)"
     },
     {
@@ -1559,7 +1559,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph bar (count), over(region)"
     },
     {
@@ -1644,7 +1644,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, name(g1, replace);;histogram wage, name(g2, replace);;graph combine g1 g2"
     },
     {
@@ -1664,7 +1664,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway function y = x^2, range(0 5)"
     },
     {
@@ -2499,7 +2499,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, by(female)"
     },
     {
@@ -2579,7 +2579,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph bar (count), over(female)"
     },
     {
@@ -2589,7 +2589,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, name(a, replace);;scatter hours education, name(b, replace);;graph combine a b"
     },
     {

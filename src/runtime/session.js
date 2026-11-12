@@ -153,6 +153,8 @@ export class Session {
         testEnv = { start: group.start, count: group.count, sums: [] };
       for (let i = group.start; i < group.start + group.count; i++) {
         if (i < first - 1 || i > last - 1) continue;
+        // A graph's by() draws each panel from its own rows.
+        if (this.panelRows && !this.panelRows.has(i)) continue;
         if (condition && condition.evaluate(i, testEnv) === 0) continue;
         visit(i, env, group);
       }
@@ -343,8 +345,18 @@ export class Session {
         frame,
         by: flags.by,
         out: (line) => lines.push(line),
+        // Every graph is kept by its name(), or as Graph, for graph combine,
+        // display, dir, rename and drop. nodraw keeps it without showing it.
         graph: (picture) => {
-          flags.graph = picture;
+          const named = /\bname\(\s*([A-Za-z_]\w*)\s*(,\s*replace\s*)?\)/.exec(
+              body,
+            ),
+            name = named?.[1] ?? "Graph";
+          this.graphs ??= new Map();
+          if (named && !named[2] && this.graphs.has(name))
+            throw new StataError(`graph ${name} already exists`, 110);
+          this.graphs.set(name, picture);
+          if (!/,[\s\S]*\bnodraw\b/.test(body)) flags.graph = picture;
         },
         output,
         flags,
