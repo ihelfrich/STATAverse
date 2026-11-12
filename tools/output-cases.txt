@@ -2149,3 +2149,37 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== scalar-list
+clear
+scalar zeta = 3
+scalar a = 22.346666666667
+scalar longername_here = -1234567.891
+scalar s = "hello world"
+scalar m = .
+scalar big = 1e20
+scalar list
+scalar list a s
+scalar dir
+=== timer-list
+timer clear
+timer on 1
+timer off 1
+timer on 3
+timer off 3
+timer on 3
+timer off 3
+timer list
+timer list 3
+=== margins-atmeans-factor
+clear
+set seed 4127
+set obs 600
+generate double x1 = runiform() * 10
+generate byte f = runiform() > .5
+generate byte g = 1 + floor(runiform() * 3)
+generate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)
+logit d x1 i.f
+margins, atmeans
+margins, dydx(*) atmeans
+regress x1 i.f i.g
+margins, atmeans

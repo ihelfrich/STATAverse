@@ -1,9 +1,9 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 513,
-  "pass": 352,
+  "pass": 357,
   "refused": 128,
-  "wrong": 33,
+  "wrong": 28,
   "crash": 0,
   "groups": {
     "dm": {
@@ -31,9 +31,9 @@
       "crash": 0
     },
     "post": {
-      "pass": 58,
+      "pass": 59,
       "refused": 22,
-      "wrong": 1,
+      "wrong": 0,
       "crash": 0
     },
     "graph": {
@@ -43,15 +43,15 @@
       "crash": 0
     },
     "prog": {
-      "pass": 85,
+      "pass": 88,
       "refused": 22,
-      "wrong": 3,
+      "wrong": 0,
       "crash": 0
     },
     "date": {
-      "pass": 18,
+      "pass": 19,
       "refused": 8,
-      "wrong": 1,
+      "wrong": 0,
       "crash": 0
     },
     "ts": {
@@ -1239,7 +1239,7 @@
     },
     {
       "group": "post",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor|quietly logit union education experience i.female|margins, dydx(*) atmeans"
     },
     {
@@ -1714,7 +1714,7 @@
     },
     {
       "group": "prog",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||summarize wage;;scalar mu = r(mean);;scalar list"
     },
     {
@@ -2199,7 +2199,7 @@
     },
     {
       "group": "prog",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||timer clear;;timer on 1;;summarize wage;;timer off 1;;timer list"
     },
     {
@@ -2594,12 +2594,12 @@
     },
     {
       "group": "date",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||display date(\"15/3/24\", \"DMY\", 2050)"
     },
     {
       "group": "prog",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scalar a = 3;;scalar list"
     },
     {
