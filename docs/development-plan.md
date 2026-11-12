@@ -147,7 +147,11 @@ These are fixed. A change that touches one needs Dr. Helfrich's explicit word.
    locally and is not part of `npm run check`.
 7. An option or form the runtime does not implement is refused with r(198) and
    a hint, never ignored. In `src/runtime` this is the list after `|` in a
-   command's syntax declaration.
+   command's syntax declaration. This holds for options that change only a
+   graph's look (`scheme()`, `graphregion()`, `msymbol()` and the like): they
+   are refused by name, not accepted with a printed note (Dr. Helfrich, 12
+   November 2026). The list is `NOT_DRAWN` in `src/runtime/graph-looks.js`;
+   an option is taken off it only by drawing it.
 8. A number that differs from Stata beyond the stated tolerance is either
    fixed or written down in `docs/numerical-contract.md`. Compatibility is
    described only as measured coverage plus the list of commands, never as a
