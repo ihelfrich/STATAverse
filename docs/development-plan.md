@@ -763,6 +763,13 @@ fixture re-recorded (118 cases), all 406 unit tests passed. The wide probe
 stood at 519 cases: 391 pass, 128 refused, 0 wrong, 0 crash. The coverage
 matrix showed 143 of 193 registered commands in a recorded fixture.
 
+Measured at 19:55 on 300,000 observations (with #37): scatter, histogram,
+by() graphs and graph box draw in under a second; tabulate, sort, egen by(),
+collapse, regress, summarize, detail and xtile each run in under 0.7
+seconds. Before #37 the graphs crashed at this size. This answers, for
+these commands, the question in section 9 of how the runtime performs on
+large data.
+
 Found and not yet fixed, each measured against Stata:
 
 - The coefficient-table width (#41, #42, #48: names, interaction pieces,
