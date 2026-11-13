@@ -2165,3 +2165,13 @@ bitesti 10 9 0.95
 bitesti 50 1 0.01
 bitesti 50 0 0.01
 bitesti 7 3 0.333
+=== sign-test
+clear
+set seed 21
+set obs 41
+generate double a = round(runiform() * 10)
+generate double b = round(runiform() * 10)
+signtest a = b
+signtest a = 5
+signtest a = b if a > 2
+signtest a = b + 1

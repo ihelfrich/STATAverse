@@ -14505,6 +14505,150 @@
       ]
     },
     {
+      "id": "sign-test",
+      "source": "clear\nset seed 21\nset obs 41\ngenerate double a = round(runiform() * 10)\ngenerate double b = round(runiform() * 10)\nsigntest a = b\nsigntest a = 5\nsigntest a = b if a > 2\nsigntest a = b + 1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 21", "lines": [] },
+        {
+          "command": "set obs 41",
+          "lines": ["Number of observations (_N) was 0, now 41."]
+        },
+        {
+          "command": "generate double a = round(runiform() * 10)",
+          "lines": []
+        },
+        {
+          "command": "generate double b = round(runiform() * 10)",
+          "lines": []
+        },
+        {
+          "command": "signtest a = b",
+          "lines": [
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |          19          18",
+            "    Negative |          17          18",
+            "        Zero |           5           5",
+            "-------------+------------------------",
+            "         All |          41          41",
+            "",
+            "One-sided tests:",
+            "  H0: median of a - b = 0 vs.",
+            "  Ha: median of a - b > 0",
+            "      Pr(#positive >= 19) =",
+            "         Binomial(n = 36, x >= 19, p = 0.5) = 0.4340",
+            "",
+            "  H0: median of a - b = 0 vs.",
+            "  Ha: median of a - b < 0",
+            "      Pr(#negative >= 17) =",
+            "         Binomial(n = 36, x >= 17, p = 0.5) = 0.6911",
+            "",
+            "Two-sided test:",
+            "  H0: median of a - b = 0 vs.",
+            "  Ha: median of a - b != 0",
+            "      Pr(#positive >= 19 or #negative >= 19) =",
+            "         min(1, 2*Binomial(n = 36, x >= 19, p = 0.5)) = 0.8679"
+          ]
+        },
+        {
+          "command": "signtest a = 5",
+          "lines": [
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |          18          17",
+            "    Negative |          16          17",
+            "        Zero |           7           7",
+            "-------------+------------------------",
+            "         All |          41          41",
+            "",
+            "One-sided tests:",
+            "  H0: median of a - 5 = 0 vs.",
+            "  Ha: median of a - 5 > 0",
+            "      Pr(#positive >= 18) =",
+            "         Binomial(n = 34, x >= 18, p = 0.5) = 0.4321",
+            "",
+            "  H0: median of a - 5 = 0 vs.",
+            "  Ha: median of a - 5 < 0",
+            "      Pr(#negative >= 16) =",
+            "         Binomial(n = 34, x >= 16, p = 0.5) = 0.6962",
+            "",
+            "Two-sided test:",
+            "  H0: median of a - 5 = 0 vs.",
+            "  Ha: median of a - 5 != 0",
+            "      Pr(#positive >= 18 or #negative >= 18) =",
+            "         min(1, 2*Binomial(n = 34, x >= 18, p = 0.5)) = 0.8642"
+          ]
+        },
+        {
+          "command": "signtest a = b if a > 2",
+          "lines": [
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |          19        13.5",
+            "    Negative |           8        13.5",
+            "        Zero |           4           4",
+            "-------------+------------------------",
+            "         All |          31          31",
+            "",
+            "One-sided tests:",
+            "  H0: median of a - b  = 0 vs.",
+            "  Ha: median of a - b  > 0",
+            "      Pr(#positive >= 19) =",
+            "         Binomial(n = 27, x >= 19, p = 0.5) = 0.0261",
+            "",
+            "  H0: median of a - b  = 0 vs.",
+            "  Ha: median of a - b  < 0",
+            "      Pr(#negative >= 8) =",
+            "         Binomial(n = 27, x >= 8, p = 0.5) = 0.9904",
+            "",
+            "Two-sided test:",
+            "  H0: median of a - b  = 0 vs.",
+            "  Ha: median of a - b  != 0",
+            "      Pr(#positive >= 19 or #negative >= 19) =",
+            "         min(1, 2*Binomial(n = 27, x >= 19, p = 0.5)) = 0.0522"
+          ]
+        },
+        {
+          "command": "signtest a = b + 1",
+          "lines": [
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |          17        19.5",
+            "    Negative |          22        19.5",
+            "        Zero |           2           2",
+            "-------------+------------------------",
+            "         All |          41          41",
+            "",
+            "One-sided tests:",
+            "  H0: median of a - b + 1 = 0 vs.",
+            "  Ha: median of a - b + 1 > 0",
+            "      Pr(#positive >= 17) =",
+            "         Binomial(n = 39, x >= 17, p = 0.5) = 0.8316",
+            "",
+            "  H0: median of a - b + 1 = 0 vs.",
+            "  Ha: median of a - b + 1 < 0",
+            "      Pr(#negative >= 22) =",
+            "         Binomial(n = 39, x >= 22, p = 0.5) = 0.2612",
+            "",
+            "Two-sided test:",
+            "  H0: median of a - b + 1 = 0 vs.",
+            "  Ha: median of a - b + 1 != 0",
+            "      Pr(#positive >= 22 or #negative >= 22) =",
+            "         min(1, 2*Binomial(n = 39, x >= 22, p = 0.5)) = 0.5224"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
