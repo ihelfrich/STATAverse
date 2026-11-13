@@ -2164,3 +2164,7 @@ ttest y, by(grp) unequal
 ttest y, by(grp) welch
 ttest y == 7
 ttest y, by(grp)
+capture noisily ttesti 1 20 5 18
+display _rc
+capture noisily ttesti 1 20 5 1 22 6
+display _rc

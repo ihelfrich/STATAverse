@@ -336,9 +336,15 @@ function ttesti(session, text, ctx) {
     numbers.some((v) => !Number.isFinite(v))
   )
     throw new StataError("invalid syntax", 198);
-  const sample = (n, mean, sd) => {
+  const sample = (n, mean, sd, which = "") => {
     if (!(n > 0) || !Number.isInteger(n) || !(sd >= 0))
       throw new StataError("invalid syntax", 198);
+    // One observation has no spread; Stata refuses a positive sd for it.
+    if (n === 1 && sd > 0)
+      throw new StataError(
+        `${which ? `${which} sample has only` : "only"} one observation, but positive standard deviation`,
+        499,
+      );
     return { n, mean, sd, variance: sd * sd };
   };
   const printers = tPrinters(ctx),
@@ -368,8 +374,8 @@ function ttesti(session, text, ctx) {
     };
     return;
   }
-  const a = sample(numbers[0], numbers[1], numbers[2]),
-    b = sample(numbers[3], numbers[4], numbers[5]),
+  const a = sample(numbers[0], numbers[1], numbers[2], "first"),
+    b = sample(numbers[3], numbers[4], numbers[5], "second"),
     n = a.n + b.n,
     mean = (a.n * a.mean + b.n * b.mean) / n,
     variance =

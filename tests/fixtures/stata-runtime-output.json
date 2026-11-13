@@ -14348,7 +14348,7 @@
     },
     {
       "id": "ttest-immediate-unequal",
-      "source": "clear\nset seed 99\nset obs 120\ngenerate double y = runiform() * 10\ngenerate byte grp = runiform() > .4\nreplace y = y * 2 if grp\nttesti 30 20 5 18\nttesti 30 20 5 40 22 6\nttesti 30 20 5 40 22 6, unequal\nttesti 30 20 5 40 22 6, welch level(90)\nttest y, by(grp) unequal\nttest y, by(grp) welch\nttest y == 7\nttest y, by(grp)\n",
+      "source": "clear\nset seed 99\nset obs 120\ngenerate double y = runiform() * 10\ngenerate byte grp = runiform() > .4\nreplace y = y * 2 if grp\nttesti 30 20 5 18\nttesti 30 20 5 40 22 6\nttesti 30 20 5 40 22 6, unequal\nttesti 30 20 5 40 22 6, welch level(90)\nttest y, by(grp) unequal\nttest y, by(grp) welch\nttest y == 7\nttest y, by(grp)\ncapture noisily ttesti 1 20 5 18\ndisplay _rc\ncapture noisily ttesti 1 20 5 1 22 6\ndisplay _rc\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 99", "lines": [] },
@@ -14519,7 +14519,19 @@
             "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
             " Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000"
           ]
-        }
+        },
+        {
+          "command": "capture noisily ttesti 1 20 5 18",
+          "lines": ["only one observation, but positive standard deviation"]
+        },
+        { "command": "display _rc", "lines": ["499"] },
+        {
+          "command": "capture noisily ttesti 1 20 5 1 22 6",
+          "lines": [
+            "first sample has only one observation, but positive standard deviation"
+          ]
+        },
+        { "command": "display _rc", "lines": ["499"] }
       ]
     },
     {
