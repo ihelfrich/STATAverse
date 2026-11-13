@@ -23241,6 +23241,1031 @@
       ]
     },
     {
+      "id": "perfect-prediction-names",
+      "source": "clear\nset obs 3000\nset seed 21\ngenerate g = floor(runiform()*3)\ngenerate h = floor(runiform()*2)\ngenerate x = runiform()\ngenerate v = runiform()\ngenerate y1 = g == 2\ncapture noisily logit y1 i.g, nolog\ngenerate y2 = g != 2\ncapture noisily logit y2 i.g, nolog\ngenerate y3 = g == 1 & h == 1\ncapture noisily logit y3 i.g#i.h, nolog\ngenerate y4 = g == 1 & x > .5\ncapture noisily logit y4 i.g#c.x, nolog\ncapture noisily logit y4 c.x#i.g, nolog\ngenerate y8 = g == 1 & h == 1 & x > .5\ncapture noisily logit y8 c.x#i.h#i.g, nolog\ngenerate y6 = g == 1\ncapture noisily logit y6 x i.g\ncapture noisily probit y6 x i.g, nolog\ngenerate y7 = x > .5\ncapture noisily logit y7 c.x#c.x, nolog\ncapture noisily logit y7 c.x##c.x, nolog\ngenerate y5 = v < .4\nreplace y5 = 0 if g == 1\nlogit y5 c.x#i.g, nolog\nlogit y5 i.g c.x#i.g, nolog\nlogit y5 c.x##i.g, nolog\nregress v c.x#i.h#c.v#i.g\ngenerate d2 = g == 2\nlogit y5 x d2 i.g, nolog\nmargins, dydx(*)\nmargins g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3000",
+          "lines": ["Number of observations (_N) was 0, now 3,000."]
+        },
+        { "command": "set seed 21", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate h = floor(runiform()*2)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate v = runiform()", "lines": [] },
+        { "command": "generate y1 = g == 2", "lines": [] },
+        {
+          "command": "capture noisily logit y1 i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 1006 obs not used.",
+            "",
+            "outcome = g <= 0 predicts data perfectly"
+          ]
+        },
+        { "command": "generate y2 = g != 2", "lines": [] },
+        {
+          "command": "capture noisily logit y2 i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts success perfectly;",
+            "      0.g omitted and 1006 obs not used.",
+            "",
+            "outcome = g > 0 predicts data perfectly"
+          ]
+        },
+        { "command": "generate y3 = g == 1 & h == 1", "lines": [] },
+        {
+          "command": "capture noisily logit y3 i.g#i.h, nolog",
+          "lines": [
+            "note: 0.g#0.h != 0 predicts failure perfectly;",
+            "      0.g#0.h omitted and 515 obs not used.",
+            "",
+            "note: 0.g#1.h != 0 predicts failure perfectly;",
+            "      0.g#1.h omitted and 491 obs not used.",
+            "",
+            "note: 1.g#0.h != 0 predicts failure perfectly;",
+            "      1.g#0.h omitted and 500 obs not used.",
+            "",
+            "outcome = g#h > 0 predicts data perfectly"
+          ]
+        },
+        { "command": "generate y4 = g == 1 & x > .5", "lines": [] },
+        {
+          "command": "capture noisily logit y4 i.g#c.x, nolog",
+          "lines": [
+            "note: 0.g#c.x != 0 predicts failure perfectly;",
+            "      0.g#c.x omitted and 1006 obs not used.",
+            "",
+            "outcome = g#x > .4998411 predicts data perfectly"
+          ]
+        },
+        {
+          "command": "capture noisily logit y4 c.x#i.g, nolog",
+          "lines": [
+            "note: 0.g#c.x != 0 predicts failure perfectly;",
+            "      0.g#c.x omitted and 1006 obs not used.",
+            "",
+            "outcome = g#x > .4998411 predicts data perfectly"
+          ]
+        },
+        { "command": "generate y8 = g == 1 & h == 1 & x > .5", "lines": [] },
+        {
+          "command": "capture noisily logit y8 c.x#i.h#i.g, nolog",
+          "lines": [
+            "note: 0.h#0.g#c.x != 0 predicts failure perfectly;",
+            "      0.h#0.g#c.x omitted and 515 obs not used.",
+            "",
+            "note: 0.h#1.g#c.x != 0 predicts failure perfectly;",
+            "      0.h#1.g#c.x omitted and 500 obs not used.",
+            "",
+            "note: 0.h#2.g#c.x != 0 predicts failure perfectly;",
+            "      0.h#2.g#c.x omitted and 485 obs not used.",
+            "",
+            "note: 1.h#0.g#c.x != 0 predicts failure perfectly;",
+            "      1.h#0.g#c.x omitted and 491 obs not used.",
+            "",
+            "outcome = h#g#x > .4990369 predicts data perfectly"
+          ]
+        },
+        { "command": "generate y6 = g == 1", "lines": [] },
+        {
+          "command": "capture noisily logit y6 x i.g",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 1006 obs not used.",
+            "",
+            "outcome = g > 0 predicts data perfectly"
+          ]
+        },
+        {
+          "command": "capture noisily probit y6 x i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 1006 obs not used.",
+            "",
+            "outcome = g > 0 predicts data perfectly"
+          ]
+        },
+        { "command": "generate y7 = x > .5", "lines": [] },
+        {
+          "command": "capture noisily logit y7 c.x#c.x, nolog",
+          "lines": ["outcome = x#x > .2498411 predicts data perfectly"]
+        },
+        {
+          "command": "capture noisily logit y7 c.x##c.x, nolog",
+          "lines": ["outcome = x > .4998411 predicts data perfectly"]
+        },
+        { "command": "generate y5 = v < .4", "lines": [] },
+        {
+          "command": "replace y5 = 0 if g == 1",
+          "lines": ["(391 real changes made)"]
+        },
+        {
+          "command": "logit y5 c.x#i.g, nolog",
+          "lines": [
+            "note: 1.g#c.x != 0 predicts failure perfectly;",
+            "      1.g#c.x omitted and 980 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  2,020",
+            "                                                        LR chi2(2)    =   2.31",
+            "                                                        Prob > chi2   = 0.3153",
+            "Log likelihood = -1349.8063                             Pseudo R2     = 0.0009",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y5 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       g#c.x |",
+            "          0  |   .1520726   .1749083     0.87   0.385    -.1907413    .4948866",
+            "          1  |          0  (empty)",
+            "          2  |  -.0823392   .1745957    -0.47   0.637    -.4245406    .2598622",
+            "             |",
+            "       _cons |  -.4648857    .091612    -5.07   0.000    -.6444419   -.2853295",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y5 i.g c.x#i.g, nolog",
+          "lines": [
+            "note: 1.g != 0 predicts failure perfectly;",
+            "      1.g omitted and 980 obs not used.",
+            "",
+            "note: 1.g#c.x omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  2,020",
+            "                                                        LR chi2(3)    =   5.50",
+            "                                                        Prob > chi2   = 0.1387",
+            "Log likelihood = -1348.2114                             Pseudo R2     = 0.0020",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y5 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          0  (empty)",
+            "          2  |   .3276419   .1836389     1.78   0.074    -.0322838    .6875676",
+            "             |",
+            "       g#c.x |",
+            "          0  |   .4023437    .224785     1.79   0.073    -.0382269    .8429143",
+            "          1  |          0  (empty)",
+            "          2  |  -.3172274     .21857    -1.45   0.147    -.7456167     .111162",
+            "             |",
+            "       _cons |  -.6335308   .1325079    -4.78   0.000    -.8932416     -.37382",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y5 c.x##i.g, nolog",
+          "lines": [
+            "note: 1.g != 0 predicts failure perfectly;",
+            "      1.g omitted and 980 obs not used.",
+            "",
+            "note: 1.g#c.x omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  2,020",
+            "                                                        LR chi2(3)    =   5.50",
+            "                                                        Prob > chi2   = 0.1387",
+            "Log likelihood = -1348.2114                             Pseudo R2     = 0.0020",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y5 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4023437    .224785     1.79   0.073    -.0382269    .8429143",
+            "             |",
+            "           g |",
+            "          1  |          0  (empty)",
+            "          2  |   .3276419   .1836389     1.78   0.074    -.0322838    .6875676",
+            "             |",
+            "       g#c.x |",
+            "          1  |          0  (empty)",
+            "          2  |  -.7195711   .3135302    -2.30   0.022    -1.334079   -.1050633",
+            "             |",
+            "       _cons |  -.6335308   .1325079    -4.78   0.000    -.8932416     -.37382",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress v c.x#i.h#c.v#i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =     3,000",
+            "-------------+----------------------------------   F(6, 2993)      =    380.08",
+            "       Model |  112.132689         6  18.6887815   Prob > F        =    0.0000",
+            "    Residual |   147.16781     2,993  .049170668   R-squared       =    0.4324",
+            "-------------+----------------------------------   Adj R-squared   =    0.4313",
+            "       Total |  259.300499     2,999   .08646232   Root MSE        =    .22174",
+            "",
+            "------------------------------------------------------------------------------",
+            "           v | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            " h#g#c.x#c.v |",
+            "        0 0  |   .8707706   .0325206    26.78   0.000     .8070056    .9345356",
+            "        0 1  |   .8684631   .0321373    27.02   0.000     .8054497    .9314765",
+            "        0 2  |   .8556764   .0316215    27.06   0.000     .7936744    .9176785",
+            "        1 0  |   .8408918   .0324041    25.95   0.000     .7773553    .9044283",
+            "        1 1  |   .8682823   .0326788    26.57   0.000     .8042072    .9323575",
+            "        1 2  |   .8352701   .0308533    27.07   0.000     .7747744    .8957658",
+            "             |",
+            "       _cons |   .2857527   .0061221    46.68   0.000     .2737487    .2977567",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate d2 = g == 2", "lines": [] },
+        {
+          "command": "logit y5 x d2 i.g, nolog",
+          "lines": [
+            "note: 1.g != 0 predicts failure perfectly;",
+            "      1.g omitted and 980 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  2,020",
+            "                                                        LR chi2(2)    =   0.22",
+            "                                                        Prob > chi2   = 0.8971",
+            "Log likelihood = -1350.8519                             Pseudo R2     = 0.0001",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y5 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    .032848    .156293     0.21   0.834    -.2734806    .3391766",
+            "          d2 |  -.0379512   .0912348    -0.42   0.677    -.2167681    .1408658",
+            "             |",
+            "           g |",
+            "          1  |          0  (empty)",
+            "          2  |          0  (omitted)",
+            "             |",
+            "       _cons |   -.444565   .1023188    -4.34   0.000    -.6451061   -.2440239",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 2,020",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y5), predict()",
+            "dy/dx wrt:  x d2 1.g 2.g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0078144     .03718     0.21   0.834     -.065057    .0806858",
+            "          d2 |  -.0090284   .0217009    -0.42   0.677    -.0515614    .0335045",
+            "             |",
+            "           g |",
+            "          1  |          .  (not estimable)",
+            "          2  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                       Number of obs = 2,020",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y5), predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |          .  (not estimable)",
+            "          2  |          .  (not estimable)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "perfect-prediction-or-margins",
+      "source": "clear\nset obs 2000\nset seed 5\ngenerate g = floor(runiform()*3)\ngenerate x = runiform()\ngenerate u = runiform()\ngenerate y = cond(g==0, 0, u < .4 + .2*x)\nlabel define gl 0 \"none\" 1 \"some\" 2 \"lots\"\nlabel values g gl\nlogit y x i.g, or nolog\nlogistic y x i.g\nmargins, dydx(*)\nmargins, dydx(g)\nmargins g\nmargins g, at(x=.5)\nprobit y x i.g, nolog\nmargins, dydx(*)\ngenerate x2 = 2*x\nlogit y x x2, or nolog\npoisson y x x2, irr nolog\ngenerate y2 = u < .4 + .2*x\nreplace y2 = 0 if g == 2\nlogit y2 x i.g, nolog\nmargins, dydx(*)\nmargins, dydx(g) at(x=.5)\nmargins, dydx(*) at(x=.5)\nmargins, dydx(x) at(x=.5)\nmargins g\ncapture noisily margins, at(g=2)\ngenerate d = g == 2\nlogit y2 x d, nolog\nmargins, dydx(*)\nlogit y2 x x2, nolog\nmargins, dydx(*)\nlogit y2 x if g < 2, nolog\nestat classification\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2000",
+          "lines": ["Number of observations (_N) was 0, now 2,000."]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        { "command": "generate y = cond(g==0, 0, u < .4 + .2*x)", "lines": [] },
+        {
+          "command": "label define gl 0 \"none\" 1 \"some\" 2 \"lots\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "logit y x i.g, or nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.60086                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.244458    .631684     6.05   0.000     2.215218    4.751908",
+            "             |",
+            "           g |",
+            "       none  |          1  (empty)",
+            "       some  |   .9947333   .1103473    -0.05   0.962      .800353    1.236322",
+            "       lots  |          1  (omitted)",
+            "             |",
+            "       _cons |   .5485712    .068674    -4.80   0.000     .4292138      .70112",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        {
+          "command": "logistic y x i.g",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.60086                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.244458    .631684     6.05   0.000     2.215218    4.751908",
+            "             |",
+            "           g |",
+            "       none  |          1  (empty)",
+            "       some  |   .9947333   .1103473    -0.05   0.962      .800353    1.236322",
+            "       lots  |          1  (omitted)",
+            "             |",
+            "       _cons |   .5485712    .068674    -4.80   0.000     .4292138      .70112",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 1,338",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y), predict()",
+            "dy/dx wrt:  x 1.g 2.g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2860254    .044702     6.40   0.000     .1984111    .3736396",
+            "             |",
+            "           g |",
+            "       none  |          0  (empty)",
+            "       some  |          .  (not estimable)",
+            "       lots  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(g)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 1,338",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y), predict()",
+            "dy/dx wrt:  1.g 2.g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "       none  |          0  (empty)",
+            "       some  |          .  (not estimable)",
+            "       lots  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                       Number of obs = 1,338",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y), predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "       some  |   .4941309   .0189981    26.01   0.000     .4568953    .5313665",
+            "       lots  |   .4954142   .0191248    25.90   0.000     .4579303    .5328981",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g, at(x=.5)",
+          "lines": [
+            "Adjusted predictions                                     Number of obs = 1,338",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y), predict()",
+            "At: x = .5",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "       some  |    .495689   .0195469    25.36   0.000     .4573778    .5340001",
+            "       lots  |    .497009   .0196709    25.27   0.000     .4584548    .5355633",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit y x i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "",
+            "Probit regression                                       Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.53",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.59458                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7352357   .1207562     6.09   0.000     .4985579    .9719135",
+            "             |",
+            "           g |",
+            "       none  |          0  (empty)",
+            "       some  |  -.0032854   .0691005    -0.05   0.962    -.1387199    .1321491",
+            "       lots  |          0  (omitted)",
+            "             |",
+            "       _cons |  -.3749713   .0777287    -4.82   0.000    -.5273167   -.2226258",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 1,338",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y), predict()",
+            "dy/dx wrt:  x 1.g 2.g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    .286838    .045035     6.37   0.000     .1985709     .375105",
+            "             |",
+            "           g |",
+            "       none  |          0  (empty)",
+            "       some  |          .  (not estimable)",
+            "       lots  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        { "command": "generate x2 = 2*x", "lines": [] },
+        {
+          "command": "logit y x x2, or nolog",
+          "lines": [
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  2,000",
+            "                                                        LR chi2(1)    =  26.47",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -1256.5341                             Pseudo R2     = 0.0104",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.343952   .3908141     5.11   0.000     1.690539    3.249916",
+            "          x2 |          1  (omitted)",
+            "       _cons |   .3210928   .0317703   -11.48   0.000     .2644899    .3898091",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        {
+          "command": "poisson y x x2, irr nolog",
+          "lines": [
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Poisson regression                                      Number of obs =  2,000",
+            "                                                        LR chi2(1)    =  17.67",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -1385.0943                             Pseudo R2     = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.764178   .2391946     4.19   0.000     1.352487    2.301187",
+            "          x2 |          1  (omitted)",
+            "       _cons |   .2465011   .0205137   -16.83   0.000     .2094027    .2901719",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline incidence rate."
+          ]
+        },
+        { "command": "generate y2 = u < .4 + .2*x", "lines": [] },
+        {
+          "command": "replace y2 = 0 if g == 2",
+          "lines": ["(330 real changes made)"]
+        },
+        {
+          "command": "logit y2 x i.g, nolog",
+          "lines": [
+            "note: 2.g != 0 predicts failure perfectly;",
+            "      2.g omitted and 664 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  1,336",
+            "                                                        LR chi2(2)    =  37.29",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -907.38406                             Pseudo R2     = 0.0201",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y2 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.158765   .1924688     6.02   0.000     .7815327    1.535996",
+            "             |",
+            "           g |",
+            "       some  |  -.0316016   .1109985    -0.28   0.776    -.2491548    .1859515",
+            "       lots  |          0  (empty)",
+            "             |",
+            "       _cons |  -.5652058   .1241142    -4.55   0.000    -.8084651   -.3219465",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "dy/dx wrt:  x 1.g 2.g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2816645   .0442157     6.37   0.000     .1950034    .3683257",
+            "             |",
+            "           g |",
+            "       some  |  -.0076821    .026983    -0.28   0.776    -.0605679    .0452036",
+            "       lots  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(g) at(x=.5)",
+          "lines": [
+            "Conditional marginal effects                             Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "dy/dx wrt:  1.g 2.g",
+            "At: x = .5",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "       some  |  -.0079002   .0277479    -0.28   0.776    -.0622851    .0464846",
+            "       lots  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(*) at(x=.5)",
+          "lines": [
+            "Conditional marginal effects                             Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "dy/dx wrt:  x 1.g 2.g",
+            "At: x = .5",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2896728   .0481164     6.02   0.000     .1953664    .3839792",
+            "             |",
+            "           g |",
+            "       some  |  -.0079002   .0277479    -0.28   0.776    -.0622851    .0464846",
+            "       lots  |          .  (not estimable)",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(x) at(x=.5)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "dy/dx wrt:  x",
+            "At: x = .5",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2896728   .0481164     6.02   0.000     .1953664    .3839792",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                       Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "       none  |   .5016295   .0191633    26.18   0.000     .4640701    .5391889",
+            "       some  |   .4939474   .0189935    26.01   0.000     .4567208    .5311739",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily margins, at(g=2)",
+          "lines": [
+            "Predictive margins                                       Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "At: g = 2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |          .  (not estimable)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate d = g == 2", "lines": [] },
+        {
+          "command": "logit y2 x d, nolog",
+          "lines": [
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 664 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  1,336",
+            "                                                        LR chi2(1)    =  37.21",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -907.42459                             Pseudo R2     = 0.0201",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y2 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |     1.1596   .1924461     6.03   0.000      .782413    1.536788",
+            "           d |          0  (omitted)",
+            "       _cons |  -.5815586   .1100857    -5.28   0.000    -.7973227   -.3657946",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 1,336",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "dy/dx wrt:  x d",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2818848   .0442086     6.38   0.000     .1952375    .3685322",
+            "           d |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y2 x x2, nolog",
+          "lines": [
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  2,000",
+            "                                                        LR chi2(1)    =  26.02",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -1258.858                              Pseudo R2     = 0.0102",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y2 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .8435511   .1664969     5.07   0.000     .5172233    1.169879",
+            "          x2 |          0  (omitted)",
+            "       _cons |  -1.124866   .0987439   -11.39   0.000    -1.318401   -.9313317",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                 Number of obs = 2,000",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y2), predict()",
+            "dy/dx wrt:  x x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1847927   .0356479     5.18   0.000     .1149241    .2546614",
+            "          x2 |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y2 x if g < 2, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =  1,336",
+            "                                                        LR chi2(1)    =  37.21",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -907.42459                             Pseudo R2     = 0.0201",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y2 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |     1.1596   .1924461     6.03   0.000      .782413    1.536788",
+            "       _cons |  -.5815586   .1100857    -5.28   0.000    -.7973227   -.3657946",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat classification",
+          "lines": [
+            "Logistic model for y2",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |       371           287  |        658",
+            "     -     |       294           384  |        678",
+            "-----------+--------------------------+-----------",
+            "   Total   |       665           671  |       1336",
+            "",
+            "Classified + if predicted Pr(D) >= .5",
+            "True D defined as y2 != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   55.79%",
+            "Specificity                     Pr( -|~D)   57.23%",
+            "Positive predictive value       Pr( D| +)   56.38%",
+            "Negative predictive value       Pr(~D| -)   56.64%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   42.77%",
+            "False - rate for true D         Pr( -| D)   44.21%",
+            "False + rate for classified +   Pr(~D| +)   43.62%",
+            "False - rate for classified -   Pr( D| -)   43.36%",
+            "--------------------------------------------------",
+            "Correctly classified                        56.51%",
+            "--------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classification-counts",
+      "source": "clear\nset obs 30000\nset seed 5\ngenerate x = runiform()\ngenerate y = runiform() < .3 + .4*x\nlogit y x, nolog\nestat classification\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30000",
+          "lines": ["Number of observations (_N) was 0, now 30,000."]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate y = runiform() < .3 + .4*x", "lines": [] },
+        {
+          "command": "logit y x, nolog",
+          "lines": [
+            "Logistic regression                                    Number of obs =  30,000",
+            "                                                       LR chi2(1)    = 1718.95",
+            "                                                       Prob > chi2   =  0.0000",
+            "Log likelihood = -19934.22                             Pseudo R2     =  0.0413",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.698249    .042049    40.39   0.000     1.615834    1.780663",
+            "       _cons |  -.8353894   .0241362   -34.61   0.000    -.8826954   -.7880833",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat classification",
+          "lines": [
+            "Logistic model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |      9171          6037  |      15208",
+            "     -     |      5933          8859  |      14792",
+            "-----------+--------------------------+-----------",
+            "   Total   |     15104         14896  |      30000",
+            "",
+            "Classified + if predicted Pr(D) >= .5",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   60.72%",
+            "Specificity                     Pr( -|~D)   59.47%",
+            "Positive predictive value       Pr( D| +)   60.30%",
+            "Negative predictive value       Pr(~D| -)   59.89%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   40.53%",
+            "False - rate for true D         Pr( -| D)   39.28%",
+            "False + rate for classified +   Pr(~D| +)   39.70%",
+            "False - rate for classified -   Pr( D| -)   40.11%",
+            "--------------------------------------------------",
+            "Correctly classified                        60.10%",
+            "--------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "interaction-order",
+      "source": "clear\nset obs 300\nset seed 21\ngenerate g = floor(runiform()*3)\ngenerate x = runiform()\ngenerate z = runiform()\ngenerate y = runiform() + x\nregress y c.x#i.g\ndisplay _b[c.x#1.g]\ndisplay _b[1.g#c.x]\ndisplay _se[c.x#2.g]\ntest c.x#1.g = c.x#2.g\nlincom 1.g#c.x - c.x#2.g\nregress y c.z#c.x\ndisplay _b[c.x#c.z]\ngenerate yb = y > 1\nlogit yb c.x#i.g, nolog\nmargins, dydx(*)\nmargins g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "set seed 21", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        { "command": "generate y = runiform() + x", "lines": [] },
+        {
+          "command": "regress y c.x#i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(3, 296)       =    116.43",
+            "       Model |  26.3014831         3  8.76716102   Prob > F        =    0.0000",
+            "    Residual |  22.2886752       296  .075299578   R-squared       =    0.5413",
+            "-------------+----------------------------------   Adj R-squared   =    0.5366",
+            "       Total |  48.5901583       299  .162508891   Root MSE        =    .27441",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       g#c.x |",
+            "          0  |    1.00682   .0674656    14.92   0.000     .8740469    1.139593",
+            "          1  |   .9708501    .065476    14.83   0.000     .8419927    1.099708",
+            "          2  |   1.039169   .0651571    15.95   0.000     .9109388    1.167398",
+            "             |",
+            "       _cons |   .4959568   .0317742    15.61   0.000     .4334249    .5584888",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _b[c.x#1.g]", "lines": [".97085012"] },
+        { "command": "display _b[1.g#c.x]", "lines": [".97085012"] },
+        { "command": "display _se[c.x#2.g]", "lines": [".06515708"] },
+        {
+          "command": "test c.x#1.g = c.x#2.g",
+          "lines": [
+            " ( 1)  1.g#c.x - 2.g#c.x = 0",
+            "",
+            "       F(  1,   296) =    1.08",
+            "            Prob > F =    0.3001"
+          ]
+        },
+        {
+          "command": "lincom 1.g#c.x - c.x#2.g",
+          "lines": [
+            " ( 1)  1.g#c.x - 2.g#c.x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0683185   .0658099    -1.04   0.300    -.1978331    .0611962",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y c.z#c.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(1, 298)       =    129.02",
+            "       Model |  14.6809692         1  14.6809692   Prob > F        =    0.0000",
+            "    Residual |  33.9091891       298  .113789225   R-squared       =    0.3021",
+            "-------------+----------------------------------   Adj R-squared   =    0.2998",
+            "       Total |  48.5901583       299  .162508891   Root MSE        =    .33733",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "     c.z#c.x |   .9625545    .084742    11.36   0.000      .795786    1.129323",
+            "             |",
+            "       _cons |   .7499213   .0300599    24.95   0.000     .6907647    .8090779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _b[c.x#c.z]", "lines": [".96255448"] },
+        { "command": "generate yb = y > 1", "lines": [] },
+        {
+          "command": "logit yb c.x#i.g, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(3)    = 141.20",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -137.31753                             Pseudo R2     = 0.3396",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       g#c.x |",
+            "          0  |   5.894634   .7429552     7.93   0.000     4.438468    7.350799",
+            "          1  |   6.205874   .7741034     8.02   0.000     4.688659    7.723088",
+            "          2  |   5.858628   .7303745     8.02   0.000      4.42712    7.290136",
+            "             |",
+            "       _cons |    -3.0141   .3612333    -8.34   0.000    -3.722104   -2.306096",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(yb), predict()",
+            "dy/dx wrt:  1.g 2.g x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |   .0228825   .0500304     0.46   0.647    -.0751753    .1209403",
+            "          2  |  -.0027678   .0484313    -0.06   0.954    -.0976913    .0921557",
+            "             |",
+            "           x |   .8754231   .0243575    35.94   0.000     .8276833    .9231629",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(yb), predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |   .5010459   .0354737    14.12   0.000     .4315187     .570573",
+            "          1  |   .5239283   .0377247    13.89   0.000     .4499893    .5978674",
+            "          2  |   .4982781    .035188    14.16   0.000     .4293109    .5672453",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

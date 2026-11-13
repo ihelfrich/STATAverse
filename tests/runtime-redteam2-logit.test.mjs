@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createConsoleSession } from "../src/console-session.js";
+import { Session } from "../src/runtime/session.js";
 
 const SETUP = [
   "clear",
@@ -114,4 +115,65 @@ test("asis and predict's rules are refused, not ignored", () => {
   assert.equal(run("logit y x, asis").rc, 198);
   assert.equal(run("probit y x, asis nolog").rc, 198);
   assert.equal(run("logit y x, nolog\npredict p, rules").rc, 198);
+});
+
+// margins after a fit that omitted levels: what r(b) and r(V) hold. The
+// tables themselves are compared in tests/runtime-output.test.mjs (case
+// perfect-prediction-or-margins).
+function marginsResults(source) {
+  const session = new Session(),
+    result = session.run(`${SETUP}\n${source}`);
+  return { rc: result.rc, r: session.results.r };
+}
+
+test("margins after perfect prediction stores the levels it could not estimate as zero", () => {
+  const { rc, r } = marginsResults("logit y x i.g, nolog\nmargins, dydx(*)");
+  assert.equal(rc, 0);
+  // Stata 19: r(b) is x 0b.g 1o.g 2o.g = .28602536 0 0 0, and r(V) names
+  // its rows and columns x 0b.g 1.g 2.g with zeros outside x.
+  assert.deepEqual(r["matrix:b"].colNames, ["x", "0b.g", "1o.g", "2o.g"]);
+  assert.deepEqual(r["matrix:V"].colNames, ["x", "0b.g", "1.g", "2.g"]);
+  const [b] = r["matrix:b"].values;
+  assert.ok(Math.abs(b[0] - 0.28602536) < 1e-7);
+  assert.deepEqual(b.slice(1), [0, 0, 0]);
+  assert.ok(Math.abs(r["matrix:V"].values[0][0] - 0.00199827) < 1e-8);
+  assert.deepEqual(
+    r["matrix:V"].values.slice(1).map((row) => row.slice(1)),
+    [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ],
+  );
+});
+
+test("margins gives an omitted regressor an effect of zero", () => {
+  const { rc, r } = marginsResults(
+    "generate x2 = 2*x\nlogit y x x2, nolog\nmargins, dydx(*)",
+  );
+  assert.equal(rc, 0);
+  // Stata 19: r(b) is x x2 = .186142 0.
+  assert.deepEqual(r["matrix:b"].colNames, ["x", "x2"]);
+  const [b] = r["matrix:b"].values;
+  assert.ok(Math.abs(b[0] - 0.186142) < 1e-6);
+  assert.equal(b[1], 0);
+});
+
+test("a fit that runs off to a boundary is refused with a Stata error, not a crash", () => {
+  // Stata 19 reports this fit with "487 failures and 493 successes
+  // completely determined", which the runtime does not; it must stop with
+  // an error a student can read rather than an internal exception.
+  const out = run(
+    [
+      "clear",
+      "set obs 3000",
+      "set seed 21",
+      "generate g = floor(runiform()*3)",
+      "generate h = floor(runiform()*2)",
+      "generate x = runiform()",
+      "generate y4 = g == 1 & x > .5",
+      "logit y4 c.x#i.h#i.g, nolog",
+    ].join("\n"),
+  );
+  assert.equal(out.rc, 430);
 });

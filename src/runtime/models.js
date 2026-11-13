@@ -113,6 +113,8 @@ function zTable(session, model, level, transform) {
         return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
       },
       w,
+      // A coefficient fixed at zero is an odds ratio (or rate ratio) of one.
+      transform ? 1 : 0,
     ),
   );
   lines.push(rule);
@@ -165,7 +167,10 @@ function perfectPrediction(columns, sample, outcome, ctx, lead) {
   let kept = sample.map((_, j) => j);
   for (let k = 0; k < left.length;) {
     const column = left[k],
-      name = column.name.replace(/^(\d+)b\./, "$1.");
+      name = column.name.replace(/^(\d+)b\./, "$1."),
+      // The message of a complete separation names the column by its
+      // variables alone, as g#x for 1.g#c.x.
+      variables = column.term.components.map((c) => c.variable.name).join("#");
     let m0 = Infinity,
       M0 = -Infinity,
       m1 = Infinity,
@@ -218,8 +223,8 @@ function perfectPrediction(columns, sample, outcome, ctx, lead) {
       notes.forEach(ctx.out);
       throw new StataError(
         M0 < m1
-          ? `outcome = ${name} > ${g(M0)} predicts data perfectly`
-          : `outcome = ${name} <= ${g(M1)} predicts data perfectly`,
+          ? `outcome = ${variables} > ${g(M0)} predicts data perfectly`
+          : `outcome = ${variables} <= ${g(M1)} predicts data perfectly`,
         2000,
       );
     } else k++;
@@ -406,6 +411,14 @@ function maximumLikelihood(kind) {
         throw new StataError("convergence not achieved", 430);
     }
     information = invertSymmetric(derivatives().hessian);
+    // A fit that ran off to a boundary the search above did not catch, as
+    // when an interaction separates the outcome only in part: Stata reports
+    // its observations as completely determined, which is not done here.
+    if (!information)
+      throw new StataError(
+        "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
+        430,
+      );
     let V = information,
       clusters = null;
     if (robust) {
@@ -1296,9 +1309,10 @@ function estat(session, text, ctx) {
       line = (label, code, a, b) =>
         ctx.out(`${label.padEnd(32)}${code}${percent(a, b)}`),
       rule = "-".repeat(50),
+      // The counts have no thousands separators, as Stata prints them.
       row = (label, a, b) =>
         ctx.out(
-          `${label}|${count(a).padStart(10)}${count(b).padStart(14)}  |${count(a + b).padStart(11)}`,
+          `${label}|${String(a).padStart(10)}${String(b).padStart(14)}  |${String(a + b).padStart(11)}`,
         );
     ctx.out(
       `${kind[0].toUpperCase() + kind.slice(1)} model for ${model.depvar}`,
