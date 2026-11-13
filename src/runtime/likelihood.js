@@ -8,7 +8,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
-import { RULE, design, invertSymmetric } from "./estimation.js";
+import { RULE, design, invertSymmetric, termRows } from "./estimation.js";
 import { count, labelled } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -86,6 +86,26 @@ export function maximize(objective, start) {
   if (!V)
     throw new StataError("the variance matrix is not positive definite", 430);
   return { theta, ll: current.value, V, log };
+}
+
+/**
+ * A fit's coefficient rows laid out by term, as Stata lays them out: factor
+ * variables as headed groups of levels, base levels hidden, long names
+ * abbreviated. cell(j) gives the text after the bar for f.names[j].
+ */
+function layoutRows(session, f, cell) {
+  const constant = f.names.includes("_cons"),
+    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
+    position = new Map(f.names.map((name, j) => [name, j]));
+  return termRows(
+    session,
+    {
+      names,
+      columns: [...f.columns, ...(constant ? [undefined] : [])],
+      estimable: names.map((name) => position.has(name)),
+    },
+    (k) => cell(position.get(names[k])),
+  );
 }
 
 /** The design of a model: outcome, rows of regressors, and their names. */
@@ -270,6 +290,18 @@ function tobit(session, text, ctx) {
     vce: "oim",
   };
   ctx.out("");
+  // Stata's tobit first refines its starting values on a grid and logs the
+  // best node, which is where the full model's iterations begin.
+  if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) {
+    ctx.out("Refining starting values:");
+    ctx.out("");
+    ctx.out(
+      `Grid node 0:  Log likelihood = ${g(full.log[0], "%10.0g").padStart(10)}`,
+    );
+    ctx.out("");
+    ctx.out("Fitting full model:");
+    ctx.out("");
+  }
   iterations(ctx, text, full.log);
   const right = (label, value) => `${label.padStart(69)} =${value.padStart(7)}`;
   ctx.out(
@@ -296,17 +328,9 @@ function tobit(session, text, ctx) {
   ctx.out(RULE);
   ctx.out(heading(model.depvar, options.level, "Coefficient", true));
   ctx.out(SPLIT);
-  f.names.forEach((name, j) =>
-    ctx.out(
-      row(
-        `${name.padStart(12)} `,
-        full.theta[j],
-        Math.sqrt(full.V[j][j]),
-        options.level,
-        df,
-      ),
-    ),
-  );
+  layoutRows(session, f, (j) =>
+    row("", full.theta[j], Math.sqrt(full.V[j][j]), options.level, df).slice(1),
+  ).forEach(ctx.out);
   ctx.out(SPLIT);
   ctx.out(
     plainRow(
@@ -470,18 +494,16 @@ function ordered(kind) {
       ),
     );
     ctx.out(SPLIT);
-    f.names.forEach((name, j) =>
-      ctx.out(
-        row(
-          `${name.padStart(12)} `,
-          full.theta[j],
-          Math.sqrt(full.V[j][j]),
-          options.level,
-          0,
-          transform,
-        ),
-      ),
-    );
+    layoutRows(session, f, (j) =>
+      row(
+        "",
+        full.theta[j],
+        Math.sqrt(full.V[j][j]),
+        options.level,
+        0,
+        transform,
+      ).slice(1),
+    ).forEach(ctx.out);
     ctx.out(SPLIT);
     for (let c = 0; c < cuts; c++) {
       const value = full.theta[k + c],
@@ -848,18 +870,16 @@ function nbreg(session, text, ctx) {
     heading(model.depvar, options.level, options.irr ? "IRR" : "Coefficient"),
   );
   ctx.out(SPLIT);
-  f.names.forEach((name, j) =>
-    ctx.out(
-      row(
-        `${name.padStart(12)} `,
-        full.theta[j],
-        Math.sqrt(cov[j][j]),
-        options.level,
-        0,
-        !!options.irr,
-      ),
-    ),
-  );
+  layoutRows(session, f, (j) =>
+    row(
+      "",
+      full.theta[j],
+      Math.sqrt(cov[j][j]),
+      options.level,
+      0,
+      !!options.irr,
+    ).slice(1),
+  ).forEach(ctx.out);
   ctx.out(SPLIT);
   ctx.out(
     plainRow(
