@@ -2447,3 +2447,83 @@ margins, atmeans
 margins, dydx(*) atmeans
 regress x1 i.f i.g
 margins, atmeans
+=== prtest-two-variables-and-groups
+clear
+set obs 70
+set seed 1414
+generate a = runiform() < .3
+generate b = runiform() < .5
+replace b = . in 1/10
+prtest a == b
+prtest a = b if _n > 5, level(90)
+capture noisily prtest a == b, by(a)
+display _rc
+capture noisily prtest a
+display _rc
+capture noisily prtest a == 1/2
+display _rc
+capture noisily prtest a == zz
+display _rc
+generate c = 2*a
+capture noisily prtest a == c
+display _rc
+capture noisily prtest a == 0
+display _rc
+prtest a == .3333333333
+clear
+set obs 30
+set seed 35
+generate y = runiform() < .5
+generate str3 s = cond(_n <= 10, "", cond(_n <= 21, "lo", "hi"))
+prtest y, by(s)
+prtest y if _n > 10, by(s)
+replace y = . in 1
+prtest y, by(s)
+capture noisily prtest y if _n <= 21, by(s)
+display _rc
+generate g3 = mod(_n, 3)
+capture noisily prtest y, by(g3)
+display _rc
+capture noisily prtest y if 0, by(s)
+display _rc
+generate yy = y*2
+capture noisily prtest yy, by(s)
+display _rc
+generate byte arm = _n > 14
+label define arm 0 "Placebo" 1 "Active drug"
+label values arm arm
+prtest y, by(arm)
+=== prtesti-arguments
+prtesti 100 40 120 60, count
+capture noisily prtesti 50 30.5 .5, count
+display _rc
+capture noisily prtesti 50.5 30 .5, count
+display _rc
+capture noisily prtesti 50 30 60 20.5, count
+display _rc
+capture noisily prtesti 50 abc .5
+display _rc
+capture noisily prtesti 50 .3
+display _rc
+capture noisily prtesti 50 .3 60 .4 70
+display _rc
+capture noisily prtesti 50 60 .5, count
+display _rc
+capture noisily prtesti 50 -3 .5, count
+display _rc
+capture noisily prtesti 50 1.2 .5
+display _rc
+capture noisily prtesti 1 .5 .5
+display _rc
+capture noisily prtesti 1 .5 10 .5
+display _rc
+prtesti 10 .5 1 1
+prtesti 50 .3 .3333333333
+prtesti 50 .3 1
+=== bitesti-large-n
+bitesti 1000000 500500 .5
+bitesti 100000 50300 .5
+bitesti 1000000 300500 .3
+bitesti 2000000 1000 .0005
+bitesti 7 3 .3333333
+bitesti 10 5 .5
