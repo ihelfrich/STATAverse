@@ -2206,3 +2206,14 @@ set linesize 80
 regress y i.g
 set linesize 200
 regress y i.g
+=== beta-width
+clear
+set seed 8
+set obs 60
+generate double household_income_k = runiform()
+generate double y = household_income_k + runiform()
+set linesize 80
+regress y household_income_k, beta
+regress y household_income_k, beta vce(robust)
+set linesize 200
+regress y household_income_k, beta

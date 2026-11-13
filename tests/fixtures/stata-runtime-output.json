@@ -14799,6 +14799,82 @@
       ]
     },
     {
+      "id": "beta-width",
+      "source": "clear\nset seed 8\nset obs 60\ngenerate double household_income_k = runiform()\ngenerate double y = household_income_k + runiform()\nset linesize 80\nregress y household_income_k, beta\nregress y household_income_k, beta vce(robust)\nset linesize 200\nregress y household_income_k, beta\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double y = household_income_k + runiform()",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y household_income_k, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     47.01",
+            "       Model |    3.748039         1    3.748039   Prob > F        =    0.0000",
+            "    Residual |  4.62389617        58  .079722348   R-squared       =    0.4477",
+            "-------------+----------------------------------   Adj R-squared   =    0.4382",
+            "       Total |  8.37193517        59  .141897206   Root MSE        =    .28235",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .9129323   .1331455     6.86   0.000                 .6690971",
+            "        _cons |   .6038799   .0766163     7.88   0.000                        .",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y household_income_k, beta vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =         60",
+            "                                                F(1, 58)          =      43.95",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.4477",
+            "                                                Root MSE          =     .28235",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "            y | Coefficient  std. err.      t    P>|t|                     Beta",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .9129323   .1377076     6.63   0.000                 .6690971",
+            "        _cons |   .6038799   .0765852     7.89   0.000                        .",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress y household_income_k, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     47.01",
+            "       Model |    3.748039         1    3.748039   Prob > F        =    0.0000",
+            "    Residual |  4.62389617        58  .079722348   R-squared       =    0.4477",
+            "-------------+----------------------------------   Adj R-squared   =    0.4382",
+            "       Total |  8.37193517        59  .141897206   Root MSE        =    .28235",
+            "",
+            "------------------------------------------------------------------------------------",
+            "                 y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------------+----------------------------------------------------------------",
+            "household_income_k |   .9129323   .1331455     6.86   0.000                 .6690971",
+            "             _cons |   .6038799   .0766163     7.88   0.000                        .",
+            "------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -770,26 +770,32 @@ function regress(session, text, ctx) {
       },
       dependent = session.data.get(model.depvar),
       sdY = sd(model.sample.map((i) => dependent.data[i]));
-    ctx.out(RULE);
+    // The beta table's first column follows the same width rule.
+    const width = tableWidth(session, model);
+    ctx.out("-".repeat(66 + width));
     if (robust)
       ctx.out(
-        `             |${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
+        `${" ".repeat(width + 1)}|${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
       );
     ctx.out(
-      `${model.depvar.padStart(12)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
+      `${abbreviate(model.depvar, width).padStart(width)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
     );
-    ctx.out(
-      "-------------+----------------------------------------------------------------",
-    );
-    termRows(session, model, (k) => {
-      const se = Math.sqrt(model.V[k][k]),
-        t = model.b[k] / se,
-        beta =
-          model.names[k] === "_cons"
-            ? MISSING
-            : (model.b[k] * sd(model.sample.map(model.columns[k].value))) / sdY;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
-    }).forEach(ctx.out);
+    ctx.out(`${"-".repeat(width + 1)}+${"-".repeat(64)}`);
+    termRows(
+      session,
+      model,
+      (k) => {
+        const se = Math.sqrt(model.V[k][k]),
+          t = model.b[k] / se,
+          beta =
+            model.names[k] === "_cons"
+              ? MISSING
+              : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
+                sdY;
+        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
+      },
+      width,
+    ).forEach(ctx.out);
   } else {
     const width = tableWidth(session, model);
     coefficientHeader(model, level, model.depvar, width).forEach(ctx.out);
@@ -798,7 +804,7 @@ function regress(session, text, ctx) {
     ctx.out("");
     return;
   }
-  ctx.out(RULE);
+  ctx.out("-".repeat(66 + tableWidth(session, model)));
   ctx.out("");
 }
 
