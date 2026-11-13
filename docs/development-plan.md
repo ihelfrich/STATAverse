@@ -765,8 +765,6 @@ Found and not yet fixed, each measured against Stata:
 - For c.x#i.f Stata orders the factor first and names the coefficient
   1.f#c.x; the runtime keeps the typed order. This renames design-matrix
   columns and belongs with B2.
-- tobit's iteration log lacks Stata's "Refining starting values" and "Grid
-  node" lines.
 - robvar on a by() variable with very many values runs where Stata stops
   with r(134) "too many values".
 
