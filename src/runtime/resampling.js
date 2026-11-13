@@ -260,7 +260,7 @@ function resultsHeader(ctx, title, n, reps, parts, extra = []) {
   ctx.out(`${title.padEnd(60)}Number of obs = ${count(n)}`);
   ctx.out(`${" ".repeat(60)}Replications  = ${count(reps)}`);
   ctx.out("");
-  ctx.out(`      Command: ${parts.command}`);
+  ctx.out(`      Command: ${parts.command.replace(/ {2,}/g, " ")}`);
   for (const item of [...parts.items, ...extra])
     ctx.out(`${item.name.padStart(13)}: ${item.expression}`);
   ctx.out("");
@@ -589,7 +589,7 @@ function simulate(session, text, ctx) {
     throw error;
   }
   ctx.out("");
-  ctx.out(`      Command: ${parts.command}`);
+  ctx.out(`      Command: ${parts.command.replace(/ {2,}/g, " ")}`);
   for (const item of parts.items)
     ctx.out(`${item.name.padStart(13)}: ${item.expression}`);
   ctx.out("");

@@ -7,7 +7,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
-import { optionItems, splitAtComma } from "./syntax.js";
+import { clauses, optionItems, splitAtComma } from "./syntax.js";
 import {
   MISSING,
   byteLength,
@@ -459,10 +459,18 @@ export function tabulate(session, text, ctx) {
       : head;
   }
   const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [fweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact | NOFreq LRchi2 Gamma TAUb EXPected NOMeans NOStandard NOObs Wrap]",
-      text,
-    ),
-    rows = weightedRows(session, parsed, scope(session, parsed, ctx)).rows,
+    "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact | NOFreq LRchi2 Gamma TAUb EXPected NOMeans NOStandard NOObs plot MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ALL CCHi2 CLRchi2 NOKey Wrap FIRSTonly]",
+    text,
+  );
+  // Stata takes aweights and iweights, which give fractional frequencies in
+  // a format of their own; they are refused here, not counted as fweights.
+  // V (Cramér's V) was taken out above, since the parser ignores case.
+  if (parsed.weight && parsed.weight.type !== "fweight")
+    throw new StataError(
+      `tabulate with ${parsed.weight.type}s is not available yet; fweights are`,
+      198,
+    );
+  const rows = weightedRows(session, parsed, scope(session, parsed, ctx)).rows,
     variables = parsed.varlist.map((name) => session.data.get(name)),
     // With summarize(), Stata leaves out the observations in which the
     // summarized variable is missing; a string variable leaves none.
@@ -575,11 +583,14 @@ export function tabulate(session, text, ctx) {
       ),
     );
     ctx.out(rule);
+    // The cumulative column adds up the percentages, as Stata does: an
+    // exact tie such as 60.125 then rounds to even, as printf rounds it.
     let running = 0;
     entries.forEach(([, n], k) => {
-      running += n;
+      const percent = (100 * n) / keep.length;
+      running += percent;
       ctx.out(
-        `${shown[k].padStart(width)} |${count(n).padStart(11)}${applyFormat((100 * n) / keep.length, "%12.2f")}${applyFormat((100 * running) / keep.length, "%12.2f")}`,
+        `${shown[k].padStart(width)} |${count(n).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
       );
     });
     ctx.out(rule);
@@ -877,14 +888,28 @@ export function list(session, text, ctx) {
     ),
     rows = scope(session, parsed, ctx),
     variables = parsed.varlist.map((name) => session.data.get(name));
+  const limit = parsed.options.abbreviate;
+  if (limit < 1 || limit > 129)
+    throw new StataError("abbreviate() must be between 1 and 129", 198);
   if (!rows.length) return;
   const cells = rows.map((i) =>
       variables.map((v) =>
         labelled(session, v, v.data[i], parsed.options.label !== false),
       ),
     ),
+    // A name longer than abbreviate(), and than its column, is shortened as
+    // abbrev() shortens it, never below five characters. A temporary
+    // variable's heading, which Stata's subvarname gives it, is cut instead.
+    headers = variables.map((v, k) => {
+      const room = Math.max(limit, greatest(cells.map((row) => row[k].length)));
+      if (v.header !== undefined) return v.header.slice(0, room);
+      const w = Math.max(room, 5);
+      return v.name.length > w
+        ? `${v.name.slice(0, w - 2)}~${v.name.at(-1)}`
+        : v.name;
+    }),
     widths = variables.map((v, k) =>
-      Math.max(v.name.length, greatest(cells.map((row) => row[k].length))),
+      Math.max(headers[k].length, greatest(cells.map((row) => row[k].length))),
     ),
     // Under by:, observations are numbered within their group.
     first = ctx.group ? ctx.group.start : 0,
@@ -897,7 +922,7 @@ export function list(session, text, ctx) {
   if (parsed.options.clean) {
     // Without observation numbers the rows start one column further in.
     const indent = parsed.options.noobs ? " " : "    ";
-    ctx.out(`${indent}   ${line(variables.map((v) => v.name))}`);
+    ctx.out(`${indent}   ${line(headers)}`);
     cells.forEach((row, k) =>
       ctx.out(
         `${parsed.options.noobs ? " " : number(rows[k]).trimEnd()}   ${line(row)}`,
@@ -908,7 +933,7 @@ export function list(session, text, ctx) {
   const inner =
     widths.reduce((total, w) => total + w, 0) + 3 * (widths.length - 1) + 2;
   ctx.out(`${margin}+${"-".repeat(inner)}+`);
-  ctx.out(`${margin}| ${line(variables.map((v) => v.name))} |`);
+  ctx.out(`${margin}| ${line(headers)} |`);
   ctx.out(`${margin}|${"-".repeat(inner)}|`);
   const sepby = parsed.options.sepby
     ? parsed.options.sepby.map((name) => session.data.get(name).data)
@@ -991,29 +1016,72 @@ export const perGroup = (run) => (session, text, ctx) => {
   }
 };
 
-const splitVarlist = (text) =>
-  /^([\s\S]*?)(\s+(?:if|in)\s[\s\S]*|,[\s\S]*)?$/.exec(text);
+/**
+ * Splits tab1's or tab2's text into the varlist and what follows it: the
+ * if, in and weight clauses and the options, passed on to each table. The
+ * if is kept as typed, with any blanks before the next clause, as Stata's
+ * syntax keeps it; the in loses its blanks.
+ */
+function tableQualifiers(text) {
+  const [head, options] = splitAtComma(text),
+    found = clauses(head, false),
+    start = found[0]?.at ?? head.length,
+    after = (clause) =>
+      head.slice(
+        clause.after,
+        found[found.indexOf(clause) + 1]?.at ?? head.length,
+      ),
+    condition = found.find((clause) => clause.kind === "if"),
+    range = found.find((clause) => clause.kind === "in");
+  return {
+    varlist: head.slice(0, start),
+    rest: head.slice(start) + (options === null ? "" : "," + options),
+    condition: condition ? "if " + after(condition).replace(/^\s+/, "") : "",
+    range: range ? "in " + after(range).replace(/\s+/g, "") : "",
+  };
+}
+// Errors that say the runtime lacks something Stata has, rather than errors
+// Stata itself would raise.
+const refusal = (error) =>
+  Boolean(error.hint) ||
+  /\bnot available\b|\bavailable here\b/.test(error.message);
 /** tab1: a one-way table for each variable. */
 export function tab1(session, text, ctx) {
-  const m = splitVarlist(text),
-    names = session.varlist(m[1]);
+  const q = tableQualifiers(text),
+    names = session.varlist(q.varlist);
   if (!names.length) throw new StataError("varlist required", 100);
+  // tab1.ado's own syntax: its errors stop tab1.
+  session.parse("varlist [if] [in] [fweight aweight iweight] [, *]", text);
+  // tab1.ado runs each table under capture noisily, then leaves its loop
+  // inside a capture block: a table that fails prints its message and ends
+  // the run, and tab1 itself still succeeds; the captures leave _rc behind.
+  // A refusal of something Stata has is not an error Stata would make, and
+  // is passed on rather than turned into a success.
+  // The heading repeats the if and the in, each after a blank.
   ctx.out("");
   for (const name of names) {
-    ctx.out(`-> tabulation of ${name}  `);
-    tabulate(session, `${name}${m[2] ?? ""}`, ctx);
+    ctx.out(`-> tabulation of ${name} ${q.condition} ${q.range}`.trimEnd());
+    try {
+      tabulate(session, `${name} ${q.rest}`, ctx);
+      session.rc = 0;
+    } catch (error) {
+      if (!(error instanceof StataError) || refusal(error)) throw error;
+      ctx.out(error.message);
+      session.rc = error.code;
+      return;
+    }
   }
 }
 /** tab2: a two-way table for each pair of variables. */
 export function tab2(session, text, ctx) {
-  const m = splitVarlist(text),
-    names = session.varlist(m[1]);
+  const q = tableQualifiers(text),
+    names = session.varlist(q.varlist);
   if (names.length < 2)
     throw new StataError("too few variables specified", 102);
   ctx.out("");
   for (let a = 0; a < names.length; a++)
     for (let b = a + 1; b < names.length; b++) {
       ctx.out(`-> tabulation of ${names[a]} by ${names[b]}  `);
-      tabulate(session, `${names[a]} ${names[b]}${m[2] ?? ""}`, ctx);
+      tabulate(session, `${names[a]} ${names[b]} ${q.rest}`, ctx);
     }
 }
