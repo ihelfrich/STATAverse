@@ -66,16 +66,11 @@ const NOT_DRAWN = [
  * look of a graph, the refusal says so.
  *
  * The text options (title(), xtitle() and the rest) are read into their text
- * and their size() and color(), which replace the option's value and go to
- * options.styles. A command that draws those styles says styled: true; any
- * other refuses them rather than drawing the text plainly.
+ * and their size(), color() and position(), which replace the option's value
+ * and go to options.styles. Every graph command here draws all three, since
+ * every one draws its texts through the same few drawing functions.
  */
-export function parseGraph(
-  session,
-  declaration,
-  text,
-  { styled = false } = {},
-) {
+export function parseGraph(session, declaration, text) {
   const parsed = parseDeclared(session, declaration, text),
     options = parsed.options,
     styles = {};
@@ -83,13 +78,7 @@ export function parseGraph(
     const read = textOption(options[name], name);
     if (!read) continue;
     options[name] = read.text;
-    if (!read.size && !read.color) continue;
-    if (!styled)
-      throw new StataError(
-        `${name}(…, size() color()) is drawn here for scatter, line, twoway and histogram; remove it to draw this graph`,
-        198,
-      );
-    styles[name] = read;
+    if (read.size || read.color || read.position) styles[name] = read;
   }
   options.styles = styles;
   return parsed;
@@ -283,11 +272,22 @@ const TEXT_SIZES = {
   vhuge: 28,
 };
 const QUOTED = /`"([\s\S]*?)"'|"([^"]*)"/g;
+// The clock positions drawn for each text option. Stata puts a title or
+// subtitle at position(11) against the left edge of the plot, position(1)
+// against the right and position(12) in the middle, and a note or caption at
+// 7, 5 and 6 below the plot in the same way. The other positions move the
+// text to another side of the graph, which this page's layout does not do.
+const POSITIONS = {
+  title: [11, 12, 1],
+  subtitle: [11, 12, 1],
+  note: [7, 6, 5],
+  caption: [7, 6, 5],
+};
 /**
- * title("text", size(large) color(navy)) and the other text options: the
- * text, and the size and colour it is drawn in. Other textbox suboptions,
- * and the several lines that several quoted strings ask for, are refused,
- * not ignored.
+ * title("text", size(large) color(navy) position(11)) and the other text
+ * options: the text, and the size, colour and position it is drawn in. Other
+ * textbox suboptions, and the several lines that several quoted strings ask
+ * for, are refused, not ignored.
  */
 export function textOption(value, option) {
   if (value === undefined || value === null) return undefined;
@@ -311,13 +311,40 @@ export function textOption(value, option) {
   for (const m of (rest ?? "").matchAll(/(\w+)\s*(?:\(([^()]*)\))?/g)) {
     // Stata's suboption names are lower case, size() down to s() and
     // color() down to c(); SIZE() or colour() is not allowed.
+    // position() goes down to pos(); an axis title has no position() or
+    // ring(), which Stata refuses there as options not allowed.
     const word = m[1],
       inner = (m[2] ?? "").trim().toLowerCase(),
       size = "size".startsWith(word),
-      color = "color".startsWith(word);
-    if (!size && !color && /^(s(i(ze?)?)?|c(o(l(o(u?r)?)?)?)?)$/i.test(word))
+      color = "color".startsWith(word),
+      position = word.length >= 3 && "position".startsWith(word);
+    if (
+      !size &&
+      !color &&
+      !position &&
+      /^(s(i(ze?)?)?|c(o(l(o(u?r)?)?)?)?|p(o(s(i(t(i(on?)?)?)?)?)?)?)$/i.test(
+        word,
+      )
+    )
       throw new StataError(`option ${word}() not allowed`, 198);
-    if (size && TEXT_SIZES[inner]) read.size = TEXT_SIZES[inner];
+    if ((position || word === "ring") && !POSITIONS[option])
+      throw new StataError(`option ${word}() not allowed`, 198);
+    if (position) {
+      // position() with nothing in it leaves the text where it is.
+      if (!inner) continue;
+      const at = POSITIONS[option].find((p) => String(p) === inner);
+      if (at === undefined)
+        throw new StataError(
+          `${option}(…, ${m[0]}) is not drawn on this page; ${option}() is drawn at ${POSITIONS[
+            option
+          ]
+            .map((p) => `position(${p})`)
+            .join(", ")
+            .replace(/, ([^,]*)$/, " or $1")}`,
+          198,
+        );
+      read.position = at;
+    } else if (size && TEXT_SIZES[inner]) read.size = TEXT_SIZES[inner];
     else if (size)
       throw new StataError(
         `${option}(…, size(${m[2] ?? ""})): text sizes here are named, from tiny to vhuge`,
@@ -326,7 +353,7 @@ export function textOption(value, option) {
     else if (color) read.color = colourOf(m[2], `${option}(…, color`);
     else
       throw new StataError(
-        `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes its text with size() and color()`,
+        `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes its text with ${POSITIONS[option] ? "size(), color() and position()" : "size() and color()"}`,
         198,
       );
   }

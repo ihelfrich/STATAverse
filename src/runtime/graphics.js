@@ -97,6 +97,29 @@ function extents(layers) {
 function textLook(style, size) {
   return ` font-size="${style?.size ?? size}"${style?.color ? ` fill="${style.color}"` : ""}`;
 }
+/**
+ * Where a title, subtitle, note or caption is drawn across the graph: its x
+ * and its anchor attribute. position(11) and position(7) put it against the
+ * left edge, where a note is drawn, position(1) and position(5) against the
+ * right, and position(12) and position(6) in the middle, as Stata aligns
+ * them; side is where the text goes when no position() is given.
+ */
+function across(style, side) {
+  const at = style?.position;
+  if (at === 11 || at === 7) side = "left";
+  else if (at === 1 || at === 5) side = "right";
+  else if (at === 12 || at === 6) side = "middle";
+  return side === "left"
+    ? { x: 8, anchor: "" }
+    : side === "right"
+      ? { x: WIDTH - 8, anchor: ' text-anchor="end"' }
+      : { x: WIDTH / 2, anchor: ' text-anchor="middle"' };
+}
+/** A title, subtitle, note or caption at height y, as across() places it. */
+function placedText(text, style, side, y, size) {
+  const at = across(style, side);
+  return `<text x="${at.x}" y="${y}"${at.anchor}${textLook(style, size)}>${escape(text)}</text>`;
+}
 
 /**
  * Several drawn graphs on one canvas of the usual size, in a grid of cols
@@ -121,13 +144,10 @@ function tile(
     parts = [
       `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="#ffffff"/>`,
     ];
-  if (title)
-    parts.push(
-      `<text x="${WIDTH / 2}" y="22" text-anchor="middle"${textLook(styles.title, 16)}>${escape(title)}</text>`,
-    );
+  if (title) parts.push(placedText(title, styles.title, "middle", 22, 16));
   if (subtitle)
     parts.push(
-      `<text x="${WIDTH / 2}" y="${title ? 44 : 22}" text-anchor="middle"${textLook(styles.subtitle, 13)}>${escape(subtitle)}</text>`,
+      placedText(subtitle, styles.subtitle, "middle", title ? 44 : 22, 13),
     );
   svgs.forEach((svg, k) => {
     const x = left + (k % cols) * cellW + (cellW - w) / 2,
@@ -149,12 +169,16 @@ function tile(
     );
   if (note)
     parts.push(
-      `<text x="8" y="${HEIGHT - 6 - (caption ? 18 : 0)}"${textLook(styles.note, 11)}>${escape(note)}</text>`,
+      placedText(
+        note,
+        styles.note,
+        "left",
+        HEIGHT - 6 - (caption ? 18 : 0),
+        11,
+      ),
     );
   if (caption)
-    parts.push(
-      `<text x="8" y="${HEIGHT - 6}"${textLook(styles.caption, 11)}>${escape(caption)}</text>`,
-    );
+    parts.push(placedText(caption, styles.caption, "left", HEIGHT - 6, 11));
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
 }
 
@@ -176,7 +200,6 @@ function byOption(session, text) {
     session,
     "[, TOTal Cols(integer 0) Rows(integer 0) TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis)]",
     rest ? "," + rest : "",
-    { styled: true },
   ).options;
   return {
     variable: session.data.get(names[0]),
@@ -505,22 +528,23 @@ export function draw({
           );
       });
   });
-  if (title)
-    parts.push(
-      `<text x="${WIDTH / 2}" y="24" text-anchor="middle"${textLook(styles.title, 16)}>${escape(title)}</text>`,
-    );
+  if (title) parts.push(placedText(title, styles.title, "middle", 24, 16));
   if (subtitle)
     parts.push(
-      `<text x="${WIDTH / 2}" y="${title ? 42 : 24}" text-anchor="middle"${textLook(styles.subtitle, 13)}>${escape(subtitle)}</text>`,
+      placedText(subtitle, styles.subtitle, "middle", title ? 42 : 24, 13),
     );
   if (note)
     parts.push(
-      `<text x="8" y="${HEIGHT - 6 - (caption ? 14 : 0)}"${textLook(styles.note, 11)}>${escape(note)}</text>`,
+      placedText(
+        note,
+        styles.note,
+        "left",
+        HEIGHT - 6 - (caption ? 14 : 0),
+        11,
+      ),
     );
   if (caption)
-    parts.push(
-      `<text x="8" y="${HEIGHT - 6}"${textLook(styles.caption, 11)}>${escape(caption)}</text>`,
-    );
+    parts.push(placedText(caption, styles.caption, "left", HEIGHT - 6, 11));
   // xtitle("") and ytitle("") leave the axis without a title.
   if (xTitle)
     parts.push(
@@ -565,6 +589,7 @@ export function drawHorizontalBars({
   xTitle,
   title,
   labelled,
+  styles = {},
 }) {
   // A null value is a missing statistic: its slot is left empty. With every
   // value missing or 0, Stata labels the axis only -1 and 1.
@@ -609,12 +634,10 @@ export function drawHorizontalBars({
   parts.push(
     `<line x1="${n(px(0))}" x2="${n(px(0))}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#333333"/>`,
     `<line x1="${left}" x2="${WIDTH - PLOT.right}" y1="${PLOT.top + h}" y2="${PLOT.top + h}" stroke="#333333"/>`,
-    `<text x="${left + w / 2}" y="${HEIGHT - 22}" text-anchor="middle">${escape(xTitle)}</text>`,
+    // The values run along the bottom, under ytitle(), as in Stata.
+    `<text x="${left + w / 2}" y="${HEIGHT - 22}" text-anchor="middle"${styles.ytitle ? textLook(styles.ytitle, 12) : ""}>${escape(xTitle)}</text>`,
   );
-  if (title)
-    parts.push(
-      `<text x="${WIDTH / 2}" y="24" text-anchor="middle" font-size="16">${escape(title)}</text>`,
-    );
+  if (title) parts.push(placedText(title, styles.title, "middle", 24, 16));
   if (series.length > 1)
     series.forEach((name, s) =>
       parts.push(
@@ -644,7 +667,6 @@ function functionPlot(session, text) {
       session,
       `[, ${OWN.function} ${PLOT_LOOKS} ${LOOKS}]`,
       optionText ? "," + optionText : "",
-      { styled: true },
     ).options,
     expression = head.replace(/^\s*\w+\s*=(?!=)/, "").trim(),
     scalars = new Map(session.scalars).set("x", 0),
@@ -775,7 +797,6 @@ function univariatePlot(session, kind, text) {
       session,
       `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
-      { styled: true },
     ),
     variable = numeric(session, parsed.varlist[0]),
     values = session
@@ -868,7 +889,6 @@ function plot(session, kind, text, note = () => {}) {
       session,
       `varlist(numeric min=2) [if] [in] [, ${OWN.points} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
-      { styled: true },
     ),
     variables = parsed.varlist.map((name) => session.data.get(name)),
     x = variables.at(-1),
@@ -1095,7 +1115,6 @@ function graphOptions(session, text, own = "") {
     session,
     `[, ${LOOKS} ${PLOT_LOOKS} ${own}]`,
     text ? "," + text : "",
-    { styled: true },
   ).options;
 }
 
@@ -1299,17 +1318,19 @@ function histogram(session, text, ctx) {
       session,
       `varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
       text,
-      { styled: true },
     ),
     options = parsed.options,
     variable = numeric(session, parsed.varlist[0]),
-    values = session
-      .rows(parsed, null)
-      .map((i) => variable.data[i])
-      .filter((v) => !isMissing(v)),
+    rows = session.rows(parsed, null),
+    values = rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
     n = values.length;
-  if (!n) throw new StataError("no observations", 2000);
+  // Stata leaves r(N) = 0 behind when if and in leave no rows.
+  if (!rows.length) {
+    session.results.r = { N: 0 };
+    throw new StataError("no observations", 2000);
+  }
   const by = byOption(session, options.by);
+  if (!n) return emptyHistogram(session, options, variable, by, ctx);
   if (by) return histogramBy(session, parsed, variable, values, by, ctx);
   const { bars, bins, width, start, yTitle, curveScale } = histogramBars(
       values,
@@ -1363,6 +1384,47 @@ function histogram(session, text, ctx) {
     description: `Histogram of ${titleOf(variable)}: ${bins} bins of width ${g(width)} starting at ${g(start)}, ${n} observations.`,
   });
   session.results.r = { N: n, bin: bins, width, start };
+}
+
+/**
+ * histogram of a variable missing in every row of the sample. Stata says
+ * "no observations" only when if and in leave no rows. With rows but no
+ * values it has no width for its bins: it refuses by(), discrete and width()
+ * for that with r(125), and otherwise draws the axes with no bars, the y
+ * axis labelled -1 and 1, and prints no bin line. Either way r() is left
+ * empty.
+ */
+function emptyHistogram(session, options, variable, by, ctx) {
+  session.results.r = {};
+  if (by || options.discrete || options.width !== 0)
+    throw new StataError(
+      "width() invalid -- invalid number, outside of allowed range",
+      125,
+    );
+  const looks = looksOf(options),
+    yTitle = options.frequency
+      ? "Frequency"
+      : options.percent
+        ? "Percent"
+        : options.fraction
+          ? "Fraction"
+          : "Density",
+    // A normal or kernel density curve, which has nothing to draw either,
+    // gives the x axis the same -1 and 1.
+    curve = options.normal || options.kdensity;
+  ctx.graph({
+    svg: draw({
+      ...looks,
+      layers: [{ bars: [], points: [], label: yTitle }],
+      xTitle: options.xtitle ?? titleOf(variable),
+      yTitle: options.ytitle ?? yTitle,
+      yRange: [-1, 1],
+      yTicks: looks.yTicks ?? [-1, 1],
+      ...(curve ? { xRange: [-1, 1], xTicks: looks.xTicks ?? [-1, 1] } : {}),
+      allowEmpty: true,
+    }),
+    description: `Histogram of ${titleOf(variable)}: no bars, since it is missing in every observation.`,
+  });
 }
 
 /**
@@ -1450,7 +1512,6 @@ function combine(session, text, ctx) {
       session,
       "[, Cols(integer 0) Rows(integer 0) TItle(string asis) SUBtitle(string asis) NOTE(string asis) NAME(string) NODRAW]",
       optionText ? "," + optionText : "",
-      { styled: true },
     ).options,
     names = head.trim().split(/\s+/).filter(Boolean);
   if (!names.length) throw new StataError("graph names required", 198);

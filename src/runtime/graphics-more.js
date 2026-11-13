@@ -411,6 +411,7 @@ function graphBar(horizontal) {
           xTitle: options.ytitle ?? (names.length === 1 ? names[0] : ""),
           title: options.title,
           labelled: options.blabel !== undefined,
+          styles: looks.styles,
         }),
         description,
       });
