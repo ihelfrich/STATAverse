@@ -38,6 +38,9 @@ const escape = (text) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
   );
 const g = (value) => applyFormat(value, "%9.0g").trim();
+// blabel(bar) writes heights in %8.0g whatever the variable's format, as
+// Stata does: 20.742 and 1.2e+06 where %9.0g gives 20.74197 and 1234568.
+const barLabel = (value) => applyFormat(value, "%8.0g").trim();
 
 /** About count (five) round tick values covering [low, high]. */
 export function ticks(low, high, count = 5) {
@@ -258,7 +261,10 @@ export function draw({
   legend = {},
 }) {
   const { xs, ys } = extents(layers);
-  if (!xs.length) throw new StataError("no observations", 2000);
+  // Given both ranges (graph bar with every statistic missing), the axes are
+  // drawn with nothing on them.
+  if (!xs.length && !(xRange && yRange))
+    throw new StataError("no observations", 2000);
   // Room for a subtitle above the plot and a note and caption below it.
   const below = (note ? 14 : 0) + (caption ? 14 : 0),
     P = {
@@ -330,7 +336,7 @@ export function draw({
         // blabel(bar): the bar's height written above it.
         if (layer.barLabels)
           parts.push(
-            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) - 4)}" text-anchor="middle" font-size="10">${escape(g(bar.height))}</text>`,
+            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) - 4)}" text-anchor="middle" font-size="10">${escape(barLabel(bar.height))}</text>`,
           );
       }
     else if (layer.boxes)
@@ -454,9 +460,13 @@ export function drawHorizontalBars({
   title,
   labelled,
 }) {
-  const all = groups.flatMap((group) => group.values);
-  if (!all.length) throw new StataError("no observations", 2000);
-  const xt = ticks(Math.min(0, least(all)), Math.max(0, greatest(all))),
+  // A null value is a missing statistic: its slot is left empty. With every
+  // value missing or 0, Stata labels the axis only -1 and 1.
+  const all = groups.flatMap((group) => group.values).filter((v) => v !== null);
+  if (!groups.length) throw new StataError("no observations", 2000);
+  const xt = all.some((v) => v !== 0)
+      ? ticks(Math.min(0, least(all)), Math.max(0, greatest(all)))
+      : [-1, 1],
     x0 = xt[0],
     x1 = xt.at(-1),
     left = 120,
@@ -480,12 +490,13 @@ export function drawHorizontalBars({
       `<text x="${left - 8}" y="${n(PLOT.top + (k + 0.5) * band + 4)}" text-anchor="end">${escape(group.label)}</text>`,
     );
     group.values.forEach((value, s) => {
+      if (value === null) return;
       parts.push(
         `<rect x="${n(Math.min(px(0), px(value)))}" y="${n(top + s * thick)}" width="${n(Math.abs(px(value) - px(0)))}" height="${n(thick)}" fill="${COLORS[s % COLORS.length]}" fill-opacity="0.75" stroke="#ffffff"/>`,
       );
       if (labelled)
         parts.push(
-          `<text x="${n(Math.max(px(0), px(value)) + 4)}" y="${n(top + s * thick + thick / 2 + 4)}" font-size="10">${escape(g(value))}</text>`,
+          `<text x="${n(Math.max(px(0), px(value)) + 4)}" y="${n(top + s * thick + thick / 2 + 4)}" font-size="10">${escape(barLabel(value))}</text>`,
         );
     });
   });
