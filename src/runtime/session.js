@@ -139,6 +139,8 @@ export class Session {
   /**
    * Calls visit(i, env) for each observation that passes if and in, group by
    * group. parsed is an applySyntax result; by is the by-prefix, if any.
+   * parsed.only, a Set of row indices, further limits the rows; commands use
+   * it to run a sub-model on another model's estimation sample.
    */
   select(parsed, by, visit) {
     if (by && parsed.in)
@@ -153,6 +155,9 @@ export class Session {
         testEnv = { start: group.start, count: group.count, sums: [] };
       for (let i = group.start; i < group.start + group.count; i++) {
         if (i < first - 1 || i > last - 1) continue;
+        // A graph's by() draws each panel from its own rows.
+        if (this.panelRows && !this.panelRows.has(i)) continue;
+        if (parsed.only && !parsed.only.has(i)) continue;
         if (condition && condition.evaluate(i, testEnv) === 0) continue;
         visit(i, env, group);
       }
@@ -349,8 +354,18 @@ export class Session {
         frame,
         by: flags.by,
         out: (line) => lines.push(line),
+        // Every graph is kept by its name(), or as Graph, for graph combine,
+        // display, dir, rename and drop. nodraw keeps it without showing it.
         graph: (picture) => {
-          flags.graph = picture;
+          const named = /\bname\(\s*([A-Za-z_]\w*)\s*(,\s*replace\s*)?\)/.exec(
+              body,
+            ),
+            name = named?.[1] ?? "Graph";
+          this.graphs ??= new Map();
+          if (named && !named[2] && this.graphs.has(name))
+            throw new StataError(`graph ${name} already exists`, 110);
+          this.graphs.set(name, picture);
+          if (!/,[\s\S]*\bnodraw\b/.test(body)) flags.graph = picture;
         },
         output,
         flags,
@@ -476,12 +491,12 @@ export class Session {
         if (capture) this.rc = 0;
       } catch (error) {
         if (!(error instanceof StataError) || !capture) {
-          if (!quiet) output.push(...inner);
+          if (!quiet) for (const entry of inner) output.push(entry);
           throw error;
         }
         this.rc = error.code;
       }
-      if (!quiet) output.push(...inner);
+      if (!quiet) for (const entry of inner) output.push(entry);
     } else
       throw new StataError(`${header.split(/\s/)[0]} { is not supported`, 199);
   }

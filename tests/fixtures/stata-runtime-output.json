@@ -14347,147 +14347,171 @@
       ]
     },
     {
-      "id": "error-messages",
-      "source": "capture noisily error 2\ndisplay _rc\ncapture noisily error 4\ndisplay _rc\ncapture noisily error 18\ndisplay _rc\ncapture noisily error 50\ndisplay _rc\ncapture noisily error 100\ndisplay _rc\ncapture noisily error 102\ndisplay _rc\ncapture noisily error 109\ndisplay _rc\ncapture noisily error 110\ndisplay _rc\ncapture noisily error 111\ndisplay _rc\ncapture noisily error 119\ndisplay _rc\ncapture noisily error 121\ndisplay _rc\ncapture noisily error 123\ndisplay _rc\ncapture noisily error 130\ndisplay _rc\ncapture noisily error 131\ndisplay _rc\ncapture noisily error 135\ndisplay _rc\ncapture noisily error 190\ndisplay _rc\ncapture noisily error 198\ndisplay _rc\ncapture noisily error 199\ndisplay _rc\ncapture noisily error 200\ndisplay _rc\ncapture noisily error 301\ndisplay _rc\ncapture noisily error 321\ndisplay _rc\ncapture noisily error 322\ndisplay _rc\ncapture noisily error 402\ndisplay _rc\ncapture noisily error 430\ndisplay _rc\ncapture noisily error 459\ndisplay _rc\ncapture noisily error 503\ndisplay _rc\ncapture noisily error 506\ndisplay _rc\ncapture noisily error 601\ndisplay _rc\ncapture noisily error 2000\ndisplay _rc\ncapture noisily error 2001\ndisplay _rc\ncapture noisily error 12345\ndisplay _rc\nscalar k = 3\ncapture noisily error 100 + k\ndisplay _rc\n",
+      "id": "scalar-list",
+      "source": "clear\nscalar zeta = 3\nscalar a = 22.346666666667\nscalar longername_here = -1234567.891\nscalar s = \"hello world\"\nscalar m = .\nscalar big = 1e20\nscalar list\nscalar list a s\nscalar dir\n",
       "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "scalar zeta = 3", "lines": [] },
+        { "command": "scalar a = 22.346666666667", "lines": [] },
+        { "command": "scalar longername_here = -1234567.891", "lines": [] },
+        { "command": "scalar s = \"hello world\"", "lines": [] },
+        { "command": "scalar m = .", "lines": [] },
+        { "command": "scalar big = 1e20", "lines": [] },
         {
-          "command": "capture noisily error 2",
-          "lines": ["connection timed out"]
-        },
-        { "command": "display _rc", "lines": ["2"] },
-        {
-          "command": "capture noisily error 4",
-          "lines": ["no; dataset in memory has changed since last saved"]
-        },
-        { "command": "display _rc", "lines": ["4"] },
-        {
-          "command": "capture noisily error 18",
-          "lines": ["you must start with an empty dataset"]
-        },
-        { "command": "display _rc", "lines": ["18"] },
-        { "command": "capture noisily error 50", "lines": [] },
-        { "command": "display _rc", "lines": ["50"] },
-        { "command": "capture noisily error 100", "lines": ["invalid syntax"] },
-        { "command": "display _rc", "lines": ["100"] },
-        {
-          "command": "capture noisily error 102",
-          "lines": ["too few variables specified"]
-        },
-        { "command": "display _rc", "lines": ["102"] },
-        { "command": "capture noisily error 109", "lines": ["type mismatch"] },
-        { "command": "display _rc", "lines": ["109"] },
-        { "command": "capture noisily error 110", "lines": ["invalid syntax"] },
-        { "command": "display _rc", "lines": ["110"] },
-        { "command": "capture noisily error 111", "lines": ["invalid syntax"] },
-        { "command": "display _rc", "lines": ["111"] },
-        {
-          "command": "capture noisily error 119",
-          "lines": ["statement out of context"]
-        },
-        { "command": "display _rc", "lines": ["119"] },
-        {
-          "command": "capture noisily error 121",
-          "lines": ["invalid numlist"]
-        },
-        { "command": "display _rc", "lines": ["121"] },
-        {
-          "command": "capture noisily error 123",
-          "lines": ["invalid numlist has too many elements"]
-        },
-        { "command": "display _rc", "lines": ["123"] },
-        {
-          "command": "capture noisily error 130",
-          "lines": ["expression too long"]
-        },
-        { "command": "display _rc", "lines": ["130"] },
-        {
-          "command": "capture noisily error 131",
-          "lines": ["not possible with test"]
-        },
-        { "command": "display _rc", "lines": ["131"] },
-        {
-          "command": "capture noisily error 135",
-          "lines": ["not possible with weighted data"]
-        },
-        { "command": "display _rc", "lines": ["135"] },
-        {
-          "command": "capture noisily error 190",
-          "lines": ["request may not be combined with by"]
-        },
-        { "command": "display _rc", "lines": ["190"] },
-        { "command": "capture noisily error 198", "lines": ["invalid syntax"] },
-        { "command": "display _rc", "lines": ["198"] },
-        {
-          "command": "capture noisily error 199",
-          "lines": ["unrecognized command"]
-        },
-        { "command": "display _rc", "lines": ["199"] },
-        { "command": "capture noisily error 200", "lines": [] },
-        { "command": "display _rc", "lines": ["200"] },
-        {
-          "command": "capture noisily error 301",
-          "lines": ["last estimates not found"]
-        },
-        { "command": "display _rc", "lines": ["301"] },
-        {
-          "command": "capture noisily error 321",
+          "command": "scalar list",
           "lines": [
-            "requested action not valid after most recent estimation command"
+            "       big =  1.000e+20",
+            "         m =          .",
+            "         s = hello world",
+            "longername_here = -1234567.9",
+            "         a =  22.346667",
+            "      zeta =          3"
           ]
         },
-        { "command": "display _rc", "lines": ["321"] },
         {
-          "command": "capture noisily error 322",
+          "command": "scalar list a s",
+          "lines": ["         a =  22.346667", "         s = hello world"]
+        },
+        {
+          "command": "scalar dir",
           "lines": [
-            "something that should be true of your estimation results is not"
+            "       big =  1.000e+20",
+            "         m =          .",
+            "         s = hello world",
+            "longername_here = -1234567.9",
+            "         a =  22.346667",
+            "      zeta =          3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "margins-atmeans-factor",
+      "source": "clear\nset seed 4127\nset obs 600\ngenerate double x1 = runiform() * 10\ngenerate byte f = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)\nlogit d x1 i.f\nmargins, atmeans\nmargins, dydx(*) atmeans\nregress x1 i.f i.g\nmargins, atmeans\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4127", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate double x1 = runiform() * 10", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "generate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)",
+          "lines": []
+        },
+        {
+          "command": "logit d x1 i.f",
+          "lines": [
+            "Iteration 0:  Log likelihood = -406.82929",
+            "Iteration 1:  Log likelihood = -385.39087",
+            "Iteration 2:  Log likelihood = -385.30326",
+            "Iteration 3:  Log likelihood = -385.30324",
+            "",
+            "Logistic regression                                     Number of obs =    600",
+            "                                                        LR chi2(2)    =  43.05",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -385.30324                             Pseudo R2     = 0.0529",
+            "",
+            "------------------------------------------------------------------------------",
+            "           d | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1774831   .0307832     5.77   0.000     .1171492    .2378169",
+            "         1.f |    .500923   .1723024     2.91   0.004     .1632165    .8386294",
+            "       _cons |  -.8064754   .1999289    -4.03   0.000    -1.198329   -.4146219",
+            "------------------------------------------------------------------------------"
           ]
         },
-        { "command": "display _rc", "lines": ["322"] },
         {
-          "command": "capture noisily error 402",
-          "lines": ["negative weights encountered"]
+          "command": "margins, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 600",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(d), predict()",
+            "At: x1  = 5.193606 (mean)",
+            "    0.f =      .48 (mean)",
+            "    1.f =      .52 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .5928553   .0208356    28.45   0.000     .5520182    .6336924",
+            "------------------------------------------------------------------------------"
+          ]
         },
-        { "command": "display _rc", "lines": ["402"] },
         {
-          "command": "capture noisily error 430",
-          "lines": ["convergence not achieved"]
+          "command": "margins, dydx(*) atmeans",
+          "lines": [
+            "Conditional marginal effects                               Number of obs = 600",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(d), predict()",
+            "dy/dx wrt:  x1 1.f",
+            "At: x1  = 5.193606 (mean)",
+            "    0.f =      .48 (mean)",
+            "    1.f =      .52 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .0428405   .0074068     5.78   0.000     .0283235    .0573575",
+            "         1.f |   .1205659   .0411191     2.93   0.003     .0399739    .2011579",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
         },
-        { "command": "display _rc", "lines": ["430"] },
         {
-          "command": "capture noisily error 459",
-          "lines": ["something that should be true of your data is not"]
+          "command": "regress x1 i.f i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(3, 596)       =      0.78",
+            "       Model |  19.1230278         3   6.3743426   Prob > F        =    0.5074",
+            "    Residual |  4892.94783       596  8.20964401   R-squared       =    0.0039",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0011",
+            "       Total |  4912.07086       599  8.20045219   Root MSE        =    2.8652",
+            "",
+            "------------------------------------------------------------------------------",
+            "          x1 | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.f |  -.0176033   .2343563    -0.08   0.940    -.4778679    .4426612",
+            "             |",
+            "           g |",
+            "          2  |   .4193726   .2913907     1.44   0.151    -.1529049      .99165",
+            "          3  |   .0977959   .2893046     0.34   0.735    -.4703846    .6659763",
+            "             |",
+            "       _cons |    5.02492   .2461956    20.41   0.000     4.541404    5.508436",
+            "------------------------------------------------------------------------------"
+          ]
         },
-        { "command": "display _rc", "lines": ["459"] },
         {
-          "command": "capture noisily error 503",
-          "lines": ["conformability error"]
-        },
-        { "command": "display _rc", "lines": ["503"] },
-        {
-          "command": "capture noisily error 506",
-          "lines": ["matrix not positive definite"]
-        },
-        { "command": "display _rc", "lines": ["506"] },
-        { "command": "capture noisily error 601", "lines": ["file not found"] },
-        { "command": "display _rc", "lines": ["601"] },
-        {
-          "command": "capture noisily error 2000",
-          "lines": ["no observations"]
-        },
-        { "command": "display _rc", "lines": ["2000"] },
-        {
-          "command": "capture noisily error 2001",
-          "lines": ["insufficient observations"]
-        },
-        { "command": "display _rc", "lines": ["2001"] },
-        { "command": "capture noisily error 12345", "lines": [] },
-        { "command": "display _rc", "lines": ["12345"] },
-        { "command": "scalar k = 3", "lines": [] },
-        {
-          "command": "capture noisily error 100 + k",
-          "lines": ["too many variables specified"]
-        },
-        { "command": "display _rc", "lines": ["103"] }
+          "command": "margins, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 600",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: 0.f =      .48 (mean)",
+            "    1.f =      .52 (mean)",
+            "    1.g =     .305 (mean)",
+            "    2.g = .3416667 (mean)",
+            "    3.g = .3533333 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   5.193606   .1169732    44.40   0.000     4.963877    5.423336",
+            "------------------------------------------------------------------------------"
+          ]
+        }
       ]
     },
     {

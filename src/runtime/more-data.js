@@ -1,5 +1,6 @@
 // do, run and include on do-files held in the session, and the commands
 // that combine or rearrange datasets: cross, joinby and stack.
+import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { fileName, load } from "./data-commands.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
@@ -215,7 +216,7 @@ function stack(session, text, ctx) {
                 Number(v.type.slice(3)) > Number(a.slice(3)) ? v.type : a,
               group[0].type,
             )
-          : RANK[Math.max(...group.map((v) => RANK.indexOf(v.type)))],
+          : RANK[greatest(group.map((v) => RANK.indexOf(v.type)))],
         values: group.flatMap((v) => rows.map((i) => v.data[i])),
       };
     });
