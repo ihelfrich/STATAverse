@@ -4681,3 +4681,164 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== table-width-factor-labels
+clear
+set seed 7301
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double years_of_schooling_completed_x = education
+generate byte geographic_region_of_residence = reg
+label values geographic_region_of_residence rl
+generate byte near_college_flag_long_name_xx = near_college
+set linesize 80
+regress wage i.female#i.reg
+regress wage i.reg#i.female
+regress wage i.reg##i.female##c.education
+logit union i.female#i.reg
+regress wage i.near_college
+regress wage i.near_college, vce(robust)
+regress wage i.near_college, beta
+logit union i.female##i.near_college
+regress wage c.years_of_schooling_completed_x#c.exper
+regress wage i.reg#c.years_of_schooling_completed_x
+regress wage c.exper#c.years_of_schooling_completed_x#c.education
+regress wage i.female#c.years_of_schooling_completed_x#c.exper
+regress wage i.geographic_region_of_residence#c.exper
+logit union c.years_of_schooling_completed_x#c.exper
+regress wage i.female#i.union#i.reg
+set linesize 100
+regress wage i.near_college_flag_long_name_xx
+logit union i.near_college_flag_long_name_xx
+regress wage c.years_of_schooling_completed_x#c.exper
+regress wage i.geographic_region_of_residence#c.exper
+logit union c.years_of_schooling_completed_x#c.exper
+label define reglab 1 "Eastern seaboard and New England states" 2 "Northern plains" 3 "South" 4 "West coast and mountain region"
+label values reg reglab
+set linesize 80
+regress wage i.female#i.reg
+regress wage i.reg#i.female
+regress wage i.female#i.union#i.reg
+regress wage i.female##i.reg
+label define fl 1 "woman"
+label values female fl
+regress wage i.female#i.union
+set linesize 200
+regress wage i.female#i.reg
+regress wage i.union#i.female#i.reg
+=== table-width-likelihood-models
+clear
+set seed 7302
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+generate double years_of_schooling_completed_x = education
+generate byte geographic_region_of_residence = reg
+label values geographic_region_of_residence rl
+generate byte in_a_labor_union_at_survey_time = union
+generate double weekly_hours_worked_last_week_x = hours
+generate byte job_satisfaction_rating_overall = satisfaction
+generate double hourly_wage_in_dollars_reported = wage
+generate byte satisfaction_three_categories_x = sat3
+generate byte sat3l = sat3
+label define s3 1 "Dissatisfied with the job overall" 2 "Neutral" 3 "Satisfied"
+label values sat3l s3
+generate double ed2 = education
+set linesize 80
+logit in_a_labor_union_at_survey_time education
+lincom education
+probit in_a_labor_union_at_survey_time education
+lincom education
+poisson weekly_hours_worked_last_week_x education
+lincom education
+ologit job_satisfaction_rating_overall years_of_schooling_completed_x
+lincom years_of_schooling_completed_x
+oprobit satisfaction i.geographic_region_of_residence
+nbreg weekly_hours_worked_last_week_x years_of_schooling_completed_x
+lincom years_of_schooling_completed_x
+nbreg hours i.geographic_region_of_residence
+nbreg hours education, irr
+tobit hourly_wage_in_dollars_reported education, ll(5)
+lincom education
+tobit wage years_of_schooling_completed_x i.geographic_region_of_residence, ll(5)
+mlogit satisfaction_three_categories_x years_of_schooling_completed_x
+lincom [2]years_of_schooling_completed_x
+mlogit sat3 i.geographic_region_of_residence
+mlogit sat3l education
+mlogit sat3 education ed2, rrr
+ologit satisfaction education, or
+regress hourly_wage_in_dollars_reported years_of_schooling_completed_x i.geographic_region_of_residence
+lincom years_of_schooling_completed_x
+margins geographic_region_of_residence
+set linesize 200
+logit in_a_labor_union_at_survey_time years_of_schooling_completed_x, vce(robust)
+lincom years_of_schooling_completed_x
+poisson weekly_hours_worked_last_week_x education, irr
+ologit job_satisfaction_rating_overall years_of_schooling_completed_x
+lincom years_of_schooling_completed_x
+oprobit satisfaction i.geographic_region_of_residence
+nbreg weekly_hours_worked_last_week_x years_of_schooling_completed_x
+nbreg hours i.geographic_region_of_residence
+nbreg hours education, irr
+tobit hourly_wage_in_dollars_reported education, ll(5)
+lincom education
+tobit wage years_of_schooling_completed_x i.geographic_region_of_residence, ll(5)
+mlogit satisfaction_three_categories_x years_of_schooling_completed_x
+lincom [2]years_of_schooling_completed_x
+mlogit sat3 i.geographic_region_of_residence
+mlogit sat3l education
+regress hourly_wage_in_dollars_reported years_of_schooling_completed_x i.geographic_region_of_residence
+lincom years_of_schooling_completed_x
+margins geographic_region_of_residence
+=== mlogit-factor-layout
+clear
+set seed 7303
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate double education = 8 + floor(runiform()*10)
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+generate double years_of_schooling_completed_x = education
+set linesize 80
+mlogit sat3 i.reg i.female#c.education
+mlogit sat3 i.female##c.years_of_schooling_completed_x
+mlogit sat3 i.reg##i.female, rrr
+set linesize 200
+mlogit sat3 i.female##c.years_of_schooling_completed_x
+=== test-lincom-tobit-prefix-and-minus
+clear
+set seed 7304
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate byte female = runiform() < .5
+generate double education = 8 + floor(runiform()*10)
+generate double experience = floor(runiform()*30)
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+tobit wage education i.reg i.female, ll(5)
+test 2.reg
+lincom 2.reg - 3.reg
+test education
+regress wage education i.reg i.female#c.experience
+test 3.reg = 2.reg
+lincom -education

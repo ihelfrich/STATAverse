@@ -114,6 +114,10 @@ for (const c of fixture.cases)
             "binary-noconstant",
             "test-lincom-equation-references",
             "test-references-stata-forms",
+            "table-width-factor-labels",
+            "table-width-likelihood-models",
+            "mlogit-factor-layout",
+            "test-lincom-tobit-prefix-and-minus",
           ].includes(c.id),
         )
       )

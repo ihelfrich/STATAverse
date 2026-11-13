@@ -91,12 +91,18 @@ const FAMILIES = {
   },
 };
 
-function zTable(session, model, level, transform) {
+/**
+ * The coefficient table of logit, probit, poisson and ivregress. named says
+ * the dependent variable names the first equation, as it does after the
+ * likelihood models (not ivregress); it then counts in the first column's
+ * width.
+ */
+function zTable(session, model, level, transform, named = true) {
   const critical = invnormal(1 - (1 - level / 100) / 2),
     robust = model.vce !== "oim" && model.vce !== "unadjusted",
     head = (transform?.[1] ?? "Coefficient").padStart(10).padEnd(11),
     // The first column fits the names as Stata fits them; see tableWidth.
-    w = tableWidth(session, model),
+    w = tableWidth(session, model, named ? [model.depvar] : []),
     rule = "-".repeat(66 + w),
     lines = [
       rule,
@@ -977,7 +983,7 @@ function ivregress(session, text, ctx) {
   );
   ctx.out("");
   if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
-  zTable(session, model, parsed.options.level, null).forEach(ctx.out);
+  zTable(session, model, parsed.options.level, null, false).forEach(ctx.out);
   ctx.out(`Endogenous: ${endogenous.join(" ")}`);
   ctx.out(`Exogenous:  ${[...exogenous, ...instruments].join(" ")}`);
   ctx.out("");

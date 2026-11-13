@@ -567,50 +567,88 @@ export function fit(session, parsed, by) {
 }
 
 /**
- * The rows of a coefficient table, laid out by term as Stata lays them out:
- * plain variables one after another, a factor or interaction as a headed
- * group of level rows, a term with a single row on its own line, and blank
- * rows between groups. cells(k) gives the text after the bar for
- * coefficient k.
+ * The terms of a coefficient table in order, each with the coefficients it
+ * gives, those shown (base levels are hidden) and whether it prints as one
+ * row like a plain variable: a factor with one level to show, such as a
+ * 0/1 variable, does.
  */
+function tableBlocks(model) {
+  const blocks = [];
+  model.names.forEach((_, k) => {
+    const term = model.columns?.[k]?.term ?? "_cons",
+      last = blocks.at(-1);
+    if (last && last.term === term) last.items.push(k);
+    else blocks.push({ term, items: [k] });
+  });
+  for (const block of blocks) {
+    block.shown = block.items.filter((k) => !hiddenBase(model.columns[k]));
+    block.alone =
+      block.term !== "_cons" &&
+      !block.term.variable &&
+      block.term.components.length === 1 &&
+      block.shown.length === 1;
+  }
+  return blocks;
+}
+
+/**
+ * The label of a row of factor levels and its pieces: the levels joined
+ * with #, or with a space when none of them has a value label, as Stata
+ * joins them (1 1, but 0#North).
+ */
+function levelLabel(session, column) {
+  const factors = column.term.components.filter((c) => c.factor),
+    pieces = column.levels.map((level, j) =>
+      labelled(session, factors[j].variable, level),
+    ),
+    named = column.levels.some(
+      (level, j) =>
+        session.data.valueLabels
+          ?.get(factors[j].variable.valueLabel)
+          ?.has(level) ?? false,
+    );
+  return { pieces, text: pieces.join(named ? "#" : " ") };
+}
+
 /**
  * The width of a coefficient table's first column, as Stata sets it: twelve,
- * widened to the longest coefficient name shown there while the line allows,
- * that is up to linesize - 67. Longer names, and the dependent variable in
- * the header, are abbreviated to the width.
+ * widened to the longest label shown there while the line allows, that is
+ * up to linesize - 67. Longer names, and the dependent variable in the
+ * header, are abbreviated to the width. extra lists other labels that
+ * count: the z-tables of the likelihood models count their dependent
+ * variable, which names their first equation, and tobit its var(e.y) row.
  */
-export function tableWidth(session, model) {
-  const shown = model.names
-    .filter((_, k) => !hiddenBase(model.columns?.[k]))
-    .map((name) => {
-      const term = model.columns?.[model.names.indexOf(name)]?.term;
-      return term && !term.variable ? term.header : name;
-    });
-  // The dependent variable does not widen the column; it is abbreviated.
+export function tableWidth(session, model, extra = []) {
   const cap = (session.settings?.linesize ?? 80) - 67,
     // A name counts whole when the line allows it; an interaction that does
-    // not fit breaks after a #, so then its longest piece counts.
-    // A factor level's label counts too, with the space after it.
-    labels = model.names.flatMap((_, k) => {
-      const column = model.columns?.[k];
-      if (!column?.levels || hiddenBase(column)) return [];
-      const factors = column.term.components.filter((c) => c.factor);
-      return [
-        column.levels
-          .map((level, j) => labelled(session, factors[j].variable, level))
-          .join(" ").length + 1,
-      ];
-    }),
-    longest = Math.max(
-      0,
-      ...labels,
-      ...shown.map((n) =>
-        n.length <= cap || !n.includes("#")
-          ? n.length
-          : Math.max(...n.split("#").map((p) => p.length)),
-      ),
-    );
-  return Math.max(12, Math.min(longest, cap));
+    // not fit is broken after a # as it would be in a column that wide,
+    // and then its longest line counts, with the # that ends it.
+    needs = (name) =>
+      name.length <= cap || !name.includes("#")
+        ? name.length
+        : brokenName(name, cap).widest,
+    lengths = extra.map((text) => text.length);
+  for (const block of tableBlocks(model)) {
+    if (!block.shown.length) continue;
+    // A plain variable, the constant, a factor shown on one row as its
+    // full name (1.name) and a product of continuous variables count by
+    // the name of their row.
+    if (
+      block.term === "_cons" ||
+      block.term.variable ||
+      block.alone ||
+      block.term.components.every((c) => !c.factor)
+    ) {
+      lengths.push(...block.shown.map((k) => needs(model.names[k])));
+      continue;
+    }
+    // A factor or interaction counts by its header, and each level's label
+    // with the space after it.
+    lengths.push(needs(block.term.header));
+    for (const k of block.shown)
+      lengths.push(levelLabel(session, model.columns[k]).text.length + 1);
+  }
+  return Math.max(12, Math.min(Math.max(0, ...lengths), cap));
 }
 /**
  * A base level is not shown in a coefficient table, unless no observation
@@ -623,30 +661,67 @@ const hiddenBase = (column) => !!column?.base && !column.empty;
 export const abbreviate = (name, width) =>
   name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
 
+/**
+ * A name too long for a first column of width w, broken as Stata breaks
+ * it: after a #, pieces joined while they fit (with the # that ends them).
+ * A piece longer than the column is abbreviated, and a continuous one loses
+ * its c. to a line of its own first. Returns the lines before the last,
+ * each ending in its bar, the last piece, which labels the row, and the
+ * width of the widest line.
+ * Without a width, nothing is abbreviated.
+ */
+export function brokenName(name, w, abbreviated = true) {
+  const parts = name.split("#"),
+    units = [];
+  parts.forEach((part, k) => {
+    const final = k === parts.length - 1,
+      last = units.at(-1);
+    if (
+      last &&
+      !last.fixed &&
+      `${last.text}#${part}`.length <= (final ? w : w - 1)
+    ) {
+      last.text = `${last.text}#${part}`;
+      return;
+    }
+    if (abbreviated && part.length > w && /^c\../.test(part))
+      units.push(
+        { text: "c.", fixed: true, bare: true },
+        { text: abbreviate(part.slice(2), w), fixed: true },
+      );
+    else if (abbreviated && part.length > w)
+      units.push({ text: abbreviate(part, w), fixed: true });
+    else units.push({ text: part });
+  });
+  const before = units.slice(0, -1);
+  return {
+    lines: before.map((u) =>
+      u.bare ? `${u.text.padStart(w)} |` : `${`${u.text}#`.padStart(w + 1)}|`,
+    ),
+    last: units.at(-1).text,
+    widest: Math.max(
+      units.at(-1).text.length,
+      ...before.map((u) => u.text.length + (u.bare ? 0 : 1)),
+    ),
+  };
+}
+
+/**
+ * The rows of a coefficient table, laid out by term as Stata lays them out:
+ * plain variables one after another, a factor or interaction as a headed
+ * group of level rows, a term with a single row on its own line, and blank
+ * rows between groups. cells(k) gives the text after the bar for
+ * coefficient k.
+ */
 export function termRows(session, model, cells, width, omittedValue = 0) {
   // Without a width the column is twelve and names are not shortened.
   const w = width ?? 12,
     short = (name) => (width ? abbreviate(name, w) : name),
     gap = `${" ".repeat(w + 1)}|`;
-  const out = [],
-    blocks = [];
-  model.names.forEach((name, k) => {
-    const column = model.columns[k],
-      term = column?.term ?? "_cons",
-      last = blocks.at(-1);
-    if (last && last.term === term) last.items.push(k);
-    else blocks.push({ term, items: [k] });
-  });
+  const out = [];
   let previousPlain = true;
-  blocks.forEach((block, b) => {
-    const shown = block.items.filter((k) => !hiddenBase(model.columns[k])),
-      // A factor with one level to show, such as a 0/1 variable, is printed
-      // on one row like a plain variable, with no blank rows around it.
-      alone =
-        block.term !== "_cons" &&
-        !block.term.variable &&
-        block.term.components.length === 1 &&
-        shown.length === 1,
+  tableBlocks(model).forEach((block, b) => {
+    const { shown, alone } = block,
       plain =
         block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
     if (b && !(plain && previousPlain)) out.push(gap);
@@ -672,44 +747,28 @@ export function termRows(session, model, cells, width, omittedValue = 0) {
       const name = model.names[shown[0]];
       if (name.length <= w || !name.includes("#"))
         return row(`${short(name).padStart(w)} `, shown[0]);
-      const pieces = [];
-      for (const part of name.split("#")) {
-        const last = pieces.at(-1);
-        if (last !== undefined && `${last}#${part}`.length <= w)
-          pieces[pieces.length - 1] = `${last}#${part}`;
-        else pieces.push(part);
-      }
-      pieces
-        .slice(0, -1)
-        .forEach((piece) => out.push(`${`${piece}#`.padStart(w + 1)}|`));
-      return row(`${short(pieces.at(-1)).padStart(w)} `, shown[0]);
+      const broken = brokenName(name, w, !!width);
+      out.push(...broken.lines);
+      return row(`${broken.last.padStart(w)} `, shown[0]);
     }
     // A header too long for the column is broken after a #.
-    // A piece that another follows ends in #, which must fit too.
-    const parts = block.term.header.split("#"),
-      pieces = [];
-    parts.forEach((part, k) => {
-      const last = pieces.at(-1),
-        room = k === parts.length - 1 ? w : w - 1;
-      if (last !== undefined && `${last}#${part}`.length <= room)
-        pieces[pieces.length - 1] = `${last}#${part}`;
-      else pieces.push(part);
-    });
-    pieces.forEach((piece, k) =>
-      out.push(
-        k < pieces.length - 1
-          ? `${`${piece}#`.padStart(w + 1)}|`
-          : `${short(piece).padStart(w)} |`,
-      ),
-    );
-    const factors = block.term.components.filter((c) => c.factor);
+    const header = brokenName(block.term.header, w, !!width);
+    out.push(...header.lines, `${short(header.last).padStart(w)} |`);
+    // A level's label too long for the column puts each level on a line of
+    // its own, those before the last followed by a #; a label still too
+    // long is cut and marked with two dots.
+    const cut = (text) =>
+      width && text.length > w - 1 ? `${text.slice(0, w - 3)}..` : text;
     for (const k of shown) {
-      let label = model.columns[k].levels
-        .map((level, j) => labelled(session, factors[j].variable, level))
-        .join(" ");
-      // A label too long for the column is cut and marked with two dots.
-      if (width && label.length > w - 1) label = `${label.slice(0, w - 3)}..`;
-      row(`${label}  `.padStart(w + 1), k);
+      const { pieces, text } = levelLabel(session, model.columns[k]);
+      if (width && text.length > w - 1 && pieces.length > 1) {
+        pieces
+          .slice(0, -1)
+          .forEach((piece) =>
+            out.push(`${`${cut(piece)} #`.padStart(w + 1)}|`),
+          );
+        row(`${cut(pieces.at(-1))}  `.padStart(w + 1), k);
+      } else row(`${cut(text)}  `.padStart(w + 1), k);
     }
   });
   return out;
