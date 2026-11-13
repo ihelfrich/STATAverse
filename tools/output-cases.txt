@@ -2167,6 +2167,21 @@ regress outcome_variable_long abcdefghijklm abcdefghijklmn
 set linesize 200
 regress outcome_variable_long abcdefghijklm household_income_k
 regress outcome_variable_long i.neighbourhood_group
+=== table-width-models
+clear
+set seed 7
+set obs 200
+generate double household_income_k = runiform()
+generate byte neighbourhood_group = 1 + floor(runiform() * 3)
+generate byte employed_full_time = runiform() < invlogit(-.5 + household_income_k)
+generate int visits = floor(runiform() * 5)
+set linesize 80
+logit employed_full_time household_income_k i.neighbourhood_group
+probit employed_full_time household_income_k, vce(robust)
+poisson visits household_income_k
+logit employed_full_time household_income_k, or
+set linesize 200
+logit employed_full_time household_income_k
 === likelihood-factor-layout
 clear
 set seed 2718

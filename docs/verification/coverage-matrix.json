@@ -57,30 +57,30 @@
   "commands": [
     {
       "name": "logit",
-      "recorded": 49,
+      "recorded": 55,
       "fixtures": {
         "stata-runtime-sessions.json": 8,
-        "stata-runtime-output.json": 35,
+        "stata-runtime-output.json": 41,
         "stata-runtime-cluster.json": 5,
         "stata-postestimation-rc.json": 1
       }
     },
     {
       "name": "probit",
-      "recorded": 11,
+      "recorded": 13,
       "fixtures": {
         "stata-runtime-sessions.json": 1,
-        "stata-runtime-output.json": 8,
+        "stata-runtime-output.json": 10,
         "stata-runtime-cluster.json": 1,
         "stata-postestimation-rc.json": 1
       }
     },
     {
       "name": "poisson",
-      "recorded": 19,
+      "recorded": 21,
       "fixtures": {
         "stata-runtime-sessions.json": 2,
-        "stata-runtime-output.json": 14,
+        "stata-runtime-output.json": 16,
         "stata-runtime-cluster.json": 2,
         "stata-postestimation-rc.json": 1
       }
@@ -1027,10 +1027,10 @@
     },
     {
       "name": "generate",
-      "recorded": 1718,
+      "recorded": 1726,
       "fixtures": {
         "stata-runtime-sessions.json": 1082,
-        "stata-runtime-output.json": 636
+        "stata-runtime-output.json": 644
       }
     },
     {
@@ -1314,18 +1314,18 @@
     },
     {
       "name": "set",
-      "recorded": 234,
+      "recorded": 242,
       "fixtures": {
         "stata-runtime-sessions.json": 16,
-        "stata-runtime-output.json": 218
+        "stata-runtime-output.json": 226
       }
     },
     {
       "name": "clear",
-      "recorded": 716,
+      "recorded": 718,
       "fixtures": {
         "stata-runtime-sessions.json": 492,
-        "stata-runtime-output.json": 224
+        "stata-runtime-output.json": 226
       }
     },
     {

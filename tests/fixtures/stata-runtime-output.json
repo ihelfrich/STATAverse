@@ -14501,6 +14501,146 @@
       ]
     },
     {
+      "id": "table-width-models",
+      "source": "clear\nset seed 7\nset obs 200\ngenerate double household_income_k = runiform()\ngenerate byte neighbourhood_group = 1 + floor(runiform() * 3)\ngenerate byte employed_full_time = runiform() < invlogit(-.5 + household_income_k)\ngenerate int visits = floor(runiform() * 5)\nset linesize 80\nlogit employed_full_time household_income_k i.neighbourhood_group\nprobit employed_full_time household_income_k, vce(robust)\npoisson visits household_income_k\nlogit employed_full_time household_income_k, or\nset linesize 200\nlogit employed_full_time household_income_k\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate byte neighbourhood_group = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "generate byte employed_full_time = runiform() < invlogit(-.5 + household_income_k)",
+          "lines": []
+        },
+        {
+          "command": "generate int visits = floor(runiform() * 5)",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "logit employed_full_time household_income_k i.neighbourhood_group",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136.93464",
+            "Iteration 1:  Log likelihood = -131.21388",
+            "Iteration 2:  Log likelihood = -131.19099",
+            "Iteration 3:  Log likelihood = -131.19098",
+            "",
+            "Logistic regression                                     Number of obs =    200",
+            "                                                        LR chi2(3)    =  11.49",
+            "                                                        Prob > chi2   = 0.0094",
+            "Log likelihood = -131.19098                             Pseudo R2     = 0.0419",
+            "",
+            "-------------------------------------------------------------------------------",
+            "employed_fu~e | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   1.136085   .5021567     2.26   0.024     .1518762    2.120294",
+            "              |",
+            "neighbourho~p |",
+            "           2  |   .0958745   .3590152     0.27   0.789    -.6077825    .7995314",
+            "           3  |   .8104694   .3854213     2.10   0.035     .0550576    1.565881",
+            "              |",
+            "        _cons |  -.5785205   .3669935    -1.58   0.115    -1.297814    .1407735",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit employed_full_time household_income_k, vce(robust)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood = -136.93464",
+            "Iteration 1:  Log pseudolikelihood = -134.09821",
+            "Iteration 2:  Log pseudolikelihood = -134.09735",
+            "Iteration 3:  Log pseudolikelihood = -134.09735",
+            "",
+            "Probit regression                                       Number of obs =    200",
+            "                                                        Wald chi2(1)  =   5.64",
+            "                                                        Prob > chi2   = 0.0175",
+            "Log pseudolikelihood = -134.09735                       Pseudo R2     = 0.0207",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "employed_fu~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .7228243   .3042548     2.38   0.018     .1264959    1.319153",
+            "        _cons |  -.1817631   .1707828    -1.06   0.287    -.5164912     .152965",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson visits household_income_k",
+          "lines": [
+            "Iteration 0:  Log likelihood = -359.15477",
+            "Iteration 1:  Log likelihood = -359.15477",
+            "",
+            "Poisson regression                                      Number of obs =    200",
+            "                                                        LR chi2(1)    =   0.27",
+            "                                                        Prob > chi2   = 0.6050",
+            "Log likelihood = -359.15477                             Pseudo R2     = 0.0004",
+            "",
+            "-------------------------------------------------------------------------------",
+            "       visits | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |  -.0880777   .1703433    -0.52   0.605    -.4219445     .245789",
+            "        _cons |   .7151854   .0954862     7.49   0.000     .5280359     .902335",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit employed_full_time household_income_k, or",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136.93464",
+            "Iteration 1:  Log likelihood = -134.10508",
+            "Iteration 2:  Log likelihood = -134.10281",
+            "Iteration 3:  Log likelihood = -134.10281",
+            "",
+            "Logistic regression                                     Number of obs =    200",
+            "                                                        LR chi2(1)    =   5.66",
+            "                                                        Prob > chi2   = 0.0173",
+            "Log likelihood = -134.10281                             Pseudo R2     = 0.0207",
+            "",
+            "-------------------------------------------------------------------------------",
+            "employed_fu~e | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   3.188539   1.574361     2.35   0.019      1.21145     8.39224",
+            "        _cons |   .7472834   .2043353    -1.07   0.287     .4372551    1.277132",
+            "-------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "logit employed_full_time household_income_k",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136.93464",
+            "Iteration 1:  Log likelihood = -134.10508",
+            "Iteration 2:  Log likelihood = -134.10281",
+            "Iteration 3:  Log likelihood = -134.10281",
+            "",
+            "Logistic regression                                     Number of obs =    200",
+            "                                                        LR chi2(1)    =   5.66",
+            "                                                        Prob > chi2   = 0.0173",
+            "Log likelihood = -134.10281                             Pseudo R2     = 0.0207",
+            "",
+            "------------------------------------------------------------------------------------",
+            "employed_full_time | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "household_income_k |   1.159563   .4937564     2.35   0.019     .1918179    2.127308",
+            "             _cons |  -.2913107   .2734375    -1.07   0.287    -.8272385     .244617",
+            "------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "likelihood-factor-layout",
       "source": "clear\nset seed 2718\nset obs 400\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double income = runiform() * 10\ngenerate double y = 2 + .4 * income + .5 * g + runiform() * 4\nreplace y = 3 if y < 3\ngenerate byte r = 1 + (y > 5) + (y > 7)\ngenerate int k = floor(y * y * runiform())\ntobit y income i.g, ll(3) nolog\ntobit y income, ll(3)\ntobit y income i.g, ll(3) ul(9)\nologit r income i.g, nolog\nnbreg k income i.g, nolog\nregress y income i.g\n",
       "commands": [
