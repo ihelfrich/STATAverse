@@ -1,5 +1,5 @@
 // Diagnostics after regress: estat hettest, ovtest, imtest, vce and
-// summarize, the leverage and residual statistics of predict, and testparm.
+// summarize, and the leverage and residual statistics of predict.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
@@ -335,76 +335,6 @@ export function regressDiagnostic(session, model, what, text, ctx) {
   if (!run) return false;
   run(session, model, rest, ctx);
   return true;
-}
-
-/** testparm: a joint test that the named coefficients are all zero. */
-export function testparm(session, model, text, ctx) {
-  const names = testparmNames(session, model, text),
-    at = names.map((name) => model.names.indexOf(name)),
-    block = at.map((r) => at.map((c) => model.V[r][c])),
-    q = at.length;
-  // Solve block * w = b by elimination; the quadratic form is b'w.
-  const a = block.map((row, i) => [...row, model.b[at[i]]]);
-  for (let col = 0; col < q; col++) {
-    let pivot = col;
-    for (let r = col + 1; r < q; r++)
-      if (Math.abs(a[r][col]) > Math.abs(a[pivot][col])) pivot = r;
-    if (!(Math.abs(a[pivot][col]) > 1e-300))
-      throw new StataError("the constraints are redundant", 111);
-    [a[col], a[pivot]] = [a[pivot], a[col]];
-    for (let r = 0; r < q; r++) {
-      if (r === col) continue;
-      const f = a[r][col] / a[col][col];
-      for (let c = col; c <= q; c++) a[r][c] -= f * a[col][c];
-    }
-  }
-  const wald = at.reduce((t, k, i) => t + (model.b[k] * a[i][q]) / a[i][i], 0);
-  ctx.out("");
-  names.forEach((name, k) =>
-    ctx.out(` (${String(k + 1).padStart(2)})  ${name} = 0`),
-  );
-  ctx.out("");
-  if (model.dist === "z") {
-    const p = chi2tail(q, wald);
-    ctx.out(
-      `           chi2(${String(q).padStart(3)}) =${applyFormat(wald, "%8.2f")}`,
-    );
-    ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
-    session.results.r = { chi2: wald, p, df: q, drop: 0 };
-  } else {
-    const F = wald / q,
-      p = Ftail(q, model.df_r, F);
-    ctx.out(
-      `       F(${String(q).padStart(3)},${String(model.df_r).padStart(6)}) =${applyFormat(F, "%8.2f")}`,
-    );
-    ctx.out(`            Prob > F =${applyFormat(p, "%10.4f")}`);
-    session.results.r = { F, p, df: q, df_r: model.df_r, drop: 0 };
-  }
-  ctx.out("");
-}
-
-/** The coefficient names testparm's varlist stands for. */
-export function testparmNames(session, model, text) {
-  const [head] = splitAtComma(text),
-    names = [];
-  for (const token of head.trim().split(/\s+/).filter(Boolean)) {
-    const factor = /^i\.(\S+)$/.exec(token),
-      found = factor
-        ? session
-            .varlist(factor[1])
-            .flatMap((variable) =>
-              model.names.filter(
-                (name, k) =>
-                  model.estimable[k] &&
-                  !model.columns[k]?.base &&
-                  new RegExp(`^\\d+\\.${variable}$`).test(name),
-              ),
-            )
-        : session.varlist(token).filter((name) => model.names.includes(name));
-    for (const name of found) if (!names.includes(name)) names.push(name);
-  }
-  if (!names.length) throw new StataError("no such variables", 111);
-  return names;
 }
 
 /**

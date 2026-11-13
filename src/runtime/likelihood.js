@@ -326,6 +326,20 @@ function tobit(session, text, ctx) {
       kind: "tobit",
       sample: f.sample,
       sigma: Math.sqrt(variance),
+      // var(e.depvar) as test and lincom reach it, [/]var(e.wage): fitted
+      // as ln(sigma), so its covariances are by the delta method, the
+      // derivative of the variance in ln(sigma) being twice the variance.
+      auxiliary: {
+        equation: "/",
+        names: [`var(e.${f.dependent.name})`],
+        b: [variance],
+        cross: [
+          names.map((_, j) =>
+            f.at[j] >= 0 ? 2 * variance * full.V[k][f.at[j]] : 0,
+          ),
+        ],
+        V: [[seVariance ** 2]],
+      },
     };
   session.estimates = model;
   session.results.e = {
@@ -1207,6 +1221,14 @@ function nbreg(session, text, ctx) {
       kind: "nbreg",
       sample: f.sample,
       alpha,
+      // lnalpha as test and lincom reach it, [/]lnalpha.
+      auxiliary: {
+        equation: "/",
+        names: ["lnalpha"],
+        b: [lnalpha],
+        cross: [names.map((_, j) => (f.at[j] >= 0 ? cov[k][f.at[j]] : 0))],
+        V: [[cov[k][k]]],
+      },
     };
   session.estimates = model;
   session.results.e = {

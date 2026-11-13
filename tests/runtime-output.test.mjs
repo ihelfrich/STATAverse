@@ -112,6 +112,8 @@ for (const c of fixture.cases)
             "test-lincom-equations",
             "perfect-prediction",
             "binary-noconstant",
+            "test-lincom-equation-references",
+            "test-references-stata-forms",
           ].includes(c.id),
         )
       )

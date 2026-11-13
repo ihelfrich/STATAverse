@@ -4401,3 +4401,206 @@ generate yb = y > 1
 logit yb c.x#i.g, nolog
 margins, dydx(*)
 margins g
+=== test-lincom-equation-references
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+quietly mlogit sat3 education i.female
+lincom [3]_b[education]
+lincom [2]_b[education]/2
+lincom [3]_b[education] + [2]_b[education]
+test [2]_b[education] = 0
+test 1.female
+test 1.female, mtest
+test [3]: education 1.female
+test [2]: education _cons
+test [2=3]
+test [2=3]: education
+test [2=1]: education 1.female
+test [2=1=3]: education 1.female
+test [#1=#2]: education
+test [2] education 1.female
+capture noisily test [2]:
+capture noisily test [9]: education
+quietly mlogit sat3 education i.female i.reg
+test 2.reg
+test 1.female 2.reg
+testparm i.reg
+testparm i.reg, equal
+testparm i.reg, equation(2)
+testparm i.reg, equal equation(2)
+testparm i.reg education, equal
+testparm 2.reg education
+testparm i.reg, df(100)
+testparm i.female
+capture noisily testparm i.reg, nosvyadjust
+capture noisily test i.reg
+quietly logit union education
+lincom [union]_b[education]
+lincom [#1]_b[education]
+quietly ologit satisfaction education i.reg
+lincom [/]_b[cut1]
+test [/]_b[cut1] = 0
+lincom _b[/cut1]
+lincom _b[/cut2] - _b[/cut1]
+test _b[/cut1] = _b[/cut2]
+lincom _b[/cut3] + _b[education]
+test [/]: cut1 cut2
+quietly oprobit satisfaction education i.reg
+lincom _b[/cut1]
+test _b[/cut1] = _b[/cut2]
+quietly nbreg hours education i.reg
+lincom _b[/lnalpha]
+lincom [/]lnalpha
+lincom [/]lnalpha, irr
+lincom [/]lnalpha + [hours]education
+lincom /lnalpha
+test [/]lnalpha = -6
+test [hours]education [/]lnalpha, mtest(holm)
+test education, accum
+test [/]
+quietly tobit wage education i.female, ll(4)
+lincom [wage]education
+test [wage]education
+lincom _b[wage:education]
+lincom [wage]education - 2*[wage]_cons
+test [wage]education [wage]_cons
+capture noisily lincom [/]sigma
+lincom [/]var(e.wage)
+lincom _b[/var(e.wage)]
+test _b[/var(e.wage)] = 50
+lincom [/]var(e.wage) - [wage]_cons
+test (_b[/var(e.wage)] = 50) ([wage]education = 0)
+test [/]
+capture noisily lincom _b[/x]
+=== test-references-stata-forms
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+quietly mlogit sat3 c.education##i.female
+testparm i.female c.education#i.female
+testparm c.education#i.female
+testparm i.female#c.education
+test [2]: c.education#1.female
+test [1=2]
+quietly mlogit sat3 education i.female i.reg
+testparm i.(reg female)
+capture noisily testparm i.reg, equation(3)
+capture noisily testparm i.reg, eq(3) equal
+capture noisily testparm _cons
+testparm 1b.reg 2.reg
+capture noisily testparm i.reg, equation(9)
+test [2]: education = 0
+test [2]: c.education
+test [2=3]: c.education
+test c.education
+capture noisily test [2]: educ
+capture noisily test [2=3]: educ
+capture noisily test educ
+test [2=3=3]
+test [2=2]
+test [2]: education education
+test [2]: education = 0 = 1
+capture noisily test [2]: education 1.female = 0
+capture noisily test [2=3]: education = 0
+capture noisily test [2=3] education
+test [2] [/]
+test [2] 1.female 2.reg
+capture noisily test [9]education
+capture noisily test [9]education = 0
+quietly ologit satisfaction education i.female
+capture noisily test [satisfaction=/]
+capture noisily test [satisfaction] [/]
+capture noisily test _b[/cut1] _b[/cut2]
+capture noisily lincom _b[/education]
+capture noisily lincom [/]cut1()
+capture noisily lincom [satisfaction]education(1)
+capture noisily lincom _b[cut1]
+lincom cut1
+quietly nbreg hours education
+capture noisily lincom _b[lnalpha]
+capture noisily lincom [/]lnalpha()
+capture noisily test [hours] [/]
+capture noisily test [hours=/]
+capture noisily test _b[education] _b[/lnalpha]
+test lnalpha
+quietly tobit wage education i.female, ll(4)
+test [/]var(e.wage) = 50
+test ([/]var(e.wage) = 50)
+test ([/]var(e.wage) = 50) (education = 0)
+capture noisily lincom _b[var(e.wage)]
+capture noisily lincom [/]var(e.wage)()
+capture noisily lincom [wage]education()
+capture noisily lincom _b[education](1)
+test [wage] [/]
+test [wage][/]
+capture noisily test [/]: var(e.wage)
+capture noisily test [wage] var(e.wage)
+capture noisily test [/] education
+quietly regress wage education i.female i.reg
+lincom [#1]_b[education]
+lincom [#1]education
+test [#1]education
+test [#1]: education
+test [#1]
+capture noisily test [#2]
+capture noisily test [#2]education = 0
+capture noisily test [wage]education
+capture noisily test ([wage]education)
+capture noisily test _b[education] _b[1.female]
+capture noisily test _coef[education]
+capture noisily test 2*education
+capture noisily test education+1.female
+capture noisily test (2*education)
+test (education) (education)
+test education 1.female education
+testparm i.reg, equal
+capture noisily testparm i.reg, nosuchoption
+testparm i.reg, df(100)
+testparm i.reg education, equal
+capture noisily testparm i.reg, equation(wage)
+testparm i.reg, eq(#1)
+capture noisily testparm i.reg, df(0)
+capture noisily testparm 1.reg
+regress wage c.education##i.female
+test c.education#1.female
+lincom c.education#1.female
+lincom c.education
+testparm c.education#i.female
+regress wage c.education#i.female#i.union c.hours#c.education#i.reg
+testparm i.female#i.union#c.education
+quietly regress wage i.female#i.union education
+testparm i.female#i.union
+capture noisily testparm i.female
+testparm c.education##i.female
+quietly logit union c.education##i.female
+test [union]
+testparm i.female, equal
+capture noisily testparm i.female, equation(nosuch)
+testparm i.female education, eq(#1) equal
+quietly nbreg hours education i.reg
+testparm i.reg
+quietly ologit satisfaction education i.reg
+testparm i.reg, equal
+capture noisily testparm i.reg, eq(/)
+quietly mlogit sat3 education i.female i.reg, baseoutcome(1)
+testparm i.reg, equal
+testparm i.reg
