@@ -107,6 +107,7 @@ for (const c of fixture.cases)
             "likelihood-factor-layout",
             "models-interaction-terms",
             "nbreg-stata-steps",
+            "models-repeated-terms",
           ].includes(c.id),
         )
       )

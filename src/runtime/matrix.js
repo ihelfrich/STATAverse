@@ -12,16 +12,22 @@ function fromEstimates(session, kind, name) {
   if (kind === "e") {
     const model = session.estimates;
     if (!model) throw new StataError("last estimates not found", 301);
+    // A variable omitted for collinearity is o.name in the stripe.
+    const names = model.names.map((n, k) =>
+      model.columns?.[k]?.term?.variable && !model.estimable?.[k]
+        ? `o.${n}`
+        : n,
+    );
     if (name === "b")
       return {
         rowNames: ["y1"],
-        colNames: [...model.names],
+        colNames: names,
         values: [[...model.b]],
       };
     if (name === "V")
       return {
-        rowNames: [...model.names],
-        colNames: [...model.names],
+        rowNames: [...names],
+        colNames: names,
         values: model.V.map((row) => [...row]),
       };
   }

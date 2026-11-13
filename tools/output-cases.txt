@@ -2497,3 +2497,43 @@ generate int h1 = 30 + floor(runiform() * 13) + floor(runiform() * 3) * a
 generate int h2 = 30 + floor(runiform() * 25)
 generate int h3 = 20 + floor(runiform() * 22)
 nbreg h3 i.a##c.x, nolog
+=== models-repeated-terms
+clear
+set seed 4407
+set obs 400
+generate byte a = runiform() > .5
+generate double x = 8 + floor(runiform() * 12)
+generate double v = runiform() * 10
+generate double x2 = 2 * x
+generate double w = 5 + 2 * x - .05 * x^2 + .3 * v + runiform() * 8
+generate byte d = runiform() < invlogit(-2 + .1 * x + .4 * a)
+generate int c = floor(runiform()^3 * (20 + 3 * x))
+generate double u = runiform()
+generate double latent = .1 * x + .5 * a + ln(u / (1 - u))
+generate byte r = 1 + (latent > 0) + (latent > 1) + (latent > 2)
+regress w x c.x##c.x
+regress w c.x##c.v c.v##c.x
+regress w x x
+regress w x x2
+logit d x c.x##c.x, nolog
+logit d x x2, nolog
+probit d x x, nolog
+poisson c x c.x##c.x, nolog
+tobit w x c.x##c.x, ll(10) nolog
+tobit w x x2, ll(10) nolog
+nbreg c x c.x##c.x, nolog
+ologit r x c.x##c.x, nolog
+oprobit r x x, nolog
+regress w i.a##i.a
+logit d i.a##i.a, nolog
+regress w i.a#i.a
+ologit r i.a#i.a, nolog
+regress w i.a i.a#i.a
+mlogit r x x, nolog
+logit d x x
+probit d x x2
+poisson c x x2
+ologit r x x2
+mlogit r x x2
+tobit w x x2, ll(10)
+nbreg c x x2

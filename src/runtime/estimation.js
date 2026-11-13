@@ -91,17 +91,24 @@ export function design(session, text, rows, constant = true) {
       .join("#");
   const dependent = numeric(tokens[0]),
     terms = [],
-    add = (components) => {
+    add = (named) => {
+      // A factor crossed with itself is that factor: i.a#i.a is i.a.
+      const components = named.filter(
+        (c, k) =>
+          !c.factor ||
+          named.findIndex(
+            (other) => other.factor && other.variable === c.variable,
+          ) === k,
+      );
       // Stata keeps a factor or an interaction only the first time it is
       // named; a continuous variable named twice stays twice and the
-      // second is omitted for collinearity.
-      if (
-        (components.length > 1 || components[0].factor) &&
-        terms.some((t) => key(t.components) === key(components))
-      )
-        return;
+      // second is omitted for collinearity (tobit drops it instead, so the
+      // term says it is a repeat).
+      const repeat = terms.some((t) => key(t.components) === key(components));
+      if (repeat && (components.length > 1 || components[0].factor)) return;
       const [only] = components;
       terms.push({
+        repeat,
         components,
         variables: components.map((c) => c.variable),
         // Kept for code that asks whether a term is one plain variable or
@@ -183,7 +190,10 @@ export function design(session, text, rows, constant = true) {
         partial: (get, variable) => Number(variable === term.variable),
         term,
       };
-      independent(column);
+      // A variable that adds nothing to the columns before it is collinear.
+      // regress chooses what to omit for itself; the likelihood fitters
+      // omit these, as Stata's _rmcoll does.
+      if (!independent(column)) column.collinear = true;
       columns.push(column);
       continue;
     }
@@ -259,7 +269,10 @@ export function design(session, text, rows, constant = true) {
         });
     // A product of continuous variables joins the columns later cells are
     // tested against.
-    else made.forEach((column) => independent(column));
+    else
+      made.forEach((column) => {
+        if (!independent(column)) column.collinear = true;
+      });
     columns.push(...made);
   }
   return { dependent, columns, sample };
@@ -459,21 +472,22 @@ export function fit(session, parsed, by) {
     }
   }
   // Coefficients in the order of the design, with base and omitted columns
-  // held at zero, then the constant.
+  // held at zero, then the constant. Positions go by column, not name: a
+  // variable named twice has two columns of one name, one of them omitted.
   const names = [...columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
     position = new Map();
-  kept.forEach((k, j) => position.set(active[k].name, j));
-  if (constant) position.set("_cons", size - 1);
-  const b = names.map((name) => {
-      const at = position.get(name);
+  kept.forEach((k, j) => position.set(columns.indexOf(active[k]), j));
+  if (constant) position.set(names.length - 1, size - 1);
+  const b = names.map((_, k) => {
+      const at = position.get(k);
       return at === undefined
         ? 0
         : at === size - 1 && constant
           ? intercept
           : slopes[at];
     }),
-    V = names.map((r) =>
-      names.map((c) => {
+    V = names.map((_, r) =>
+      names.map((_, c) => {
         const i = position.get(r),
           j = position.get(c);
         return i === undefined || j === undefined ? 0 : covariance[i][j];
@@ -487,7 +501,7 @@ export function fit(session, parsed, by) {
     V,
     columns,
     constant,
-    estimable: names.map((name) => position.has(name)),
+    estimable: names.map((_, k) => position.has(k)),
     N: n,
     df_m: dfModel,
     df_r: dfTest,
@@ -506,8 +520,8 @@ export function fit(session, parsed, by) {
     sumW,
     wtype,
     vcetype: hc ? `Robust ${hc.toUpperCase()}` : robust ? "Robust" : "",
-    xtxInverse: names.map((r) =>
-      names.map((c) => {
+    xtxInverse: names.map((_, r) =>
+      names.map((_, c) => {
         const i = position.get(r),
           j = position.get(c);
         return i === undefined || j === undefined ? 0 : bread[i][j];

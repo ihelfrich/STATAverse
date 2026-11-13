@@ -22,15 +22,18 @@ const SPLIT =
 /**
  * Maximises objective(theta) -> { value, gradient } by Newton's method.
  * Returns the estimates, the log likelihood at each iteration and the
- * inverse of the negative Hessian.
+ * inverse of the negative Hessian. scales[k], when given, is the size of
+ * the regressor that parameter k multiplies, at least 1; the difference
+ * step shrinks with it, so that a coefficient on x^2 is differenced as
+ * finely, relative to its curvature, as one on x.
  */
-export function maximize(objective, start) {
+export function maximize(objective, start, scales) {
   const size = start.length,
     hessian = (theta) => {
       // Central differences of the analytic gradient.
       const h = Array.from({ length: size }, () => new Array(size).fill(0));
       for (let k = 0; k < size; k++) {
-        const step = 1e-5 * (Math.abs(theta[k]) + 1),
+        const step = 1e-5 * (Math.abs(theta[k]) + 1 / (scales?.[k] ?? 1)),
           up = theta.slice(),
           down = theta.slice();
         up[k] += step;
@@ -97,16 +100,15 @@ export function maximize(objective, start) {
  */
 function layoutRows(session, f, cell) {
   const constant = f.names.includes("_cons"),
-    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
-    position = new Map(f.names.map((name, j) => [name, j]));
+    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])];
   return termRows(
     session,
     {
       names,
       columns: [...f.columns, ...(constant ? [undefined] : [])],
-      estimable: names.map((name) => position.has(name)),
+      estimable: f.at.map((j) => j >= 0),
     },
-    (k) => cell(position.get(names[k])),
+    (k) => cell(f.at[k]),
   );
 }
 
@@ -116,20 +118,64 @@ function layoutRows(session, f, cell) {
  * the cut points of ologit and oprobit are; base cells of interactions are
  * then omitted as they would be beside a constant.
  */
-function frame(session, parsed, constant, intercept = constant) {
-  const { dependent, columns, sample } = design(
-      session,
-      parsed.anything,
-      session.rows(parsed, null),
-      intercept,
-    ),
-    active = columns.filter((c) => !c.base);
+function frame(
+  session,
+  parsed,
+  constant,
+  intercept = constant,
+  dropRepeats = false,
+) {
+  const {
+      dependent,
+      columns: all,
+      sample,
+    } = design(session, parsed.anything, session.rows(parsed, null), intercept),
+    // tobit leaves out a variable named a second time; the others keep it
+    // and omit it for collinearity.
+    columns = dropRepeats ? all.filter((c) => !c.term.repeat) : all;
+  // A variable collinear with those before it is omitted, as Stata's
+  // _rmcoll omits it, and is shown as (omitted).
+  for (const c of columns) c.omitted = !!c.collinear;
+  const active = columns.filter((c) => !c.base && !c.omitted),
+    // Where each coefficient is among the fitted ones, or -1; by column,
+    // since a variable named twice gives two columns of one name.
+    at = [
+      ...columns.map((c) => active.indexOf(c)),
+      ...(constant ? [active.length] : []),
+    ];
   if (!sample.length) throw new StataError("no observations", 2000);
   return {
     dependent,
     columns,
     active,
     sample,
+    at,
+    // The root mean square of each fitted column, at least 1, for the
+    // difference steps of maximize; the constant's is 1.
+    scales: [
+      ...active.map((c) =>
+        Math.max(
+          1,
+          Math.sqrt(
+            sample.reduce((t, i) => t + c.value(i) ** 2, 0) / sample.length,
+          ),
+        ),
+      ),
+      ...(constant ? [1] : []),
+    ],
+    /** The full b, V and estimable flags from the fitted ones. */
+    place: (theta, V) => ({
+      b: at.map((j) => (j >= 0 ? theta[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+      estimable: at.map((j) => j >= 0),
+    }),
+    /** Prints the notes of omitted variables and returns how many. */
+    notes: (ctx) => {
+      const omitted = columns.filter((c) => c.omitted);
+      for (const c of omitted)
+        ctx.out(`note: ${c.name} omitted because of collinearity.`);
+      return omitted.length;
+    },
     y: sample.map((i) => dependent.data[i]),
     x: sample.map((i) => [
       ...active.map((c) => c.value(i)),
@@ -150,6 +196,17 @@ function iterations(ctx, text, log) {
     ),
   );
   ctx.out("");
+}
+/**
+ * What ologit, oprobit and mlogit, which are built into Stata, print before
+ * their header: a blank line, any notes of omitted variables, then the
+ * iteration log, or without a log a blank line after the notes.
+ */
+function opening(ctx, text, f, log) {
+  ctx.out("");
+  if (f.notes(ctx) && /\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
+    ctx.out("");
+  iterations(ctx, text, log);
 }
 /** One row of a coefficient table tested against the normal or t. */
 function row(label, b, se, level, df, transform) {
@@ -176,7 +233,7 @@ function tobit(session, text, ctx) {
     options = parsed.options,
     given = (name) =>
       new RegExp(`\\b${name}\\b`).test(splitAtComma(text)[1] ?? ""),
-    f = frame(session, parsed, options.constant !== false),
+    f = frame(session, parsed, options.constant !== false, undefined, true),
     limit = (option, pick) =>
       !given(option)
         ? null
@@ -230,7 +287,11 @@ function tobit(session, text, ctx) {
           : new Array(k).fill(0),
         rss = x.reduce((t, r, i) => t + (f.y[i] - dot(r, beta)) ** 2, 0),
         start = [...beta, 0.5 * Math.log(rss / n || 1)];
-      return maximize(objective, start);
+      return maximize(
+        objective,
+        start,
+        x === f.x ? [...f.scales, 1] : undefined,
+      );
     },
     full = fit(f.x),
     k = f.x[0].length,
@@ -247,25 +308,14 @@ function tobit(session, text, ctx) {
     text2 = (v, infinity) => (v === null ? infinity : g(v)),
     width = Math.max(text2(lower, "-inf").length, text2(upper, "+inf").length),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
-    position = new Map(f.names.map((name, j) => [name, j])),
     model = {
       command: "tobit",
       title: "Tobit regression",
       depvar: f.dependent.name,
       names,
-      b: names.map((name) =>
-        position.has(name) ? full.theta[position.get(name)] : 0,
-      ),
-      V: names.map((r) =>
-        names.map((c) =>
-          position.has(r) && position.has(c)
-            ? full.V[position.get(r)][position.get(c)]
-            : 0,
-        ),
-      ),
+      ...f.place(full.theta, full.V),
       columns: f.columns,
       constant,
-      estimable: names.map((name) => position.has(name)),
       N: n,
       df_m: dfModel,
       df_r: df,
@@ -291,11 +341,12 @@ function tobit(session, text, ctx) {
     N_lc: counts[1],
     N_rc: counts[2],
     rank: k + 1,
-    k: k + 1,
+    k: names.length + 1,
     cmd: "tobit",
     depvar: model.depvar,
     vce: "oim",
   };
+  f.notes(ctx);
   ctx.out("");
   // Stata's tobit first refines its starting values on a grid and logs the
   // best node, which is where the full model's iterations begin.
@@ -417,10 +468,12 @@ function ordered(kind) {
       start[k + c] = link.inverse(running / n);
     }
     const ll0 = objective(start).value,
-      full = maximize(objective, start),
+      full = maximize(objective, start, [
+        ...f.scales,
+        ...new Array(cuts).fill(1),
+      ]),
       chi2 = 2 * (full.ll - ll0),
       names = f.columns.map((c) => c.name),
-      position = new Map(f.names.map((name, j) => [name, j])),
       transform = options.or && kind === "ologit",
       model = {
         command: kind,
@@ -428,19 +481,9 @@ function ordered(kind) {
         dist: "z",
         depvar: f.dependent.name,
         names,
-        b: names.map((name) =>
-          position.has(name) ? full.theta[position.get(name)] : 0,
-        ),
-        V: names.map((r) =>
-          names.map((c) =>
-            position.has(r) && position.has(c)
-              ? full.V[position.get(r)][position.get(c)]
-              : 0,
-          ),
-        ),
+        ...f.place(full.theta, full.V),
         columns: f.columns,
         constant: false,
-        estimable: names.map((name) => position.has(name)),
         N: n,
         df_m: k,
         rank: k + cuts,
@@ -473,14 +516,13 @@ function ordered(kind) {
       r2_p: 1 - full.ll / ll0,
       k_cat: levels.length,
       rank: k + cuts,
-      k: k + cuts,
+      k: names.length + cuts,
       cmd: kind,
       depvar: model.depvar,
       vce: "oim",
     };
     const critical = invnormal(1 - (1 - options.level / 100) / 2);
-    ctx.out("");
-    iterations(ctx, text, full.log);
+    opening(ctx, text, f, full.log);
     ctx.out(`${link.title.padEnd(56)}${side("Number of obs", count(n))}`);
     ctx.out(
       `${" ".repeat(56)}${side(`LR chi2(${k})`, applyFormat(chi2, "%7.2f").trim())}`,
@@ -587,7 +629,11 @@ function mlogit(session, text, ctx) {
         (start[e * k + k - 1] = Math.log(frequency[j] / frequency[base])),
     );
   const ll0 = constant ? objective(start).value : MISSING,
-    full = maximize(objective, start),
+    full = maximize(
+      objective,
+      start,
+      others.flatMap(() => f.scales),
+    ),
     dfModel = others.length * f.active.length,
     chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
     label = (j) => labelled(session, f.dependent, outcomes[j]),
@@ -644,8 +690,7 @@ function mlogit(session, text, ctx) {
     depvar: model.depvar,
     vce: "oim",
   };
-  ctx.out("");
-  iterations(ctx, text, full.log);
+  opening(ctx, text, f, full.log);
   ctx.out(`${model.title.padEnd(56)}${side("Number of obs", count(n))}`);
   ctx.out(
     `${" ".repeat(56)}${side(`LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim())}`,
@@ -667,18 +712,34 @@ function mlogit(session, text, ctx) {
     if (j === base) return ctx.out(`${label(j).padEnd(13)}|  (base outcome)`);
     const e = others.indexOf(j);
     ctx.out(`${label(j).padEnd(13)}|`);
-    f.names.forEach((name, a) =>
+    // An omitted variable keeps its row, as (omitted).
+    f.columns.forEach((c, at) => {
+      if (c.base) return;
+      const a = f.at[at];
+      ctx.out(
+        a < 0
+          ? `${c.name.padStart(12)} |          0  (omitted)`
+          : row(
+              `${c.name.padStart(12)} `,
+              full.theta[e * k + a],
+              Math.sqrt(full.V[e * k + a][e * k + a]),
+              options.level,
+              0,
+              !!options.rrr,
+            ),
+      );
+    });
+    if (constant)
       ctx.out(
         row(
-          `${name.padStart(12)} `,
-          full.theta[e * k + a],
-          Math.sqrt(full.V[e * k + a][e * k + a]),
+          `${"_cons".padStart(12)} `,
+          full.theta[e * k + k - 1],
+          Math.sqrt(full.V[e * k + k - 1][e * k + k - 1]),
           options.level,
           0,
           !!options.rrr,
         ),
-      ),
-    );
+      );
   });
   ctx.out(RULE);
   if (options.rrr && constant)
@@ -687,11 +748,160 @@ function mlogit(session, text, ctx) {
 }
 
 // ----- negative binomial -----
-const lnFactorial = (n) => {
-  let total = 0;
-  for (let k = 2; k <= n; k++) total += Math.log(k);
-  return total;
-};
+/**
+ * For a count y and m = 1/alpha, the sums over j < y of ln(m + j), of
+ * 1/(m + j) and of j/(m + j)^2, which are ln(Gamma(m + y)/Gamma(m)),
+ * digamma(m + y) - digamma(m) and that less m(trigamma(m) - trigamma(m + y)).
+ * Counts up to 1,000 are summed term by term, exact however large m is;
+ * past the first 1,000 terms the rest come from the asymptotic series at
+ * a = m + 1000 and b = m + y, written as differences so that a large m
+ * loses nothing, which keeps large counts from costing a pass over the
+ * count at every step.
+ */
+export function gammaSums(m, y) {
+  const head = Math.min(y, 1000);
+  let ln = 0,
+    di = 0,
+    tri = 0;
+  for (let j = 0; j < head; j++) {
+    ln += Math.log(m + j);
+    di += 1 / (m + j);
+    tri += j / (m + j) ** 2;
+  }
+  if (y <= head) return { ln, di, tri };
+  const a = m + head,
+    b = m + y,
+    d = y - head,
+    r = Math.log1p(d / a),
+    // 1/a^k - 1/b^k, without cancellation.
+    inverse = (k) => {
+      let sum = 0;
+      for (let j = 0; j < k; j++) sum += a ** (k - 1 - j) * b ** j;
+      return (d * sum) / (a * b) ** k;
+    },
+    // Stirling's series for lnGamma, and the series of digamma(x) - ln x
+    // and trigamma, each differenced between a and b.
+    lnRest =
+      (a - 0.5) * r +
+      d * Math.log(b) -
+      d -
+      inverse(1) / 12 +
+      inverse(3) / 360 -
+      inverse(5) / 1260 +
+      inverse(7) / 1680,
+    diRest =
+      r +
+      inverse(1) / 2 +
+      inverse(2) / 12 -
+      inverse(4) / 120 +
+      inverse(6) / 252 -
+      inverse(8) / 240,
+    trigammaDifference =
+      inverse(1) +
+      inverse(2) / 2 +
+      inverse(3) / 6 -
+      inverse(5) / 30 +
+      inverse(7) / 42 -
+      inverse(9) / 30;
+  return {
+    ln: ln + lnRest,
+    di: di + diRest,
+    tri: tri + diRest - m * trigammaDifference,
+  };
+}
+/** ln(n!), the sum of ln k for k up to n. */
+const lnFactorial = (n) => gammaSums(1, n).ln;
+
+/** Weighted least squares of y on the rows of x, or null if singular. */
+function leastSquares(x, y, w) {
+  const k = x[0].length,
+    xtx = Array.from({ length: k }, () => new Array(k).fill(0)),
+    xty = new Array(k).fill(0);
+  x.forEach((r, i) => {
+    const wi = w ? w[i] : 1;
+    for (let a = 0; a < k; a++) {
+      xty[a] += wi * r[a] * y[i];
+      for (let c = 0; c < k; c++) xtx[a][c] += wi * r[a] * r[c];
+    }
+  });
+  const inverse = invertSymmetric(xtx);
+  return inverse
+    ? inverse.map((row) => row.reduce((t, v, c) => t + v * xty[c], 0))
+    : null;
+}
+
+/**
+ * The Poisson model nbreg fits first, as Stata's poisson fits it: starting
+ * values from Ipois in poisson.ado (least squares scaled by the mean, the
+ * constant solved for, and one reweighted least-squares step, whichever of
+ * the three fits best), then Newton steps as ml takes them.
+ */
+function poissonFit(x, y, lnFact, constant) {
+  const n = y.length,
+    k = x[0].length,
+    mean = y.reduce((a, b) => a + b, 0) / n,
+    lnf = (xb) => {
+      let total = 0;
+      xb.forEach((v, i) => (total += y[i] * v - Math.exp(v) - lnFact[i]));
+      return Number.isFinite(total) ? total : NaN;
+    },
+    better = (a, b) => Number.isNaN(b) || a > b,
+    candidates = [];
+  const b0 = leastSquares(x, y);
+  if (b0) {
+    const b1 = b0.map((v) => v / mean),
+      xb1 = x.map((r) => dot(r, b1)),
+      lnf1 = lnf(xb1);
+    let c = NaN,
+      lnf1c = NaN;
+    if (constant) {
+      // SolveC: the constant that makes the mean of exp(xb) the mean of y,
+      // shifted where exp() would overflow.
+      const top = Math.max(...xb1),
+        bottom = Math.min(...xb1);
+      if (top - bottom <= 2 * 709) {
+        const shift = top > 709 ? 709 - top : bottom < -709 ? -709 - bottom : 0,
+          meanExp = xb1.reduce((t, v) => t + Math.exp(v + shift), 0) / n;
+        c = Math.log(mean) - Math.log(meanExp) + shift;
+        lnf1c = lnf(xb1.map((v) => v + c));
+      }
+    }
+    const offset = Number.isNaN(c) ? 0 : c,
+      eta = xb1.map((v) => v + offset),
+      z = eta.map((v, i) => y[i] * Math.exp(-v) - 1 + v),
+      b2 = leastSquares(
+        x,
+        z,
+        eta.map((v) => Math.exp(v)),
+      ),
+      lnf2 = b2 ? lnf(x.map((r) => dot(r, b2))) : NaN;
+    if (!Number.isNaN(lnf2) && better(lnf2, lnf1) && better(lnf2, lnf1c))
+      candidates.push(b2);
+    else if (!Number.isNaN(lnf1) && better(lnf1, lnf1c) && better(lnf1, lnf2))
+      candidates.push(b1);
+    else if (!(Number.isNaN(lnf1) && Number.isNaN(lnf1c)))
+      candidates.push(b1.map((v, j) => (j === k - 1 ? v + offset : v)));
+  }
+  const start =
+    candidates[0] ??
+    x[0].map((_, j) => (constant && j === k - 1 ? Math.log(mean || 1) : 0));
+  return maximizeNR((theta, todo) => {
+    const gradient = new Array(k).fill(0),
+      information = Array.from({ length: k }, () => new Array(k).fill(0));
+    let value = 0;
+    x.forEach((r, i) => {
+      const xb = dot(r, theta),
+        mu = Math.exp(xb);
+      value += y[i] * xb - mu - lnFact[i];
+      if (todo)
+        r.forEach((v, a) => {
+          gradient[a] += (y[i] - mu) * v;
+          r.forEach((w, c) => (information[a][c] += mu * v * w));
+        });
+    });
+    return { value, gradient, information };
+  }, start);
+}
 
 /**
  * A generalised inverse of a symmetric matrix, as Mata's invsym() gives:
@@ -850,27 +1060,11 @@ function nbreg(session, text, ctx) {
       `${f.dependent.name} must be a nonnegative count`,
       459,
     );
-  const poisson = (x) => {
-      const k = x[0].length,
-        start = new Array(k).fill(0);
-      start[k - 1] = Math.log(f.y.reduce((a, b) => a + b, 0) / n || 1);
-      return maximize((theta) => {
-        const gradient = new Array(k).fill(0);
-        let value = 0;
-        x.forEach((r, i) => {
-          const xb = dot(r, theta),
-            mu = Math.exp(xb);
-          value += f.y[i] * xb - mu - lnFactorial(f.y[i]);
-          r.forEach((v, a) => (gradient[a] += (f.y[i] - mu) * v));
-        });
-        return { value, gradient };
-      }, start);
-    },
-    lnFact = f.y.map(lnFactorial),
+  const lnFact = f.y.map(lnFactorial),
     // Stata's nbreg_lf: the log likelihood, its gradient and the negative
     // Hessian in (xb, lnalpha). Below lnalpha = -20 it is the Poisson
     // likelihood, flat in lnalpha. The gamma functions of 1/alpha + y are
-    // taken as sums over the count, exact where 1/alpha is large.
+    // taken from gammaSums, exact where 1/alpha is large.
     negative = (x) => (theta, todo) => {
       const k = x[0].length,
         ln = theta[k],
@@ -894,15 +1088,8 @@ function nbreg(session, text, ctx) {
             });
           return;
         }
-        let lnGamma = 0,
-          digamma = 0,
-          trigamma = 0;
-        for (let j = 0; j < y; j++) {
-          lnGamma += Math.log(m + j);
-          digamma += 1 / (m + j);
-          trigamma += j / (m + j) ** 2;
-        }
-        const lnp = -Math.log1p(Math.exp(xb + ln)),
+        const { ln: lnGamma, di: digamma, tri: trigamma } = gammaSums(m, y),
+          lnp = -Math.log1p(Math.exp(xb + ln)),
           p = Math.exp(lnp);
         value +=
           lnGamma - lnFact[i] + m * lnp - y * Math.log1p(Math.exp(-xb - ln));
@@ -912,7 +1099,7 @@ function nbreg(session, text, ctx) {
           d11 = mu * p * (alpha * p * (y - mu) + 1),
           d12 = alpha * mu * p * p * (y - mu),
           // trigamma here is the sum of j/(m+j)^2, which is
-          // m(trigamma(m) - trigamma(y+m)) - (digamma(y+m) - digamma(m)).
+          // (digamma(y+m) - digamma(m)) - m(trigamma(m) - trigamma(y+m)).
           d22 = m * (-lnp - trigamma) + mu * p * (alpha * p * (y - mu) - 1);
         r.forEach((v, a) => {
           gradient[a] += s1 * v;
@@ -925,7 +1112,7 @@ function nbreg(session, text, ctx) {
       });
       return { value, gradient, information };
     },
-    base = poisson(f.x),
+    base = poissonFit(f.x, f.y, lnFact, constant),
     k = f.x[0].length,
     mean = f.y.reduce((a, b) => a + b, 0) / n,
     // Starting values as nbreg.ado chooses them: the constant-only model
@@ -972,32 +1159,23 @@ function nbreg(session, text, ctx) {
     cov = full.V,
     seLn = cov[k][k] > 0 ? Math.sqrt(cov[k][k]) : MISSING,
     noSe = isMissing(seLn),
+    // The rank of the variance: lnalpha is dropped at the boundary.
+    rank = cov.filter((row, j) => row[j] !== 0).length,
     alpha = Math.exp(lnalpha),
     critical = invnormal(1 - (1 - options.level / 100) / 2),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
-    position = new Map(f.names.map((name, j) => [name, j])),
     model = {
       command: "nbreg",
       title: "Negative binomial regression",
       dist: "z",
       depvar: f.dependent.name,
       names,
-      b: names.map((name) =>
-        position.has(name) ? full.theta[position.get(name)] : 0,
-      ),
-      V: names.map((r) =>
-        names.map((c) =>
-          position.has(r) && position.has(c)
-            ? cov[position.get(r)][position.get(c)]
-            : 0,
-        ),
-      ),
+      ...f.place(full.theta, cov),
       columns: f.columns,
       constant,
-      estimable: names.map((name) => position.has(name)),
       N: n,
       df_m: dfModel,
-      rank: k + 1,
+      rank,
       ll: full.ll,
       ll_0: ll0,
       vce: "oim",
@@ -1017,12 +1195,13 @@ function nbreg(session, text, ctx) {
     chi2_c: chi2c,
     alpha,
     r2_p: null0 ? 1 - full.ll / ll0 : MISSING,
-    rank: k + 1,
-    k: k + 1,
+    rank,
+    k: names.length + 1,
     cmd: "nbreg",
     depvar: model.depvar,
     vce: "oim",
   };
+  f.notes(ctx);
   ctx.out("");
   if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
     for (const [title, fitted] of [
