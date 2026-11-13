@@ -2150,6 +2150,14 @@ xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
 === error-messages
+capture noisily error 2
+display _rc
+capture noisily error 4
+display _rc
+capture noisily error 18
+display _rc
+capture noisily error 50
+display _rc
 capture noisily error 100
 display _rc
 capture noisily error 102

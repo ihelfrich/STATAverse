@@ -14348,8 +14348,25 @@
     },
     {
       "id": "error-messages",
-      "source": "capture noisily error 100\ndisplay _rc\ncapture noisily error 102\ndisplay _rc\ncapture noisily error 109\ndisplay _rc\ncapture noisily error 110\ndisplay _rc\ncapture noisily error 111\ndisplay _rc\ncapture noisily error 119\ndisplay _rc\ncapture noisily error 121\ndisplay _rc\ncapture noisily error 123\ndisplay _rc\ncapture noisily error 130\ndisplay _rc\ncapture noisily error 131\ndisplay _rc\ncapture noisily error 135\ndisplay _rc\ncapture noisily error 190\ndisplay _rc\ncapture noisily error 198\ndisplay _rc\ncapture noisily error 199\ndisplay _rc\ncapture noisily error 200\ndisplay _rc\ncapture noisily error 301\ndisplay _rc\ncapture noisily error 321\ndisplay _rc\ncapture noisily error 322\ndisplay _rc\ncapture noisily error 402\ndisplay _rc\ncapture noisily error 430\ndisplay _rc\ncapture noisily error 459\ndisplay _rc\ncapture noisily error 503\ndisplay _rc\ncapture noisily error 506\ndisplay _rc\ncapture noisily error 601\ndisplay _rc\ncapture noisily error 2000\ndisplay _rc\ncapture noisily error 2001\ndisplay _rc\ncapture noisily error 12345\ndisplay _rc\nscalar k = 3\ncapture noisily error 100 + k\ndisplay _rc\n",
+      "source": "capture noisily error 2\ndisplay _rc\ncapture noisily error 4\ndisplay _rc\ncapture noisily error 18\ndisplay _rc\ncapture noisily error 50\ndisplay _rc\ncapture noisily error 100\ndisplay _rc\ncapture noisily error 102\ndisplay _rc\ncapture noisily error 109\ndisplay _rc\ncapture noisily error 110\ndisplay _rc\ncapture noisily error 111\ndisplay _rc\ncapture noisily error 119\ndisplay _rc\ncapture noisily error 121\ndisplay _rc\ncapture noisily error 123\ndisplay _rc\ncapture noisily error 130\ndisplay _rc\ncapture noisily error 131\ndisplay _rc\ncapture noisily error 135\ndisplay _rc\ncapture noisily error 190\ndisplay _rc\ncapture noisily error 198\ndisplay _rc\ncapture noisily error 199\ndisplay _rc\ncapture noisily error 200\ndisplay _rc\ncapture noisily error 301\ndisplay _rc\ncapture noisily error 321\ndisplay _rc\ncapture noisily error 322\ndisplay _rc\ncapture noisily error 402\ndisplay _rc\ncapture noisily error 430\ndisplay _rc\ncapture noisily error 459\ndisplay _rc\ncapture noisily error 503\ndisplay _rc\ncapture noisily error 506\ndisplay _rc\ncapture noisily error 601\ndisplay _rc\ncapture noisily error 2000\ndisplay _rc\ncapture noisily error 2001\ndisplay _rc\ncapture noisily error 12345\ndisplay _rc\nscalar k = 3\ncapture noisily error 100 + k\ndisplay _rc\n",
       "commands": [
+        {
+          "command": "capture noisily error 2",
+          "lines": ["connection timed out"]
+        },
+        { "command": "display _rc", "lines": ["2"] },
+        {
+          "command": "capture noisily error 4",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "display _rc", "lines": ["4"] },
+        {
+          "command": "capture noisily error 18",
+          "lines": ["you must start with an empty dataset"]
+        },
+        { "command": "display _rc", "lines": ["18"] },
+        { "command": "capture noisily error 50", "lines": [] },
+        { "command": "display _rc", "lines": ["50"] },
         { "command": "capture noisily error 100", "lines": ["invalid syntax"] },
         { "command": "display _rc", "lines": ["100"] },
         {

@@ -1,7 +1,13 @@
 // The message Stata prints for the command error #, recorded from Stata 19
-// (version 17) by running capture noisily error # for each code below. A code
-// with an empty message prints only its return code.
+// (version 17) by running capture noisily error # for codes 2 to 99 and the
+// common codes from 100 up. A code with an empty message, or one not listed,
+// prints only its return code.
 export const STANDARD_MESSAGES = {
+  2: "connection timed out",
+  3: "no dataset in use",
+  4: "no; dataset in memory has changed since last saved",
+  5: "not sorted",
+  18: "you must start with an empty dataset",
   100: "invalid syntax",
   101: "invalid syntax",
   102: "too few variables specified",
