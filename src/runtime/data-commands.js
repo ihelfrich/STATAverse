@@ -645,9 +645,10 @@ function duplicates(session, text, ctx) {
     ctx.out("--------------------------------------");
     ctx.out("   Copies | Observations       Surplus");
     ctx.out("----------+---------------------------");
+    // tabdisp shows the counts in %9.0g, without thousands separators.
     for (const [size, n] of [...copies].sort((a, b) => a[0] - b[0]))
       ctx.out(
-        `${String(size).padStart(9)} |${count(n).padStart(13)}${count(n - n / size).padStart(14)}`,
+        `${String(size).padStart(9)} |${String(n).padStart(13)}${String(n - n / size).padStart(14)}`,
       );
     ctx.out("--------------------------------------");
     session.results.r = { N: rows.length, unique_value: groups.size };
@@ -810,6 +811,9 @@ function encode(session, text) {
         ),
       ),
     ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  // A value label holds at most 65,536 codings (help limits).
+  if (map.size + fresh.length > 65536)
+    throw new StataError("too many values", 134);
   let next = Math.max(0, greatest(map.keys()));
   for (const label of fresh) {
     codes.set(label, ++next);

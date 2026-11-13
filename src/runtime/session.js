@@ -144,7 +144,7 @@ export class Session {
    */
   select(parsed, by, visit) {
     if (by && parsed.in)
-      throw new StataError("in may not be combined with by", 190);
+      throw new StataError("'in' may not be combined with 'by'", 190);
     const condition = parsed.if ? this.compile(parsed.if) : null;
     if (condition && condition.type !== "numeric")
       throw new StataError("type mismatch", 109);

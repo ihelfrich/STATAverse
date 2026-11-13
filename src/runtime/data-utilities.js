@@ -1,6 +1,7 @@
 // Smaller data-management commands: _pctile, pctile, cumul, mvdecode,
 // mvencode, separate, split, insobs, fillin and lookfor.
 import { StataError } from "./errors.js";
+import { greatest } from "./extremes.js";
 import { count, describe, percentile } from "./reports.js";
 import { MISSING, inferType, isMissing, isStringType } from "./values.js";
 
@@ -240,13 +241,17 @@ function split(session, text, ctx) {
         : parts;
     }),
     // A piece that is empty in every observation makes no variable.
+    // greatest() loops; spreading one count per observation into Math.max
+    // overflowed the call stack at about 130,000 observations.
     width = Math.max(
       0,
-      ...pieces.map((parts) => {
-        let last = parts.length;
-        while (last && parts[last - 1] === "") last--;
-        return last;
-      }),
+      greatest(
+        pieces.map((parts) => {
+          let last = parts.length;
+          while (last && parts[last - 1] === "") last--;
+          return last;
+        }),
+      ),
     ),
     stem = parsed.options.generate ?? source.name,
     names = Array.from({ length: width }, (_, k) =>
