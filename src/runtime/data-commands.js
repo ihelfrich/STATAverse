@@ -2,6 +2,7 @@
 // that convert between strings and numbers. Datasets are saved to a folder
 // that lives in the session (session.files), so save, use, append and merge
 // work together without touching the student's disk.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count } from "./reports.js";
@@ -660,6 +661,22 @@ function placeAfter(data, name, after) {
   names.splice(names.indexOf(after) + 1, 0, name);
   data.order(names);
 }
+/**
+ * Replaces a variable with new values in its own position. The new column is
+ * made before the old one is dropped: dropping the only variable empties the
+ * dataset, after which there would be no observations to fill.
+ */
+function swapVariable(data, name, values, options) {
+  const position = data.names,
+    label = data.get(name).label;
+  let temporary = "__swap";
+  while (data.has(temporary)) temporary += "_";
+  data.generate(temporary, values, options);
+  data.drop([name]);
+  data.rename(temporary, name);
+  data.order(position);
+  data.get(name).label = label;
+}
 function targets(parsed, action) {
   const { generate, replace } = parsed.options;
   if (!generate === !replace)
@@ -712,12 +729,7 @@ function destring(session, text, ctx) {
       data.generate(target, values, { type });
       placeAfter(data, target, name);
     } else {
-      const label = variable.label,
-        position = data.names;
-      data.drop([name]);
-      data.generate(name, values, { type });
-      data.order(position);
-      data.get(name).label = label;
+      swapVariable(data, name, values, { type });
     }
     data.get(target).format = "%10.0g";
     ctx.out(
@@ -769,11 +781,7 @@ function tostring(session, text, ctx) {
       data.get(target).label = label || name;
       ctx.out(`${target} generated as ${data.get(target).type}`);
     } else {
-      const position = data.names;
-      data.drop([name]);
-      data.generate(name, values, { string: true });
-      data.order(position);
-      data.get(name).label = label;
+      swapVariable(data, name, values, { string: true });
       ctx.out(`${name} was ${was} now ${data.get(name).type}`);
     }
   });
@@ -802,7 +810,7 @@ function encode(session, text) {
         ),
       ),
     ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  let next = Math.max(0, ...map.keys());
+  let next = Math.max(0, greatest(map.keys()));
   for (const label of fresh) {
     codes.set(label, ++next);
     map.set(next, label);
@@ -875,8 +883,8 @@ function recode(session, text, ctx) {
       throw new StataError("recode only allows numeric variables", 108);
     const column = variable.data,
       nonmissing = Array.from(column).filter((v) => !isMissing(v)),
-      low = Math.min(...nonmissing),
-      high = Math.max(...nonmissing),
+      low = least(nonmissing),
+      high = greatest(nonmissing),
       // A rule's numbers are read at the variable's own precision.
       point = (word) =>
         word === "min"

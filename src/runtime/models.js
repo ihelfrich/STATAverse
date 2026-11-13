@@ -2,6 +2,7 @@
 // two-stage least squares (ivregress 2sls), with estat and estimates. They
 // leave the same result object regress leaves, marked dist "z", and the
 // post-estimation commands here read only that object.
+import { least, greatest } from "./extremes.js";
 import { firstStage, ivDiagnostic } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
 import { regressDiagnostic, testparm } from "./diagnostics.js";
@@ -450,7 +451,7 @@ function smallestRoot(A, B) {
         }
       }
   }
-  return Math.min(...C.map((row, i) => row[i]));
+  return least(C.map((row, i) => row[i]));
 }
 
 // ----- two-stage least squares -----
@@ -1189,7 +1190,7 @@ function estat(session, text, ctx) {
           applyFormat(df > 0 ? chi2 : 0, "%9.2f").trim(),
           df > 0 ? applyFormat(chi2tail(df, chi2), "%6.4f").trim() : ".",
         ],
-        width = Math.max(...values.map((v) => v.length)) + 1;
+        width = greatest(values.map((v) => v.length)) + 1;
       ctx.out(`Goodness-of-fit test after ${kind} model`);
       ctx.out(`Variable: ${model.depvar}`);
       ctx.out("");

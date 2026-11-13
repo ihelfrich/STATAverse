@@ -179,10 +179,23 @@ export function mountMap({
       item.classList.toggle("is-linked", on && key === id);
     pointed(id, on);
   }
+  /**
+   * After reveal() scrolls, whatever lands under a pointer that has not
+   * moved receives enter and leave events, and would take the light from the
+   * card just revealed. Hover counts again once the pointer itself moves.
+   */
+  let parked = false;
+  document.addEventListener("pointermove", (event) => {
+    if (event.movementX || event.movementY) parked = false;
+  });
+  const hover = (id, on) => {
+    if (!parked) point(id, on);
+  };
   /** Brings a card into view and lights it, from somewhere else. */
   function reveal(id) {
     const item = cards.get(id);
     if (!item) return;
+    parked = true;
     point(id, true);
     item.scrollIntoView({ block: "nearest", inline: "nearest" });
     item.classList.remove("is-found");
@@ -368,8 +381,8 @@ export function mountMap({
     head.append(title, el("span", "map-state"));
     item.append(head);
     drag(head, step, item);
-    item.addEventListener("pointerenter", () => point(step.id, true));
-    item.addEventListener("pointerleave", () => point(step.id, false));
+    item.addEventListener("pointerenter", () => hover(step.id, true));
+    item.addEventListener("pointerleave", () => hover(step.id, false));
     item.addEventListener("focusin", () => point(step.id, true));
 
     for (const field of fieldsOf(step)) {
@@ -628,6 +641,8 @@ export function mountMap({
 
   return {
     draw,
+    /** Whether hover may move the light, as in hover() above. */
+    hovering: () => !parked,
     files: () =>
       files(map).map((file) => ({
         name: file.name,
