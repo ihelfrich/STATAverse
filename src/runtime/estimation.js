@@ -525,8 +525,20 @@ export function tableWidth(session, model) {
   const cap = (session.settings?.linesize ?? 80) - 67,
     // A name counts whole when the line allows it; an interaction that does
     // not fit breaks after a #, so then its longest piece counts.
+    // A factor level's label counts too, with the space after it.
+    labels = model.names.flatMap((_, k) => {
+      const column = model.columns?.[k];
+      if (!column?.levels || column.base) return [];
+      const factors = column.term.components.filter((c) => c.factor);
+      return [
+        column.levels
+          .map((level, j) => labelled(session, factors[j].variable, level))
+          .join(" ").length + 1,
+      ];
+    }),
     longest = Math.max(
       0,
+      ...labels,
       ...shown.map((n) =>
         n.length <= cap || !n.includes("#")
           ? n.length
@@ -617,13 +629,14 @@ export function termRows(session, model, cells, width) {
       ),
     );
     const factors = block.term.components.filter((c) => c.factor);
-    for (const k of shown)
-      row(
-        `${model.columns[k].levels
-          .map((level, j) => labelled(session, factors[j].variable, level))
-          .join(" ")}  `.padStart(w + 1),
-        k,
-      );
+    for (const k of shown) {
+      let label = model.columns[k].levels
+        .map((level, j) => labelled(session, factors[j].variable, level))
+        .join(" ");
+      // A label too long for the column is cut and marked with two dots.
+      if (width && label.length > w - 1) label = `${label.slice(0, w - 3)}..`;
+      row(`${label}  `.padStart(w + 1), k);
+    }
   });
   return out;
 }

@@ -14733,6 +14733,72 @@
       ]
     },
     {
+      "id": "factor-label-width",
+      "source": "clear\nset seed 4\nset obs 90\ngenerate byte g = 1 + floor(runiform() * 3)\nlabel define gl 1 \"Short\" 2 \"A rather long label\" 3 \"Mid label\"\nlabel values g gl\ngenerate double y = g + runiform()\nset linesize 80\nregress y i.g\nset linesize 200\nregress y i.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "label define gl 1 \"Short\" 2 \"A rather long label\" 3 \"Mid label\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "generate double y = g + runiform()", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        90",
+            "-------------+----------------------------------   F(2, 87)        =    404.78",
+            "       Model |  65.2056613         2  32.6028307   Prob > F        =    0.0000",
+            "    Residual |    7.007338        87  .080544115   R-squared       =    0.9030",
+            "-------------+----------------------------------   Adj R-squared   =    0.9007",
+            "       Total |  72.2129993        89  .811382015   Root MSE        =     .2838",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            g |",
+            "A rather l..  |   .9700621   .0751928    12.90   0.000     .8206083    1.119516",
+            "   Mid label  |   2.067859   .0729199    28.36   0.000     1.922923    2.212796",
+            "              |",
+            "        _cons |   1.446661   .0536337    26.97   0.000     1.340058    1.553263",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress y i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        90",
+            "-------------+----------------------------------   F(2, 87)        =    404.78",
+            "       Model |  65.2056613         2  32.6028307   Prob > F        =    0.0000",
+            "    Residual |    7.007338        87  .080544115   R-squared       =    0.9030",
+            "-------------+----------------------------------   Adj R-squared   =    0.9007",
+            "       Total |  72.2129993        89  .811382015   Root MSE        =     .2838",
+            "",
+            "--------------------------------------------------------------------------------------",
+            "                   y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------+----------------------------------------------------------------",
+            "                   g |",
+            "A rather long label  |   .9700621   .0751928    12.90   0.000     .8206083    1.119516",
+            "          Mid label  |   2.067859   .0729199    28.36   0.000     1.922923    2.212796",
+            "                     |",
+            "               _cons |   1.446661   .0536337    26.97   0.000     1.340058    1.553263",
+            "--------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

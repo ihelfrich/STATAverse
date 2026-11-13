@@ -2194,3 +2194,15 @@ regress wage education c.education#c.experience
 regress wage c.education##c.experience
 set linesize 200
 regress wage education c.education#c.experience
+=== factor-label-width
+clear
+set seed 4
+set obs 90
+generate byte g = 1 + floor(runiform() * 3)
+label define gl 1 "Short" 2 "A rather long label" 3 "Mid label"
+label values g gl
+generate double y = g + runiform()
+set linesize 80
+regress y i.g
+set linesize 200
+regress y i.g
