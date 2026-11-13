@@ -2149,3 +2149,61 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== error-messages
+capture noisily error 100
+display _rc
+capture noisily error 102
+display _rc
+capture noisily error 109
+display _rc
+capture noisily error 110
+display _rc
+capture noisily error 111
+display _rc
+capture noisily error 119
+display _rc
+capture noisily error 121
+display _rc
+capture noisily error 123
+display _rc
+capture noisily error 130
+display _rc
+capture noisily error 131
+display _rc
+capture noisily error 135
+display _rc
+capture noisily error 190
+display _rc
+capture noisily error 198
+display _rc
+capture noisily error 199
+display _rc
+capture noisily error 200
+display _rc
+capture noisily error 301
+display _rc
+capture noisily error 321
+display _rc
+capture noisily error 322
+display _rc
+capture noisily error 402
+display _rc
+capture noisily error 430
+display _rc
+capture noisily error 459
+display _rc
+capture noisily error 503
+display _rc
+capture noisily error 506
+display _rc
+capture noisily error 601
+display _rc
+capture noisily error 2000
+display _rc
+capture noisily error 2001
+display _rc
+capture noisily error 12345
+display _rc
+scalar k = 3
+capture noisily error 100 + k
+display _rc

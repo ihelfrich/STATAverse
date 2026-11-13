@@ -4,6 +4,7 @@
 // after macro substitution; ctx carries the by-groups, the current macro
 // frame and out(line) for results.
 import { Signal, StataError } from "./errors.js";
+import { STANDARD_MESSAGES } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
@@ -1518,10 +1519,14 @@ export const COMMANDS = [
         9,
       );
   }),
+  // error exp stops with return code exp and Stata's message for it.
   command("error", 5, (session, text) => {
-    const code = Number(text.trim());
-    if (!Number.isInteger(code)) throw invalid();
-    if (code) throw new StataError(`error ${code}`, code);
+    if (!text.trim()) throw invalid();
+    const value = session.scalar(text);
+    if (typeof value !== "number" || !(value >= 0)) throw invalid();
+    // Stata rounds a fractional code; one it has no message for prints none.
+    const code = Math.round(value);
+    if (code) throw new StataError(STANDARD_MESSAGES[code] ?? "", code);
   }),
   command("exit", 4, (session, text) => {
     const code = text.replace(/,.*$/, "").trim();

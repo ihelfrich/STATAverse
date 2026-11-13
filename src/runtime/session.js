@@ -278,7 +278,9 @@ export class Session {
         this.record(
           output,
           raw,
-          flags.noisy ? [...lines, error.message] : [],
+          flags.noisy
+            ? [...lines, ...(error.message ? [error.message] : [])]
+            : [],
           0,
           undefined,
           at,
@@ -288,7 +290,11 @@ export class Session {
       this.record(
         output,
         raw,
-        [...lines, error.message, `r(${error.code});`],
+        [
+          ...lines,
+          ...(error.message ? [error.message] : []),
+          `r(${error.code});`,
+        ],
         error.code,
         undefined,
         at,
