@@ -1,0 +1,2661 @@
+{
+  "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
+  "cases": 519,
+  "pass": 385,
+  "refused": 134,
+  "wrong": 0,
+  "crash": 0,
+  "groups": {
+    "dm": {
+      "pass": 61,
+      "refused": 4,
+      "wrong": 0,
+      "crash": 0
+    },
+    "desc": {
+      "pass": 30,
+      "refused": 15,
+      "wrong": 0,
+      "crash": 0
+    },
+    "test": {
+      "pass": 14,
+      "refused": 13,
+      "wrong": 0,
+      "crash": 0
+    },
+    "est": {
+      "pass": 47,
+      "refused": 21,
+      "wrong": 0,
+      "crash": 0
+    },
+    "post": {
+      "pass": 61,
+      "refused": 20,
+      "wrong": 0,
+      "crash": 0
+    },
+    "graph": {
+      "pass": 52,
+      "refused": 16,
+      "wrong": 0,
+      "crash": 0
+    },
+    "prog": {
+      "pass": 88,
+      "refused": 22,
+      "wrong": 0,
+      "crash": 0
+    },
+    "date": {
+      "pass": 19,
+      "refused": 8,
+      "wrong": 0,
+      "crash": 0
+    },
+    "ts": {
+      "pass": 13,
+      "refused": 15,
+      "wrong": 0,
+      "crash": 0
+    }
+  },
+  "results": [
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||generate lwage = ln(wage)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||generate byte college = education >= 16 if !missing(education)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||gen exp2 = experience^2"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||generate wagecat = cond(wage < 15, 1, cond(wage < 30, 2, 3))"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||replace wage = . if wage > 100"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||replace hours = 40 if hours > 40 & female == 1"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen mwage = mean(wage), by(region)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||bysort region: egen sdwage = sd(wage)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen maxw = max(wage), by(region female)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen nobs = count(wage), by(region)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen zwage = std(wage)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen regid = group(region)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen rowm = rowmean(education parent_educ)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||egen wcut = cut(wage), at(0 10 20 30 200)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||recode satisfaction (1 2 = 1 \"Low\") (3 = 2 \"Mid\") (4 5 = 3 \"High\"), generate(sat3)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||recode education (min/11 = 1) (12 = 2) (13/15 = 3) (16/max = 4), gen(edcat)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||encode region, generate(regionn)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|encode region, generate(regionn)|decode regionn, generate(region2)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|tostring education, generate(edstr)|destring edstr, replace"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|tostring education, generate(edstr)|destring edstr, generate(ednum) force"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||tostring id, replace"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||rename wage hourly_wage"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||rename (wage hours) (w h)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||label variable wage \"Hourly wage (USD)\""
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||label define fem 0 \"Male\" 1 \"Female\";;label values female fem;;tabulate female"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||label define fem 0 \"Male\" 1 \"Female\", replace"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||order id wage, first"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||order region, after(id)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||keep if female == 1 & wage < 50"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||keep id wage education"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||drop if missing(wage)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||drop parent_educ near_college"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||drop in 1/10"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||sort region wage"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||gsort -wage +education"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||duplicates report region female"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||duplicates drop region female, force"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||duplicates tag region, generate(dup)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "firms||reshape wide employees sales rd profit exporter policy, i(firm) j(year)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "firms|keep firm year sales;;reshape wide sales, i(firm) j(year)|reshape long sales, i(firm) j(year)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||collapse (mean) wage hours (sd) sdw = wage (count) n = wage, by(region female)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||collapse (median) wage (p25) p25 = wage (p75) p75 = wage, by(region)"
+    },
+    {
+      "group": "dm",
+      "outcome": "refused",
+      "key": "labor||contract region female"
+    },
+    {
+      "group": "dm",
+      "outcome": "refused",
+      "key": "labor||contract region, freq(n) percent(pct)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|preserve;;collapse (mean) mw = wage, by(region);;save regmeans, replace;;restore|merge m:1 region using regmeans"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|preserve;;collapse (mean) mw = wage, by(region);;save regmeans, replace;;restore|merge m:1 region using regmeans, keep(match) nogenerate"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|preserve;;keep id satisfaction;;save sat, replace;;restore;;drop satisfaction|merge 1:1 id using sat, assert(match)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|preserve;;keep in 1/50;;save part, replace;;restore|append using part"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|preserve;;keep in 1/50;;save part, replace;;restore|append using part, generate(src)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor|preserve;;collapse (mean) mw = wage, by(region female);;save rf, replace;;restore|joinby region using rf"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||expand 2"
+    },
+    {
+      "group": "dm",
+      "outcome": "refused",
+      "key": "labor||expand 2 if female == 1, generate(copy)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||preserve;;keep if female == 1;;summarize wage;;restore;;count"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||tempvar t;;generate `t' = wage^2;;summarize `t'"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||tempfile hold;;save `hold';;keep in 1/5;;use `hold', clear;;count"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||tempname m;;scalar `m' = 3;;display `m'"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||xtile wq = wage, nquantiles(5)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||xtile wq = wage, nq(4)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||pctile pw = wage, nquantiles(10)"
+    },
+    {
+      "group": "dm",
+      "outcome": "refused",
+      "key": "labor||egen wgrp = cut(wage), group(4) label"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||bysort region (wage): generate rank = _n"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||by region, sort: generate first = _n == 1"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||bysort region: generate share = wage / sum(wage)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||mvdecode hours, mv(99)"
+    },
+    {
+      "group": "dm",
+      "outcome": "pass",
+      "key": "labor||generate str10 tag = \"x\" + string(id)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||describe"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||describe wage education, fullnames"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||codebook wage region"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||codebook, compact"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||summarize wage, detail"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||summarize wage education hours if female == 1, separator(0)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||bysort region: summarize wage"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||tabulate region"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||tabulate region, missing sort"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||tabulate region female, row column"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||tabulate region female, chi2 exact"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||tabulate region female, cell nofreq"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||tabulate region, summarize(wage)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||tabulate union female, chi2 expected V"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||tabstat wage hours education, statistics(mean sd min max n) by(region)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||tabstat wage, stat(p25 p50 p75 iqr cv skewness kurtosis) columns(statistics)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||tabstat wage hours, by(female) nototal format(%9.2f)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||table region female, statistic(mean wage)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||table region, statistic(mean wage) statistic(sd wage) nformat(%9.2f)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||table region female, contents(mean wage)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||table (region) (female), statistic(frequency) statistic(percent)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||correlate wage education experience hours"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||correlate wage education, covariance"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||pwcorr wage education experience, sig star(0.05) obs"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||inspect wage"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||count if wage > 20 & female == 1"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||list id wage region in 1/5, noobs"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||list wage education if wage > 60, abbreviate(12) separator(0)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||misstable summarize"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||misstable patterns"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||centile wage, centile(10 50 90)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||ci means wage, level(90)"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||ci proportions union"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||ci wage"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||mean wage, over(female)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||proportion union"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||levelsof region"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||levelsof region, local(regs);;display `\"`regs'\"'"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||distinct region"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||unique id"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||ds, has(type string)"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||lookfor educ"
+    },
+    {
+      "group": "desc",
+      "outcome": "refused",
+      "key": "labor||fre region"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||tab1 female union"
+    },
+    {
+      "group": "desc",
+      "outcome": "pass",
+      "key": "labor||histogram wage, discrete"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||ttest wage, by(female)"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||ttest wage, by(female) unequal"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||ttest wage == 20"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||ttest education == parent_educ"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||ttest education == parent_educ, unpaired"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||ttesti 30 20 5 40 22 6"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||prtest union, by(female)"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||prtest union == 0.3"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||prtesti 100 0.4 120 0.5"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||sdtest wage, by(female)"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||robvar wage, by(female)"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||ranksum wage, by(female)"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||signrank education = parent_educ"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||signtest education = parent_educ"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||tabulate region union, chi2"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||tabi 30 20 \\ 15 35, chi2 exact"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||encode region, generate(regionn);;anova wage regionn"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||encode region, generate(regionn);;anova wage regionn female regionn#female"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||encode region, generate(regionn);;oneway wage regionn, tabulate bonferroni"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||kwallis wage, by(region)"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||swilk wage"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||sktest wage"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||bitest union == 0.25"
+    },
+    {
+      "group": "test",
+      "outcome": "pass",
+      "key": "labor||spearman wage education"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||ktau wage education"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||median wage, by(female)"
+    },
+    {
+      "group": "test",
+      "outcome": "refused",
+      "key": "labor||ksmirnov wage, by(female)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience, robust"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience, vce(robust)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||encode region, generate(regionn);;regress wage education experience, vce(cluster regionn)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience, cluster(region)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||encode region, generate(regionn);;regress wage education i.regionn"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||encode region, generate(regionn);;regress wage education ib2.regionn i.female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage c.education##i.female experience"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage c.experience##c.experience education"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage i.female#i.union education"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience [pweight = hours]"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience [aw = hours]"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience if female == 1, level(99)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education experience, noconstant beta"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||bysort female: regress wage education"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||xi: regress wage education i.region"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||regress wage education i.region"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||logit union education experience female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||logit union education experience female, or vce(robust)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||probit union education experience i.female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||logistic union education experience female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||ologit satisfaction wage education female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||oprobit satisfaction wage education female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||mlogit satisfaction wage education, baseoutcome(3)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||mlogit satisfaction wage education, rrr"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||poisson satisfaction wage education"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||poisson hours education female, irr vce(robust)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||nbreg hours education female"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||tobit hours wage education, ll(20)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||tobit hours wage education, ll(20) ul(60)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||ivregress 2sls wage experience (education = near_college)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||ivregress 2sls wage experience female (education = near_college parent_educ), first vce(robust)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||ivregress 2sls wage experience (education = near_college parent_educ);;estat firststage;;estat overid;;estat endogenous"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||ivreg wage experience (education = near_college)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtreg profit sales rd employees, fe"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtreg profit sales rd employees, re"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtreg profit sales rd employees, fe vce(cluster firm)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtreg profit sales rd i.year, fe robust"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtsum profit sales"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "firms||xtset firm year;;xtdescribe"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "firms||xtset firm year;;xtreg profit L.sales rd, fe"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "firms||xtset firm year;;xtlogit exporter sales rd, fe"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtreg profit sales rd, be"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "firms||xtset firm year;;xtreg profit sales rd, mle"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||areg profit sales rd, absorb(firm)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "firms||areg profit sales rd i.year, absorb(firm) vce(cluster firm)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "firms||reghdfe profit sales rd, absorb(firm year) vce(cluster firm)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||regress profit sales rd i.firm i.year, vce(cluster firm)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;xtreg profit i.policy##c.sales, fe"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||qreg wage education experience"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||qreg wage education experience, quantile(0.25)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||sqreg wage education, quantiles(.25 .5 .75) reps(20)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||glm union education experience, family(binomial) link(logit)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||glm satisfaction wage education, family(poisson) link(log) vce(robust)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||glm wage education, family(gamma) link(log)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||heckman wage education experience, select(union = female education)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||rreg wage education"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||nl (wage = {b0} + {b1}*education)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||stepwise, pr(.2): regress wage education experience hours female"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||sureg (wage education) (hours education female)"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||mixed wage education || region:"
+    },
+    {
+      "group": "est",
+      "outcome": "refused",
+      "key": "labor||regress wage education experience;;regress"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict yhat"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict yhat, xb"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict uhat, residuals"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict uhat if e(sample), resid"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict se, stdp"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict sf, stdf"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict lev, leverage"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|predict double d, cooksd"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|predict phat"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|predict phat, pr"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|predict xbhat, xb"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly probit union education experience female|predict phat, pr"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly ologit satisfaction wage education|predict p1 p2 p3 p4 p5"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly mlogit satisfaction wage education|predict p3, outcome(3)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly poisson satisfaction wage education|predict nhat, n"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly tobit hours wage education, ll(20)|predict ystar, ystar(20,.)"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "firms|xtset firm year;;quietly xtreg profit sales rd, fe|predict ui, u"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "firms|xtset firm year;;quietly xtreg profit sales rd, fe|predict e, e"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly ivregress 2sls wage experience (education = near_college)|predict vhat, residuals"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|test education = experience"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|test education experience"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|test (education = 1) (female = 0)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|test _b[education] = 2"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|test education, accumulate"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage i.satisfaction education|testparm i.satisfaction"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage c.education##i.female|test 1.female#c.education"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|lincom education + experience"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|lincom 2*education - female"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|lincom education, or"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|nlcom _b[education] / _b[experience]"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|nlcom (ratio: _b[education]/_b[experience]) (prod: _b[education]*_b[female])"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience i.female|margins female"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience i.female|margins, dydx(*)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage c.education##i.female experience|margins female, at(education = (8(4)20))"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage c.education##i.female experience|margins, dydx(education) over(female)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience i.female|margins, dydx(*) atmeans"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly logit union education experience i.female|margins female, predict(pr)"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly logit union education experience i.female|margins, at(education = (10 12 16)) post"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly logit union c.education##i.female|margins r.female"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly logit union c.education##i.female|margins female, pwcompare"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly probit union education experience i.female|margins, eyex(education)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage c.education##i.female experience;;quietly margins female, at(education = (8(4)20))|marginsplot"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage c.education##i.female experience;;quietly margins female, at(education = (8(4)20))|marginsplot, noci title(\"Predicted wage\")"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience i.female;;quietly margins, dydx(*)|marginsplot, horizontal"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat hettest"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education experience female|estat hettest, rhs iid"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat vif"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat ic"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat ovtest"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat imtest, white"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat summarize"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estat vce, correlation"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|estat classification"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|estat gof"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly logit union education experience female|lroc"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education experience female|estat ic"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly logit union education experience female|lrtest, saving(0)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|estimates store full"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates table m1 m2"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates table m1 m2, b(%9.3f) se stats(N r2 r2_a)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates table m1 m2, star(.1 .05 .01)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates restore m1"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates dir"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|esttab m1 m2, se r2"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education;;estimates store m1|esttab m1 using results.rtf, replace"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor||eststo clear;;eststo: regress wage education;;eststo: regress wage education experience;;esttab"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education experience female|outreg2 using results.doc, replace"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education experience female|estout"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly logit union education;;estimates store a;;quietly logit union education experience female;;estimates store b|lrtest a b"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "firms|xtset firm year;;quietly xtreg profit sales rd employees, fe;;estimates store fe;;quietly xtreg profit sales rd employees, re;;estimates store re|hausman fe re"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "firms|xtset firm year;;quietly xtreg profit sales rd employees, fe;;estimates store fe;;quietly xtreg profit sales rd employees, re;;estimates store re|hausman fe re, sigmamore"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "firms|xtset firm year;;quietly xtreg profit sales rd employees, re|xttest0"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|rvfplot, yline(0)"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education experience female|coefplot, drop(_cons)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|display _b[education] / _se[education]"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|display e(r2) \" \" e(N) \" \" e(rmse)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|matrix list e(V)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|matrix b = e(b);;display b[1,1]"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly regress wage education experience female|generate insample = e(sample)"
+    },
+    {
+      "group": "post",
+      "outcome": "pass",
+      "key": "labor|quietly summarize wage, detail|display r(p50) \" \" r(skewness)"
+    },
+    {
+      "group": "post",
+      "outcome": "refused",
+      "key": "labor|quietly regress wage education experience female|regress, coeflegend"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||histogram wage"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||histogram wage, bin(20) percent normal title(\"Wages\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||histogram wage, by(female) width(5)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||hist satisfaction, discrete frequency"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, msize(small) mcolor(navy) xtitle(\"Years\") ytitle(\"Wage\") title(\"Returns\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||scatter wage education if female == 1, jitter(3)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway scatter wage education || lfit wage education"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (scatter wage education) (lfit wage education), legend(off)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (scatter wage education if female == 0) (scatter wage education if female == 1), legend(order(1 \"Men\" 2 \"Women\"))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (lfitci wage education) (scatter wage education)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (qfit wage experience) (scatter wage experience), by(female)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||twoway scatter wage education, by(region) scheme(s2mono)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway line wage id, sort"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||line wage id if id < 50"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph twoway scatter wage hours, xline(40) yline(20) xlabel(0(10)80) ylabel(, angle(0))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph bar wage, over(region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||graph bar (mean) wage (median) hours, over(female) over(region) blabel(bar)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph bar (count), over(region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph hbar (mean) wage, over(region, sort(1) descending)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph box wage, over(female)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph box wage hours, over(region) nooutsides"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph hbox wage, over(region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||graph pie, over(region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||graph matrix wage education experience"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||graph dot wage, over(region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||kdensity wage"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||kdensity wage, normal bwidth(2)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (kdensity wage if female == 0) (kdensity wage if female == 1)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||qnorm wage"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||pnorm wage"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||binscatter wage education"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||lowess wage experience"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education;;graph export \"wage.png\", replace"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education;;graph export wage.pdf, replace"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, name(g1, replace);;histogram wage, name(g2, replace);;graph combine g1 g2"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||scatter wage education, saving(g1, replace)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||set scheme s1color"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph drop _all"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway function y = x^2, range(0 5)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (histogram wage) (kdensity wage)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||twoway rcap hours wage id in 1/10"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||scatter wage education [aweight = hours], msymbol(Oh)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local controls education experience female;;regress wage `controls'"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local n = _N;;display \"There are `n' observations\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local i = 1;;local ++i;;display `i'"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||global xvars \"education experience\";;regress wage $xvars"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||global root \"/data\";;display \"${root}/file.dta\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||scalar m = 5;;display m^2"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||summarize wage;;scalar mu = r(mean);;scalar list"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||matrix A = (1, 2 \\ 3, 4);;matrix list A"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||matrix A = (1, 2 \\ 3, 4);;matrix B = inv(A);;matrix C = A * B;;matrix list C"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||matrix A = (1, 2 \\ 3, 4);;matrix B = A';;display det(A) \" \" trace(A) \" \" rowsof(A)"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||matrix A = J(2, 3, 0);;matrix A[1,2] = 7;;matrix rownames A = a b;;matrix colnames A = x y z;;matrix list A"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||mkmat wage education in 1/5, matrix(X);;matrix list X"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||matrix accum XX = education experience;;matrix list XX"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||regress wage education;;matrix V = e(V);;matrix se = vecdiag(cholesky(diag(vecdiag(V))));;matrix list se"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display %9.3f 3.14159"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display %6.2fc 12345.678 \"  \" %td 22000 \"  \" %12.0g 1e10"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display \"Mean: \" %5.2f 3.14159 _newline \"next\" _col(20) \"col\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display as text \"a\" as result 5 as error \" b\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display in red \"warning\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display _n(2) \"{hline 20}\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display sqrt(2) + exp(1) + ln(10) + abs(-3) + round(2.567, .01) + int(3.9) + mod(7, 3)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display normal(1.96) \" \" invnormal(.975) \" \" ttail(20, 2) \" \" invttail(20, .025) \" \" chi2tail(2, 5.99) \" \" Ftail(2, 30, 3.3)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||foreach v of varlist wage hours education {;;summarize `v';;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||foreach v in wage hours {;;quietly summarize `v';;display \"`v': \" r(mean);;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||foreach x of numlist 1/3 5 {;;display `x';;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||foreach r of local regs {;;display \"`r'\";;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||levelsof region, local(regs);;foreach r of local regs {;;quietly summarize wage if region == \"`r'\";;display \"`r' \" r(mean);;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||forvalues i = 1/3 {;;display `i';;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||forvalues i = 10(5)25 {;;generate w`i' = wage > `i';;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||forvalues q = 1/5 {;;quietly count if satisfaction == `q';;local n`q' = r(N);;};;display `n1' + `n5'"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local i = 1;;while `i' <= 3 {;;display `i';;local i = `i' + 1;;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local i 0;;while 1 {;;local ++i;;if `i' > 3 continue, break;;};;display `i'"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||if _N > 100 {;;display \"big\";;};;else {;;display \"small\";;}"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local x = 3;;if `x' == 1 display \"one\";;else if `x' == 3 display \"three\";;else display \"other\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||program define hello;;display \"hello\";;end;;hello"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||capture program drop mymean;;program define mymean, rclass;;syntax varname [if];;quietly summarize `varlist' `if';;return scalar m = r(mean);;end;;mymean wage if female == 1;;return list"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||program define twoargs;;args a b;;display `a' + `b';;end;;twoargs 2 3"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||program myreg, eclass;;syntax varlist [, Robust];;regress `varlist', `robust';;end;;myreg wage education, robust"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||program define showit;;version 17;;syntax varlist(min=2 numeric) [if] [in] [, Level(integer 95) noCONStant];;marksample touse;;regress `varlist' if `touse', level(`level') `constant';;end;;showit wage education, level(90)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||summarize wage;;return list"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||regress wage education;;ereturn list"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local lbl : variable label wage;;display \"`lbl'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local t : type wage;;local f : format wage;;display \"`t' `f'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local n : word count a b c;;local w : word 2 of a b c;;display \"`n' `w'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local list a b c;;local k : list sizeof list;;local rest : list list - a;;display \"`k' `rest'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local vl : value label female;;local s : subinstr local vl \"a\" \"b\", all;;local len : length local s;;display `len'"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||local files : dir \".\" files \"*.csv\";;display `\"`files'\"'"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||local d : display %9.2f 3.14159;;display \"`d'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||unab vars : wage-hours;;display \"`vars'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||ds;;display \"`r(varlist)'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||assert wage > 0"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||assert !missing(id)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||capture assert wage < 10;;display _rc"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||capture confirm variable nosuchvar;;if _rc display \"no such variable\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||capture noisily regress wage nosuch;;display _rc"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||confirm numeric variable wage"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||quietly regress wage education;;display e(r2)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||quietly {;;summarize wage;;generate dev = wage - r(mean);;};;summarize dev"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set seed 12345;;generate u = runiform();;generate z = rnormal(0, 1);;summarize u z"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||set seed 1;;generate b = rbinomial(10, .3);;generate p = rpoisson(2);;generate e = rexponential(1);;generate t = rt(5);;generate c = rchi2(3);;generate ui = runiformint(1, 6);;summarize b p e t c ui"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set seed 1;;bootstrap, reps(50): regress wage education"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set seed 1;;bootstrap r(mean), reps(50): summarize wage"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||set seed 1;;bootstrap diff = (_b[education] - _b[experience]), reps(50) seed(2): regress wage education experience"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set seed 1;;regress wage education, vce(bootstrap, reps(50))"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||program define sim1, rclass;;drop _all;;set obs 50;;generate x = rnormal();;generate y = 1 + 2*x + rnormal();;regress y x;;return scalar b = _b[x];;end;;set seed 1;;simulate b = r(b), reps(20): sim1;;summarize b"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set seed 1;;simulate mean = r(mean), reps(20) nodots: summarize wage"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||jackknife: regress wage education"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||set seed 1;;permute female _b[female], reps(30): regress wage female"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||clear;;set obs 100;;generate x = _n;;summarize x"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||clear all;;set obs 10;;generate id = _n;;list"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||sysuse auto, clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||sysuse wages, clear;;describe"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||use wages, clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||use \"labor.dta\", clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||webuse nlswork, clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||import delimited \"wages.csv\", clear;;describe"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||import delimited using wages.csv, clear varnames(1) case(lower)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||export delimited using \"out.csv\", replace;;import delimited \"out.csv\", clear;;count"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||export delimited id wage using out.csv, replace nolabel"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||save mydata, replace;;use mydata, clear;;count"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||save \"mydata.dta\", replace;;use id wage using mydata, clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||use mydata if female == 1, clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||log using mylog.log, replace text;;summarize wage;;log close"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||capture log close;;log using mylog, replace;;log close"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||cd \"C:/data\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||pwd"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set more off"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||version 17"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||clear;;input x y;;1 2;;3 4;;end;;list"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||insheet using wages.csv, clear"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||describe using wages"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||set obs 700"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||mata: st_numscalar(\"x\", 3)"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||do analysis.do"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||exit"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||// comment line;;* another;;summarize wage /* inline */;;regress wage education ///;;    experience"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||notes wage: check top coding"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||compress"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||count;;display r(N)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||isid id"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||sample 10"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||set seed 1;;sample 50, count by(region)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||bsample 100"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||timer clear;;timer on 1;;summarize wage;;timer off 1;;timer list"
+    },
+    {
+      "group": "prog",
+      "outcome": "refused",
+      "key": "labor||creturn list"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display c(N) \" \" c(k) \" \" c(pi) \" \" \"`c(current_date)'\""
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||display _N \" \" wage[1] \" \" wage[_N] \" \" region[2]"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||help regress"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||ssc install estout"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate d = date(\"2024-03-15\", \"YMD\");;format d %td;;list d in 1"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display date(\"15mar2024\", \"DMY\") \" \" mdy(3, 15, 2024) \" \" td(15mar2024)"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display %td mdy(1, 1, 2020) \"  \" %tdDD/NN/CCYY mdy(1, 1, 2020) \"  \" %tdMonth_dd,_CCYY mdy(1,1,2020)"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate d = mdy(1, 1, 2020) + id;;generate y = year(d);;generate m = month(d);;generate dd = day(d);;generate dw = dow(d);;generate q = quarter(d);;generate wk = week(d);;generate doy = doy(d);;summarize y m dd dw q wk doy"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate d = mdy(1, 1, 2020) + id;;generate mdate = mofd(d);;format mdate %tm;;generate qd = qofd(d);;format qd %tq;;generate yd = yofd(d);;list d mdate qd yd in 1/2"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display ym(2020, 5) \" \" yq(2020, 2) \" \" %tm ym(2020, 5) \" \" %tq yq(2020, 2) \" \" dofm(ym(2020,5)) \" \" tm(2020m5) \" \" tq(2020q2)"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate s = \"2021-07-04\";;generate d = daily(s, \"YMD\");;format d %tdCCYY-NN-DD;;list s d in 1"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||display clock(\"2024-03-15 14:30:00\", \"YMDhms\") \" \" %tc clock(\"2024-03-15 14:30:00\", \"YMDhms\") \" \" dofc(clock(\"2024-03-15 14:30:00\", \"YMDhms\")) \" \" hh(clock(\"2024-03-15 14:30:00\", \"YMDhms\"))"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||display datediff(mdy(1,1,2020), mdy(3,1,2021), \"month\") \" \" age(mdy(1,1,2000), mdy(6,1,2024))"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||generate monthly = monthly(\"2020m5\", \"YM\");;format monthly %tm;;list monthly in 1"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display substr(\"Stata rocks\", 1, 5) \" \" strpos(\"hello world\", \"wor\") \" \" strlen(\"abc\") \" \" length(\"abcd\")"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display upper(\"abc\") lower(\"DEF\") proper(\"john smith\") \" [\" trim(\"  x  \") \"] [\" ltrim(\"  x\") \"] [\" rtrim(\"x  \") \"] \" strtrim(\" y \") itrim(\"a   b\")"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display subinstr(\"a-b-c\", \"-\", \"+\", .) \" \" subinword(\"the cat the\", \"the\", \"a\", 1) \" \" reverse(\"abc\") \" \" word(\"alpha beta gamma\", 2) \" \" wordcount(\"a b c\")"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display regexm(\"abc123\", \"[0-9]+\") \" \" regexs(0) \" \" regexr(\"abc123\", \"[0-9]+\", \"X\")"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate hasn = regexm(region, \"^N\");;generate first = regexs(1) if regexm(region, \"^(.)\");;tabulate first hasn"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||display ustrregexm(\"abc123\", \"\\d+\") \" \" ustrregexra(\"a1b22\", \"\\d\", \"#\") \" \" ustrlen(\"naïve\") \" \" usubstr(\"naïve\", 3, 2) \" \" ustrupper(\"é\")"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display real(\"3.5\") + 1 \" \" string(3.14159, \"%5.2f\") \" \" strofreal(42) \" \" string(12)"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate r3 = substr(region, 1, 3);;generate up = strupper(region);;generate len = strlen(region);;generate pos = strpos(region, \"o\");;list region r3 up len pos in 1/3"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate idstr = string(id, \"%04.0f\");;generate n = real(idstr);;generate both = region + \"_\" + idstr;;list idstr n both in 1/2"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||display strmatch(\"regress\", \"reg*\") \" \" inlist(\"b\", \"a\", \"b\") \" \" inrange(5, 1, 10) \" \" missing(.) \" \" char(65) \" \" plural(2, \"cat\") \" \" abbrev(\"experience\", 6)"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||display strtoname(\"1 bad name\") \" \" stritrim(\"a  b\") \" \" strrpos(\"a-b-c\", \"-\") \" \" substr(\"abcdef\", -2, .) \" \" strreverse(\"abc\") \" \" strdup(\"ab\", 3)"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||split region, parse(\"o\") generate(part)"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate x = cond(missing(wage), ., max(wage, 10));;generate y = min(wage, hours);;generate z = floor(wage) + ceil(wage) + sign(wage) + trunc(wage);;generate lg = log10(wage) + log(wage);;egen rmax = rowmax(wage hours);;summarize x y z lg rmax"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||generate cum = sum(wage);;generate lagw = wage[_n-1];;generate chg = wage - wage[_n-1];;generate n = _n;;generate N = _N;;summarize cum lagw chg n N"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||generate byte m = mi(wage, hours);;generate r = rowmiss(wage)"
+    },
+    {
+      "group": "date",
+      "outcome": "refused",
+      "key": "labor||generate a = autocode(wage, 4, 0, 80);;generate b = recode(wage, 10, 20, 30);;generate c = irecode(wage, 10, 20, 30);;tabulate c"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||tsset date"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||tsset date, quarterly"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;list t in 1/3"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;generate lg = L.growth;;generate l2 = L2.growth;;generate dg = D.growth;;generate fg = F.growth;;generate d2 = D2.growth;;generate s4 = S4.growth;;summarize lg l2 dg fg d2 s4"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth L.inflation D.unemployment"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;regress growth L(1/4).growth L(0/2).rate"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;tsline growth"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;tsline growth inflation, tline(2008q3) title(\"Macro\")"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;twoway (tsline unemployment) (tsline rate, yaxis(2))"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;newey growth L.inflation, lag(4)"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;dfuller unemployment, lags(2) trend"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;ac growth"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;corrgram growth, lags(8)"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;arima growth, ar(1) ma(1)"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;var growth inflation, lags(1/2)"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth;;estat bgodfrey, lags(2)"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth;;estat dwatson"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;prais growth inflation"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;tssmooth ma g4 = growth, window(3 1 0)"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;tsfill"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;generate g = (growth - L4.growth) / L4.growth if t >= tq(2000q1)"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;tsappend, add(4);;count"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;pperron unemployment"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "macro||generate t = yq(year, quarter);;tsset t;;xcorr growth inflation"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "macro||line growth date"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "firms||xtset firm year;;generate lsales = L.sales;;generate gs = D.sales / L.sales;;summarize lsales gs"
+    },
+    {
+      "group": "ts",
+      "outcome": "refused",
+      "key": "firms||xtset firm year;;xtline sales if firm <= 4"
+    },
+    {
+      "group": "ts",
+      "outcome": "pass",
+      "key": "firms||bysort firm (year): generate ds = sales - sales[_n-1]"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, by(female)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, xline(12)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, yline(20)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, xlabel(0(4)20)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, ylabel(0(25)100)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, mcolor(cranberry)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education in 1/20, mlabel(id)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (scatter wage education if female == 0) (scatter wage education if female == 1), legend(label(1 \"Men\") label(2 \"Women\"))"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||scatter wage education, xscale(log)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||twoway (scatter wage education) (scatter hours education, yaxis(2))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, subtitle(\"By schooling\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, note(\"Source: labor\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, caption(\"Figure 1\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph bar (mean) wage, over(region) blabel(bar)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||graph bar (mean) wage, over(region) asyvars"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||graph bar (mean) wage hours, over(female) stack"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph bar (count), over(female)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||twoway function y = sin(x), range(0 6)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, name(a, replace);;scatter hours education, name(b, replace);;graph combine a b"
+    },
+    {
+      "group": "date",
+      "outcome": "pass",
+      "key": "labor||display date(\"15/3/24\", \"DMY\", 2050)"
+    },
+    {
+      "group": "prog",
+      "outcome": "pass",
+      "key": "labor||scalar a = 3;;scalar list"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||regress wage education, vce(cluster region)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||logit union education, vce(cluster region)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||probit union education, vce(cluster region)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||poisson hours education, cluster(region)"
+    },
+    {
+      "group": "est",
+      "outcome": "pass",
+      "key": "labor||ivregress 2sls wage experience (education = near_college), vce(cluster region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway line wage id in 1/50, sort lwidth(thick) lpattern(dash) lcolor(maroon)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, name(a, replace);;scatter hours education, name(b, replace);;graph combine a b, title(\"Two\") subtitle(\"panels\") note(\"Source: labor\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (scatter wage education) (lfit wage education), legend(order(2 \"Fit\") position(6) rows(1))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, xlabel(8(2)20) ylabel(0(10)60, angle(0))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph bar (mean) wage, over(region, sort(1)) blabel(bar)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||scatter wage education, scheme(s1mono)"
+    }
+  ]
+}

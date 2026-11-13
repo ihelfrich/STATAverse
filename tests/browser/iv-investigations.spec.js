@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
@@ -131,7 +132,7 @@ test("all 16 IV tasks require the stated experiment and a correct interpretation
       ).toBe(true);
       if (step.id === "accepted-tail") {
         await page.screenshot({
-          path: `docs/verification/screenshots/iv-investigation-${testInfo.project.name}.png`,
+          path: screenshotPath(`iv-investigation-${testInfo.project.name}.png`),
           fullPage: true,
         });
         const audit = await new AxeBuilder({ page })

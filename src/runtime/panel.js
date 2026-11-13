@@ -1,5 +1,6 @@
 // Panel data: xtset and tsset, xtreg with fixed or random effects, xtsum,
 // and the lag, lead and difference operators that xtset makes available.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
@@ -85,8 +86,8 @@ function xtset(session, text, ctx) {
     const variable = data.get(panel.time),
       values = Array.from(variable.data).filter((v) => !isMissing(v)),
       show = (v) => applyFormat(v, variable.format).trim(),
-      low = Math.min(...values),
-      high = Math.max(...values);
+      low = least(values),
+      high = greatest(values);
     // A gap is a missing period inside some panel.
     let gaps = false;
     const id = panel.id ? data.get(panel.id).data : null;
@@ -572,9 +573,9 @@ function xtreg(session, text, ctx) {
     sigma_u: sigmaU,
     sigma_e: Math.sqrt(sigmaE2),
     rho,
-    g_min: Math.min(...sizes),
+    g_min: least(sizes),
     g_avg: N / G,
-    g_max: Math.max(...sizes),
+    g_max: greatest(sizes),
     cmd: "xtreg",
     depvar: dep,
     model: useBe ? "be" : useFe ? "fe" : "re",
@@ -590,13 +591,13 @@ function xtreg(session, text, ctx) {
   ctx.out("");
   ctx.out(`${"R-squared:".padEnd(48)}Obs per group:`);
   ctx.out(
-    `${`     Within  = ${r4(r2.within)}`.padEnd(48)}${obs("min", count(Math.min(...sizes)))}`,
+    `${`     Within  = ${r4(r2.within)}`.padEnd(48)}${obs("min", count(least(sizes)))}`,
   );
   ctx.out(
     `${`     Between = ${r4(r2.between)}`.padEnd(48)}${obs("avg", applyFormat(N / G, "%9.1f").trim())}`,
   );
   ctx.out(
-    `${`     Overall = ${r4(r2.overall)}`.padEnd(48)}${obs("max", count(Math.max(...sizes)))}`,
+    `${`     Overall = ${r4(r2.overall)}`.padEnd(48)}${obs("max", count(greatest(sizes)))}`,
   );
   ctx.out("");
   ctx.out(
@@ -694,8 +695,8 @@ function xtsum(session, text, ctx) {
           name.length > 8 ? `${name.slice(0, 6)}~${name.at(-1)}` : name,
           cell(overall, 10),
           sd(values, overall, N - 1),
-          Math.min(...values),
-          Math.max(...values),
+          least(values),
+          greatest(values),
           `     N =${count(N).padStart(8)}`,
         ),
       );
@@ -705,8 +706,8 @@ function xtsum(session, text, ctx) {
           "",
           " ".repeat(10),
           sd(means, mean(means), n - 1),
-          Math.min(...means),
-          Math.max(...means),
+          least(means),
+          greatest(means),
           `     n =${count(n).padStart(8)}`,
         ),
       );
@@ -716,8 +717,8 @@ function xtsum(session, text, ctx) {
           "",
           " ".repeat(10),
           sd(deviations, overall, N - 1),
-          Math.min(...deviations),
-          Math.max(...deviations),
+          least(deviations),
+          greatest(deviations),
           // A balanced panel has a T; an unbalanced one an average, T-bar.
           [...byGroup.values()].every((list) => list.length === N / n)
             ? `     T =${g(N / n).padStart(8)}`

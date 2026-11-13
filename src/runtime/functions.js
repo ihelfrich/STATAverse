@@ -3,6 +3,7 @@
 //
 // A numeric function returns system missing when any numeric argument is
 // missing, unless it is marked lenient and decides for itself.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import {
   MISSING,
@@ -143,7 +144,12 @@ export function dateLiteral(kind, text) {
   if (period < 1 || period > per) return undefined;
   return (Number(m[1]) - 1960) * per + period - 1;
 }
-function parseDate(text, mask) {
+/**
+ * date(s, mask [, topyear]). A two-digit year is read only with a century in
+ * the mask (DM20Y) or with topyear, which makes it the latest year ending in
+ * those digits that is not after topyear.
+ */
+function parseDate(text, mask, topyear) {
   const order = [];
   let century = 0;
   for (const m of mask.toUpperCase().matchAll(/(\d\d)?([MDY])/g)) {
@@ -169,6 +175,13 @@ function parseDate(text, mask) {
         if (century) {
           if (token.length > 2) return MISSING;
           value.Y += century;
+        } else if (
+          token.length <= 2 &&
+          topyear !== undefined &&
+          !isMissing(topyear)
+        ) {
+          const top = whole(topyear);
+          value.Y = top - ((((top - value.Y) % 100) + 100) % 100);
         } else if (token.length !== 4) return MISSING;
       }
     } else if (role === "M") {
@@ -279,7 +292,7 @@ export const FUNCTIONS = {
     lenient: true,
     fn: (...a) => {
       const v = a.filter((x) => !isMissing(x));
-      return v.length ? Math.min(...v) : MISSING;
+      return v.length ? least(v) : MISSING;
     },
   },
   max: {
@@ -290,7 +303,7 @@ export const FUNCTIONS = {
     lenient: true,
     fn: (...a) => {
       const v = a.filter((x) => !isMissing(x));
-      return v.length ? Math.max(...v) : MISSING;
+      return v.length ? greatest(v) : MISSING;
     },
   },
   cond: {
@@ -542,7 +555,7 @@ export const FUNCTIONS = {
     min: 2,
     returns: N,
     lenient: true,
-    fn: (s, mask) => parseDate(s, mask),
+    fn: (s, mask, topyear) => parseDate(s, mask, topyear),
   },
 
   // strings
