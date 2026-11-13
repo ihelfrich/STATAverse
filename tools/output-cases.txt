@@ -3515,3 +3515,261 @@ by g: replace u = "x" + u if g == 3
 bysort g: replace u = u + "-longer-than-five" if _n == 1
 describe
 clear
+=== encode-format-with-no-labels-used
+clear
+set obs 6
+generate str5 s = word("b a c a b d", _n)
+encode s if s == "zzz", generate(none)
+label define pre 1 "averyveryverylonglabeltext"
+encode s if s == "zzz", generate(none2) label(pre)
+encode s in 1/2 if s == "zzz", generate(none3)
+describe none none2 none3
+replace s = "" in 1/6
+encode s, generate(allempty)
+describe allempty
+clear
+=== duplicates-list-options-and-drop
+clear
+set obs 12
+generate id = _n
+generate byte grade = mod(_n, 3) + 1
+label define gl 1 "low" 2 "medium" 3 "high"
+label values grade gl
+generate str10 schoolname = cond(_n <= 4, "North", cond(_n <= 8, "South", "East"))
+generate x = mod(_n, 2)
+duplicates list grade, sepby(schoolname)
+duplicates list grade, sepby(x)
+duplicates list grade schoolname
+duplicates list grade, abbreviate(4)
+duplicates examples grade, abbreviate(3)
+duplicates list x, abbreviate(2)
+duplicates examples schoolname, clean
+duplicates drop grade schoolname, force
+return list
+duplicates drop id, force
+return list
+capture noisily duplicates drop, force
+display _rc
+capture noisily duplicates
+display _rc
+clear
+set obs 5
+generate x = 1
+duplicates drop x, force
+return list
+clear
+=== list-abbreviate
+clear
+set obs 2
+generate str20 schoolname = "abcdefghijklmnop"
+generate averyverylongvariablename = 123456789
+format averyverylongvariablename %15.0g
+generate income_total = 5
+generate income_tax = 6
+generate abcdefghi = 1
+generate x = 2
+list
+list, abbreviate(4)
+list, abbreviate(1)
+list, abbreviate(6)
+list, abbreviate(9)
+list, abbrev(10) clean
+list x abcdefghi, abbreviate(3) noobs
+capture noisily list x, abbreviate(0)
+display _rc
+capture noisily list x, abbreviate(130)
+display _rc
+drop schoolname averyverylongvariablename
+generate str10 school = "North"
+list
+list, abbreviate(12)
+clear
+=== label-define-empty-text-and-dot
+clear
+label define a 1 "" 2 two
+label list a
+return list
+label define a 3 "", add
+label define a 2 "", add
+label list a
+label define a 4 "", modify
+label list a
+label define b 1 one
+label define b 1 "", replace
+label list b
+capture noisily label define dot 1 one . "sys"
+display _rc
+capture noisily label list dot
+label define e 1 one
+capture noisily label define e 3 three 1 uno, add
+display _rc
+label list e
+label define e 4 four 1 "", add
+label list e
+label define g 1 a 2 b 3 c
+label define g 2 "" 5 e, add
+label list g
+label define h 1 a 1 b
+label list h
+label define z .a "only missing" .c "c"
+label list z
+return list
+label define z 5 five, modify
+label list z
+return list
+label define f .a "x"
+label define f .a "", modify
+label list f
+capture noisily label define z . "sys", modify
+label list
+clear
+=== tab1-headings-errors-and-weights
+clear
+set obs 20
+generate c = mod(_n, 2)
+generate str3 a = cond(_n < 8, "x", "y")
+generate z = mod(_n, 3)
+tab1 c if a == "x" in 1/10
+tab1 c   if   c==1   in  1/9
+tab1 c in 1/10 if a == "x"
+tab1 c if c > 0   in 1/15 , nolabel
+tab1 c a, mising
+display "continued"
+display _rc
+capture noisily tab1 c, nosuchopt
+display _rc
+tab1 c [fweight=c]
+tab1 c [fweight=z] if a == "y"
+tab1 c if a == "y" [fweight=z]
+capture noisily tab1 c [pweight=z]
+display _rc
+tab2 c a [fweight=z]
+clear
+=== tabulate-cumulative-ties
+clear
+set obs 20000
+generate a = mod(_n, 3)
+tabulate a
+tab1 a
+clear
+set obs 800
+generate a = cond(_n <= 35, 1, cond(_n <= 318, 2, cond(_n <= 325, 3, 4)))
+tabulate a
+generate b = cond(_n <= 266, 1, cond(_n <= 533, 2, 3))
+tabulate b
+generate d = cond(_n <= 105, 1, cond(_n <= 482, 2, cond(_n <= 489, 3, 4)))
+tabulate d
+generate e = min(ceil((_n + 1) / 89), 9)
+tabulate e
+clear
+set obs 4000
+generate a = cond(_n <= 522, 1, cond(_n <= 2405, 2, cond(_n <= 2412, 3, 4)))
+tabulate a
+clear
+=== codebook-blanks
+clear
+set obs 10
+generate str20 w = "  lead" + string(_n)
+display length(w[1])
+codebook w
+generate str100 w2 = "  " + string(_n) + "  long  text  " + "word" * 12
+codebook w2
+generate str60 w3 = "abc   " + "x" * 50 + string(_n)
+codebook w3
+clear
+set obs 12
+generate str20 t = "tr" + string(_n) + "  "
+codebook t
+generate str20 lt = "  lt" + string(_n) + " "
+codebook lt
+generate str20 all3 = " a b" + string(_n) + " "
+codebook all3
+generate str20 et = "a  b" + string(_n) + " "
+codebook et
+generate str20 bl = cond(_n < 4, "   ", "v" + string(_n))
+codebook bl
+generate str20 small = cond(_n < 4, " x", "y")
+codebook small
+generate str20 sm2 = cond(_n < 4, "x y", "y")
+codebook sm2
+clear
+set obs 6
+generate str80 s = cond(_n < 3, "this is a rather long string value that runs past forty characters", "short")
+replace s = "x" * 45 in 6
+replace s = "" in 5
+codebook s
+generate str80 u = cond(_n < 3, "  this is a rather long string value that runs past forty", "  short  ")
+codebook u
+clear
+=== blanks-inside-strings
+clear
+display length("  a")
+display "[  a]"
+display   "x"    "y"
+display "a" _col(5)   "b"
+local  m   "p  q"
+display "`m'"
+display `"  `m'  "'
+label define  lab  1  "one  two"
+label list lab
+set obs 3
+generate str20 w = "  lead" + string(_n)
+display length(w[1])
+list
+notes:  checked  "the  weights"  here
+notes
+count  if  w  ==  "  lead1"
+clear
+=== egen-options-by-function
+clear
+set obs 6
+generate g = cond(_n <= 3, 1, 2)
+generate x = cond(_n <= 3, ., _n)
+replace x = .a in 5
+generate y = cond(_n == 1, 2, .)
+generate str1 s = "a"
+egen t1 = total(x), by(g)
+egen t2 = total(x), by(g) missing
+egen t3 = sum(x), by(g) missing
+egen m1 = max(x), by(g)
+egen m2 = max(x), by(g) missing
+egen n1 = min(x), by(g)
+egen n2 = min(x), by(g) missing
+egen r1 = rowtotal(x y)
+egen r2 = rowtotal(x y), missing
+list
+capture noisily egen a = count(x), missing
+display _rc
+capture noisily egen b = count(s), missing
+display _rc
+capture noisily egen c = mean(x), missing
+display _rc
+capture noisily egen c = max(x), mi
+display _rc
+capture noisily egen c = concat(x y), by(g)
+display _rc
+capture noisily egen c = rowmean(x y), by(g)
+display _rc
+capture noisily egen c = tag(x), by(g)
+display _rc
+capture noisily egen c = first(x)
+display _rc
+capture noisily egen c = p50(x)
+display _rc
+capture noisily egen c = mean(x), by(g) nosuch
+display _rc
+capture noisily egen c = rank(x), field track
+display _rc
+clear
+set obs 8
+generate g = cond(_n <= 4, 1, 2)
+generate x = cond(_n == 3, ., mod(_n * 5, 4))
+egen r0 = rank(x)
+egen r1 = rank(x), field
+egen r2 = rank(x), track
+egen r3 = rank(x), by(g) field
+egen r4 = rank(-x), track
+egen r5 = rank(x) if g == 1, track
+list
+describe r0 r1 r2 r3 r4 r5
+clear

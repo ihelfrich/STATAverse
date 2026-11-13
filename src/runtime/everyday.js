@@ -354,7 +354,7 @@ function notes(session, text, ctx) {
   if (add) {
     const name = add[1] ? session.varlist(add[1])[0] : "_dta";
     if (!store.has(name)) store.set(name, []);
-    store.get(name).push(add[2].trim());
+    store.get(name).push(add[2].trim().replace(/ {2,}/g, " "));
     return;
   }
   const words = text.trim().split(/\s+/).filter(Boolean);

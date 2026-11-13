@@ -585,7 +585,7 @@ function duplicates(session, text, ctx) {
       m[1] === "drop"
         ? "drop"
         : DUPLICATES.find((name) => m[1] && name.startsWith(m[1]));
-  if (!m[1]) throw invalid("subcommand required");
+  if (!m[1]) throw invalid("subcommand required; see duplicates");
   if (!sub) throw invalid(`${m[1]} invalid duplicates subcommand`);
   // list and examples pass their options on to list.
   const listing = sub === "list" || sub === "examples",
@@ -633,6 +633,9 @@ function duplicates(session, text, ctx) {
         "force option required with duplicates drop varlist",
         198,
       );
+    if (all && parsed.options.force)
+      throw new StataError("options not allowed", 101);
+    if (!rows.length) throw new StataError("no observations", 2000);
     const seen = new Set(),
       selected = new Set(rows),
       keep = [];
@@ -646,9 +649,13 @@ function duplicates(session, text, ctx) {
     const dropped = data.n - keep.length;
     heading();
     ctx.out("");
-    ctx.out(`(${plural(dropped, "observation")} deleted)`);
+    ctx.out(
+      dropped
+        ? `(${plural(dropped, "observation")} deleted)`
+        : "(0 observations are duplicates)",
+    );
     if (dropped) data.reorder(keep);
-    session.results.r = { N_drop: dropped };
+    session.results.r = { N_drop: dropped, N: rows.length };
   } else if (listing) {
     if (!rows.length) throw new StataError("no observations", 2000);
     heading();
@@ -710,7 +717,7 @@ function listDuplicates(session, sub, parsed, rows, groups, keyOf, ctx) {
     let k = names.length,
       name;
     do name = `__00000${k++}`;
-    while (parsed.varlist.includes(name) || names.includes(name));
+    while (data.has(name) || names.includes(name));
     names.push(name);
     return {
       name,
@@ -746,9 +753,12 @@ function listDuplicates(session, sub, parsed, rows, groups, keyOf, ctx) {
       "%12.0g",
     ),
   );
+  // The other variables come along, after those listed, so that an option
+  // such as sepby() can name them.
+  const rest = data.names.filter((name) => !parsed.varlist.includes(name));
   listed.variables = [
     ...front,
-    ...parsed.varlist.map((name) => {
+    ...[...parsed.varlist, ...rest].map((name) => {
       const variable = data.get(name);
       return {
         ...variable,
@@ -760,7 +770,7 @@ function listDuplicates(session, sub, parsed, rows, groups, keyOf, ctx) {
   ];
   list(
     Object.assign(Object.create(session), { data: listed }),
-    `${listed.names.join(" ")}, noobs ${(parsed.options["*"] ?? []).join(" ")}`,
+    `${[...front.map((v) => v.name), ...parsed.varlist].join(" ")}, noobs ${(parsed.options["*"] ?? []).join(" ")}`,
     { ...ctx, group: undefined },
   );
 }
@@ -940,12 +950,15 @@ function encode(session, text) {
   );
   data.sortedBy = sorted;
   // The display format is as wide as the longest label the new variable
-  // uses, in bytes, and never narrower than %8.0g.
+  // uses, in bytes, and never narrower than %8.0g. When it uses no label at
+  // all, it keeps a long's %12.0g.
   const used = Array.from(source.data).filter((v, i) => rows.has(i) && v);
   Object.assign(data.get(target), {
     valueLabel: labelName,
     label: source.label,
-    format: `%${Math.max(8, greatest(used.map(byteLength)))}.0g`,
+    format: used.length
+      ? `%${Math.max(8, greatest(used.map(byteLength)))}.0g`
+      : "%12.0g",
   });
 }
 function decode(session, text) {

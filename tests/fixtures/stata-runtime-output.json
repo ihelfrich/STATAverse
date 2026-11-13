@@ -23562,6 +23562,1394 @@
       ]
     },
     {
+      "id": "encode-format-with-no-labels-used",
+      "source": "clear\nset obs 6\ngenerate str5 s = word(\"b a c a b d\", _n)\nencode s if s == \"zzz\", generate(none)\nlabel define pre 1 \"averyveryverylonglabeltext\"\nencode s if s == \"zzz\", generate(none2) label(pre)\nencode s in 1/2 if s == \"zzz\", generate(none3)\ndescribe none none2 none3\nreplace s = \"\" in 1/6\nencode s, generate(allempty)\ndescribe allempty\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        {
+          "command": "generate str5 s = word(\"b a c a b d\", _n)",
+          "lines": []
+        },
+        { "command": "encode s if s == \"zzz\", generate(none)", "lines": [] },
+        {
+          "command": "label define pre 1 \"averyveryverylonglabeltext\"",
+          "lines": []
+        },
+        {
+          "command": "encode s if s == \"zzz\", generate(none2) label(pre)",
+          "lines": []
+        },
+        {
+          "command": "encode s in 1/2 if s == \"zzz\", generate(none3)",
+          "lines": []
+        },
+        {
+          "command": "describe none none2 none3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "none            long    %12.0g     none",
+            "none2           long    %12.0g     pre",
+            "none3           long    %12.0g     none3"
+          ]
+        },
+        {
+          "command": "replace s = \"\" in 1/6",
+          "lines": ["(6 real changes made)"]
+        },
+        { "command": "encode s, generate(allempty)", "lines": [] },
+        {
+          "command": "describe allempty",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "allempty        long    %12.0g     allempty"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "duplicates-list-options-and-drop",
+      "source": "clear\nset obs 12\ngenerate id = _n\ngenerate byte grade = mod(_n, 3) + 1\nlabel define gl 1 \"low\" 2 \"medium\" 3 \"high\"\nlabel values grade gl\ngenerate str10 schoolname = cond(_n <= 4, \"North\", cond(_n <= 8, \"South\", \"East\"))\ngenerate x = mod(_n, 2)\nduplicates list grade, sepby(schoolname)\nduplicates list grade, sepby(x)\nduplicates list grade schoolname\nduplicates list grade, abbreviate(4)\nduplicates examples grade, abbreviate(3)\nduplicates list x, abbreviate(2)\nduplicates examples schoolname, clean\nduplicates drop grade schoolname, force\nreturn list\nduplicates drop id, force\nreturn list\ncapture noisily duplicates drop, force\ndisplay _rc\ncapture noisily duplicates\ndisplay _rc\nclear\nset obs 5\ngenerate x = 1\nduplicates drop x, force\nreturn list\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate byte grade = mod(_n, 3) + 1", "lines": [] },
+        {
+          "command": "label define gl 1 \"low\" 2 \"medium\" 3 \"high\"",
+          "lines": []
+        },
+        { "command": "label values grade gl", "lines": [] },
+        {
+          "command": "generate str10 schoolname = cond(_n <= 4, \"North\", cond(_n <= 8, \"South\", \"East\"))",
+          "lines": []
+        },
+        { "command": "generate x = mod(_n, 2)", "lines": [] },
+        {
+          "command": "duplicates list grade, sepby(schoolname)",
+          "lines": [
+            "Duplicates in terms of grade",
+            "",
+            "  +----------------------+",
+            "  | Group   Obs    grade |",
+            "  |----------------------|",
+            "  |     1     3      low |",
+            "  |----------------------|",
+            "  |     1     6      low |",
+            "  |----------------------|",
+            "  |     1     9      low |",
+            "  |     1    12      low |",
+            "  |----------------------|",
+            "  |     2     1   medium |",
+            "  |     2     4   medium |",
+            "  |----------------------|",
+            "  |     2     7   medium |",
+            "  |----------------------|",
+            "  |     2    10   medium |",
+            "  |----------------------|",
+            "  |     3     2     high |",
+            "  |----------------------|",
+            "  |     3     5     high |",
+            "  |     3     8     high |",
+            "  |----------------------|",
+            "  |     3    11     high |",
+            "  +----------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list grade, sepby(x)",
+          "lines": [
+            "Duplicates in terms of grade",
+            "",
+            "  +----------------------+",
+            "  | Group   Obs    grade |",
+            "  |----------------------|",
+            "  |     1     3      low |",
+            "  |----------------------|",
+            "  |     1     6      low |",
+            "  |----------------------|",
+            "  |     1     9      low |",
+            "  |----------------------|",
+            "  |     1    12      low |",
+            "  |----------------------|",
+            "  |     2     1   medium |",
+            "  |----------------------|",
+            "  |     2     4   medium |",
+            "  |----------------------|",
+            "  |     2     7   medium |",
+            "  |----------------------|",
+            "  |     2    10   medium |",
+            "  |     3     2     high |",
+            "  |----------------------|",
+            "  |     3     5     high |",
+            "  |----------------------|",
+            "  |     3     8     high |",
+            "  |----------------------|",
+            "  |     3    11     high |",
+            "  +----------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list grade schoolname",
+          "lines": [
+            "Duplicates in terms of grade schoolname",
+            "",
+            "  +---------------------------------+",
+            "  | Group   Obs    grade   school~e |",
+            "  |---------------------------------|",
+            "  |     1     9      low       East |",
+            "  |     1    12      low       East |",
+            "  |     2     1   medium      North |",
+            "  |     2     4   medium      North |",
+            "  |     3     5     high      South |",
+            "  |---------------------------------|",
+            "  |     3     8     high      South |",
+            "  +---------------------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list grade, abbreviate(4)",
+          "lines": [
+            "Duplicates in terms of grade",
+            "",
+            "  +---------------------+",
+            "  | Grou   Obs    grade |",
+            "  |---------------------|",
+            "  |    1     3      low |",
+            "  |    1     6      low |",
+            "  |    1     9      low |",
+            "  |    1    12      low |",
+            "  |    2     1   medium |",
+            "  |---------------------|",
+            "  |    2     4   medium |",
+            "  |    2     7   medium |",
+            "  |    2    10   medium |",
+            "  |    3     2     high |",
+            "  |    3     5     high |",
+            "  |---------------------|",
+            "  |    3     8     high |",
+            "  |    3    11     high |",
+            "  +---------------------+"
+          ]
+        },
+        {
+          "command": "duplicates examples grade, abbreviate(3)",
+          "lines": [
+            "Duplicates in terms of grade",
+            "",
+            "  +------------------------+",
+            "  | Gro   #   e.g    grade |",
+            "  |------------------------|",
+            "  |   1   4     3      low |",
+            "  |   2   4     1   medium |",
+            "  |   3   4     2     high |",
+            "  +------------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list x, abbreviate(2)",
+          "lines": [
+            "Duplicates in terms of x",
+            "",
+            "  +-------------+",
+            "  | Gr   Ob   x |",
+            "  |-------------|",
+            "  |  1    2   0 |",
+            "  |  1    4   0 |",
+            "  |  1    6   0 |",
+            "  |  1    8   0 |",
+            "  |  1   10   0 |",
+            "  |-------------|",
+            "  |  1   12   0 |",
+            "  |  2    1   1 |",
+            "  |  2    3   1 |",
+            "  |  2    5   1 |",
+            "  |  2    7   1 |",
+            "  |-------------|",
+            "  |  2    9   1 |",
+            "  |  2   11   1 |",
+            "  +-------------+"
+          ]
+        },
+        {
+          "command": "duplicates examples schoolname, clean",
+          "lines": [
+            "Duplicates in terms of schoolname",
+            "",
+            "    Group   #   e.g. obs   school~e",
+            "        1   4          9       East",
+            "        2   4          1      North",
+            "        3   4          5      South"
+          ]
+        },
+        {
+          "command": "duplicates drop grade schoolname, force",
+          "lines": [
+            "Duplicates in terms of grade schoolname",
+            "",
+            "(3 observations deleted)"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "             r(N_drop) =  3",
+            "                  r(N) =  12"
+          ]
+        },
+        {
+          "command": "duplicates drop id, force",
+          "lines": [
+            "Duplicates in terms of id",
+            "",
+            "(0 observations are duplicates)"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "             r(N_drop) =  0",
+            "                  r(N) =  9"
+          ]
+        },
+        {
+          "command": "capture noisily duplicates drop, force",
+          "lines": ["options not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily duplicates",
+          "lines": ["subcommand required; see duplicates"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        {
+          "command": "duplicates drop x, force",
+          "lines": ["Duplicates in terms of x", "", "(4 observations deleted)"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "             r(N_drop) =  4",
+            "                  r(N) =  5"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "list-abbreviate",
+      "source": "clear\nset obs 2\ngenerate str20 schoolname = \"abcdefghijklmnop\"\ngenerate averyverylongvariablename = 123456789\nformat averyverylongvariablename %15.0g\ngenerate income_total = 5\ngenerate income_tax = 6\ngenerate abcdefghi = 1\ngenerate x = 2\nlist\nlist, abbreviate(4)\nlist, abbreviate(1)\nlist, abbreviate(6)\nlist, abbreviate(9)\nlist, abbrev(10) clean\nlist x abcdefghi, abbreviate(3) noobs\ncapture noisily list x, abbreviate(0)\ndisplay _rc\ncapture noisily list x, abbreviate(130)\ndisplay _rc\ndrop schoolname averyverylongvariablename\ngenerate str10 school = \"North\"\nlist\nlist, abbreviate(12)\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str20 schoolname = \"abcdefghijklmnop\"",
+          "lines": []
+        },
+        {
+          "command": "generate averyverylongvariablename = 123456789",
+          "lines": []
+        },
+        { "command": "format averyverylongvariablename %15.0g", "lines": [] },
+        { "command": "generate income_total = 5", "lines": [] },
+        { "command": "generate income_tax = 6", "lines": [] },
+        { "command": "generate abcdefghi = 1", "lines": [] },
+        { "command": "generate x = 2", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------------------------------------------+",
+            "     |       schoolname   averyve~e   income~l   income~x   abcdef~i   x |",
+            "     |-------------------------------------------------------------------|",
+            "  1. | abcdefghijklmnop   123456792          5          6          1   2 |",
+            "  2. | abcdefghijklmnop   123456792          5          6          1   2 |",
+            "     +-------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbreviate(4)",
+          "lines": [
+            "     +----------------------------------------------------------+",
+            "     |       schoolname   averyve~e   inc~l   inc~x   abc~i   x |",
+            "     |----------------------------------------------------------|",
+            "  1. | abcdefghijklmnop   123456792       5       6       1   2 |",
+            "  2. | abcdefghijklmnop   123456792       5       6       1   2 |",
+            "     +----------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbreviate(1)",
+          "lines": [
+            "     +----------------------------------------------------------+",
+            "     |       schoolname   averyve~e   inc~l   inc~x   abc~i   x |",
+            "     |----------------------------------------------------------|",
+            "  1. | abcdefghijklmnop   123456792       5       6       1   2 |",
+            "  2. | abcdefghijklmnop   123456792       5       6       1   2 |",
+            "     +----------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbreviate(6)",
+          "lines": [
+            "     +-------------------------------------------------------------+",
+            "     |       schoolname   averyve~e   inco~l   inco~x   abcd~i   x |",
+            "     |-------------------------------------------------------------|",
+            "  1. | abcdefghijklmnop   123456792        5        6        1   2 |",
+            "  2. | abcdefghijklmnop   123456792        5        6        1   2 |",
+            "     +-------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbreviate(9)",
+          "lines": [
+            "     +----------------------------------------------------------------------+",
+            "     |       schoolname   averyve~e   income_~l   income_~x   abcdefghi   x |",
+            "     |----------------------------------------------------------------------|",
+            "  1. | abcdefghijklmnop   123456792           5           6           1   2 |",
+            "  2. | abcdefghijklmnop   123456792           5           6           1   2 |",
+            "     +----------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbrev(10) clean",
+          "lines": [
+            "             schoolname   averyver~e   income_t~l   income_tax   abcdefghi   x",
+            "  1.   abcdefghijklmnop    123456792            5            6           1   2",
+            "  2.   abcdefghijklmnop    123456792            5            6           1   2"
+          ]
+        },
+        {
+          "command": "list x abcdefghi, abbreviate(3) noobs",
+          "lines": [
+            "  +-----------+",
+            "  | x   abc~i |",
+            "  |-----------|",
+            "  | 2       1 |",
+            "  | 2       1 |",
+            "  +-----------+"
+          ]
+        },
+        {
+          "command": "capture noisily list x, abbreviate(0)",
+          "lines": ["abbreviate() must be between 1 and 129"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily list x, abbreviate(130)",
+          "lines": ["abbreviate() must be between 1 and 129"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "drop schoolname averyverylongvariablename", "lines": [] },
+        { "command": "generate str10 school = \"North\"", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------------------------------+",
+            "     | income~l   income~x   abcdef~i   x   school |",
+            "     |---------------------------------------------|",
+            "  1. |        5          6          1   2    North |",
+            "  2. |        5          6          1   2    North |",
+            "     +---------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbreviate(12)",
+          "lines": [
+            "     +----------------------------------------------------+",
+            "     | income_total   income_tax   abcdefghi   x   school |",
+            "     |----------------------------------------------------|",
+            "  1. |            5            6           1   2    North |",
+            "  2. |            5            6           1   2    North |",
+            "     +----------------------------------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "label-define-empty-text-and-dot",
+      "source": "clear\nlabel define a 1 \"\" 2 two\nlabel list a\nreturn list\nlabel define a 3 \"\", add\nlabel define a 2 \"\", add\nlabel list a\nlabel define a 4 \"\", modify\nlabel list a\nlabel define b 1 one\nlabel define b 1 \"\", replace\nlabel list b\ncapture noisily label define dot 1 one . \"sys\"\ndisplay _rc\ncapture noisily label list dot\nlabel define e 1 one\ncapture noisily label define e 3 three 1 uno, add\ndisplay _rc\nlabel list e\nlabel define e 4 four 1 \"\", add\nlabel list e\nlabel define g 1 a 2 b 3 c\nlabel define g 2 \"\" 5 e, add\nlabel list g\nlabel define h 1 a 1 b\nlabel list h\nlabel define z .a \"only missing\" .c \"c\"\nlabel list z\nreturn list\nlabel define z 5 five, modify\nlabel list z\nreturn list\nlabel define f .a \"x\"\nlabel define f .a \"\", modify\nlabel list f\ncapture noisily label define z . \"sys\", modify\nlabel list\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "label define a 1 \"\" 2 two", "lines": [] },
+        {
+          "command": "label list a",
+          "lines": ["a:", "           1", "           2 two"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(min) =  1",
+            "                r(max) =  2",
+            "           r(hasemiss) =  0",
+            "                  r(k) =  2"
+          ]
+        },
+        { "command": "label define a 3 \"\", add", "lines": [] },
+        { "command": "label define a 2 \"\", add", "lines": [] },
+        {
+          "command": "label list a",
+          "lines": ["a:", "           1", "           3"]
+        },
+        { "command": "label define a 4 \"\", modify", "lines": [] },
+        {
+          "command": "label list a",
+          "lines": ["a:", "           1", "           3", "           4"]
+        },
+        { "command": "label define b 1 one", "lines": [] },
+        { "command": "label define b 1 \"\", replace", "lines": [] },
+        { "command": "label list b", "lines": ["b:", "           1"] },
+        {
+          "command": "capture noisily label define dot 1 one . \"sys\"",
+          "lines": ["may not label ."]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily label list dot",
+          "lines": ["value label dot not found"]
+        },
+        { "command": "label define e 1 one", "lines": [] },
+        {
+          "command": "capture noisily label define e 3 three 1 uno, add",
+          "lines": ["invalid attempt to modify label"]
+        },
+        { "command": "display _rc", "lines": ["180"] },
+        { "command": "label list e", "lines": ["e:", "           1 one"] },
+        { "command": "label define e 4 four 1 \"\", add", "lines": [] },
+        { "command": "label list e", "lines": ["e:", "           4 four"] },
+        { "command": "label define g 1 a 2 b 3 c", "lines": [] },
+        { "command": "label define g 2 \"\" 5 e, add", "lines": [] },
+        {
+          "command": "label list g",
+          "lines": ["g:", "           1 a", "           3 c", "           5 e"]
+        },
+        { "command": "label define h 1 a 1 b", "lines": [] },
+        { "command": "label list h", "lines": ["h:", "           1 b"] },
+        {
+          "command": "label define z .a \"only missing\" .c \"c\"",
+          "lines": []
+        },
+        {
+          "command": "label list z",
+          "lines": ["z:", "          .a only missing", "          .c c"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(min) =  .",
+            "                r(max) =  .",
+            "           r(hasemiss) =  1",
+            "                  r(k) =  2"
+          ]
+        },
+        { "command": "label define z 5 five, modify", "lines": [] },
+        {
+          "command": "label list z",
+          "lines": [
+            "z:",
+            "           5 five",
+            "          .a only missing",
+            "          .c c"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(min) =  5",
+            "                r(max) =  5",
+            "           r(hasemiss) =  1",
+            "                  r(k) =  3"
+          ]
+        },
+        { "command": "label define f .a \"x\"", "lines": [] },
+        { "command": "label define f .a \"\", modify", "lines": [] },
+        { "command": "label list f", "lines": ["f:"] },
+        {
+          "command": "capture noisily label define z . \"sys\", modify",
+          "lines": ["may not label ."]
+        },
+        {
+          "command": "label list",
+          "lines": [
+            "f:",
+            "z:",
+            "           5 five",
+            "          .a only missing",
+            "          .c c",
+            "h:",
+            "           1 b",
+            "g:",
+            "           1 a",
+            "           3 c",
+            "           5 e",
+            "e:",
+            "           4 four",
+            "b:",
+            "           1",
+            "a:",
+            "           1",
+            "           3",
+            "           4"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "tab1-headings-errors-and-weights",
+      "source": "clear\nset obs 20\ngenerate c = mod(_n, 2)\ngenerate str3 a = cond(_n < 8, \"x\", \"y\")\ngenerate z = mod(_n, 3)\ntab1 c if a == \"x\" in 1/10\ntab1 c   if   c==1   in  1/9\ntab1 c in 1/10 if a == \"x\"\ntab1 c if c > 0   in 1/15 , nolabel\ntab1 c a, mising\ndisplay \"continued\"\ndisplay _rc\ncapture noisily tab1 c, nosuchopt\ndisplay _rc\ntab1 c [fweight=c]\ntab1 c [fweight=z] if a == \"y\"\ntab1 c if a == \"y\" [fweight=z]\ncapture noisily tab1 c [pweight=z]\ndisplay _rc\ntab2 c a [fweight=z]\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "generate c = mod(_n, 2)", "lines": [] },
+        {
+          "command": "generate str3 a = cond(_n < 8, \"x\", \"y\")",
+          "lines": []
+        },
+        { "command": "generate z = mod(_n, 3)", "lines": [] },
+        {
+          "command": "tab1 c if a == \"x\" in 1/10",
+          "lines": [
+            "-> tabulation of c if a == \"x\"  in 1/10",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          3       42.86       42.86",
+            "          1 |          4       57.14      100.00",
+            "------------+-----------------------------------",
+            "      Total |          7      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c   if   c==1   in  1/9",
+          "lines": [
+            "-> tabulation of c if c==1    in 1/9",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          5      100.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          5      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c in 1/10 if a == \"x\"",
+          "lines": [
+            "-> tabulation of c if a == \"x\" in 1/10",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          3       42.86       42.86",
+            "          1 |          4       57.14      100.00",
+            "------------+-----------------------------------",
+            "      Total |          7      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c if c > 0   in 1/15 , nolabel",
+          "lines": [
+            "-> tabulation of c if c > 0    in 1/15",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          8      100.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          8      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c a, mising",
+          "lines": ["-> tabulation of c", "option mising not allowed"]
+        },
+        { "command": "display \"continued\"", "lines": ["continued"] },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily tab1 c, nosuchopt",
+          "lines": ["-> tabulation of c", "option nosuchopt not allowed"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "tab1 c [fweight=c]",
+          "lines": [
+            "-> tabulation of c",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         10      100.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |         10      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c [fweight=z] if a == \"y\"",
+          "lines": [
+            "-> tabulation of c if a == \"y\"",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          8       57.14       57.14",
+            "          1 |          6       42.86      100.00",
+            "------------+-----------------------------------",
+            "      Total |         14      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c if a == \"y\" [fweight=z]",
+          "lines": [
+            "-> tabulation of c if a == \"y\"",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          8       57.14       57.14",
+            "          1 |          6       42.86      100.00",
+            "------------+-----------------------------------",
+            "      Total |         14      100.00"
+          ]
+        },
+        {
+          "command": "capture noisily tab1 c [pweight=z]",
+          "lines": ["pweights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "tab2 c a [fweight=z]",
+          "lines": [
+            "-> tabulation of c by a",
+            "",
+            "           |           a",
+            "         c |         x          y |     Total",
+            "-----------+----------------------+----------",
+            "         0 |         3          8 |        11",
+            "         1 |         4          6 |        10",
+            "-----------+----------------------+----------",
+            "     Total |         7         14 |        21"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "tabulate-cumulative-ties",
+      "source": "clear\nset obs 20000\ngenerate a = mod(_n, 3)\ntabulate a\ntab1 a\nclear\nset obs 800\ngenerate a = cond(_n <= 35, 1, cond(_n <= 318, 2, cond(_n <= 325, 3, 4)))\ntabulate a\ngenerate b = cond(_n <= 266, 1, cond(_n <= 533, 2, 3))\ntabulate b\ngenerate d = cond(_n <= 105, 1, cond(_n <= 482, 2, cond(_n <= 489, 3, 4)))\ntabulate d\ngenerate e = min(ceil((_n + 1) / 89), 9)\ntabulate e\nclear\nset obs 4000\ngenerate a = cond(_n <= 522, 1, cond(_n <= 2405, 2, cond(_n <= 2412, 3, 4)))\ntabulate a\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20000",
+          "lines": ["Number of observations (_N) was 0, now 20,000."]
+        },
+        { "command": "generate a = mod(_n, 3)", "lines": [] },
+        {
+          "command": "tabulate a",
+          "lines": [
+            "          a |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |      6,666       33.33       33.33",
+            "          1 |      6,667       33.34       66.66",
+            "          2 |      6,667       33.34      100.00",
+            "------------+-----------------------------------",
+            "      Total |     20,000      100.00"
+          ]
+        },
+        {
+          "command": "tab1 a",
+          "lines": [
+            "-> tabulation of a",
+            "",
+            "          a |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |      6,666       33.33       33.33",
+            "          1 |      6,667       33.34       66.66",
+            "          2 |      6,667       33.34      100.00",
+            "------------+-----------------------------------",
+            "      Total |     20,000      100.00"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 800",
+          "lines": ["Number of observations (_N) was 0, now 800."]
+        },
+        {
+          "command": "generate a = cond(_n <= 35, 1, cond(_n <= 318, 2, cond(_n <= 325, 3, 4)))",
+          "lines": []
+        },
+        {
+          "command": "tabulate a",
+          "lines": [
+            "          a |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         35        4.38        4.38",
+            "          2 |        283       35.38       39.75",
+            "          3 |          7        0.88       40.62",
+            "          4 |        475       59.38      100.00",
+            "------------+-----------------------------------",
+            "      Total |        800      100.00"
+          ]
+        },
+        {
+          "command": "generate b = cond(_n <= 266, 1, cond(_n <= 533, 2, 3))",
+          "lines": []
+        },
+        {
+          "command": "tabulate b",
+          "lines": [
+            "          b |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |        266       33.25       33.25",
+            "          2 |        267       33.38       66.62",
+            "          3 |        267       33.38      100.00",
+            "------------+-----------------------------------",
+            "      Total |        800      100.00"
+          ]
+        },
+        {
+          "command": "generate d = cond(_n <= 105, 1, cond(_n <= 482, 2, cond(_n <= 489, 3, 4)))",
+          "lines": []
+        },
+        {
+          "command": "tabulate d",
+          "lines": [
+            "          d |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |        105       13.12       13.12",
+            "          2 |        377       47.12       60.25",
+            "          3 |          7        0.88       61.12",
+            "          4 |        311       38.88      100.00",
+            "------------+-----------------------------------",
+            "      Total |        800      100.00"
+          ]
+        },
+        { "command": "generate e = min(ceil((_n + 1) / 89), 9)", "lines": [] },
+        {
+          "command": "tabulate e",
+          "lines": [
+            "          e |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         88       11.00       11.00",
+            "          2 |         89       11.12       22.12",
+            "          3 |         89       11.12       33.25",
+            "          4 |         89       11.12       44.38",
+            "          5 |         89       11.12       55.50",
+            "          6 |         89       11.12       66.62",
+            "          7 |         89       11.12       77.75",
+            "          8 |         89       11.12       88.88",
+            "          9 |         89       11.12      100.00",
+            "------------+-----------------------------------",
+            "      Total |        800      100.00"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4000",
+          "lines": ["Number of observations (_N) was 0, now 4,000."]
+        },
+        {
+          "command": "generate a = cond(_n <= 522, 1, cond(_n <= 2405, 2, cond(_n <= 2412, 3, 4)))",
+          "lines": []
+        },
+        {
+          "command": "tabulate a",
+          "lines": [
+            "          a |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |        522       13.05       13.05",
+            "          2 |      1,883       47.08       60.12",
+            "          3 |          7        0.17       60.30",
+            "          4 |      1,588       39.70      100.00",
+            "------------+-----------------------------------",
+            "      Total |      4,000      100.00"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "codebook-blanks",
+      "source": "clear\nset obs 10\ngenerate str20 w = \"  lead\" + string(_n)\ndisplay length(w[1])\ncodebook w\ngenerate str100 w2 = \"  \" + string(_n) + \"  long  text  \" + \"word\" * 12\ncodebook w2\ngenerate str60 w3 = \"abc   \" + \"x\" * 50 + string(_n)\ncodebook w3\nclear\nset obs 12\ngenerate str20 t = \"tr\" + string(_n) + \"  \"\ncodebook t\ngenerate str20 lt = \"  lt\" + string(_n) + \" \"\ncodebook lt\ngenerate str20 all3 = \" a b\" + string(_n) + \" \"\ncodebook all3\ngenerate str20 et = \"a  b\" + string(_n) + \" \"\ncodebook et\ngenerate str20 bl = cond(_n < 4, \"   \", \"v\" + string(_n))\ncodebook bl\ngenerate str20 small = cond(_n < 4, \" x\", \"y\")\ncodebook small\ngenerate str20 sm2 = cond(_n < 4, \"x y\", \"y\")\ncodebook sm2\nclear\nset obs 6\ngenerate str80 s = cond(_n < 3, \"this is a rather long string value that runs past forty characters\", \"short\")\nreplace s = \"x\" * 45 in 6\nreplace s = \"\" in 5\ncodebook s\ngenerate str80 u = cond(_n < 3, \"  this is a rather long string value that runs past forty\", \"  short  \")\ncodebook u\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        {
+          "command": "generate str20 w = \"  lead\" + string(_n)",
+          "lines": []
+        },
+        { "command": "display length(w[1])", "lines": ["7"] },
+        {
+          "command": "codebook w",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "w                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str8",
+            "",
+            "         Unique values: 10                        Missing \"\": 0/10",
+            "",
+            "              Examples: \"lead10\"",
+            "                        \"lead3\"",
+            "                        \"lead5\"",
+            "                        \"lead7\"",
+            "",
+            "               Warning: Variable has leading blanks."
+          ]
+        },
+        {
+          "command": "generate str100 w2 = \"  \" + string(_n) + \"  long  text  \" + \"word\" * 12",
+          "lines": []
+        },
+        {
+          "command": "codebook w2",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "w2                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str100), but longest is str66",
+            "",
+            "         Unique values: 10                        Missing \"\": 0/10",
+            "",
+            "              Examples: \"10  long  text",
+            "                        wordwordwordwordwordwordwordwordwordwordwordword\"",
+            "                        \"3  long  text",
+            "                        wordwordwordwordwordwordwordwordwordwordwordword\"",
+            "                        \"5  long  text",
+            "                        wordwordwordwordwordwordwordwordwordwordwordword\"",
+            "                        \"7  long  text",
+            "                        wordwordwordwordwordwordwordwordwordwordwordword\"",
+            "",
+            "               Warning: Variable has leading and embedded blanks."
+          ]
+        },
+        {
+          "command": "generate str60 w3 = \"abc   \" + \"x\" * 50 + string(_n)",
+          "lines": []
+        },
+        {
+          "command": "codebook w3",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "w3                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str60), but longest is str58",
+            "",
+            "         Unique values: 10                        Missing \"\": 0/10",
+            "",
+            "              Examples: \"abc",
+            "                        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx10",
+            "                        \"",
+            "                        \"abc",
+            "                        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx3\"",
+            "                        \"abc",
+            "                        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx5\"",
+            "                        \"abc",
+            "                        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx7\"",
+            "",
+            "               Warning: Variable has embedded blanks."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        {
+          "command": "generate str20 t = \"tr\" + string(_n) + \"  \"",
+          "lines": []
+        },
+        {
+          "command": "codebook t",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "t                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str6",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/12",
+            "",
+            "              Examples: \"tr10  \"",
+            "                        \"tr12  \"",
+            "                        \"tr4  \"",
+            "                        \"tr6  \"",
+            "",
+            "               Warning: Variable has trailing blanks."
+          ]
+        },
+        {
+          "command": "generate str20 lt = \"  lt\" + string(_n) + \" \"",
+          "lines": []
+        },
+        {
+          "command": "codebook lt",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "lt                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str7",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/12",
+            "",
+            "              Examples: \"lt10 \"",
+            "                        \"lt12 \"",
+            "                        \"lt4 \"",
+            "                        \"lt6 \"",
+            "",
+            "               Warning: Variable has leading and trailing blanks."
+          ]
+        },
+        {
+          "command": "generate str20 all3 = \" a b\" + string(_n) + \" \"",
+          "lines": []
+        },
+        {
+          "command": "codebook all3",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "all3                                                                                                                                                                                         (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str7",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/12",
+            "",
+            "              Examples: \"a b10 \"",
+            "                        \"a b12 \"",
+            "                        \"a b4 \"",
+            "                        \"a b6 \"",
+            "",
+            "               Warning: Variable has leading, embedded, and trailing blanks."
+          ]
+        },
+        {
+          "command": "generate str20 et = \"a  b\" + string(_n) + \" \"",
+          "lines": []
+        },
+        {
+          "command": "codebook et",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "et                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str7",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/12",
+            "",
+            "              Examples: \"a  b10 \"",
+            "                        \"a  b12 \"",
+            "                        \"a  b4 \"",
+            "                        \"a  b6 \"",
+            "",
+            "               Warning: Variable has embedded and trailing blanks."
+          ]
+        },
+        {
+          "command": "generate str20 bl = cond(_n < 4, \"   \", \"v\" + string(_n))",
+          "lines": []
+        },
+        {
+          "command": "codebook bl",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "bl                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str3",
+            "",
+            "         Unique values: 10                        Missing \"\": 0/12",
+            "",
+            "              Examples: \"\"",
+            "                        \"v10\"",
+            "                        \"v4\"",
+            "                        \"v6\"",
+            "",
+            "               Warning: Variable has leading and trailing blanks."
+          ]
+        },
+        {
+          "command": "generate str20 small = cond(_n < 4, \" x\", \"y\")",
+          "lines": []
+        },
+        {
+          "command": "codebook small",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "small                                                                                                                                                                                        (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str2",
+            "",
+            "         Unique values: 2                         Missing \"\": 0/12",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            3  \"x\"",
+            "                            9  \"y\"",
+            "",
+            "               Warning: Variable has leading blanks."
+          ]
+        },
+        {
+          "command": "generate str20 sm2 = cond(_n < 4, \"x y\", \"y\")",
+          "lines": []
+        },
+        {
+          "command": "codebook sm2",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sm2                                                                                                                                                                                          (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str20), but longest is str3",
+            "",
+            "         Unique values: 2                         Missing \"\": 0/12",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            3  \"x y\"",
+            "                            9  \"y\"",
+            "",
+            "               Warning: Variable has embedded blanks."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        {
+          "command": "generate str80 s = cond(_n < 3, \"this is a rather long string value that runs past forty characters\", \"short\")",
+          "lines": []
+        },
+        {
+          "command": "replace s = \"x\" * 45 in 6",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"\" in 5",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "codebook s",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str80), but longest is str66",
+            "",
+            "         Unique values: 3                         Missing \"\": 1/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            1  \"\"",
+            "                            2  \"short\"",
+            "                            2  \"this is a rather long string value",
+            "                               that runs past forty characters\"",
+            "                            1  \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "                               xxxxxxx\"",
+            "",
+            "               Warning: Variable has embedded blanks."
+          ]
+        },
+        {
+          "command": "generate str80 u = cond(_n < 3, \"  this is a rather long string value that runs past forty\", \"  short  \")",
+          "lines": []
+        },
+        {
+          "command": "codebook u",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "u                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str80), but longest is str57",
+            "",
+            "         Unique values: 2                         Missing \"\": 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            4  \"short  \"",
+            "                            2  \"this is a rather long string value",
+            "                               that runs past forty\"",
+            "",
+            "               Warning: Variable has leading, embedded, and trailing blanks."
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "blanks-inside-strings",
+      "source": "clear\ndisplay length(\"  a\")\ndisplay \"[  a]\"\ndisplay   \"x\"    \"y\"\ndisplay \"a\" _col(5)   \"b\"\nlocal  m   \"p  q\"\ndisplay \"`m'\"\ndisplay `\"  `m'  \"'\nlabel define  lab  1  \"one  two\"\nlabel list lab\nset obs 3\ngenerate str20 w = \"  lead\" + string(_n)\ndisplay length(w[1])\nlist\nnotes:  checked  \"the  weights\"  here\nnotes\ncount  if  w  ==  \"  lead1\"\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "display length(\"  a\")", "lines": ["3"] },
+        { "command": "display \"[  a]\"", "lines": ["[  a]"] },
+        { "command": "display   \"x\"    \"y\"", "lines": ["xy"] },
+        { "command": "display \"a\" _col(5)   \"b\"", "lines": ["a   b"] },
+        { "command": "local  m   \"p  q\"", "lines": [] },
+        { "command": "display \"`m'\"", "lines": ["p  q"] },
+        { "command": "display `\"  `m'  \"'", "lines": ["  p  q"] },
+        { "command": "label define  lab  1  \"one  two\"", "lines": [] },
+        {
+          "command": "label list lab",
+          "lines": ["lab:", "           1 one  two"]
+        },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str20 w = \"  lead\" + string(_n)",
+          "lines": []
+        },
+        { "command": "display length(w[1])", "lines": ["7"] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     |       w |",
+            "     |---------|",
+            "  1. |   lead1 |",
+            "  2. |   lead2 |",
+            "  3. |   lead3 |",
+            "     +---------+"
+          ]
+        },
+        { "command": "notes:  checked  \"the  weights\"  here", "lines": [] },
+        {
+          "command": "notes",
+          "lines": ["_dta:", "  1.  checked \"the weights\" here"]
+        },
+        { "command": "count  if  w  ==  \"  lead1\"", "lines": ["  1"] },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "egen-options-by-function",
+      "source": "clear\nset obs 6\ngenerate g = cond(_n <= 3, 1, 2)\ngenerate x = cond(_n <= 3, ., _n)\nreplace x = .a in 5\ngenerate y = cond(_n == 1, 2, .)\ngenerate str1 s = \"a\"\negen t1 = total(x), by(g)\negen t2 = total(x), by(g) missing\negen t3 = sum(x), by(g) missing\negen m1 = max(x), by(g)\negen m2 = max(x), by(g) missing\negen n1 = min(x), by(g)\negen n2 = min(x), by(g) missing\negen r1 = rowtotal(x y)\negen r2 = rowtotal(x y), missing\nlist\ncapture noisily egen a = count(x), missing\ndisplay _rc\ncapture noisily egen b = count(s), missing\ndisplay _rc\ncapture noisily egen c = mean(x), missing\ndisplay _rc\ncapture noisily egen c = max(x), mi\ndisplay _rc\ncapture noisily egen c = concat(x y), by(g)\ndisplay _rc\ncapture noisily egen c = rowmean(x y), by(g)\ndisplay _rc\ncapture noisily egen c = tag(x), by(g)\ndisplay _rc\ncapture noisily egen c = first(x)\ndisplay _rc\ncapture noisily egen c = p50(x)\ndisplay _rc\ncapture noisily egen c = mean(x), by(g) nosuch\ndisplay _rc\ncapture noisily egen c = rank(x), field track\ndisplay _rc\nclear\nset obs 8\ngenerate g = cond(_n <= 4, 1, 2)\ngenerate x = cond(_n == 3, ., mod(_n * 5, 4))\negen r0 = rank(x)\negen r1 = rank(x), field\negen r2 = rank(x), track\negen r3 = rank(x), by(g) field\negen r4 = rank(-x), track\negen r5 = rank(x) if g == 1, track\nlist\ndescribe r0 r1 r2 r3 r4 r5\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate g = cond(_n <= 3, 1, 2)", "lines": [] },
+        {
+          "command": "generate x = cond(_n <= 3, ., _n)",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace x = .a in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "generate y = cond(_n == 1, 2, .)",
+          "lines": ["(5 missing values generated)"]
+        },
+        { "command": "generate str1 s = \"a\"", "lines": [] },
+        { "command": "egen t1 = total(x), by(g)", "lines": [] },
+        {
+          "command": "egen t2 = total(x), by(g) missing",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "egen t3 = sum(x), by(g) missing",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "egen m1 = max(x), by(g)",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "egen m2 = max(x), by(g) missing",
+          "lines": ["(6 missing values generated)"]
+        },
+        {
+          "command": "egen n1 = min(x), by(g)",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "egen n2 = min(x), by(g) missing",
+          "lines": ["(3 missing values generated)"]
+        },
+        { "command": "egen r1 = rowtotal(x y)", "lines": [] },
+        {
+          "command": "egen r2 = rowtotal(x y), missing",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------------------------------------+",
+            "     | g    x   y   s   t1   t2   t3   m1   m2   n1   n2   r1   r2 |",
+            "     |-------------------------------------------------------------|",
+            "  1. | 1    .   2   a    0    .    .    .    .    .    .    2    2 |",
+            "  2. | 1    .   .   a    0    .    .    .    .    .    .    0    . |",
+            "  3. | 1    .   .   a    0    .    .    .    .    .    .    0    . |",
+            "  4. | 2    4   .   a   10   10   10    6   .a    4    4    4    4 |",
+            "  5. | 2   .a   .   a   10   10   10    6   .a    4    4    0    . |",
+            "     |-------------------------------------------------------------|",
+            "  6. | 2    6   .   a   10   10   10    6   .a    4    4    6    6 |",
+            "     +-------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "capture noisily egen a = count(x), missing",
+          "lines": ["option missing not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily egen b = count(s), missing",
+          "lines": ["option missing not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily egen c = mean(x), missing",
+          "lines": ["option missing not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily egen c = max(x), mi",
+          "lines": ["option mi not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily egen c = concat(x y), by(g)",
+          "lines": ["egen ... concat() may not be combined with by"]
+        },
+        { "command": "display _rc", "lines": ["190"] },
+        {
+          "command": "capture noisily egen c = rowmean(x y), by(g)",
+          "lines": ["egen ... rowmean() may not be combined with by"]
+        },
+        { "command": "display _rc", "lines": ["190"] },
+        {
+          "command": "capture noisily egen c = tag(x), by(g)",
+          "lines": ["egen ... tag() may not be combined with by"]
+        },
+        { "command": "display _rc", "lines": ["190"] },
+        {
+          "command": "capture noisily egen c = first(x)",
+          "lines": ["unknown egen function first()"]
+        },
+        { "command": "display _rc", "lines": ["133"] },
+        {
+          "command": "capture noisily egen c = p50(x)",
+          "lines": ["unknown egen function p50()"]
+        },
+        { "command": "display _rc", "lines": ["133"] },
+        {
+          "command": "capture noisily egen c = mean(x), by(g) nosuch",
+          "lines": ["option nosuch not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily egen c = rank(x), field track",
+          "lines": ["only one of options field or track is allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate g = cond(_n <= 4, 1, 2)", "lines": [] },
+        {
+          "command": "generate x = cond(_n == 3, ., mod(_n * 5, 4))",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "egen r0 = rank(x)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "egen r1 = rank(x), field",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "egen r2 = rank(x), track",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "egen r3 = rank(x), by(g) field",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "egen r4 = rank(-x), track",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "egen r5 = rank(x) if g == 1, track",
+          "lines": ["(5 missing values generated)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------------------+",
+            "     | g   x    r0   r1   r2   r3   r4   r5 |",
+            "     |--------------------------------------|",
+            "  1. | 1   1   3.5    4    3    2    4    2 |",
+            "  2. | 1   2   5.5    2    5    1    2    3 |",
+            "  3. | 1   .     .    .    .    .    .    . |",
+            "  4. | 1   0   1.5    6    1    3    6    1 |",
+            "  5. | 2   1   3.5    4    3    3    4    . |",
+            "     |--------------------------------------|",
+            "  6. | 2   2   5.5    2    5    2    2    . |",
+            "  7. | 2   3     7    1    7    1    1    . |",
+            "  8. | 2   0   1.5    6    1    4    6    . |",
+            "     +--------------------------------------+"
+          ]
+        },
+        {
+          "command": "describe r0 r1 r2 r3 r4 r5",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "r0              float   %9.0g                 rank of (x)",
+            "r1              float   %9.0g                 field rank of (x)",
+            "r2              float   %9.0g                 track rank of (x)",
+            "r3              float   %9.0g                 field rank of (x) by g",
+            "r4              float   %9.0g                 track rank of (-x)",
+            "r5              float   %9.0g                 track rank of (x)"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

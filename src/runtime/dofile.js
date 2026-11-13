@@ -17,7 +17,11 @@ export function splitCommands(source) {
     compound = 0,
     comment = 0;
   const flush = () => {
-    const command = current.replace(/\s+/g, " ").trim();
+    // Runs of blanks are kept as typed: a string literal such as "  a" keeps
+    // its blanks, and commands that echo what was typed, such as tab1's
+    // heading, need them. Tabs and the line breaks of a continued command
+    // become single blanks.
+    const command = current.replace(/\s/g, " ").trim();
     if (command && !/^\*/.test(command))
       out.push({ text: command, line: startLine });
     current = "";

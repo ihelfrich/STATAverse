@@ -679,7 +679,12 @@ function label(session, text, ctx) {
       replaceAll = /\breplace\b/.test(options);
     if (exists && !add && !replaceAll)
       throw new StataError(`label ${m[1]} already defined`, 110);
-    const map = exists && !replaceAll ? data.valueLabels.get(m[1]) : new Map();
+    const map = new Map(
+        exists && !replaceAll ? data.valueLabels.get(m[1]) : [],
+      ),
+      pairs = [];
+    // Every value is checked before any is stored: a refused definition
+    // leaves the label as it was.
     for (let k = 0; k < words.length; k += 2) {
       const value = session.scalar(words[k].text);
       if (
@@ -687,17 +692,18 @@ function label(session, text, ctx) {
         (!isMissing(value) && !Number.isInteger(value))
       )
         throw invalid("may not label noninteger values");
-      if (
-        map.has(value) &&
-        exists &&
-        !/\bmodify\b/.test(options) &&
-        !replaceAll
-      )
-        throw invalid(`label ${m[1]} already has a value for ${words[k].text}`);
-      // modify with empty text removes a value's label.
-      if (words[k + 1].text === "" && map.has(value)) map.delete(value);
-      else map.set(value, words[k + 1].text);
+      if (value === MISSING) throw invalid("may not label .");
+      pairs.push([value, words[k + 1].text]);
     }
+    // add may not change a value the label already has, but empty text
+    // removes it, under add as under modify.
+    if (exists && !replaceAll && !/\bmodify\b/.test(options))
+      for (const [value, text] of pairs)
+        if (text !== "" && map.has(value))
+          throw new StataError("invalid attempt to modify label", 180);
+    for (const [value, text] of pairs)
+      if (text === "" && map.has(value)) map.delete(value);
+      else map.set(value, text);
     // label dir lists the most recently defined or modified label first.
     data.valueLabels.delete(m[1]);
     data.valueLabels.set(m[1], map);
@@ -745,9 +751,12 @@ function labelList(session, text, ctx) {
       ctx.out(
         `${(isMissing(value) ? missingName(value) : String(value)).padStart(12)} ${text}`,
       );
+    // A label of extended missing values only has a missing minimum and
+    // maximum; an empty label has 0.
+    const none = entries.length ? MISSING : 0;
     session.results.r = {
-      min: present.length ? least(present) : 0,
-      max: present.length ? greatest(present) : 0,
+      min: present.length ? least(present) : none,
+      max: present.length ? greatest(present) : none,
       hasemiss: Number(
         entries.some(([value]) => isMissing(value) && value !== MISSING),
       ),
@@ -1002,6 +1011,54 @@ function isid(session, text) {
 }
 
 // ----- egen and collapse -----
+/**
+ * The options each egen function takes, as its _g*.ado file declares them,
+ * those after a bar being ones this runtime refuses, and whether it may be
+ * combined with by. Any other option is one Stata does not allow.
+ */
+const ROW_ONLY = { options: "", by: false };
+const EGEN = {
+  concat: {
+    options: "Punct(string) | Decode MAXLength(string) Format(string)",
+    by: false,
+  },
+  anycount: { options: "Values(numlist)", by: false },
+  anymatch: { options: "Values(numlist)", by: false },
+  rowtotal: { options: "Missing", by: false },
+  rowmean: ROW_ONLY,
+  rowmin: ROW_ONLY,
+  rowmax: ROW_ONLY,
+  rowmiss: ROW_ONLY,
+  rowsd: ROW_ONLY,
+  rowfirst: ROW_ONLY,
+  rowlast: ROW_ONLY,
+  rownonmiss: { options: "| Strok", by: false },
+  group: {
+    options: "Missing | Label(string) LName(string) Truncate(string) AUTOTYPE",
+    by: false,
+  },
+  tag: { options: "Missing", by: false },
+  seq: { options: "| Block(string) From(string) To(string)", by: true },
+  rank: { options: "Field Track | Unique Suffix(string)", by: true },
+  std: { options: "| Mean(string) Sd(string)", by: true },
+  cut: {
+    options: "AT(numlist) Group(integer 0) | ICodes Label",
+    by: false,
+  },
+  pctile: { options: "P(real 50) | AUTOTYPE", by: true },
+  mean: { options: "", by: true },
+  sd: { options: "", by: true },
+  count: { options: "", by: true },
+  total: { options: "Missing", by: true },
+  sum: { options: "Missing", by: true },
+  min: { options: "MISSing", by: true },
+  max: { options: "MISSing", by: true },
+  median: { options: "| AUTOTYPE", by: true },
+  iqr: { options: "| AUTOTYPE", by: true },
+};
+// Stata's other egen functions, which this runtime does not have yet.
+const EGEN_MISSING =
+  /^(any|anyvalue|diff|ends|fill|kurt|mad|mdev|mode|mtr|pc|rowmedian|rowpctile|skew)$/;
 function egen(session, text, ctx) {
   const m =
     /^((?:byte|int|long|float|double|str\d*)\s+)?([A-Za-z_]\w*)\s*=\s*(\w+)\s*\(([\s\S]*?)\)\s*((?:if|in|,)[\s\S]*)?$/.exec(
@@ -1009,14 +1066,23 @@ function egen(session, text, ctx) {
     );
   if (!m) throw invalid();
   const [, typeText, name, fcn, argument, tail = ""] = m,
-    parsed = session.parse(
-      "[if] [in] [, BY(varlist) Missing Field Track Unique P(integer 50) AT(numlist) Values(numlist) Group(integer 0) Punct(string) | Label Icodes Format(string) Decode MAXLength(integer 0)]",
-      tail,
-    ),
     data = session.data;
+  // egen.ado's order: the new name, then the function, then its options.
   if (!isName(name)) throw invalid(`${name} invalid name`);
   if (data.has(name))
     throw new StataError(`variable ${name} already defined`, 110);
+  if (EGEN_MISSING.test(fcn))
+    throw new StataError(`egen ${fcn}() is not available yet`, 198);
+  const known = Object.hasOwn(EGEN, fcn) ? EGEN[fcn] : null;
+  if (!known) throw new StataError(`unknown egen function ${fcn}()`, 133);
+  const parsed = session.parse(
+    `[if] [in] [, BY(${known.by ? "varlist" : "string"}) ${known.options}]`,
+    tail,
+  );
+  if (!known.by && (parsed.options.by || ctx.by))
+    throw new StataError(`egen ... ${fcn}() may not be combined with by`, 190);
+  if (parsed.options.field && parsed.options.track)
+    throw invalid("only one of options field or track is allowed");
   // With no observations and by(), Stata's egen finds nothing to work on.
   if (!data.n && (parsed.options.by || ctx.by))
     throw new StataError("no observations to group", 111);
@@ -1081,7 +1147,10 @@ function egen(session, text, ctx) {
         .filter((v) => !isMissing(v));
       values[i] =
         fcn === "rowtotal"
-          ? row.reduce((a, b) => a + b, 0)
+          ? // missing: a row with no values is missing, not 0.
+            row.length || !parsed.options.missing
+            ? row.reduce((a, b) => a + b, 0)
+            : MISSING
           : fcn === "rowmean"
             ? row.length
               ? row.reduce((a, b) => a + b, 0) / row.length
@@ -1158,10 +1227,17 @@ function egen(session, text, ctx) {
         ])
         .filter(([, v]) => !isMissing(v))
         .sort((a, b) => a[1] - b[1]);
+      // Tied values share the mean of their ranks; under track the lowest
+      // of them, and under field the rank counted from the largest value.
       for (let k = 0; k < pairs.length;) {
         let j = k;
         while (j < pairs.length && pairs[j][1] === pairs[k][1]) j++;
-        for (let t = k; t < j; t++) values[pairs[t][0]] = (k + 1 + j) / 2;
+        for (let t = k; t < j; t++)
+          values[pairs[t][0]] = parsed.options.track
+            ? k + 1
+            : parsed.options.field
+              ? pairs.length - j + 1
+              : (k + 1 + j) / 2;
         k = j;
       }
     }
@@ -1231,7 +1307,18 @@ function egen(session, text, ctx) {
       ? evaluateAll(compiled, data.n).map((v) => (v === "" ? MISSING : 1))
       : evaluateAll(compiled, data.n);
     for (const group of groups) {
-      const result = fn(group.map((i) => all[i]).filter((v) => !isMissing(v)));
+      const present = group.map((i) => all[i]).filter((v) => !isMissing(v));
+      // missing: total() of no values is missing, not 0, and max() and min()
+      // compare missing values too, which sort above every number.
+      const result = !parsed.options.missing
+        ? fn(present)
+        : fcn === "max"
+          ? greatest(group.map((i) => all[i]))
+          : fcn === "min"
+            ? least(group.map((i) => all[i]))
+            : present.length
+              ? fn(present)
+              : MISSING;
       for (const i of group) values[i] = result;
     }
   }
@@ -1245,7 +1332,14 @@ function egen(session, text, ctx) {
   data.sortedBy = sorted;
   if (fcn === "group" || fcn === "tag")
     data.get(name).label = `${fcn}(${argument.trim()})`;
-  if (fcn === "rank") data.get(name).label = `rank of (${argument.trim()})`;
+  if (fcn === "rank")
+    data.get(name).label = [
+      parsed.options.field ? "field" : parsed.options.track ? "track" : "",
+      `rank of (${argument.trim()})`,
+      keys.length ? `by ${keys.join(" ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   if (label) data.get(name).label = label;
 }
 

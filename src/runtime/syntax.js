@@ -219,7 +219,7 @@ export function parseDeclaration(declaration) {
 const notAllowed = (what) => new StataError(`${what} not allowed`, 101);
 
 // Finds where each clause of the part before the comma begins.
-function clauses(head, expAllowed = true) {
+export function clauses(head, expAllowed = true) {
   const found = [];
   // A weight is a top-level [ ... ] that follows a blank; x[_n-1] is not one.
   let depth = 0;
