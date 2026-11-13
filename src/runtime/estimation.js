@@ -522,9 +522,18 @@ export function tableWidth(session, model) {
       return term && !term.variable ? term.header : name;
     });
   // The dependent variable does not widen the column; it is abbreviated.
-  const longest = Math.max(0, ...shown.map((n) => n.length)),
-    linesize = session.settings?.linesize ?? 80;
-  return Math.max(12, Math.min(longest, linesize - 67));
+  const cap = (session.settings?.linesize ?? 80) - 67,
+    // A name counts whole when the line allows it; an interaction that does
+    // not fit breaks after a #, so then its longest piece counts.
+    longest = Math.max(
+      0,
+      ...shown.map((n) =>
+        n.length <= cap || !n.includes("#")
+          ? n.length
+          : Math.max(...n.split("#").map((p) => p.length)),
+      ),
+    );
+  return Math.max(12, Math.min(longest, cap));
 }
 /** Stata's abbrev(name, width): the start, a ~, and the last character. */
 export const abbreviate = (name, width) =>
@@ -571,11 +580,26 @@ export function termRows(session, model, cells, width) {
         block.items[0],
       );
     // So is a product of continuous variables, though with blank rows.
-    if (
-      alone ||
-      (shown.length === 1 && block.term.components.every((c) => !c.factor))
-    )
+    if (alone)
       return row(`${short(model.names[shown[0]]).padStart(w)} `, shown[0]);
+    // A product of continuous variables is one row; a name too long for the
+    // column is broken after a #, the last piece labelling the row.
+    if (shown.length === 1 && block.term.components.every((c) => !c.factor)) {
+      const name = model.names[shown[0]];
+      if (name.length <= w || !name.includes("#"))
+        return row(`${short(name).padStart(w)} `, shown[0]);
+      const pieces = [];
+      for (const part of name.split("#")) {
+        const last = pieces.at(-1);
+        if (last !== undefined && `${last}#${part}`.length <= w)
+          pieces[pieces.length - 1] = `${last}#${part}`;
+        else pieces.push(part);
+      }
+      pieces
+        .slice(0, -1)
+        .forEach((piece) => out.push(`${`${piece}#`.padStart(w + 1)}|`));
+      return row(`${short(pieces.at(-1)).padStart(w)} `, shown[0]);
+    }
     // A header too long for the column is broken after a #.
     const parts = block.term.header.split("#"),
       pieces = [];

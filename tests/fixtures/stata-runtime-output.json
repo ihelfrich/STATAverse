@@ -14641,6 +14641,98 @@
       ]
     },
     {
+      "id": "continuous-interaction-label",
+      "source": "clear\nset seed 31\nset obs 200\ngenerate double education = runiform() * 16\ngenerate double experience = runiform() * 30\ngenerate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4\nset linesize 80\nregress wage education c.education#c.experience\nregress wage c.education##c.experience\nset linesize 200\nregress wage education c.education#c.experience\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        {
+          "command": "generate double education = runiform() * 16",
+          "lines": []
+        },
+        {
+          "command": "generate double experience = runiform() * 30",
+          "lines": []
+        },
+        {
+          "command": "generate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress wage education c.education#c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =    805.35",
+            "       Model |  2144.50355         2  1072.25178   Prob > F        =    0.0000",
+            "    Residual |  262.289239       197  1.33141746   R-squared       =    0.8910",
+            "-------------+----------------------------------   Adj R-squared   =    0.8899",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1539",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .3339823   .0243888    13.69   0.000     .2858856     .382079",
+            "             |",
+            " c.education#|",
+            "c.experience |   .0192075   .0010183    18.86   0.000     .0171993    .0212156",
+            "             |",
+            "       _cons |   5.722633   .1644112    34.81   0.000     5.398401    6.046865",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage c.education##c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(3, 196)       =    550.57",
+            "       Model |  2151.48818         3  717.162727   Prob > F        =    0.0000",
+            "    Residual |  255.304612       196  1.30257455   R-squared       =    0.8939",
+            "-------------+----------------------------------   Adj R-squared   =    0.8923",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1413",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4058677   .0393145    10.32   0.000      .328334    .4834014",
+            "  experience |    .048159   .0207973     2.32   0.022     .0071438    .0891742",
+            "             |",
+            " c.education#|",
+            "c.experience |   .0146903   .0021954     6.69   0.000     .0103607    .0190199",
+            "             |",
+            "       _cons |   4.962805   .3662161    13.55   0.000     4.240575    5.685035",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress wage education c.education#c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =    805.35",
+            "       Model |  2144.50355         2  1072.25178   Prob > F        =    0.0000",
+            "    Residual |  262.289239       197  1.33141746   R-squared       =    0.8910",
+            "-------------+----------------------------------   Adj R-squared   =    0.8899",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1539",
+            "",
+            "------------------------------------------------------------------------------------------",
+            "                    wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------------+----------------------------------------------------------------",
+            "               education |   .3339823   .0243888    13.69   0.000     .2858856     .382079",
+            "                         |",
+            "c.education#c.experience |   .0192075   .0010183    18.86   0.000     .0171993    .0212156",
+            "                         |",
+            "                   _cons |   5.722633   .1644112    34.81   0.000     5.398401    6.046865",
+            "------------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

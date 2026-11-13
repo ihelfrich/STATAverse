@@ -2182,3 +2182,15 @@ poisson visits household_income_k
 logit employed_full_time household_income_k, or
 set linesize 200
 logit employed_full_time household_income_k
+=== continuous-interaction-label
+clear
+set seed 31
+set obs 200
+generate double education = runiform() * 16
+generate double experience = runiform() * 30
+generate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4
+set linesize 80
+regress wage education c.education#c.experience
+regress wage c.education##c.experience
+set linesize 200
+regress wage education c.education#c.experience
