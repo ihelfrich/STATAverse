@@ -713,6 +713,55 @@ leaves the browser suite to whoever merges.
 
 R1's cost and the order of B15 and the courses can wait until M3.
 
+## 6b. Progress on 12 November (evening)
+
+All of this is in open pull requests; nothing below is merged or deployed.
+Each package was checked against Stata 19 with a recorded output case, and
+each red-team finding was fixed on the branch it concerned.
+
+| PR          | What                                             | Base |
+| ----------- | ------------------------------------------------ | ---- |
+| #31         | A0: checks write receipts outside the tree       | main |
+| #32         | A1: the wide probe, with output assertions       | main |
+| #33         | A3: crashes and false errors; nbreg at alpha = 0 | main |
+| #34         | A2: silent wrong results, graph options          | #32  |
+| #35         | A4: coverage matrix                              | main |
+| #37         | Large datasets in graphs; by() and tick faults   | #34  |
+| #38         | error # prints Stata's message                   | main |
+| #39         | B1: coefficient references in test and lincom    | main |
+| #40         | tobit, ologit, nbreg tables laid out by term     | #33  |
+| #41         | Coefficient-table width for regress              | main |
+| #42         | The same for logit, probit, poisson              | #41  |
+| #43         | ttesti; ttest, unequal and welch                 | main |
+| #44         | prtesti                                          | main |
+| #45         | robvar                                           | main |
+| #46         | bitest, bitesti                                  | main |
+| #47         | signtest                                         | #46  |
+| #48         | Long continuous-interaction labels               | #42  |
+| website #54 | E2 live check, E3 font-face guard                | main |
+
+Merge notes. #33 and #34 both add a line to `Session.select`: keep both
+(`parsed.only` and `this.panelRows`). #44 to #47 all add functions and
+registry lines to `src/runtime/tests.js`; conflicts are adjacent lines.
+Every PR that adds a recorded case appends to `tools/output-cases.txt`, and
+the fixture must be re-recorded after merging several of them
+(`node tools/check-output-native.mjs`), then `npm test`. After the merges,
+rerun `node tools/wide-probe.mjs --write` and
+`node tools/coverage-matrix.mjs --write` on `main`.
+
+Found and not yet fixed, each measured against Stata:
+
+- The coefficient-table width (#41, #42) is not yet used by the likelihood
+  family, margins, lincom or the beta table of regress.
+- For c.x#i.f Stata orders the factor first and names the coefficient
+  1.f#c.x; the runtime keeps the typed order. This renames design-matrix
+  columns and belongs with B2.
+- tobit's iteration log lacks Stata's "Refining starting values" and "Grid
+  node" lines.
+- error 2 and other codes below 100 print no message.
+- robvar on a by() variable with very many values runs where Stata stops
+  with r(134) "too many values".
+
 ## 7. Releasing, as it is done today
 
 The only release input is `commit` in `config/stataverse.json` of
