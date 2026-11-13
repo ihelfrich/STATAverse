@@ -567,6 +567,6 @@ graph|labor||twoway (scatter wage education) (lfit wage education), legend(order
 graph|labor||scatter wage education, xlabel(8(2)20) ylabel(0(10)60, angle(0))
 @ />14</.test(svg) && />50</.test(svg)
 graph|labor||graph bar (mean) wage, over(region, sort(1)) blabel(bar)
-@ /South[\s\S]*East[\s\S]*West[\s\S]*North/.test(description) && /17\.53647</.test(svg)
+@ /South[\s\S]*East[\s\S]*West[\s\S]*North/.test(description) && />17\.5365</.test(svg)
 graph|labor||scatter wage education, scheme(s1mono)
 @ false

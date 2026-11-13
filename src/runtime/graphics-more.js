@@ -211,6 +211,27 @@ const STATISTICS = {
   max: (v) => greatest(v),
   sd: (v) => moments(v).sd,
 };
+/**
+ * One bar height per group of rows, or null where Stata draws no bar. As
+ * with collapse, count and sum of no values are 0 and the other statistics
+ * missing; percent is each group's share of the variable's nonmissing
+ * values in the whole sample.
+ */
+function barHeights(statistic, variable, groups) {
+  const present = groups.map((rows) =>
+    rows.map((i) => variable.data[i]).filter((value) => !isMissing(value)),
+  );
+  if (statistic === "percent") {
+    const all = present.reduce((t, v) => t + v.length, 0);
+    return present.map((v) => (all ? (100 * v.length) / all : null));
+  }
+  return present.map((v) => {
+    if (!v.length)
+      return statistic === "count" || statistic === "sum" ? 0 : null;
+    const value = STATISTICS[statistic](v);
+    return isMissing(value) ? null : value;
+  });
+}
 /** yvars and their statistic, from "(mean) a b (median) c". */
 function statisticList(session, text) {
   const out = [];
@@ -229,7 +250,8 @@ function statisticList(session, text) {
 }
 /** Splits a graph command into its yvars, its if/in, and its options. */
 function graphParts(session, text, declaration) {
-  const m = /^([\s\S]*?)(\s+(?:if|in)\s[\s\S]*?)?(,[\s\S]*)?$/.exec(text),
+  // The if or in may open the text, as in graph bar if x > 0, over(g).
+  const m = /^([\s\S]*?)((?:^|\s+)(?:if|in)\s[\s\S]*?)?(,[\s\S]*)?$/.exec(text),
     parsed = parseGraph(
       session,
       `[if] [in] [, OVer(string) ${declaration} ${LOOKS}]`,
@@ -290,20 +312,16 @@ function graphBar(horizontal) {
       (!parts.over || !/^(\(\s*(count|percent)\s*\))?$/.test(parts.head))
     )
       throw new StataError("varlist required", 100);
-    const total = parts.groups.reduce((t, rows) => t + rows.length, 0),
-      unsorted = frequencies
+    const total = parts.groups.reduce((t, rows) => t + rows.length, 0);
+    if (!total) throw new StataError("no observations", 2000);
+    const unsorted = frequencies
         ? [
             parts.groups.map((rows) =>
               counted ? rows.length : (100 * rows.length) / total,
             ),
           ]
         : series.map(({ statistic, variable }) =>
-            parts.groups.map((rows) => {
-              const v = rows
-                .map((i) => variable.data[i])
-                .filter((value) => !isMissing(value));
-              return v.length ? STATISTICS[statistic](v) : 0;
-            }),
+            barHeights(statistic, variable, parts.groups),
           ),
       names = frequencies
         ? [counted ? "frequency" : "percent"]
@@ -320,7 +338,9 @@ function graphBar(horizontal) {
           `over(…, sort(${sorted.sort})): there are ${unsorted.length} statistics`,
           198,
         );
-      order.sort((a, b) => by[a] - by[b] || a - b);
+      // A group with no bar sorts first, as in Stata.
+      const key = (k) => by[k] ?? -Infinity;
+      order.sort((a, b) => key(a) - key(b) || a - b);
       if (sorted.descending) order.reverse();
     }
     // blabel(bar) writes each bar's height above it.
@@ -332,12 +352,20 @@ function graphBar(horizontal) {
     const heights = unsorted.map((row) => order.map((k) => row[k])),
       labels = order.map((k) => parts.labels[k]),
       slot = 1 / (heights.length + 1),
+      // A missing statistic leaves its slot empty, with no bar and no bar
+      // label, though its group keeps its place and label on the axis.
       layers = heights.map((row, s) => ({
-        bars: row.map((height, k) => ({
-          x0: k + 1 - 0.5 + slot * (s + 0.5),
-          x1: k + 1 - 0.5 + slot * (s + 1.5),
-          height,
-        })),
+        bars: row.flatMap((height, k) =>
+          height === null
+            ? []
+            : [
+                {
+                  x0: k + 1 - 0.5 + slot * (s + 0.5),
+                  x1: k + 1 - 0.5 + slot * (s + 1.5),
+                  height,
+                },
+              ],
+        ),
         points: [],
         label: names[s],
         barLabels: options.blabel !== undefined,
@@ -347,7 +375,8 @@ function graphBar(horizontal) {
           (name, s) =>
             `${name}${parts.over ? ` by ${parts.over.name}` : ""}: ${labels
               .map(
-                (label, k) => `${label ? label + " " : ""}${g(heights[s][k])}`,
+                (label, k) =>
+                  `${label ? label + " " : ""}${heights[s][k] === null ? "(no bar)" : g(heights[s][k])}`,
               )
               .join(", ")}`,
         )
@@ -384,9 +413,14 @@ function graphBar(horizontal) {
         description,
       });
     }
+    // When no statistic can be drawn, Stata still draws the axes, the y axis
+    // from -1 to 1, with every group's label.
+    const empty = heights.every((row) => row.every((h) => h === null)),
+      looks = drawnLooks(options);
     ctx.graph({
       svg: draw({
-        ...drawnLooks(options),
+        ...looks,
+        ...(empty ? { yRange: [-1, 1], yTicks: looks.yTicks ?? [-1, 1] } : {}),
         layers,
         xTitle:
           unquote(options.xtitle) || (parts.over ? titleOf(parts.over) : ""),
