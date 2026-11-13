@@ -14347,6 +14347,233 @@
       ]
     },
     {
+      "id": "coefficient-references",
+      "source": "clear\nset seed 3141\nset obs 300\ngenerate byte female = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double x = runiform() * 10\ngenerate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3\nregress y x i.female i.g i.female#c.x\ntest 1.female\ntest 2.g = 3.g\ntest 2.g 3.g\ntest 1.female#c.x\ntest c.x#1.female\ntest _b[x] = .5\ntest _b[1.female] = 0\ntest (_b[2.g] = 0) (_b[3.g] = 0)\ntest 2*x = 1\nlincom x + 1.female#c.x\nlincom _b[x] + _b[1.female#c.x]\nlincom 2.g - 3.g\nlincom 1.female + .5*x\nlogit female x i.g\ntest 2.g = 3.g\nlincom 2.g - 3.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 3141", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate byte female = runiform() > .5", "lines": [] },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate double x = runiform() * 10", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3",
+          "lines": []
+        },
+        {
+          "command": "regress y x i.female i.g i.female#c.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(5, 294)       =    306.63",
+            "       Model |   1101.4567         5   220.29134   Prob > F        =    0.0000",
+            "    Residual |  211.219533       294  .718433786   R-squared       =    0.8391",
+            "-------------+----------------------------------   Adj R-squared   =    0.8364",
+            "       Total |  1312.67623       299  4.39022151   Root MSE        =     .8476",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4808233   .0247784    19.40   0.000     .4320577    .5295889",
+            "    1.female |   .5835659   .1996952     2.92   0.004     .1905527    .9765791",
+            "             |",
+            "           g |",
+            "          2  |   .3005814   .1174475     2.56   0.011     .0694369    .5317259",
+            "          3  |   .5620697   .1211651     4.64   0.000     .3236088    .8005307",
+            "             |",
+            "  female#c.x |",
+            "          1  |   .2400758   .0348398     6.89   0.000     .1715089    .3086427",
+            "             |",
+            "       _cons |   2.878593   .1586181    18.15   0.000     2.566422    3.190763",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 1.female",
+          "lines": [
+            " ( 1)  1.female = 0",
+            "",
+            "       F(  1,   294) =    8.54",
+            "            Prob > F =    0.0037"
+          ]
+        },
+        {
+          "command": "test 2.g = 3.g",
+          "lines": [
+            " ( 1)  2.g - 3.g = 0",
+            "",
+            "       F(  1,   294) =    4.52",
+            "            Prob > F =    0.0342"
+          ]
+        },
+        {
+          "command": "test 2.g 3.g",
+          "lines": [
+            " ( 1)  2.g = 0",
+            " ( 2)  3.g = 0",
+            "",
+            "       F(  2,   294) =   10.85",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 1.female#c.x",
+          "lines": [
+            " ( 1)  1.female#c.x = 0",
+            "",
+            "       F(  1,   294) =   47.48",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test c.x#1.female",
+          "lines": [
+            " ( 1)  1.female#c.x = 0",
+            "",
+            "       F(  1,   294) =   47.48",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test _b[x] = .5",
+          "lines": [
+            " ( 1)  x = .5",
+            "",
+            "       F(  1,   294) =    0.60",
+            "            Prob > F =    0.4396"
+          ]
+        },
+        {
+          "command": "test _b[1.female] = 0",
+          "lines": [
+            " ( 1)  1.female = 0",
+            "",
+            "       F(  1,   294) =    8.54",
+            "            Prob > F =    0.0037"
+          ]
+        },
+        {
+          "command": "test (_b[2.g] = 0) (_b[3.g] = 0)",
+          "lines": [
+            " ( 1)  2.g = 0",
+            " ( 2)  3.g = 0",
+            "",
+            "       F(  2,   294) =   10.85",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 2*x = 1",
+          "lines": [
+            " ( 1)  2*x = 1",
+            "",
+            "       F(  1,   294) =    0.60",
+            "            Prob > F =    0.4396"
+          ]
+        },
+        {
+          "command": "lincom x + 1.female#c.x",
+          "lines": [
+            " ( 1)  x + 1.female#c.x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .7208992   .0245203    29.40   0.000     .6726417    .7691567",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _b[x] + _b[1.female#c.x]",
+          "lines": [
+            " ( 1)  x + 1.female#c.x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .7208992   .0245203    29.40   0.000     .6726417    .7691567",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.g - 3.g",
+          "lines": [
+            " ( 1)  2.g - 3.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.2614883   .1229347    -2.13   0.034     -.503432   -.0195447",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 1.female + .5*x",
+          "lines": [
+            " ( 1)  .5*x + 1.female = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .8239776   .2078035     3.97   0.000     .4150067    1.232948",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit female x i.g",
+          "lines": [
+            "Iteration 0:  Log likelihood = -207.88415",
+            "Iteration 1:  Log likelihood = -206.01405",
+            "Iteration 2:  Log likelihood = -206.01391",
+            "Iteration 3:  Log likelihood = -206.01391",
+            "",
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(3)    =   3.74",
+            "                                                        Prob > chi2   = 0.2909",
+            "Log likelihood = -206.01391                             Pseudo R2     = 0.0090",
+            "",
+            "------------------------------------------------------------------------------",
+            "      female | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   -.038775   .0414207    -0.94   0.349     -.119958    .0424081",
+            "             |",
+            "           g |",
+            "          2  |  -.1330853   .2784872    -0.48   0.633    -.6789101    .4127395",
+            "          3  |   .3329698   .2869007     1.16   0.246    -.2293453    .8952849",
+            "             |",
+            "       _cons |   .0974367   .2811758     0.35   0.729    -.4536578    .6485311",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 2.g = 3.g",
+          "lines": [
+            " ( 1)  [female]2.g - [female]3.g = 0",
+            "",
+            "           chi2(  1) =    2.56",
+            "         Prob > chi2 =    0.1095"
+          ]
+        },
+        {
+          "command": "lincom 2.g - 3.g",
+          "lines": [
+            " ( 1)  [female]2.g - [female]3.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "      female | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.4660551   .2911947    -1.60   0.109    -1.036786     .104676",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

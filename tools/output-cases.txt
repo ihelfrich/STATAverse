@@ -2149,3 +2149,28 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== coefficient-references
+clear
+set seed 3141
+set obs 300
+generate byte female = runiform() > .5
+generate byte g = 1 + floor(runiform() * 3)
+generate double x = runiform() * 10
+generate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3
+regress y x i.female i.g i.female#c.x
+test 1.female
+test 2.g = 3.g
+test 2.g 3.g
+test 1.female#c.x
+test c.x#1.female
+test _b[x] = .5
+test _b[1.female] = 0
+test (_b[2.g] = 0) (_b[3.g] = 0)
+test 2*x = 1
+lincom x + 1.female#c.x
+lincom _b[x] + _b[1.female#c.x]
+lincom 2.g - 3.g
+lincom 1.female + .5*x
+logit female x i.g
+test 2.g = 3.g
+lincom 2.g - 3.g
