@@ -4681,3 +4681,53 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== graph-axes
+@EST
+graph drop _all
+capture noisily graph combine
+capture noisily graph combine, cols(2)
+scatter y x1, name(g1)
+histogram y, name(g2)
+graph dir
+scatter y x1, name(alongergraphname)
+scatter y x1, name(abcdefghi)
+scatter y x1, name(abcdefgh)
+graph dir
+scatter y x1, name(g3)
+scatter y x1, name(g4)
+scatter y x1, name(g5)
+scatter y x1, name(g6)
+scatter y x1, name(g7)
+scatter y x1, name(g8)
+scatter y x1, name(g9)
+scatter y x1, name(g10)
+graph dir
+set linesize 40
+graph dir
+set linesize 56
+graph dir
+set linesize 57
+graph dir
+set linesize 80
+graph dir
+set linesize 200
+graph drop _all
+capture noisily scatter y x1, by(g, cols(2) rows(2))
+capture noisily scatter y x1, by(g, rows(1) cols(3))
+capture noisily scatter y x1, yline(abc)
+capture noisily scatter y x1, yline(1 abc)
+capture noisily scatter y x1, xline(.)
+capture noisily scatter y x1, xline(2(2)6 x)
+capture noisily scatter y x1, ylabel("ten" 10)
+capture noisily scatter y x1, ylabel(10 "ten" "x")
+capture noisily scatter y x1, ylabel(abc)
+capture noisily scatter y x1, ylabel(#)
+scatter y x1, ylabel(none)
+scatter y x1, ylabel(10 "ten" 20 "twenty")
+scatter y x1, ylabel(none 10)
+scatter y x1, xlabel(2 4 8, grid)
+scatter y x1, ylabel(#0) xlabel(#3)
+scatter y x1, ylabel(#-1)
+scatter y x1, yline()
+twoway (scatter y x1) (lfit y x1), by(g, legend(off))
+twoway (scatter y x1) (lfit y x1), by(g) legend(off)

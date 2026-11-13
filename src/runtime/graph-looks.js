@@ -556,23 +556,42 @@ export function textOption(value, option) {
 }
 
 /**
- * xlabel() or ylabel(): a numlist of tick positions, with angle(0) or
- * angle(horizontal) allowed, since that is how this page draws them.
+ * xlabel() or ylabel(), as Stata reads them:
+ *
+ *   ylabel(0(10)50)          the values to label;
+ *   ylabel(10 "ten" 20)      a value followed by the text to write there;
+ *   ylabel(none)             no labels (values after none are still drawn);
+ *   ylabel(#7)               about seven values, as Stata's rule picks them,
+ *                            and #0 or #1 the two ends of the data;
+ *   ylabel(, grid)           the default values, with grid lines.
+ *
+ * The values come back as an array, empty for none, carrying the texts
+ * given for them (texts) and whether grid lines were asked for (grid); #n
+ * comes back as { count } and suboptions alone as { grid }. angle(0) and
+ * angle(horizontal) are allowed, since that is how this page draws labels;
+ * grid and nogrid draw or leave out the lines across the plot at each label.
  */
 function axisLabels(text, option) {
   if (text === undefined) return undefined;
   const [head, rest] = splitAtComma(text),
-    approximate = /^#\s*(\d+)$/.exec(head.trim()),
-    ticks = approximate
-      ? { count: Math.max(1, Number(approximate[1])) }
-      : head.trim()
-        ? parseNumlist(head.trim())
-        : undefined;
+    rule = head.trim(),
+    approximate = /^#/.exec(rule);
+  let ticks;
+  if (approximate) {
+    // #0, #1 and any negative number label the two ends of the data.
+    if (!/^#\s*-?\d+$/.test(rule))
+      throw new StataError(
+        `invalid tick rule, ${rule.slice(1).trim()} not an integer`,
+        198,
+      );
+    ticks = { count: Math.max(0, Number(rule.slice(1).trim())) };
+  } else if (rule) ticks = labelledValues(rule);
   if (Array.isArray(ticks) && ticks.length > 200)
     throw new StataError(
       `${option}(): ${ticks.length} values is more labels than an axis can show; give at most 200`,
       198,
     );
+  let grid;
   for (const m of (rest ?? "").matchAll(/(\w+)(?:\(([^)]*)\))?/g)) {
     const [, word, value] = m;
     if (
@@ -580,14 +599,61 @@ function axisLabels(text, option) {
       /^\s*(0|h|horizontal)\s*$/i.test(value ?? "")
     )
       continue;
+    if ((word === "grid" || word === "nogrid") && value === undefined) {
+      grid = word === "grid";
+      continue;
+    }
     throw new StataError(
-      `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes a list of values, such as ${option}(0(10)50)`,
+      `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes a list of values, such as ${option}(0(10)50), each perhaps followed by its text in quotes, #n, none, angle(0), grid and nogrid`,
       198,
     );
   }
+  if (grid !== undefined) (ticks ??= {}).grid = grid;
   return ticks;
 }
-/** xline() or yline(): the values at which to draw a line. */
+/**
+ * The values of xlabel(10 "ten" 0(5)20 none), in order, as an array with a
+ * texts map for those given a text. A quoted text must follow a value.
+ */
+function labelledValues(rule) {
+  const invalid = () =>
+      new StataError(`invalid label specifier, :  ${rule}:`, 198),
+    values = [],
+    texts = new Map();
+  let none = false,
+    labelled = true;
+  for (const m of rule.matchAll(/`"([\s\S]*?)"'|"([^"]*)"|[^\s"`]+|\S/g)) {
+    const quoted = m[1] ?? m[2];
+    if (quoted !== undefined) {
+      // A text labels the value just before it, once.
+      if (labelled) throw invalid();
+      texts.set(values.at(-1), quoted);
+      labelled = true;
+    } else if (/^none$/i.test(m[0])) {
+      none = true;
+      values.length = 0;
+      texts.clear();
+      labelled = true;
+    } else {
+      let read;
+      try {
+        read = parseNumlist(m[0]);
+      } catch {
+        throw invalid();
+      }
+      for (const v of read) values.push(v);
+      labelled = !read.length;
+    }
+  }
+  values.texts = texts;
+  values.none = none;
+  return values;
+}
+/**
+ * xline() or yline(): the values at which to draw a line. Anything that is
+ * not a list of numbers is refused as Stata refuses it, naming the whole
+ * argument.
+ */
 function lines(text, option) {
   if (text === undefined) return [];
   const [head, rest] = splitAtComma(text);
@@ -596,7 +662,11 @@ function lines(text, option) {
       `${option}(…, ${rest.trim()}): line options are not drawn on this page`,
       198,
     );
-  return parseNumlist(head.trim());
+  try {
+    return parseNumlist(head.trim());
+  } catch {
+    throw new StataError(`invalid line argument, ${head.trim()}`, 198);
+  }
 }
 /**
  * legend(off), legend(order(1 "a" 2 "b")) and legend(label(1 "a")): which
