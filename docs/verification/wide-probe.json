@@ -1,8 +1,8 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 383,
-  "refused": 136,
+  "pass": 385,
+  "refused": 134,
   "wrong": 0,
   "crash": 0,
   "groups": {
@@ -31,8 +31,8 @@
       "crash": 0
     },
     "post": {
-      "pass": 59,
-      "refused": 22,
+      "pass": 61,
+      "refused": 20,
       "wrong": 0,
       "crash": 0
     },
@@ -1174,7 +1174,7 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor|quietly regress wage education experience female|test _b[education] = 2"
     },
     {
@@ -1189,7 +1189,7 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor|quietly regress wage c.education##i.female|test 1.female#c.education"
     },
     {

@@ -792,10 +792,12 @@ function test(session, text, ctx) {
     tag = (line) =>
       model.kind === "ivregress"
         ? line
-        : line.replace(/(^|[-+*] ?|^-)([A-Za-z_]\w*)/g, (all, lead, name) =>
-            model.names.includes(name)
-              ? `${lead}[${model.depvar}]${name}`
-              : all,
+        : line.replace(
+            /(^|[-+*] ?|^-)([A-Za-z_0-9][\w.#]*)/g,
+            (all, lead, name) =>
+              model.names.includes(name)
+                ? `${lead}[${model.depvar}]${name}`
+                : all,
           );
   constraints.forEach((c, k) =>
     ctx.out(
@@ -854,7 +856,7 @@ function lincom(session, text, ctx) {
     shown =
       model.kind === "ivregress"
         ? text1
-        : text1.replace(/([A-Za-z_]\w*)/g, (name) =>
+        : text1.replace(/(?<![\w.#])([A-Za-z_0-9][\w.#]*)/g, (name) =>
             model.names.includes(name) ? `[${model.depvar}]${name}` : name,
           );
   ctx.out("");
