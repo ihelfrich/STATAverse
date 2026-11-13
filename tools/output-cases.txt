@@ -2217,3 +2217,13 @@ regress y household_income_k, beta
 regress y household_income_k, beta vce(robust)
 set linesize 200
 regress y household_income_k, beta
+=== lincom-depvar
+clear
+set seed 2
+set obs 40
+generate double outcome_variable_long = runiform()
+generate double x = runiform()
+set linesize 80
+quietly regress outcome_variable_long x
+lincom x
+set linesize 200

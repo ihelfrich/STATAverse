@@ -1092,7 +1092,9 @@ export function lincom(session, text, ctx) {
   ctx.out("");
   ctx.out(` ( 1)  ${describeLinear(model, weights, 0)}`);
   ctx.out("");
-  coefficientHeader({ ...model, vce: "ols" }, level).forEach(ctx.out);
+  coefficientHeader({ ...model, vce: "ols" }, level, model.depvar, 12).forEach(
+    ctx.out,
+  );
   ctx.out(
     `${"(1)".padStart(12)} |${g(estimate).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(p, "%8.3f")}${g(estimate - critical * se).padStart(13)}${g(estimate + critical * se).padStart(12)}`,
   );

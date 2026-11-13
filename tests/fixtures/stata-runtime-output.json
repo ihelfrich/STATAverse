@@ -14875,6 +14875,38 @@
       ]
     },
     {
+      "id": "lincom-depvar",
+      "source": "clear\nset seed 2\nset obs 40\ngenerate double outcome_variable_long = runiform()\ngenerate double x = runiform()\nset linesize 80\nquietly regress outcome_variable_long x\nlincom x\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        {
+          "command": "generate double outcome_variable_long = runiform()",
+          "lines": []
+        },
+        { "command": "generate double x = runiform()", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "quietly regress outcome_variable_long x", "lines": [] },
+        {
+          "command": "lincom x",
+          "lines": [
+            " ( 1)  x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "outcome_va~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    .062548   .1653009     0.38   0.707    -.2720861    .3971821",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
