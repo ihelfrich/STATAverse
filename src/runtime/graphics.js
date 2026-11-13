@@ -1362,7 +1362,8 @@ function histogram(session, text, ctx) {
     }),
     description: `Histogram of ${titleOf(variable)}: ${bins} bins of width ${g(width)} starting at ${g(start)}, ${n} observations.`,
   });
-  session.results.r = { N: n, bin: bins, width, start };
+  // Stata's histogram leaves r() empty once the graph is drawn; the session
+  // clears it after every graph it draws.
 }
 
 /**

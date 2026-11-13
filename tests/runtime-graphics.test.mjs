@@ -52,7 +52,8 @@ test("histogram chooses bins as Stata does and still draws under quietly", () =>
   const { last, session } = run("quietly histogram x, bin(3) frequency");
   assert.equal(marks(last.graph.svg, "rect"), 1 + 3);
   assert.deepEqual(last.lines, []);
-  assert.deepEqual(session.results.r, { N: 6, bin: 3, width: 5 / 3, start: 1 });
+  // Stata 19 leaves r() empty after histogram draws its graph.
+  assert.deepEqual(session.results.r, {});
 });
 
 test("graph commands refuse what they cannot draw", () => {
@@ -148,7 +149,8 @@ test("kdensity, lowess and the plots after regress draw and store what they comp
   );
   assert.equal(result.rc, 0);
   assert.equal(result.output.filter((o) => o.graph).length, 9);
-  assert.equal(session.results.r.N, 6);
+  // Stata 19 leaves r() empty once histogram has drawn.
+  assert.deepEqual(session.results.r, {});
   assert.equal(session.data.get("kd").type, "double");
   // With one regressor the added-variable slope is the coefficient itself.
   assert.match(

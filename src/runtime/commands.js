@@ -784,13 +784,40 @@ function syntaxCommand(session, text, ctx) {
   for (const [name, value] of Object.entries(result.locals))
     if (value !== "") ctx.frame.locals.set(name, value);
 }
+// return, ereturn and sreturn. Inside an r-class program, return stages its
+// results and r() becomes them when the program ends; ereturn and sreturn
+// change e() and s() at once, so later lines and a failure see them. Setting
+// them anywhere else is an error, as in Stata.
+const CLASS = { r: "rclass", e: "eclass", s: "sclass" },
+  CLASS_CODE = { r: 151, e: 152, s: 153 };
 function returns(kind) {
   return (session, text, ctx) => {
-    const target = ctx.frame.returns?.[kind] ?? session.results[kind];
+    const program = ctx.frame.program,
+      owner =
+        !!program && new RegExp(`\\b${CLASS[kind]}\\b`).test(program.options),
+      staged = kind === "r" && owner ? ctx.frame.returns.r : null,
+      target = staged ?? session.results[kind];
     let m;
-    if (/^clear\b/.test(text))
+    if (/^clear\b/.test(text)) {
+      // return clear outside an r-class program has nothing to clear: r()
+      // stays as it is.
+      if (kind === "r" && !owner) return;
+      if (kind === "e") session.estimates = null;
       return void Object.keys(target).forEach((key) => delete target[key]);
-    if (/^add\b/.test(text)) return;
+    }
+    if (!owner && /^(sca|loc|add|mat|post|repost)\w*\b/.test(text))
+      throw new StataError(
+        `non ${CLASS[kind].replace("class", "-class")} program may not set ${kind}()`,
+        CLASS_CODE[kind],
+      );
+    // return add stages every r() result not already staged, then r() is
+    // empty until the program ends.
+    if (kind === "r" && /^add\s*$/.test(text)) {
+      for (const [key, value] of Object.entries(session.results.r))
+        if (!(key in staged)) staged[key] = value;
+      session.results.r = {};
+      return;
+    }
     if (/^list\b/.test(text)) {
       // Stata lists results in the order its own code stored them, which
       // differs by command; here they are in the order they were set.
@@ -920,20 +947,54 @@ function assertCommand(session, text, ctx) {
       9,
     );
 }
-function isid(session, text) {
+// Stata's list of names: "a", "a and b", "a, b, and c".
+function nameList(names) {
+  if (names.length < 3) return names.join(" and ");
+  return `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+}
+function isid(session, text, ctx) {
   const parsed = session.parse("varlist [, Sort Missok]", text),
     columns = parsed.varlist.map((name) => session.data.get(name).data),
+    noun = `variable${columns.length > 1 ? "s" : ""} ${nameList(parsed.varlist)}`,
     seen = new Set();
+  // Without missok, isid counts the observations with every identifier
+  // present, which leaves r(N), and refuses any that are missing.
+  if (!parsed.options.missok) {
+    let complete = 0;
+    for (let i = 0; i < session.data.n; i++)
+      if (
+        columns.every((column) =>
+          typeof column[i] === "string"
+            ? column[i] !== ""
+            : !isMissing(column[i]),
+        )
+      )
+        complete++;
+    session.results.r = { N: complete };
+    if (complete < session.data.n)
+      throw new StataError(`${noun} should never be missing`, 459);
+  }
   for (let i = 0; i < session.data.n; i++) {
     const key = JSON.stringify(columns.map((column) => column[i]));
     if (seen.has(key))
       throw new StataError(
-        `variable${columns.length > 1 ? "s" : ""} ${parsed.varlist.join(" ")} ${columns.length > 1 ? "do" : "does"} not uniquely identify the observations`,
+        `${noun} ${columns.length > 1 ? "do" : "does"} not uniquely identify the observations`,
         459,
       );
     seen.add(key);
   }
-  if (parsed.options.sort) session.data.sort(parsed.varlist);
+  if (parsed.options.sort) {
+    // sort first asks, in an r-class step, whether the data are already in
+    // that order, which leaves r(sorted).
+    const sorted = parsed.varlist.every(
+      (name, k) => session.data.sortedBy[k] === name,
+    );
+    session.results.r = { sorted: sorted ? 1 : 0 };
+    if (!sorted) session.data.sort(parsed.varlist);
+    ctx.out(
+      `(data ${sorted ? "already" : "now"} sorted by ${parsed.varlist.join(" ")})`,
+    );
+  }
 }
 
 // ----- egen and collapse -----

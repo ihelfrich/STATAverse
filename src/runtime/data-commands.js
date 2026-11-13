@@ -435,7 +435,25 @@ function reshape(session, text) {
         members.set(`${stub}|${suffix}`, name);
       }
     }
-    if (!suffixes.size) throw new StataError(`no xij variables found`, 111);
+    if (!suffixes.size) {
+      // reshape has described the data by now, so r() holds what describe
+      // leaves: whether the data changed, the width of an observation in
+      // bytes, and the numbers of variables and observations.
+      const bytes = { byte: 1, int: 2, long: 4, float: 4, double: 8 };
+      session.results.r = {
+        changed: changed(session) ? 1 : 0,
+        width: data.variables.reduce(
+          (total, v) =>
+            total +
+            (bytes[v.type] ??
+              (v.type === "strL" ? 8 : Number(v.type.slice(3)))),
+          0,
+        ),
+        k: data.variables.length,
+        N: data.n,
+      };
+      throw new StataError(`no xij variables found`, 111);
+    }
     const levels = [...suffixes].sort((a, b) =>
         text2 ? (a < b ? -1 : a > b ? 1 : 0) : Number(a) - Number(b),
       ),

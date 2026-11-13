@@ -22797,6 +22797,213 @@
       ]
     },
     {
+      "id": "failed-commands-and-r-2",
+      "source": "clear\ninput y g z\n1 0 3\n4 1 3\n7 1 5\n2 0 8\n5 1 1\n6 0 2\nend\nquietly regress y z\nestimates store rc1\nquietly summarize y\ncapture noisily egen = mean(y)\ncapture noisily egen y = mean(z)\ncapture noisily regress y z [aweight = nonexist]\ncapture noisily regress y z if nonexist\ncapture noisily tobit y nonexist, ll(0)\ncapture noisily ivregress 2sls y (z = nonexist)\ncapture noisily glm y nonexist\ncapture noisily lowess y nonexist\ncapture noisily qnorm nonexist\nreturn list\ncapture noisily regress y nonexist\ndisplay \"N=\" r(N) \" mean=\" r(mean)\nquietly summarize y\ncapture qreg y z, quantile(2)\ndisplay \"N=\" r(N) \" mean=\" r(mean)\nquietly summarize y\ncapture noisily histogram y if 0\nreturn list\ncapture noisily isid g\nreturn list\nisid g z, sort\nreturn list\nquietly summarize y\ncapture noisily merge 1:1 g using nofile\ndisplay \"N=\" r(N) \" mean=\" r(mean)\nquietly summarize y\ncapture noisily estimates restore nonexist\ndisplay \"N=\" r(N) \" mean=\" r(mean)\nestimates restore rc1\nreturn list\nquietly summarize y\ncapture reshape long nonexist, i(g) j(t)\nreturn list\nci means y if 0\nreturn list\ntabulate y g if 0\ndisplay \"N=\" r(N)\ntabulate y if 0\nreturn list\nquietly summarize y\noneway y g if 0\ndisplay \"N=\" r(N) \" F=\" r(F)\noneway y g if y > 100, tabulate\nquietly summarize y\ncapture noisily return scalar a = 1\ncapture noisily ereturn scalar a = 1\ncapture noisily sreturn local a \"x\"\nreturn clear\ndisplay \"N=\" r(N) \" mean=\" r(mean)\nestimates drop rc1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input y g z",
+          "lines": [
+            "             y          g          z",
+            "  1. 1 0 3",
+            "  2. 4 1 3",
+            "  3. 7 1 5",
+            "  4. 2 0 8",
+            "  5. 5 1 1",
+            "  6. 6 0 2",
+            "  7. end"
+          ]
+        },
+        { "command": "quietly regress y z", "lines": [] },
+        { "command": "estimates store rc1", "lines": [] },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily egen = mean(y)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily egen y = mean(z)",
+          "lines": ["variable y already defined"]
+        },
+        {
+          "command": "capture noisily regress y z [aweight = nonexist]",
+          "lines": ["nonexist not found"]
+        },
+        {
+          "command": "capture noisily regress y z if nonexist",
+          "lines": ["nonexist not found"]
+        },
+        {
+          "command": "capture noisily tobit y nonexist, ll(0)",
+          "lines": ["variable nonexist not found"]
+        },
+        {
+          "command": "capture noisily ivregress 2sls y (z = nonexist)",
+          "lines": ["variable nonexist not found"]
+        },
+        {
+          "command": "capture noisily glm y nonexist",
+          "lines": ["variable nonexist not found"]
+        },
+        {
+          "command": "capture noisily lowess y nonexist",
+          "lines": ["variable nonexist not found"]
+        },
+        {
+          "command": "capture noisily qnorm nonexist",
+          "lines": ["variable nonexist not found"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  6",
+            "              r(sum_w) =  6",
+            "               r(mean) =  4.166666666666667",
+            "                r(Var) =  5.366666666666667",
+            "                 r(sd) =  2.316606713852541",
+            "                r(min) =  1",
+            "                r(max) =  7",
+            "                r(sum) =  25"
+          ]
+        },
+        {
+          "command": "capture noisily regress y nonexist",
+          "lines": ["variable nonexist not found"]
+        },
+        {
+          "command": "display \"N=\" r(N) \" mean=\" r(mean)",
+          "lines": ["N=. mean=."]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        { "command": "capture qreg y z, quantile(2)", "lines": [] },
+        {
+          "command": "display \"N=\" r(N) \" mean=\" r(mean)",
+          "lines": ["N=. mean=."]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily histogram y if 0",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "return list",
+          "lines": ["scalars:", "                  r(N) =  0"]
+        },
+        {
+          "command": "capture noisily isid g",
+          "lines": ["variable g does not uniquely identify the observations"]
+        },
+        {
+          "command": "return list",
+          "lines": ["scalars:", "                  r(N) =  6"]
+        },
+        { "command": "isid g z, sort", "lines": ["(data now sorted by g z)"] },
+        {
+          "command": "return list",
+          "lines": ["scalars:", "             r(sorted) =  0"]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 g using nofile",
+          "lines": ["file nofile.dta not found"]
+        },
+        {
+          "command": "display \"N=\" r(N) \" mean=\" r(mean)",
+          "lines": ["N=. mean=."]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily estimates restore nonexist",
+          "lines": ["estimation result nonexist not found"]
+        },
+        {
+          "command": "display \"N=\" r(N) \" mean=\" r(mean)",
+          "lines": ["N=. mean=."]
+        },
+        {
+          "command": "estimates restore rc1",
+          "lines": ["(results rc1 are active now)"]
+        },
+        {
+          "command": "return list",
+          "lines": ["macros:", "              r(names) : \"rc1\""]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        { "command": "capture reshape long nonexist, i(g) j(t)", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "            r(changed) =  1",
+            "              r(width) =  13",
+            "                  r(k) =  4",
+            "                  r(N) =  6"
+          ]
+        },
+        {
+          "command": "ci means y if 0",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |          0           .           .               .           ."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "               r(mean) =  .",
+            "                 r(se) =  .",
+            "                 r(lb) =  .",
+            "                 r(ub) =  .",
+            "              r(level) =  95",
+            "",
+            "macros:",
+            "             r(citype) : \"normal\""
+          ]
+        },
+        { "command": "tabulate y g if 0", "lines": ["no observations"] },
+        { "command": "display \"N=\" r(N)", "lines": ["N=."] },
+        { "command": "tabulate y if 0", "lines": ["no observations"] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "                  r(r) =  0"
+          ]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        { "command": "oneway y g if 0", "lines": ["no observations"] },
+        { "command": "display \"N=\" r(N) \" F=\" r(F)", "lines": ["N=. F=."] },
+        {
+          "command": "oneway y g if y > 100, tabulate",
+          "lines": ["no observations"]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily return scalar a = 1",
+          "lines": ["non r-class program may not set r()"]
+        },
+        {
+          "command": "capture noisily ereturn scalar a = 1",
+          "lines": ["non e-class program may not set e()"]
+        },
+        {
+          "command": "capture noisily sreturn local a \"x\"",
+          "lines": ["non s-class program may not set s()"]
+        },
+        { "command": "return clear", "lines": [] },
+        {
+          "command": "display \"N=\" r(N) \" mean=\" r(mean)",
+          "lines": ["N=6 mean=4.1666667"]
+        },
+        { "command": "estimates drop rc1", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
