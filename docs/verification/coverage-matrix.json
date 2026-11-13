@@ -1203,19 +1203,19 @@
     },
     {
       "name": "display",
-      "recorded": 68,
+      "recorded": 132,
       "fixtures": {
         "stata-runtime-sessions.json": 6,
-        "stata-runtime-output.json": 58,
+        "stata-runtime-output.json": 122,
         "stata-postestimation-rc.json": 4
       }
     },
     {
       "name": "scalar",
-      "recorded": 22,
+      "recorded": 24,
       "fixtures": {
         "stata-runtime-sessions.json": 4,
-        "stata-runtime-output.json": 18
+        "stata-runtime-output.json": 20
       }
     },
     {
@@ -1356,9 +1356,10 @@
     },
     {
       "name": "error",
-      "recorded": 2,
+      "recorded": 66,
       "fixtures": {
-        "stata-runtime-sessions.json": 2
+        "stata-runtime-sessions.json": 2,
+        "stata-runtime-output.json": 64
       }
     },
     {
