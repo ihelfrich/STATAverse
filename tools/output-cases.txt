@@ -2175,3 +2175,11 @@ signtest a = b
 signtest a = 5
 signtest a = b if a > 2
 signtest a = b + 1
+capture noisily bitesti 10 5 0
+display _rc
+capture noisily bitesti 10 10 1
+display _rc
+capture noisily bitest d == 1.5
+display _rc
+capture noisily bitest d == .5 if g == 9
+display _rc

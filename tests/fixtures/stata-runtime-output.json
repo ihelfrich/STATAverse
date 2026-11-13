@@ -14506,7 +14506,7 @@
     },
     {
       "id": "sign-test",
-      "source": "clear\nset seed 21\nset obs 41\ngenerate double a = round(runiform() * 10)\ngenerate double b = round(runiform() * 10)\nsigntest a = b\nsigntest a = 5\nsigntest a = b if a > 2\nsigntest a = b + 1\n",
+      "source": "clear\nset seed 21\nset obs 41\ngenerate double a = round(runiform() * 10)\ngenerate double b = round(runiform() * 10)\nsigntest a = b\nsigntest a = 5\nsigntest a = b if a > 2\nsigntest a = b + 1\ncapture noisily bitesti 10 5 0\ndisplay _rc\ncapture noisily bitesti 10 10 1\ndisplay _rc\ncapture noisily bitest d == 1.5\ndisplay _rc\ncapture noisily bitest d == .5 if g == 9\ndisplay _rc\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 21", "lines": [] },
@@ -14645,7 +14645,33 @@
             "      Pr(#positive >= 22 or #negative >= 22) =",
             "         min(1, 2*Binomial(n = 39, x >= 22, p = 0.5)) = 0.5224"
           ]
-        }
+        },
+        {
+          "command": "capture noisily bitesti 10 5 0",
+          "lines": [
+            "invalid success probability",
+            "    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+          ]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily bitesti 10 10 1",
+          "lines": [
+            "invalid success probability",
+            "    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+          ]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily bitest d == 1.5",
+          "lines": ["variable d not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily bitest d == .5 if g == 9",
+          "lines": ["variable d not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
       ]
     },
     {
