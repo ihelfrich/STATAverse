@@ -758,7 +758,6 @@ Found and not yet fixed, each measured against Stata:
   columns and belongs with B2.
 - tobit's iteration log lacks Stata's "Refining starting values" and "Grid
   node" lines.
-- error 2 and other codes below 100 print no message.
 - robvar on a by() variable with very many values runs where Stata stops
   with r(134) "too many values".
 
