@@ -888,7 +888,8 @@ function references(model, text) {
   const spellings = [];
   model.names.forEach((name, k) => {
     const plain = name.replace(/^[^:]+:/, "");
-    if (!/\d+[bon]*\./.test(plain)) return;
+    // Factor levels, and interactions, which may be of continuous variables.
+    if (!/\d+[bon]*\.|#/.test(plain)) return;
     const forms = new Set([plain, plain.replace(/(\d+)[bon]+\./g, "$1.")]);
     for (const form of [...forms]) {
       const parts = form.split("#");
@@ -904,6 +905,13 @@ function references(model, text) {
       `__c${k}`,
     );
   }
+  // What is still written as a level or an interaction names no coefficient
+  // of this model, and Stata says so rather than reading a number.
+  const unknown =
+    /(?<![\w.#])((?:\d+[bon]*|c)\.[A-Za-z_]\w*(?:#(?:(?:\d+[bon]*|c)\.)?[A-Za-z_]\w*)*)/.exec(
+      out,
+    );
+  if (unknown) throw new StataError(`${unknown[1]} not found`, 111);
   return out;
 }
 

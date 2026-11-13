@@ -2174,3 +2174,12 @@ lincom 1.female + .5*x
 logit female x i.g
 test 2.g = 3.g
 lincom 2.g - 3.g
+regress y x i.female c.x#c.g
+test c.x#c.g
+lincom x + c.g#c.x
+capture noisily test 1.female 2.female
+display _rc
+capture noisily test 1b.female
+display _rc
+capture noisily lincom _b[nosuch]
+display _rc

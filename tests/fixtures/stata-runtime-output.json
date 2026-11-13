@@ -14348,7 +14348,7 @@
     },
     {
       "id": "coefficient-references",
-      "source": "clear\nset seed 3141\nset obs 300\ngenerate byte female = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double x = runiform() * 10\ngenerate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3\nregress y x i.female i.g i.female#c.x\ntest 1.female\ntest 2.g = 3.g\ntest 2.g 3.g\ntest 1.female#c.x\ntest c.x#1.female\ntest _b[x] = .5\ntest _b[1.female] = 0\ntest (_b[2.g] = 0) (_b[3.g] = 0)\ntest 2*x = 1\nlincom x + 1.female#c.x\nlincom _b[x] + _b[1.female#c.x]\nlincom 2.g - 3.g\nlincom 1.female + .5*x\nlogit female x i.g\ntest 2.g = 3.g\nlincom 2.g - 3.g\n",
+      "source": "clear\nset seed 3141\nset obs 300\ngenerate byte female = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double x = runiform() * 10\ngenerate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3\nregress y x i.female i.g i.female#c.x\ntest 1.female\ntest 2.g = 3.g\ntest 2.g 3.g\ntest 1.female#c.x\ntest c.x#1.female\ntest _b[x] = .5\ntest _b[1.female] = 0\ntest (_b[2.g] = 0) (_b[3.g] = 0)\ntest 2*x = 1\nlincom x + 1.female#c.x\nlincom _b[x] + _b[1.female#c.x]\nlincom 2.g - 3.g\nlincom 1.female + .5*x\nlogit female x i.g\ntest 2.g = 3.g\nlincom 2.g - 3.g\nregress y x i.female c.x#c.g\ntest c.x#c.g\nlincom x + c.g#c.x\ncapture noisily test 1.female 2.female\ndisplay _rc\ncapture noisily test 1b.female\ndisplay _rc\ncapture noisily lincom _b[nosuch]\ndisplay _rc\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 3141", "lines": [] },
@@ -14570,7 +14570,65 @@
             "         (1) |  -.4660551   .2911947    -1.60   0.109    -1.036786     .104676",
             "------------------------------------------------------------------------------"
           ]
-        }
+        },
+        {
+          "command": "regress y x i.female c.x#c.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(3, 296)       =    433.46",
+            "       Model |  1069.28189         3  356.427298   Prob > F        =    0.0000",
+            "    Residual |  243.394338       296   .82227817   R-squared       =    0.8146",
+            "-------------+----------------------------------   Adj R-squared   =    0.8127",
+            "       Total |  1312.67623       299  4.39022151   Root MSE        =     .9068",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4939692   .0295655    16.71   0.000     .4357841    .5521544",
+            "    1.female |   1.776831   .1051225    16.90   0.000     1.569949    1.983713",
+            "             |",
+            "     c.x#c.g |   .0541894   .0115667     4.68   0.000     .0314261    .0769528",
+            "             |",
+            "       _cons |   2.543555   .1208697    21.04   0.000     2.305682    2.781428",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test c.x#c.g",
+          "lines": [
+            " ( 1)  c.x#c.g = 0",
+            "",
+            "       F(  1,   296) =   21.95",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom x + c.g#c.x",
+          "lines": [
+            " ( 1)  x + c.x#c.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .5481587   .0218373    25.10   0.000     .5051827    .5911347",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily test 1.female 2.female",
+          "lines": ["2.female not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily test 1b.female",
+          "lines": ["1b.female not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily lincom _b[nosuch]",
+          "lines": ["[nosuch] not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
       ]
     },
     {
