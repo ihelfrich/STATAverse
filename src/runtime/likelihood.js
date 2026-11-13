@@ -3,11 +3,12 @@
 // likelihood and gradient; the fitter takes Newton steps using a Hessian
 // obtained by differencing the gradient. Estimates are compared with
 // installed Stata; iteration logs follow a different path and are not.
+import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
-import { RULE, design, invertSymmetric } from "./estimation.js";
+import { RULE, design, invertSymmetric, termRows } from "./estimation.js";
 import { count, labelled } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -76,7 +77,7 @@ export function maximize(objective, start) {
     theta = next;
     current = trial;
     log.push(current.value);
-    if (change < 1e-12 && Math.max(...current.gradient.map(Math.abs)) < 1e-6)
+    if (change < 1e-12 && greatest(current.gradient.map(Math.abs)) < 1e-6)
       break;
     if (iteration === 200)
       throw new StataError("convergence not achieved", 430);
@@ -85,6 +86,26 @@ export function maximize(objective, start) {
   if (!V)
     throw new StataError("the variance matrix is not positive definite", 430);
   return { theta, ll: current.value, V, log };
+}
+
+/**
+ * A fit's coefficient rows laid out by term, as Stata lays them out: factor
+ * variables as headed groups of levels, base levels hidden, long names
+ * abbreviated. cell(j) gives the text after the bar for f.names[j].
+ */
+function layoutRows(session, f, cell) {
+  const constant = f.names.includes("_cons"),
+    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
+    position = new Map(f.names.map((name, j) => [name, j]));
+  return termRows(
+    session,
+    {
+      names,
+      columns: [...f.columns, ...(constant ? [undefined] : [])],
+      estimable: names.map((name) => position.has(name)),
+    },
+    (k) => cell(position.get(names[k])),
+  );
 }
 
 /** The design of a model: outcome, rows of regressors, and their names. */
@@ -269,6 +290,18 @@ function tobit(session, text, ctx) {
     vce: "oim",
   };
   ctx.out("");
+  // Stata's tobit first refines its starting values on a grid and logs the
+  // best node, which is where the full model's iterations begin.
+  if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) {
+    ctx.out("Refining starting values:");
+    ctx.out("");
+    ctx.out(
+      `Grid node 0:  Log likelihood = ${g(full.log[0], "%10.0g").padStart(10)}`,
+    );
+    ctx.out("");
+    ctx.out("Fitting full model:");
+    ctx.out("");
+  }
   iterations(ctx, text, full.log);
   const right = (label, value) => `${label.padStart(69)} =${value.padStart(7)}`;
   ctx.out(
@@ -295,17 +328,9 @@ function tobit(session, text, ctx) {
   ctx.out(RULE);
   ctx.out(heading(model.depvar, options.level, "Coefficient", true));
   ctx.out(SPLIT);
-  f.names.forEach((name, j) =>
-    ctx.out(
-      row(
-        `${name.padStart(12)} `,
-        full.theta[j],
-        Math.sqrt(full.V[j][j]),
-        options.level,
-        df,
-      ),
-    ),
-  );
+  layoutRows(session, f, (j) =>
+    row("", full.theta[j], Math.sqrt(full.V[j][j]), options.level, df).slice(1),
+  ).forEach(ctx.out);
   ctx.out(SPLIT);
   ctx.out(
     plainRow(
@@ -469,18 +494,16 @@ function ordered(kind) {
       ),
     );
     ctx.out(SPLIT);
-    f.names.forEach((name, j) =>
-      ctx.out(
-        row(
-          `${name.padStart(12)} `,
-          full.theta[j],
-          Math.sqrt(full.V[j][j]),
-          options.level,
-          0,
-          transform,
-        ),
-      ),
-    );
+    layoutRows(session, f, (j) =>
+      row(
+        "",
+        full.theta[j],
+        Math.sqrt(full.V[j][j]),
+        options.level,
+        0,
+        transform,
+      ).slice(1),
+    ).forEach(ctx.out);
     ctx.out(SPLIT);
     for (let c = 0; c < cuts; c++) {
       const value = full.theta[k + c],
@@ -522,7 +545,7 @@ function mlogit(session, text, ctx) {
     // The base is the most frequent outcome, the lowest of any tied.
     base = given
       ? outcomes.indexOf(options.baseoutcome)
-      : frequency.indexOf(Math.max(...frequency));
+      : frequency.indexOf(greatest(frequency));
   if (base < 0)
     throw new StataError(
       `baseoutcome(${options.baseoutcome}) is not an outcome`,
@@ -538,7 +561,7 @@ function mlogit(session, text, ctx) {
       let value = 0;
       f.x.forEach((r, i) => {
         const xb = others.map((_, e) => dot(r, theta, e * k)),
-          top = Math.max(0, ...xb),
+          top = Math.max(0, greatest(xb)),
           denominator =
             Math.exp(-top) + xb.reduce((t, v) => t + Math.exp(v - top), 0),
           logSum = top + Math.log(denominator);
@@ -662,6 +685,24 @@ const lnFactorial = (n) => {
   for (let k = 2; k <= n; k++) total += Math.log(k);
   return total;
 };
+/**
+ * The inverse of the Poisson information X'WX, W the fitted means, padded
+ * with a zero row and column for lnalpha.
+ */
+function poissonCovariance(x, theta) {
+  const k = x[0].length,
+    information = Array.from({ length: k }, () => new Array(k).fill(0));
+  for (const r of x) {
+    const mu = Math.exp(dot(r, theta));
+    for (let a = 0; a < k; a++)
+      for (let c = 0; c < k; c++) information[a][c] += mu * r[a] * r[c];
+  }
+  const inverse = invertSymmetric(information);
+  if (!inverse)
+    throw new StataError("the variance matrix is not positive definite", 430);
+  return [...inverse.map((row) => [...row, 0]), new Array(k + 1).fill(0)];
+}
+
 function nbreg(session, text, ctx) {
   const parsed = session.parse(
       "anything [if] [in] [, Level(cilevel) noLOg IRr noCONStant | Dispersion(string) Robust VCE(string) EXPosure(varname) OFFset(varname)]",
@@ -707,13 +748,18 @@ function nbreg(session, text, ctx) {
             lnGamma += Math.log(a + j);
             digamma += 1 / (a + j);
           }
+          // log1p keeps these terms exact as alpha goes to zero (a to
+          // infinity), where the data are not overdispersed. Written as
+          // logs of ratios, they cancel to noise that a multiplies, and
+          // the fit never settles.
+          const shrink = Math.log1p(mu / a);
           value +=
             lnGamma -
-            lnFactorial(y) +
-            a * Math.log(a / (a + mu)) +
-            y * Math.log(mu / (a + mu));
+            lnFactorial(y) -
+            a * shrink +
+            y * (Math.log(mu / a) - shrink);
           const dxb = ((y - mu) * a) / (a + mu),
-            da = digamma + Math.log(a / (a + mu)) + (mu - y) / (a + mu);
+            da = digamma - shrink + (mu - y) / (a + mu);
           r.forEach((v, c) => (gradient[c] += dxb * v));
           gradient[k] -= a * da;
         });
@@ -729,9 +775,18 @@ function nbreg(session, text, ctx) {
     ll0 = null0 ? null0.ll : MISSING,
     chi2 = null0 ? 2 * (full.ll - ll0) : MISSING,
     p = null0 ? chi2tail(dfModel, chi2) : MISSING,
-    chi2c = Math.max(0, 2 * (full.ll - base.ll)),
     lnalpha = full.theta[k],
-    seLn = Math.sqrt(full.V[k][k]),
+    // When the data are not overdispersed, alpha runs to zero and the
+    // likelihood is flat in lnalpha. Stata then reports the Poisson fit with
+    // no standard error for lnalpha, and the LR statistic is zero. Where the
+    // fit stops on the way to zero is arbitrary, in Stata and here.
+    boundary = lnalpha < -20,
+    chi2c = boundary ? 0 : Math.max(0, 2 * (full.ll - base.ll)),
+    seLn = boundary ? MISSING : Math.sqrt(full.V[k][k]),
+    // There the coefficients are a Poisson fit, and their variance is the
+    // inverse of the Poisson information, worked exactly rather than by the
+    // differences the general fitter takes.
+    cov = boundary ? poissonCovariance(f.x, full.theta) : full.V,
     alpha = Math.exp(lnalpha),
     critical = invnormal(1 - (1 - options.level / 100) / 2),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
@@ -748,7 +803,7 @@ function nbreg(session, text, ctx) {
       V: names.map((r) =>
         names.map((c) =>
           position.has(r) && position.has(c)
-            ? full.V[position.get(r)][position.get(c)]
+            ? cov[position.get(r)][position.get(c)]
             : 0,
         ),
       ),
@@ -815,26 +870,24 @@ function nbreg(session, text, ctx) {
     heading(model.depvar, options.level, options.irr ? "IRR" : "Coefficient"),
   );
   ctx.out(SPLIT);
-  f.names.forEach((name, j) =>
-    ctx.out(
-      row(
-        `${name.padStart(12)} `,
-        full.theta[j],
-        Math.sqrt(full.V[j][j]),
-        options.level,
-        0,
-        !!options.irr,
-      ),
-    ),
-  );
+  layoutRows(session, f, (j) =>
+    row(
+      "",
+      full.theta[j],
+      Math.sqrt(cov[j][j]),
+      options.level,
+      0,
+      !!options.irr,
+    ).slice(1),
+  ).forEach(ctx.out);
   ctx.out(SPLIT);
   ctx.out(
     plainRow(
       "    /lnalpha ",
       lnalpha,
       seLn,
-      lnalpha - critical * seLn,
-      lnalpha + critical * seLn,
+      boundary ? MISSING : lnalpha - critical * seLn,
+      boundary ? MISSING : lnalpha + critical * seLn,
     ),
   );
   ctx.out(SPLIT);
@@ -842,9 +895,9 @@ function nbreg(session, text, ctx) {
     plainRow(
       "       alpha ",
       alpha,
-      alpha * seLn,
-      Math.exp(lnalpha - critical * seLn),
-      Math.exp(lnalpha + critical * seLn),
+      boundary ? MISSING : alpha * seLn,
+      boundary ? MISSING : Math.exp(lnalpha - critical * seLn),
+      boundary ? MISSING : Math.exp(lnalpha + critical * seLn),
     ),
   );
   ctx.out(RULE);
@@ -855,7 +908,7 @@ function nbreg(session, text, ctx) {
     if (constant) ctx.out("Note: _cons estimates baseline incidence rate.");
   }
   ctx.out(
-    `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, "%5.2f").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(0.5 * chi2tail(1, chi2c), "%5.3f")}`,
+    `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, "%5.2f").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(chi2c > 0 ? 0.5 * chi2tail(1, chi2c) : 1, "%5.3f")}`,
   );
   ctx.out("");
 }

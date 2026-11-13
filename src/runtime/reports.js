@@ -2,6 +2,7 @@
 // describe. The layouts follow Stata's Results window column for column;
 // tests/runtime-output.test.mjs compares them with text recorded from
 // installed Stata.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { evaluateAll } from "./expression.js";
@@ -138,8 +139,8 @@ function weightedMoments(variable, rows, weights) {
     mean,
     variance,
     sd: n > 1 ? Math.sqrt(variance) : MISSING,
-    min: Math.min(...values),
-    max: Math.max(...values),
+    min: least(values),
+    max: greatest(values),
   };
 }
 
@@ -328,7 +329,7 @@ export function tabulate(session, text, ctx) {
     let entries = [...counts];
     if (parsed.options.sort) entries = entries.sort((a, b) => b[1] - a[1]);
     const shown = entries.map(([value]) => show(0, value)),
-      width = Math.max(11, ...shown.map((item) => item.length)),
+      width = Math.max(11, greatest(shown.map((item) => item.length))),
       rule = "-".repeat(width + 1) + "+" + "-".repeat(35),
       heading = wrap(title(0), width);
     if (parsed.options.summarize) {
@@ -432,7 +433,7 @@ export function tabulate(session, text, ctx) {
     ].filter(([option]) => parsed.options[option]);
   if (kinds.length) {
     const entries = ["frequency", ...kinds.map(([, text]) => text)],
-      inner = Math.max(...entries.map((item) => item.length)) + 2,
+      inner = greatest(entries.map((item) => item.length)) + 2,
       centre = (item) => {
         const left = Math.floor((inner - item.length) / 2);
         return " ".repeat(left) + item + " ".repeat(inner - item.length - left);
@@ -579,7 +580,7 @@ export function list(session, text, ctx) {
       ),
     ),
     widths = variables.map((v, k) =>
-      Math.max(v.name.length, ...cells.map((row) => row[k].length)),
+      Math.max(v.name.length, greatest(cells.map((row) => row[k].length))),
     ),
     // Under by:, observations are numbered within their group.
     first = ctx.group ? ctx.group.start : 0,
