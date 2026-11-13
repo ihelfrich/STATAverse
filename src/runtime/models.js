@@ -23,6 +23,8 @@ import {
   predict as predictT,
   quadratic,
   termRows,
+  tableWidth,
+  abbreviate,
   test as testT,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
@@ -89,22 +91,30 @@ function zTable(session, model, level, transform) {
   const critical = invnormal(1 - (1 - level / 100) / 2),
     robust = model.vce !== "oim" && model.vce !== "unadjusted",
     head = (transform?.[1] ?? "Coefficient").padStart(10).padEnd(11),
+    // The first column fits the names as Stata fits them; see tableWidth.
+    w = tableWidth(session, model),
+    rule = "-".repeat(66 + w),
     lines = [
-      RULE,
-      ...(robust ? ["             |               Robust"] : []),
-      `${model.depvar.padStart(12)} | ${head}  ${robust ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-      "-------------+----------------------------------------------------------------",
+      rule,
+      ...(robust ? [`${" ".repeat(w + 1)}|               Robust`] : []),
+      `${abbreviate(model.depvar, w).padStart(w)} | ${head}  ${robust ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+      `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
     ];
   const show = transform ? Math.exp : (v) => v;
   lines.push(
-    ...termRows(session, model, (k) => {
-      const b = model.b[k],
-        se = Math.sqrt(model.V[k][k]),
-        z = b / se;
-      return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
-    }),
+    ...termRows(
+      session,
+      model,
+      (k) => {
+        const b = model.b[k],
+          se = Math.sqrt(model.V[k][k]),
+          z = b / se;
+        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+      },
+      w,
+    ),
   );
-  lines.push(RULE);
+  lines.push(rule);
   if (transform && model.constant) lines.push(transform[2]);
   return lines;
 }
