@@ -500,13 +500,11 @@ function ordered(kind) {
           equation: "/",
           names: full.theta.slice(k).map((_, c) => `cut${c + 1}`),
           b: full.theta.slice(k),
-          cross: full.theta
-            .slice(k)
-            .map((_, c) =>
-              names.map((name) =>
-                position.has(name) ? full.V[k + c][position.get(name)] : 0,
-              ),
-            ),
+          cross: full.theta.slice(k).map((_, c) =>
+            // By column through f.at, since a repeated variable gives
+            // two columns of one name and only the first is fitted.
+            names.map((_, j) => (f.at[j] >= 0 ? full.V[k + c][f.at[j]] : 0)),
+          ),
           V: full.theta
             .slice(k)
             .map((_, c) =>
