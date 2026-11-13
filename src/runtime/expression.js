@@ -177,15 +177,16 @@ export function compileExpression(source, scope = {}) {
       return left;
     };
   }
+  // Stata evaluates both sides of & and |, so a draw on the right is taken
+  // whatever the left side gives.
   const logical = (op, left, right) => {
     const a = numeric(left),
       b = numeric(right);
-    return node(
-      N,
-      op === "&"
-        ? (i, env) => Number(a(i, env) !== 0 && b(i, env) !== 0)
-        : (i, env) => Number(a(i, env) !== 0 || b(i, env) !== 0),
-    );
+    return node(N, (i, env) => {
+      const x = a(i, env) !== 0,
+        y = b(i, env) !== 0;
+      return Number(op === "&" ? x && y : x || y);
+    });
   };
   const COMPARE = {
     "==": (x, y) => x === y,
@@ -202,9 +203,13 @@ export function compileExpression(source, scope = {}) {
       test = COMPARE[op];
     return node(N, (i, env) => Number(test(a(i, env), b(i, env))));
   };
-  const repeat = (text, count) => (i, env) => {
-    const k = count(i, env);
-    return isMissing(k) || k < 1 ? "" : text(i, env).repeat(Math.trunc(k));
+  // A string times a count, in either order. Both operands are evaluated,
+  // left first, whatever the count is, as Stata does.
+  const repeat = (left, right, textOnLeft) => (i, env) => {
+    const a = left(i, env),
+      b = right(i, env),
+      [text, n] = textOnLeft ? [a, b] : [b, a];
+    return isMissing(n) || n < 1 ? "" : text.repeat(Math.trunc(n));
   };
 
   const primary = () => {
@@ -347,9 +352,11 @@ export function compileExpression(source, scope = {}) {
       if (!take(",")) throw invalid();
       const column = numeric(or());
       if (!take(")")) throw invalid();
-      return node(N, (i, env) =>
-        scope.matrix.element(target.value, row(i, env), column(i, env)),
-      );
+      // The column is evaluated before the row, as Stata does.
+      return node(N, (i, env) => {
+        const c = column(i, env);
+        return scope.matrix.element(target.value, row(i, env), c);
+      });
     }
     const args = [];
     if (at >= tokens.length) throw new StataError("too few ')' or ']'", 132);
@@ -406,7 +413,12 @@ export function compileExpression(source, scope = {}) {
       strict = !definition.lenient,
       { fn } = definition;
     return node(type, (i, env) => {
-      const values = evaluators.map((evaluate) => evaluate(i, env));
+      // Stata evaluates a function's arguments last to first, which decides
+      // which argument receives which draw when several call runiform(),
+      // and whether regexs() reads the match regexm() makes beside it.
+      const values = new Array(evaluators.length);
+      for (let k = evaluators.length - 1; k >= 0; k--)
+        values[k] = evaluators[k](i, env);
       if (strict && values.some((v) => typeof v === "number" && isMissing(v)))
         return type === N ? MISSING : "";
       const result = definition.state ? fn(state, ...values) : fn(...values);
@@ -460,9 +472,9 @@ export function compileExpression(source, scope = {}) {
   );
   const multiply = binaryLevel(["*"], divide, (_, l, r) => {
     if (l.type === S && r.type === N)
-      return node(S, repeat(l.evaluate, r.evaluate));
+      return node(S, repeat(l.evaluate, r.evaluate, true));
     if (l.type === N && r.type === S)
-      return node(S, repeat(r.evaluate, l.evaluate));
+      return node(S, repeat(l.evaluate, r.evaluate, false));
     return arithmetic(l, r, (x, y) => x * y);
   });
   const subtract = binaryLevel(["-"], multiply, (_, l, r) =>

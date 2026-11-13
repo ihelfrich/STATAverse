@@ -22615,6 +22615,162 @@
       ]
     },
     {
+      "id": "random-argument-order",
+      "source": "clear\nset obs 8\nset seed 2026\ngenerate a = cond(runiform()<.25, 1, cond(runiform()<.5, 2, 3))\ngenerate str1 s = cond(runiform()<.25, \"n\", cond(runiform()<.5, \"s\", \"e\"))\ngenerate x = runiform() + 10*runiform()\ngenerate b = runiform()\nlist a s x b, noobs clean\nclear\nset obs 5\nset seed 1\ngenerate a = cond(runiform()<0.5, 0, runiform())\ngenerate b = runiform()\nlist a b\nclear\nset obs 6\nset seed 99\ngenerate str3 w = substr(\"abcdefghij\", ceil(10*runiform()), ceil(3*runiform()))\ngenerate m = max(runiform(), 2*runiform())\ngenerate c3 = cond(_n<4, runiform(), 10+runiform())\ngenerate l = (runiform()<.5) | (runiform()<.5)\ngenerate k = (runiform()<.5) & (runiform()<.5)\ngenerate str4 r = substr(\"abcdefghij\", ceil(10*runiform()), 1) * ceil(3*runiform() - 1)\ngenerate str8 f = string(runiform(), cond(runiform() < .5, \"%4.2f\", \"%6.4f\"))\ngenerate d = runiform()\nlist, noobs clean\nmatrix M = (1,2\\3,4)\ngenerate e = el(M, ceil(2*runiform()), ceil(2*runiform()))\ngenerate e2 = runiform()\nlist e e2, noobs clean\nclear\ndisplay regexm(\"zy\", \"(z)(y)\")\ninput str4 s\n\"ab\"\n\"cd\"\n\"ef\"\nend\ngenerate str4 t1 = cond(regexm(s, \"(.)(.)\"), regexs(1), \"x\")\ngenerate str4 t4 = substr(regexs(0), 1, regexm(s, \"(.)(.)\"))\nlist, noobs clean\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "set seed 2026", "lines": [] },
+        {
+          "command": "generate a = cond(runiform()<.25, 1, cond(runiform()<.5, 2, 3))",
+          "lines": []
+        },
+        {
+          "command": "generate str1 s = cond(runiform()<.25, \"n\", cond(runiform()<.5, \"s\", \"e\"))",
+          "lines": []
+        },
+        { "command": "generate x = runiform() + 10*runiform()", "lines": [] },
+        { "command": "generate b = runiform()", "lines": [] },
+        {
+          "command": "list a s x b, noobs clean",
+          "lines": [
+            "    a   s          x          b",
+            "    2   e   1.681926   .8286245",
+            "    2   s   9.376462   .4116008",
+            "    2   n   1.248312   .8954744",
+            "    2   s   1.100799   .8780873",
+            "    1   s   .2795629   .1788315",
+            "    2   e   6.417213   .5536025",
+            "    2   e    5.23489   .9306018",
+            "    2   s   1.859746   .1349297"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "generate a = cond(runiform()<0.5, 0, runiform())",
+          "lines": []
+        },
+        { "command": "generate b = runiform()", "lines": [] },
+        {
+          "command": "list a b",
+          "lines": [
+            "     +---------------------+",
+            "     |        a          b |",
+            "     |---------------------|",
+            "  1. |        0   .0894532 |",
+            "  2. |        0   .5561789 |",
+            "  3. | .3508981    .789652 |",
+            "  4. |        0   .2216337 |",
+            "  5. | .5698472   .4186685 |",
+            "     +---------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "generate str3 w = substr(\"abcdefghij\", ceil(10*runiform()), ceil(3*runiform()))",
+          "lines": []
+        },
+        {
+          "command": "generate m = max(runiform(), 2*runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate c3 = cond(_n<4, runiform(), 10+runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate l = (runiform()<.5) | (runiform()<.5)",
+          "lines": []
+        },
+        {
+          "command": "generate k = (runiform()<.5) & (runiform()<.5)",
+          "lines": []
+        },
+        {
+          "command": "generate str4 r = substr(\"abcdefghij\", ceil(10*runiform()), 1) * ceil(3*runiform() - 1)",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "generate str8 f = string(runiform(), cond(runiform() < .5, \"%4.2f\", \"%6.4f\"))",
+          "lines": []
+        },
+        { "command": "generate d = runiform()", "lines": [] },
+        {
+          "command": "list, noobs clean",
+          "lines": [
+            "      w          m         c3   l   k    r        f          d",
+            "      j   .5034223   .8736938   1   0    a     0.98   .9277132",
+            "    bcd    1.06566   .8174284   1   0          0.53    .088954",
+            "     ef   1.669057   .0122453   1   1   jj   0.6001   .0718657",
+            "    cde   1.084582      10.18   0   1   cc   0.1267   .5917451",
+            "      d   .4940228   10.58424   1   0        0.4682   .3207229",
+            "     ij   .7812709   10.01643   0   1   ee     0.26   .0547085"
+          ]
+        },
+        { "command": "matrix M = (1,2\\3,4)", "lines": [] },
+        {
+          "command": "generate e = el(M, ceil(2*runiform()), ceil(2*runiform()))",
+          "lines": []
+        },
+        { "command": "generate e2 = runiform()", "lines": [] },
+        {
+          "command": "list e e2, noobs clean",
+          "lines": [
+            "    e         e2",
+            "    2   .1635964",
+            "    4   .6954886",
+            "    3   .6522941",
+            "    2   .9878501",
+            "    4   .4105879",
+            "    2   .6977104"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "display regexm(\"zy\", \"(z)(y)\")", "lines": ["1"] },
+        {
+          "command": "input str4 s",
+          "lines": [
+            "             s",
+            "  1. \"ab\"",
+            "  2. \"cd\"",
+            "  3. \"ef\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "generate str4 t1 = cond(regexm(s, \"(.)(.)\"), regexs(1), \"x\")",
+          "lines": []
+        },
+        {
+          "command": "generate str4 t4 = substr(regexs(0), 1, regexm(s, \"(.)(.)\"))",
+          "lines": []
+        },
+        {
+          "command": "list, noobs clean",
+          "lines": [
+            "     s   t1   t4",
+            "    ab    z    a",
+            "    cd    a    c",
+            "    ef    c    e"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -3328,3 +3328,45 @@ quietly tabulate c1200 r1
 display r(r) " " r(c)
 capture noisily tabulate c1201 r1
 clear
+=== random-argument-order
+clear
+set obs 8
+set seed 2026
+generate a = cond(runiform()<.25, 1, cond(runiform()<.5, 2, 3))
+generate str1 s = cond(runiform()<.25, "n", cond(runiform()<.5, "s", "e"))
+generate x = runiform() + 10*runiform()
+generate b = runiform()
+list a s x b, noobs clean
+clear
+set obs 5
+set seed 1
+generate a = cond(runiform()<0.5, 0, runiform())
+generate b = runiform()
+list a b
+clear
+set obs 6
+set seed 99
+generate str3 w = substr("abcdefghij", ceil(10*runiform()), ceil(3*runiform()))
+generate m = max(runiform(), 2*runiform())
+generate c3 = cond(_n<4, runiform(), 10+runiform())
+generate l = (runiform()<.5) | (runiform()<.5)
+generate k = (runiform()<.5) & (runiform()<.5)
+generate str4 r = substr("abcdefghij", ceil(10*runiform()), 1) * ceil(3*runiform() - 1)
+generate str8 f = string(runiform(), cond(runiform() < .5, "%4.2f", "%6.4f"))
+generate d = runiform()
+list, noobs clean
+matrix M = (1,2\3,4)
+generate e = el(M, ceil(2*runiform()), ceil(2*runiform()))
+generate e2 = runiform()
+list e e2, noobs clean
+clear
+display regexm("zy", "(z)(y)")
+input str4 s
+"ab"
+"cd"
+"ef"
+end
+generate str4 t1 = cond(regexm(s, "(.)(.)"), regexs(1), "x")
+generate str4 t4 = substr(regexs(0), 1, regexm(s, "(.)(.)"))
+list, noobs clean
+clear

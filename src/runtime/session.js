@@ -97,9 +97,12 @@ export class Session {
         const value = numeric(args[0]);
         if (args[1] && args[1].type !== "string") throw mismatch();
         const format = args[1]?.evaluate;
-        return node("string", (i, env) =>
-          stringOf(value(i, env), format ? format(i, env) : undefined),
-        );
+        // The format is evaluated before the value: Stata evaluates a
+        // function's arguments last to first.
+        return node("string", (i, env) => {
+          const shown = format ? format(i, env) : undefined;
+          return stringOf(value(i, env), shown);
+        });
       },
     };
   }
