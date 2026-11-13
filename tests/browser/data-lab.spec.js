@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
@@ -52,7 +53,7 @@ test("merge traces matched and unmatched records, filters counts and retains a k
   await expect(page.locator(".merge-count.excluded")).toHaveCount(2);
   await page.locator("#merge-keep").selectOption("all");
   await page.screenshot({
-    path: `docs/verification/screenshots/data-merge-${testInfo.project.name}.png`,
+    path: screenshotPath(`data-merge-${testInfo.project.name}.png`),
     fullPage: true,
   });
   const audit = await new AxeBuilder({ page })
@@ -208,7 +209,7 @@ test("reshape distinguishes source measurements, derived indexes and structural 
     })
     .click();
   await page.screenshot({
-    path: `docs/verification/screenshots/data-reshape-${testInfo.project.name}.png`,
+    path: screenshotPath(`data-reshape-${testInfo.project.name}.png`),
     fullPage: true,
   });
   const audit = await new AxeBuilder({ page })
