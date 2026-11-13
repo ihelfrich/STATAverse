@@ -14347,6 +14347,164 @@
       ]
     },
     {
+      "id": "binomial-test",
+      "source": "clear\nset seed 13\nset obs 90\ngenerate byte d = runiform() < .3\ngenerate byte g = runiform() > .5\nbitest d == .25\nbitest d == .5 if g == 1\nbitesti 100 30 0.25\nbitesti 20 3 0.5\nbitesti 10 10 0.5\nbitesti 10 0 0.5\nbitesti 10 9 0.95\nbitesti 50 1 0.01\nbitesti 50 0 0.01\nbitesti 7 3 0.333\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 13", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        { "command": "generate byte d = runiform() < .3", "lines": [] },
+        { "command": "generate byte g = runiform() > .5", "lines": [] },
+        {
+          "command": "bitest d == .25",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           d |           90           22         22.5     0.25000      0.24444",
+            "",
+            "  Pr(k >= 22)            = 0.588583  (one-sided test)",
+            "  Pr(k <= 22)            = 0.508147  (one-sided test)",
+            "  Pr(k <= 22 or k >= 23) = 1.000000  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitest d == .5 if g == 1",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           d |           45           10         22.5     0.50000      0.22222",
+            "",
+            "  Pr(k >= 10)            = 0.999967  (one-sided test)",
+            "  Pr(k <= 10)            = 0.000124  (one-sided test)",
+            "  Pr(k <= 10 or k >= 35) = 0.000247  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitesti 100 30 0.25",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "          100           30           25     0.25000      0.30000",
+            "",
+            "  Pr(k >= 30)            = 0.149541  (one-sided test)",
+            "  Pr(k <= 30)            = 0.896213  (one-sided test)",
+            "  Pr(k <= 19 or k >= 30) = 0.249071  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitesti 20 3 0.5",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "           20            3           10     0.50000      0.15000",
+            "",
+            "  Pr(k >= 3)            = 0.999799  (one-sided test)",
+            "  Pr(k <= 3)            = 0.001288  (one-sided test)",
+            "  Pr(k <= 3 or k >= 17) = 0.002577  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitesti 10 10 0.5",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "           10           10            5     0.50000      1.00000",
+            "",
+            "  Pr(k >= 10)           = 0.000977  (one-sided test)",
+            "  Pr(k <= 10)           = 1.000000  (one-sided test)",
+            "  Pr(k <= 0 or k >= 10) = 0.001953  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitesti 10 0 0.5",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "           10            0            5     0.50000      0.00000",
+            "",
+            "  Pr(k >= 0)            = 1.000000  (one-sided test)",
+            "  Pr(k <= 0)            = 0.000977  (one-sided test)",
+            "  Pr(k <= 0 or k >= 10) = 0.001953  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitesti 10 9 0.95",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "           10            9          9.5     0.95000      0.90000",
+            "",
+            "  Pr(k >= 9) = 0.913862  (one-sided test)",
+            "  Pr(k <= 9) = 0.401263  (one-sided test)",
+            "  Pr(k <= 9) = 0.401263  (two-sided test)",
+            "",
+            "  note: upper tail of two-sided p-value is empty"
+          ]
+        },
+        {
+          "command": "bitesti 50 1 0.01",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "           50            1           .5     0.01000      0.02000",
+            "",
+            "  Pr(k >= 1) = 0.394994  (one-sided test)",
+            "  Pr(k <= 1) = 0.910565  (one-sided test)",
+            "  Pr(k >= 1) = 0.394994  (two-sided test)",
+            "",
+            "  note: lower tail of two-sided p-value is empty"
+          ]
+        },
+        {
+          "command": "bitesti 50 0 0.01",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "           50            0           .5     0.01000      0.00000",
+            "",
+            "  Pr(k >= 0)           = 1.000000  (one-sided test)",
+            "  Pr(k <= 0)           = 0.605006  (one-sided test)",
+            "  Pr(k <= 0 or k >= 1) = 1.000000  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitesti 7 3 0.333",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "            7            3        2.331     0.33300      0.42857",
+            "",
+            "  Pr(k >= 3)           = 0.428587  (one-sided test)",
+            "  Pr(k <= 3)           = 0.827215  (one-sided test)",
+            "  Pr(k <= 1 or k >= 3) = 0.692577  (two-sided test)"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
