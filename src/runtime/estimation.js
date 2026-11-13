@@ -508,7 +508,33 @@ export function fit(session, parsed, by) {
  * rows between groups. cells(k) gives the text after the bar for
  * coefficient k.
  */
-export function termRows(session, model, cells) {
+/**
+ * The width of a coefficient table's first column, as Stata sets it: twelve,
+ * widened to the longest coefficient name shown there while the line allows,
+ * that is up to linesize - 67. Longer names, and the dependent variable in
+ * the header, are abbreviated to the width.
+ */
+export function tableWidth(session, model) {
+  const shown = model.names
+    .filter((_, k) => !model.columns?.[k]?.base)
+    .map((name) => {
+      const term = model.columns?.[model.names.indexOf(name)]?.term;
+      return term && !term.variable ? term.header : name;
+    });
+  // The dependent variable does not widen the column; it is abbreviated.
+  const longest = Math.max(0, ...shown.map((n) => n.length)),
+    linesize = session.settings?.linesize ?? 80;
+  return Math.max(12, Math.min(longest, linesize - 67));
+}
+/** Stata's abbrev(name, width): the start, a ~, and the last character. */
+export const abbreviate = (name, width) =>
+  name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
+
+export function termRows(session, model, cells, width) {
+  // Without a width the column is twelve and names are not shortened.
+  const w = width ?? 12,
+    short = (name) => (width ? abbreviate(name, w) : name),
+    gap = `${" ".repeat(w + 1)}|`;
   const out = [],
     blocks = [];
   model.names.forEach((name, k) => {
@@ -530,9 +556,8 @@ export function termRows(session, model, cells) {
         shown.length === 1,
       plain =
         block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
-    if (b && !(plain && previousPlain)) out.push("             |");
-    else if (b && block.term === "_cons" && !previousPlain)
-      out.push("             |");
+    if (b && !(plain && previousPlain)) out.push(gap);
+    else if (b && block.term === "_cons" && !previousPlain) out.push(gap);
     previousPlain = block.term === "_cons" ? previousPlain : plain;
     const row = (label, k) =>
       out.push(
@@ -542,7 +567,7 @@ export function termRows(session, model, cells) {
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
-        `${model.names[block.items[0]].padStart(12)} `,
+        `${short(model.names[block.items[0]]).padStart(w)} `,
         block.items[0],
       );
     // So is a product of continuous variables, though with blank rows.
@@ -550,21 +575,21 @@ export function termRows(session, model, cells) {
       alone ||
       (shown.length === 1 && block.term.components.every((c) => !c.factor))
     )
-      return row(`${model.names[shown[0]].padStart(12)} `, shown[0]);
+      return row(`${short(model.names[shown[0]]).padStart(w)} `, shown[0]);
     // A header too long for the column is broken after a #.
     const parts = block.term.header.split("#"),
       pieces = [];
     for (const part of parts) {
       const last = pieces.at(-1);
-      if (last !== undefined && `${last}#${part}`.length <= 12)
+      if (last !== undefined && `${last}#${part}`.length <= w)
         pieces[pieces.length - 1] = `${last}#${part}`;
       else pieces.push(part);
     }
     pieces.forEach((piece, k) =>
       out.push(
         k < pieces.length - 1
-          ? `${`${piece}#`.padStart(13)}|`
-          : `${piece.padStart(12)} |`,
+          ? `${`${piece}#`.padStart(w + 1)}|`
+          : `${short(piece).padStart(w)} |`,
       ),
     );
     const factors = block.term.components.filter((c) => c.factor);
@@ -572,33 +597,39 @@ export function termRows(session, model, cells) {
       row(
         `${model.columns[k].levels
           .map((level, j) => labelled(session, factors[j].variable, level))
-          .join(" ")}  `.padStart(13),
+          .join(" ")}  `.padStart(w + 1),
         k,
       );
   });
   return out;
 }
 
-export function coefficientRows(session, model, level) {
+export function coefficientRows(session, model, level, width) {
   const critical = invttail(model.df_r, (1 - level / 100) / 2);
-  return termRows(session, model, (k) => {
-    const se = Math.sqrt(model.V[k][k]),
-      t = model.b[k] / se;
-    return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
-  });
+  return termRows(
+    session,
+    model,
+    (k) => {
+      const se = Math.sqrt(model.V[k][k]),
+        t = model.b[k] / se;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+    },
+    width,
+  );
 }
-export function coefficientHeader(model, level, label = model.depvar) {
+export function coefficientHeader(model, level, label = model.depvar, width) {
   const robust = model.vce !== "ols",
-    interval = `[${g(level, "%9.0g")}% conf. interval]`;
+    interval = `[${g(level, "%9.0g")}% conf. interval]`,
+    w = width ?? 12;
   return [
-    RULE,
+    "-".repeat(66 + w),
     ...(robust
       ? [
-          `             |${" ".repeat(Math.max(0, 18 - (model.vcetype ?? "Robust").length / 2))}${model.vcetype ?? "Robust"}`,
+          `${" ".repeat(w + 1)}|${" ".repeat(Math.max(0, 18 - (model.vcetype ?? "Robust").length / 2))}${model.vcetype ?? "Robust"}`,
         ]
       : []),
-    `${label.padStart(12)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|     ${interval}`,
-    "-------------+----------------------------------------------------------------",
+    `${(width ? abbreviate(label, w) : label).padStart(w)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|     ${interval}`,
+    `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
   ];
 }
 
@@ -723,8 +754,12 @@ function regress(session, text, ctx) {
       return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
     }).forEach(ctx.out);
   } else {
-    coefficientHeader(model, level).forEach(ctx.out);
-    coefficientRows(session, model, level).forEach(ctx.out);
+    const width = tableWidth(session, model);
+    coefficientHeader(model, level, model.depvar, width).forEach(ctx.out);
+    coefficientRows(session, model, level, width).forEach(ctx.out);
+    ctx.out("-".repeat(66 + width));
+    ctx.out("");
+    return;
   }
   ctx.out(RULE);
   ctx.out("");
