@@ -25,15 +25,18 @@ export function lngamma(x) {
 // log-gammas are huge and nearly equal, so their difference is taken from
 // its own series when b is one half and a is large.
 function gammaRatio(a, b) {
-  if (b === 0.5 && a > 50)
-    return (
-      0.5 * Math.log(a) -
-      1 / (8 * a) +
-      1 / (192 * a ** 3) -
-      1 / (640 * a ** 5) +
-      17 / (14336 * a ** 7)
-    );
+  if (b === 0.5 && a > 50) return 0.5 * Math.log(a) + halfRatioSeries(a);
   return lngamma(a + b) - lngamma(a);
+}
+// ln(Gamma(a + 1/2) / Gamma(a)) - ln(a) / 2; the next term of the series is
+// below 10^-18 once a exceeds 50.
+function halfRatioSeries(a) {
+  return (
+    -1 / (8 * a) +
+    1 / (192 * a ** 3) -
+    1 / (640 * a ** 5) +
+    17 / (14336 * a ** 7)
+  );
 }
 
 // Continued fraction for the incomplete beta function (modified Lentz).
@@ -65,27 +68,17 @@ function betaFraction(a, b, x) {
   }
   return h;
 }
-/**
- * Regularised incomplete beta function I_x(a, b). y, when given, is 1 - x
- * computed by the caller without cancellation: with a large a and x close
- * to 1, a * log(x) magnifies the rounding of x, so the logarithms and the
- * complementary fraction are taken from y instead.
- */
-export function ibeta(a, b, x, y) {
+/** Regularised incomplete beta function I_x(a, b). */
+export function ibeta(a, b, x) {
   if (!(a > 0 && b > 0) || x < 0 || x > 1) return MISSING;
   if (x === 0) return 0;
-  const exact = y !== undefined;
-  if (x === 1 && !(exact && y > 0)) return 1;
-  const logX = exact && x > 0.5 ? Math.log1p(-y) : Math.log(x),
-    logY = exact && y < 0.5 ? Math.log(y) : Math.log1p(-x),
-    front = Math.exp(gammaRatio(a, b) - lngamma(b) + a * logX + b * logY);
-  // Near the usual switch point a large a makes the fraction in x cancel
-  // badly (a t test with a million degrees of freedom lost ten digits), while
-  // the fraction in y stays accurate until a * y is several units.
-  const direct = exact && a > 50 ? a * y >= 5 : x < (a + 1) / (a + b + 2);
-  return direct
+  if (x === 1) return 1;
+  const front = Math.exp(
+    gammaRatio(a, b) - lngamma(b) + a * Math.log(x) + b * Math.log1p(-x),
+  );
+  return x < (a + 1) / (a + b + 2)
     ? (front * betaFraction(a, b, x)) / a
-    : 1 - (front * betaFraction(b, a, exact ? y : 1 - x)) / b;
+    : 1 - (front * betaFraction(b, a, 1 - x)) / b;
 }
 /** Regularised lower incomplete gamma function P(a, x). */
 export function gammap(a, x) {
@@ -133,11 +126,56 @@ export function gammaq(a, x) {
 
 export function ttail(df, t) {
   if (!(df > 0)) return MISSING;
-  // Both df / (df + t^2) and its complement are formed directly, so that
-  // many degrees of freedom do not cost digits (ibeta above).
-  const square = t * t,
-    tail = 0.5 * ibeta(df / 2, 0.5, df / (df + square), 1 / (1 + df / square));
+  if (t === 0) return 0.5;
+  const tail =
+    df > 100
+      ? tailManyDf(df, Math.abs(t))
+      : 0.5 * ibeta(df / 2, 0.5, df / (df + t * t));
   return t >= 0 ? tail : 1 - tail;
+}
+
+// The upper tail of Student's t beyond t > 0 when df exceeds 100. The
+// incomplete beta function loses digits here: x = df / (df + t^2) is close
+// to 1, its fraction in x cancels, and its fraction in 1 - x converges
+// slowly once df (1 - x) is a few units (with 10^8 degrees of freedom,
+// ttail(df, 4) was off by 1 part in 10^9). Instead the density f(t) is written
+// in logarithms and multiplied by the integral over u > 0 of
+// f(t + u) / f(t) = (1 + u (2t + u) / (df + t^2))^(-(df + 1) / 2),
+// which has no cancellation. That ratio falls off at least exponentially,
+// so the integral is a trapezoid sum after the double-exponential change of
+// variable u = scale * exp(v - exp(-v)), v from -4 to 4 in steps of 1/8.
+// On a grid of df from 101 to 10^9 and t from 0.05 to 1000 this matches
+// Stata 19 to 2 parts in 10^13.
+const TAIL_NODES = [],
+  TAIL_WEIGHTS = [];
+for (let k = -32; k <= 32; k++) {
+  const v = k / 8,
+    u = Math.exp(v - Math.exp(-v));
+  TAIL_NODES.push(u);
+  TAIL_WEIGHTS.push((u * (1 + Math.exp(-v))) / 8);
+}
+function tailManyDf(df, t) {
+  const power = (df + 1) / 2,
+    spread = df + t * t,
+    logDensity =
+      -0.5 * Math.log(2 * Math.PI) +
+      halfRatioSeries(df / 2) -
+      power * Math.log1p((t * t) / df),
+    // The ratio falls by a factor of e within about this distance: the
+    // reciprocal of its slope at u = 0, or its width when t is near 0.
+    scale = Math.min(spread / (2 * power * t), Math.sqrt(spread / power));
+  if (!Number.isFinite(logDensity) || !(scale > 0 && scale < Infinity))
+    return logDensity === -Infinity ? 0 : MISSING;
+  let sum = 0;
+  for (let k = 0; k < TAIL_NODES.length; k++) {
+    const u = scale * TAIL_NODES[k],
+      term =
+        Math.exp(-power * Math.log1p((u * (2 * t + u)) / spread)) *
+        TAIL_WEIGHTS[k];
+    sum += term;
+    if (term < 1e-18 * sum) break;
+  }
+  return Math.exp(logDensity) * scale * sum;
 }
 export function Ftail(df1, df2, f) {
   if (!(df1 > 0 && df2 > 0)) return MISSING;

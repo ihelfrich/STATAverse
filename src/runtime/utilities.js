@@ -210,6 +210,12 @@ function ttest(session, text, ctx) {
     printers = tPrinters(ctx),
     { row, rule, middle, head, tails, finish } = printers;
   if (paired) {
+    // Stata compares with a quoted string as a type mismatch, before it
+    // reads any if, in or option, once the variable on the left exists.
+    if (/^[`"]/.test(paired[2])) {
+      session.varlist(paired[1]);
+      throw new StataError("type mismatch", 109);
+    }
     const parsed = session.parse("[if] [in] [, Level(cilevel)]", paired[3]),
       level = parsed.options.level,
       first = data.get(session.varlist(paired[1])[0]),

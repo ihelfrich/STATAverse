@@ -382,3 +382,143 @@ test("ttesti with a million observations keeps Stata's digits", () => {
       `${name}: ${r[name]} vs ${value}`,
     );
 });
+
+// ttail and invttail with more than 100 degrees of freedom, where the
+// incomplete beta fractions lose digits (second red-team pass, 13 November
+// 2026). Each value was written by Stata 19 MP (version 17, set processors
+// 1) with file write %21.0g; the runtime agrees to 2 parts in 10^13 on a
+// denser grid of df from 101 to 10^9 and t from 0.05 to 1000.
+const TTAIL = [
+  [51, 3.225, 0.0011001776904034212],
+  [80, 3.5, 0.0003817593622867223],
+  [100, 3, 0.0017039576716647257],
+  [100, -3, 0.9982960423283352425],
+  [100, 1000, 3.9598093039741e-202],
+  [100.5, 3, 0.0017020894648502047],
+  [100.5, -3, 0.9982979105351498239],
+  [100.5, 1000, 5.0748076592726e-203],
+  [101, 2.2, 0.0150431552207706144],
+  [101, 2.5, 0.0070146606762820649],
+  [101, 2.8, 0.003061837013926403],
+  [101, 3, 0.0017002408003405441],
+  [101, 3.225, 0.0008488032543202919],
+  [101, 3.5, 0.0003469245010397064],
+  [101, 4, 0.0000604065492359298],
+  [101, 6, 1.55094218066051e-8],
+  [101, 30, 2.07303546000171e-52],
+  [150, 3.225, 0.0007731474700639539],
+  [150, 30, 1.45474237490963e-65],
+  [1000, 2.2, 0.0140175126633489376],
+  [1000, 3.225, 0.000650275750401702],
+  [1000, 4, 0.0000340049596043908],
+  [1000, 30, 7.6873437220217e-142],
+  [5000, 2.8, 0.0025649354783731206],
+  [5000, 3.5, 0.0002346582153662663],
+  [5000, 6, 1.05604814165269e-9],
+  [100000, 3, 0.0013502304420323597],
+  [100000, 3.225, 0.0006300655910081434],
+  [100000, 30, 3.6892684361108e-197],
+  [10000000, 2.5, 0.0062096732682892257],
+  [10000000, 3.5, 0.0002326300908034243],
+  [10000000, 4, 0.0000316714693450844],
+  [10000000, 30, 5.0073068454097e-198],
+  [100000000, 2.2, 0.0139034486529425287],
+  [100000000, 3.2, 0.0006871381522930769],
+  [100000000, 4, 0.0000316712645842641],
+  [100000000, 6, 9.86591017157639e-10],
+  [1000000000, 2.8, 0.0025551303794087532],
+  [1000000000, 3.5, 0.0002326290891531898],
+  [1000000000, 30, 4.9077098439841e-198],
+  [4999999, 3.3541019662496845, 0.0003981180346769702],
+];
+const INVTTAIL = [
+  [51, 0.0005, 3.491765863533903058],
+  [101, 0.025, 1.983731002955604339],
+  [101, 0.0005, 3.389474884047273484],
+  [101, 1e-10, 7.075572377562902027],
+  [1000, 0.005, 2.58075469806595148],
+  [100000, 0.00001, 4.265095403181321743],
+  [10000000, 0.0005, 3.29052770446522036],
+  [10000000, 0.975, -1.959964221767203307],
+  [100000000, 0.3, 0.5244005143795624768],
+  [100000000, 1e-10, 6.36134156186298938],
+];
+
+function close(actual, expected, label) {
+  assert.ok(
+    Math.abs(actual - expected) <= 1e-12 * Math.abs(expected),
+    `${label}: ${actual} vs ${expected}`,
+  );
+}
+
+test("ttail and invttail keep Stata's digits with many degrees of freedom", () => {
+  const session = new Session();
+  for (const [df, t, value] of TTAIL) {
+    session.run(`scalar z = ttail(${df}, ${t})`);
+    close(session.scalars.get("z"), value, `ttail(${df}, ${t})`);
+  }
+  for (const [df, p, value] of INVTTAIL) {
+    session.run(`scalar z = invttail(${df}, ${p})`);
+    close(session.scalars.get("z"), value, `invttail(${df}, ${p})`);
+  }
+  session.run("scalar z = ttail(1000000, 0)");
+  assert.equal(session.scalars.get("z"), 0.5);
+});
+
+test("ttesti with 10^2 to 10^8 observations matches Stata's p-values", () => {
+  // Stata stores these r() to about 16 decimal places, so a tail near 10^-4
+  // carries 12 significant digits.
+  for (const [command, p_l, p, p_u] of [
+    [
+      "ttesti 102 .3193249128 1 0",
+      0.9991512599333722822,
+      0.0016974801332553999,
+      0.0008487400666276999,
+    ],
+    [
+      "ttesti 5000000 .0015 1 0",
+      0.9996018819653230691,
+      0.0007962360693539,
+      0.0003981180346769,
+    ],
+    [
+      "ttesti 10000000 .0011067971810589 1 0",
+      0.9997673699091963462,
+      0.0004652601816072,
+      0.0002326300908036,
+    ],
+    [
+      "ttesti 100000000 .00032 1 0",
+      0.9993128618477068459,
+      0.0013742763045862,
+      0.0006871381522931,
+    ],
+  ]) {
+    const { session } = run(command),
+      r = session.results.r;
+    close(r.p_l, p_l, `${command} r(p_l)`);
+    close(r.p, p, `${command} r(p)`);
+    close(r.p_u, p_u, `${command} r(p_u)`);
+  }
+});
+
+test("ttest against a quoted string is a type mismatch, as in Stata", () => {
+  const data = 'clear\ninput a b\n1 2\n2 4\n4 5\nend\ngenerate str1 s = "x"';
+  for (const [line, code, message] of [
+    ['ttest s == "x"', 109, "type mismatch"],
+    ['ttest a == "x"', 109, "type mismatch"],
+    ['ttest a == "x y"', 109, "type mismatch"],
+    ['ttest a == ""', 109, "type mismatch"],
+    ['ttest a == `"x"\'', 109, "type mismatch"],
+    ['ttest a == "x", bogus', 109, "type mismatch"],
+    ['ttest a = "x", level(90)', 109, "type mismatch"],
+    ['ttest a == "x" if b > 2', 109, "type mismatch"],
+    ['ttest nosuch == "x"', 111, "variable nosuch not found"],
+  ]) {
+    const session = new Session();
+    session.run(data);
+    const result = session.run(line);
+    assert.equal(result.rc, code, line);
+    assert.match(JSON.stringify(result), new RegExp(message), line);
+  }
+});

@@ -2491,3 +2491,27 @@ capture noisily ttest x == s
 display _rc
 capture noisily ttest s == x
 display _rc
+=== ttest-string-literal
+clear
+input a b
+1 2
+2 4
+4 5
+end
+generate str1 s = "x"
+capture noisily ttest s == "x"
+display _rc
+capture noisily ttest a == "x"
+display _rc
+capture noisily ttest a == "x y"
+display _rc
+capture noisily ttest a == "1"
+display _rc
+capture noisily ttest a = "x", level(90)
+display _rc
+capture noisily ttest a == "x", bogus
+display _rc
+capture noisily ttest a == "x" if b > 2
+display _rc
+capture noisily ttest nosuch == "x"
+display _rc

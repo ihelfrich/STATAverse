@@ -16738,6 +16738,64 @@
       ]
     },
     {
+      "id": "ttest-string-literal",
+      "source": "clear\ninput a b\n1 2\n2 4\n4 5\nend\ngenerate str1 s = \"x\"\ncapture noisily ttest s == \"x\"\ndisplay _rc\ncapture noisily ttest a == \"x\"\ndisplay _rc\ncapture noisily ttest a == \"x y\"\ndisplay _rc\ncapture noisily ttest a == \"1\"\ndisplay _rc\ncapture noisily ttest a = \"x\", level(90)\ndisplay _rc\ncapture noisily ttest a == \"x\", bogus\ndisplay _rc\ncapture noisily ttest a == \"x\" if b > 2\ndisplay _rc\ncapture noisily ttest nosuch == \"x\"\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input a b",
+          "lines": [
+            "             a          b",
+            "  1. 1 2",
+            "  2. 2 4",
+            "  3. 4 5",
+            "  4. end"
+          ]
+        },
+        { "command": "generate str1 s = \"x\"", "lines": [] },
+        {
+          "command": "capture noisily ttest s == \"x\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest a == \"x\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest a == \"x y\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest a == \"1\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest a = \"x\", level(90)",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest a == \"x\", bogus",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest a == \"x\" if b > 2",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily ttest nosuch == \"x\"",
+          "lines": ["variable nosuch not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
