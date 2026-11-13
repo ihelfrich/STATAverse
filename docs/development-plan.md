@@ -774,7 +774,10 @@ Found and not yet fixed, each measured against Stata:
 
 - The coefficient-table width (#41, #42, #48: names, interaction pieces,
   factor-level labels, the beta table) is not yet used by the likelihood
-  family or margins; lincom abbreviates its dependent variable (#48).
+  family or margins; lincom abbreviates its dependent variable (#48). For example, after
+  regress y household_income_k i.g, margins, dydx(household_income_k) prints
+  the whole name where Stata, at linesize 80, prints household_i~k in a
+  thirteen-character column.
 - For c.x#i.f Stata orders the factor first and names the coefficient
   1.f#c.x; the runtime keeps the typed order. This renames design-matrix
   columns and belongs with B2.
