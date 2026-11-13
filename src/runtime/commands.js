@@ -5,7 +5,7 @@
 // frame and out(line) for results.
 import { least, greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
-import { STANDARD_MESSAGES } from "./error-messages.js";
+import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
@@ -1812,10 +1812,18 @@ export const COMMANDS = [
   command("error", 5, (session, text) => {
     if (!text.trim()) throw invalid();
     const value = session.scalar(text);
-    if (typeof value !== "number" || !(value >= 0)) throw invalid();
+    if (typeof value !== "number") throw invalid();
     // Stata rounds a fractional code; one it has no message for prints none.
+    // A negative or missing code, or one past 100,000, stops with 100,000
+    // and no message.
     const code = Math.round(value);
-    if (code) throw new StataError(STANDARD_MESSAGES[code] ?? "", code);
+    if (isMissing(value) || code < 0 || code > 100000)
+      throw new StataError("", 100000);
+    if (code)
+      throw new StataError(
+        standardMessage(code, session.settings.linesize ?? 80),
+        code,
+      );
   }),
   command("exit", 4, (session, text) => {
     const code = text.replace(/,.*$/, "").trim();

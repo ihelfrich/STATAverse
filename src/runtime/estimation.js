@@ -581,7 +581,7 @@ export function fit(session, parsed, by) {
  */
 export function tableWidth(session, model) {
   const shown = model.names
-    .filter((_, k) => !hiddenBase(model.columns?.[k]))
+    .filter((_, k) => !hiddenBase(model.columns?.[k], model))
     .map((name) => {
       const term = model.columns?.[model.names.indexOf(name)]?.term;
       return term && !term.variable ? term.header : name;
@@ -593,7 +593,7 @@ export function tableWidth(session, model) {
     // A factor level's label counts too, with the space after it.
     labels = model.names.flatMap((_, k) => {
       const column = model.columns?.[k];
-      if (!column?.levels || hiddenBase(column)) return [];
+      if (!column?.levels || hiddenBase(column, model)) return [];
       const factors = column.term.components.filter((c) => c.factor);
       return [
         column.levels
@@ -615,15 +615,46 @@ export function tableWidth(session, model) {
 /**
  * A base level is not shown in a coefficient table, unless no observation
  * of the estimation sample has it (after logit sets aside the observations
- * a perfect predictor explains): then it is shown as (empty).
+ * a perfect predictor explains): then it is shown as (empty). baselevels
+ * shows the base level of each factor, and the base cells of an
+ * interaction whose bases cannot be inferred from the terms it contains,
+ * that is one with no lower-order term of its own in the model;
+ * allbaselevels shows every base cell.
  */
-const hiddenBase = (column) => !!column?.base && !column.empty;
+const hiddenBase = (column, model) => {
+  if (!column?.base || column.empty) return false;
+  if (model?.baseLevels === "all") return false;
+  if (model?.baseLevels !== "base") return true;
+  const term = column.term;
+  if (term.factor) return false;
+  const same = (a, b) => a.variable === b.variable && a.factor === b.factor;
+  return model.columns.some(
+    (other) =>
+      other &&
+      other.term !== term &&
+      other.term.components.length < term.components.length &&
+      other.term.components.every((c) =>
+        term.components.some((d) => same(c, d)),
+      ),
+  );
+};
+
+/** Which base levels the options of an estimation command ask to show. */
+export const baseLevelsAsked = (options) =>
+  options.allbaselevels ? "all" : options.baselevels ? "base" : undefined;
 
 /** Stata's abbrev(name, width): the start, a ~, and the last character. */
 export const abbreviate = (name, width) =>
   name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
 
-export function termRows(session, model, cells, width, omittedValue = 0) {
+export function termRows(
+  session,
+  model,
+  cells,
+  width,
+  omittedValue = 0,
+  baseTail = "",
+) {
   // Without a width the column is twelve and names are not shortened.
   const w = width ?? 12,
     short = (name) => (width ? abbreviate(name, w) : name),
@@ -639,7 +670,9 @@ export function termRows(session, model, cells, width, omittedValue = 0) {
   });
   let previousPlain = true;
   blocks.forEach((block, b) => {
-    const shown = block.items.filter((k) => !hiddenBase(model.columns[k])),
+    const shown = block.items.filter(
+        (k) => !hiddenBase(model.columns[k], model),
+      ),
       // A factor with one level to show, such as a 0/1 variable, is printed
       // on one row like a plain variable, with no blank rows around it.
       alone =
@@ -656,7 +689,9 @@ export function termRows(session, model, cells, width, omittedValue = 0) {
       out.push(
         model.estimable[k]
           ? `${label}|${cells(k)}`
-          : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
+          : model.columns[k]?.base && !model.columns[k].empty
+            ? `${label}|${String(omittedValue).padStart(11)}  (base)${baseTail}`
+            : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
@@ -754,7 +789,7 @@ function regress(session, text, ctx) {
   )
     return;
   const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) | noHEader EForm(string) ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
       text,
     ),
     model = fit(session, parsed, null),
@@ -782,6 +817,7 @@ function regress(session, text, ctx) {
         wide,
       ),
     ];
+  model.baseLevels = baseLevelsAsked(parsed.options);
   session.estimates = model;
   session.results.e = {
     N: model.N,
@@ -869,6 +905,9 @@ function regress(session, text, ctx) {
         return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
       },
       width,
+      0,
+      // A base level's beta, zero, sits at the end of the line.
+      "0".padStart(45),
     ).forEach(ctx.out);
   } else {
     const width = tableWidth(session, model);

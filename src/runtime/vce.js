@@ -56,6 +56,37 @@ export function clusterMeat(variable, rows, score, size) {
   return { meat, clusters: sums.size };
 }
 
+/**
+ * The sandwich variance V M V of a maximum-likelihood fit, from the inverse
+ * of its information V and each observation's score. M adds the weighted
+ * scores within each cluster (each observation is its own when there is no
+ * cluster variable) and the outer products of those sums; the result is
+ * scaled by G / (G - 1), G being the number of clusters. weights (or null)
+ * and rows, the observations' places in the data, follow the scores.
+ * Returns the variance and the number of clusters.
+ */
+export function sandwich(V, scores, weights, cluster, rows) {
+  const size = V.length,
+    own = { data: scores.map((_, k) => k) },
+    weighted = (k) =>
+      weights ? scores[k].map((v) => v * weights[k]) : scores[k],
+    { meat, clusters } = clusterMeat(
+      cluster ?? own,
+      cluster ? rows : own.data,
+      weighted,
+      size,
+    ),
+    product = (a, b) =>
+      a.map((row) =>
+        b[0].map((_, c) => row.reduce((t, v, k) => t + v * b[k][c], 0)),
+      ),
+    scale = clusters / (clusters - 1);
+  return {
+    V: product(product(V, meat), V).map((row) => row.map((v) => v * scale)),
+    clusters,
+  };
+}
+
 /** The line Stata prints above a table of clustered standard errors. */
 export const clusterNote = (clusters, name, count) =>
   `(Std. err. adjusted for ${count(clusters)} clusters in ${name})`.padStart(
