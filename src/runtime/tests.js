@@ -2,12 +2,19 @@
 // tabi. Layouts follow Stata's Results window; tests/runtime-output.test.mjs
 // compares them with text recorded from installed Stata.
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { applyFormat, displayValue } from "./format.js";
 import { Ftail, chi2tail, invttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { FUNCTIONS } from "./functions.js";
 import { ranks } from "./everyday.js";
-import { count, labelled, moments, percentile, tabulate } from "./reports.js";
+import {
+  count,
+  labelled,
+  moments,
+  percentile,
+  perGroup,
+  tabulate,
+} from "./reports.js";
 import { Dataset } from "./store.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
@@ -23,6 +30,29 @@ function alternatives(...items) {
     line = line.padEnd(start) + item;
   });
   return line;
+}
+
+/**
+ * The by-group a command runs in under the by prefix, as session.rows and
+ * session.select take it, or null for the whole dataset.
+ */
+const scope = (ctx) => (ctx?.group ? { groups: [ctx.group] } : null);
+/**
+ * session.parse, with Stata's message for an option it does not take that
+ * was typed with an argument: "option by() not allowed".
+ */
+function parseOptions(session, declaration, text) {
+  try {
+    return session.parse(declaration, text);
+  } catch (error) {
+    const m =
+      error instanceof StataError &&
+      error.code === 198 &&
+      /^option ([A-Za-z_]\w*) not allowed$/.exec(error.message);
+    if (m && new RegExp(`(^|[\\s,])${m[1]}\\s*\\(`).test(text))
+      throw new StataError(`option ${m[1]}() not allowed`, 198);
+    throw error;
+  }
 }
 
 /** The values of a numeric variable in the rows given, without missings. */
@@ -107,21 +137,26 @@ function confirmNumber(token, integer) {
  * is labelled 5.
  */
 function abbreviate(text) {
-  const name = text.startsWith(".") ? text.slice(1) : text;
-  return name.length > 12 ? `${name.slice(0, 10)}~${name.at(-1)}` : name;
+  return abbrev(text.startsWith(".") ? text.slice(1) : text, 12);
 }
+/** Stata's abbrev(name, n): the first n - 2 characters, ~ and the last. */
+const abbrev = (name, n) =>
+  name.length > n ? `${name.slice(0, n - 2)}~${name.at(-1)}` : name;
 /** The first n characters of a string, as udsubstr(s, 1, n) takes them. */
 const leading = (text, n) => Array.from(text).slice(0, n).join("");
-/** A {p 0 0 2} paragraph: words wrapped two columns short of the line. */
-function paragraph(session, text) {
-  const width = (session.settings.linesize ?? 80) - 2,
+/**
+ * A {p indent indent right} paragraph, {p 0 0 2} unless said: words
+ * wrapped right columns short of the line, each line indented.
+ */
+function paragraph(session, text, indent = 0, right = 2) {
+  const width = (session.settings.linesize ?? 80) - right - indent,
     lines = [""];
   for (const word of text.split(" ")) {
     const last = lines.at(-1);
     if (last && last.length + 1 + word.length > width) lines.push(word);
     else lines[lines.length - 1] = last ? `${last} ${word}` : word;
   }
-  return lines.join("\n");
+  return lines.map((line) => " ".repeat(indent) + line).join("\n");
 }
 /**
  * The hypothesised proportion as prtest and prtesti print it: six decimals
@@ -511,7 +546,7 @@ function prtest(session, text, ctx) {
     level = parsed.options.level,
     variable = session.data.get(session.varlist(t.name)[0]),
     by = byVariable(session, parsed.options.by),
-    rows = session.rows(parsed, null);
+    rows = session.rows(parsed, scope(ctx));
   if (t.expression !== undefined) {
     const compiled = checkedExpression(session, t.expression);
     if (by) throw new StataError("may not combine == and option by()", 198);
@@ -1041,11 +1076,11 @@ function signrank(session, text, ctx) {
 }
 
 /** The observations of a response grouped by the levels of a factor. */
-function grouped(session, parsed) {
+function grouped(session, parsed, within = null) {
   const variable = numericVariable(session, parsed.varlist[0]),
     by = session.data.get(parsed.options?.by?.[0] ?? parsed.varlist[1]),
     rows = session
-      .rows(parsed, null)
+      .rows(parsed, within)
       .filter(
         (i) =>
           !isMissing(variable.data[i]) &&
@@ -1227,29 +1262,41 @@ function oppositeTail(n, observed, assumed) {
 }
 
 /**
- * The exact binomial test of k successes in n trials against p, as bitest
- * and bitesti print it. The two-sided probability adds the tail on the
- * other side of n p that starts at bitesti.ado's opposite k.
+ * bitesti.ado's BiDens: Pr(X = j) as the difference of two tail
+ * probabilities, the upper ones above n p and the lower ones below it.
  */
-function binomialTest(ctx, session, n, k, p, name) {
-  if (!(p > 0 && p < 1))
-    throw new StataError(
-      name === undefined
-        ? "invalid success probability\n    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
-        : "success probability #p must be in (0,1)",
-      450,
-    );
-  if (!n) throw new StataError("no observations", 2000);
-  const kopp = oppositeTail(n, k, p),
+function binomialDensity(n, j, p) {
+  if (j < 0 || j > n) return 0;
+  if (j > n * p)
+    return binomialUpper(n, j, p) - (j < n ? binomialUpper(n, j + 1, p) : 0);
+  return (
+    binomialUpper(n, n - j, 1 - p) -
+    (j > 0 ? binomialUpper(n, n - j + 1, 1 - p) : 0)
+  );
+}
+
+/**
+ * The exact binomial test of k successes in n trials against p, as
+ * bitesti.ado prints it once its arguments are checked. The two-sided
+ * probability adds the tail on the other side of n p that starts at
+ * bitesti.ado's opposite k. name is bitest's variable; with detail the
+ * probabilities of the observed k, the opposite k and the k next to it
+ * follow.
+ */
+function binomialTest(ctx, session, test) {
+  const { n, k, p, name, detail } = test,
+    kopp = oppositeTail(n, k, p),
     upper = binomialUpper(n, k, p),
     lower = binomialLower(n, k, p),
     commas = (v) => applyFormat(v, "%12.0fc").trim(),
     six = (v) => applyFormat(v, "%8.6f"),
-    lead = name === undefined ? "" : `${name.padStart(12)} |`,
+    lead = name === undefined ? "" : `${abbrev(name, 12).padStart(12)} |`,
     shown = commas(k),
-    // Each line's = sits at column coleq, as bitesti.ado places it.
+    // Each line's = sits at column coleq, as bitesti.ado places it; a
+    // label that reaches it is followed directly by the =.
     line = (label, coleq, value, note) =>
-      `${`  ${label}`.padEnd(coleq - 1)}= ${six(value)}  (${note})`;
+      `${`  ${label}`.padEnd(coleq - 1)}= ${six(value)}${note ? `  (${note})` : ""}`,
+    empty = kopp === -1 || kopp === n + 1;
   ctx.out("");
   ctx.out("Binomial probability test");
   ctx.out("");
@@ -1261,11 +1308,12 @@ function binomialTest(ctx, session, n, k, p, name) {
     `${lead}${applyFormat(n, "%13.0fc")} ${applyFormat(k, "%12.0fc")} ${applyFormat(n * p, "%12.0gc")} ${applyFormat(p, "%11.5f")} ${applyFormat(k / n, "%12.5f")}`,
   );
   ctx.out("");
-  if (kopp === -1 || kopp === n + 1) {
+  let coleq, results;
+  if (empty) {
     // Nothing on the other side is as unlikely: the two-sided probability is
     // the observed tail, and Stata notes that the other tail is empty.
-    const coleq = 3 + shown.length + 10,
-      high = k > n * p,
+    coleq = 3 + shown.length + 10;
+    const high = k > n * p,
       both = high ? upper : lower;
     ctx.out(line(`Pr(k >= ${shown})`, coleq, upper, "one-sided test"));
     ctx.out(line(`Pr(k <= ${shown})`, coleq, lower, "one-sided test"));
@@ -1283,7 +1331,7 @@ function binomialTest(ctx, session, n, k, p, name) {
     );
     ctx.out("");
     // In the order return list shows them.
-    session.results.r = {
+    results = {
       p: both,
       k_opp: MISSING,
       k,
@@ -1292,62 +1340,165 @@ function binomialTest(ctx, session, n, k, p, name) {
       p_l: lower,
       p_u: upper,
     };
-    return;
-  }
-  const k1 = Math.min(k, kopp),
-    k2 = Math.max(k, kopp),
-    twoSided = Math.min(1, binomialUpper(n, k2, p) + binomialLower(n, k1, p)),
+  } else {
+    const k1 = Math.min(k, kopp),
+      k2 = Math.max(k, kopp),
+      twoSided = Math.min(1, binomialUpper(n, k2, p) + binomialLower(n, k1, p));
     coleq = 3 + commas(k1).length + commas(k2).length + 19;
-  ctx.out(line(`Pr(k >= ${shown})`, coleq, upper, "one-sided test"));
-  ctx.out(line(`Pr(k <= ${shown})`, coleq, lower, "one-sided test"));
-  ctx.out(
-    line(
-      `Pr(k <= ${commas(k1)} or k >= ${commas(k2)})`,
-      coleq,
-      twoSided,
-      "two-sided test",
-    ),
-  );
-  ctx.out("");
-  session.results.r = {
-    k_opp: kopp,
-    p: twoSided,
-    k,
-    P_p: p,
-    N: n,
-    p_l: lower,
-    p_u: upper,
-  };
+    ctx.out(line(`Pr(k >= ${shown})`, coleq, upper, "one-sided test"));
+    ctx.out(line(`Pr(k <= ${shown})`, coleq, lower, "one-sided test"));
+    ctx.out(
+      line(
+        `Pr(k <= ${commas(k1)} or k >= ${commas(k2)})`,
+        coleq,
+        twoSided,
+        "two-sided test",
+      ),
+    );
+    ctx.out("");
+    results = {
+      k_opp: kopp,
+      p: twoSided,
+      k,
+      P_p: p,
+      N: n,
+      p_l: lower,
+      p_u: upper,
+    };
+  }
+  if (detail) {
+    // The k next to the opposite one, toward k; with an empty opposite
+    // tail, the end of the range on that side.
+    let next;
+    if (!empty) {
+      const k1 = kopp - Math.sign(kopp - k);
+      if (k1 !== k && k1 !== kopp) next = k1;
+    } else next = kopp === -1 ? 0 : n;
+    const added = {},
+      observed = binomialDensity(n, k, p);
+    ctx.out(line(`Pr(k == ${shown})`, coleq, observed, "observed"));
+    if (next !== undefined) {
+      const density = binomialDensity(n, next, p);
+      ctx.out(line(`Pr(k == ${commas(next)})`, coleq, density));
+      added.P_noppk = density;
+      added.k_nopp = next;
+    }
+    if (!empty) {
+      const density = binomialDensity(n, kopp, p);
+      ctx.out(
+        line(`Pr(k == ${commas(kopp)})`, coleq, density, "opposite extreme"),
+      );
+      added.P_oppk = density;
+    }
+    added.P_k = observed;
+    ctx.out("");
+    results = { ...reorderDetail(added), ...results };
+  }
+  session.results.r = results;
 }
+/** The detail results in the order return list shows them. */
+const reorderDetail = (added) =>
+  Object.fromEntries(
+    ["P_oppk", "P_noppk", "k_nopp", "P_k"]
+      .filter((key) => key in added)
+      .map((key) => [key, added[key]]),
+  );
 
-/** bitest var == p: the test of a 0/1 variable's proportion of ones. */
+/**
+ * bitest var == p: the test of a 0/1 variable's count of ones, which
+ * bitest.ado passes to bitesti with the variable's name.
+ */
 function bitest(session, text, ctx) {
   const t = target(text);
   if (t.value === undefined) throw new StataError("invalid syntax", 198);
-  const parsed = session.parse("[if] [in]", t.rest),
-    variable = numericVariable(session, t.name),
-    v = values(variable, session.rows(parsed, null));
+  const parsed = parseOptions(session, "[if] [in] [, Detail]", t.rest),
+    variable = session.data.get(session.varlist(t.name)[0]),
+    rows = session.rows(parsed, scope(ctx)),
+    // markout drops every observation of a string variable.
+    v = isStringType(variable.type) ? [] : values(variable, rows);
+  if (!v.length) throw new StataError("no observations", 2000);
   if (v.some((x) => x !== 0 && x !== 1))
     throw new StataError(`${variable.name} is not a 0/1 variable`, 450);
-  binomialTest(
-    ctx,
-    session,
-    v.length,
-    v.reduce((a, b) => a + b, 0),
-    session.scalar(t.value),
-    variable.name,
-  );
+  const p = session.scalar(t.value);
+  if (!(p > 0 && p < 1))
+    throw new StataError("success probability #p must be in (0,1)", 450);
+  binomialTest(ctx, session, {
+    n: v.length,
+    k: v.reduce((a, b) => a + b, 0),
+    p,
+    name: variable.name,
+    detail: parsed.options.detail,
+  });
 }
 
-/** bitesti n k p: the same test from the counts. */
+const BITESTI_SYNTAX = "syntax is bitesti #N #succ #p";
+/**
+ * bitesti #N #succ #p: the same test from the counts, read as bitesti.ado
+ * reads them. Each argument is an expression; a number of successes that
+ * is not an integer is a proportion of the trials.
+ */
 function bitesti(session, text, ctx) {
-  const numbers = text.trim().split(/\s+/).filter(Boolean).map(Number);
-  if (numbers.length !== 3 || numbers.some((v) => !Number.isFinite(v)))
-    throw new StataError("invalid syntax", 198);
-  const [n, k, p] = numbers;
-  if (!Number.isInteger(n) || !Number.isInteger(k) || n < 1 || k < 0 || k > n)
-    throw new StataError("invalid syntax", 198);
-  binomialTest(ctx, session, n, k, p);
+  if (!text.trim())
+    throw new StataError(
+      paragraph(
+        session,
+        `you must specify number of trials, number of successes, and success probability; ${BITESTI_SYNTAX}`,
+        0,
+        0,
+      ),
+      198,
+    );
+  // parse "`*'", parse(", "): words, each comma a word of its own.
+  const words = [],
+    pattern = /,|[^\s,]+/g;
+  let m;
+  while (words.length < 3 && (m = pattern.exec(text)))
+    words.push({ word: m[0], end: pattern.lastIndex });
+  const evaluate = (item) => {
+    if (item === undefined) return undefined;
+    if (item.word === ",") throw new StataError("invalid syntax", 198);
+    return session.scalar(item.word);
+  };
+  let n = evaluate(words[0]),
+    k = evaluate(words[1]);
+  if (words.length < 3) throw new StataError("invalid syntax", 198);
+  const p = evaluate(words[2]),
+    rest = text.slice(words[2].end);
+  if (rest.trim() && !rest.trim().startsWith(","))
+    throw new StataError("varlist not allowed", 101);
+  const options = parseOptions(
+      session,
+      "[, XName(string) Detail]",
+      rest.trim(),
+    ).options,
+    // confirm integer number, on the number as its macro holds it.
+    integer = (value) => /^[+-]?\d+$/.test(macroNumber(value));
+  const trials = !integer(n) ? 7 : n < 0 ? 198 : n < 1 ? 2001 : 0;
+  if (trials)
+    throw new StataError(
+      `invalid number of trials\n${paragraph(session, `Number of trials #N must be a positive integer greater than 1; ${BITESTI_SYNTAX}`, 4)}`,
+      trials,
+    );
+  if (!integer(k)) k = isMissing(k) ? MISSING : Math.floor(k * n + 0.5);
+  if (k < 0 || k > n)
+    throw new StataError(
+      `invalid number of successes\n${paragraph(session, `Number of successes #succ must be a positive integer no larger than the number of trials #N; ${BITESTI_SYNTAX}`, 4)}`,
+      450,
+    );
+  if (!(p > 0 && p < 1))
+    throw new StataError(
+      options.xname
+        ? "success probability #p must be in (0,1)"
+        : `invalid success probability\n${paragraph(session, `Success probability #p must be in (0,1); ${BITESTI_SYNTAX}`, 4)}`,
+      450,
+    );
+  binomialTest(ctx, session, {
+    n,
+    k,
+    p,
+    name: options.xname || undefined,
+    detail: options.detail,
+  });
 }
 
 /** P(X >= x) for X binomial with n trials and probability one half. */
@@ -1373,16 +1524,18 @@ function signtest(session, text, ctx) {
   const m =
     /^\s*([^\s=]+)\s*=\s*([\s\S]*?)(?:(\s+)((?:if|in)\s[\s\S]*))?$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
-  const variable = numericVariable(session, m[1]),
+  const variable = session.data.get(session.varlist(m[1])[0]),
     expression = m[2].trim(),
     typed = `${m[2]}${m[3] ?? ""}`,
     parsed = session.parse("[if] [in]", m[4] ? ` ${m[4]}` : ""),
     compiled = session.compile(expression);
-  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  // signtest.ado's sign(var - (exp)) of a string.
+  if (compiled.type !== "numeric" || isStringType(variable.type))
+    throw new StataError("type mismatch", 109);
   let positive = 0,
     negative = 0,
     zero = 0;
-  session.select(parsed, null, (i, env) => {
+  session.select(parsed, scope(ctx), (i, env) => {
     const a = variable.data[i],
       b = compiled.evaluate(i, env);
     if (isMissing(a) || isMissing(b)) return;
@@ -1395,7 +1548,12 @@ function signtest(session, text, ctx) {
     expected = n / 2,
     shown = (v) => g(v).padStart(12),
     four = (v) => applyFormat(v, "%6.4f"),
-    difference = `${variable.name} - ${typed}`,
+    // signtest.ado names the variable in ten characters, and leaves out
+    // " - 0" when the expression is exactly 0 as typed.
+    difference =
+      typed === "0"
+        ? abbrev(variable.name, 10)
+        : `${abbrev(variable.name, 10)} - ${typed}`,
     upper = halfTail(n, positive),
     lower = halfTail(n, negative),
     most = Math.max(positive, negative),
@@ -1448,28 +1606,42 @@ function signtest(session, text, ctx) {
  * Forsythe's versions with the median (W50) and the 10 percent trimmed mean
  * (W10): each is the one-way F test of the absolute deviations from the
  * group's centre. The trimmed mean is the mean of the values between the
- * group's 10th and 90th percentiles.
+ * group's 10th and 90th percentiles. As in robvar.ado, Stata's arithmetic
+ * makes the statistics missing with fewer than two groups or no
+ * observations, and the command still succeeds.
  */
 function robvar(session, text, ctx) {
-  const parsed = session.parse("varname [if] [in] , BY(varlist)", text);
+  const parsed = parseOptions(session, "varname [if] [in] , BY(varlist)", text);
   if (parsed.options.by.length > 1)
     throw new StataError("by():  too many variables specified", 103);
-  const f = grouped(session, parsed),
+  // robvar.ado's egen mean() of a string variable.
+  session.rows(parsed, scope(ctx));
+  if (isStringType(session.data.get(parsed.varlist[0]).type))
+    throw new StataError("type mismatch", 109);
+  const f = grouped(session, parsed, scope(ctx)),
     groups = f.groups.map((rows) => values(f.variable, rows)),
     n = groups.reduce((t, v) => t + v.length, 0),
     k = groups.length;
-  if (k < 2) throw new StataError("1 group found, 2 or more required", 420);
   const condition = [
     parsed.if ? `if ${parsed.if}` : "",
     parsed.in ? `in ${parsed.in[0]}/${parsed.in[1]}` : "",
   ]
     .filter(Boolean)
     .join(" ");
+  let last;
   tabulate(
     session,
     `${f.by.name} ${condition}, summarize(${f.variable.name})`,
-    ctx,
+    {
+      ...ctx,
+      out: (line) => {
+        last = line;
+        ctx.out(line);
+      },
+    },
   );
+  // Each statistic follows a blank line, which a table already ends with.
+  if (last !== "") ctx.out("");
   const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length,
     sorted = (v) => [...v].sort((a, b) => a - b),
     centres = {
@@ -1482,47 +1654,75 @@ function robvar(session, text, ctx) {
         return mean(s.filter((x) => x >= low && x <= high));
       },
     },
+    // robvar.ado's DoCal and the ratio it forms; division by zero and
+    // arithmetic on a missing value are missing (NaN here).
     test = (centre) => {
       const deviations = groups.map((v) => {
           const c = centre(v);
           return v.map((x) => Math.abs(x - c));
         }),
-        all = mean(deviations.flat()),
-        between = deviations.reduce(
-          (t, d) => t + d.length * (mean(d) - all) ** 2,
-          0,
+        all = n ? mean(deviations.flat()) : NaN,
+        between = over(
+          deviations.reduce((t, d) => t + d.length * (mean(d) - all) ** 2, 0),
+          k - 1,
         ),
-        within = deviations.reduce((t, d) => {
-          const m = mean(d);
-          return t + d.reduce((u, x) => u + (x - m) ** 2, 0);
-        }, 0),
-        F = between / (k - 1) / (within / (n - k));
-      return { F, p: Ftail(k - 1, n - k, F) };
+        within = over(
+          deviations.reduce((t, d) => {
+            const m = mean(d);
+            return t + d.reduce((u, x) => u + (x - m) ** 2, 0);
+          }, 0),
+          n - k,
+        ),
+        F = stata(over(between, within));
+      return { F, p: isMissing(F) ? MISSING : Ftail(k - 1, n - k, F) };
     },
-    // Stata shows the probability with its leading zero.
+    found = Object.fromEntries(
+      Object.entries(centres).map(([name, centre]) => [name, test(centre)]),
+    ),
+    // robvar.ado shows the three statistics in one %w.df format, w and d
+    // the widest and longest-decimalled of their displayed forms; with no
+    // decimals the format is invalid and display's own form is used.
+    shown = Object.values(found).map(({ F }) => displayValue(F)),
+    width =
+      1 + Math.max(...shown.map((v) => v.length + (v[0] === "." ? 1 : 0))),
+    decimals = Math.max(
+      ...shown.map((v) => [...v].reverse().join("").indexOf(".")),
+    ),
+    statistic = (F) =>
+      decimals >= 0
+        ? applyFormat(F, `%${width}.${decimals}f`)
+        : displayValue(F),
+    // A probability keeps the digits display gives it, with a leading
+    // zero: %0w.df, as robvar.ado builds it.
     probability = (p) => {
-      if (isMissing(p) || !Number.isFinite(p)) return ".";
-      const text = applyFormat(p, "%10.0g").trim();
-      // Too small for %g without an exponent, Stata writes it fixed.
-      if (/e/.test(text)) return applyFormat(p, "%10.8f").trim();
-      return text.startsWith(".") ? `0${text}` : text;
-    },
-    results = { N: n, df_1: k - 1, df_2: n - k };
+      if (p === 0) return displayValue(p);
+      const digits = displayValue(p).length - 1;
+      return applyFormat(p, `%0${digits + 2}.${digits}f`);
+    };
   for (const [name, label] of [
     ["w0", "W0 "],
     ["w50", "W50"],
     ["w10", "W10"],
   ]) {
-    const { F, p } = test(centres[name]);
-    // The table ends with a blank line; each statistic is followed by one.
+    const { F, p } = found[name];
+    if (name !== "w0") ctx.out("");
     ctx.out(
-      `${label} = ${applyFormat(F, "%10.0g")}   df(${k - 1}, ${n - k})     Pr > F = ${probability(p)}`,
+      `${label} = ${statistic(F)}   df(${displayValue(k - 1)}, ${displayValue(n - k)})     Pr > F = ${probability(p)}`,
     );
-    ctx.out("");
-    results[name] = F;
-    results[`p_${name}`] = p;
   }
-  session.results.r = results;
+  ctx.out("");
+  // In the order return list shows them.
+  session.results.r = {
+    N: n,
+    w10: found.w10.F,
+    p_w10: found.w10.p,
+    w50: found.w50.F,
+    p_w50: found.w50.p,
+    w0: found.w0.F,
+    p_w0: found.w0.p,
+    df_1: k - 1,
+    df_2: n - k,
+  };
 }
 
 function oneway(session, text, ctx) {
@@ -1702,11 +1902,13 @@ function tabi(session, text, ctx) {
 }
 
 export const TEST_COMMANDS = [
-  { name: "prtest", minimum: 6, run: prtest },
-  { name: "bitest", minimum: 6, run: bitest },
+  // Stata's prtest, bitest, signtest and robvar are byable(recall): under
+  // the by prefix each runs once per group, under the group's heading.
+  { name: "prtest", minimum: 6, run: perGroup(prtest), byable: true },
+  { name: "bitest", minimum: 6, run: perGroup(bitest), byable: true },
   { name: "bitesti", minimum: 7, run: bitesti },
-  { name: "signtest", minimum: 8, run: signtest },
-  { name: "robvar", minimum: 6, run: robvar },
+  { name: "signtest", minimum: 8, run: perGroup(signtest), byable: true },
+  { name: "robvar", minimum: 6, run: perGroup(robvar), byable: true },
   { name: "prtesti", minimum: 7, run: prtesti },
   { name: "sdtest", minimum: 6, run: sdtest },
   { name: "ranksum", minimum: 7, run: ranksum },

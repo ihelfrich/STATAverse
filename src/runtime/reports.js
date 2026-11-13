@@ -539,14 +539,40 @@ export function tabulate(session, text, ctx) {
       counts.set(variables[0].data[i], counts.get(variables[0].data[i]) + 1);
     let entries = [...counts];
     if (parsed.options.sort) entries = entries.sort((a, b) => b[1] - a[1]);
-    const shown = entries.map(([value]) => show(0, value)),
+    // The table of summaries keeps its first column narrow, as recorded
+    // from Stata 19: a value label shows its first nine characters, and a
+    // str# variable gets # - 1 columns (at least 11, at most 33, strL 33),
+    // a longer value showing as its start and "..".
+    const stringWidth = (type) =>
+        type === "strL"
+          ? 33
+          : Math.min(33, Math.max(11, Number(type.slice(3)) - 1)),
+      summaryText = (value) => {
+        const text = show(0, value),
+          chars = Array.from(text);
+        if (typeof value !== "string")
+          return label(0, value) === undefined
+            ? text
+            : chars.slice(0, 9).join("");
+        const room = stringWidth(variables[0].type);
+        return chars.length <= room
+          ? text
+          : `${chars.slice(0, room - 2).join("")}..`;
+      },
+      shown = entries.map(([value]) =>
+        target ? summaryText(value) : show(0, value),
+      ),
       width = Math.max(
         11,
-        greatest(
-          entries.map(([value], k) =>
-            textual(0, value) ? shown[k].length : Math.min(9, shown[k].length),
-          ),
-        ),
+        target && isStringType(variables[0].type)
+          ? stringWidth(variables[0].type)
+          : greatest(
+              entries.map(([value], k) =>
+                textual(0, value)
+                  ? shown[k].length
+                  : Math.min(9, shown[k].length),
+              ),
+            ),
       ),
       rule = "-".repeat(width + 1) + "+" + "-".repeat(35),
       heading = wrap(title(0), width);
@@ -562,11 +588,22 @@ export function tabulate(session, text, ctx) {
             target.data,
             keep.filter((i) => variables[0].data[i] === value),
           );
-      ctx.out(
-        `${" ".repeat(width)} |${" ".repeat(Math.max(0, Math.ceil((36 - of.length) / 2)))}${of}`,
-      );
-      heading.slice(0, -1).forEach((text) => ctx.out(`${text} |`));
-      ctx.out(`${heading.at(-1)} |        Mean   Std. dev.       Freq.`);
+      // The title wraps, a long word cut into pieces, and ends level with
+      // the column headings; "Summary of" sits on the line above them.
+      const stub = wrapWords(title(0), width).map((text) =>
+          text.padStart(width),
+        ),
+        height = Math.max(2, stub.length);
+      for (let k = 0; k < height; k++) {
+        const left = stub[k - (height - stub.length)] ?? " ".repeat(width);
+        ctx.out(
+          k === height - 1
+            ? `${left} |        Mean   Std. dev.       Freq.`
+            : k === height - 2
+              ? `${left} |${" ".repeat(Math.max(0, Math.ceil((36 - of.length) / 2)))}${of}`
+              : `${left} |`,
+        );
+      }
       ctx.out(wideRule);
       entries.forEach(([value], k) => ctx.out(line(shown[k], within(value))));
       ctx.out(wideRule);
