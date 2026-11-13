@@ -3,6 +3,7 @@ import { once } from "node:events";
 import fs from "node:fs/promises";
 import assert from "node:assert/strict";
 import { chromium, devices } from "@playwright/test";
+import { receiptPath, screenshotPath } from "./receipts.mjs";
 const server = spawn(process.execPath, ["tools/serve.mjs"], {
   env: {
     ...process.env,
@@ -38,11 +39,10 @@ try {
     errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const root = "http://127.0.0.1:4174/learn/stata/";
-  await fs.mkdir("docs/verification/screenshots", { recursive: true });
   await page.goto(root);
   await page.locator('[data-preview="regress"]').click();
   await page.screenshot({
-    path: "docs/verification/screenshots/home.png",
+    path: screenshotPath("home.png"),
     fullPage: true,
   });
   await page
@@ -59,7 +59,7 @@ try {
   await page.locator("#run").click();
   await page.locator("#tab-graph").click();
   await page.screenshot({
-    path: "docs/verification/screenshots/practice-desktop.png",
+    path: screenshotPath("practice-desktop.png"),
     fullPage: true,
   });
   await page.goto(root + "Learn/#debugging");
@@ -70,7 +70,7 @@ try {
   await page.locator("#run").click();
   await page.locator("#show-hint").click();
   await page.screenshot({
-    path: "docs/verification/screenshots/curriculum-desktop.png",
+    path: screenshotPath("curriculum-desktop.png"),
     fullPage: true,
   });
   await page.locator("#import-open").click();
@@ -80,25 +80,25 @@ try {
   await page.locator("#csv-missing").fill("NA");
   await page.locator("#csv-missing").press("Tab");
   await page.screenshot({
-    path: "docs/verification/screenshots/import-desktop.png",
+    path: screenshotPath("import-desktop.png"),
     fullPage: false,
   });
   await page.locator("#import-dialog [data-close]").click();
   await page.goto(root + "Labs/");
   await page.locator("#coefficient-comparison tbody tr").first().waitFor();
   await page.screenshot({
-    path: "docs/verification/screenshots/regression-lab-desktop.png",
+    path: screenshotPath("regression-lab-desktop.png"),
     fullPage: true,
   });
   await page.locator("#lab-tab-partial").click();
   await page.screenshot({
-    path: "docs/verification/screenshots/partial-regression-desktop.png",
+    path: screenshotPath("partial-regression-desktop.png"),
     fullPage: true,
   });
   await page.goto(root + "Labs/Inference/");
   await page.locator("#inference-scenario").selectOption("clustered");
   await page.screenshot({
-    path: "docs/verification/screenshots/inference-sample-desktop.png",
+    path: screenshotPath("inference-sample-desktop.png"),
     fullPage: true,
   });
   await page.locator("#run-simulation").click();
@@ -109,7 +109,7 @@ try {
     )
     .waitFor();
   await page.screenshot({
-    path: "docs/verification/screenshots/inference-simulation-desktop.png",
+    path: screenshotPath("inference-simulation-desktop.png"),
     fullPage: true,
   });
   await context.setOffline(true);
@@ -186,7 +186,7 @@ try {
     ),
   );
   await phone.screenshot({
-    path: "docs/verification/screenshots/practice-mobile.png",
+    path: screenshotPath("practice-mobile.png"),
     fullPage: true,
   });
   await phone.goto(root + "Learn/#do-files");
@@ -199,7 +199,7 @@ try {
   await phone.locator("#run").click();
   await phone.locator('[data-workspace-jump="editor"]').click();
   await phone.screenshot({
-    path: "docs/verification/screenshots/curriculum-mobile.png",
+    path: screenshotPath("curriculum-mobile.png"),
     fullPage: false,
   });
   await phone.locator("#import-open").click();
@@ -209,7 +209,7 @@ try {
   await phone.locator("#csv-missing").fill("NA");
   await phone.locator("#csv-missing").press("Tab");
   await phone.screenshot({
-    path: "docs/verification/screenshots/import-mobile.png",
+    path: screenshotPath("import-mobile.png"),
     fullPage: false,
   });
   await phone.locator("#import-dialog [data-close]").click();
@@ -221,7 +221,7 @@ try {
     ),
   );
   await phone.screenshot({
-    path: "docs/verification/screenshots/regression-lab-mobile.png",
+    path: screenshotPath("regression-lab-mobile.png"),
     fullPage: false,
   });
   await phone.locator('[data-lab-jump="estimates"]').click();
@@ -233,7 +233,7 @@ try {
   await phone.locator("#inference-scenario").selectOption("clustered");
   await phone.locator('[data-inference-view="sample"]').click();
   await phone.screenshot({
-    path: "docs/verification/screenshots/inference-sample-mobile.png",
+    path: screenshotPath("inference-sample-mobile.png"),
     fullPage: false,
   });
   await phone.locator("#run-simulation").click();
@@ -244,7 +244,7 @@ try {
     )
     .waitFor();
   await phone.screenshot({
-    path: "docs/verification/screenshots/inference-simulation-mobile.png",
+    path: screenshotPath("inference-simulation-mobile.png"),
     fullPage: false,
   });
   assert.ok(
@@ -287,7 +287,7 @@ try {
     pageErrors: errors,
   };
   await fs.writeFile(
-    "docs/verification/deployment.json",
+    receiptPath("deployment.json"),
     JSON.stringify(receipt, null, 2) + "\n",
   );
   console.log(JSON.stringify(receipt));

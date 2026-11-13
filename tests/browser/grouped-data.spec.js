@@ -1,5 +1,6 @@
 import { replaceEditor } from "./editor-helpers.js";
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
@@ -45,7 +46,7 @@ test("group statistics expose their calculation sample while retaining individua
     page.locator("#group-inspection .result-table").last().locator("tbody tr"),
   ).toHaveCount(12);
   await page.screenshot({
-    path: `docs/verification/screenshots/group-inspection-${testInfo.project.name}.png`,
+    path: screenshotPath(`group-inspection-${testInfo.project.name}.png`),
   });
   const audit = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
@@ -119,7 +120,7 @@ test("collapse changes the displayed unit, survives reload and exports the actua
   await page.locator("#export-dialog [data-close]").click();
   await page.locator("#tab-results").click();
   await page.screenshot({
-    path: `docs/verification/screenshots/grouped-data-${testInfo.project.name}.png`,
+    path: screenshotPath(`grouped-data-${testInfo.project.name}.png`),
     fullPage: true,
   });
   await run(page, "restore");

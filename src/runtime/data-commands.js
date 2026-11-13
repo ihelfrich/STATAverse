@@ -661,6 +661,22 @@ function placeAfter(data, name, after) {
   names.splice(names.indexOf(after) + 1, 0, name);
   data.order(names);
 }
+/**
+ * Replaces a variable with new values in its own position. The new column is
+ * made before the old one is dropped: dropping the only variable empties the
+ * dataset, after which there would be no observations to fill.
+ */
+function swapVariable(data, name, values, options) {
+  const position = data.names,
+    label = data.get(name).label;
+  let temporary = "__swap";
+  while (data.has(temporary)) temporary += "_";
+  data.generate(temporary, values, options);
+  data.drop([name]);
+  data.rename(temporary, name);
+  data.order(position);
+  data.get(name).label = label;
+}
 function targets(parsed, action) {
   const { generate, replace } = parsed.options;
   if (!generate === !replace)
@@ -713,12 +729,7 @@ function destring(session, text, ctx) {
       data.generate(target, values, { type });
       placeAfter(data, target, name);
     } else {
-      const label = variable.label,
-        position = data.names;
-      data.drop([name]);
-      data.generate(name, values, { type });
-      data.order(position);
-      data.get(name).label = label;
+      swapVariable(data, name, values, { type });
     }
     data.get(target).format = "%10.0g";
     ctx.out(
@@ -770,11 +781,7 @@ function tostring(session, text, ctx) {
       data.get(target).label = label || name;
       ctx.out(`${target} generated as ${data.get(target).type}`);
     } else {
-      const position = data.names;
-      data.drop([name]);
-      data.generate(name, values, { string: true });
-      data.order(position);
-      data.get(name).label = label;
+      swapVariable(data, name, values, { string: true });
       ctx.out(`${name} was ${was} now ${data.get(name).type}`);
     }
   });

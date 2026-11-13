@@ -47,8 +47,9 @@ const receipt = {
   run,
   refused,
 };
-fs.writeFileSync(
-  new URL("../docs/verification/student-probe.json", import.meta.url),
-  JSON.stringify(receipt, null, 2) + "\n",
-);
+if (process.argv.includes("--write"))
+  fs.writeFileSync(
+    new URL("../docs/verification/student-probe.json", import.meta.url),
+    JSON.stringify(receipt, null, 2) + "\n",
+  );
 console.log(`${run} of ${lines.length} commands run`);

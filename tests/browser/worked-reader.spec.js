@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { WORKED_EXAMPLES } from "../../src/worked-examples.js";
@@ -73,7 +74,7 @@ test("all eight panel interpretations give specific feedback and retain choices 
     })),
   ).toEqual([]);
   await page.screenshot({
-    path: `docs/verification/screenshots/worked-panel-${testInfo.project.name}.png`,
+    path: screenshotPath(`worked-panel-${testInfo.project.name}.png`),
     fullPage: false,
   });
   await page.reload();
