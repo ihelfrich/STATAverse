@@ -304,13 +304,11 @@ function margins(session, text, ctx) {
       });
   }
   // Covariates are all fixed when at() sets them or they are the factors
-  // whose margins or effects are asked for.
+  // whose effects are asked for. A factor whose margins are taken counts as
+  // fixed only in its own block; the title rule below adds it block by block.
   const allFixed = (set) =>
     covariates.every(
-      (name) =>
-        set.has(name) ||
-        marginVariables.includes(name) ||
-        (factors.has(name) && !!dydx?.includes(name)),
+      (name) => set.has(name) || (factors.has(name) && !!dydx?.includes(name)),
     );
 
   // What to compute.

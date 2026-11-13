@@ -170,7 +170,9 @@ function perfectPrediction(columns, sample, outcome, ctx, lead) {
   let kept = sample.map((_, j) => j);
   for (let k = 0; k < left.length;) {
     const column = left[k],
-      name = column.name.replace(/^(\d+)b\./, "$1."),
+      // Stata names the column without base-level markers, in every part
+      // of an interaction: 0.g#0.h, not 0.g#0b.h.
+      name = column.name.replace(/(^|#)(\d+)b\./g, "$1$2."),
       // The message of a complete separation names the column by its
       // variables alone, as g#x for 1.g#c.x.
       variables = column.term.components.map((c) => c.variable.name).join("#");
