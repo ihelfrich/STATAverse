@@ -737,7 +737,7 @@ each red-team finding was fixed on the branch it concerned.
 | #45         | robvar                                                    | main |
 | #46         | bitest, bitesti                                           | main |
 | #47         | signtest                                                  | #46  |
-| #48         | Long continuous-interaction labels                        | #42  |
+| #48         | Interaction and level labels in the width; beta table     | #42  |
 | website #54 | E2 live check, E3 font-face guard                         | main |
 
 Merge notes. #33 and #34 both add a line to `Session.select`: keep both
@@ -760,8 +760,9 @@ matrix showed 143 of 193 registered commands in a recorded fixture.
 
 Found and not yet fixed, each measured against Stata:
 
-- The coefficient-table width (#41, #42) is not yet used by the likelihood
-  family, margins, lincom or the beta table of regress.
+- The coefficient-table width (#41, #42, #48: names, interaction pieces,
+  factor-level labels, the beta table) is not yet used by the likelihood
+  family, margins or lincom.
 - For c.x#i.f Stata orders the factor first and names the coefficient
   1.f#c.x; the runtime keeps the typed order. This renames design-matrix
   columns and belongs with B2.
