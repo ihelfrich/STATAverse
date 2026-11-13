@@ -5,6 +5,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
+import { FUNCTIONS } from "./functions.js";
 import { ranks } from "./everyday.js";
 import { count, labelled, moments, percentile, tabulate } from "./reports.js";
 import { Dataset } from "./store.js";
@@ -73,82 +74,229 @@ function target(text) {
   return { name: m[1], value: m[2], rest: m[3] ?? "" };
 }
 
-/** The rows, tails and tables prtest and prtesti print. */
+/** A number as a Stata macro holds it, as in "`p1' not in [0,1]". */
+const macroNumber = (value) =>
+  isMissing(value) ? "." : applyFormat(value, "%18.0g").trim();
+/**
+ * A number after a trip through a macro, as prtest.ado passes its counts and
+ * proportions to prtesti: kept to the digits %18.0g shows.
+ */
+const viaMacro = (value) =>
+  isMissing(value) ? value : Number(macroNumber(value));
+/** The number an argument spells, as confirm number reads it, or undefined. */
+function literal(token) {
+  return /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(token)
+    ? Number(token)
+    : undefined;
+}
+/**
+ * confirm number, or with integer true confirm integer number, which takes
+ * only digits: 50.0, 5e1 and 1e3 are not integers to it.
+ */
+function confirmNumber(token, integer) {
+  const value = literal(token);
+  if (value === undefined || (integer && !/^[+-]?\d+$/.test(token)))
+    throw new StataError(
+      `'${token}' found where ${integer ? "integer" : "number"} expected`,
+      7,
+    );
+  return value;
+}
+/**
+ * Stata's abbrev(s, 12), which drops a leading period first: the group .5
+ * is labelled 5.
+ */
+function abbreviate(text) {
+  const name = text.startsWith(".") ? text.slice(1) : text;
+  return name.length > 12 ? `${name.slice(0, 10)}~${name.at(-1)}` : name;
+}
+/** The first n characters of a string, as udsubstr(s, 1, n) takes them. */
+const leading = (text, n) => Array.from(text).slice(0, n).join("");
+/** A {p 0 0 2} paragraph: words wrapped two columns short of the line. */
+function paragraph(session, text) {
+  const width = (session.settings.linesize ?? 80) - 2,
+    lines = [""];
+  for (const word of text.split(" ")) {
+    const last = lines.at(-1);
+    if (last && last.length + 1 + word.length > width) lines.push(word);
+    else lines[lines.length - 1] = last ? `${last} ${word}` : word;
+  }
+  return lines.join("\n");
+}
+/**
+ * The hypothesised proportion as prtest and prtesti print it: six decimals
+ * with trailing zeros dropped.
+ */
+function hypothesised(p0) {
+  if (p0 < 1e-6) return applyFormat(p0, "%8.0g").trim();
+  if (p0 > 1 - 1e-6) return "0.999999";
+  let shown = applyFormat(p0, "%8.6f");
+  for (let i = 0; i <= 5 && shown[7 - i] === "0"; i++)
+    shown = shown.slice(0, 7 - i);
+  return shown.trim();
+}
+
+// Stata arithmetic for the proportion tests: arithmetic on a missing value,
+// division by zero and the root of a negative number are all missing.
+// Inside the formulas NaN stands for missing; stata() turns it back.
+const nan = (value) => (isMissing(value) ? NaN : value);
+const over = (a, b) => (b === 0 ? NaN : a / b);
+const stata = (value) => (Number.isFinite(value) ? value : MISSING);
+/** The heading of a table, with [level% conf. interval] at 61 - its width. */
+const heading = (left, level) =>
+  `${left.padEnd(60 - g(level).length)}[${g(level)}% conf. interval]`;
+
+/** The rows and tails prtest and prtesti print. */
 function proportionPrinters(ctx, level) {
-  const critical = invnormal(1 - (1 - level / 100) / 2),
+  // The interval in the table uses invnorm(vval); the one returned in r()
+  // uses invnormal((100+level)/200), as prtesti.ado computes them.
+  const shown = invnormal((100 - (100 - level) / 2) / 100),
+    critical = invnormal((100 + level) / 200),
     row = (label, p, se) =>
-      `${label.padStart(12)} |${g(p).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(p - critical * se).padStart(13)}${g(p + critical * se).padStart(12)}`,
+      `${label.padStart(12)} |${g(p).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(stata(nan(p) - shown * nan(se))).padStart(13)}${g(stata(nan(p) + shown * nan(se))).padStart(12)}`,
     tails = (z) => {
-      if (isMissing(z)) {
-        ctx.out(
-          " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      .",
-        );
-        ctx.out("");
-        return { p_l: MISSING, p: MISSING, p_u: MISSING };
-      }
-      const lower = normal(z);
+      // As prtesti.ado: the smaller tail is half the two-sided probability,
+      // and a missing z leaves all three missing.
+      const p = isMissing(z) ? MISSING : 2 * normal(-Math.abs(z)),
+        half = isMissing(p) ? MISSING : p / 2,
+        rest = isMissing(p) ? MISSING : 1 - half,
+        [p_l, p_u] = z < 0 ? [half, rest] : [rest, half];
       ctx.out(
-        ` Pr(Z < z) = ${four(lower)}         Pr(|Z| > |z|) = ${four(2 * normal(-Math.abs(z)))}          Pr(Z > z) = ${four(1 - lower)}`,
+        isMissing(z)
+          ? " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
+          : ` Pr(Z < z) = ${four(p_l)}         Pr(|Z| > |z|) = ${four(p)}          Pr(Z > z) = ${four(p_u)}`,
       );
       ctx.out("");
-      return { p_l: lower, p: 2 * normal(-Math.abs(z)), p_u: 1 - lower };
-    };
-  return { critical, row, tails };
+      return { p_l, p, p_u };
+    },
+    // The z line: prtesti.ado's "z = " and %8.4f at column 67, which turns
+    // to e-notation when z does not fit.
+    statistic = (left, z) => `${left.padEnd(66)}z = ${applyFormat(z, "%8.4f")}`;
+  return { critical, row, tails, statistic };
 }
-/** A sample's proportion and its standard error. */
-const proportionOf = (n, p) => ({ n, p, se: Math.sqrt((p * (1 - p)) / n) });
 
-/** The two-sample table; first heads the label column ("Group" or ""). */
-function twoProportions(ctx, session, a, b, labels, level, first) {
-  const { row, tails } = proportionPrinters(ctx, level),
-    difference = a.p - b.p,
-    se = Math.sqrt(a.se ** 2 + b.se ** 2),
-    pooled = (a.p * a.n + b.p * b.n) / (a.n + b.n),
-    se0 = Math.sqrt(pooled * (1 - pooled) * (1 / a.n + 1 / b.n)),
-    z = difference / se0;
+/**
+ * The two-sample test from counts and proportions, as prtesti.ado runs it
+ * after reading its arguments. texts are the proportions as the messages
+ * spell them; xname and yname label the samples; xorig, the name prtest
+ * passed, decides the heading of the label column.
+ */
+function twoProportions(ctx, session, sample) {
+  const { n1, p1, n2, p2, level, count: counted } = sample,
+    range = (p, text, n) => {
+      // A missing proportion is larger than 1.
+      if (p > 1 || p < 0)
+        throw new StataError(
+          counted ? `${text} not less than ${n}` : `${text} not in [0,1]`,
+          198,
+        );
+    };
+  range(p1, sample.texts[0], sample.counts?.[0]);
+  range(p2, sample.texts[1], sample.counts?.[1]);
+  if (n1 <= 1) throw new StataError("insufficient observations", 2001);
+  ctx.out("");
+  const name = (text, fallback) =>
+      text ? leading(text.trim(), 12).trim() : fallback,
+    x = name(sample.xname, "x"),
+    y = name(sample.yname, "y"),
+    { critical, row, tails, statistic } = proportionPrinters(ctx, level),
+    // With n2 = 0 (an empty second sample) the standard errors are missing.
+    pooled = over(n1 * p1 + n2 * p2, n1 + n2),
+    s1 = stata(Math.sqrt(over(p1 * (1 - p1), n1))),
+    s2 = stata(Math.sqrt(over(p2 * (1 - p2), n2))),
+    se = stata(Math.sqrt(over(p1 * (1 - p1), n1) + over(p2 * (1 - p2), n2))),
+    se0 = stata(
+      Math.sqrt(
+        over(pooled * (1 - pooled), n1) + over(pooled * (1 - pooled), n2),
+      ),
+    ),
+    difference = p1 - p2,
+    z = stata(over(difference, nan(se0))),
+    // tnew's P>|z| under H0, 2 * (1 - normprob(abs(z))).
+    underH0 = isMissing(z) ? MISSING : 2 * (1 - normal(Math.abs(z))),
+    // The table shows no standard error for a sample of one.
+    shownSe = (n, s) => (n === 1 || isMissing(n) ? MISSING : s),
+    original = abbreviate(sample.xorig ?? ""),
+    label = !original
+      ? ""
+      : isVariableName(session, original)
+        ? "Variable"
+        : "Group",
+    width = (text) => Array.from(text).length,
+    bound = (p, sign, s) => stata(p + sign * critical * nan(s));
   ctx.out(
-    `${"Two-sample test of proportions".padEnd(51)}${`${labels[0]}: Number of obs =`}${count(a.n).padStart(9)}`,
+    `${"Two-sample test of proportions".padEnd(52 - width(x))}${x}: Number of obs = ${applyFormat(n1, "%8.0g")}`,
   );
   ctx.out(
-    `${" ".repeat(51)}${`${labels[1]}: Number of obs =`}${count(b.n).padStart(9)}`,
+    `${" ".repeat(52 - width(y))}${y}: Number of obs = ${applyFormat(n2, "%8.0g")}`,
   );
   ctx.out(RULE);
   ctx.out(
-    `${first.padStart(12)} |       Mean   Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+    heading(
+      `${label.padStart(12)} |       Mean   Std. err.      z    P>|z|`,
+      level,
+    ),
   );
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );
-  ctx.out(row(labels[0], a.p, a.se));
-  ctx.out(row(labels[1], b.p, b.se));
+  ctx.out(row(abbreviate(x), p1, shownSe(n1, s1)));
+  ctx.out(row(abbreviate(y), p2, shownSe(n2, s2)));
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );
   ctx.out(row("diff", difference, se));
   ctx.out(
-    `             |  under H0:${g(se0).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}`,
+    `             |  under H0:${g(se0).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(underH0, "%8.3f")}`,
   );
   ctx.out(RULE);
-  ctx.out(
-    `${`        diff = prop(${labels[0]}) - prop(${labels[1]})`.padEnd(66)}z =${applyFormat(z, "%9.4f")}`,
-  );
+  ctx.out(statistic(`        diff = prop(${x}) - prop(${y})`, z));
   ctx.out("    H0: diff = 0");
   ctx.out("");
   ctx.out(alternatives("Ha: diff < 0", "Ha: diff != 0", "Ha: diff > 0"));
+  const { p_l, p, p_u } = tails(z);
+  // In the order return list shows them, which reverses the order
+  // prtesti.ado stores them.
   session.results.r = {
-    N1: a.n,
-    P1: a.p,
-    se1: a.se,
-    N2: b.n,
-    P2: b.p,
-    se2: b.se,
+    N1: n1,
+    N2: n2,
+    P1: p1,
+    P2: p2,
     P_diff: difference,
-    se_diff: se,
+    se1: s1,
+    se2: s2,
     se_diff0: se0,
+    se_diff: se,
+    lb1: bound(p1, -1, s1),
+    ub1: bound(p1, 1, s1),
+    lb2: bound(p2, -1, s2),
+    ub2: bound(p2, 1, s2),
+    lb_diff: bound(difference, -1, se),
+    ub_diff: bound(difference, 1, se),
     z,
-    ...tails(z),
+    p_l,
+    p,
+    p_u,
     level,
   };
+}
+/**
+ * Whether confirm variable accepts every word of a label: each must be a
+ * plain name, without the ~ of an abbreviated one, naming one variable.
+ */
+function isVariableName(session, text) {
+  try {
+    return text
+      .split(/\s+/)
+      .filter(Boolean)
+      .every(
+        (word) =>
+          /^[A-Za-z_][A-Za-z0-9_]*$/.test(word) &&
+          session.varlist(word).length === 1,
+      );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -157,75 +305,331 @@ function twoProportions(ctx, session, a, b, labels, level, first) {
  * does.
  */
 function oneProportion(ctx, session, one, name, p0, level, immediate) {
-  const { critical, row, tails } = proportionPrinters(ctx, level),
-    // At p0 = 0 or 1 the statistic is undefined; Stata shows it missing.
-    z =
-      p0 > 0 && p0 < 1
-        ? (one.p - p0) / Math.sqrt((p0 * (1 - p0)) / one.n)
-        : MISSING,
-    shown = String(p0);
+  const { critical, row, tails, statistic } = proportionPrinters(ctx, level),
+    // An empty sample has a missing proportion, and at p0 = 0 or 1 the
+    // statistic divides by zero: z is missing either way.
+    se = stata(Math.sqrt(over(nan(one.p) * (1 - nan(one.p)), one.n))),
+    z = stata(over(nan(one.p) - p0, Math.sqrt(over(p0 * (1 - p0), one.n)))),
+    shown = hypothesised(p0),
+    label = abbreviate(name);
   ctx.out(
     immediate
-      ? `${"One-sample test of proportion".padEnd(51)}${name}: Number of obs =${count(one.n).padStart(9)}`
-      : `${"One-sample test of proportion".padEnd(48)}Number of obs      =${count(one.n).padStart(10)}`,
+      ? `${"One-sample test of proportion".padEnd(51)}${name}: Number of obs = ${applyFormat(one.n, "%8.0g")}`
+      : `${"One-sample test of proportion".padEnd(48)}Number of obs      = ${applyFormat(one.n, "%9.0g")}`,
   );
   if (!immediate) ctx.out("");
   ctx.out(RULE);
   ctx.out(
-    `${(immediate ? "" : "Variable").padStart(12)} |       Mean   Std. err.                     [${g(level)}% conf. interval]`,
+    heading(
+      `${(immediate ? "" : "Variable").padStart(12)} |       Mean   Std. err.`,
+      level,
+    ),
   );
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );
-  ctx.out(row(name, one.p, one.se));
+  // prtest.ado's _ttest1 shows no standard error for one observation.
+  ctx.out(row(label, one.p, one.n === 1 ? MISSING : se));
   ctx.out(RULE);
-  ctx.out(
-    `${`    p = proportion(${name})`.padEnd(66)}z =${applyFormat(z, "%9.4f")}`,
-  );
+  ctx.out(statistic(`    p = proportion(${label})`, z));
   ctx.out(`H0: p = ${shown}`);
   ctx.out("");
   ctx.out(
     alternatives(`Ha: p < ${shown}`, `Ha: p != ${shown}`, `Ha: p > ${shown}`),
   );
+  const { p_l, p, p_u } = tails(z);
   session.results.r = {
     N: one.n,
     P: one.p,
-    se: one.se,
-    ub: one.p + critical * one.se,
-    lb: one.p - critical * one.se,
+    se,
+    ub: stata(nan(one.p) + critical * nan(se)),
+    lb: stata(nan(one.p) - critical * nan(se)),
     z,
-    ...tails(z),
+    p_l,
+    p,
+    p_u,
     level,
   };
 }
 
-function prtest(session, text, ctx) {
-  const t = target(text),
-    parsed = session.parse("[if] [in] [, BY(varlist) Level(cilevel)]", t.rest),
-    level = parsed.options.level,
-    variable = numericVariable(session, t.name),
-    proportion = (rows) => {
-      const v = values(variable, rows);
-      if (v.some((x) => x !== 0 && x !== 1))
-        throw new StataError(`${variable.name} is not a 0/1 variable`, 450);
-      return proportionOf(v.length, v.reduce((a, b) => a + b, 0) / v.length);
-    };
-  ctx.out("");
-  if (parsed.options.by) {
-    const two = twoGroups(session, parsed, variable),
-      [a, b] = two.groups.map(proportion);
-    return twoProportions(ctx, session, a, b, two.labels, level, "Group");
+/** The count and mean of a variable's nonmissing values in the rows given. */
+function countAndMean(variable, rows) {
+  // summarize finds no observations in a string variable.
+  const v = isStringType(variable.type) ? [] : values(variable, rows);
+  return {
+    n: v.length,
+    p: v.length ? v.reduce((a, b) => a + b, 0) / v.length : MISSING,
+  };
+}
+const notBinary = (text) =>
+  new StataError(`${text} is not a 0/1 variable`, 450);
+/** Whether a variable holds anything but 0, 1 and missing in the rows. */
+const notZeroOne = (variable, rows) =>
+  isStringType(variable.type) ||
+  values(variable, rows).some((x) => x !== 0 && x !== 1);
+
+/**
+ * prtest's arguments as prtest.ado reads them: the variable, then after =
+ * or == the expression, which runs to if, in or the comma outside quotes
+ * and parentheses, then the rest.
+ */
+function prtestArguments(text) {
+  const head = /^\s*([^\s=,]+)\s*/.exec(text);
+  if (!head) throw new StataError("varlist required", 100);
+  let rest = text.slice(head[0].length);
+  const equals = /^==?/.exec(rest);
+  if (!equals) return { name: head[1], rest: rest ? ` ${rest}` : "" };
+  rest = rest.slice(equals[0].length);
+  let depth = 0,
+    quoted = false,
+    end = rest.length;
+  for (let i = 0; i < rest.length; i++) {
+    const c = rest[i];
+    if (c === '"') quoted = !quoted;
+    if (quoted) continue;
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (depth <= 0 && c === ",") {
+      end = i;
+      break;
+    } else if (depth <= 0 && /^\s(if|in)(\s|$)/.test(rest.slice(i))) {
+      end = i;
+      break;
+    }
   }
-  if (t.value === undefined) throw new StataError("invalid syntax", 198);
-  oneProportion(
-    ctx,
-    session,
-    proportion(session.rows(parsed, null)),
-    variable.name,
-    session.scalar(t.value),
+  const expression = rest.slice(0, end).trim();
+  if (!expression) throw new StataError("invalid syntax", 198);
+  return { name: head[1], expression, rest: rest.slice(end) };
+}
+/**
+ * The check syntax makes of =exp before prtest.ado runs: the expression must
+ * compile and be numeric. Returns the compiled expression.
+ */
+function checkedExpression(session, expression) {
+  let compiled;
+  try {
+    compiled = session.compile(expression);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    if (error.code === 132)
+      throw new StataError(
+        /many/.test(error.message)
+          ? "too many ')' or ']'"
+          : "too few ')' or ']'",
+        132,
+      );
+    if (error.code === 198) {
+      // A second word is reported by itself; any other fault is syntax.
+      const extra = /^(\S+) found where an operator was expected$/.exec(
+        error.message,
+      );
+      throw new StataError(
+        extra && expression.split(/\s+/).includes(extra[1])
+          ? `invalid '${extra[1]}' `
+          : "invalid syntax",
+        198,
+      );
+    }
+    throw error;
+  }
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  return compiled;
+}
+/**
+ * unab exp : exp, max(1), as prtest.ado names the second variable: one
+ * variable, perhaps in one pair of parentheses; an operator or a number is
+ * an invalid name.
+ */
+function unabOne(session, expression) {
+  const tokens = expression.match(/==|!=|~=|>=|<=|[A-Za-z0-9_.*?~]+|\S/g) ?? [];
+  const names = [];
+  let depth = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token === "(") {
+      if (depth) throw new StataError("( not allowed", 101);
+      depth = 1;
+    } else if (token === ")") depth = 0;
+    else if (token === "-") {
+      // A range a-b: its end must be a name.
+      const end = tokens[i + 1] ?? "";
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(end))
+        throw new StataError(`${end} invalid name`, 198);
+      names.push(...session.varlist(`${names.pop()}-${end}`));
+      i++;
+    } else if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(token))
+      names.push(...session.varlist(token));
+    else if (/^[A-Za-z0-9_]*[*?~][A-Za-z0-9_*?~]*$/.test(token)) {
+      let found = [];
+      try {
+        found = session.varlist(token);
+      } catch {
+        // Reported below as not found.
+      }
+      if (!found.length)
+        throw new StataError(`variable ${token} not found`, 111);
+      names.push(...found);
+    } else throw new StataError(`${token} invalid name`, 198);
+  }
+  if (names.length > 1)
+    throw new StataError("too many variables specified", 103);
+  if (!names.length) throw new StataError("too few variables specified", 102);
+  return session.data.get(names[0]);
+}
+/** by(varname): one variable, with by()'s note when it is not found. */
+function byVariable(session, text) {
+  if (text === undefined) return undefined;
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  if (!words.length)
+    throw new StataError("by():  too few variables specified", 102);
+  let names;
+  try {
+    names = session.varlist(words[0]);
+  } catch (error) {
+    if (error instanceof StataError)
+      throw new StataError(
+        `${error.message}\n(error in option by())`,
+        error.code,
+      );
+    throw error;
+  }
+  if (names.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  return names[0];
+}
+
+/**
+ * prtest var == #p, prtest var1 == var2 and prtest var, by(group), as
+ * prtest.ado tells them apart: a number after == is the one-sample test,
+ * any other expression names the second variable.
+ */
+function prtest(session, text, ctx) {
+  const t = prtestArguments(text),
+    parsed = session.parse("[if] [in] [, BY(string) Level(cilevel)]", t.rest),
+    level = parsed.options.level,
+    variable = session.data.get(session.varlist(t.name)[0]),
+    by = byVariable(session, parsed.options.by),
+    rows = session.rows(parsed, null);
+  if (t.expression !== undefined) {
+    const compiled = checkedExpression(session, t.expression);
+    if (by) throw new StataError("may not combine == and option by()", 198);
+    const p0 = literal(t.expression);
+    if (p0 === undefined)
+      return twoVariables(session, ctx, variable, t.expression, compiled, {
+        rows,
+        level,
+      });
+    if (notZeroOne(variable, rows)) throw notBinary(variable.name);
+    const one = countAndMean(variable, rows);
+    if (one.n && !(p0 > 0 && p0 < 1))
+      throw new StataError(`${t.expression} is not in (0,1)`, 450);
+    ctx.out("");
+    return oneProportion(ctx, session, one, variable.name, p0, level, false);
+  }
+  if (!by) throw new StataError("option by() required", 100);
+  byGroups(session, ctx, variable, by, rows, level);
+}
+
+/**
+ * prtest var1 == var2: each variable's own nonmissing values. The second
+ * proportion is checked as an expression, then must name one variable.
+ */
+function twoVariables(session, ctx, variable, expression, compiled, sample) {
+  const { rows, level } = sample;
+  if (notZeroOne(variable, rows)) throw notBinary(variable.name);
+  const env = { start: 0, count: session.data.n, sums: [] };
+  if (
+    rows.some((i) => {
+      const v = compiled.evaluate(i, env);
+      return !isMissing(v) && v !== 0 && v !== 1;
+    })
+  )
+    throw notBinary(expression);
+  const other = unabOne(session, expression);
+  passToPrtesti(session, ctx, [variable, other], {
+    rows: [rows, rows],
     level,
-    false,
+    names: [variable.name, other.name],
+  });
+}
+/**
+ * prtest.ado's call of prtesti with each sample's count and mean as macros
+ * hold them; an empty sample passes a missing mean, ".", which prtesti then
+ * reads as it reads any argument.
+ */
+function passToPrtesti(session, ctx, variables, sample) {
+  const [a, b] = variables.map((variable, k) =>
+    countAndMean(variable, sample.rows[k]),
   );
+  immediateTest(
+    session,
+    ctx,
+    [String(a.n), macroNumber(a.p), String(b.n), macroNumber(b.p)],
+    () => ({ level: sample.level, count: false }),
+    { xname: sample.names[0], yname: sample.names[1] },
+  );
+}
+
+/**
+ * prtest var, by(group). The outcome and the group must each take two
+ * values in the if/in sample. A numeric group compares its smallest and
+ * largest values; a string group compares the value of the first
+ * observation with the first value that differs from it, which may be the
+ * empty string, as prtest.ado finds them.
+ */
+function byGroups(session, ctx, variable, byName, rows, level) {
+  const by = session.data.get(byName),
+    distinct = (v) =>
+      new Set(
+        rows
+          .map((i) => v.data[i])
+          .filter((x) => (isStringType(v.type) ? x !== "" : !isMissing(x))),
+      ).size,
+    outcomes = distinct(variable);
+  if (outcomes !== 2)
+    throw new StataError(
+      `${variable.name} takes on ${outcomes} values, not 2`,
+      450,
+    );
+  const string = isStringType(by.type),
+    present = rows
+      .map((i) => by.data[i])
+      .filter((v) => (string ? v !== "" : !isMissing(v)));
+  if (new Set(present).size !== 2)
+    throw new StataError(
+      `${by.name} takes on ${new Set(present).size} values, not 2`,
+      450,
+    );
+  let levels, names;
+  if (string) {
+    // prtest.ado numbers the sample with generate, which reports the
+    // observations outside it.
+    const outside = session.data.n - rows.length;
+    if (outside)
+      ctx.out(
+        `(${count(outside)} missing value${outside === 1 ? "" : "s"} generated)`,
+      );
+    const first = by.data[rows[0]],
+      second = by.data[rows.find((i) => by.data[i] !== first)];
+    levels = first < second ? [first, second] : [second, first];
+    names = levels.map((level) => leading(level, 8));
+  } else {
+    levels = [
+      present.reduce((a, b) => Math.min(a, b)),
+      present.reduce((a, b) => Math.max(a, b)),
+    ];
+    const map = session.data.valueLabels.get(by.valueLabel);
+    names = levels.map(
+      (level) => (map?.get(level) || undefined) ?? macroNumber(level),
+    );
+  }
+  passToPrtesti(session, ctx, [variable, variable], {
+    rows: levels.map((level) => rows.filter((i) => by.data[i] === level)),
+    level,
+    names,
+  });
 }
 
 /**
@@ -233,49 +637,94 @@ function prtest(session, text, ctx) {
  * count the proportions are given as counts of successes.
  */
 function prtesti(session, text, ctx) {
-  const [head, optionText] = splitAtComma(text),
-    options = session.parse(
-      "[, Level(cilevel) Count]",
-      optionText ? "," + optionText : "",
-    ).options,
-    numbers = head.trim().split(/\s+/).filter(Boolean).map(Number);
-  if (
-    ![3, 4].includes(numbers.length) ||
-    numbers.some((v) => !Number.isFinite(v))
-  )
-    throw new StataError("invalid syntax", 198);
-  const sample = (n, p) => {
-    const share = options.count ? p / n : p;
-    if (!(n > 0) || !Number.isInteger(n) || !(share >= 0 && share <= 1))
-      throw new StataError("invalid syntax", 198);
-    return proportionOf(n, share);
-  };
-  ctx.out("");
-  if (numbers.length === 3) {
-    const [n, p, p0] = numbers;
-    if (!(p0 >= 0 && p0 <= 1))
-      throw new StataError(`${g(p0)} not in [0,1]`, 198);
-    return oneProportion(
-      ctx,
-      session,
-      sample(n, p),
-      "x",
-      // Under count the successes are a count; the hypothesis stays a share.
-      p0,
-      options.level,
-      true,
-    );
-  }
-  twoProportions(
-    ctx,
+  const [head, optionText] = splitAtComma(text);
+  immediateTest(
     session,
-    sample(numbers[0], numbers[1]),
-    sample(numbers[2], numbers[3]),
-    ["x", "y"],
-    options.level,
-    "",
+    ctx,
+    head.trim().split(/\s+/).filter(Boolean),
+    () => prtestiOptions(session, optionText),
+    {},
   );
 }
+/**
+ * prtesti.ado's reading of its arguments, in its order and with its
+ * messages: tokens are the arguments before the comma, readOptions parses
+ * the options when prtesti.ado does, and names carries the labels prtest
+ * passes in xname() and yname().
+ */
+function immediateTest(session, ctx, tokens, readOptions, names) {
+  if (tokens.length < 3 || tokens.length > 4)
+    throw new StataError(
+      paragraph(
+        session,
+        "either three arguments for a one-sample test or four arguments for a two-sample test must be specified",
+      ),
+      198,
+    );
+  const two = tokens.length === 4 && literal(tokens[3]) !== undefined,
+    n1 = confirmNumber(tokens[0], true),
+    // local p = p/n: division by zero is missing.
+    share = (p, n) => viaMacro(stata(over(p, n)));
+  let p1 = confirmNumber(tokens[1], false);
+  if (two) {
+    const n2 = confirmNumber(tokens[2], true);
+    let p2 = confirmNumber(tokens[3], false);
+    const options = readOptions(),
+      texts = [tokens[1], tokens[3]];
+    if (options.count) {
+      confirmNumber(tokens[1], true);
+      confirmNumber(tokens[3], true);
+      if (p1 <= n1) texts[0] = macroNumber((p1 = share(p1, n1)));
+      if (p2 <= n2) texts[1] = macroNumber((p2 = share(p2, n2)));
+    }
+    const xname = names.xname ?? options.xname,
+      yname = names.yname ?? options.yname;
+    return twoProportions(ctx, session, {
+      n1,
+      p1,
+      n2,
+      p2,
+      texts,
+      counts: [tokens[0], tokens[2]],
+      count: options.count,
+      level: options.level,
+      xname,
+      yname,
+      xorig: xname,
+    });
+  }
+  const p0 = confirmNumber(tokens[2], false),
+    outside = (p) => p > 1 || p < 0;
+  if (outside(p0)) throw new StataError(`${tokens[2]} not in [0,1]`, 198);
+  // A fourth argument that is not a number is a varlist to the parse of
+  // the options.
+  if (tokens.length === 4) throw new StataError("varlist not allowed", 101);
+  const options = readOptions();
+  let shown = tokens[1];
+  if (options.count) {
+    confirmNumber(tokens[1], true);
+    if (p1 <= n1) shown = macroNumber((p1 = share(p1, n1)));
+    if (outside(p1))
+      throw new StataError(`${shown} not less than ${tokens[0]}`, 198);
+  } else if (outside(p1)) throw new StataError(`${shown} not in [0,1]`, 198);
+  if (n1 <= 1) throw new StataError("insufficient observations", 2001);
+  ctx.out("");
+  oneProportion(
+    ctx,
+    session,
+    { n: n1, p: p1 },
+    "x",
+    // Under count the successes are a count; the hypothesis stays a share.
+    p0,
+    options.level,
+    true,
+  );
+}
+const prtestiOptions = (session, optionText) =>
+  session.parse(
+    "[, Level(cilevel) Count Xname(string) Yname(string)]",
+    optionText ? "," + optionText : "",
+  ).options;
 
 function sdtest(session, text, ctx) {
   const t = target(text),
@@ -616,11 +1065,171 @@ function grouped(session, parsed) {
   };
 }
 
+// Binomial probabilities by Loader's saddle-point method (Loader 2000, "Fast
+// and accurate computation of binomial probabilities"), which keeps each
+// term's relative error near machine precision for any number of trials.
+// Adding up log-factorials instead loses digits as n grows: at n = 1e6 the
+// tails were wrong in the seventh digit.
+const LN_2PI = 1.837877066409345483560659472811;
+// stirlerr(n) = ln n! - (n + 1/2) ln n + n - ln sqrt(2 pi), for n = 0..15.
+const STIRLING_ERRORS = [
+  0, 0.0810614667953272582196702, 0.0413406959554092940938221,
+  0.02767792568499833914878929, 0.02079067210376509311152277,
+  0.01664469118982119216319487, 0.01387612882307074799874573,
+  0.01189670994589177009505572, 0.010411265261972096497478567,
+  0.009255462182712732917728637, 0.008330563433362871256469318,
+  0.007573675487951840794972024, 0.006942840107209529865664152,
+  0.006408994188004207068439631, 0.005951370112758847735624416,
+  0.00555473355196280137103869,
+];
+function stirlingError(n) {
+  if (n <= 15) return STIRLING_ERRORS[n];
+  const nn = n * n,
+    [s0, s1, s2, s3, s4] = [1 / 12, 1 / 360, 1 / 1260, 1 / 1680, 1 / 1188];
+  if (n > 500) return (s0 - s1 / nn) / n;
+  if (n > 80) return (s0 - (s1 - s2 / nn) / nn) / n;
+  if (n > 35) return (s0 - (s1 - (s2 - s3 / nn) / nn) / nn) / n;
+  return (s0 - (s1 - (s2 - (s3 - s4 / nn) / nn) / nn) / nn) / n;
+}
+/** x ln(x / m) + m - x, without cancellation when x is near m. */
+function deviance(x, m) {
+  if (Math.abs(x - m) < 0.1 * (x + m)) {
+    let v = (x - m) / (x + m),
+      s = (x - m) * v,
+      term = 2 * x * v;
+    v *= v;
+    for (let j = 1; j < 1000; j++) {
+      term *= v;
+      const next = s + term / (2 * j + 1);
+      if (next === s) break;
+      s = next;
+    }
+    return s;
+  }
+  return x * Math.log(x / m) + m - x;
+}
+/** ln Pr(X = x) for X binomial(n, p); q is 1 - p. */
+function logBinomial(n, x, p, q) {
+  if (x < 0 || x > n) return -Infinity;
+  if (x === 0) return p < 0.1 ? -deviance(n, n * q) - n * p : n * Math.log(q);
+  if (x === n) return q < 0.1 ? -deviance(n, n * p) - n * q : n * Math.log(p);
+  return (
+    stirlingError(n) -
+    stirlingError(x) -
+    stirlingError(n - x) -
+    deviance(x, n * p) -
+    deviance(n - x, n * q) -
+    // ln((n - x) / n): log1p(-x / n) loses digits when x is near n, since
+    // 1 - x / n then keeps only its absolute precision.
+    0.5 * (LN_2PI + Math.log(x) + Math.log((n - x) / n))
+  );
+}
+/**
+ * Pr(X >= k), Stata's Binomial(n, k, p). A tail beyond the mode is summed
+ * from k outward until the terms no longer count; otherwise it is one less
+ * the opposite tail, which is then the small one.
+ */
+function binomialUpper(n, k, p, q = 1 - p) {
+  if (k <= 0) return 1;
+  if (k > n) return 0;
+  const mode = Math.floor((n + 1) * p),
+    sum = (from, step) => {
+      // Neumaier's compensated sum of decreasing terms.
+      let total = 0,
+        carry = 0;
+      for (let j = from; j >= 0 && j <= n; j += step) {
+        const term = Math.exp(logBinomial(n, j, p, q)),
+          next = total + term;
+        carry +=
+          Math.abs(total) >= term ? total - next + term : term - next + total;
+        total = next;
+        if (term <= total * 1e-17) break;
+      }
+      return total + carry;
+    };
+  return k > mode ? Math.min(1, sum(k, 1)) : Math.max(0, 1 - sum(k - 1, -1));
+}
+/**
+ * Pr(X <= k), as bitesti.ado writes it: Binomial(n, n - k, 1 - p). The
+ * success probability of that call is 1 - p rounded to a double, and its
+ * complement 1 - (1 - p) is what Stata works with, so it is used here too:
+ * for p near 0 it moves the result in the ninth digit.
+ */
+const binomialLower = (n, k, p) => binomialUpper(n, n - k, 1 - p);
+const lnfact = FUNCTIONS.lnfactorial.fn;
+
+/**
+ * bitesti.ado's OppoTail: the k on the other side of n p whose probability
+ * is no larger than that of the observed k while the next one in is, found
+ * by its interpolating search on -ln Pr(X = k). -1 or n + 1 mean the
+ * opposite tail is empty.
+ */
+function oppositeTail(n, observed, assumed) {
+  const eps = 1e-7;
+  if (Math.abs(assumed - 0.5) < eps) return n - observed;
+  // -ln Pr(X = k) as bitesti.ado's LnBiDens computes it from lnfact();
+  // outside 0..n it is missing, larger than every number. Where two
+  // probabilities lie within peps of each other, the k chosen depends on
+  // the rounding of lnfact, so the search uses Stata's formula.
+  const minusLog = (k, p) =>
+      k < 0 || k > n
+        ? Infinity
+        : -lnfact(n) +
+          lnfact(k) +
+          lnfact(n - k) -
+          k * Math.log(p) -
+          (n - k) * Math.log1p(-p),
+    pobs = minusLog(observed, assumed),
+    peps = pobs * eps,
+    flip = observed > n * assumed,
+    p = flip ? 1 - assumed : assumed,
+    k = flip ? n - observed : observed,
+    back = (kopp) => (flip ? n - kopp : kopp);
+  let lo = Math.trunc(n * p + eps);
+  if (k === lo) {
+    if (minusLog(k + 1, p) >= pobs - peps) return back(k + 1);
+    lo = k + 1;
+  }
+  let hi = n,
+    kopp = Math.round(2 * n * p - k),
+    popp = 2,
+    p1 = 0,
+    first = true;
+  for (let i = 0; i <= 100; i++) {
+    // Step: p1 is -ln Pr(X = kopp - 1) and popp is -ln Pr(X = kopp).
+    let next;
+    if (first) next = kopp;
+    else {
+      const slope = popp - p1;
+      // Arithmetic on a missing value, or division by zero, is missing.
+      next =
+        Number.isFinite(popp) && Number.isFinite(p1) && slope !== 0
+          ? Math.floor(kopp - (popp - pobs) / slope + 0.5)
+          : Infinity;
+    }
+    first = false;
+    if (next < lo) next = lo;
+    else if (next > hi) next = hi;
+    p1 = minusLog(next, p);
+    if (p1 < pobs) {
+      kopp = next + 1;
+      lo = kopp;
+      popp = minusLog(kopp, p);
+    } else {
+      kopp = next;
+      hi = kopp - 1;
+      popp = p1;
+      p1 = minusLog(kopp - 1, p);
+    }
+    if (p1 < pobs && popp >= pobs - peps) return back(kopp);
+  }
+  return MISSING;
+}
+
 /**
  * The exact binomial test of k successes in n trials against p, as bitest
- * and bitesti print it. The two-sided probability sums every outcome no more
- * likely than the one observed; kOpp is the furthest such outcome on the
- * other side of n p.
+ * and bitesti print it. The two-sided probability adds the tail on the
+ * other side of n p that starts at bitesti.ado's opposite k.
  */
 function binomialTest(ctx, session, n, k, p, name) {
   if (!(p > 0 && p < 1))
@@ -631,43 +1240,16 @@ function binomialTest(ctx, session, n, k, p, name) {
       450,
     );
   if (!n) throw new StataError("no observations", 2000);
-  const logFactorial = [0];
-  for (let j = 1; j <= n; j++)
-    logFactorial[j] = logFactorial[j - 1] + Math.log(j);
-  const pmf = (j) =>
-      p === 0
-        ? Number(j === 0)
-        : p === 1
-          ? Number(j === n)
-          : Math.exp(
-              logFactorial[n] -
-                logFactorial[j] -
-                logFactorial[n - j] +
-                j * Math.log(p) +
-                (n - j) * Math.log(1 - p),
-            ),
-    probabilities = Array.from({ length: n + 1 }, (_, j) => pmf(j)),
-    sum = (from, to) => {
-      let t = 0;
-      for (let j = Math.max(0, from); j <= Math.min(n, to); j++)
-        t += probabilities[j];
-      return Math.min(1, t);
-    },
-    upper = sum(k, n),
-    lower = sum(0, k),
-    limit = probabilities[k] * (1 + 1e-7),
-    expected = n * p;
-  let kOpp = null,
-    twoSided;
-  if (k >= expected) {
-    for (let j = 0; j < expected && probabilities[j] <= limit; j++) kOpp = j;
-    twoSided = Math.min(1, upper + (kOpp === null ? 0 : sum(0, kOpp)));
-  } else {
-    for (let j = n; j > expected && probabilities[j] <= limit; j--) kOpp = j;
-    twoSided = Math.min(1, lower + (kOpp === null ? 0 : sum(kOpp, n)));
-  }
-  const six = (v) => applyFormat(v, "%8.6f"),
-    lead = name === undefined ? "" : `${name.padStart(12)} |`;
+  const kopp = oppositeTail(n, k, p),
+    upper = binomialUpper(n, k, p),
+    lower = binomialLower(n, k, p),
+    commas = (v) => applyFormat(v, "%12.0fc").trim(),
+    six = (v) => applyFormat(v, "%8.6f"),
+    lead = name === undefined ? "" : `${name.padStart(12)} |`,
+    shown = commas(k),
+    // Each line's = sits at column coleq, as bitesti.ado places it.
+    line = (label, coleq, value, note) =>
+      `${`  ${label}`.padEnd(coleq - 1)}= ${six(value)}  (${note})`;
   ctx.out("");
   ctx.out("Binomial probability test");
   ctx.out("");
@@ -676,42 +1258,65 @@ function binomialTest(ctx, session, n, k, p, name) {
   );
   ctx.out(`${name === undefined ? "" : "-------------+"}${"-".repeat(64)}`);
   ctx.out(
-    `${lead}${count(n).padStart(13)}${count(k).padStart(13)}${g(expected).padStart(13)}${applyFormat(p, "%12.5f")}${applyFormat(k / n, "%13.5f")}`,
+    `${lead}${applyFormat(n, "%13.0fc")} ${applyFormat(k, "%12.0fc")} ${applyFormat(n * p, "%12.0gc")} ${applyFormat(p, "%11.5f")} ${applyFormat(k / n, "%12.5f")}`,
   );
   ctx.out("");
-  // With nothing as unlikely on the other side, the two-sided probability is
-  // the observed tail, and Stata notes that the other tail is empty.
-  const both =
-      kOpp === null
-        ? k >= expected
-          ? `Pr(k >= ${k})`
-          : `Pr(k <= ${k})`
-        : k >= expected
-          ? `Pr(k <= ${kOpp} or k >= ${k})`
-          : `Pr(k <= ${k} or k >= ${kOpp})`,
-    width = Math.max(both?.length ?? 0, `Pr(k >= ${k})`.length);
-  ctx.out(
-    `  ${`Pr(k >= ${k})`.padEnd(width)} = ${six(upper)}  (one-sided test)`,
-  );
-  ctx.out(
-    `  ${`Pr(k <= ${k})`.padEnd(width)} = ${six(lower)}  (one-sided test)`,
-  );
-  ctx.out(`  ${both.padEnd(width)} = ${six(twoSided)}  (two-sided test)`);
-  ctx.out("");
-  if (kOpp === null) {
+  if (kopp === -1 || kopp === n + 1) {
+    // Nothing on the other side is as unlikely: the two-sided probability is
+    // the observed tail, and Stata notes that the other tail is empty.
+    const coleq = 3 + shown.length + 10,
+      high = k > n * p,
+      both = high ? upper : lower;
+    ctx.out(line(`Pr(k >= ${shown})`, coleq, upper, "one-sided test"));
+    ctx.out(line(`Pr(k <= ${shown})`, coleq, lower, "one-sided test"));
     ctx.out(
-      `  note: ${k >= expected ? "lower" : "upper"} tail of two-sided p-value is empty`,
+      line(
+        `Pr(k ${high ? ">" : "<"}= ${shown})`,
+        coleq,
+        both,
+        "two-sided test",
+      ),
     );
     ctx.out("");
+    ctx.out(
+      `  note: ${high ? "lower" : "upper"} tail of two-sided p-value is empty`,
+    );
+    ctx.out("");
+    // In the order return list shows them.
+    session.results.r = {
+      p: both,
+      k_opp: MISSING,
+      k,
+      P_p: p,
+      N: n,
+      p_l: lower,
+      p_u: upper,
+    };
+    return;
   }
+  const k1 = Math.min(k, kopp),
+    k2 = Math.max(k, kopp),
+    twoSided = Math.min(1, binomialUpper(n, k2, p) + binomialLower(n, k1, p)),
+    coleq = 3 + commas(k1).length + commas(k2).length + 19;
+  ctx.out(line(`Pr(k >= ${shown})`, coleq, upper, "one-sided test"));
+  ctx.out(line(`Pr(k <= ${shown})`, coleq, lower, "one-sided test"));
+  ctx.out(
+    line(
+      `Pr(k <= ${commas(k1)} or k >= ${commas(k2)})`,
+      coleq,
+      twoSided,
+      "two-sided test",
+    ),
+  );
+  ctx.out("");
   session.results.r = {
-    N: n,
-    P_p: p,
+    k_opp: kopp,
+    p: twoSided,
     k,
+    P_p: p,
+    N: n,
     p_l: lower,
     p_u: upper,
-    p: twoSided,
-    k_opp: kOpp ?? MISSING,
   };
 }
 
