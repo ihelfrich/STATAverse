@@ -818,7 +818,20 @@ function returns(kind) {
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);
       }
-      if (numbers.length || strings.length) ctx.out("");
+      // Matrices a command stored in r(), such as test's r(mtest).
+      const matrices = entries.filter(
+        ([key, v]) => key.startsWith("matrix:") && v?.values,
+      );
+      if (kind !== "e" && matrices.length) {
+        ctx.out("");
+        ctx.out("matrices:");
+        for (const [key, value] of matrices)
+          ctx.out(
+            `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+          );
+      }
+      if (numbers.length || strings.length || (kind !== "e" && matrices.length))
+        ctx.out("");
       return;
     }
     if ((m = /^sca(?:l(?:ar?)?)?\s+(\w+)\s*=\s*([\s\S]+)$/.exec(text)))

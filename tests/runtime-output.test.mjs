@@ -108,6 +108,8 @@ for (const c of fixture.cases)
             "models-interaction-terms",
             "nbreg-stata-steps",
             "models-repeated-terms",
+            "test-accumulate-mlogit",
+            "test-lincom-equations",
           ].includes(c.id),
         )
       )
