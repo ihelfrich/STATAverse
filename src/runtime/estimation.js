@@ -984,7 +984,8 @@ export function predict(session, text, ctx) {
  * stored, such as the base outcome's after mlogit) and whether it was
  * omitted. A single-equation model fitted by maximum likelihood names its
  * equation after the dependent variable, as in [union]education, and the
- * cut points of ologit and oprobit form the equation "/". b and V are the
+ * ancillary parameters (the cut points of ologit and oprobit, nbreg's
+ * lnalpha, tobit's var(e.depvar)) form the equation "/". b and V are the
  * values and covariances of all of them.
  */
 const spaces = new WeakMap();
@@ -1010,7 +1011,10 @@ export function coefficientSpace(model) {
       }),
     );
   } else {
-    const tagged = model.dist === "z" && model.kind !== "ivregress";
+    // tobit reports t but, having the ancillary equation "/", names its
+    // main equation after the dependent variable too, as in [wage]education.
+    const tagged =
+      (model.dist === "z" && model.kind !== "ivregress") || !!model.auxiliary;
     model.names.forEach((name, index) =>
       entries.push({
         equation: tagged ? model.depvar : null,
@@ -1073,7 +1077,7 @@ const shown = (e) =>
  * The equation [text] names: its name, #n for the nth equation, or after
  * mlogit the value of an outcome whose equation has a label for a name.
  */
-function equationOf(model, space, text) {
+export function equationOf(model, space, text) {
   const wanted = text.trim(),
     names = [...new Set(space.entries.map((e) => e.equation))].filter(
       (e) => e !== null,
@@ -1097,7 +1101,7 @@ function equationOf(model, space, text) {
  * matches and fail is false; Stata brackets a name it cannot find in an
  * equation or written _b[name].
  */
-function findCoefficient(
+export function findCoefficient(
   model,
   space,
   equation,
@@ -1161,25 +1165,62 @@ export function linear(model, text, session) {
   const space = coefficientSpace(model),
     place = (k) => `__c${k}`,
     find = (equation, name) =>
-      place(findCoefficient(model, space, equation, name, session));
-  let source = text.replace(/_(?:b|coef)\[\s*([^\]]+?)\s*\]/g, (all, inner) => {
-    const qualified =
-      /^\[\s*([^\]]*?)\s*\]\s*(.+)$/.exec(inner) ??
-      /^([^:]+):(.+)$/.exec(inner);
-    return place(
-      qualified
-        ? findCoefficient(model, space, qualified[1], qualified[2], session)
-        : findCoefficient(model, space, null, inner, session, true, true),
-    );
-  });
+      place(findCoefficient(model, space, equation, name, session)),
+    // An ancillary parameter's name may hold parentheses, as tobit's
+    // var(e.wage) does; they belong to the name only when the equation
+    // has a parameter so called.
+    findWith = (equation, name, paren) => {
+      if (paren) {
+        const at = findCoefficient(
+          model,
+          space,
+          equation,
+          `${name}${paren}`,
+          session,
+          false,
+        );
+        if (at >= 0) return place(at);
+      }
+      return `${find(equation, name)}${paren ?? ""}`;
+    },
+    slash = space.entries.some((e) => e.equation === "/");
+  // _b[name], _b[eq:name], _b[[eq]name], _b[/name] for a parameter of the
+  // equation "/", and [eq]_b[name], which names the equation outside.
+  let source = text.replace(
+    /(?:\[\s*([^\]]*?)\s*\]\s*)?_(?:b|coef)\[\s*([^\]]+?)\s*\]/g,
+    (all, outside, inner) => {
+      if (outside !== undefined)
+        return place(findCoefficient(model, space, outside, inner, session));
+      const qualified =
+        /^\[\s*([^\]]*?)\s*\]\s*(.+)$/.exec(inner) ??
+        /^([^:]+):(.+)$/.exec(inner);
+      if (qualified)
+        return place(
+          findCoefficient(model, space, qualified[1], qualified[2], session),
+        );
+      const ancillary = /^\/\s*(.+)$/.exec(inner),
+        at =
+          ancillary && slash
+            ? findCoefficient(model, space, "/", ancillary[1], session, false)
+            : -1;
+      if (ancillary && at < 0)
+        throw new StataError(`[${inner}] not found`, 111);
+      return place(
+        ancillary
+          ? at
+          : findCoefficient(model, space, null, inner, session, true, true),
+      );
+    },
+  );
   source = source.replace(
-    /\[\s*([^\]]*?)\s*\]\s*([A-Za-z_0-9][\w.#]*)/g,
-    (all, equation, name) => find(equation, name),
+    /\[\s*([^\]]*?)\s*\]\s*([A-Za-z_0-9][\w.#]*)(\([^()]*\))?/g,
+    (all, equation, name, paren) => findWith(equation, name, paren),
   );
   if (model.auxiliary)
     source = source.replace(
-      /(^|[\s(+\-*=,])\/\s*([A-Za-z_]\w*)/g,
-      (all, before, name) => `${before}${find(model.auxiliary.equation, name)}`,
+      /(^|[\s(+\-*=,])\/\s*([A-Za-z_]\w*)(\([^()]*\))?/g,
+      (all, before, name, paren) =>
+        `${before}${findWith(model.auxiliary.equation, name, paren)}`,
     );
   // Each spelling of each factor-variable coefficient, longest first so
   // that 1.female#c.x is replaced before 1.female. A bare name means the
@@ -1420,12 +1461,25 @@ function testOptions(tail, replay) {
  * The constraints a test names. Each parenthesised spec is one, a spec
  * a=b=c is a=b and a=c, and a list of coefficients makes each of them zero,
  * a coefficient named twice once; [eq] stands for each coefficient of an
- * equation but its constant.
+ * equation but its constant. [eq]: varlist makes each coefficient of the
+ * list in that equation zero, and [eq1=eq2=...] equates each coefficient
+ * of eq1 but its constant, or of the list after a colon, with the same
+ * coefficient of each later equation. After mlogit a coefficient of the
+ * list named without an equation is one constraint in each equation.
  */
 function testConstraints(model, head, session) {
   const space = coefficientSpace(model),
-    groups = head.match(/\([^()]*\)/g),
-    specs = groups ? groups.map((s) => s.slice(1, -1)) : [head],
+    equated = /^\s*\[([^\]]*=[^\]]*)\]\s*([\s\S]*)$/.exec(head),
+    listed = /^\s*\[([^\]=]*)\]\s*:([\s\S]*)$/.exec(head);
+  if (equated || listed)
+    return equationTest(model, space, session, equated ?? listed, !!equated);
+  // Parentheses inside brackets, as in _b[/var(e.wage)], are part of a
+  // name and do not make a spec.
+  const masked = head.replace(/\[[^\]]*\]/g, (s) => " ".repeat(s.length)),
+    groups = [...masked.matchAll(/\([^()]*\)/g)].map((m) =>
+      head.slice(m.index, m.index + m[0].length),
+    ),
+    specs = groups.length ? groups.map((s) => s.slice(1, -1)) : [head],
     out = [];
   for (const spec of specs) {
     if (spec.includes("===")) throw new StataError("=== invalid operator", 198);
@@ -1436,19 +1490,118 @@ function testConstraints(model, head, session) {
           throw new StataError("nothing found where expression expected", 198);
         out.push(linear(model, `(${sides[0]}) - (${side})`, session));
       }
-    } else if (groups) out.push(linear(model, spec, session));
+    } else if (groups.length) out.push(linear(model, spec, session));
     else {
       const seen = new Set();
-      for (const token of spec.trim().split(/\s+/).filter(Boolean)) {
-        const whole = /^\[([^\]]*)\]$/.exec(token);
+      // [eq] education is [eq]education.
+      for (const token of spec
+        .trim()
+        .replace(/\]\s+(?=[A-Za-z_0-9])/g, "]")
+        .split(/\s+/)
+        .filter(Boolean)) {
+        const whole = /^\[([^\]]*)\]$/.exec(token),
+          across =
+            !whole &&
+            model.equations &&
+            /^[A-Za-z_0-9.#]+$/.test(token) &&
+            space.entries[
+              findCoefficient(model, space, null, token, session, true, false)
+            ].name;
         for (const c of whole
           ? equationConstraints(model, space, whole[1])
-          : [linear(model, token, session)]) {
+          : across
+            ? space.entries.flatMap((e, k) =>
+                e.name === across ? [unitConstraint(space, k)] : [],
+              )
+            : [linear(model, token, session)]) {
           const key = c.weights.join();
           if (seen.has(key)) continue;
           seen.add(key);
           out.push(c);
         }
+      }
+    }
+  }
+  if (!out.length) throw new StataError("nothing to test", 198);
+  return out;
+}
+
+/**
+ * test [eq]: varlist, and test [eq1=eq2=...] with or without one. Stata
+ * names an equation it cannot find, and a coefficient, without brackets.
+ */
+function equationTest(model, space, session, match, equal) {
+  const named = (text) => {
+      try {
+        return equationOf(model, space, text);
+      } catch (error) {
+        if (error instanceof StataError && error.code === 303)
+          throw new StataError(`equation ${text.trim()} not found`, 303);
+        throw error;
+      }
+    },
+    member = (equation, token) => {
+      if (/^i\./i.test(token))
+        throw new StataError("i:  operator invalid", 198);
+      if (token.startsWith("[")) throw new StataError("[ not found", 111);
+      return findCoefficient(
+        model,
+        space,
+        equation,
+        token,
+        session,
+        true,
+        false,
+      );
+    },
+    constraint = (weights) => ({
+      weights,
+      constant: 0,
+      text: describeLinear(space, weights, 0),
+    }),
+    equations = match[1].split("=").map(named),
+    rest = match[2].trim();
+  let list = null;
+  if (!equal) list = rest;
+  else if (rest) {
+    if (!rest.startsWith(":")) throw new StataError(": expected,  found", 198);
+    list = rest.slice(1);
+  }
+  const tokens = list?.trim().split(/\s+/).filter(Boolean);
+  if (tokens && !tokens.length)
+    throw new StataError("last test not found", 302);
+  const out = [],
+    seen = new Set(),
+    add = (weights) => {
+      const key = weights.join();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(constraint(weights));
+    },
+    zero = () => space.entries.map(() => 0);
+  if (!equal)
+    for (const token of tokens) {
+      const weights = zero();
+      weights[member(equations[0], token)] = 1;
+      add(weights);
+    }
+  else {
+    const [first, ...others] = equations;
+    for (const other of others) {
+      const pairs = tokens
+        ? tokens.map((token) => [member(first, token), member(other, token)])
+        : space.entries.flatMap((e, a) => {
+            if (e.equation !== first || e.name === "_cons") return [];
+            const b = space.entries.findIndex(
+              (f) => f.equation === other && f.name === e.name,
+            );
+            return b < 0 ? [] : [[a, b]];
+          });
+      for (const [a, b] of pairs) {
+        const weights = zero();
+        weights[a] += 1;
+        weights[b] -= 1;
+        add(weights);
       }
     }
   }

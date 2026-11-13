@@ -110,6 +110,7 @@ for (const c of fixture.cases)
             "models-repeated-terms",
             "test-accumulate-mlogit",
             "test-lincom-equations",
+            "test-lincom-equation-references",
           ].includes(c.id),
         )
       )
