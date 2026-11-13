@@ -2149,6 +2149,24 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== table-width
+clear
+set seed 1
+set obs 50
+generate double abcdefghijklm = runiform()
+generate double abcdefghijklmn = runiform()
+generate double household_income_k = runiform()
+generate byte neighbourhood_group = 1 + floor(runiform() * 3)
+generate double outcome_variable_long = runiform()
+set linesize 80
+regress outcome_variable_long abcdefghijklm abcdefghijklmn household_income_k
+regress outcome_variable_long i.neighbourhood_group abcdefghijklm
+regress outcome_variable_long abcdefghijklm, vce(robust)
+set linesize 90
+regress outcome_variable_long abcdefghijklm abcdefghijklmn
+set linesize 200
+regress outcome_variable_long abcdefghijklm household_income_k
+regress outcome_variable_long i.neighbourhood_group
 === likelihood-factor-layout
 clear
 set seed 2718
