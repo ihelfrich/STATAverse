@@ -617,6 +617,135 @@ function grouped(session, parsed) {
 }
 
 /**
+ * The exact binomial test of k successes in n trials against p, as bitest
+ * and bitesti print it. The two-sided probability sums every outcome no more
+ * likely than the one observed; kOpp is the furthest such outcome on the
+ * other side of n p.
+ */
+function binomialTest(ctx, session, n, k, p, name) {
+  if (!(p > 0 && p < 1))
+    throw new StataError(
+      name === undefined
+        ? "invalid success probability\n    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+        : "success probability #p must be in (0,1)",
+      450,
+    );
+  if (!n) throw new StataError("no observations", 2000);
+  const logFactorial = [0];
+  for (let j = 1; j <= n; j++)
+    logFactorial[j] = logFactorial[j - 1] + Math.log(j);
+  const pmf = (j) =>
+      p === 0
+        ? Number(j === 0)
+        : p === 1
+          ? Number(j === n)
+          : Math.exp(
+              logFactorial[n] -
+                logFactorial[j] -
+                logFactorial[n - j] +
+                j * Math.log(p) +
+                (n - j) * Math.log(1 - p),
+            ),
+    probabilities = Array.from({ length: n + 1 }, (_, j) => pmf(j)),
+    sum = (from, to) => {
+      let t = 0;
+      for (let j = Math.max(0, from); j <= Math.min(n, to); j++)
+        t += probabilities[j];
+      return Math.min(1, t);
+    },
+    upper = sum(k, n),
+    lower = sum(0, k),
+    limit = probabilities[k] * (1 + 1e-7),
+    expected = n * p;
+  let kOpp = null,
+    twoSided;
+  if (k >= expected) {
+    for (let j = 0; j < expected && probabilities[j] <= limit; j++) kOpp = j;
+    twoSided = Math.min(1, upper + (kOpp === null ? 0 : sum(0, kOpp)));
+  } else {
+    for (let j = n; j > expected && probabilities[j] <= limit; j--) kOpp = j;
+    twoSided = Math.min(1, lower + (kOpp === null ? 0 : sum(kOpp, n)));
+  }
+  const six = (v) => applyFormat(v, "%8.6f"),
+    lead = name === undefined ? "" : `${name.padStart(12)} |`;
+  ctx.out("");
+  ctx.out("Binomial probability test");
+  ctx.out("");
+  ctx.out(
+    `${name === undefined ? "" : "    Variable |"}            N   Observed k   Expected k   Assumed p   Observed p`,
+  );
+  ctx.out(`${name === undefined ? "" : "-------------+"}${"-".repeat(64)}`);
+  ctx.out(
+    `${lead}${count(n).padStart(13)}${count(k).padStart(13)}${g(expected).padStart(13)}${applyFormat(p, "%12.5f")}${applyFormat(k / n, "%13.5f")}`,
+  );
+  ctx.out("");
+  // With nothing as unlikely on the other side, the two-sided probability is
+  // the observed tail, and Stata notes that the other tail is empty.
+  const both =
+      kOpp === null
+        ? k >= expected
+          ? `Pr(k >= ${k})`
+          : `Pr(k <= ${k})`
+        : k >= expected
+          ? `Pr(k <= ${kOpp} or k >= ${k})`
+          : `Pr(k <= ${k} or k >= ${kOpp})`,
+    width = Math.max(both?.length ?? 0, `Pr(k >= ${k})`.length);
+  ctx.out(
+    `  ${`Pr(k >= ${k})`.padEnd(width)} = ${six(upper)}  (one-sided test)`,
+  );
+  ctx.out(
+    `  ${`Pr(k <= ${k})`.padEnd(width)} = ${six(lower)}  (one-sided test)`,
+  );
+  ctx.out(`  ${both.padEnd(width)} = ${six(twoSided)}  (two-sided test)`);
+  ctx.out("");
+  if (kOpp === null) {
+    ctx.out(
+      `  note: ${k >= expected ? "lower" : "upper"} tail of two-sided p-value is empty`,
+    );
+    ctx.out("");
+  }
+  session.results.r = {
+    N: n,
+    P_p: p,
+    k,
+    p_l: lower,
+    p_u: upper,
+    p: twoSided,
+    k_opp: kOpp ?? MISSING,
+  };
+}
+
+/** bitest var == p: the test of a 0/1 variable's proportion of ones. */
+function bitest(session, text, ctx) {
+  const t = target(text);
+  if (t.value === undefined) throw new StataError("invalid syntax", 198);
+  const parsed = session.parse("[if] [in]", t.rest),
+    variable = numericVariable(session, t.name),
+    v = values(variable, session.rows(parsed, null));
+  if (v.some((x) => x !== 0 && x !== 1))
+    throw new StataError(`${variable.name} is not a 0/1 variable`, 450);
+  binomialTest(
+    ctx,
+    session,
+    v.length,
+    v.reduce((a, b) => a + b, 0),
+    session.scalar(t.value),
+    variable.name,
+  );
+}
+
+/** bitesti n k p: the same test from the counts. */
+function bitesti(session, text, ctx) {
+  const numbers = text.trim().split(/\s+/).filter(Boolean).map(Number);
+  if (numbers.length !== 3 || numbers.some((v) => !Number.isFinite(v)))
+    throw new StataError("invalid syntax", 198);
+  const [n, k, p] = numbers;
+  if (!Number.isInteger(n) || !Number.isInteger(k) || n < 1 || k < 0 || k > n)
+    throw new StataError("invalid syntax", 198);
+  binomialTest(ctx, session, n, k, p);
+}
+
+/**
  * robvar: Levene's test of equal variances across groups (W0) and Brown and
  * Forsythe's versions with the median (W50) and the 10 percent trimmed mean
  * (W10): each is the one-way F test of the absolute deviations from the
@@ -870,6 +999,8 @@ function tabi(session, text, ctx) {
 
 export const TEST_COMMANDS = [
   { name: "prtest", minimum: 6, run: prtest },
+  { name: "bitest", minimum: 6, run: bitest },
+  { name: "bitesti", minimum: 7, run: bitesti },
   { name: "robvar", minimum: 6, run: robvar },
   { name: "prtesti", minimum: 7, run: prtesti },
   { name: "sdtest", minimum: 6, run: sdtest },

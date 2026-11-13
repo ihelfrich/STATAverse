@@ -2149,6 +2149,30 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== binomial-test
+clear
+set seed 13
+set obs 90
+generate byte d = runiform() < .3
+generate byte g = runiform() > .5
+bitest d == .25
+bitest d == .5 if g == 1
+bitesti 100 30 0.25
+bitesti 20 3 0.5
+bitesti 10 10 0.5
+bitesti 10 0 0.5
+bitesti 10 9 0.95
+bitesti 50 1 0.01
+bitesti 50 0 0.01
+bitesti 7 3 0.333
+capture noisily bitesti 10 5 0
+display _rc
+capture noisily bitesti 10 10 1
+display _rc
+capture noisily bitest d == 1.5
+display _rc
+capture noisily bitest d == .5 if g == 9
+display _rc
 === robvar
 clear
 set seed 11
