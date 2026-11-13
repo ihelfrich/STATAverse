@@ -355,3 +355,301 @@ test("graph bar, hbar and box draw no title under the groups", () => {
       assert.ok(!t.includes(title), `${command}: ${title}`);
   }
 });
+
+// The cases below follow a second review of the fixes above. Their expected
+// values were also recorded from Stata 19 MP (version 17, set processors 1)
+// with graph export ... .svg, on the labor data with w3 and rk as above.
+
+test("sort(varname) with no yvars is the error collapse gives", () => {
+  const run = session();
+  // Stata passes the sort as (mean) _sort=varname after the lone (count)
+  // or (percent), and collapse reads that statistic as a variable name.
+  for (const [command, name] of [
+    ["graph bar (count), over(region, sort(wage)) blabel(bar)", "mean"],
+    ["graph bar (percent), over(region, sort(rk)) blabel(bar)", "mean"],
+    ["graph bar (count), over(region, sort((count) wage))", "count"],
+    ["graph bar (percent), over(region, sort((sum) hours))", "sum"],
+    ["graph bar, over(region, sort(hours)) blabel(bar)", "mean"],
+    ["graph bar (count), over(union, sort(union))", "mean"],
+    ["graph bar (count), over(region, sort((mean) wage))", "mean"],
+    ["graph bar (count), over(region, sort((median) wage))", "median"],
+    ["graph bar (count), over(region, sort((foo) wage))", "foo"],
+    ["graph bar (count), over(region, sort((mean) hours rk))", "mean"],
+  ])
+    refused(run(command), `variable ${name} not found`, 111);
+  // A string or unknown sort variable, sort(0) and sort(#) still draw:
+  // 145 | 150 | 176 | 129, and by count West | East | North | South.
+  for (const command of [
+    "graph bar (count), over(region, sort(region)) blabel(bar)",
+    "graph bar (count), over(region, sort(nosuch)) blabel(bar)",
+    "graph bar (count), over(region, sort(0)) blabel(bar)",
+  ]) {
+    const r = run(command);
+    assert.equal(r.result.rc, 0, command);
+    assert.deepEqual(barLabels(r.graph.svg), ["145", "150", "176", "129"]);
+    assert.deepEqual(among(r.graph.svg, REGIONS), REGIONS, command);
+  }
+  const counted = run("graph bar (count), over(region, sort(1)) blabel(bar)");
+  assert.deepEqual(barLabels(counted.graph.svg), ["129", "145", "150", "176"]);
+  assert.deepEqual(among(counted.graph.svg, REGIONS), [
+    ...["West", "East", "North", "South"],
+  ]);
+});
+
+test("sort() on the over() variable, or on a yvar, fails as in Stata", () => {
+  const run = session();
+  for (const command of [
+    "graph bar (mean) wage, over(union, sort(union)) blabel(bar)",
+    "graph bar (mean) wage, over(union, sort((max) union)) blabel(bar)",
+    "graph bar (mean) wage, over(union, sort(union) descending)",
+    "graph bar (mean) wage, over(union, sort((sd) union))",
+    "graph bar (mean) wage, over(female, sort(female) descending) blabel(bar)",
+    "graph bar (mean) wage, over(union, sort((mean) union hours))",
+  ])
+    refused(run(command), "failed to setup collapse problem");
+  refused(
+    run("graph bar (mean) wage, over(union, sort((mean) hours union))"),
+    "union may not be both target and by()",
+  );
+  refused(
+    run("graph bar (mean) union, over(union) blabel(bar)"),
+    "union may not be both target and by()",
+  );
+  // A yvar named again in sort((stat) varlist) with another statistic.
+  for (const command of [
+    "graph bar (mean) wage, over(region, sort((max) hours wage)) blabel(bar)",
+    "graph bar (mean) wage hours, over(region, sort((max) hours wage))",
+    "graph bar (sum) wage, over(region, sort((max) hours wage)) blabel(bar)",
+  ])
+    refused(run(command), "serset variable 4 not found", 111);
+  // With the same statistic Stata leaves that yvar out: only mean of wage,
+  // North | West | East | South, as sort(rk).
+  const left = run(
+    "graph bar (mean) wage hours, over(region, sort((mean) rk hours)) blabel(bar)",
+  );
+  assert.equal(left.result.rc, 0);
+  assert.deepEqual(barLabels(left.graph.svg), [
+    ...["20.742", "19.0166", "18.7356", "17.5365"],
+  ]);
+  assert.ok(!texts(left.graph.svg).includes("mean of hours"));
+  // Stata then draws an empty graph when no yvar is left; it is refused.
+  const empty = run(
+    "graph bar (mean) wage, over(region, sort((mean) hours wage))",
+  );
+  assert.equal(empty.result.rc, 198);
+});
+
+test("sort((stat) v1 v2 ...) sorts on the statistic of v1", () => {
+  const run = session();
+  for (const [command, order, bars] of [
+    [
+      "graph bar (mean) wage, over(region, sort((mean) hours rk)) blabel(bar)",
+      ["East", "South", "West", "North"],
+      ["18.7356", "17.5365", "19.0166", "20.742"],
+    ],
+    [
+      "graph bar (mean) wage, over(region, sort((mean) rk hours)) blabel(bar)",
+      ["North", "West", "East", "South"],
+      ["20.742", "19.0166", "18.7356", "17.5365"],
+    ],
+    [
+      "graph bar (mean) wage, over(region, sort((median) w3 hours)) blabel(bar)",
+      ["South", "East", "North", "West"],
+      ["17.5365", "18.7356", "20.742", "19.0166"],
+    ],
+    [
+      "graph bar (mean) hours, over(region, sort((sd) wage rk)) blabel(bar)",
+      ["South", "West", "East", "North"],
+      ["37.9602", "38.0698", "37.8276", "38.3867"],
+    ],
+    [
+      "graph bar (mean) wage, over(region, sort((median) wage hours)) blabel(bar)",
+      ["South", "West", "East", "North"],
+      ["17.5365", "19.0166", "18.7356", "20.742"],
+    ],
+    [
+      "graph bar (mean) wage, over(region, sort(wage hours)) blabel(bar)",
+      ["South", "East", "West", "North"],
+      ["17.5365", "18.7356", "19.0166", "20.742"],
+    ],
+    // A string or unknown name in the list leaves the order as it is.
+    [
+      "graph bar (mean) wage, over(region, sort((mean) hours region)) blabel(bar)",
+      REGIONS,
+      ["18.7356", "20.742", "17.5365", "19.0166"],
+    ],
+    [
+      "graph bar (mean) wage, over(region, sort((mean) hours nosuch)) blabel(bar)",
+      REGIONS,
+      ["18.7356", "20.742", "17.5365", "19.0166"],
+    ],
+  ]) {
+    const r = run(command);
+    assert.equal(r.result.rc, 0, command);
+    assert.deepEqual(among(r.graph.svg, REGIONS), order, command);
+    assert.deepEqual(barLabels(r.graph.svg), bars, command);
+  }
+});
+
+test("percentiles keep their digits, and a statistic is drawn once", () => {
+  const run = session();
+  for (const [command, title] of [
+    ["graph bar (p05) wage, over(union) blabel(bar)", "p 05 of wage"],
+    ["graph bar (p005) wage, over(union) blabel(bar)", "p 005 of wage"],
+    ["graph bar ( p05 ) wage, over(union) blabel(bar)", "p 05 of wage"],
+  ]) {
+    const r = run(command);
+    assert.deepEqual(barLabels(r.graph.svg), ["8.05", "9.43"], command);
+    assert.ok(texts(r.graph.svg).includes(title), command);
+    assert.ok(!texts(r.graph.svg).includes("p 5 of wage"), command);
+  }
+  const titles = (svg) => texts(svg).filter((t) => / of /.test(t));
+  for (const [command, bars, names] of [
+    // (p05) and (p5) are two series in Stata.
+    [
+      "graph bar (p05) wage (p5) wage, over(union) blabel(bar)",
+      ["8.05", "9.43", "8.05", "9.43"],
+      ["p 05 of wage", "p 5 of wage"],
+    ],
+    [
+      "graph bar (p50) wage (median) wage, over(union) blabel(bar)",
+      ["16.68", "18.87"],
+      ["p 50 of wage"],
+    ],
+    [
+      "graph bar (median) wage (p50) wage hours, over(union) blabel(bar)",
+      ["16.68", "18.87", "38", "39"],
+      ["p 50 of wage", "p 50 of hours"],
+    ],
+    [
+      "graph bar (mean) wage wage, over(union) blabel(bar)",
+      ["18.0297", "20.6031"],
+      ["mean of wage"],
+    ],
+    [
+      "graph bar (mean) wage hours wage, over(union) blabel(bar)",
+      ["18.0297", "20.6031", "37.7778", "38.5681"],
+      ["mean of wage", "mean of hours"],
+    ],
+    [
+      "graph bar (count) wage (count) wage, over(union) blabel(bar)",
+      ["376", "210"],
+      ["count of wage"],
+    ],
+    [
+      "graph bar (percent) wage (percent) wage, over(union) blabel(bar)",
+      ["64.1638", "35.8362"],
+      ["percent of wage"],
+    ],
+  ]) {
+    const r = run(command);
+    assert.equal(r.result.rc, 0, command);
+    assert.deepEqual(barLabels(r.graph.svg), bars, command);
+    assert.deepEqual(titles(r.graph.svg), names, command);
+  }
+  // sort(#) counts each series once: by the mean of hours, East | South |
+  // West | North.
+  const sorted = run(
+    "graph bar (mean) wage (mean) wage hours, over(region, sort(2)) blabel(bar)",
+  );
+  assert.deepEqual(among(sorted.graph.svg, REGIONS), [
+    ...["East", "South", "West", "North"],
+  ]);
+  assert.deepEqual(barLabels(sorted.graph.svg).slice(4), [
+    ...["37.8276", "37.9602", "38.0698", "38.3867"],
+  ]);
+});
+
+test("statistics without variables and malformed arguments give Stata's errors", () => {
+  const run = session();
+  for (const [command, message, rc] of [
+    ["graph bar (mean) wage (p50), over(union)", "varlist required", 100],
+    ["graph bar (mean) wage (sum), over(union)", "varlist required", 100],
+    [
+      "graph bar (count) (sum) wage, over(union)",
+      "variable sum not found",
+      111,
+    ],
+    ["graph bar (count) (percent)", "variable percent not found", 111],
+    ["graph bar (mean) (sum) wage, over(union)", "variable sum not found", 111],
+    [
+      "graph bar (mean) wage (count) (sum) hours, over(union)",
+      "variable sum not found",
+      111,
+    ],
+    [
+      "graph bar (mean) wage (count) (foo) hours, over(union)",
+      "variable foo not found",
+      111,
+    ],
+    ["graph bar (mean) wage (foo)", "(foo) invalid statistic", 198],
+    ["graph bar (p 50) wage, over(union)", "(p 50) invalid statistic", 198],
+    ["graph bar (p 05) wage, over(union)", "(p 05) invalid statistic", 198],
+    ["graph bar ( foo ) wage, over(union)", "(foo) invalid statistic", 198],
+    ["graph bar (p50.5) wage", "(50.5) invalid statistic", 198],
+    ["graph bar (p-1) wage", "(-1) invalid statistic", 198],
+    ["graph bar (p5.0) wage", "(5.0) invalid statistic", 198],
+    ["graph bar (p1e1) wage, over(union)", "(1e1) invalid statistic", 198],
+    [
+      "graph bar (mean) wage, over(region, sort(1e1))",
+      "sort() invalid, category 1e1 not found",
+      198,
+    ],
+    [
+      "graph bar (mean) wage, over(region, sort(2.0))",
+      "sort() invalid, category 2.0 not found",
+      198,
+    ],
+    [
+      "graph bar (mean) wage, over(region, DESCENDING)",
+      "option DESCENDING not allowed",
+      198,
+    ],
+    [
+      "graph bar (mean) wage, over(region, Desc)",
+      "option Desc not allowed",
+      198,
+    ],
+    [
+      "graph bar (mean) wage, over(region, SORT(1))",
+      "option SORT() not allowed",
+      198,
+    ],
+    [
+      "graph bar (mean) wage, over(region, Sort(1))",
+      "option Sort() not allowed",
+      198,
+    ],
+  ])
+    refused(run(command), message, rc);
+  // sort(#) may be written as numlist allows: South | East | West | North.
+  for (const command of [
+    "graph bar (mean) wage, over(region, sort(1e0))",
+    "graph bar (mean) wage, over(region, sort(+1))",
+    "graph bar (mean) wage, over(region, sort(01))",
+  ]) {
+    const r = run(command);
+    assert.equal(r.result.rc, 0, command);
+    assert.deepEqual(among(r.graph.svg, REGIONS), [
+      ...["South", "East", "West", "North"],
+    ]);
+  }
+  // sort(1.5) names no statistic and no variable, so there is no sort.
+  assert.deepEqual(
+    among(
+      run("graph bar (mean) wage, over(region, sort(1.5))").graph.svg,
+      REGIONS,
+    ),
+    REGIONS,
+  );
+  // Stata accepts these but they are not drawn here, so they are refused
+  // by name: (sem) is collapse's semean, and Stata draws (p+5) as zeros.
+  for (const command of [
+    "graph bar (sem) wage, over(union)",
+    "graph bar (p+5) wage, over(union)",
+  ]) {
+    const r = run(command);
+    assert.equal(r.result.rc, 198, command);
+    assert.match(r.result.output.at(-1).lines[0], /not drawn on this page/);
+  }
+});

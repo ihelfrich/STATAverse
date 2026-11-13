@@ -32523,6 +32523,180 @@
       ]
     },
     {
+      "id": "graph-bar-sort-and-statistics-2",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ncapture noisily graph bar (count), over(g, sort(x1))\ncapture noisily graph bar, over(g, sort((sum) x1))\ncapture noisily graph bar (percent), over(g, sort((median) x2))\ncapture noisily graph bar (count), over(g, sort((foo) x2))\ngraph bar (count), over(g, sort(nosuch))\ngraph bar (count), over(g, sort(1) descending)\ncapture noisily graph bar (mean) y, over(g, sort(g))\ncapture noisily graph bar (mean) y, over(cl, sort((max) cl) descending)\ncapture noisily graph bar (mean) y, over(g, sort((mean) g x1))\ncapture noisily graph bar (mean) y, over(g, sort((mean) x1 g))\ncapture noisily graph bar (mean) g, over(g)\ncapture noisily graph bar (mean) y, over(g, sort((max) x1 y))\ncapture noisily graph bar (mean) y x2, over(g, sort((max) x1 y))\ngraph bar (mean) y x2, over(g, sort((mean) x1 x2))\ngraph bar (mean) y, over(g, sort((median) x2 x1) descending)\ngraph bar (p05) y (p5) y (p005) y, over(g)\ngraph bar (p50) y (median) y x1 (mean) y y, over(g)\ncapture noisily graph bar (mean) y (p50), over(g)\ncapture noisily graph bar (mean) y (sum), over(g)\ncapture noisily graph bar (count) (sum) y\ncapture noisily graph bar (count) (percent)\ncapture noisily graph bar (mean) (sum) y\ncapture noisily graph bar (mean) y (count) (foo) x1\ncapture noisily graph bar (p 50) y\ncapture noisily graph bar ( foo ) y\ncapture noisily graph bar (p50.5) y\ncapture noisily graph bar (p-1) y\ncapture noisily graph bar (p5.0) y\ncapture noisily graph bar (p1e1) y\ncapture noisily graph bar (mean) y, over(g, sort(1e1))\ncapture noisily graph bar (mean) y, over(g, sort(2.0))\ngraph bar (mean) y, over(g, sort(1e0))\ngraph bar (mean) y, over(g, sort(01) descending)\ngraph bar (mean) y, over(g, sort(+1))\ngraph bar (mean) y, over(g, sort(1.5))\ncapture noisily graph bar (mean) y, over(g, DESCENDING)\ncapture noisily graph bar (mean) y, over(g, Desc)\ncapture noisily graph bar (mean) y, over(g, SORT(1))\ncapture noisily graph bar (mean) y, over(g, Sort(1))\ncapture noisily graph box y, over(g, SORT(1))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        {
+          "command": "capture noisily graph bar (count), over(g, sort(x1))",
+          "lines": ["variable mean not found"]
+        },
+        {
+          "command": "capture noisily graph bar, over(g, sort((sum) x1))",
+          "lines": ["variable sum not found"]
+        },
+        {
+          "command": "capture noisily graph bar (percent), over(g, sort((median) x2))",
+          "lines": ["variable median not found"]
+        },
+        {
+          "command": "capture noisily graph bar (count), over(g, sort((foo) x2))",
+          "lines": ["variable foo not found"]
+        },
+        { "command": "graph bar (count), over(g, sort(nosuch))", "lines": [] },
+        {
+          "command": "graph bar (count), over(g, sort(1) descending)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort(g))",
+          "lines": ["failed to setup collapse problem"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(cl, sort((max) cl) descending)",
+          "lines": ["failed to setup collapse problem"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort((mean) g x1))",
+          "lines": ["failed to setup collapse problem"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort((mean) x1 g))",
+          "lines": ["g may not be both target and by()"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) g, over(g)",
+          "lines": ["g may not be both target and by()"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort((max) x1 y))",
+          "lines": ["serset variable 4 not found"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y x2, over(g, sort((max) x1 y))",
+          "lines": ["serset variable 4 not found"]
+        },
+        {
+          "command": "graph bar (mean) y x2, over(g, sort((mean) x1 x2))",
+          "lines": []
+        },
+        {
+          "command": "graph bar (mean) y, over(g, sort((median) x2 x1) descending)",
+          "lines": []
+        },
+        {
+          "command": "graph bar (p05) y (p5) y (p005) y, over(g)",
+          "lines": []
+        },
+        {
+          "command": "graph bar (p50) y (median) y x1 (mean) y y, over(g)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily graph bar (mean) y (p50), over(g)",
+          "lines": ["varlist required"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y (sum), over(g)",
+          "lines": ["varlist required"]
+        },
+        {
+          "command": "capture noisily graph bar (count) (sum) y",
+          "lines": ["variable sum not found"]
+        },
+        {
+          "command": "capture noisily graph bar (count) (percent)",
+          "lines": ["variable percent not found"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) (sum) y",
+          "lines": ["variable sum not found"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y (count) (foo) x1",
+          "lines": ["variable foo not found"]
+        },
+        {
+          "command": "capture noisily graph bar (p 50) y",
+          "lines": ["(p 50) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar ( foo ) y",
+          "lines": ["(foo) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (p50.5) y",
+          "lines": ["(50.5) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (p-1) y",
+          "lines": ["(-1) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (p5.0) y",
+          "lines": ["(5.0) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (p1e1) y",
+          "lines": ["(1e1) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort(1e1))",
+          "lines": ["sort() invalid, category 1e1 not found"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort(2.0))",
+          "lines": ["sort() invalid, category 2.0 not found"]
+        },
+        { "command": "graph bar (mean) y, over(g, sort(1e0))", "lines": [] },
+        {
+          "command": "graph bar (mean) y, over(g, sort(01) descending)",
+          "lines": []
+        },
+        { "command": "graph bar (mean) y, over(g, sort(+1))", "lines": [] },
+        { "command": "graph bar (mean) y, over(g, sort(1.5))", "lines": [] },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, DESCENDING)",
+          "lines": ["option DESCENDING not allowed"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, Desc)",
+          "lines": ["option Desc not allowed"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, SORT(1))",
+          "lines": ["option SORT() not allowed"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, Sort(1))",
+          "lines": ["option Sort() not allowed"]
+        },
+        {
+          "command": "capture noisily graph box y, over(g, SORT(1))",
+          "lines": ["option SORT() not allowed"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

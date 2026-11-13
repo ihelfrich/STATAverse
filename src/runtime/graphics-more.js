@@ -207,23 +207,33 @@ const STATISTICS = {
 };
 /** collapse's other statistics, which graph bar accepts in Stata. */
 const NOT_DRAWN =
-  /^(rawsum|iqr|first|last|firstnm|lastnm|semean|sebinomial|sepoisson)$/;
+  /^(rawsum|iqr|first|last|firstnm|lastnm|sem(e(an?)?)?|seb(i(n(o(m(i(al?)?)?)?)?)?)?|sep(o(i(s(s(on?)?)?)?)?)?)$/;
 /**
- * A statistic named in parentheses, as in (mean) or (p75): its name, as
- * the bar titles use it, and how it is computed. Like Stata, the names are
- * lowercase, (median) is (p50), and a percentile runs from p1 to p99.
+ * A statistic named in parentheses, as in (mean) or (p75), from the text
+ * inside the parentheses: its name, as the bar titles use it, and how it is
+ * computed. Like Stata's collapse, the names are lowercase, (median) is
+ * (p50), and a percentile runs from p1 to p99 and keeps its digits as
+ * typed, so that (p05) is titled "p 05".
  */
-function statisticOf(name) {
+function statisticOf(text) {
+  const name = text.trim();
+  if (/\s/.test(name)) throw new StataError(`(${text}) invalid statistic`, 198);
   if (name === "percent") return { statistic: "percent", title: "percent" };
   if (STATISTICS[name])
     return { statistic: name, title: name, compute: STATISTICS[name] };
-  const p = name === "median" ? "50" : /^p(\w*)$/.exec(name)?.[1];
+  const p = name === "median" ? "50" : /^p(.*)$/.exec(name)?.[1];
   if (p !== undefined) {
-    if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > 99)
+    if (!/^[+-]?\d+$/.test(p) || Number(p) < 1 || Number(p) > 99)
       throw new StataError(`(${p}) invalid statistic`, 198);
+    // Stata accepts (p+5) but draws every bar of it at 0.
+    if (p.startsWith("+"))
+      throw new StataError(
+        `(p${p}) is not drawn on this page; write (p${p.slice(1)})`,
+        198,
+      );
     return {
-      statistic: `p${Number(p)}`,
-      title: `p ${Number(p)}`,
+      statistic: `p ${p}`,
+      title: `p ${p}`,
       compute: (v) =>
         percentile(
           [...v].sort((a, b) => a - b),
@@ -259,53 +269,92 @@ function barHeights({ statistic, compute }, variable, groups) {
     return isMissing(value) ? null : value;
   });
 }
-/** yvars and their statistic, from "(mean) a b (median) c". */
+/**
+ * The yvars of graph bar and their statistics, from "(mean) a b (median)
+ * c", read as Stata's collapse reads them. Each statistic needs variables
+ * after it: at the end of the list it is "varlist required", and followed
+ * by another statistic, that one is taken for a variable name. Only
+ * (count) or (percent) alone, or nothing, asks for the frequencies of the
+ * groups. As in Stata, the same statistic of the same variable is drawn
+ * once.
+ */
 function statisticList(session, text) {
-  const out = [];
-  let current = statisticOf("mean");
-  for (const token of text.match(/\([^)]*\)|\S+/g) ?? []) {
-    const m = /^\(\s*(\S*)\s*\)$/.exec(token);
-    if (m) current = statisticOf(m[1]);
-    else
-      for (const name of session.varlist(token))
-        out.push({ ...current, variable: numeric(session, name) });
+  const tokens = text.match(/\([^)]*\)|\S+/g) ?? [],
+    isStatistic = (token) => /^\(.*\)$/.test(token),
+    series = [];
+  if (!tokens.length) return { series, frequency: "percent" };
+  let current = statisticOf("mean"),
+    k = 0;
+  while (k < tokens.length) {
+    if (isStatistic(tokens[k])) current = statisticOf(tokens[k++].slice(1, -1));
+    if (k === tokens.length) {
+      if (k === 1 && /^(count|percent)$/.test(current.statistic))
+        return { series, frequency: current.statistic };
+      throw new StataError("varlist required", 100);
+    }
+    if (isStatistic(tokens[k]))
+      throw new StataError(
+        `variable ${tokens[k].slice(1, -1).trim()} not found`,
+        111,
+      );
+    const names = [];
+    while (k < tokens.length && !isStatistic(tokens[k]))
+      names.push(tokens[k++]);
+    for (const name of session.varlist(names.join(" ")))
+      if (
+        !series.some(
+          (s) => s.variable.name === name && s.title === current.title,
+        )
+      )
+        series.push({ ...current, variable: numeric(session, name) });
   }
-  return out;
+  return { series, frequency: null };
 }
 /**
- * The variable of over(g, sort(varname)) or sort((stat) varname). As in
- * Stata, whose bar code checks it inside a macro expansion that swallows the
- * error, a name that is not one numeric variable leaves the groups in their
- * usual order: the result is null.
+ * The variables of over(g, sort(varname)) or sort((stat) varlist): the one
+ * whose statistic orders the groups and the others, which Stata's collapse
+ * computes too. Stata reads only the first word of sort(varlist), and of
+ * sort((stat) varlist) checks that every name is a numeric variable inside
+ * a macro expansion that swallows the error: when one is not, the groups
+ * keep their usual order and the result is null.
  */
-function sortVariable(session, name) {
-  if (!/^\S+$/.test(name)) return null;
+function sortVariables(session, words) {
+  if (!words.length) return null;
   try {
-    const names = session.varlist(name);
-    if (names.length !== 1) return null;
-    const variable = session.data.get(names[0]);
-    return isStringType(variable.type) ? null : variable;
+    const first = session.varlist(words[0]),
+      all = session.varlist(words.join(" "));
+    if (first.length !== 1) return null;
+    const variables = all.map((name) => session.data.get(name));
+    if (variables.some((variable) => isStringType(variable.type))) return null;
+    return {
+      variable: session.data.get(first[0]),
+      extras: session.varlist(words.slice(1).join(" ")),
+    };
   } catch (error) {
     if (error instanceof StataError) return null;
     throw error;
   }
 }
 /**
+ * The keys of over(g, sort(#)): each group's #th statistic, where a group
+ * without one counts as 0, since Stata sums the heights by group. Stata
+ * refuses a statistic that is not there or is 0 in every group, naming the
+ * number as typed.
+ */
+function heightKeys(heights, { height, heightText }) {
+  const row = heights[height - 1];
+  if (!row || row.every((h) => h === 0))
+    throw new StataError(
+      `sort() invalid, category ${heightText} not found`,
+      198,
+    );
+  return row.map((h) => h ?? 0);
+}
+/**
  * The order of the groups under over(g, sort() descending). keys holds one
  * key per group; Stata sorts on the key and then on the group, both
  * reversed by descending, and a missing key (null) sorts last either way.
  */
-/**
- * The keys of over(g, sort(#)): each group's #th statistic, where a group
- * without one counts as 0, since Stata sums the heights by group. Stata
- * refuses a statistic that is not there or is 0 in every group.
- */
-function heightKeys(heights, number) {
-  const row = heights[number - 1];
-  if (!row || row.every((h) => h === 0))
-    throw new StataError(`sort() invalid, category ${number} not found`, 198);
-  return row.map((h) => h ?? 0);
-}
 function groupOrder(keys, descending) {
   const sign = descending ? -1 : 1;
   return keys
@@ -350,11 +399,20 @@ function graphParts(session, text, declaration) {
       for (const o of (overOptions ?? "").matchAll(
         /(\w+)(?:\(((?:\([^()]*\)|[^()])*)\))?/g,
       )) {
-        if (/^sort$/i.test(o[1]) && o[2] !== undefined) {
+        // Option names are case-sensitive in Stata.
+        const isSort = o[2] !== undefined && /^sort$/i.test(o[1]),
+          isDescending =
+            o[2] === undefined && /^des(c(e(n(d(i(ng?)?)?)?)?)?)?$/i.test(o[1]);
+        if ((isSort && o[1] !== "sort") || (isDescending && /[A-Z]/.test(o[1])))
+          throw new StataError(
+            `option ${o[1]}${isSort ? "()" : ""} not allowed`,
+            198,
+          );
+        if (isSort) {
           if (sort !== undefined)
             throw new StataError("option sort() not allowed", 198);
           sort = o[2].trim();
-        } else if (/^des(c(e(n(d(i(ng?)?)?)?)?)?)?$/i.test(o[1]) && !o[2]) {
+        } else if (isDescending) {
           if (descending)
             throw new StataError("option descending not allowed", 198);
           descending = true;
@@ -365,17 +423,20 @@ function graphParts(session, text, declaration) {
           );
       }
       if (sort === undefined) return descending ? { descending } : null;
-      if (/^\d+$/.test(sort) && Number(sort) > 0)
-        return { height: Number(sort), descending };
-      // Stata reads sort((stat) name) or sort(name), and of a plain list
-      // only its first word.
+      // sort(#) takes one positive integer, written as Stata's numlist
+      // allows, as in sort(01) or sort(1e1).
+      const number = /^\+?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(sort)
+        ? Number(sort)
+        : NaN;
+      if (Number.isInteger(number) && number > 0)
+        return { height: number, heightText: sort, descending };
+      // Stata reads sort((stat) varlist) or sort(varname), and of a plain
+      // list only its first word.
       const m = /^\(([^()]*)\)\s*([\s\S]*)$/.exec(sort),
-        variable = sortVariable(
-          session,
-          m ? m[2].trim() : (sort.split(/\s+/)[0] ?? ""),
-        );
-      if (!variable) return descending ? { descending } : null;
-      return { variable, statistic: m?.[1].trim(), descending };
+        words = (m ? m[2] : sort).split(/\s+/).filter(Boolean),
+        variables = sortVariables(session, m ? words : words.slice(0, 1));
+      if (!variables) return descending ? { descending } : null;
+      return { ...variables, statistic: m?.[1].trim(), descending };
     })(),
     rows = session.rows(parsed, null),
     levels = over
@@ -399,19 +460,63 @@ function graphParts(session, text, declaration) {
 function graphBar(horizontal) {
   return (session, text, ctx) => {
     const parts = graphParts(session, text, "BLABel(string)"),
-      series = statisticList(session, parts.head),
-      options = parts.parsed.options;
+      { series, frequency } = statisticList(session, parts.head),
+      options = parts.parsed.options,
+      sorted = parts.overSort;
     // With no yvars, graph bar, over(g) shows the percentage of observations
     // in each group, and graph bar (count), over(g) their number; without
     // over() there is one bar, of 100 percent or of the number in the
     // sample.
-    const frequencies = !series.length,
-      counted = frequencies && /^\(\s*count\s*\)$/.test(parts.head);
+    const frequencies = frequency !== null,
+      counted = frequency === "count";
     if (!text.trim()) throw new StataError("graph specification required", 198);
-    if (frequencies && !/^(\(\s*(count|percent)\s*\))?$/.test(parts.head))
-      throw new StataError("varlist required", 100);
+    // Stata hands sort(varname) to collapse as one more statistic after the
+    // yvars, as in (mean) _sort=varname. After a lone (count) or (percent),
+    // collapse takes that statistic for a variable name.
+    if (sorted?.variable && frequencies)
+      throw new StataError(
+        `variable ${sorted.statistic ?? "mean"} not found`,
+        111,
+      );
+    const sortStatistic = sorted?.variable
+      ? statisticOf(sorted.statistic ?? "mean")
+      : null;
+    // collapse refuses a by() variable among the variables it makes, which
+    // are the yvars and the other variables of sort((stat) varlist).
+    if (
+      parts.over &&
+      [
+        ...series.map((s) => s.variable.name),
+        ...(sorted?.extras ?? []),
+      ].includes(parts.over.name)
+    )
+      throw new StataError(
+        `${parts.over.name} may not be both target and by()`,
+        198,
+      );
     const total = parts.groups.reduce((t, rows) => t + rows.length, 0);
     if (!total) throw new StataError("no observations", 2000);
+    if (sorted?.variable) {
+      // collapse cannot compute a statistic of the over() variable itself.
+      if (sorted.variable.name === parts.over?.name)
+        throw new StataError("failed to setup collapse problem", 198);
+      // The other variables of sort((stat) varlist) are left out of the
+      // bars: a yvar with the same statistic is no longer drawn, and with a
+      // different one Stata's graph fails.
+      for (const name of sorted.extras) {
+        const same = series.filter(
+          (s) => s.variable.name === name && s.title === sortStatistic.title,
+        );
+        if (series.some((s) => s.variable.name === name && !same.includes(s)))
+          throw new StataError("serset variable 4 not found", 111);
+        for (const s of same) series.splice(series.indexOf(s), 1);
+      }
+      if (!series.length)
+        throw new StataError(
+          "graph bar: sort() leaves no bars, and Stata draws an empty graph; leave the yvars out of sort((stat) varlist)",
+          198,
+        );
+    }
     const unsorted = frequencies
         ? [
             parts.groups.map((rows) =>
@@ -422,15 +527,10 @@ function graphBar(horizontal) {
       names = frequencies
         ? [counted ? "frequency" : "percent"]
         : series.map(({ title, variable }) => `${title} of ${variable.name}`),
-      sorted = parts.overSort,
       keys = sorted?.height
-        ? heightKeys(unsorted, sorted.height)
+        ? heightKeys(unsorted, sorted)
         : sorted?.variable
-          ? barHeights(
-              statisticOf(sorted.statistic ?? "mean"),
-              sorted.variable,
-              parts.groups,
-            )
+          ? barHeights(sortStatistic, sorted.variable, parts.groups)
           : parts.levels.map(() => 0),
       order = groupOrder(keys, sorted?.descending);
     // blabel(bar) writes each bar's height above it.
@@ -559,7 +659,7 @@ function graphBox(session, text, ctx) {
   // a group with no values counting as 0.
   if (sorted?.height > variables.length)
     throw new StataError(
-      `sort() invalid, category ${sorted.height} not found`,
+      `sort() invalid, category ${sorted.heightText} not found`,
       198,
     );
   const order = groupOrder(
