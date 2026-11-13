@@ -9,7 +9,7 @@ import { ranks } from "./everyday.js";
 import { count, labelled, moments, tabulate } from "./reports.js";
 import { Dataset } from "./store.js";
 import { splitAtComma } from "./syntax.js";
-import { isMissing, isStringType } from "./values.js";
+import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const four = (value) => applyFormat(value, "%6.4f");
@@ -79,6 +79,13 @@ function proportionPrinters(ctx, level) {
     row = (label, p, se) =>
       `${label.padStart(12)} |${g(p).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(p - critical * se).padStart(13)}${g(p + critical * se).padStart(12)}`,
     tails = (z) => {
+      if (isMissing(z)) {
+        ctx.out(
+          " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      .",
+        );
+        ctx.out("");
+        return { p_l: MISSING, p: MISSING, p_u: MISSING };
+      }
       const lower = normal(z);
       ctx.out(
         ` Pr(Z < z) = ${four(lower)}         Pr(|Z| > |z|) = ${four(2 * normal(-Math.abs(z)))}          Pr(Z > z) = ${four(1 - lower)}`,
@@ -151,7 +158,11 @@ function twoProportions(ctx, session, a, b, labels, level, first) {
  */
 function oneProportion(ctx, session, one, name, p0, level, immediate) {
   const { critical, row, tails } = proportionPrinters(ctx, level),
-    z = (one.p - p0) / Math.sqrt((p0 * (1 - p0)) / one.n),
+    // At p0 = 0 or 1 the statistic is undefined; Stata shows it missing.
+    z =
+      p0 > 0 && p0 < 1
+        ? (one.p - p0) / Math.sqrt((p0 * (1 - p0)) / one.n)
+        : MISSING,
     shown = String(p0);
   ctx.out(
     immediate
@@ -242,6 +253,8 @@ function prtesti(session, text, ctx) {
   ctx.out("");
   if (numbers.length === 3) {
     const [n, p, p0] = numbers;
+    if (!(p0 >= 0 && p0 <= 1))
+      throw new StataError(`${g(p0)} not in [0,1]`, 198);
     return oneProportion(
       ctx,
       session,

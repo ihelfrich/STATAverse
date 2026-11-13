@@ -14348,7 +14348,7 @@
     },
     {
       "id": "prtest-immediate",
-      "source": "clear\nset seed 5\nset obs 150\ngenerate byte d = runiform() < .45\ngenerate byte grp = runiform() > .5\nprtesti 100 .4 .5\nprtesti 100 .4 120 .5\nprtesti 100 40 120 60, count\nprtesti 100 40 .5, count\nprtesti 80 .3 .25, level(90)\nprtest d == .5\nprtest d, by(grp)\n",
+      "source": "clear\nset seed 5\nset obs 150\ngenerate byte d = runiform() < .45\ngenerate byte grp = runiform() > .5\nprtesti 100 .4 .5\nprtesti 100 .4 120 .5\nprtesti 100 40 120 60, count\nprtesti 100 40 .5, count\nprtesti 80 .3 .25, level(90)\nprtest d == .5\nprtest d, by(grp)\ncapture noisily prtesti 100 .4 1.5\ndisplay _rc\nprtesti 100 .4 0\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 5", "lines": [] },
@@ -14484,6 +14484,27 @@
             "",
             "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
             " Pr(Z < z) = 0.7159         Pr(|Z| > |z|) = 0.5683          Pr(Z > z) = 0.2841"
+          ]
+        },
+        {
+          "command": "capture noisily prtesti 100 .4 1.5",
+          "lines": ["1.5 not in [0,1]"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "prtesti 100 .4 0",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =      100",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z =        .",
+            "H0: p = 0",
+            "",
+            "      Ha: p < 0                   Ha: p != 0                     Ha: p > 0",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
           ]
         }
       ]

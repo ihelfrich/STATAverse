@@ -2162,3 +2162,6 @@ prtesti 100 40 .5, count
 prtesti 80 .3 .25, level(90)
 prtest d == .5
 prtest d, by(grp)
+capture noisily prtesti 100 .4 1.5
+display _rc
+prtesti 100 .4 0
