@@ -368,6 +368,83 @@ histogram y, frequency width(5)
 histogram x1, discrete
 histogram y if g > 1, percent
 capture noisily histogram nosuch
+=== graph-text-options
+@EST
+generate w = .
+histogram w
+histogram w, frequency
+histogram w, percent
+histogram w, bin(5)
+histogram w, start(0) normal
+histogram w in 1/1
+capture noisily histogram w, by(g)
+capture noisily histogram w, discrete
+capture noisily histogram w, width(1)
+capture noisily histogram w if g == 7
+histogram y
+graph bar (mean) y, over(g) title(Y, size(medium))
+graph bar (mean) y, over(g) ytitle("Mean y", size(small)) note("Source: x", size(vsmall))
+graph bar (mean) y, over(g) title("Y by g", color(blue))
+graph hbar (mean) y, over(g) title(Y, size(large)) ytitle(Mean, color(red))
+graph box y, over(g) title(Box, size(large))
+kdensity y, title(KD, size(small) color(red))
+lowess y x1, title(LW, size(small)) xtitle(X, color(blue))
+qnorm y, title(QN, color(red))
+pnorm y, subtitle(PN, color(red))
+scatter y x1, title("Main", position(11))
+scatter y x1, title(Main, pos(1)) subtitle(Sub, position(12))
+scatter y x1, note("Source: x", size(vsmall) position(7)) caption(Cap, position(5))
+scatter y x1, title(Main, position())
+twoway scatter y x1, title("Main", position(11))
+scatter y x1, by(g, title(All, position(11)))
+capture noisily scatter y x1, title(Main, po(11))
+capture noisily scatter y x1, title(Main, POSition(11))
+capture noisily scatter y x1, xtitle(X, position(11))
+capture noisily scatter y x1, ytitle(Y, ring(0))
+=== graph-text-options-2
+@EST
+generate w = .
+capture noisily histogram y, bin(-1)
+capture noisily histogram y, bin(0)
+capture noisily histogram y, width(0)
+capture noisily histogram y, width(-2)
+capture noisily histogram y, bin(2.5)
+capture noisily histogram y, bin(3) width(2)
+capture noisily histogram y, discrete bin(3)
+capture noisily histogram y if g == 7, bin(0)
+histogram y, bin(3)
+capture noisily histogram w, bin(0)
+capture noisily histogram w, bin(-1)
+capture noisily histogram w, width(0)
+capture noisily histogram w, kdensity frequency
+capture noisily histogram w, normal percent
+histogram w, kdensity
+histogram w, xline(3)
+capture noisily twoway histogram y, bin(0)
+twoway histogram w
+capture noisily graph hbar (mean) y, over(g) xtitle(G, size(small))
+capture noisily graph bar (mean) y, over(g) xtitle(G, color(red))
+capture noisily graph box y, over(g) xtitle(G)
+capture noisily graph box y, xti(G)
+graph bar (mean) y, over(g) subtitle(S, color(green))
+scatter y x1, title(T, color(green))
+scatter y x1, title(T, color(foo))
+scatter y x1, title(T, color(grey))
+scatter y x1, mcolor(grey)
+line y x1, sort lcolor(grey)
+histogram y, title(T, color(grey))
+graph hbar (mean) y, over(g) title(T, color(foo))
+capture noisily scatter y x1, title(Main, pos(11) pos(1))
+capture noisily scatter y x1, title(Main, size(small) size(large))
+capture noisily scatter y x1, title(Main, color(red) c(blue))
+scatter y x1, title(Main, position(abc))
+scatter y x1, title(Main, position(01))
+graph bar (mean) y, over(g) title(T, position(13))
+scatter y x1, title(Main, pos(11)) title(Other)
+scatter y x1, title(Main) subtitle(S) title(, color(red))
+set linesize 80
+scatter y x1, title(T, color(dkorange2))
+set linesize 200
 === graph-panels
 clear
 input double y double x byte g str1 s

@@ -304,8 +304,9 @@ test("a title's suboptions are not printed as its text", () => {
   assert.equal(s.run("scatter wage educ, title(Main, size(5))").rc, 198);
   // Stata draws "a" "b" as two lines, which this page does not.
   assert.equal(s.run('scatter wage educ, title("a" "b")').rc, 198);
-  // A graph that does not draw text styles refuses them.
-  assert.equal(s.run("kdensity wage, title(K, size(large))").rc, 198);
+  // Every graph draws them: Stata draws kdensity's K too (rc 0).
+  svg = graph(s, "kdensity wage, title(K, size(large))").svg;
+  assert.match(svg, /font-size="16">K</);
 });
 
 test('xtitle("") and ytitle("") remove the axis titles', () => {

@@ -2800,6 +2800,354 @@
       ]
     },
     {
+      "id": "graph-text-options",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngenerate w = .\nhistogram w\nhistogram w, frequency\nhistogram w, percent\nhistogram w, bin(5)\nhistogram w, start(0) normal\nhistogram w in 1/1\ncapture noisily histogram w, by(g)\ncapture noisily histogram w, discrete\ncapture noisily histogram w, width(1)\ncapture noisily histogram w if g == 7\nhistogram y\ngraph bar (mean) y, over(g) title(Y, size(medium))\ngraph bar (mean) y, over(g) ytitle(\"Mean y\", size(small)) note(\"Source: x\", size(vsmall))\ngraph bar (mean) y, over(g) title(\"Y by g\", color(blue))\ngraph hbar (mean) y, over(g) title(Y, size(large)) ytitle(Mean, color(red))\ngraph box y, over(g) title(Box, size(large))\nkdensity y, title(KD, size(small) color(red))\nlowess y x1, title(LW, size(small)) xtitle(X, color(blue))\nqnorm y, title(QN, color(red))\npnorm y, subtitle(PN, color(red))\nscatter y x1, title(\"Main\", position(11))\nscatter y x1, title(Main, pos(1)) subtitle(Sub, position(12))\nscatter y x1, note(\"Source: x\", size(vsmall) position(7)) caption(Cap, position(5))\nscatter y x1, title(Main, position())\ntwoway scatter y x1, title(\"Main\", position(11))\nscatter y x1, by(g, title(All, position(11)))\ncapture noisily scatter y x1, title(Main, po(11))\ncapture noisily scatter y x1, title(Main, POSition(11))\ncapture noisily scatter y x1, xtitle(X, position(11))\ncapture noisily scatter y x1, ytitle(Y, ring(0))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        {
+          "command": "generate w = .",
+          "lines": ["(12 missing values generated)"]
+        },
+        { "command": "histogram w", "lines": [] },
+        { "command": "histogram w, frequency", "lines": [] },
+        { "command": "histogram w, percent", "lines": [] },
+        { "command": "histogram w, bin(5)", "lines": [] },
+        { "command": "histogram w, start(0) normal", "lines": [] },
+        { "command": "histogram w in 1/1", "lines": [] },
+        {
+          "command": "capture noisily histogram w, by(g)",
+          "lines": [
+            "width() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram w, discrete",
+          "lines": [
+            "width() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram w, width(1)",
+          "lines": [
+            "width() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram w if g == 7",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "histogram y",
+          "lines": ["(bin=3, start=3.1, width=7.3333333)"]
+        },
+        {
+          "command": "graph bar (mean) y, over(g) title(Y, size(medium))",
+          "lines": []
+        },
+        {
+          "command": "graph bar (mean) y, over(g) ytitle(\"Mean y\", size(small)) note(\"Source: x\", size(vsmall))",
+          "lines": []
+        },
+        {
+          "command": "graph bar (mean) y, over(g) title(\"Y by g\", color(blue))",
+          "lines": []
+        },
+        {
+          "command": "graph hbar (mean) y, over(g) title(Y, size(large)) ytitle(Mean, color(red))",
+          "lines": []
+        },
+        {
+          "command": "graph box y, over(g) title(Box, size(large))",
+          "lines": []
+        },
+        {
+          "command": "kdensity y, title(KD, size(small) color(red))",
+          "lines": ["(n() set to 12)"]
+        },
+        {
+          "command": "lowess y x1, title(LW, size(small)) xtitle(X, color(blue))",
+          "lines": []
+        },
+        { "command": "qnorm y, title(QN, color(red))", "lines": [] },
+        { "command": "pnorm y, subtitle(PN, color(red))", "lines": [] },
+        {
+          "command": "scatter y x1, title(\"Main\", position(11))",
+          "lines": []
+        },
+        {
+          "command": "scatter y x1, title(Main, pos(1)) subtitle(Sub, position(12))",
+          "lines": []
+        },
+        {
+          "command": "scatter y x1, note(\"Source: x\", size(vsmall) position(7)) caption(Cap, position(5))",
+          "lines": []
+        },
+        { "command": "scatter y x1, title(Main, position())", "lines": [] },
+        {
+          "command": "twoway scatter y x1, title(\"Main\", position(11))",
+          "lines": []
+        },
+        {
+          "command": "scatter y x1, by(g, title(All, position(11)))",
+          "lines": []
+        },
+        {
+          "command": "capture noisily scatter y x1, title(Main, po(11))",
+          "lines": ["option po() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, title(Main, POSition(11))",
+          "lines": ["option POSition() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, xtitle(X, position(11))",
+          "lines": ["option position() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ytitle(Y, ring(0))",
+          "lines": ["option ring() not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "graph-text-options-2",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngenerate w = .\ncapture noisily histogram y, bin(-1)\ncapture noisily histogram y, bin(0)\ncapture noisily histogram y, width(0)\ncapture noisily histogram y, width(-2)\ncapture noisily histogram y, bin(2.5)\ncapture noisily histogram y, bin(3) width(2)\ncapture noisily histogram y, discrete bin(3)\ncapture noisily histogram y if g == 7, bin(0)\nhistogram y, bin(3)\ncapture noisily histogram w, bin(0)\ncapture noisily histogram w, bin(-1)\ncapture noisily histogram w, width(0)\ncapture noisily histogram w, kdensity frequency\ncapture noisily histogram w, normal percent\nhistogram w, kdensity\nhistogram w, xline(3)\ncapture noisily twoway histogram y, bin(0)\ntwoway histogram w\ncapture noisily graph hbar (mean) y, over(g) xtitle(G, size(small))\ncapture noisily graph bar (mean) y, over(g) xtitle(G, color(red))\ncapture noisily graph box y, over(g) xtitle(G)\ncapture noisily graph box y, xti(G)\ngraph bar (mean) y, over(g) subtitle(S, color(green))\nscatter y x1, title(T, color(green))\nscatter y x1, title(T, color(foo))\nscatter y x1, title(T, color(grey))\nscatter y x1, mcolor(grey)\nline y x1, sort lcolor(grey)\nhistogram y, title(T, color(grey))\ngraph hbar (mean) y, over(g) title(T, color(foo))\ncapture noisily scatter y x1, title(Main, pos(11) pos(1))\ncapture noisily scatter y x1, title(Main, size(small) size(large))\ncapture noisily scatter y x1, title(Main, color(red) c(blue))\nscatter y x1, title(Main, position(abc))\nscatter y x1, title(Main, position(01))\ngraph bar (mean) y, over(g) title(T, position(13))\nscatter y x1, title(Main, pos(11)) title(Other)\nscatter y x1, title(Main) subtitle(S) title(, color(red))\nset linesize 80\nscatter y x1, title(T, color(dkorange2))\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        {
+          "command": "generate w = .",
+          "lines": ["(12 missing values generated)"]
+        },
+        {
+          "command": "capture noisily histogram y, bin(-1)",
+          "lines": [
+            "bins() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram y, bin(0)",
+          "lines": [
+            "bins() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram y, width(0)",
+          "lines": [
+            "width() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram y, width(-2)",
+          "lines": [
+            "width() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram y, bin(2.5)",
+          "lines": ["bins() invalid -- invalid number, noninteger value"]
+        },
+        {
+          "command": "capture noisily histogram y, bin(3) width(2)",
+          "lines": ["options bins() and width() may not be combined"]
+        },
+        {
+          "command": "capture noisily histogram y, discrete bin(3)",
+          "lines": ["options discrete and bins() may not be combined"]
+        },
+        {
+          "command": "capture noisily histogram y if g == 7, bin(0)",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "histogram y, bin(3)",
+          "lines": ["(bin=3, start=3.1, width=7.3333333)"]
+        },
+        {
+          "command": "capture noisily histogram w, bin(0)",
+          "lines": [
+            "bins() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram w, bin(-1)",
+          "lines": [
+            "bins() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram w, width(0)",
+          "lines": [
+            "width() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily histogram w, kdensity frequency",
+          "lines": ["option area() expects a positive number"]
+        },
+        {
+          "command": "capture noisily histogram w, normal percent",
+          "lines": ["option area() expects a positive number"]
+        },
+        { "command": "histogram w, kdensity", "lines": [] },
+        { "command": "histogram w, xline(3)", "lines": [] },
+        {
+          "command": "capture noisily twoway histogram y, bin(0)",
+          "lines": [
+            "bins() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        { "command": "twoway histogram w", "lines": [] },
+        {
+          "command": "capture noisily graph hbar (mean) y, over(g) xtitle(G, size(small))",
+          "lines": ["xtitle(G, size(small)) not allowed, xaxis1 does not exist"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g) xtitle(G, color(red))",
+          "lines": ["xtitle(G, color(red)) not allowed, xaxis1 does not exist"]
+        },
+        {
+          "command": "capture noisily graph box y, over(g) xtitle(G)",
+          "lines": ["xtitle(G) not allowed, xaxis1 does not exist"]
+        },
+        {
+          "command": "capture noisily graph box y, xti(G)",
+          "lines": ["xtitle(G) not allowed, xaxis1 does not exist"]
+        },
+        {
+          "command": "graph bar (mean) y, over(g) subtitle(S, color(green))",
+          "lines": []
+        },
+        { "command": "scatter y x1, title(T, color(green))", "lines": [] },
+        {
+          "command": "scatter y x1, title(T, color(foo))",
+          "lines": [
+            "(note:  named style foo not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "scatter y x1, title(T, color(grey))",
+          "lines": [
+            "(note:  named style grey not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "scatter y x1, mcolor(grey)",
+          "lines": [
+            "(note:  named style grey not found in class color, default attributes used)",
+            "(note:  named style grey not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "line y x1, sort lcolor(grey)",
+          "lines": [
+            "(note:  named style grey not found in class color, default attributes used)",
+            "(note:  named style grey not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "histogram y, title(T, color(grey))",
+          "lines": [
+            "(bin=3, start=3.1, width=7.3333333)",
+            "(note:  named style grey not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "graph hbar (mean) y, over(g) title(T, color(foo))",
+          "lines": [
+            "(note:  named style foo not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "capture noisily scatter y x1, title(Main, pos(11) pos(1))",
+          "lines": ["option pos() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, title(Main, size(small) size(large))",
+          "lines": ["option size() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, title(Main, color(red) c(blue))",
+          "lines": ["option c() not allowed"]
+        },
+        {
+          "command": "scatter y x1, title(Main, position(abc))",
+          "lines": [
+            "(note:  named style abc not found in class clockdir, default attributes used)",
+            "(note:  named style abc not found in class clockdir, default attributes used)"
+          ]
+        },
+        {
+          "command": "scatter y x1, title(Main, position(01))",
+          "lines": [
+            "(note:  named style 01 not found in class clockdir, default attributes used)",
+            "(note:  named style 01 not found in class clockdir, default attributes used)"
+          ]
+        },
+        {
+          "command": "graph bar (mean) y, over(g) title(T, position(13))",
+          "lines": [
+            "(note:  named style 13 not found in class clockdir, default attributes used)",
+            "(note:  named style 13 not found in class clockdir, default attributes used)"
+          ]
+        },
+        {
+          "command": "scatter y x1, title(Main, pos(11)) title(Other)",
+          "lines": []
+        },
+        {
+          "command": "scatter y x1, title(Main) subtitle(S) title(, color(red))",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "scatter y x1, title(T, color(dkorange2))",
+          "lines": [
+            "(note:  named style dkorange2 not found in class color, default attributes",
+            "    used)"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "graph-panels",
       "source": "clear\ninput double y double x byte g str1 s\n. 5 2 \"c\"\n. 6 2 \"c\"\n. 7 2 \"c\"\n. 8 2 \"c\"\n3 9 . \"\"\n1 1 0 \"a\"\n3 2 0 \"a\"\n2 3 0 \"a\"\n5 4 0 \"a\"\n4 1 1 \"b\"\n6 2 1 \"b\"\n5 3 1 \"b\"\n8 4 1 \"b\"\nend\ntwoway (scatter y x) (lfit y x), by(g)\ntwoway (scatter y x) (lfit y x), by(g, total)\ntwoway (scatter y x) (qfit y x) (lfitci y x), by(s)\ntwoway (scatter y x) (lfit y x) if y < 0\ntwoway (scatter y x) (lfit y x) if g == 2\ntwoway (scatter y x) (lfit y x) in 1/4, by(g)\ntwoway (scatter y x) (lfit y x) in 9/12, by(g)\ntwoway (scatter y x) (lfit y x) if inrange(_n, 9, 12), by(g)\ncapture noisily twoway (scatter y x) (lfit y x) if y < 0, by(g)\ncapture noisily scatter y x if y < 0, by(g)\ncapture noisily twoway (scatter y x) (lfit y x) junk\ncapture noisily twoway (scatter y x) (lfit y x) if\ncapture noisily twoway (scatter y x) (lfit y x) in 90/100\nhistogram y, by(g, total) frequency\nscatter y x, title(Main, size(large)) xtitle(\"\") ytitle(\"\")\nscatter y x, by(g) title(T) subtitle(S) note(N) caption(C)\nscatter y x, by(g, title(O) note(N))\nscatter y x, mlabel(y)\n",
       "commands": [
