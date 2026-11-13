@@ -22615,6 +22615,188 @@
       ]
     },
     {
+      "id": "failed-commands-and-r",
+      "source": "clear\ninput y g z\n1 0 3\n4 1 3\n7 1 5\n2 0 8\n5 1 1\nend\nttest y == z\ncapture noisily ttest y == z, zzfoo\nreturn list\ndisplay _rc \" \" r(p)\nttest y == 2\ncapture noisily ttest y if 0, by(g)\nreturn list\nttesti 1 5 0 1 7 0\ncapture noisily ttesti 1 5 2 3\nreturn list\nttesti 3 5 2 3\ncapture noisily ttesti 10 5 2 12 6 1, level(100)\nreturn list\nquietly summarize y\ncapture noisily summarize nosuch\ndisplay r(N) \" \" r(mean)\ncapture noisily correlate y nosuch\ndisplay r(N) \" \" r(mean)\ncapture noisily correlate y z if 0\nreturn list\nquietly summarize y\ncapture noisily tabulate y g z\nreturn list\nquietly summarize y\ncapture noisily tabstat y, zzfoo\nreturn list\nquietly summarize y\ncapture noisily generate y = 1\ndisplay r(N) \" \" r(mean)\ncapture noisily regress y nosuch\nreturn list\nquietly summarize y\ncapture noisily logit g z, zzfoo\ndisplay r(N) \" \" r(mean)\ncapture noisily logit g z if 0\nreturn list\nquietly summarize y\ncapture noisily poisson y z if 0\nreturn list\nquietly summarize y\ncapture quietly ttest y == .\ndisplay _rc \" \" r(N)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input y g z",
+          "lines": [
+            "             y          g          z",
+            "  1. 1 0 3",
+            "  2. 4 1 3",
+            "  3. 7 1 5",
+            "  4. 2 0 8",
+            "  5. 5 1 1",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "ttest y == z",
+          "lines": [
+            "Paired t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       y |       5         3.8    1.067708    2.387467    .8355678    6.764432",
+            "       z |       5           4    1.183216    2.645751    .7148658    7.285134",
+            "---------+--------------------------------------------------------------------",
+            "    diff |       5         -.2     1.74356    3.898718   -5.040897    4.640897",
+            "------------------------------------------------------------------------------",
+            "     mean(diff) = mean(y - z)                                     t =  -0.1147",
+            " H0: mean(diff) = 0                              Degrees of freedom =        4",
+            "",
+            " Ha: mean(diff) < 0           Ha: mean(diff) != 0           Ha: mean(diff) > 0",
+            " Pr(T < t) = 0.4571         Pr(|T| > |t|) = 0.9142          Pr(T > t) = 0.5429"
+          ]
+        },
+        {
+          "command": "capture noisily ttest y == z, zzfoo",
+          "lines": ["option zzfoo not allowed"]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "display _rc \" \" r(p)", "lines": ["198 ."] },
+        {
+          "command": "ttest y == 2",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       y |       5         3.8    1.067708    2.387467    .8355678    6.764432",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(y)                                                t =   1.6859",
+            "H0: mean = 2                                     Degrees of freedom =        4",
+            "",
+            "    Ha: mean < 2                 Ha: mean != 2                 Ha: mean > 2",
+            " Pr(T < t) = 0.9164         Pr(|T| > |t|) = 0.1671          Pr(T > t) = 0.0836"
+          ]
+        },
+        {
+          "command": "capture noisily ttest y if 0, by(g)",
+          "lines": ["no observations"]
+        },
+        { "command": "return list", "lines": [] },
+        {
+          "command": "ttesti 1 5 0 1 7 0",
+          "lines": [
+            "Two-sample t test with equal variances",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |       1           5           .           .           .           .",
+            "       y |       1           7           .           .           .           .",
+            "---------+--------------------------------------------------------------------",
+            "Combined |       2           6           .           .           .           .",
+            "---------+--------------------------------------------------------------------",
+            "    diff |                  -2           .                       .           .",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(x) - mean(y)                                      t =        .",
+            "H0: diff = 0                                     Degrees of freedom =        0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) =      .         Pr(|T| > |t|) =      .          Pr(T > t) =      ."
+          ]
+        },
+        {
+          "command": "capture noisily ttesti 1 5 2 3",
+          "lines": ["only one observation, but positive standard deviation"]
+        },
+        { "command": "return list", "lines": [] },
+        {
+          "command": "ttesti 3 5 2 3",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |       3           5    1.154701           2    .0317246    9.968275",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(x)                                                t =   1.7321",
+            "H0: mean = 3                                     Degrees of freedom =        2",
+            "",
+            "    Ha: mean < 3                 Ha: mean != 3                 Ha: mean > 3",
+            " Pr(T < t) = 0.8873         Pr(|T| > |t|) = 0.2254          Pr(T > t) = 0.1127"
+          ]
+        },
+        {
+          "command": "capture noisily ttesti 10 5 2 12 6 1, level(100)",
+          "lines": ["level() must be between 10 and 99.99 inclusive"]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily summarize nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        { "command": "display r(N) \" \" r(mean)", "lines": ["5 3.8"] },
+        {
+          "command": "capture noisily correlate y nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        { "command": "display r(N) \" \" r(mean)", "lines": ["5 3.8"] },
+        {
+          "command": "capture noisily correlate y z if 0",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "return list",
+          "lines": ["scalars:", "                  r(N) =  0"]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily tabulate y g z",
+          "lines": ["too many variables specified"]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily tabstat y, zzfoo",
+          "lines": ["option zzfoo not allowed"]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily generate y = 1",
+          "lines": ["variable y already defined"]
+        },
+        { "command": "display r(N) \" \" r(mean)", "lines": ["5 3.8"] },
+        {
+          "command": "capture noisily regress y nosuch",
+          "lines": ["variable nosuch not found"]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily logit g z, zzfoo",
+          "lines": ["option zzfoo not allowed"]
+        },
+        { "command": "display r(N) \" \" r(mean)", "lines": ["5 3.8"] },
+        {
+          "command": "capture noisily logit g z if 0",
+          "lines": ["no observations"]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "quietly summarize y", "lines": [] },
+        {
+          "command": "capture noisily poisson y z if 0",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "              r(sum_w) =  0",
+            "                r(sum) =  0"
+          ]
+        },
+        { "command": "quietly summarize y", "lines": [] },
+        { "command": "capture quietly ttest y == .", "lines": [] },
+        { "command": "display _rc \" \" r(N)", "lines": ["198 ."] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

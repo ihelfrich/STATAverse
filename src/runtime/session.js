@@ -25,6 +25,107 @@ function currentDate() {
   return `${String(now.getDate()).padStart(2)} ${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+// What r() holds after a command fails. Stata has no single rule: a built-in
+// command (summarize, count, generate, list) leaves the previous r() alone,
+// while most commands written as ado-files (ttest, ci, tabstat, regress, the
+// graph commands) clear it, because an r-class program posts its results
+// when it ends, failed or not, and others call an r-class helper first. Some
+// clear r() only when the data, not the syntax, are at fault, and some leave
+// the r(N) = 0 of the count they ran. Recorded from Stata 19 by making each
+// command fail after summarize; a command not listed keeps r().
+const cleared = () => ({}),
+  noObservations =
+    (posted, otherwise = () => undefined) =>
+    (code) =>
+      code === 2000 ? { ...posted } : otherwise(code);
+const FAILED_R = new Map([
+  ...[
+    "ttest",
+    "ttesti",
+    "ci",
+    "pwcorr",
+    "spearman",
+    "prtest",
+    "prtesti",
+    "bitest",
+    "bitesti",
+    "signtest",
+    "robvar",
+    "sdtest",
+    "ranksum",
+    "signrank",
+    "oneway",
+    "kwallis",
+    "tabi",
+    "centile",
+    "tabulate",
+    "tabstat",
+    "codebook",
+    "ds",
+    "describe",
+    "lookfor",
+    "duplicates",
+    "separate",
+    "split",
+    "egen",
+    "gsort",
+    "insobs",
+    "numlabel",
+    "append",
+    "import",
+    "tsset",
+    "xtsum",
+    "dfuller",
+    "corrgram",
+    "tssmooth",
+    "regress",
+    "tobit",
+    "ivregress",
+    "xtreg",
+    "prais",
+    "test",
+    "testparm",
+    "lincom",
+    "nlcom",
+    "testnl",
+    "estat",
+    "margins",
+    "lrtest",
+    "hausman",
+    "bootstrap",
+    "bs",
+    "jackknife",
+    "kdensity",
+    "lowess",
+    "scatter",
+    "line",
+    "twoway",
+    "graph",
+    "avplot",
+    "lvr2plot",
+    "rvfplot",
+    "qnorm",
+    "pnorm",
+    "tsline",
+  ].map((name) => [name, cleared]),
+  ["mean", noObservations({ N: 0 }, cleared)],
+  ["proportion", noObservations({ N: 0 }, cleared)],
+  ["areg", noObservations({ N: 0 }, cleared)],
+  ["glm", noObservations({ N: 0, sum_w: 0, sum: 0 }, cleared)],
+  ["correlate", noObservations({ N: 0 })],
+  ["qreg", noObservations({ N: 0 })],
+  ["cloglog", noObservations({ N: 0 })],
+  ["poisson", noObservations({ N: 0, sum_w: 0, sum: 0 })],
+  ["nbreg", noObservations({ N: 0, sum_w: 0, sum: 0 })],
+  ...["logit", "logistic", "probit", "ologit", "oprobit", "mlogit"].map(
+    (name) => [name, noObservations({})],
+  ),
+  // A misspelt option leaves r(); a missing variable or no data clears it.
+  ["anova", (code) => (code === 198 ? undefined : {})],
+  // An unknown variable leaves r(); a bad option clears it.
+  ["histogram", (code) => (code === 111 ? undefined : {})],
+]);
+
 function findCommand(word) {
   return COMMANDS.find(
     (c) => word.length >= c.minimum && c.name.startsWith(word),
@@ -380,7 +481,15 @@ export class Session {
           `${command.name} may not be combined with by`,
           190,
         );
-      return command.run(this, body, ctx);
+      try {
+        return command.run(this, body, ctx);
+      } catch (error) {
+        if (error instanceof StataError) {
+          const left = FAILED_R.get(command.name)?.(error.code);
+          if (left) this.results.r = left;
+        }
+        throw error;
+      }
     }
     if (this.programs.has(word)) return this.call(word, body, ctx);
     throw new StataError(`command ${word} is unrecognized`, 199);
@@ -535,21 +644,33 @@ export class Session {
     );
     frame.program = { name, options: program.options, by: ctx.by };
     frame.returns = { r: {}, e: {}, s: {} };
-    const inner = [];
+    const inner = [],
+      rclass = /\brclass\b/.test(program.options);
     this.inProgram = (this.inProgram ?? 0) + 1;
     try {
       this.runNodes(program.body, frame, inner);
     } catch (error) {
       this.inProgram -= 1;
       for (const record of inner) record.lines.forEach(ctx.out);
-      if (error instanceof Signal && error.kind === "exit") {
-        if (error.code) throw new StataError("", error.code);
-      } else throw error;
-      return;
+      // An r-class program posts what it has returned so far even when it
+      // fails, as Stata does: r() is then empty or holds only those values.
+      // A plain exit is the program's normal end and posts everything.
+      const exit = error instanceof Signal && error.kind === "exit";
+      if (exit && !error.code) {
+        this.post(program, frame, rclass);
+        return;
+      }
+      if (rclass && (exit || error instanceof StataError))
+        this.results.r = frame.returns.r;
+      if (exit) throw new StataError("", error.code);
+      throw error;
     }
     this.inProgram -= 1;
     for (const record of inner) record.lines.forEach(ctx.out);
-    if (/\brclass\b/.test(program.options)) this.results.r = frame.returns.r;
+    this.post(program, frame, rclass);
+  }
+  post(program, frame, rclass) {
+    if (rclass) this.results.r = frame.returns.r;
     if (/\beclass\b/.test(program.options)) this.results.e = frame.returns.e;
     if (/\bsclass\b/.test(program.options)) this.results.s = frame.returns.s;
   }
