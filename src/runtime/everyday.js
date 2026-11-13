@@ -105,8 +105,20 @@ function ci(session, text, ctx) {
     const stats = moments(
       rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
     );
+    // With no observations Stata shows dots and still posts the row.
     if (!stats.n) {
-      ctx.out(`${name.padStart(12)} |${"0".padStart(11)}`);
+      ctx.out(
+        `${name.padStart(12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
+      );
+      last = {
+        N: 0,
+        mean: MISSING,
+        se: MISSING,
+        lb: MISSING,
+        ub: MISSING,
+        level,
+        citype: "normal",
+      };
       continue;
     }
     const se = stats.sd / Math.sqrt(stats.n),

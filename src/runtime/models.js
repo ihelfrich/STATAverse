@@ -1205,6 +1205,8 @@ function estimatesCommand(session, text, ctx) {
       throw new StataError(`estimation result ${name} not found`, 111);
     session.estimates = entry.model;
     session.results.e = { ...entry.e };
+    // estimates restore is r-class: r() holds only the name restored.
+    session.results.r = { names: name };
     ctx.out(`(results ${name} are active now)`);
   } else if (action === "dir") {
     if (!stored.size) return;

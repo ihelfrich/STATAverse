@@ -25,6 +25,190 @@ function currentDate() {
   return `${String(now.getDate()).padStart(2)} ${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+// What r() holds after a command fails. Stata has no single rule: a built-in
+// command (summarize, count, generate, list) leaves the previous r() alone,
+// while most commands written as ado-files (ttest, ci, tabstat, regress, the
+// graph commands) clear it, because an r-class program posts its results
+// when it ends, failed or not, and others call an r-class helper first. That
+// happens only once the command gets past its first checks, so the same
+// return code can leave r() in one failure and clear it in another: an
+// unknown variable usually fails before that point, a bad option or empty
+// sample after it. Some leave the r(N) = 0 of the count they ran. Recorded
+// from Stata 19 by making each command fail after summarize; a command not
+// listed keeps r(). Each rule gets the return code and { body, error,
+// session } and returns what r() becomes, or undefined to keep it.
+const cleared = () => ({}),
+  noObservations =
+    (posted, otherwise = () => undefined) =>
+    (code, failure) =>
+      code === 2000 ? { ...posted } : otherwise(code, failure),
+  // An unknown variable leaves r(); anything else clears it.
+  unknownKeeps =
+    (otherwise = cleared) =>
+    (code, failure) =>
+      code === 111 ? undefined : otherwise(code, failure),
+  // The words before if, in, a weight or the options.
+  varlistPart = (body) => body.split(/\s(?:if|in)\s|\[|,/)[0],
+  // regress clears r() for an unknown variable in its varlist, but not for
+  // one in if or in the weight.
+  regressRule = (code, { body, session }) => {
+    if (code !== 111) return {};
+    const unknown = varlistPart(body)
+      .split(/\s+/)
+      .filter(Boolean)
+      .some((word) => {
+        const name = word.replace(/^.*\./, "").replace(/^\(|\)$/g, "");
+        if (!/^[A-Za-z_]\w*\*?$/.test(name)) return false;
+        try {
+          session.varlist(name);
+          return false;
+        } catch {
+          return true;
+        }
+      });
+    return unknown ? {} : undefined;
+  };
+const FAILED_R = new Map([
+  ...[
+    "ttest",
+    "ttesti",
+    "ci",
+    "pwcorr",
+    "spearman",
+    "prtest",
+    "prtesti",
+    "bitest",
+    "bitesti",
+    "signtest",
+    "robvar",
+    "sdtest",
+    "ranksum",
+    "signrank",
+    "oneway",
+    "kwallis",
+    "tabi",
+    "centile",
+    "tabulate",
+    "tabstat",
+    "codebook",
+    "ds",
+    "describe",
+    "lookfor",
+    "duplicates",
+    "separate",
+    "split",
+    "gsort",
+    "insobs",
+    "numlabel",
+    "append",
+    "import",
+    "tsset",
+    "xtsum",
+    "dfuller",
+    "corrgram",
+    "tssmooth",
+    "xtreg",
+    "prais",
+    "test",
+    "testparm",
+    "lincom",
+    "nlcom",
+    "testnl",
+    "estat",
+    "margins",
+    "lrtest",
+    "hausman",
+    "bootstrap",
+    "bs",
+    "jackknife",
+    "kdensity",
+    "scatter",
+    "line",
+    "twoway",
+    "graph",
+    "avplot",
+    "lvr2plot",
+    "rvfplot",
+    "tsline",
+  ].map((name) => [name, cleared]),
+  ["regress", regressRule],
+  ...["tobit", "lowess", "qnorm", "pnorm"].map((name) => [
+    name,
+    unknownKeeps(),
+  ]),
+  // An unknown estimator such as ivregress zzfoo, and a replay with no
+  // estimator, keep r() too.
+  [
+    "ivregress",
+    unknownKeeps((code, { body }) =>
+      code === 301 || (code === 198 && !/^\s*(2sls|liml|gmm)\b/.test(body))
+        ? undefined
+        : {},
+    ),
+  ],
+  // A new variable that exists or is not a name keeps r(); a failure in the
+  // function or its options clears it.
+  [
+    "egen",
+    (code, { body }) => {
+      const words = body.split("=")[0].trim().split(/\s+/),
+        name = /^(byte|int|long|float|double|str\d+)$/.test(words[0])
+          ? words[1]
+          : words[0];
+      return code === 110 ||
+        (code === 198 && !/^[A-Za-z_]\w*$/.test(name ?? ""))
+        ? undefined
+        : {};
+    },
+  ],
+  ["mean", noObservations({ N: 0 }, cleared)],
+  ["proportion", noObservations({ N: 0 }, cleared)],
+  ["areg", noObservations({ N: 0 }, cleared)],
+  ["glm", noObservations({ N: 0, sum_w: 0, sum: 0 }, unknownKeeps())],
+  ["correlate", noObservations({ N: 0 })],
+  // The variance computation failing at an extreme quantile clears r().
+  ["qreg", noObservations({ N: 0 }, (code) => (code === 498 ? {} : undefined))],
+  ["cloglog", noObservations({ N: 0 })],
+  ["poisson", noObservations({ N: 0, sum_w: 0, sum: 0 })],
+  ["nbreg", noObservations({ N: 0, sum_w: 0, sum: 0 })],
+  ...["logit", "logistic", "probit", "ologit", "oprobit", "mlogit"].map(
+    (name) => [name, noObservations({})],
+  ),
+  // A misspelt option leaves r(); a missing variable or no data clears it.
+  ["anova", (code) => (code === 198 ? undefined : {})],
+  ["histogram", noObservations({ N: 0 }, unknownKeeps())],
+  // A using file that is not there clears r(); an unknown key variable not.
+  ["merge", (code) => (code === 601 ? {} : undefined)],
+  // estimates restore of a name that was never stored clears r().
+  [
+    "estimates",
+    (code, { body }) =>
+      code === 111 && /^\s*res(t(o(re?)?)?)?\s/.test(body) ? {} : undefined,
+  ],
+]);
+
+// Graph commands clear r() when they draw, as Stata's do; kdensity and
+// avplot post their own results instead. graph clears it for the graphs it
+// draws and for graph display, not for export, drop or dir.
+const DRAWING_CLEARS_R = new Set([
+  "scatter",
+  "line",
+  "twoway",
+  "histogram",
+  "lowess",
+  "qnorm",
+  "pnorm",
+  "rvfplot",
+  "lvr2plot",
+  "tsline",
+]);
+const drawsGraph = (name, body) =>
+  DRAWING_CLEARS_R.has(name) ||
+  (name === "graph" &&
+    /^\s*(tw(o(w(ay?)?)?)?|bar|hbar|box|hbox|dot|pie|di(s(p(l(ay?)?)?)?)?)\b/.test(
+      body,
+    ));
+
 function findCommand(word) {
   return COMMANDS.find(
     (c) => word.length >= c.minimum && c.name.startsWith(word),
@@ -383,7 +567,22 @@ export class Session {
           `${command.name} may not be combined with by`,
           190,
         );
-      return command.run(this, body, ctx);
+      let value;
+      try {
+        value = command.run(this, body, ctx);
+      } catch (error) {
+        if (error instanceof StataError) {
+          const left = FAILED_R.get(command.name)?.(error.code, {
+            body,
+            error,
+            session: this,
+          });
+          if (left) this.results.r = left;
+        }
+        throw error;
+      }
+      if (drawsGraph(command.name, body)) this.results.r = {};
+      return value;
     }
     if (this.programs.has(word)) return this.call(word, body, ctx);
     throw new StataError(`command ${word} is unrecognized`, 199);
@@ -537,24 +736,31 @@ export class Session {
       frame.locals.set(String(k + 1), word.text),
     );
     frame.program = { name, options: program.options, by: ctx.by };
-    frame.returns = { r: {}, e: {}, s: {} };
-    const inner = [];
+    // What return scalar, local and add have set, posted as r() at the end.
+    frame.returns = { r: {} };
+    const inner = [],
+      rclass = /\brclass\b/.test(program.options);
     this.inProgram = (this.inProgram ?? 0) + 1;
     try {
       this.runNodes(program.body, frame, inner);
     } catch (error) {
       this.inProgram -= 1;
       for (const record of inner) record.lines.forEach(ctx.out);
-      if (error instanceof Signal && error.kind === "exit") {
-        if (error.code) throw new StataError("", error.code);
-      } else throw error;
+      // An r-class program posts what it has returned so far even when it
+      // fails, as Stata does: r() is then empty or holds only those values.
+      // A plain exit is the program's normal end. e() and s() need nothing
+      // here: ereturn and sreturn set them as they run, so they survive a
+      // failure, and an estimation command run inside keeps what it posted.
+      const exit = error instanceof Signal && error.kind === "exit";
+      if (rclass && (exit || error instanceof StataError))
+        this.results.r = frame.returns.r;
+      if (exit && error.code) throw new StataError("", error.code);
+      if (!exit) throw error;
       return;
     }
     this.inProgram -= 1;
     for (const record of inner) record.lines.forEach(ctx.out);
-    if (/\brclass\b/.test(program.options)) this.results.r = frame.returns.r;
-    if (/\beclass\b/.test(program.options)) this.results.e = frame.returns.e;
-    if (/\bsclass\b/.test(program.options)) this.results.s = frame.returns.s;
+    if (rclass) this.results.r = frame.returns.r;
   }
 
   // ----- data entry -----

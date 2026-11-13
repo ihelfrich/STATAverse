@@ -513,7 +513,8 @@ export function tabulate(session, text, ctx) {
   } else if (cramer) throw new StataError("option V not allowed", 198);
   if (!keep.length) {
     ctx.out("no observations");
-    session.results.r = { N: 0 };
+    // A one-way table posts r(N) = r(r) = 0; a two-way one leaves r() empty.
+    session.results.r = variables.length === 1 ? { N: 0, r: 0 } : {};
     return;
   }
   // Stata/MP's table limits (help limits): 12,000 rows one way, and 1,200

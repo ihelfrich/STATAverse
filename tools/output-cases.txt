@@ -3598,3 +3598,117 @@ tab a c if a == 1, V chi2
 capture noisily tab a c, v
 capture noisily tab a, V
 set linesize 200
+=== failed-commands-and-r
+clear
+input y g z
+1 0 3
+4 1 3
+7 1 5
+2 0 8
+5 1 1
+end
+ttest y == z
+capture noisily ttest y == z, zzfoo
+return list
+display _rc " " r(p)
+ttest y == 2
+capture noisily ttest y if 0, by(g)
+return list
+ttesti 1 5 0 1 7 0
+capture noisily ttesti 1 5 2 3
+return list
+ttesti 3 5 2 3
+capture noisily ttesti 10 5 2 12 6 1, level(100)
+return list
+quietly summarize y
+capture noisily summarize nosuch
+display r(N) " " r(mean)
+capture noisily correlate y nosuch
+display r(N) " " r(mean)
+capture noisily correlate y z if 0
+return list
+quietly summarize y
+capture noisily tabulate y g z
+return list
+quietly summarize y
+capture noisily tabstat y, zzfoo
+return list
+quietly summarize y
+capture noisily generate y = 1
+display r(N) " " r(mean)
+capture noisily regress y nosuch
+return list
+quietly summarize y
+capture noisily logit g z, zzfoo
+display r(N) " " r(mean)
+capture noisily logit g z if 0
+return list
+quietly summarize y
+capture noisily poisson y z if 0
+return list
+quietly summarize y
+capture quietly ttest y == .
+display _rc " " r(N)
+=== failed-commands-and-r-2
+clear
+input y g z
+1 0 3
+4 1 3
+7 1 5
+2 0 8
+5 1 1
+6 0 2
+end
+quietly regress y z
+estimates store rc1
+quietly summarize y
+capture noisily egen = mean(y)
+capture noisily egen y = mean(z)
+capture noisily regress y z [aweight = nonexist]
+capture noisily regress y z if nonexist
+capture noisily tobit y nonexist, ll(0)
+capture noisily ivregress 2sls y (z = nonexist)
+capture noisily glm y nonexist
+capture noisily lowess y nonexist
+capture noisily qnorm nonexist
+return list
+capture noisily regress y nonexist
+display "N=" r(N) " mean=" r(mean)
+quietly summarize y
+capture qreg y z, quantile(2)
+display "N=" r(N) " mean=" r(mean)
+quietly summarize y
+capture noisily histogram y if 0
+return list
+capture noisily isid g
+return list
+isid g z, sort
+return list
+quietly summarize y
+capture noisily merge 1:1 g using nofile
+display "N=" r(N) " mean=" r(mean)
+quietly summarize y
+capture noisily estimates restore nonexist
+display "N=" r(N) " mean=" r(mean)
+estimates restore rc1
+return list
+quietly summarize y
+capture reshape long nonexist, i(g) j(t)
+return list
+ci means y if 0
+return list
+tabulate y g if 0
+display "N=" r(N)
+tabulate y if 0
+return list
+quietly summarize y
+oneway y g if 0
+display "N=" r(N) " F=" r(F)
+oneway y g if y > 100, tabulate
+quietly summarize y
+capture noisily return scalar a = 1
+capture noisily ereturn scalar a = 1
+capture noisily sreturn local a "x"
+return clear
+display "N=" r(N) " mean=" r(mean)
+estimates drop rc1

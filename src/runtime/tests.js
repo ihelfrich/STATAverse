@@ -1530,8 +1530,14 @@ function oneway(session, text, ctx) {
       "varlist(min=2 max=2) [if] [in] [, Tabulate | Bonferroni SCHeffe SIdak Means STandard Freq Obs noAnova noLabel Wrap Missing]",
       text,
     ),
-    f = grouped(session, parsed),
-    stats = f.groups.map((rows) => moments(values(f.variable, rows))),
+    f = grouped(session, parsed);
+  // Stata says so and returns 0, leaving r() empty, even with tabulate.
+  if (!f.rows.length) {
+    ctx.out("no observations");
+    session.results.r = {};
+    return;
+  }
+  const stats = f.groups.map((rows) => moments(values(f.variable, rows))),
     all = moments(values(f.variable, f.rows)),
     n = all.n,
     k = f.levels.length,
