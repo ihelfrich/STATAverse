@@ -16499,6 +16499,538 @@
       ]
     },
     {
+      "id": "string-large-n-summaries",
+      "source": "clear\nset obs 300000\ngenerate s = \"a\"\ncodebook s\ncodebook s if _n > 5\ngenerate t = \"x y z\" if mod(_n, 2)\nsplit t\ndescribe t1 t2 t3\nsplit t, parse(,) generate(p)\ndescribe p1\ngenerate u = cond(mod(_n, 4), \"\", \"bb\")\ncodebook u\ngenerate double y = cond(mod(_n, 5), mod(_n, 1000), .)\nreplace y = .a if mod(_n, 7) == 0 & missing(y)\ncodebook y\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 300000",
+          "lines": ["Number of observations (_N) was 0, now 300,000."]
+        },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "codebook s",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str1)",
+            "",
+            "         Unique values: 1                         Missing \"\": 0/300,000",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                      300,000  \"a\""
+          ]
+        },
+        {
+          "command": "codebook s if _n > 5",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str1)",
+            "",
+            "         Unique values: 1                         Missing \"\": 0/299,995",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                      299,995  \"a\""
+          ]
+        },
+        {
+          "command": "generate t = \"x y z\" if mod(_n, 2)",
+          "lines": ["(150,000 missing values generated)"]
+        },
+        {
+          "command": "split t",
+          "lines": ["variables created as string:", "t1  t2  t3"]
+        },
+        {
+          "command": "describe t1 t2 t3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "t1              str1    %9s",
+            "t2              str1    %9s",
+            "t3              str1    %9s"
+          ]
+        },
+        {
+          "command": "split t, parse(,) generate(p)",
+          "lines": ["variable created as string:", "p1"]
+        },
+        {
+          "command": "describe p1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "p1              str5    %9s"
+          ]
+        },
+        {
+          "command": "generate u = cond(mod(_n, 4), \"\", \"bb\")",
+          "lines": ["(225,000 missing values generated)"]
+        },
+        {
+          "command": "codebook u",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "u                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str2)",
+            "",
+            "         Unique values: 1                         Missing \"\": 225,000/300,000",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                      225,000  \"\"",
+            "                       75,000  \"bb\""
+          ]
+        },
+        {
+          "command": "generate double y = cond(mod(_n, 5), mod(_n, 1000), .)",
+          "lines": ["(60,000 missing values generated)"]
+        },
+        {
+          "command": "replace y = .a if mod(_n, 7) == 0 & missing(y)",
+          "lines": ["(8,571 real changes made, 8,571 to missing)"]
+        },
+        {
+          "command": "codebook y",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "y                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (double)",
+            "",
+            "                 Range: [1,999]                       Units: 1",
+            "         Unique values: 800                       Missing .: 51,429/300,000",
+            "       Unique mv codes: 2                        Missing .*: 8,571/300,000",
+            "",
+            "                  Mean:     500",
+            "             Std. dev.: 288.674",
+            "",
+            "           Percentiles:     10%       25%       50%       75%       90%",
+            "                            100       250       500       750       900"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "binary-models-large-n",
+      "source": "clear\nset obs 200000\ngenerate x = mod(_n * 7, 13) / 13\ngenerate e = mod(_n, 3) == 0 | x > .8\nlogit e x\nprobit e x\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 200000",
+          "lines": ["Number of observations (_N) was 0, now 200,000."]
+        },
+        { "command": "generate x = mod(_n * 7, 13) / 13", "lines": [] },
+        { "command": "generate e = mod(_n, 3) == 0 | x > .8", "lines": [] },
+        {
+          "command": "logit e x",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136980.86",
+            "Iteration 1:  Log likelihood = -127503.23",
+            "Iteration 2:  Log likelihood = -127460.89",
+            "Iteration 3:  Log likelihood = -127460.88",
+            "",
+            "Logistic regression                                   Number of obs =  200,000",
+            "                                                      LR chi2(1)    = 19039.96",
+            "                                                      Prob > chi2   =   0.0000",
+            "Log likelihood = -127460.88                           Pseudo R2     =   0.0695",
+            "",
+            "------------------------------------------------------------------------------",
+            "           e | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    2.26196   .0171483   131.91   0.000      2.22835     2.29557",
+            "       _cons |  -1.328465    .009564  -138.90   0.000     -1.34721    -1.30972",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit e x",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136980.86",
+            "Iteration 1:  Log likelihood = -127563.28",
+            "Iteration 2:  Log likelihood = -127537.38",
+            "Iteration 3:  Log likelihood = -127537.38",
+            "",
+            "Probit regression                                     Number of obs =  200,000",
+            "                                                      LR chi2(1)    = 18886.97",
+            "                                                      Prob > chi2   =   0.0000",
+            "Log likelihood = -127537.38                           Pseudo R2     =   0.0689",
+            "",
+            "------------------------------------------------------------------------------",
+            "           e | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.387069   .0103297   134.28   0.000     1.366823    1.407315",
+            "       _cons |  -.8077559   .0056142  -143.88   0.000    -.8187595   -.7967523",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "replace-under-by-promotes-quietly",
+      "source": "clear\nset obs 10\ngenerate s = \"\"\ngenerate g = mod(_n, 3)\ngenerate byte b = 1\ngenerate int w = 5\nbysort g: replace s = \"abc\" if _n == 1\nby g: replace s = \"abcdefgh\"\ngenerate s3 = \"a\"\nby g, sort: replace s3 = \"qq\"\nby g: replace b = 1.5\nby g: replace w = 100000 if _n == 1\nreplace b = 2.5 in 1\nreplace w = 2.5 in 2\ncapture noisily by g: replace s = \"x\" in 2\ncapture noisily by g: generate z = 1 in 2\ndescribe\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        {
+          "command": "generate s = \"\"",
+          "lines": ["(10 missing values generated)"]
+        },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate byte b = 1", "lines": [] },
+        { "command": "generate int w = 5", "lines": [] },
+        {
+          "command": "bysort g: replace s = \"abc\" if _n == 1",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "by g: replace s = \"abcdefgh\"",
+          "lines": ["(10 real changes made)"]
+        },
+        { "command": "generate s3 = \"a\"", "lines": [] },
+        {
+          "command": "by g, sort: replace s3 = \"qq\"",
+          "lines": ["(10 real changes made)"]
+        },
+        {
+          "command": "by g: replace b = 1.5",
+          "lines": ["(10 real changes made)"]
+        },
+        {
+          "command": "by g: replace w = 100000 if _n == 1",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "replace b = 2.5 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace w = 2.5 in 2",
+          "lines": ["variable w was long now double", "(1 real change made)"]
+        },
+        {
+          "command": "capture noisily by g: replace s = \"x\" in 2",
+          "lines": ["'in' may not be combined with 'by'"]
+        },
+        {
+          "command": "capture noisily by g: generate z = 1 in 2",
+          "lines": ["'in' may not be combined with 'by'"]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:            10",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               str8    %9s",
+            "g               float   %9.0g",
+            "b               float   %8.0g",
+            "w               double  %8.0g",
+            "s3              str2    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: g",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------+",
+            "     |        s   g     b        w   s3 |",
+            "     |----------------------------------|",
+            "  1. | abcdefgh   0   2.5   100000   qq |",
+            "  2. | abcdefgh   0   1.5      2.5   qq |",
+            "  3. | abcdefgh   0   1.5        5   qq |",
+            "  4. | abcdefgh   1   1.5   100000   qq |",
+            "  5. | abcdefgh   1   1.5        5   qq |",
+            "     |----------------------------------|",
+            "  6. | abcdefgh   1   1.5        5   qq |",
+            "  7. | abcdefgh   1   1.5        5   qq |",
+            "  8. | abcdefgh   2   1.5   100000   qq |",
+            "  9. | abcdefgh   2   1.5        5   qq |",
+            " 10. | abcdefgh   2   1.5        5   qq |",
+            "     +----------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compact-and-duplicates-counts",
+      "source": "clear\nset obs 2000\ngenerate s = cond(mod(_n, 2), \"odd\", \"\")\nduplicates report s\ncodebook s, compact\nclear\nset obs 200000\ngenerate x = _n\nduplicates report x\ncodebook x, compact\nclear\nset obs 74\ngenerate s = cond(mod(_n, 2), \"odd\", \"\")\ngenerate averyverylongname = _n\nlabel variable averyverylongname \"a label long enough to be cut when the table runs past the line\"\ngenerate abcdefghi = _n / 3\ncodebook, compact\nset linesize 80\ncodebook, compact\nset linesize 200\ncapture noisily codebook if _n > 100, compact\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2000",
+          "lines": ["Number of observations (_N) was 0, now 2,000."]
+        },
+        {
+          "command": "generate s = cond(mod(_n, 2), \"odd\", \"\")",
+          "lines": ["(1,000 missing values generated)"]
+        },
+        {
+          "command": "duplicates report s",
+          "lines": [
+            "Duplicates in terms of s",
+            "",
+            "--------------------------------------",
+            "   Copies | Observations       Surplus",
+            "----------+---------------------------",
+            "     1000 |         2000          1998",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "codebook s, compact",
+          "lines": [
+            "Variable    Obs Unique  Mean  Min  Max  Label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s          1000      1     .    .    .",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 200000",
+          "lines": ["Number of observations (_N) was 0, now 200,000."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "duplicates report x",
+          "lines": [
+            "Duplicates in terms of x",
+            "",
+            "--------------------------------------",
+            "   Copies | Observations       Surplus",
+            "----------+---------------------------",
+            "        1 |       200000             0",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "codebook x, compact",
+          "lines": [
+            "Variable      Obs Unique      Mean  Min     Max  Label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x          200000 200000  100000.5    1  200000",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 74",
+          "lines": ["Number of observations (_N) was 0, now 74."]
+        },
+        {
+          "command": "generate s = cond(mod(_n, 2), \"odd\", \"\")",
+          "lines": ["(37 missing values generated)"]
+        },
+        { "command": "generate averyverylongname = _n", "lines": [] },
+        {
+          "command": "label variable averyverylongname \"a label long enough to be cut when the table runs past the line\"",
+          "lines": []
+        },
+        { "command": "generate abcdefghi = _n / 3", "lines": [] },
+        {
+          "command": "codebook, compact",
+          "lines": [
+            "Variable      Obs Unique  Mean       Min       Max  Label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s              37      1     .         .         .",
+            "averyveryl~e   74     74  37.5         1        74  a label long enough to be cut when the table runs past the line",
+            "abcdefghi      74     74  12.5  .3333333  24.66667",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "codebook, compact",
+          "lines": [
+            "Variable      Obs Unique  Mean       Min       Max  Label",
+            "--------------------------------------------------------------------------------",
+            "s              37      1     .         .         .",
+            "averyveryl~e   74     74  37.5         1        74  a label long enough to be...",
+            "abcdefghi      74     74  12.5  .3333333  24.66667",
+            "--------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "capture noisily codebook if _n > 100, compact",
+          "lines": ["no observations"]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "collapse-and-egen-string-variables",
+      "source": "clear\nset obs 6\ngenerate s = cond(mod(_n, 2), \"odd\", \"even number\")\ngenerate k = mod(_n, 2)\ngenerate x = _n\nreplace x = . in 1/2\ncapture noisily egen r = rank(s)\ncapture noisily collapse (mean) s\ncapture noisily collapse (count) s\npreserve\ncollapse (first) s (last) t=s (first) fx=x (firstnm) fnx=x (lastnm) ls=s (count) x, by(k)\ndescribe\nlist\nrestore\nreplace s = \"\" in 5/6\ncollapse (lastnm) s (last) t=s (firstnm) u=s\nlist\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        {
+          "command": "generate s = cond(mod(_n, 2), \"odd\", \"even number\")",
+          "lines": []
+        },
+        { "command": "generate k = mod(_n, 2)", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "replace x = . in 1/2",
+          "lines": ["(2 real changes made, 2 to missing)"]
+        },
+        {
+          "command": "capture noisily egen r = rank(s)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily collapse (mean) s",
+          "lines": ["string variable s not allowed with statistic mean"]
+        },
+        {
+          "command": "capture noisily collapse (count) s",
+          "lines": ["string variable s not allowed with statistic count"]
+        },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (first) s (last) t=s (first) fx=x (firstnm) fnx=x (lastnm) ls=s (count) x, by(k)",
+          "lines": []
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "k               float   %9.0g",
+            "s               str11   %11s                  (first) s",
+            "t               str11   %11s                  (last) s",
+            "fx              float   %9.0g                 (first) x",
+            "fnx             float   %9.0g                 (firstnm) x",
+            "ls              str11   %11s                  (lastnm) s",
+            "x               long    %9.0g                 (count) x",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: k",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------------------------------------+",
+            "     | k             s             t   fx   fnx            ls   x |",
+            "     |------------------------------------------------------------|",
+            "  1. | 0   even number   even number    .     4   even number   2 |",
+            "  2. | 1           odd           odd    .     3           odd   2 |",
+            "     +------------------------------------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "replace s = \"\" in 5/6",
+          "lines": ["(2 real changes made)"]
+        },
+        {
+          "command": "collapse (lastnm) s (last) t=s (firstnm) u=s",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------+",
+            "     |           s   t     u |",
+            "     |-----------------------|",
+            "  1. | even number       odd |",
+            "     +-----------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "too-many-values",
+      "source": "clear\nset obs 70000\ngenerate id = _n\ngenerate z2 = string(mod(id, 12000))\ngenerate z3 = string(mod(id, 12001))\nquietly tabulate z2\ndisplay r(r)\ncapture noisily tabulate z3\ndisplay _rc\ngenerate n3 = mod(id, 12001)\ncapture noisily tabulate n3\ngenerate z4 = string(mod(id, 65536))\ngenerate z5 = string(mod(id, 65537))\ncapture noisily encode z5, generate(e5)\ndisplay _rc\nencode z4, generate(e4)\nsummarize e4\ngenerate c80 = mod(id, 80)\ngenerate c81 = mod(id, 81)\ngenerate c1200 = mod(id, 1200)\ngenerate c1201 = mod(id, 1201)\ngenerate r1 = mod(id, 2)\nquietly tabulate r1 c80\ndisplay r(r) \" \" r(c)\ncapture noisily tabulate r1 c81\nquietly tabulate c1200 r1\ndisplay r(r) \" \" r(c)\ncapture noisily tabulate c1201 r1\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 70000",
+          "lines": ["Number of observations (_N) was 0, now 70,000."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate z2 = string(mod(id, 12000))", "lines": [] },
+        { "command": "generate z3 = string(mod(id, 12001))", "lines": [] },
+        { "command": "quietly tabulate z2", "lines": [] },
+        { "command": "display r(r)", "lines": ["12000"] },
+        {
+          "command": "capture noisily tabulate z3",
+          "lines": ["too many values"]
+        },
+        { "command": "display _rc", "lines": ["134"] },
+        { "command": "generate n3 = mod(id, 12001)", "lines": [] },
+        {
+          "command": "capture noisily tabulate n3",
+          "lines": ["too many values"]
+        },
+        { "command": "generate z4 = string(mod(id, 65536))", "lines": [] },
+        { "command": "generate z5 = string(mod(id, 65537))", "lines": [] },
+        {
+          "command": "capture noisily encode z5, generate(e5)",
+          "lines": ["too many values"]
+        },
+        { "command": "display _rc", "lines": ["134"] },
+        { "command": "encode z4, generate(e4)", "lines": [] },
+        {
+          "command": "summarize e4",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          e4 |     70,000    32249.58    18921.55          1      65536"
+          ]
+        },
+        { "command": "generate c80 = mod(id, 80)", "lines": [] },
+        { "command": "generate c81 = mod(id, 81)", "lines": [] },
+        { "command": "generate c1200 = mod(id, 1200)", "lines": [] },
+        { "command": "generate c1201 = mod(id, 1201)", "lines": [] },
+        { "command": "generate r1 = mod(id, 2)", "lines": [] },
+        { "command": "quietly tabulate r1 c80", "lines": [] },
+        { "command": "display r(r) \" \" r(c)", "lines": ["2 80"] },
+        {
+          "command": "capture noisily tabulate r1 c81",
+          "lines": ["too many values"]
+        },
+        { "command": "quietly tabulate c1200 r1", "lines": [] },
+        { "command": "display r(r) \" \" r(c)", "lines": ["1200 2"] },
+        {
+          "command": "capture noisily tabulate c1201 r1",
+          "lines": ["too many values"]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -164,7 +164,11 @@ function maximumLikelihood(kind) {
           "outcome does not vary; remember:\n                                  0 = negative outcome,\n        all other nonmissing values = positive outcome",
           2000,
         );
-      y.splice(0, n, ...outcome);
+      // Copied in place: spreading every observation into splice overflowed
+      // the call stack at about 130,000 observations.
+      outcome.forEach((v, i) => {
+        y[i] = v;
+      });
     } else if (y.some((v) => v < 0 || !Number.isInteger(v)))
       throw new StataError(
         `${dependent.name} must be a nonnegative count`,
@@ -331,7 +335,18 @@ function maximumLikelihood(kind) {
         family.exponentiated && options[family.exponentiated[0]]
           ? family.exponentiated
           : null,
-      side = (label, value) => `${label.padEnd(14)}=${value.padStart(7)}`;
+      shown = [
+        count(n),
+        applyFormat(chi2, "%7.2f").trim(),
+        applyFormat(p, "%6.4f").trim(),
+        applyFormat(r2, "%6.4f").trim(),
+      ],
+      // The values sit in a column of seven, ending at column 78. When one
+      // needs more (200,000 observations, a chi2 of 19039.96), Stata widens
+      // the column to the widest value and a space, moving the block left.
+      pad = Math.max(7, greatest(shown.map((v) => v.length + 1))),
+      left = 56 - (pad - 7),
+      side = (label, value) => `${label.padEnd(14)}=${value.padStart(pad)}`;
     Object.assign(model, { chi2, p, r2_p: r2 });
     session.estimates = model;
     session.results.e = {
@@ -360,15 +375,13 @@ function maximumLikelihood(kind) {
         ),
       );
     ctx.out("");
-    ctx.out(`${family.title.padEnd(56)}${side("Number of obs", count(n))}`);
+    ctx.out(`${family.title.padEnd(left)}${side("Number of obs", shown[0])}`);
     ctx.out(
-      `${"".padEnd(56)}${side(`${robust ? "Wald" : "LR"} chi2(${model.df_m})`, applyFormat(chi2, "%7.2f").trim())}`,
+      `${"".padEnd(left)}${side(`${robust ? "Wald" : "LR"} chi2(${model.df_m})`, shown[1])}`,
     );
+    ctx.out(`${"".padEnd(left)}${side("Prob > chi2", shown[2])}`);
     ctx.out(
-      `${"".padEnd(56)}${side("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
-    );
-    ctx.out(
-      `${`${word} = ${g(ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(r2, "%6.4f").trim())}`,
+      `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Pseudo R2", shown[3])}`,
     );
     ctx.out("");
     if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));

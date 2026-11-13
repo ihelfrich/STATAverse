@@ -2461,3 +2461,119 @@ describe
 count if u == "q"
 display u[1] "|" u[300000] "|" v[300000] "|" s[1] "|" s[2]
 clear
+=== string-large-n-summaries
+clear
+set obs 300000
+generate s = "a"
+codebook s
+codebook s if _n > 5
+generate t = "x y z" if mod(_n, 2)
+split t
+describe t1 t2 t3
+split t, parse(,) generate(p)
+describe p1
+generate u = cond(mod(_n, 4), "", "bb")
+codebook u
+generate double y = cond(mod(_n, 5), mod(_n, 1000), .)
+replace y = .a if mod(_n, 7) == 0 & missing(y)
+codebook y
+clear
+=== binary-models-large-n
+clear
+set obs 200000
+generate x = mod(_n * 7, 13) / 13
+generate e = mod(_n, 3) == 0 | x > .8
+logit e x
+probit e x
+clear
+=== replace-under-by-promotes-quietly
+clear
+set obs 10
+generate s = ""
+generate g = mod(_n, 3)
+generate byte b = 1
+generate int w = 5
+bysort g: replace s = "abc" if _n == 1
+by g: replace s = "abcdefgh"
+generate s3 = "a"
+by g, sort: replace s3 = "qq"
+by g: replace b = 1.5
+by g: replace w = 100000 if _n == 1
+replace b = 2.5 in 1
+replace w = 2.5 in 2
+capture noisily by g: replace s = "x" in 2
+capture noisily by g: generate z = 1 in 2
+describe
+list
+=== compact-and-duplicates-counts
+clear
+set obs 2000
+generate s = cond(mod(_n, 2), "odd", "")
+duplicates report s
+codebook s, compact
+clear
+set obs 200000
+generate x = _n
+duplicates report x
+codebook x, compact
+clear
+set obs 74
+generate s = cond(mod(_n, 2), "odd", "")
+generate averyverylongname = _n
+label variable averyverylongname "a label long enough to be cut when the table runs past the line"
+generate abcdefghi = _n / 3
+codebook, compact
+set linesize 80
+codebook, compact
+set linesize 200
+capture noisily codebook if _n > 100, compact
+clear
+=== collapse-and-egen-string-variables
+clear
+set obs 6
+generate s = cond(mod(_n, 2), "odd", "even number")
+generate k = mod(_n, 2)
+generate x = _n
+replace x = . in 1/2
+capture noisily egen r = rank(s)
+capture noisily collapse (mean) s
+capture noisily collapse (count) s
+preserve
+collapse (first) s (last) t=s (first) fx=x (firstnm) fnx=x (lastnm) ls=s (count) x, by(k)
+describe
+list
+restore
+replace s = "" in 5/6
+collapse (lastnm) s (last) t=s (firstnm) u=s
+list
+clear
+=== too-many-values
+clear
+set obs 70000
+generate id = _n
+generate z2 = string(mod(id, 12000))
+generate z3 = string(mod(id, 12001))
+quietly tabulate z2
+display r(r)
+capture noisily tabulate z3
+display _rc
+generate n3 = mod(id, 12001)
+capture noisily tabulate n3
+generate z4 = string(mod(id, 65536))
+generate z5 = string(mod(id, 65537))
+capture noisily encode z5, generate(e5)
+display _rc
+encode z4, generate(e4)
+summarize e4
+generate c80 = mod(id, 80)
+generate c81 = mod(id, 81)
+generate c1200 = mod(id, 1200)
+generate c1201 = mod(id, 1201)
+generate r1 = mod(id, 2)
+quietly tabulate r1 c80
+display r(r) " " r(c)
+capture noisily tabulate r1 c81
+quietly tabulate c1200 r1
+display r(r) " " r(c)
+capture noisily tabulate c1201 r1
+clear

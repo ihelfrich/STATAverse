@@ -1,5 +1,6 @@
 // Smaller commands: levelsof, ds, unab and ttest.
 import { StataError } from "./errors.js";
+import { greatest } from "./extremes.js";
 import { applyFormat } from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
@@ -431,6 +432,7 @@ function codebook(session, text, ctx) {
     rule = "-".repeat(linesize),
     field = (label) => `${label.padStart(22)}: `;
   if (parsed.options.compact) {
+    if (!rows.length) throw new StataError("no observations", 2000);
     const table = parsed.varlist.map((name) => {
         const v = data.get(name),
           string = isStringType(v.type),
@@ -439,36 +441,51 @@ function codebook(session, text, ctx) {
             .filter((x) => (string ? x !== "" : !isMissing(x))),
           m = string ? null : moments(values);
         return {
-          name,
-          obs: count(values.length),
-          unique: count(new Set(values).size),
-          mean: m && m.n ? g(m.mean) : string ? "." : ".",
+          // abbrev(name, 12)
+          name: name.length > 12 ? `${name.slice(0, 10)}~${name.at(-1)}` : name,
+          obs: g(values.length),
+          unique: g(new Set(values).size),
+          mean: m && m.n ? g(m.mean) : ".",
           min: m && m.n ? g(m.min) : ".",
           max: m && m.n ? g(m.max) : ".",
-          label: v.label,
+          label: v.label.trim(),
         };
       }),
-      width = (key, least) =>
-        Math.max(least, ...table.map((r) => r[key].length)),
+      // codebook.ado's SummCompact: each column is as wide as its longest
+      // entry plus a margin, with a floor, and counts carry no separators.
+      longest = (key) => greatest(table.map((r) => r[key].length)),
+      margin = (key, floor, extra) =>
+        longest(key) <= floor - extra ? floor : longest(key) + extra,
       w = {
-        name: width("name", 8),
-        mean: width("mean", 4),
-        min: width("min", 3),
-        max: width("max", 3),
+        name: Math.max(9, longest("name")),
+        obs: margin("obs", 5, 2),
+        unique: margin("unique", 7, 1),
+        mean: margin("mean", 6, 2),
+        min: margin("min", 5, 2),
+        max: margin("max", 5, 2),
       },
-      line = (r) =>
-        `${r.name.padEnd(w.name)}${r.obs.padStart(6)}${r.unique.padStart(7)}  ${r.mean.padStart(w.mean)}  ${r.min.padStart(w.min)}  ${r.max.padStart(w.max)}  ${r.label}`.trimEnd();
+      total = w.name + w.obs + w.unique + w.mean + w.min + w.max + 2,
+      // A label that would run past the line is cut, ending in "...".
+      shorten = (label) =>
+        total + label.length > linesize
+          ? label.slice(0, linesize - total - 3) + "..."
+          : label,
+      line = (r, header) =>
+        `${r.name.padEnd(w.name)}${r.obs.padStart(w.obs)}${r.unique.padStart(w.unique)}${r.mean.padStart(w.mean)}${r.min.padStart(w.min)}${r.max.padStart(w.max)}  ${header ? r.label : shorten(r.label)}`.trimEnd();
     ctx.out("");
     ctx.out(
-      line({
-        name: "Variable",
-        obs: "Obs",
-        unique: "Unique",
-        mean: "Mean",
-        min: "Min",
-        max: "Max",
-        label: "Label",
-      }),
+      line(
+        {
+          name: "Variable",
+          obs: "Obs",
+          unique: "Unique",
+          mean: "Mean",
+          min: "Min",
+          max: "Max",
+          label: "Label",
+        },
+        true,
+      ),
     );
     ctx.out(rule);
     table.forEach((r) => ctx.out(line(r)));
@@ -487,9 +504,11 @@ function codebook(session, text, ctx) {
     ctx.out("");
     if (string) {
       const present = all.filter((x) => x !== ""),
+        // greatest() loops; spreading one length per observation into
+        // Math.max overflowed the call stack at about 130,000 observations.
         longest = Math.max(
           1,
-          ...present.map((x) => new TextEncoder().encode(x).length),
+          greatest(present.map((x) => new TextEncoder().encode(x).length)),
         ),
         declared = Number(v.type.slice(3)),
         unique = [...new Set(present)].sort((a, b) =>
@@ -500,7 +519,7 @@ function codebook(session, text, ctx) {
       );
       ctx.out("");
       ctx.out(
-        `${field("Unique values")}${String(unique.length).padEnd(26)}Missing "": ${all.length - present.length}/${all.length}`,
+        `${field("Unique values")}${count(unique.length).padEnd(26)}Missing "": ${count(all.length - present.length)}/${count(all.length)}`,
       );
       ctx.out("");
       if (unique.length <= parsed.options.tabulate) {
@@ -534,11 +553,12 @@ function codebook(session, text, ctx) {
         `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present, v.type === "float"))}`,
       );
     ctx.out(
-      `${field("Unique values")}${String(unique.length).padEnd(26)}Missing .: ${system}/${all.length}`,
+      `${field("Unique values")}${count(unique.length).padEnd(26)}Missing .: ${count(system)}/${count(all.length)}`,
     );
+    // codebook.ado prints these counts with %10.0fc.
     if (extended.length)
       ctx.out(
-        `${field("Unique mv codes")}${String(new Set(extended).size + (system ? 1 : 0)).padEnd(25)}Missing .*: ${extended.length}/${all.length}`,
+        `${field("Unique mv codes")}${count(new Set(extended).size + (system ? 1 : 0)).padEnd(25)}Missing .*: ${count(extended.length)}/${count(all.length)}`,
       );
     ctx.out("");
     if (unique.length <= parsed.options.tabulate) {

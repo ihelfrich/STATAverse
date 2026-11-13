@@ -85,6 +85,9 @@ const STATISTICS = {
     return s.length ? percentile(s, 75) - percentile(s, 25) : MISSING;
   },
 };
+// collapse statistics that pick an observation rather than compute a value;
+// they are the only ones a string variable allows.
+const ORDERED = ["first", "last", "firstnm", "lastnm"];
 const statistic = (name) => {
   if (STATISTICS[name]) return STATISTICS[name];
   const p = /^p(\d{1,2})$/.exec(name);
@@ -407,7 +410,8 @@ function replace(session, text, ctx) {
     ? 0
     : rows.filter((i) => before[i] !== raw[i] && isMissing(raw[i])).length;
   const result = session.data.replace(name, raw, rows);
-  if (result.to !== beforeType)
+  // Under by, Stata promotes the variable without saying so.
+  if (result.to !== beforeType && !ctx.by)
     ctx.out(`variable ${name} was ${beforeType} now ${result.to}`);
   ctx.out(
     `(${count(result.changed)} real change${result.changed === 1 ? "" : "s"} made${toMissing ? `, ${count(toMissing)} to missing` : ""})`,
@@ -1067,6 +1071,7 @@ function egen(session, text, ctx) {
     groups.forEach((group) => group.forEach((i, k) => (values[i] = k + 1)));
   } else if (fcn === "rank") {
     const compiled = session.compile(argument);
+    if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
     for (const group of groups) {
       const pairs = group
         .map((i) => [
@@ -1187,7 +1192,7 @@ function collapse(session, text, ctx) {
     []) {
     if (token.startsWith("(")) {
       stat = token.slice(1, -1).trim();
-      if (!statistic(stat))
+      if (!statistic(stat) && !ORDERED.includes(stat))
         throw new StataError(`${stat} is not a collapse statistic`, 198);
       continue;
     }
@@ -1199,6 +1204,15 @@ function collapse(session, text, ctx) {
         targets.push({ name: source, source, stat });
   }
   if (!targets.length) throw new StataError("varlist required", 100);
+  // A string variable can only be carried by position.
+  for (const t of targets)
+    if (isStringType(data.get(t.source).type) && !ORDERED.includes(t.stat))
+      throw new StataError(
+        `string variable ${t.source} not allowed with statistic ${t.stat}`,
+        109,
+      );
+  const gap = (column, i) =>
+    typeof column[i] === "string" ? column[i] === "" : isMissing(column[i]);
   if (weightClause && !weightType)
     throw new StataError(`${weightClause[1]} is not a kind of weight`, 198);
   const weights = weightType
@@ -1211,7 +1225,7 @@ function collapse(session, text, ctx) {
     weights.some((w) => !isMissing(w) && !Number.isInteger(w))
   )
     throw new StataError("may not use noninteger frequency weights", 401);
-  const unweighted = ["count", "min", "max", "first", "last"];
+  const unweighted = ["count", "min", "max", ...ORDERED];
   if (weightType && weightType !== "fweight") {
     const refused = targets.find(
       (t) =>
@@ -1259,6 +1273,21 @@ function collapse(session, text, ctx) {
         )
       : MISSING;
   };
+  // (first) and (last) take the group's first or last observation, missing
+  // or not; (firstnm) and (lastnm) skip missing values. Observations without
+  // a usable weight are not in the group.
+  const byPosition = (stat, column, group) => {
+    const kept = weights
+        ? group.filter((i) => !isMissing(weights[i]) && weights[i] !== 0)
+        : group,
+      pool = stat.endsWith("nm") ? kept.filter((i) => !gap(column, i)) : kept,
+      i = stat.startsWith("first") ? pool[0] : pool.at(-1);
+    return i === undefined
+      ? typeof column[0] === "string"
+        ? ""
+        : MISSING
+      : column[i];
+  };
   const names = targets.map((t) => t.name);
   if (new Set(names).size !== names.length)
     throw new StataError("a target variable is named twice", 198);
@@ -1269,7 +1298,7 @@ function collapse(session, text, ctx) {
       .filter(
         (i) =>
           !parsed.options.cw ||
-          targets.every((t) => !isMissing(data.get(t.source).data[i])),
+          targets.every((t) => !gap(data.get(t.source).data, i)),
       ),
     groups = new Map();
   for (const i of rows) {
@@ -1306,9 +1335,14 @@ function collapse(session, text, ctx) {
     });
   }
   for (const target of targets) {
-    const column = numericColumn(session, target.source),
-      source = data.get(target.source),
-      values = order.map((group) => weighted(target.stat, column, group));
+    const source = data.get(target.source),
+      column = source.data,
+      string = isStringType(source.type),
+      values = order.map((group) =>
+        ORDERED.includes(target.stat)
+          ? byPosition(target.stat, column, group)
+          : weighted(target.stat, column, group),
+      );
     // Counts are stored as long and extremes keep the source type. Other
     // statistics are double when the source is double or long (or a sum),
     // and float otherwise.
@@ -1317,13 +1351,13 @@ function collapse(session, text, ctx) {
         ? weightType === "fweight"
           ? "double"
           : "long"
-        : ["min", "max", "first", "last"].includes(target.stat)
+        : ["min", "max", ...ORDERED].includes(target.stat)
           ? source.type
           : ["sum", "total"].includes(target.stat) ||
               ["double", "long"].includes(source.type)
             ? "double"
             : "float";
-    result.generate(target.name, values, { type });
+    result.generate(target.name, values, { type, string });
     Object.assign(result.get(target.name), {
       label: `(${target.stat === "median" ? "p 50" : target.stat.replace(/^p(\d+)$/, "p $1")}) ${target.source}`,
       format: source.format,

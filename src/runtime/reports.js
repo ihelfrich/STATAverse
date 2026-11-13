@@ -321,6 +321,13 @@ export function tabulate(session, text, ctx) {
     session.results.r = { N: 0 };
     return;
   }
+  // Stata/MP's table limits (help limits): 12,000 rows one way, and 1,200
+  // rows by 80 columns two ways.
+  if (
+    levels[0].length > (variables.length === 1 ? 12000 : 1200) ||
+    (variables.length === 2 && levels[1].length > 80)
+  )
+    throw new StataError("too many values", 134);
   ctx.out("");
   if (variables.length === 1) {
     const counts = new Map(levels[0].map((value) => [value, 0]));
