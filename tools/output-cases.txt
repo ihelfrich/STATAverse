@@ -3370,3 +3370,32 @@ generate str4 t1 = cond(regexm(s, "(.)(.)"), regexs(1), "x")
 generate str4 t4 = substr(regexs(0), 1, regexm(s, "(.)(.)"))
 list, noobs clean
 clear
+=== random-matrix-subscript-order
+clear
+matrix M = (1,2\3,4)
+set obs 1
+set seed 108
+generate double v1 = M[ceil(2*runiform()), ceil(2*runiform())]
+generate double v2 = runiform()
+list v1 v2, noobs clean
+clear
+set obs 4
+set seed 108
+generate double v = M[ceil(2*runiform()), ceil(2*runiform())] + 10*runiform()
+generate double after = runiform()
+list v after, noobs clean
+clear
+set obs 4
+set seed 15
+generate double v = M[ceil(2*runiform()), ceil(2*runiform())]
+generate double after = runiform()
+list v after, noobs clean
+clear
+matrix N = (1,2,3\4,5,6\7,8,9)
+set obs 4
+set seed 102
+generate double v = N[ceil(3*runiform()), ceil(3*runiform())]
+generate double after = runiform()
+list v after, noobs clean
+matrix drop M N
+clear

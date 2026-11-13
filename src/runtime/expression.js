@@ -264,9 +264,11 @@ export function compileExpression(source, scope = {}) {
         throw invalid("a matrix element needs a row and a column");
       const column = numeric(or());
       if (!take("]")) throw new StataError("too few ')' or ']'", 132);
-      return node(N, (i, env) =>
-        scope.matrix.element(name, row(i, env), column(i, env)),
-      );
+      // The column is evaluated before the row, as Stata does.
+      return node(N, (i, env) => {
+        const c = column(i, env);
+        return scope.matrix.element(name, row(i, env), c);
+      });
     }
     let resolved = null;
     try {

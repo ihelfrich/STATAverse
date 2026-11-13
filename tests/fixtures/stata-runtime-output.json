@@ -22771,6 +22771,94 @@
       ]
     },
     {
+      "id": "random-matrix-subscript-order",
+      "source": "clear\nmatrix M = (1,2\\3,4)\nset obs 1\nset seed 108\ngenerate double v1 = M[ceil(2*runiform()), ceil(2*runiform())]\ngenerate double v2 = runiform()\nlist v1 v2, noobs clean\nclear\nset obs 4\nset seed 108\ngenerate double v = M[ceil(2*runiform()), ceil(2*runiform())] + 10*runiform()\ngenerate double after = runiform()\nlist v after, noobs clean\nclear\nset obs 4\nset seed 15\ngenerate double v = M[ceil(2*runiform()), ceil(2*runiform())]\ngenerate double after = runiform()\nlist v after, noobs clean\nclear\nmatrix N = (1,2,3\\4,5,6\\7,8,9)\nset obs 4\nset seed 102\ngenerate double v = N[ceil(3*runiform()), ceil(3*runiform())]\ngenerate double after = runiform()\nlist v after, noobs clean\nmatrix drop M N\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "matrix M = (1,2\\3,4)", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "set seed 108", "lines": [] },
+        {
+          "command": "generate double v1 = M[ceil(2*runiform()), ceil(2*runiform())]",
+          "lines": []
+        },
+        { "command": "generate double v2 = runiform()", "lines": [] },
+        {
+          "command": "list v1 v2, noobs clean",
+          "lines": ["    v1          v2", "     2   .43307878"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "set seed 108", "lines": [] },
+        {
+          "command": "generate double v = M[ceil(2*runiform()), ceil(2*runiform())] + 10*runiform()",
+          "lines": []
+        },
+        { "command": "generate double after = runiform()", "lines": [] },
+        {
+          "command": "list v after, noobs clean",
+          "lines": [
+            "            v       after",
+            "    6.3307878   .73281333",
+            "    11.377645   .52841932",
+            "    3.8140034   .20370123",
+            "    3.8271062   .60039506"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "set seed 15", "lines": [] },
+        {
+          "command": "generate double v = M[ceil(2*runiform()), ceil(2*runiform())]",
+          "lines": []
+        },
+        { "command": "generate double after = runiform()", "lines": [] },
+        {
+          "command": "list v after, noobs clean",
+          "lines": [
+            "    v       after",
+            "    2    .8281609",
+            "    3   .50033901",
+            "    2   .79037003",
+            "    2   .83247279"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "matrix N = (1,2,3\\4,5,6\\7,8,9)", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "set seed 102", "lines": [] },
+        {
+          "command": "generate double v = N[ceil(3*runiform()), ceil(3*runiform())]",
+          "lines": []
+        },
+        { "command": "generate double after = runiform()", "lines": [] },
+        {
+          "command": "list v after, noobs clean",
+          "lines": [
+            "    v       after",
+            "    8   .01975998",
+            "    6   .46360731",
+            "    4   .87806926",
+            "    4    .1572295"
+          ]
+        },
+        { "command": "matrix drop M N", "lines": [] },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
