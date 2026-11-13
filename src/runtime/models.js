@@ -2,6 +2,7 @@
 // two-stage least squares (ivregress 2sls), with estat and estimates. They
 // leave the same result object regress leaves, marked dist "z", and the
 // post-estimation commands here read only that object.
+import { least, greatest } from "./extremes.js";
 import { firstStage, ivDiagnostic } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
 import { regressDiagnostic, testparm } from "./diagnostics.js";
@@ -23,6 +24,8 @@ import {
   predict as predictT,
   quadratic,
   termRows,
+  tableWidth,
+  abbreviate,
   test as testT,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
@@ -89,22 +92,30 @@ function zTable(session, model, level, transform) {
   const critical = invnormal(1 - (1 - level / 100) / 2),
     robust = model.vce !== "oim" && model.vce !== "unadjusted",
     head = (transform?.[1] ?? "Coefficient").padStart(10).padEnd(11),
+    // The first column fits the names as Stata fits them; see tableWidth.
+    w = tableWidth(session, model),
+    rule = "-".repeat(66 + w),
     lines = [
-      RULE,
-      ...(robust ? ["             |               Robust"] : []),
-      `${model.depvar.padStart(12)} | ${head}  ${robust ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-      "-------------+----------------------------------------------------------------",
+      rule,
+      ...(robust ? [`${" ".repeat(w + 1)}|               Robust`] : []),
+      `${abbreviate(model.depvar, w).padStart(w)} | ${head}  ${robust ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+      `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
     ];
   const show = transform ? Math.exp : (v) => v;
   lines.push(
-    ...termRows(session, model, (k) => {
-      const b = model.b[k],
-        se = Math.sqrt(model.V[k][k]),
-        z = b / se;
-      return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
-    }),
+    ...termRows(
+      session,
+      model,
+      (k) => {
+        const b = model.b[k],
+          se = Math.sqrt(model.V[k][k]),
+          z = b / se;
+        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+      },
+      w,
+    ),
   );
-  lines.push(RULE);
+  lines.push(rule);
   if (transform && model.constant) lines.push(transform[2]);
   return lines;
 }
@@ -450,7 +461,7 @@ function smallestRoot(A, B) {
         }
       }
   }
-  return Math.min(...C.map((row, i) => row[i]));
+  return least(C.map((row, i) => row[i]));
 }
 
 // ----- two-stage least squares -----
@@ -791,10 +802,12 @@ function test(session, text, ctx) {
     tag = (line) =>
       model.kind === "ivregress"
         ? line
-        : line.replace(/(^|[-+*] ?|^-)([A-Za-z_]\w*)/g, (all, lead, name) =>
-            model.names.includes(name)
-              ? `${lead}[${model.depvar}]${name}`
-              : all,
+        : line.replace(
+            /(^|[-+*] ?|^-)([A-Za-z_0-9][\w.#]*)/g,
+            (all, lead, name) =>
+              model.names.includes(name)
+                ? `${lead}[${model.depvar}]${name}`
+                : all,
           );
   constraints.forEach((c, k) =>
     ctx.out(
@@ -853,7 +866,7 @@ function lincom(session, text, ctx) {
     shown =
       model.kind === "ivregress"
         ? text1
-        : text1.replace(/([A-Za-z_]\w*)/g, (name) =>
+        : text1.replace(/(?<![\w.#])([A-Za-z_0-9][\w.#]*)/g, (name) =>
             model.names.includes(name) ? `[${model.depvar}]${name}` : name,
           );
   ctx.out("");
@@ -1187,7 +1200,7 @@ function estat(session, text, ctx) {
           applyFormat(df > 0 ? chi2 : 0, "%9.2f").trim(),
           df > 0 ? applyFormat(chi2tail(df, chi2), "%6.4f").trim() : ".",
         ],
-        width = Math.max(...values.map((v) => v.length)) + 1;
+        width = greatest(values.map((v) => v.length)) + 1;
       ctx.out(`Goodness-of-fit test after ${kind} model`);
       ctx.out(`Variable: ${model.depvar}`);
       ctx.out("");

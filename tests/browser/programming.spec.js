@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
@@ -155,7 +156,7 @@ test("all programming lesson steps can be completed with specific feedback", asy
     if (i === 2) {
       await page.locator("#tab-results").click();
       await page.screenshot({
-        path: `docs/verification/screenshots/programming-${info.project.name}.png`,
+        path: screenshotPath(`programming-${info.project.name}.png`),
       });
     }
     await page.locator("#next-step").click();

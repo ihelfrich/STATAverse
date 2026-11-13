@@ -1,0 +1,21 @@
+{
+  "basis": "Recorded 12 November 2026 from installed Stata 19 MP under version 17 with set processors 1: insheet of ZeroToHero/data/fulfillment_delays.csv, encode supplier_tier, generate(supplier_id), then nbreg delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id. The data are underdispersed, so alpha runs to zero. Stata stopped at lnalpha = -45.6741473701887 with e(V) zero for lnalpha; where the fit stops is arbitrary and is not compared.",
+  "command": "nbreg delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id",
+  "coefficients": {
+    "1.expedited": [0.0245590726839947, 0.127174531348658],
+    "distance_km": [-0.0000845081016424666, 0.000183984129184228],
+    "backlog_index": [0.00592275791383594, 0.00479395209743524],
+    "weather_disruption": [0.485356230423327, 0.150720005323531],
+    "2.supplier_id": [0.18399022411036, 0.148349802364983],
+    "3.supplier_id": [0.464294177044845, 0.143447418046435],
+    "_cons": [-0.132945128760745, 0.295816703665721]
+  },
+  "ll": -251.550558803254,
+  "ll_c": -251.550558803254,
+  "chi2": 30.9011025927651,
+  "printed": [
+    "/lnalpha .",
+    "LR test of alpha=0: chibar2(01) = 0.00",
+    "Prob >= chibar2 = 1.000"
+  ]
+}

@@ -32,7 +32,7 @@ export function firstStage(session, iv, parsed, ctx) {
           anything: [name, ...iv.exogenous, ...iv.instruments].join(" "),
           options: { level: 95 },
           // The first stage uses the observations of the main equation.
-          if: `inlist(_n, ${iv.rows.map((i) => i + 1).join(", ")})`,
+          only: new Set(iv.rows),
         },
         null,
       ),
