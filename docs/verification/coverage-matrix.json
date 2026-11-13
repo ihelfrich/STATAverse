@@ -1,7 +1,7 @@
 {
   "basis": "Each command line in the recorded fixtures named in tools/coverage-matrix.mjs, resolved to the registered command it names. A command counts as recorded when at least one line ran it in installed Stata and in the runtime. Recorded is not the same as covered: a command can appear with only some of its options.",
-  "registered": 192,
-  "recorded": 142,
+  "registered": 193,
+  "recorded": 143,
   "unrecorded": [
     "which",
     "query",
@@ -386,6 +386,13 @@
       "recorded": 20,
       "fixtures": {
         "stata-runtime-output.json": 20
+      }
+    },
+    {
+      "name": "signtest",
+      "recorded": 8,
+      "fixtures": {
+        "stata-runtime-output.json": 8
       }
     },
     {
@@ -1062,10 +1069,10 @@
     },
     {
       "name": "generate",
-      "recorded": 1762,
+      "recorded": 1766,
       "fixtures": {
         "stata-runtime-sessions.json": 1082,
-        "stata-runtime-output.json": 680
+        "stata-runtime-output.json": 684
       }
     },
     {
@@ -1349,18 +1356,18 @@
     },
     {
       "name": "set",
-      "recorded": 290,
+      "recorded": 294,
       "fixtures": {
         "stata-runtime-sessions.json": 16,
-        "stata-runtime-output.json": 274
+        "stata-runtime-output.json": 278
       }
     },
     {
       "name": "clear",
-      "recorded": 734,
+      "recorded": 736,
       "fixtures": {
         "stata-runtime-sessions.json": 492,
-        "stata-runtime-output.json": 242
+        "stata-runtime-output.json": 244
       }
     },
     {
