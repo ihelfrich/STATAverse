@@ -1,5 +1,6 @@
 // Diagnostics after regress: estat hettest, ovtest, imtest, vce and
 // summarize, the leverage and residual statistics of predict, and testparm.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail } from "./distributions.js";
@@ -134,8 +135,8 @@ function ovtest(session, model, text, ctx) {
   session.parse("[, | Rhs]", text);
   const frame = sampleFrame(model, session),
     n = frame.rows.length,
-    low = Math.min(...frame.fitted),
-    high = Math.max(...frame.fitted),
+    low = least(frame.fitted),
+    high = greatest(frame.fitted),
     // Stata rescales the fitted values to [0, 1] and stores their powers in
     // single precision; the statistic is reproduced only by doing the same.
     z = frame.fitted.map((v) => (high > low ? (v - low) / (high - low) : 0)),

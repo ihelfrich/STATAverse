@@ -373,7 +373,9 @@ function margins(session, text, ctx) {
         conventional: "Conventional",
       }[model.vce] ?? "OLS";
   ctx.out("");
-  ctx.out(`${title.padEnd(60)}Number of obs = ${count(n)}`);
+  // Number of obs ends at column 78, however wide the count.
+  const observations = `Number of obs = ${count(n)}`;
+  ctx.out(`${title.padEnd(78 - observations.length)}${observations}`);
   ctx.out(`Model VCE: ${vce}`);
   ctx.out("");
   ctx.out(`Expression: ${expression}, predict()`);
@@ -384,15 +386,36 @@ function margins(session, text, ctx) {
         .map((r) => r.wrt)
         .join(" ")}`,
     );
+  // A factor variable held at its means is shown level by level, each level
+  // at the share of observations in it, as Stata shows it.
+  const meanLevels = (name) =>
+    model.names
+      .map((column, j) => [column, j])
+      .filter(([column]) => column.replace(/^\d+b?\./, "") === name)
+      .filter(([column]) => /^\d+b?\./.test(column));
   const describe = (set) => {
-    const entries = [...set].map(([name, value]) => [
-        name,
-        value === "mean" ? g(columnMeans[model.names.indexOf(name)]) : g(value),
-        value === "mean" ? " (mean)" : "",
-      ]),
+    const entries = [...set].flatMap(([name, value]) =>
+        value === "mean" && factors.has(name)
+          ? meanLevels(name).map(([column, j]) => [
+              column.replace(/^(\d+)b\./, "$1."),
+              g(columnMeans[j]),
+              " (mean)",
+            ])
+          : [
+              [
+                name,
+                value === "mean"
+                  ? g(columnMeans[model.names.indexOf(name)])
+                  : g(value),
+                value === "mean" ? " (mean)" : "",
+              ],
+            ],
+      ),
+      names = Math.max(0, ...entries.map((e) => e[0].length)),
       width = Math.max(0, ...entries.map((e) => e[1].length));
     return entries.map(
-      ([name, value, note]) => `${name} = ${value.padStart(width)}${note}`,
+      ([name, value, note]) =>
+        `${name.padEnd(names)} = ${value.padStart(width)}${note}`,
     );
   };
   if (sets.length > 1)

@@ -1,4 +1,5 @@
 // table (the common one-way and two-way forms), proportion and anova.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, invttail } from "./distributions.js";
@@ -32,11 +33,11 @@ const STATISTICS = {
   },
   min: {
     title: "Minimum value",
-    of: (v) => (v.length ? Math.min(...v) : MISSING),
+    of: (v) => (v.length ? least(v) : MISSING),
   },
   max: {
     title: "Maximum value",
-    of: (v) => (v.length ? Math.max(...v) : MISSING),
+    of: (v) => (v.length ? greatest(v) : MISSING),
   },
   total: { title: "Total", of: (v) => v.reduce((a, b) => a + b, 0) },
   count: {
@@ -121,7 +122,9 @@ function table(session, text, ctx) {
       ...rowLevels.map((level) => `  ${labelled(session, rowVar, level)}`),
       "  Total",
     ],
-    stub = Math.max(rowVar.name.length, ...rowLabels.map((l) => l.length)) + 1,
+    stub =
+      Math.max(rowVar.name.length, greatest(rowLabels.map((l) => l.length))) +
+      1,
     // Columns: one per statistic, or one per level of the column variable.
     headers = colVar
       ? [...colLevels.map((level) => labelled(session, colVar, level)), "Total"]
@@ -151,7 +154,7 @@ function table(session, text, ctx) {
         Math.max(
           header.length,
           under ? under[k].length : 0,
-          ...body.map((line) => line[k].length),
+          greatest(body.map((line) => line[k].length)),
         ) + (k ? 3 : 2),
     ),
     inner = widths.reduce((a, b) => a + b, 0),

@@ -3,6 +3,7 @@
 // function run(session, text, ctx). text is what follows the command name
 // after macro substitution; ctx carries the by-groups, the current macro
 // frame and out(line) for results.
+import { least, greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
@@ -552,7 +553,7 @@ function compress(session, text, ctx) {
     let target = before;
     if (isStringType(before)) {
       if (before !== "strL")
-        target = "str" + Math.max(1, ...variable.data.map(byteLength));
+        target = "str" + Math.max(1, greatest(variable.data.map(byteLength)));
     } else {
       const smallest = inferType(Array.from(variable.data));
       // compress moves to an integer type when it can, and never to float.
@@ -700,7 +701,7 @@ function format(session, text) {
 }
 
 // ----- scalars, macros and programs -----
-function scalar(session, text) {
+function scalar(session, text, ctx) {
   let m;
   if ((m = /^drop\s+([\s\S]+)$/.exec(text))) {
     if (m[1].trim() === "_all") return session.scalars.clear();
@@ -709,7 +710,23 @@ function scalar(session, text) {
         throw new StataError(`scalar ${name} not found`, 111);
     return;
   }
-  if (/^(l(i(st?)?)?|di(r)?)\b/.test(text)) return;
+  if ((m = /^(?:l(?:i(?:st?)?)?|di(?:r)?)\b([\s\S]*)$/.exec(text))) {
+    // Newest first, as Stata lists them; the name right-aligned in ten.
+    const asked = m[1].trim().split(/\s+/).filter(Boolean),
+      names =
+        asked.length && asked[0] !== "_all"
+          ? asked
+          : [...session.scalars.keys()].reverse();
+    for (const name of names) {
+      if (!session.scalars.has(name))
+        throw new StataError(`scalar ${name} not found`, 111);
+      const value = session.scalars.get(name);
+      ctx.out(
+        `${name.padStart(10)} = ${typeof value === "string" ? value : applyFormat(value, "%10.0g")}`,
+      );
+    }
+    return;
+  }
   m = /^(?:de(?:f(?:i(?:ne?)?)?)?\s+)?([A-Za-z_]\w*)\s*=\s*([\s\S]+)$/.exec(
     text.trim(),
   );
@@ -955,7 +972,7 @@ function egen(session, text, ctx) {
     // Stata sizes the variable before trimming the last separator.
     data.generate(name, text, {
       string: true,
-      type: `str${Math.max(1, ...text.map((v) => byteLength(v))) + (variables.length > 1 ? byteLength(punct) : 0)}`,
+      type: `str${Math.max(1, greatest(text.map((v) => byteLength(v)))) + (variables.length > 1 ? byteLength(punct) : 0)}`,
     });
     data.sortedBy = order;
     return;
@@ -988,11 +1005,11 @@ function egen(session, text, ctx) {
               : MISSING
             : fcn === "rowmin"
               ? row.length
-                ? Math.min(...row)
+                ? least(row)
                 : MISSING
               : fcn === "rowmax"
                 ? row.length
-                  ? Math.max(...row)
+                  ? greatest(row)
                   : MISSING
                 : fcn === "rowmiss"
                   ? columns.length - row.length

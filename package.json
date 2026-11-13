@@ -20,7 +20,8 @@
     "differential": "node tools/differential.mjs --write",
     "probe:students": "node tools/student-probe.mjs",
     "probe:postestimation": "node tools/postestimation-probe.mjs",
-    "coverage:matrix": "node tools/coverage-matrix.mjs"
+    "coverage:matrix": "node tools/coverage-matrix.mjs",
+    "probe:wide": "node tools/wide-probe.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",

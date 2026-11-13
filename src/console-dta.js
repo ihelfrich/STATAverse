@@ -1,7 +1,7 @@
 // Reads and writes Stata's .dta file format, so that a student's own
 // dataset can be used here and a project built here can be run in Stata.
 // Written files are format 118 (Stata 14 and later). Formats 117, 118 and
-// 119 are read; long strings (strL) are not.
+// 119 are read. Long strings (strL) are written but not yet read.
 import { MISSING, isMissing } from "./runtime/values.js";
 
 const STEP = 2 ** 1011,
@@ -14,8 +14,16 @@ const STEP = 2 ** 1011,
     65529: "int",
     65530: "byte",
   },
-  CODE = { double: 65526, float: 65527, long: 65528, int: 65529, byte: 65530 },
-  WIDTH = { double: 8, float: 4, long: 4, int: 2, byte: 1 },
+  CODE = {
+    double: 65526,
+    float: 65527,
+    long: 65528,
+    int: 65529,
+    byte: 65530,
+    strL: 32768,
+  },
+  // A strL cell holds a reference (v, o) to its text in the <strls> section.
+  WIDTH = { double: 8, float: 4, long: 4, int: 2, byte: 1, strL: 8 },
   // The first missing value of each stored type; .a to .z follow it.
   FIRST = { byte: 101, int: 32741, long: 2147483621 },
   MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
@@ -128,6 +136,7 @@ export function writeDta(data, now = new Date()) {
     row = widths.reduce((sum, width) => sum + width, 0),
     block = new Uint8Array(row * n),
     view = new DataView(block.buffer);
+  const long = [];
   let at = 0;
   for (let i = 0; i < n; i++)
     variables.forEach((v, j) => {
@@ -142,6 +151,15 @@ export function writeDta(data, now = new Date()) {
         if (v.type === "byte") view.setInt8(at, stored);
         else if (v.type === "int") view.setInt16(at, stored, true);
         else view.setInt32(at, stored, true);
+      } else if (v.type === "strL") {
+        // Format 118 packs v in 2 bytes and o in 6; (0, 0) is the empty string.
+        const text = String(value ?? "");
+        if (text) {
+          view.setUint16(at, j + 1, true);
+          view.setUint32(at + 2, (i + 1) % 2 ** 32, true);
+          view.setUint16(at + 6, Math.floor((i + 1) / 2 ** 32), true);
+          long.push([j + 1, i + 1, encoder.encode(text)]);
+        }
       } else {
         let encoded = encoder.encode(String(value ?? ""));
         if (encoded.length > widths[j]) encoded = encoded.slice(0, widths[j]);
@@ -152,6 +170,16 @@ export function writeDta(data, now = new Date()) {
   w.bytes(block);
   w.text("</data>");
   section(10, "<strls>");
+  for (const [v, o, text] of long) {
+    // Type 130 is text stored with a closing null, counted in its length.
+    w.text("GSO");
+    w.integer(v, 4);
+    w.integer(o, 8);
+    w.integer(130, 1);
+    w.integer(text.length + 1, 4);
+    w.bytes(text);
+    w.bytes(new Uint8Array(1));
+  }
   w.text("</strls>");
   section(11, "<value_labels>");
   const used = new Set(variables.map((v) => v.valueLabel).filter(Boolean));
