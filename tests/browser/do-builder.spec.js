@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 const stage = async (page, n) => page.locator(`[data-stage="${n}"]`).click();
@@ -46,7 +47,7 @@ test("beginner path creates a do-file with Windows paths, ordered preparation an
   await page.reload();
   await expect(page.locator("#builder-code")).toHaveValue(text);
   await page.screenshot({
-    path: `docs/verification/screenshots/builder-${testInfo.project.name}.png`,
+    path: screenshotPath(`builder-${testInfo.project.name}.png`),
     fullPage: true,
   });
   expect(

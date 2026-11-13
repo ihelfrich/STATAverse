@@ -33,9 +33,10 @@
     },
     {
       "file": "ScriptLibrary/scripts/export-regression-table.do",
-      "commands": 3,
-      "rc": 199,
-      "stoppedAt": "exit 199"
+      "commands": 2,
+      "rc": 111,
+      "stoppedAt": "regress sales price promo foot_traffic labor_hours",
+      "message": "variable sales not found"
     },
     {
       "file": "ScriptLibrary/scripts/fixed-effects.do",
@@ -190,7 +191,7 @@
       "commands": 53,
       "rc": 198,
       "stoppedAt": "quietly ivregress 2sls y (x = z), vce(robust) first",
-      "message": "option first is not available in the browser yet"
+      "message": "inlist() takes a different number of arguments"
     },
     {
       "file": "CodeLibrary/scripts/01b_endogeneity_intuition.do",
@@ -212,7 +213,7 @@
       "commands": 156,
       "rc": 198,
       "stoppedAt": "ivregress 2sls y (x = z_weak), first",
-      "message": "option first is not available in the browser yet"
+      "message": "inlist() takes a different number of arguments"
     },
     {
       "file": "CodeLibrary/scripts/04_assumption_checker.do",
@@ -241,9 +242,9 @@
     {
       "file": "ZeroToHero/projects/project-02/analysis.do",
       "commands": 15,
-      "rc": 199,
+      "rc": 430,
       "stoppedAt": "nbreg delay_days i.expedited distance_km backlog_index weather_disruption i.supplier_id",
-      "message": "command nbreg is unrecognized"
+      "message": "convergence not achieved"
     },
     {
       "file": "RealData/base_lab.do",

@@ -138,6 +138,48 @@ test("a long do-file can be stopped, which clears the session", async ({
   await expect(page.locator("#console-output")).toContainText("42");
 });
 
+test("a worker that dies mid-run is replaced, and the next run works", async ({
+  page,
+}) => {
+  // The worker is the real one, wrapped so that a do-file containing
+  // __die__ ends it the way a crash would: an error event, then nothing.
+  await page.route(/console-worker\.js/, (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.has("real")) return route.continue();
+    url.searchParams.set("real", "1");
+    return route.fulfill({
+      contentType: "text/javascript",
+      body: `await import(${JSON.stringify(url.href)});
+const inner = self.onmessage;
+self.onmessage = (event) => {
+  if (event.data.kind === "run" && event.data.source.includes("__die__")) {
+    self.close();
+    throw new Error("worker died");
+  }
+  inner(event);
+};`,
+    });
+  });
+  await page.goto("/Console/");
+  await expect(page.locator("#console-status")).toHaveText("Ready.");
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-console-runner",
+    "worker",
+  );
+  const source = page.locator("#console-source"),
+    output = page.locator("#console-output");
+  await source.fill("display 1 // __die__");
+  await page.locator("#console-run").click();
+  await expect(output).toContainText("The interpreter stopped unexpectedly");
+  await expect(page.locator("#console-status")).toContainText(
+    "The session was cleared",
+  );
+  await expect(page.locator("#console-run")).toBeEnabled();
+  await source.fill("display 6 * 7");
+  await page.locator("#console-run").click();
+  await expect(output).toContainText("42");
+});
+
 test("a student's own CSV file can be added and imported", async ({ page }) => {
   await page.goto("/Console/");
   await expect(page.locator("#console-status")).toHaveText("Ready.");
