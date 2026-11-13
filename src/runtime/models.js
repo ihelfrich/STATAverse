@@ -14,6 +14,7 @@ import { count } from "./reports.js";
 import { linkOf } from "./margins.js";
 import { outcomePredict } from "./outcome-margins.js";
 import {
+  coefficientSpace,
   design,
   estimates,
   invertSymmetric,
@@ -25,6 +26,7 @@ import {
   tableWidth,
   abbreviate,
   test as testT,
+  unitConstraint,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -795,20 +797,15 @@ function acrossEquations(session, model, words, tail, ctx) {
   for (const word of words)
     for (const name of /^_cons$/.test(word) ? [word] : session.varlist(word))
       if (!variables.includes(name)) variables.push(name);
-  const constraints = [];
+  const space = coefficientSpace(model),
+    constraints = [];
   for (const name of variables) {
-    if (!model.names.some((n) => n.replace(/^[^:]+:/, "") === name))
+    if (!space.entries.some((e) => e.name === name))
       throw new StataError(`${name} not found`, 111);
-    model.equations.forEach((equation, j) => {
-      const at = model.names.indexOf(`${equation}:${name}`),
-        base = j === model.baseEquation;
-      // The base outcome's coefficient is fixed at zero, so its constraint
-      // carries no weight and the test drops it.
-      constraints.push({
-        weights: model.names.map((_, k) => (!base && k === at ? 1 : 0)),
-        constant: 0,
-        text: `[${equation}]${base ? "o." : ""}${name} = 0`,
-      });
+    // The base outcome's coefficient is fixed at zero, so its constraint
+    // carries no variance and the test drops it.
+    space.entries.forEach((e, k) => {
+      if (e.name === name) constraints.push(unitConstraint(space, k));
     });
   }
   waldTest(session, model, constraints, tail, ctx);

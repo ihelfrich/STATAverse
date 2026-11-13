@@ -443,6 +443,26 @@ function ordered(kind) {
         kind,
         sample: f.sample,
         cuts: full.theta.slice(k),
+        // The cut points as test and lincom reach them, [/]cut1 and so on:
+        // their values, their covariances with each coefficient in names
+        // and with one another.
+        auxiliary: {
+          equation: "/",
+          names: full.theta.slice(k).map((_, c) => `cut${c + 1}`),
+          b: full.theta.slice(k),
+          cross: full.theta
+            .slice(k)
+            .map((_, c) =>
+              names.map((name) =>
+                position.has(name) ? full.V[k + c][position.get(name)] : 0,
+              ),
+            ),
+          V: full.theta
+            .slice(k)
+            .map((_, c) =>
+              full.theta.slice(k).map((_, d) => full.V[k + c][k + d]),
+            ),
+        },
         // What margins needs: every parameter and the covariates' values.
         outcomeModel: f.active.every((c) => c.term.variable)
           ? {
@@ -606,6 +626,13 @@ function mlogit(session, text, ctx) {
       // Every outcome's equation name in order, and which one is the base.
       equations: outcomes.map((_, j) => String(label(j))),
       baseEquation: base,
+      // The outcome each equation is for, by which [#]name may name it.
+      outcomeValues: outcomes,
+      // Every coefficient of an equation as e(b) names it, base levels too.
+      coefficientNames: [
+        ...f.columns.map((c) => c.name),
+        ...(constant ? ["_cons"] : []),
+      ],
       sample: f.sample,
       outcomeModel: f.active.every((c) => c.term.variable)
         ? {

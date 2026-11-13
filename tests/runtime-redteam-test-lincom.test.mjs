@@ -303,3 +303,268 @@ test("lincom refuses what Stata refuses, with its return codes, and clears r()",
   assert.equal(rc(s, "lincom education, cf(%9.3f)"), 198);
   assert.equal(rc(s, "lincom education, d(9)"), 198);
 });
+
+// The second round of findings. Expected values recorded from Stata 19 MP
+// (version 17, set processors 1) on DATA with age added, as in the output
+// cases test-lincom-options and test-lincom-equations, which compare the
+// printed text.
+const AGE = "generate double age = 20 + floor(runiform()*40)";
+function withAge(model) {
+  const session = new Session(),
+    out = session.run(`${DATA}\n${AGE}\nquietly ${model}`);
+  assert.equal(out.rc, 0);
+  return session;
+}
+const missing = (value) => value > 8.98e307;
+const linesOf = (session, command) =>
+  session.run(command).output.flatMap((o) => o.lines);
+
+test("lincom and test refuse division by zero and nonlinear terms with r(131)", () => {
+  const s = withAge("regress wage education female");
+  for (const command of [
+    "lincom education/0",
+    "lincom education*(1/0)",
+    "lincom education + 1/0",
+    "test education/0 = 1",
+    "test education = 1/0",
+    "lincom education*female",
+    "test education^2 = 0",
+  ]) {
+    assert.equal(rc(s, command), 131, command);
+    assert.deepEqual(s.results.r, {});
+  }
+  assert.equal(rc(s, "lincom education = 1"), 198);
+  s.run("quietly logit union education");
+  assert.equal(rc(s, "lincom education/0"), 131);
+});
+
+test("a coefficient named twice in a list is tested once", () => {
+  const s = withAge("regress wage education female");
+  s.run("test education education");
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 597,
+    F: 116.8385346276878,
+    df: 1,
+    p: 5.39374250928e-25,
+  });
+  s.run("quietly regress wage education age i.reg");
+  s.run("test education 2.reg 2.reg, mtest");
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 594,
+    F: 68.00434848789496,
+    df: 2,
+    p: 2.54769845176e-27,
+    mtmethod: "noadjust",
+  });
+  assert.equal(s.results.r["matrix:mtest"].values.length, 2);
+  // In parentheses each is its own constraint, and the repeat is dropped.
+  s.run("test (education) (education)");
+  assert.equal(s.results.r.dropped_1, 2);
+});
+
+test("test takes Stata's abbreviations of accumulate, notest and mtest", () => {
+  const s = withAge("regress wage education female");
+  assert.equal(rc(s, "test education, a"), 0);
+  assert.equal(rc(s, "test education, acc"), 0);
+  assert.equal(s.results.r.dropped_1, 2);
+  assert.equal(rc(s, "test education, not"), 0);
+  assert.deepEqual(s.results.r, {});
+  assert.equal(rc(s, "test education, notes"), 0);
+  assert.equal(rc(s, "test education, mt"), 0);
+  assert.equal(s.results.r.mtmethod, "noadjust");
+  assert.equal(rc(s, "test education female, mtes(b)"), 0);
+  assert.equal(s.results.r.mtmethod, "bonferroni");
+  assert.equal(rc(s, "test education female, mtest (holm)"), 0);
+  assert.equal(s.results.r.mtmethod, "holm");
+  assert.equal(rc(s, "test education female, mtest,"), 0);
+  assert.equal(s.results.r.mtmethod, "noadjust");
+  // An empty mtest() is no option at all.
+  assert.equal(rc(s, "test education, mtest()"), 0);
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 597,
+    F: 116.8385346276878,
+    df: 1,
+    p: 5.39374250928e-25,
+  });
+  assert.equal(rc(s, "test education, mtest() accum"), 0);
+  assert.equal(rc(s, "test education, mtest(b) mtest(h)"), 198);
+  assert.equal(rc(s, "test education, nottest"), 198);
+});
+
+test("test with no constraints replays the last test, or says there is none", () => {
+  const s = withAge("regress wage education age i.reg");
+  assert.equal(rc(s, "test"), 302);
+  s.run("test education age");
+  assert.equal(rc(s, "test"), 0);
+  // _test, which replays, stores its results in another order.
+  sameResults(s.results.r, {
+    p: 1.30789109394e-24,
+    df: 2,
+    F: 60.41438950100269,
+    df_r: 594,
+    drop: 0,
+  });
+  assert.equal(rc(s, "test, notest"), 0);
+  assert.deepEqual(s.results.r, {});
+  assert.equal(rc(s, "test, accum"), 0);
+  assert.equal(s.results.r.df, 2);
+  s.run("test 2.reg, accum");
+  s.run("test");
+  assert.equal(s.results.r.df, 3);
+  // Only accumulate and notest go with a replay.
+  for (const option of ["mtest", "mtest(b)", "df(5)", "coef"])
+    assert.equal(rc(s, `test, ${option}`), 198, option);
+  s.run("quietly regress wage education female i.reg");
+  s.run("test (education) (education) (female)");
+  s.run("test");
+  sameResults(s.results.r, {
+    p: 1.53868386825e-31,
+    df: 2,
+    F: 80.14071581934081,
+    df_r: 594,
+    drop: 1,
+    dropped_1: 2,
+  });
+  s.run("quietly logit union education female");
+  s.run("test education");
+  s.run("test");
+  sameResults(
+    s.results.r,
+    { p: 0.0002247092580168, df: 1, chi2: 13.61229303306681, drop: 0 },
+    1e-6,
+  );
+});
+
+test("lincom becomes the test that test accumulates to and replays", () => {
+  const s = withAge("regress wage education female");
+  s.run("test education, notest");
+  s.run("lincom education + female");
+  assert.ok(
+    linesOf(s, "test female, accum").includes(" ( 1)  education + female = 0"),
+  );
+  assert.equal(s.results.r.df, 2);
+  s.run("lincom education");
+  s.run("test");
+  sameResults(s.results.r, {
+    p: 5.39374250928e-25,
+    df: 1,
+    F: 116.8385346276878,
+    df_r: 597,
+    drop: 0,
+  });
+});
+
+test("df() is Stata's numlist: one positive number, with its return codes", () => {
+  const s = withAge("regress wage education female");
+  s.run("test education, df(2.5)");
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 2.5,
+    F: 116.8385346276878,
+    df: 1,
+    p: 0.0036688988982587,
+  });
+  assert.equal(rc(s, "test education, df(.)"), 127);
+  assert.equal(rc(s, "test education, df(abc)"), 121);
+  assert.equal(rc(s, "test education, df(1 2)"), 123);
+  assert.equal(rc(s, "test education, df(-1)"), 125);
+  assert.equal(rc(s, "lincom education, df(.)"), 127);
+});
+
+test("an omitted coefficient has no test or interval in lincom", () => {
+  const s = withAge("regress wage education female");
+  s.run("generate double educ2 = education");
+  s.run("quietly regress wage education educ2 female");
+  const omitted = (estimate) =>
+    assert.deepEqual(
+      Object.entries(s.results.r).map(([k, v]) => [k, missing(v) ? "." : v]),
+      [
+        ["df", 597],
+        ["ub", "."],
+        ["lb", "."],
+        ["p", "."],
+        ["t", "."],
+        ["level", 95],
+        ["se", 0],
+        ["estimate", estimate],
+      ],
+    );
+  assert.ok(
+    linesOf(s, "lincom educ2").includes("         (1) |          0  (omitted)"),
+  );
+  omitted(0);
+  s.run("lincom educ2, eform");
+  omitted(1);
+  assert.ok(linesOf(s, "lincom 0*female").includes(" ( 1) = 0"));
+  omitted(0);
+  s.run("test educ2 = 0");
+  assert.equal(s.results.r.dropped_1, 1);
+  assert.equal(s.results.r.df, 0);
+  assert.ok(missing(s.results.r.F));
+});
+
+test("lincom and test name equations by label, outcome value or number after mlogit", () => {
+  const s = withAge("regress wage education female");
+  s.run('label define sl 1 "low" 2 "mid" 3 "high"');
+  s.run("label values sat3 sl");
+  s.run("quietly mlogit sat3 education i.female, baseoutcome(1)");
+  assert.equal(rc(s, "lincom [3]education, rrr"), 0);
+  close(s.results.r.estimate, 1.041081, 1e-6);
+  close(s.results.r.se, 0.0329047, 1e-5);
+  assert.equal(rc(s, "lincom [high]education"), 0);
+  close(s.results.r.estimate, 0.0402596, 1e-5);
+  // The base outcome's coefficients are zero, and omitted.
+  assert.equal(rc(s, "lincom [1]education"), 0);
+  assert.equal(s.results.r.estimate, 0);
+  assert.ok(missing(s.results.r.lb));
+  assert.equal(rc(s, "lincom [#2]education"), 0);
+  assert.equal(rc(s, "lincom [foo]education"), 303);
+  assert.equal(rc(s, "lincom [#7]education"), 303);
+  assert.equal(rc(s, "lincom [2]foo"), 111);
+  s.run("quietly mlogit sat3 education female");
+  s.run("test [1]");
+  sameResults(
+    s.results.r,
+    { drop: 0, chi2: 1.640599964918273, df: 2, p: 0.4402995525503245 },
+    1e-6,
+  );
+});
+
+test("test and lincom take abbreviations, a=b=c, [depvar] and cut points", () => {
+  const s = withAge("regress wage education female");
+  assert.equal(rc(s, "lincom educ"), 0);
+  close(s.results.r.estimate, 0.4744254, 1e-6);
+  assert.equal(rc(s, "test educ ed"), 0);
+  assert.equal(s.results.r.df, 1);
+  s.run("generate double educ2 = education");
+  s.run("quietly regress wage education educ2 female");
+  assert.equal(rc(s, "test educ"), 111);
+  s.run("quietly regress wage education age i.reg");
+  s.run("test 2.reg=3.reg=4.reg");
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 594,
+    F: 5.638959754305264,
+    df: 2,
+    p: 0.0037496376488985,
+  });
+  s.run("quietly logit union education");
+  assert.equal(rc(s, "lincom [union]education, or"), 0);
+  close(s.results.r.estimate, 1.110265, 1e-6);
+  s.run("quietly ologit sat3 education i.reg");
+  assert.equal(rc(s, "lincom /cut1"), 0);
+  close(s.results.r.estimate, -0.0836615, 1e-5);
+  assert.equal(rc(s, "lincom [/]cut1 - [/]cut2"), 0);
+  close(s.results.r.estimate, -0.7939168, 1e-5);
+});
+
+test("return list shows the matrices test stores", () => {
+  const s = withAge("regress wage education i.reg");
+  s.run("test 2.reg 3.reg 4.reg, mtest");
+  const lines = linesOf(s, "return list");
+  assert.ok(lines.includes("matrices:"));
+  assert.ok(lines.includes("              r(mtest) :  3 x 3"));
+});

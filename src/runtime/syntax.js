@@ -379,7 +379,7 @@ function nameList(text) {
 }
 
 // Splits the text after the comma into name and name(argument) items.
-function optionItems(text) {
+export function optionItems(text) {
   // Stata allows a blank between an option's name and its parenthesis.
   const joined = [];
   for (const word of words(text))

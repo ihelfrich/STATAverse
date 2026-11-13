@@ -106,6 +106,7 @@ for (const c of fixture.cases)
             "outcome-predict-margins",
             "likelihood-factor-layout",
             "test-accumulate-mlogit",
+            "test-lincom-equations",
           ].includes(c.id),
         )
       )
