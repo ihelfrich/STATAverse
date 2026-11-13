@@ -14347,6 +14347,150 @@
       ]
     },
     {
+      "id": "error-messages",
+      "source": "capture noisily error 2\ndisplay _rc\ncapture noisily error 4\ndisplay _rc\ncapture noisily error 18\ndisplay _rc\ncapture noisily error 50\ndisplay _rc\ncapture noisily error 100\ndisplay _rc\ncapture noisily error 102\ndisplay _rc\ncapture noisily error 109\ndisplay _rc\ncapture noisily error 110\ndisplay _rc\ncapture noisily error 111\ndisplay _rc\ncapture noisily error 119\ndisplay _rc\ncapture noisily error 121\ndisplay _rc\ncapture noisily error 123\ndisplay _rc\ncapture noisily error 130\ndisplay _rc\ncapture noisily error 131\ndisplay _rc\ncapture noisily error 135\ndisplay _rc\ncapture noisily error 190\ndisplay _rc\ncapture noisily error 198\ndisplay _rc\ncapture noisily error 199\ndisplay _rc\ncapture noisily error 200\ndisplay _rc\ncapture noisily error 301\ndisplay _rc\ncapture noisily error 321\ndisplay _rc\ncapture noisily error 322\ndisplay _rc\ncapture noisily error 402\ndisplay _rc\ncapture noisily error 430\ndisplay _rc\ncapture noisily error 459\ndisplay _rc\ncapture noisily error 503\ndisplay _rc\ncapture noisily error 506\ndisplay _rc\ncapture noisily error 601\ndisplay _rc\ncapture noisily error 2000\ndisplay _rc\ncapture noisily error 2001\ndisplay _rc\ncapture noisily error 12345\ndisplay _rc\nscalar k = 3\ncapture noisily error 100 + k\ndisplay _rc\n",
+      "commands": [
+        {
+          "command": "capture noisily error 2",
+          "lines": ["connection timed out"]
+        },
+        { "command": "display _rc", "lines": ["2"] },
+        {
+          "command": "capture noisily error 4",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "display _rc", "lines": ["4"] },
+        {
+          "command": "capture noisily error 18",
+          "lines": ["you must start with an empty dataset"]
+        },
+        { "command": "display _rc", "lines": ["18"] },
+        { "command": "capture noisily error 50", "lines": [] },
+        { "command": "display _rc", "lines": ["50"] },
+        { "command": "capture noisily error 100", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["100"] },
+        {
+          "command": "capture noisily error 102",
+          "lines": ["too few variables specified"]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        { "command": "capture noisily error 109", "lines": ["type mismatch"] },
+        { "command": "display _rc", "lines": ["109"] },
+        { "command": "capture noisily error 110", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["110"] },
+        { "command": "capture noisily error 111", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily error 119",
+          "lines": ["statement out of context"]
+        },
+        { "command": "display _rc", "lines": ["119"] },
+        {
+          "command": "capture noisily error 121",
+          "lines": ["invalid numlist"]
+        },
+        { "command": "display _rc", "lines": ["121"] },
+        {
+          "command": "capture noisily error 123",
+          "lines": ["invalid numlist has too many elements"]
+        },
+        { "command": "display _rc", "lines": ["123"] },
+        {
+          "command": "capture noisily error 130",
+          "lines": ["expression too long"]
+        },
+        { "command": "display _rc", "lines": ["130"] },
+        {
+          "command": "capture noisily error 131",
+          "lines": ["not possible with test"]
+        },
+        { "command": "display _rc", "lines": ["131"] },
+        {
+          "command": "capture noisily error 135",
+          "lines": ["not possible with weighted data"]
+        },
+        { "command": "display _rc", "lines": ["135"] },
+        {
+          "command": "capture noisily error 190",
+          "lines": ["request may not be combined with by"]
+        },
+        { "command": "display _rc", "lines": ["190"] },
+        { "command": "capture noisily error 198", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily error 199",
+          "lines": ["unrecognized command"]
+        },
+        { "command": "display _rc", "lines": ["199"] },
+        { "command": "capture noisily error 200", "lines": [] },
+        { "command": "display _rc", "lines": ["200"] },
+        {
+          "command": "capture noisily error 301",
+          "lines": ["last estimates not found"]
+        },
+        { "command": "display _rc", "lines": ["301"] },
+        {
+          "command": "capture noisily error 321",
+          "lines": [
+            "requested action not valid after most recent estimation command"
+          ]
+        },
+        { "command": "display _rc", "lines": ["321"] },
+        {
+          "command": "capture noisily error 322",
+          "lines": [
+            "something that should be true of your estimation results is not"
+          ]
+        },
+        { "command": "display _rc", "lines": ["322"] },
+        {
+          "command": "capture noisily error 402",
+          "lines": ["negative weights encountered"]
+        },
+        { "command": "display _rc", "lines": ["402"] },
+        {
+          "command": "capture noisily error 430",
+          "lines": ["convergence not achieved"]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "capture noisily error 459",
+          "lines": ["something that should be true of your data is not"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily error 503",
+          "lines": ["conformability error"]
+        },
+        { "command": "display _rc", "lines": ["503"] },
+        {
+          "command": "capture noisily error 506",
+          "lines": ["matrix not positive definite"]
+        },
+        { "command": "display _rc", "lines": ["506"] },
+        { "command": "capture noisily error 601", "lines": ["file not found"] },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily error 2000",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily error 2001",
+          "lines": ["insufficient observations"]
+        },
+        { "command": "display _rc", "lines": ["2001"] },
+        { "command": "capture noisily error 12345", "lines": [] },
+        { "command": "display _rc", "lines": ["12345"] },
+        { "command": "scalar k = 3", "lines": [] },
+        {
+          "command": "capture noisily error 100 + k",
+          "lines": ["too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] }
+      ]
+    },
+    {
       "id": "scalar-list",
       "source": "clear\nscalar zeta = 3\nscalar a = 22.346666666667\nscalar longername_here = -1234567.891\nscalar s = \"hello world\"\nscalar m = .\nscalar big = 1e20\nscalar list\nscalar list a s\nscalar dir\n",
       "commands": [
