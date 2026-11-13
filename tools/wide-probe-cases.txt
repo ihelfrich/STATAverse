@@ -1,0 +1,559 @@
+# group | dataset | setup (lines separated by ;;) | command (lines separated by ;;)
+# A line "@ <expression>" after a case asserts something about its output; see
+# tools/wide-probe.mjs for the names in scope. A graph drawn with by() reports
+# "<n> panels" in its description.
+dm|labor||generate lwage = ln(wage)
+dm|labor||generate byte college = education >= 16 if !missing(education)
+dm|labor||gen exp2 = experience^2
+dm|labor||generate wagecat = cond(wage < 15, 1, cond(wage < 30, 2, 3))
+dm|labor||replace wage = . if wage > 100
+dm|labor||replace hours = 40 if hours > 40 & female == 1
+dm|labor||egen mwage = mean(wage), by(region)
+dm|labor||bysort region: egen sdwage = sd(wage)
+dm|labor||egen maxw = max(wage), by(region female)
+dm|labor||egen nobs = count(wage), by(region)
+dm|labor||egen zwage = std(wage)
+dm|labor||egen regid = group(region)
+dm|labor||egen rowm = rowmean(education parent_educ)
+dm|labor||egen wcut = cut(wage), at(0 10 20 30 200)
+dm|labor||recode satisfaction (1 2 = 1 "Low") (3 = 2 "Mid") (4 5 = 3 "High"), generate(sat3)
+dm|labor||recode education (min/11 = 1) (12 = 2) (13/15 = 3) (16/max = 4), gen(edcat)
+dm|labor||encode region, generate(regionn)
+dm|labor|encode region, generate(regionn)|decode regionn, generate(region2)
+dm|labor|tostring education, generate(edstr)|destring edstr, replace
+dm|labor|tostring education, generate(edstr)|destring edstr, generate(ednum) force
+dm|labor||tostring id, replace
+dm|labor||rename wage hourly_wage
+dm|labor||rename (wage hours) (w h)
+dm|labor||label variable wage "Hourly wage (USD)"
+dm|labor||label define fem 0 "Male" 1 "Female";;label values female fem;;tabulate female
+dm|labor||label define fem 0 "Male" 1 "Female", replace
+dm|labor||order id wage, first
+dm|labor||order region, after(id)
+dm|labor||keep if female == 1 & wage < 50
+dm|labor||keep id wage education
+dm|labor||drop if missing(wage)
+dm|labor||drop parent_educ near_college
+dm|labor||drop in 1/10
+dm|labor||sort region wage
+dm|labor||gsort -wage +education
+dm|labor||duplicates report region female
+dm|labor||duplicates drop region female, force
+dm|labor||duplicates tag region, generate(dup)
+dm|firms||reshape wide employees sales rd profit exporter policy, i(firm) j(year)
+dm|firms|keep firm year sales;;reshape wide sales, i(firm) j(year)|reshape long sales, i(firm) j(year)
+dm|labor||collapse (mean) wage hours (sd) sdw = wage (count) n = wage, by(region female)
+dm|labor||collapse (median) wage (p25) p25 = wage (p75) p75 = wage, by(region)
+dm|labor||contract region female
+dm|labor||contract region, freq(n) percent(pct)
+dm|labor|preserve;;collapse (mean) mw = wage, by(region);;save regmeans, replace;;restore|merge m:1 region using regmeans
+dm|labor|preserve;;collapse (mean) mw = wage, by(region);;save regmeans, replace;;restore|merge m:1 region using regmeans, keep(match) nogenerate
+dm|labor|preserve;;keep id satisfaction;;save sat, replace;;restore;;drop satisfaction|merge 1:1 id using sat, assert(match)
+dm|labor|preserve;;keep in 1/50;;save part, replace;;restore|append using part
+dm|labor|preserve;;keep in 1/50;;save part, replace;;restore|append using part, generate(src)
+dm|labor|preserve;;collapse (mean) mw = wage, by(region female);;save rf, replace;;restore|joinby region using rf
+dm|labor||expand 2
+dm|labor||expand 2 if female == 1, generate(copy)
+dm|labor||preserve;;keep if female == 1;;summarize wage;;restore;;count
+dm|labor||tempvar t;;generate `t' = wage^2;;summarize `t'
+dm|labor||tempfile hold;;save `hold';;keep in 1/5;;use `hold', clear;;count
+dm|labor||tempname m;;scalar `m' = 3;;display `m'
+dm|labor||xtile wq = wage, nquantiles(5)
+dm|labor||xtile wq = wage, nq(4)
+dm|labor||pctile pw = wage, nquantiles(10)
+dm|labor||egen wgrp = cut(wage), group(4) label
+dm|labor||bysort region (wage): generate rank = _n
+dm|labor||by region, sort: generate first = _n == 1
+dm|labor||bysort region: generate share = wage / sum(wage)
+dm|labor||mvdecode hours, mv(99)
+dm|labor||generate str10 tag = "x" + string(id)
+desc|labor||describe
+desc|labor||describe wage education, fullnames
+desc|labor||codebook wage region
+desc|labor||codebook, compact
+desc|labor||summarize wage, detail
+desc|labor||summarize wage education hours if female == 1, separator(0)
+desc|labor||bysort region: summarize wage
+desc|labor||tabulate region
+desc|labor||tabulate region, missing sort
+desc|labor||tabulate region female, row column
+desc|labor||tabulate region female, chi2 exact
+desc|labor||tabulate region female, cell nofreq
+desc|labor||tabulate region, summarize(wage)
+desc|labor||tabulate union female, chi2 expected V
+desc|labor||tabstat wage hours education, statistics(mean sd min max n) by(region)
+desc|labor||tabstat wage, stat(p25 p50 p75 iqr cv skewness kurtosis) columns(statistics)
+desc|labor||tabstat wage hours, by(female) nototal format(%9.2f)
+desc|labor||table region female, statistic(mean wage)
+desc|labor||table region, statistic(mean wage) statistic(sd wage) nformat(%9.2f)
+desc|labor||table region female, contents(mean wage)
+desc|labor||table (region) (female), statistic(frequency) statistic(percent)
+desc|labor||correlate wage education experience hours
+desc|labor||correlate wage education, covariance
+desc|labor||pwcorr wage education experience, sig star(0.05) obs
+desc|labor||inspect wage
+desc|labor||count if wage > 20 & female == 1
+desc|labor||list id wage region in 1/5, noobs
+desc|labor||list wage education if wage > 60, abbreviate(12) separator(0)
+desc|labor||misstable summarize
+desc|labor||misstable patterns
+desc|labor||centile wage, centile(10 50 90)
+desc|labor||ci means wage, level(90)
+desc|labor||ci proportions union
+desc|labor||ci wage
+desc|labor||mean wage, over(female)
+desc|labor||proportion union
+desc|labor||levelsof region
+desc|labor||levelsof region, local(regs);;display `"`regs'"'
+desc|labor||distinct region
+desc|labor||unique id
+desc|labor||ds, has(type string)
+desc|labor||lookfor educ
+desc|labor||fre region
+desc|labor||tab1 female union
+desc|labor||histogram wage, discrete
+test|labor||ttest wage, by(female)
+test|labor||ttest wage, by(female) unequal
+test|labor||ttest wage == 20
+test|labor||ttest education == parent_educ
+test|labor||ttest education == parent_educ, unpaired
+test|labor||ttesti 30 20 5 40 22 6
+test|labor||prtest union, by(female)
+test|labor||prtest union == 0.3
+test|labor||prtesti 100 0.4 120 0.5
+test|labor||sdtest wage, by(female)
+test|labor||robvar wage, by(female)
+test|labor||ranksum wage, by(female)
+test|labor||signrank education = parent_educ
+test|labor||signtest education = parent_educ
+test|labor||tabulate region union, chi2
+test|labor||tabi 30 20 \ 15 35, chi2 exact
+test|labor||encode region, generate(regionn);;anova wage regionn
+test|labor||encode region, generate(regionn);;anova wage regionn female regionn#female
+test|labor||encode region, generate(regionn);;oneway wage regionn, tabulate bonferroni
+test|labor||kwallis wage, by(region)
+test|labor||swilk wage
+test|labor||sktest wage
+test|labor||bitest union == 0.25
+test|labor||spearman wage education
+test|labor||ktau wage education
+test|labor||median wage, by(female)
+test|labor||ksmirnov wage, by(female)
+est|labor||regress wage education experience
+est|labor||regress wage education experience, robust
+est|labor||regress wage education experience, vce(robust)
+est|labor||encode region, generate(regionn);;regress wage education experience, vce(cluster regionn)
+est|labor||regress wage education experience, cluster(region)
+est|labor||encode region, generate(regionn);;regress wage education i.regionn
+est|labor||encode region, generate(regionn);;regress wage education ib2.regionn i.female
+est|labor||regress wage c.education##i.female experience
+est|labor||regress wage c.experience##c.experience education
+est|labor||regress wage i.female#i.union education
+est|labor||regress wage education experience [pweight = hours]
+est|labor||regress wage education experience [aw = hours]
+est|labor||regress wage education experience if female == 1, level(99)
+est|labor||regress wage education experience, noconstant beta
+est|labor||bysort female: regress wage education
+est|labor||xi: regress wage education i.region
+est|labor||regress wage education i.region
+est|labor||logit union education experience female
+est|labor||logit union education experience female, or vce(robust)
+est|labor||probit union education experience i.female
+est|labor||logistic union education experience female
+est|labor||ologit satisfaction wage education female
+est|labor||oprobit satisfaction wage education female
+est|labor||mlogit satisfaction wage education, baseoutcome(3)
+est|labor||mlogit satisfaction wage education, rrr
+est|labor||poisson satisfaction wage education
+est|labor||poisson hours education female, irr vce(robust)
+est|labor||nbreg hours education female
+est|labor||tobit hours wage education, ll(20)
+est|labor||tobit hours wage education, ll(20) ul(60)
+est|labor||ivregress 2sls wage experience (education = near_college)
+est|labor||ivregress 2sls wage experience female (education = near_college parent_educ), first vce(robust)
+est|labor||ivregress 2sls wage experience (education = near_college parent_educ);;estat firststage;;estat overid;;estat endogenous
+est|labor||ivreg wage experience (education = near_college)
+est|firms||xtset firm year
+est|firms||xtset firm year;;xtreg profit sales rd employees, fe
+est|firms||xtset firm year;;xtreg profit sales rd employees, re
+est|firms||xtset firm year;;xtreg profit sales rd employees, fe vce(cluster firm)
+est|firms||xtset firm year;;xtreg profit sales rd i.year, fe robust
+est|firms||xtset firm year;;xtsum profit sales
+est|firms||xtset firm year;;xtdescribe
+est|firms||xtset firm year;;xtreg profit L.sales rd, fe
+est|firms||xtset firm year;;xtlogit exporter sales rd, fe
+est|firms||xtset firm year;;xtreg profit sales rd, be
+est|firms||xtset firm year;;xtreg profit sales rd, mle
+est|firms||areg profit sales rd, absorb(firm)
+est|firms||areg profit sales rd i.year, absorb(firm) vce(cluster firm)
+est|firms||reghdfe profit sales rd, absorb(firm year) vce(cluster firm)
+est|firms||regress profit sales rd i.firm i.year, vce(cluster firm)
+est|firms||xtset firm year;;xtreg profit i.policy##c.sales, fe
+est|labor||qreg wage education experience
+est|labor||qreg wage education experience, quantile(0.25)
+est|labor||sqreg wage education, quantiles(.25 .5 .75) reps(20)
+est|labor||glm union education experience, family(binomial) link(logit)
+est|labor||glm satisfaction wage education, family(poisson) link(log) vce(robust)
+est|labor||glm wage education, family(gamma) link(log)
+est|labor||heckman wage education experience, select(union = female education)
+est|labor||rreg wage education
+est|labor||nl (wage = {b0} + {b1}*education)
+est|labor||stepwise, pr(.2): regress wage education experience hours female
+est|labor||sureg (wage education) (hours education female)
+est|labor||mixed wage education || region:
+est|labor||regress wage education experience;;regress
+post|labor|quietly regress wage education experience female|predict yhat
+post|labor|quietly regress wage education experience female|predict yhat, xb
+post|labor|quietly regress wage education experience female|predict uhat, residuals
+post|labor|quietly regress wage education experience female|predict uhat if e(sample), resid
+post|labor|quietly regress wage education experience female|predict se, stdp
+post|labor|quietly regress wage education experience female|predict sf, stdf
+post|labor|quietly regress wage education experience female|predict lev, leverage
+post|labor|quietly regress wage education experience female|predict double d, cooksd
+post|labor|quietly logit union education experience female|predict phat
+post|labor|quietly logit union education experience female|predict phat, pr
+post|labor|quietly logit union education experience female|predict xbhat, xb
+post|labor|quietly probit union education experience female|predict phat, pr
+post|labor|quietly ologit satisfaction wage education|predict p1 p2 p3 p4 p5
+post|labor|quietly mlogit satisfaction wage education|predict p3, outcome(3)
+post|labor|quietly poisson satisfaction wage education|predict nhat, n
+post|labor|quietly tobit hours wage education, ll(20)|predict ystar, ystar(20,.)
+post|firms|xtset firm year;;quietly xtreg profit sales rd, fe|predict ui, u
+post|firms|xtset firm year;;quietly xtreg profit sales rd, fe|predict e, e
+post|labor|quietly ivregress 2sls wage experience (education = near_college)|predict vhat, residuals
+post|labor|quietly regress wage education experience female|test education = experience
+post|labor|quietly regress wage education experience female|test education experience
+post|labor|quietly regress wage education experience female|test (education = 1) (female = 0)
+post|labor|quietly regress wage education experience female|test _b[education] = 2
+post|labor|quietly regress wage education experience female|test education, accumulate
+post|labor|quietly regress wage i.satisfaction education|testparm i.satisfaction
+post|labor|quietly regress wage c.education##i.female|test 1.female#c.education
+post|labor|quietly regress wage education experience female|lincom education + experience
+post|labor|quietly regress wage education experience female|lincom 2*education - female
+post|labor|quietly logit union education experience female|lincom education, or
+post|labor|quietly regress wage education experience female|nlcom _b[education] / _b[experience]
+post|labor|quietly regress wage education experience female|nlcom (ratio: _b[education]/_b[experience]) (prod: _b[education]*_b[female])
+post|labor|quietly regress wage education experience i.female|margins female
+post|labor|quietly regress wage education experience i.female|margins, dydx(*)
+post|labor|quietly regress wage c.education##i.female experience|margins female, at(education = (8(4)20))
+post|labor|quietly regress wage c.education##i.female experience|margins, dydx(education) over(female)
+post|labor|quietly logit union education experience i.female|margins, dydx(*) atmeans
+@ !/=\s+\.\s+\(mean\)/.test(text)
+post|labor|quietly logit union education experience i.female|margins female, predict(pr)
+post|labor|quietly logit union education experience i.female|margins, at(education = (10 12 16)) post
+post|labor|quietly logit union c.education##i.female|margins r.female
+post|labor|quietly logit union c.education##i.female|margins female, pwcompare
+post|labor|quietly probit union education experience i.female|margins, eyex(education)
+post|labor|quietly regress wage c.education##i.female experience;;quietly margins female, at(education = (8(4)20))|marginsplot
+post|labor|quietly regress wage c.education##i.female experience;;quietly margins female, at(education = (8(4)20))|marginsplot, noci title("Predicted wage")
+post|labor|quietly regress wage education experience i.female;;quietly margins, dydx(*)|marginsplot, horizontal
+post|labor|quietly regress wage education experience female|estat hettest
+post|labor|quietly regress wage education experience female|estat hettest, rhs iid
+post|labor|quietly regress wage education experience female|estat vif
+post|labor|quietly regress wage education experience female|estat ic
+post|labor|quietly regress wage education experience female|estat ovtest
+post|labor|quietly regress wage education experience female|estat imtest, white
+post|labor|quietly regress wage education experience female|estat summarize
+post|labor|quietly regress wage education experience female|estat vce, correlation
+post|labor|quietly logit union education experience female|estat classification
+post|labor|quietly logit union education experience female|estat gof
+post|labor|quietly logit union education experience female|lroc
+post|labor|quietly logit union education experience female|estat ic
+post|labor|quietly logit union education experience female|lrtest, saving(0)
+post|labor|quietly regress wage education experience female|estimates store full
+post|labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates table m1 m2
+post|labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates table m1 m2, b(%9.3f) se stats(N r2 r2_a)
+post|labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates table m1 m2, star(.1 .05 .01)
+post|labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates restore m1
+post|labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|estimates dir
+post|labor|quietly regress wage education;;estimates store m1;;quietly regress wage education experience female;;estimates store m2|esttab m1 m2, se r2
+post|labor|quietly regress wage education;;estimates store m1|esttab m1 using results.rtf, replace
+post|labor||eststo clear;;eststo: regress wage education;;eststo: regress wage education experience;;esttab
+post|labor|quietly regress wage education experience female|outreg2 using results.doc, replace
+post|labor|quietly regress wage education experience female|estout
+post|labor|quietly logit union education;;estimates store a;;quietly logit union education experience female;;estimates store b|lrtest a b
+post|firms|xtset firm year;;quietly xtreg profit sales rd employees, fe;;estimates store fe;;quietly xtreg profit sales rd employees, re;;estimates store re|hausman fe re
+post|firms|xtset firm year;;quietly xtreg profit sales rd employees, fe;;estimates store fe;;quietly xtreg profit sales rd employees, re;;estimates store re|hausman fe re, sigmamore
+post|firms|xtset firm year;;quietly xtreg profit sales rd employees, re|xttest0
+post|labor|quietly regress wage education experience female|rvfplot, yline(0)
+post|labor|quietly regress wage education experience female|coefplot, drop(_cons)
+post|labor|quietly regress wage education experience female|display _b[education] / _se[education]
+post|labor|quietly regress wage education experience female|display e(r2) " " e(N) " " e(rmse)
+post|labor|quietly regress wage education experience female|matrix list e(V)
+post|labor|quietly regress wage education experience female|matrix b = e(b);;display b[1,1]
+post|labor|quietly regress wage education experience female|generate insample = e(sample)
+post|labor|quietly summarize wage, detail|display r(p50) " " r(skewness)
+post|labor|quietly regress wage education experience female|regress, coeflegend
+graph|labor||histogram wage
+graph|labor||histogram wage, bin(20) percent normal title("Wages")
+graph|labor||histogram wage, by(female) width(5)
+@ /2 panels/.test(description)
+graph|labor||hist satisfaction, discrete frequency
+graph|labor||scatter wage education
+graph|labor||scatter wage education, msize(small) mcolor(navy) xtitle("Years") ytitle("Wage") title("Returns")
+@ svg !== run(`scatter wage education, msize(small) xtitle("Years") ytitle("Wage") title("Returns")`).svg
+graph|labor||scatter wage education if female == 1, jitter(3)
+graph|labor||twoway scatter wage education || lfit wage education
+graph|labor||twoway (scatter wage education) (lfit wage education), legend(off)
+graph|labor||twoway (scatter wage education if female == 0) (scatter wage education if female == 1), legend(order(1 "Men" 2 "Women"))
+@ svg !== run("twoway (scatter wage education if female == 0) (scatter wage education if female == 1)").svg
+graph|labor||twoway (lfitci wage education) (scatter wage education)
+graph|labor||twoway (qfit wage experience) (scatter wage experience), by(female)
+@ /2 panels/.test(description)
+graph|labor||twoway scatter wage education, by(region) scheme(s2mono)
+@ /\d+ panels/.test(description)
+graph|labor||twoway line wage id, sort
+graph|labor||line wage id if id < 50
+graph|labor||graph twoway scatter wage hours, xline(40) yline(20) xlabel(0(10)80) ylabel(, angle(0))
+@ svg !== run("graph twoway scatter wage hours, ylabel(, angle(0))").svg
+graph|labor||graph bar wage, over(region)
+graph|labor||graph bar (mean) wage (median) hours, over(female) over(region) blabel(bar)
+graph|labor||graph bar (count), over(region)
+@ !/percent/.test(description)
+graph|labor||graph hbar (mean) wage, over(region, sort(1) descending)
+@ svg !== run("graph hbar (mean) wage, over(region)").svg
+graph|labor||graph box wage, over(female)
+graph|labor||graph box wage hours, over(region) nooutsides
+@ svg !== run("graph box wage hours, over(region)").svg
+graph|labor||graph hbox wage, over(region)
+graph|labor||graph pie, over(region)
+graph|labor||graph matrix wage education experience
+graph|labor||graph dot wage, over(region)
+graph|labor||kdensity wage
+graph|labor||kdensity wage, normal bwidth(2)
+graph|labor||twoway (kdensity wage if female == 0) (kdensity wage if female == 1)
+graph|labor||qnorm wage
+graph|labor||pnorm wage
+graph|labor||binscatter wage education
+graph|labor||lowess wage experience
+graph|labor||scatter wage education;;graph export "wage.png", replace
+graph|labor||scatter wage education;;graph export wage.pdf, replace
+graph|labor||scatter wage education, name(g1, replace);;histogram wage, name(g2, replace);;graph combine g1 g2
+@ graphs === 3
+graph|labor||scatter wage education, saving(g1, replace)
+graph|labor||set scheme s1color
+graph|labor||graph drop _all
+graph|labor||twoway function y = x^2, range(0 5)
+@ new Set((svg.match(/points="([^"]*)"/)?.[1] ?? "").split(" ").map((p) => p.split(",")[1])).size > 2
+graph|labor||twoway (histogram wage) (kdensity wage)
+graph|labor||twoway rcap hours wage id in 1/10
+graph|labor||scatter wage education [aweight = hours], msymbol(Oh)
+prog|labor||local controls education experience female;;regress wage `controls'
+prog|labor||local n = _N;;display "There are `n' observations"
+prog|labor||local i = 1;;local ++i;;display `i'
+prog|labor||global xvars "education experience";;regress wage $xvars
+prog|labor||global root "/data";;display "${root}/file.dta"
+prog|labor||scalar m = 5;;display m^2
+prog|labor||summarize wage;;scalar mu = r(mean);;scalar list
+@ /mu\s*=\s*-?[\d.]/.test(text)
+prog|labor||matrix A = (1, 2 \ 3, 4);;matrix list A
+prog|labor||matrix A = (1, 2 \ 3, 4);;matrix B = inv(A);;matrix C = A * B;;matrix list C
+prog|labor||matrix A = (1, 2 \ 3, 4);;matrix B = A';;display det(A) " " trace(A) " " rowsof(A)
+prog|labor||matrix A = J(2, 3, 0);;matrix A[1,2] = 7;;matrix rownames A = a b;;matrix colnames A = x y z;;matrix list A
+prog|labor||mkmat wage education in 1/5, matrix(X);;matrix list X
+prog|labor||matrix accum XX = education experience;;matrix list XX
+prog|labor||regress wage education;;matrix V = e(V);;matrix se = vecdiag(cholesky(diag(vecdiag(V))));;matrix list se
+prog|labor||display %9.3f 3.14159
+prog|labor||display %6.2fc 12345.678 "  " %td 22000 "  " %12.0g 1e10
+prog|labor||display "Mean: " %5.2f 3.14159 _newline "next" _col(20) "col"
+prog|labor||display as text "a" as result 5 as error " b"
+prog|labor||display in red "warning"
+prog|labor||display _n(2) "{hline 20}"
+prog|labor||display sqrt(2) + exp(1) + ln(10) + abs(-3) + round(2.567, .01) + int(3.9) + mod(7, 3)
+prog|labor||display normal(1.96) " " invnormal(.975) " " ttail(20, 2) " " invttail(20, .025) " " chi2tail(2, 5.99) " " Ftail(2, 30, 3.3)
+prog|labor||foreach v of varlist wage hours education {;;summarize `v';;}
+prog|labor||foreach v in wage hours {;;quietly summarize `v';;display "`v': " r(mean);;}
+prog|labor||foreach x of numlist 1/3 5 {;;display `x';;}
+prog|labor||foreach r of local regs {;;display "`r'";;}
+prog|labor||levelsof region, local(regs);;foreach r of local regs {;;quietly summarize wage if region == "`r'";;display "`r' " r(mean);;}
+prog|labor||forvalues i = 1/3 {;;display `i';;}
+prog|labor||forvalues i = 10(5)25 {;;generate w`i' = wage > `i';;}
+prog|labor||forvalues q = 1/5 {;;quietly count if satisfaction == `q';;local n`q' = r(N);;};;display `n1' + `n5'
+prog|labor||local i = 1;;while `i' <= 3 {;;display `i';;local i = `i' + 1;;}
+prog|labor||local i 0;;while 1 {;;local ++i;;if `i' > 3 continue, break;;};;display `i'
+prog|labor||if _N > 100 {;;display "big";;};;else {;;display "small";;}
+prog|labor||local x = 3;;if `x' == 1 display "one";;else if `x' == 3 display "three";;else display "other"
+prog|labor||program define hello;;display "hello";;end;;hello
+prog|labor||capture program drop mymean;;program define mymean, rclass;;syntax varname [if];;quietly summarize `varlist' `if';;return scalar m = r(mean);;end;;mymean wage if female == 1;;return list
+prog|labor||program define twoargs;;args a b;;display `a' + `b';;end;;twoargs 2 3
+prog|labor||program myreg, eclass;;syntax varlist [, Robust];;regress `varlist', `robust';;end;;myreg wage education, robust
+prog|labor||program define showit;;version 17;;syntax varlist(min=2 numeric) [if] [in] [, Level(integer 95) noCONStant];;marksample touse;;regress `varlist' if `touse', level(`level') `constant';;end;;showit wage education, level(90)
+prog|labor||summarize wage;;return list
+prog|labor||regress wage education;;ereturn list
+prog|labor||local lbl : variable label wage;;display "`lbl'"
+prog|labor||local t : type wage;;local f : format wage;;display "`t' `f'"
+prog|labor||local n : word count a b c;;local w : word 2 of a b c;;display "`n' `w'"
+prog|labor||local list a b c;;local k : list sizeof list;;local rest : list list - a;;display "`k' `rest'"
+prog|labor||local vl : value label female;;local s : subinstr local vl "a" "b", all;;local len : length local s;;display `len'
+prog|labor||local files : dir "." files "*.csv";;display `"`files'"'
+prog|labor||local d : display %9.2f 3.14159;;display "`d'"
+prog|labor||unab vars : wage-hours;;display "`vars'"
+prog|labor||ds;;display "`r(varlist)'"
+prog|labor||assert wage > 0
+prog|labor||assert !missing(id)
+prog|labor||capture assert wage < 10;;display _rc
+prog|labor||capture confirm variable nosuchvar;;if _rc display "no such variable"
+prog|labor||capture noisily regress wage nosuch;;display _rc
+prog|labor||confirm numeric variable wage
+prog|labor||quietly regress wage education;;display e(r2)
+prog|labor||quietly {;;summarize wage;;generate dev = wage - r(mean);;};;summarize dev
+prog|labor||set seed 12345;;generate u = runiform();;generate z = rnormal(0, 1);;summarize u z
+prog|labor||set seed 1;;generate b = rbinomial(10, .3);;generate p = rpoisson(2);;generate e = rexponential(1);;generate t = rt(5);;generate c = rchi2(3);;generate ui = runiformint(1, 6);;summarize b p e t c ui
+prog|labor||set seed 1;;bootstrap, reps(50): regress wage education
+prog|labor||set seed 1;;bootstrap r(mean), reps(50): summarize wage
+prog|labor||set seed 1;;bootstrap diff = (_b[education] - _b[experience]), reps(50) seed(2): regress wage education experience
+prog|labor||set seed 1;;regress wage education, vce(bootstrap, reps(50))
+prog|labor||program define sim1, rclass;;drop _all;;set obs 50;;generate x = rnormal();;generate y = 1 + 2*x + rnormal();;regress y x;;return scalar b = _b[x];;end;;set seed 1;;simulate b = r(b), reps(20): sim1;;summarize b
+prog|labor||set seed 1;;simulate mean = r(mean), reps(20) nodots: summarize wage
+prog|labor||jackknife: regress wage education
+prog|labor||set seed 1;;permute female _b[female], reps(30): regress wage female
+prog|labor||clear;;set obs 100;;generate x = _n;;summarize x
+prog|labor||clear all;;set obs 10;;generate id = _n;;list
+prog|labor||sysuse auto, clear
+prog|labor||sysuse wages, clear;;describe
+prog|labor||use wages, clear
+prog|labor||use "labor.dta", clear
+prog|labor||webuse nlswork, clear
+prog|labor||import delimited "wages.csv", clear;;describe
+prog|labor||import delimited using wages.csv, clear varnames(1) case(lower)
+prog|labor||export delimited using "out.csv", replace;;import delimited "out.csv", clear;;count
+prog|labor||export delimited id wage using out.csv, replace nolabel
+prog|labor||save mydata, replace;;use mydata, clear;;count
+prog|labor||save "mydata.dta", replace;;use id wage using mydata, clear
+prog|labor||use mydata if female == 1, clear
+prog|labor||log using mylog.log, replace text;;summarize wage;;log close
+prog|labor||capture log close;;log using mylog, replace;;log close
+prog|labor||cd "C:/data"
+prog|labor||pwd
+prog|labor||set more off
+prog|labor||version 17
+prog|labor||clear;;input x y;;1 2;;3 4;;end;;list
+prog|labor||insheet using wages.csv, clear
+prog|labor||describe using wages
+prog|labor||set obs 700
+prog|labor||mata: st_numscalar("x", 3)
+prog|labor||do analysis.do
+prog|labor||exit
+prog|labor||// comment line;;* another;;summarize wage /* inline */;;regress wage education ///;;    experience
+prog|labor||notes wage: check top coding
+prog|labor||compress
+prog|labor||count;;display r(N)
+prog|labor||isid id
+prog|labor||sample 10
+prog|labor||set seed 1;;sample 50, count by(region)
+prog|labor||bsample 100
+prog|labor||timer clear;;timer on 1;;summarize wage;;timer off 1;;timer list
+@ /^\s*1:/m.test(text)
+prog|labor||creturn list
+prog|labor||display c(N) " " c(k) " " c(pi) " " "`c(current_date)'"
+prog|labor||display _N " " wage[1] " " wage[_N] " " region[2]
+prog|labor||help regress
+prog|labor||ssc install estout
+date|labor||generate d = date("2024-03-15", "YMD");;format d %td;;list d in 1
+date|labor||display date("15mar2024", "DMY") " " mdy(3, 15, 2024) " " td(15mar2024)
+date|labor||display %td mdy(1, 1, 2020) "  " %tdDD/NN/CCYY mdy(1, 1, 2020) "  " %tdMonth_dd,_CCYY mdy(1,1,2020)
+date|labor||generate d = mdy(1, 1, 2020) + id;;generate y = year(d);;generate m = month(d);;generate dd = day(d);;generate dw = dow(d);;generate q = quarter(d);;generate wk = week(d);;generate doy = doy(d);;summarize y m dd dw q wk doy
+date|labor||generate d = mdy(1, 1, 2020) + id;;generate mdate = mofd(d);;format mdate %tm;;generate qd = qofd(d);;format qd %tq;;generate yd = yofd(d);;list d mdate qd yd in 1/2
+date|labor||display ym(2020, 5) " " yq(2020, 2) " " %tm ym(2020, 5) " " %tq yq(2020, 2) " " dofm(ym(2020,5)) " " tm(2020m5) " " tq(2020q2)
+date|labor||generate s = "2021-07-04";;generate d = daily(s, "YMD");;format d %tdCCYY-NN-DD;;list s d in 1
+date|labor||display clock("2024-03-15 14:30:00", "YMDhms") " " %tc clock("2024-03-15 14:30:00", "YMDhms") " " dofc(clock("2024-03-15 14:30:00", "YMDhms")) " " hh(clock("2024-03-15 14:30:00", "YMDhms"))
+date|labor||display datediff(mdy(1,1,2020), mdy(3,1,2021), "month") " " age(mdy(1,1,2000), mdy(6,1,2024))
+date|labor||generate monthly = monthly("2020m5", "YM");;format monthly %tm;;list monthly in 1
+date|labor||display substr("Stata rocks", 1, 5) " " strpos("hello world", "wor") " " strlen("abc") " " length("abcd")
+date|labor||display upper("abc") lower("DEF") proper("john smith") " [" trim("  x  ") "] [" ltrim("  x") "] [" rtrim("x  ") "] " strtrim(" y ") itrim("a   b")
+date|labor||display subinstr("a-b-c", "-", "+", .) " " subinword("the cat the", "the", "a", 1) " " reverse("abc") " " word("alpha beta gamma", 2) " " wordcount("a b c")
+date|labor||display regexm("abc123", "[0-9]+") " " regexs(0) " " regexr("abc123", "[0-9]+", "X")
+date|labor||generate hasn = regexm(region, "^N");;generate first = regexs(1) if regexm(region, "^(.)");;tabulate first hasn
+date|labor||display ustrregexm("abc123", "\d+") " " ustrregexra("a1b22", "\d", "#") " " ustrlen("naïve") " " usubstr("naïve", 3, 2) " " ustrupper("é")
+date|labor||display real("3.5") + 1 " " string(3.14159, "%5.2f") " " strofreal(42) " " string(12)
+date|labor||generate r3 = substr(region, 1, 3);;generate up = strupper(region);;generate len = strlen(region);;generate pos = strpos(region, "o");;list region r3 up len pos in 1/3
+date|labor||generate idstr = string(id, "%04.0f");;generate n = real(idstr);;generate both = region + "_" + idstr;;list idstr n both in 1/2
+date|labor||display strmatch("regress", "reg*") " " inlist("b", "a", "b") " " inrange(5, 1, 10) " " missing(.) " " char(65) " " plural(2, "cat") " " abbrev("experience", 6)
+date|labor||display strtoname("1 bad name") " " stritrim("a  b") " " strrpos("a-b-c", "-") " " substr("abcdef", -2, .) " " strreverse("abc") " " strdup("ab", 3)
+date|labor||split region, parse("o") generate(part)
+date|labor||generate x = cond(missing(wage), ., max(wage, 10));;generate y = min(wage, hours);;generate z = floor(wage) + ceil(wage) + sign(wage) + trunc(wage);;generate lg = log10(wage) + log(wage);;egen rmax = rowmax(wage hours);;summarize x y z lg rmax
+date|labor||generate cum = sum(wage);;generate lagw = wage[_n-1];;generate chg = wage - wage[_n-1];;generate n = _n;;generate N = _N;;summarize cum lagw chg n N
+date|labor||generate byte m = mi(wage, hours);;generate r = rowmiss(wage)
+date|labor||generate a = autocode(wage, 4, 0, 80);;generate b = recode(wage, 10, 20, 30);;generate c = irecode(wage, 10, 20, 30);;tabulate c
+ts|macro||tsset date
+ts|macro||tsset date, quarterly
+ts|macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;list t in 1/3
+ts|macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;generate lg = L.growth;;generate l2 = L2.growth;;generate dg = D.growth;;generate fg = F.growth;;generate d2 = D2.growth;;generate s4 = S4.growth;;summarize lg l2 dg fg d2 s4
+ts|macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth L.inflation D.unemployment
+ts|macro||generate t = yq(year, quarter);;tsset t;;regress growth L(1/4).growth L(0/2).rate
+ts|macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;tsline growth
+ts|macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;tsline growth inflation, tline(2008q3) title("Macro")
+ts|macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;twoway (tsline unemployment) (tsline rate, yaxis(2))
+ts|macro||generate t = yq(year, quarter);;tsset t;;newey growth L.inflation, lag(4)
+ts|macro||generate t = yq(year, quarter);;tsset t;;dfuller unemployment, lags(2) trend
+ts|macro||generate t = yq(year, quarter);;tsset t;;ac growth
+ts|macro||generate t = yq(year, quarter);;tsset t;;corrgram growth, lags(8)
+ts|macro||generate t = yq(year, quarter);;tsset t;;arima growth, ar(1) ma(1)
+ts|macro||generate t = yq(year, quarter);;tsset t;;var growth inflation, lags(1/2)
+ts|macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth;;estat bgodfrey, lags(2)
+ts|macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth;;estat dwatson
+ts|macro||generate t = yq(year, quarter);;tsset t;;prais growth inflation
+ts|macro||generate t = yq(year, quarter);;tsset t;;tssmooth ma g4 = growth, window(3 1 0)
+ts|macro||generate t = yq(year, quarter);;tsset t;;tsfill
+ts|macro||generate t = yq(year, quarter);;tsset t;;generate g = (growth - L4.growth) / L4.growth if t >= tq(2000q1)
+ts|macro||generate t = yq(year, quarter);;tsset t;;tsappend, add(4);;count
+ts|macro||generate t = yq(year, quarter);;tsset t;;pperron unemployment
+ts|macro||generate t = yq(year, quarter);;tsset t;;xcorr growth inflation
+ts|macro||line growth date
+ts|firms||xtset firm year;;generate lsales = L.sales;;generate gs = D.sales / L.sales;;summarize lsales gs
+ts|firms||xtset firm year;;xtline sales if firm <= 4
+ts|firms||bysort firm (year): generate ds = sales - sales[_n-1]
+# Options that must change the output or be refused (development plan, section 2)
+graph|labor||scatter wage education, by(female)
+@ /2 panels/.test(description)
+graph|labor||scatter wage education, xline(12)
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education, yline(20)
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education, xlabel(0(4)20)
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education, ylabel(0(25)100)
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education, mcolor(cranberry)
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education in 1/20, mlabel(id)
+@ svg !== run("scatter wage education in 1/20").svg
+graph|labor||twoway (scatter wage education if female == 0) (scatter wage education if female == 1), legend(label(1 "Men") label(2 "Women"))
+@ svg !== run("twoway (scatter wage education if female == 0) (scatter wage education if female == 1)").svg
+graph|labor||scatter wage education, xscale(log)
+@ svg !== run("scatter wage education").svg
+graph|labor||twoway (scatter wage education) (scatter hours education, yaxis(2))
+@ svg !== run("twoway (scatter wage education) (scatter hours education)").svg
+graph|labor||scatter wage education, subtitle("By schooling")
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education, note("Source: labor")
+@ svg !== run("scatter wage education").svg
+graph|labor||scatter wage education, caption("Figure 1")
+@ svg !== run("scatter wage education").svg
+graph|labor||graph bar (mean) wage, over(region) blabel(bar)
+@ svg !== run("graph bar (mean) wage, over(region)").svg
+graph|labor||graph bar (mean) wage, over(region) asyvars
+@ svg !== run("graph bar (mean) wage, over(region)").svg
+graph|labor||graph bar (mean) wage hours, over(female) stack
+@ svg !== run("graph bar (mean) wage hours, over(female)").svg
+graph|labor||graph bar (count), over(female)
+@ !/percent/.test(description)
+graph|labor||twoway function y = sin(x), range(0 6)
+@ new Set((svg.match(/points="([^"]*)"/)?.[1] ?? "").split(" ").map((p) => p.split(",")[1])).size > 2
+graph|labor||scatter wage education, name(a, replace);;scatter hours education, name(b, replace);;graph combine a b
+@ graphs === 3
+date|labor||display date("15/3/24", "DMY", 2050)
+@ /23450/.test(text)
+prog|labor||scalar a = 3;;scalar list
+@ /a\s*=\s*3/.test(text)
+# Standard errors that must differ from the conventional ones (fixed in PR 30)
+est|labor||regress wage education, vce(cluster region)
+@ /4 clusters in region/.test(text)
+est|labor||logit union education, vce(cluster region)
+@ text !== run("logit union education").text && /4 clusters in region/.test(text)
+est|labor||probit union education, vce(cluster region)
+@ text !== run("probit union education").text && /4 clusters in region/.test(text)
+est|labor||poisson hours education, cluster(region)
+@ text !== run("poisson hours education").text && /4 clusters in region/.test(text)
+est|labor||ivregress 2sls wage experience (education = near_college), vce(cluster region)
+@ text !== run("ivregress 2sls wage experience (education = near_college)").text && /4 clusters in region/.test(text)
