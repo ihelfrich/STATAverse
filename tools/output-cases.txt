@@ -4763,3 +4763,165 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== test-lincom-references-round3
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+generate double experience = floor(runiform()*30)
+replace wage = wage + .1*experience*female
+quietly regress wage education i.reg i.female#c.experience
+capture noisily lincom 2o.reg
+capture noisily lincom 2o.reg - 3.reg
+capture noisily lincom 2.reg + 4o.reg
+capture noisily test 2o.reg = 0
+capture noisily test 3o.reg = 2.reg
+capture noisily test 2o.reg
+lincom 1o.reg
+lincom 1o.reg + 2.reg
+test 1o.reg
+lincom 1o.female#c.experience
+lincom c.experience#1o.female
+lincom o.education
+capture noisily lincom education(2)
+capture noisily lincom educ(1)
+capture noisily lincom foo(2)*education
+capture noisily test foo(1)*education = 0
+capture noisily test education(2) = 0
+capture noisily lincom education + var(1)
+capture noisily lincom nosuch + education(2)
+capture noisily lincom abs(education)
+capture noisily lincom sqrt(4)*education
+scalar s = 3
+lincom scalar(s)*education
+test scalar(s)*education = 1
+lincom education*e(N)
+lincom e(df_r)*education
+lincom c(pi)*education
+test education = e(N)
+lincom e(N)
+capture noisily lincom c(foo)*education
+capture noisily lincom scalar(nosuch)*education
+scalar str = "abc"
+capture noisily lincom str*education
+capture noisily test str*education = 0
+capture noisily lincom education*scalar(str)
+quietly summarize education
+capture noisily lincom r(mean)*education
+quietly summarize education
+test r(mean)*education = 0
+quietly summarize education
+test 2.reg + 3.reg = r(mean)
+quietly summarize education
+test (education = 0) (2.reg = r(N))
+capture noisily lincom e(foo)*education
+scalar drop s str
+lincom _se[education]
+lincom _b[education]/_se[education]
+lincom education + _se[2.reg]
+lincom _se[_cons] + education
+lincom [#1]_se[education]
+test education = _se[education]
+capture noisily test _se[education]
+capture noisily lincom _se[nosuch]
+capture noisily lincom 2.reg#2.reg
+capture noisily lincom 2.reg#3.reg
+capture noisily test 2.reg#2.reg
+capture noisily lincom 1.female#1.female#c.experience
+lincom i2.reg
+lincom i2.reg + i3.reg
+lincom I2.reg
+test i2.reg
+capture noisily lincom i2b.reg
+capture noisily lincom 2i.reg
+capture noisily lincom 2.reg##1.female
+capture noisily test 2.reg##1.female
+lincom 1.female # c.experience
+lincom 2. reg
+lincom 1.female#experience
+test 1.female#experience
+test 1.fem#c.experience
+test c.ed
+capture noisily test 2.reg # 1.female
+capture noisily test 2. reg
+capture noisily test exper 2.reg
+capture noisily lincom _b[foo:education]
+generate exper = experience
+quietly regress wage education experience i.reg i.female#c.experience
+test exper
+test 2.re
+test 02.reg
+test 1.female#c.exper
+lincom educ - exper
+quietly regress wage i.reg##i.female##c.education
+test c.educ#1.female#2.reg
+test 1.female#2.reg#c.educ
+test 1.fem#2.reg
+test 2.re#1.female
+quietly mlogit sat3 i.reg i.female#c.education
+lincom [2]educ#1.female
+lincom [2]c.educ#1.female
+lincom [2]1.female#c.educ
+lincom [2]1.fem#c.education
+lincom [2]_b[educ#1.female]
+lincom [2]2.re
+lincom [2]_b[2.re]
+lincom _b[2:2.re]
+capture noisily lincom [2]2o.reg
+capture noisily lincom [1]2o.reg
+lincom [3]2o.reg
+lincom [2]1o.reg
+test [2]2o.reg
+test [2]02.reg
+test [2]i2.reg
+capture noisily test [2]2.re
+capture noisily test 2.re
+capture noisily test [2]: 2.re
+capture noisily test [2]1.fem#c.education
+test [2]c.education#1.female
+test [3]: 2.reg = 3.reg
+test [2]: c.education#1.female = 2.reg
+capture noisily lincom _b[9:2.reg]
+capture noisily lincom _b[[9]2.reg]
+capture noisily lincom [9]_b[2.reg]
+lincom _se[2:2.reg]
+quietly mlogit sat3 i.reg education
+test [2]: education = 2.reg
+test [2]: education + 2.reg = 0
+test [3]: 2.reg = education
+test [3]: 3.reg = 2.reg
+test [2]: education = [3]2.reg
+test [2]: education = _b[2.reg]
+test [2]: education*2 = 0
+test [2]: educat = 0
+test [2]: education = 2o.reg
+test [3]: 2o.reg = 0
+capture noisily test [2]: foo = 0
+capture noisily test [2]: 5.reg = 0
+capture noisily test [2]: 2*education = 0
+capture noisily test [2]: (education) = 0
+capture noisily test [2]: [3]education = education
+capture noisily test [2]: _b[education] = 0
+capture noisily test [2]: 2o.reg = 0
+capture noisily test [2]: education#2.reg = 0
+quietly tobit wage education, ll(5)
+lincom [/]var(e.wag)
+lincom [/]var(e.wa)
+lincom _b[/var(e.wag)]
+test [/]var(e.wag) = 1
+capture noisily lincom var(e.wage)
+capture noisily lincom 2*var(e.wage)
+capture noisily lincom _b[lnalpha:_cons]
+capture noisily lincom _b[foo:education]
+quietly nbreg hours education
+capture noisily lincom _b[lnalpha:_cons]
+capture noisily lincom _b[foo:education]
+lincom _b[hours:educ]

@@ -114,6 +114,7 @@ for (const c of fixture.cases)
             "binary-noconstant",
             "test-lincom-equation-references",
             "test-references-stata-forms",
+            "test-lincom-references-round3",
           ].includes(c.id),
         )
       )

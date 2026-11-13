@@ -32868,6 +32868,1097 @@
       ]
     },
     {
+      "id": "test-lincom-references-round3",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate byte reg = 1 + floor(runiform()*4)\ngenerate double education = 8 + floor(runiform()*10)\ngenerate byte female = runiform() < .5\ngenerate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)\ngenerate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))\ngenerate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))\ngenerate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))\nreplace satisfaction = 5 if satisfaction > 5\ngenerate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))\ngenerate double experience = floor(runiform()*30)\nreplace wage = wage + .1*experience*female\nquietly regress wage education i.reg i.female#c.experience\ncapture noisily lincom 2o.reg\ncapture noisily lincom 2o.reg - 3.reg\ncapture noisily lincom 2.reg + 4o.reg\ncapture noisily test 2o.reg = 0\ncapture noisily test 3o.reg = 2.reg\ncapture noisily test 2o.reg\nlincom 1o.reg\nlincom 1o.reg + 2.reg\ntest 1o.reg\nlincom 1o.female#c.experience\nlincom c.experience#1o.female\nlincom o.education\ncapture noisily lincom education(2)\ncapture noisily lincom educ(1)\ncapture noisily lincom foo(2)*education\ncapture noisily test foo(1)*education = 0\ncapture noisily test education(2) = 0\ncapture noisily lincom education + var(1)\ncapture noisily lincom nosuch + education(2)\ncapture noisily lincom abs(education)\ncapture noisily lincom sqrt(4)*education\nscalar s = 3\nlincom scalar(s)*education\ntest scalar(s)*education = 1\nlincom education*e(N)\nlincom e(df_r)*education\nlincom c(pi)*education\ntest education = e(N)\nlincom e(N)\ncapture noisily lincom c(foo)*education\ncapture noisily lincom scalar(nosuch)*education\nscalar str = \"abc\"\ncapture noisily lincom str*education\ncapture noisily test str*education = 0\ncapture noisily lincom education*scalar(str)\nquietly summarize education\ncapture noisily lincom r(mean)*education\nquietly summarize education\ntest r(mean)*education = 0\nquietly summarize education\ntest 2.reg + 3.reg = r(mean)\nquietly summarize education\ntest (education = 0) (2.reg = r(N))\ncapture noisily lincom e(foo)*education\nscalar drop s str\nlincom _se[education]\nlincom _b[education]/_se[education]\nlincom education + _se[2.reg]\nlincom _se[_cons] + education\nlincom [#1]_se[education]\ntest education = _se[education]\ncapture noisily test _se[education]\ncapture noisily lincom _se[nosuch]\ncapture noisily lincom 2.reg#2.reg\ncapture noisily lincom 2.reg#3.reg\ncapture noisily test 2.reg#2.reg\ncapture noisily lincom 1.female#1.female#c.experience\nlincom i2.reg\nlincom i2.reg + i3.reg\nlincom I2.reg\ntest i2.reg\ncapture noisily lincom i2b.reg\ncapture noisily lincom 2i.reg\ncapture noisily lincom 2.reg##1.female\ncapture noisily test 2.reg##1.female\nlincom 1.female # c.experience\nlincom 2. reg\nlincom 1.female#experience\ntest 1.female#experience\ntest 1.fem#c.experience\ntest c.ed\ncapture noisily test 2.reg # 1.female\ncapture noisily test 2. reg\ncapture noisily test exper 2.reg\ncapture noisily lincom _b[foo:education]\ngenerate exper = experience\nquietly regress wage education experience i.reg i.female#c.experience\ntest exper\ntest 2.re\ntest 02.reg\ntest 1.female#c.exper\nlincom educ - exper\nquietly regress wage i.reg##i.female##c.education\ntest c.educ#1.female#2.reg\ntest 1.female#2.reg#c.educ\ntest 1.fem#2.reg\ntest 2.re#1.female\nquietly mlogit sat3 i.reg i.female#c.education\nlincom [2]educ#1.female\nlincom [2]c.educ#1.female\nlincom [2]1.female#c.educ\nlincom [2]1.fem#c.education\nlincom [2]_b[educ#1.female]\nlincom [2]2.re\nlincom [2]_b[2.re]\nlincom _b[2:2.re]\ncapture noisily lincom [2]2o.reg\ncapture noisily lincom [1]2o.reg\nlincom [3]2o.reg\nlincom [2]1o.reg\ntest [2]2o.reg\ntest [2]02.reg\ntest [2]i2.reg\ncapture noisily test [2]2.re\ncapture noisily test 2.re\ncapture noisily test [2]: 2.re\ncapture noisily test [2]1.fem#c.education\ntest [2]c.education#1.female\ntest [3]: 2.reg = 3.reg\ntest [2]: c.education#1.female = 2.reg\ncapture noisily lincom _b[9:2.reg]\ncapture noisily lincom _b[[9]2.reg]\ncapture noisily lincom [9]_b[2.reg]\nlincom _se[2:2.reg]\nquietly mlogit sat3 i.reg education\ntest [2]: education = 2.reg\ntest [2]: education + 2.reg = 0\ntest [3]: 2.reg = education\ntest [3]: 3.reg = 2.reg\ntest [2]: education = [3]2.reg\ntest [2]: education = _b[2.reg]\ntest [2]: education*2 = 0\ntest [2]: educat = 0\ntest [2]: education = 2o.reg\ntest [3]: 2o.reg = 0\ncapture noisily test [2]: foo = 0\ncapture noisily test [2]: 5.reg = 0\ncapture noisily test [2]: 2*education = 0\ncapture noisily test [2]: (education) = 0\ncapture noisily test [2]: [3]education = education\ncapture noisily test [2]: _b[education] = 0\ncapture noisily test [2]: 2o.reg = 0\ncapture noisily test [2]: education#2.reg = 0\nquietly tobit wage education, ll(5)\nlincom [/]var(e.wag)\nlincom [/]var(e.wa)\nlincom _b[/var(e.wag)]\ntest [/]var(e.wag) = 1\ncapture noisily lincom var(e.wage)\ncapture noisily lincom 2*var(e.wage)\ncapture noisily lincom _b[lnalpha:_cons]\ncapture noisily lincom _b[foo:education]\nquietly nbreg hours education\ncapture noisily lincom _b[lnalpha:_cons]\ncapture noisily lincom _b[foo:education]\nlincom _b[hours:educ]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        {
+          "command": "generate byte reg = 1 + floor(runiform()*4)",
+          "lines": []
+        },
+        {
+          "command": "generate double education = 8 + floor(runiform()*10)",
+          "lines": []
+        },
+        { "command": "generate byte female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))",
+          "lines": []
+        },
+        {
+          "command": "generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))",
+          "lines": []
+        },
+        {
+          "command": "generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))",
+          "lines": []
+        },
+        {
+          "command": "replace satisfaction = 5 if satisfaction > 5",
+          "lines": ["(56 real changes made)"]
+        },
+        {
+          "command": "generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))",
+          "lines": []
+        },
+        {
+          "command": "generate double experience = floor(runiform()*30)",
+          "lines": []
+        },
+        {
+          "command": "replace wage = wage + .1*experience*female",
+          "lines": ["(312 real changes made)"]
+        },
+        {
+          "command": "quietly regress wage education i.reg i.female#c.experience",
+          "lines": []
+        },
+        {
+          "command": "capture noisily lincom 2o.reg",
+          "lines": ["regressor I2O.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom 2o.reg - 3.reg",
+          "lines": ["regressor I2O.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg + 4o.reg",
+          "lines": ["regressor I4O.reg not found"]
+        },
+        {
+          "command": "capture noisily test 2o.reg = 0",
+          "lines": ["regressor I2O.reg not found"]
+        },
+        {
+          "command": "capture noisily test 3o.reg = 2.reg",
+          "lines": ["regressor I3O.reg not found"]
+        },
+        {
+          "command": "capture noisily test 2o.reg",
+          "lines": ["2o.reg not found"]
+        },
+        {
+          "command": "lincom 1o.reg",
+          "lines": [
+            " ( 1)  1b.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 1o.reg + 2.reg",
+          "lines": [
+            " ( 1)  1b.reg + 2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.210547   .3593971     3.37   0.001     .5047007    1.916393",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 1o.reg",
+          "lines": [
+            " ( 1)  1b.reg = 0",
+            "       Constraint 1 dropped",
+            "",
+            "       F(  0,   593) =       .",
+            "            Prob > F =         ."
+          ]
+        },
+        {
+          "command": "lincom 1o.female#c.experience",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1463839   .0162822     8.99   0.000     .1144061    .1783616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom c.experience#1o.female",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1463839   .0162822     8.99   0.000     .1144061    .1783616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom o.education",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4804716   .0439351    10.94   0.000     .3941843     .566759",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom education(2)",
+          "lines": ["unknown function education()"]
+        },
+        {
+          "command": "capture noisily lincom educ(1)",
+          "lines": ["unknown function educ()"]
+        },
+        {
+          "command": "capture noisily lincom foo(2)*education",
+          "lines": ["unknown function foo()"]
+        },
+        {
+          "command": "capture noisily test foo(1)*education = 0",
+          "lines": ["unknown function foo()"]
+        },
+        {
+          "command": "capture noisily test education(2) = 0",
+          "lines": ["unknown function education()"]
+        },
+        {
+          "command": "capture noisily lincom education + var(1)",
+          "lines": ["unknown function var()"]
+        },
+        {
+          "command": "capture noisily lincom nosuch + education(2)",
+          "lines": ["nosuch not found"]
+        },
+        {
+          "command": "capture noisily lincom abs(education)",
+          "lines": ["not possible with test"]
+        },
+        {
+          "command": "capture noisily lincom sqrt(4)*education",
+          "lines": ["not possible with test"]
+        },
+        { "command": "scalar s = 3", "lines": [] },
+        {
+          "command": "lincom scalar(s)*education",
+          "lines": [
+            " ( 1)  3*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.441415   .1318053    10.94   0.000     1.182553    1.700277",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test scalar(s)*education = 1",
+          "lines": [
+            " ( 1)  3*education = 1",
+            "",
+            "       F(  1,   593) =   11.22",
+            "            Prob > F =    0.0009"
+          ]
+        },
+        {
+          "command": "lincom education*e(N)",
+          "lines": [
+            " ( 1)  600*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    288.283   26.36105    10.94   0.000     236.5106    340.0554",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom e(df_r)*education",
+          "lines": [
+            " ( 1)  593*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   284.9197   26.05351    10.94   0.000     233.7513    336.0881",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom c(pi)*education",
+          "lines": [
+            " ( 1)  3.141593*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.509446   .1380262    10.94   0.000     1.238367    1.780526",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test education = e(N)",
+          "lines": [
+            " ( 1)  education = 600",
+            "",
+            "       F(  1,   593) = 1.9e+08",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom e(N)",
+          "lines": [
+            " ( 1) = -600",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |        600          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom c(foo)*education",
+          "lines": ["c(foo) undefined"]
+        },
+        {
+          "command": "capture noisily lincom scalar(nosuch)*education",
+          "lines": ["nosuch not found"]
+        },
+        { "command": "scalar str = \"abc\"", "lines": [] },
+        {
+          "command": "capture noisily lincom str*education",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily test str*education = 0",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily lincom education*scalar(str)",
+          "lines": ["type mismatch"]
+        },
+        { "command": "quietly summarize education", "lines": [] },
+        {
+          "command": "capture noisily lincom r(mean)*education",
+          "lines": [
+            " ( 1)  .*education = 0",
+            "estimates post: matrix has missing values"
+          ]
+        },
+        { "command": "quietly summarize education", "lines": [] },
+        {
+          "command": "test r(mean)*education = 0",
+          "lines": [
+            " ( 1)  .*education = 0",
+            "       Constraint 1 dropped",
+            "",
+            "       F(  0,   593) =       .",
+            "            Prob > F =         ."
+          ]
+        },
+        { "command": "quietly summarize education", "lines": [] },
+        {
+          "command": "test 2.reg + 3.reg = r(mean)",
+          "lines": [
+            " ( 1)  2.reg + 3.reg = .",
+            "",
+            "       F(  1,   593) =       .",
+            "            Prob > F =         ."
+          ]
+        },
+        { "command": "quietly summarize education", "lines": [] },
+        {
+          "command": "test (education = 0) (2.reg = r(N))",
+          "lines": [
+            " ( 1)  education = 0",
+            " ( 2)  2.reg = .",
+            "",
+            "       F(  2,   593) =       .",
+            "            Prob > F =         ."
+          ]
+        },
+        {
+          "command": "capture noisily lincom e(foo)*education",
+          "lines": [
+            " ( 1)  .*education = 0",
+            "estimates post: matrix has missing values"
+          ]
+        },
+        { "command": "scalar drop s str", "lines": [] },
+        {
+          "command": "lincom _se[education]",
+          "lines": [
+            " ( 1) = -.0439351",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .0439351          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _b[education]/_se[education]",
+          "lines": [
+            " ( 1)  22.76085*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   10.93594          1    10.94   0.000      8.97197    12.89992",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education + _se[2.reg]",
+          "lines": [
+            " ( 1)  education = -.3593971",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .8398688   .0439351    19.12   0.000     .7535815    .9261561",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _se[_cons] + education",
+          "lines": [
+            " ( 1)  education = -.6280999",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.108572   .0439351    25.23   0.000     1.022284    1.194859",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [#1]_se[education]",
+          "lines": [
+            " ( 1) = -.0439351",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .0439351          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test education = _se[education]",
+          "lines": [
+            " ( 1)  education = .0439351",
+            "",
+            "       F(  1,   593) =   98.72",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "capture noisily test _se[education]",
+          "lines": ["_se not found"]
+        },
+        {
+          "command": "capture noisily lincom _se[nosuch]",
+          "lines": ["[nosuch] not found"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg#2.reg",
+          "lines": ["interaction with duplicate factor variables not allowed"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg#3.reg",
+          "lines": ["interaction with duplicate factor variables not allowed"]
+        },
+        {
+          "command": "capture noisily test 2.reg#2.reg",
+          "lines": ["interaction with duplicate factor variables not allowed"]
+        },
+        {
+          "command": "capture noisily lincom 1.female#1.female#c.experience",
+          "lines": ["interaction with duplicate factor variables not allowed"]
+        },
+        {
+          "command": "lincom i2.reg",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.210547   .3593971     3.37   0.001     .5047007    1.916393",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom i2.reg + i3.reg",
+          "lines": [
+            " ( 1)  2.reg + 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.231076   .6204474     1.98   0.048     .0125345    2.449618",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom I2.reg",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.210547   .3593971     3.37   0.001     .5047007    1.916393",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test i2.reg",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "       F(  1,   593) =   11.35",
+            "            Prob > F =    0.0008"
+          ]
+        },
+        {
+          "command": "capture noisily lincom i2b.reg",
+          "lines": ["regressor I2B.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom 2i.reg",
+          "lines": ["2i:  operator invalid"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg##1.female",
+          "lines": ["invalid matrix stripe;", "2.reg##1.female"]
+        },
+        {
+          "command": "capture noisily test 2.reg##1.female",
+          "lines": ["invalid matrix stripe;", "2.reg##1.female"]
+        },
+        {
+          "command": "lincom 1.female # c.experience",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1463839   .0162822     8.99   0.000     .1144061    .1783616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2. reg",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.210547   .3593971     3.37   0.001     .5047007    1.916393",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 1.female#experience",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1463839   .0162822     8.99   0.000     .1144061    .1783616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 1.female#experience",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "       F(  1,   593) =   80.83",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 1.fem#c.experience",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "       F(  1,   593) =   80.83",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test c.ed",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "       F(  1,   593) =  119.59",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "capture noisily test 2.reg # 1.female",
+          "lines": ["# not found"]
+        },
+        { "command": "capture noisily test 2. reg", "lines": ["2. not found"] },
+        {
+          "command": "capture noisily test exper 2.reg",
+          "lines": ["exper not found"]
+        },
+        {
+          "command": "capture noisily lincom _b[foo:education]",
+          "lines": ["equation foo not found"]
+        },
+        { "command": "generate exper = experience", "lines": [] },
+        {
+          "command": "quietly regress wage education experience i.reg i.female#c.experience",
+          "lines": []
+        },
+        {
+          "command": "test exper",
+          "lines": [
+            " ( 1)  experience = 0",
+            "",
+            "       F(  1,   593) =    2.32",
+            "            Prob > F =    0.1283"
+          ]
+        },
+        {
+          "command": "test 2.re",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "       F(  1,   593) =   11.35",
+            "            Prob > F =    0.0008"
+          ]
+        },
+        {
+          "command": "test 02.reg",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "       F(  1,   593) =   11.35",
+            "            Prob > F =    0.0008"
+          ]
+        },
+        {
+          "command": "test 1.female#c.exper",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "       F(  1,   593) =  125.32",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom educ - exper",
+          "lines": [
+            " ( 1)  education - experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |     .50601   .0458703    11.03   0.000      .415922     .596098",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly regress wage i.reg##i.female##c.education",
+          "lines": []
+        },
+        {
+          "command": "test c.educ#1.female#2.reg",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education = 0",
+            "",
+            "       F(  1,   584) =    0.30",
+            "            Prob > F =    0.5846"
+          ]
+        },
+        {
+          "command": "test 1.female#2.reg#c.educ",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education = 0",
+            "",
+            "       F(  1,   584) =    0.30",
+            "            Prob > F =    0.5846"
+          ]
+        },
+        {
+          "command": "test 1.fem#2.reg",
+          "lines": [
+            " ( 1)  2.reg#1.female = 0",
+            "",
+            "       F(  1,   584) =    0.05",
+            "            Prob > F =    0.8238"
+          ]
+        },
+        {
+          "command": "test 2.re#1.female",
+          "lines": [
+            " ( 1)  2.reg#1.female = 0",
+            "",
+            "       F(  1,   584) =    0.05",
+            "            Prob > F =    0.8238"
+          ]
+        },
+        {
+          "command": "quietly mlogit sat3 i.reg i.female#c.education",
+          "lines": []
+        },
+        {
+          "command": "lincom [2]educ#1.female",
+          "lines": [
+            " ( 1)  [2]1.female#c.education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0661479   .0392426    -1.69   0.092    -.1430621    .0107662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]c.educ#1.female",
+          "lines": [
+            " ( 1)  [2]1.female#c.education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0661479   .0392426    -1.69   0.092    -.1430621    .0107662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]1.female#c.educ",
+          "lines": [
+            " ( 1)  [2]1.female#c.education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0661479   .0392426    -1.69   0.092    -.1430621    .0107662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]1.fem#c.education",
+          "lines": [
+            " ( 1)  [2]1.female#c.education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0661479   .0392426    -1.69   0.092    -.1430621    .0107662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]_b[educ#1.female]",
+          "lines": [
+            " ( 1)  [2]1.female#c.education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0661479   .0392426    -1.69   0.092    -.1430621    .0107662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]2.re",
+          "lines": [
+            " ( 1)  [2]2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .3857276   .3292931     1.17   0.241     -.259675     1.03113",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]_b[2.re]",
+          "lines": [
+            " ( 1)  [2]2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .3857276   .3292931     1.17   0.241     -.259675     1.03113",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _b[2:2.re]",
+          "lines": [
+            " ( 1)  [2]2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .3857276   .3292931     1.17   0.241     -.259675     1.03113",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom [2]2o.reg",
+          "lines": ["[2o.reg] not found"]
+        },
+        {
+          "command": "capture noisily lincom [1]2o.reg",
+          "lines": ["[2o.reg] not found"]
+        },
+        {
+          "command": "lincom [3]2o.reg",
+          "lines": [
+            " ( 1)  [3]2o.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]1o.reg",
+          "lines": [
+            " ( 1)  [2]1b.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test [2]2o.reg",
+          "lines": [
+            " ( 1)  [2]2.reg = 0",
+            "",
+            "           chi2(  1) =    1.37",
+            "         Prob > chi2 =    0.2414"
+          ]
+        },
+        {
+          "command": "test [2]02.reg",
+          "lines": [
+            " ( 1)  [2]2.reg = 0",
+            "",
+            "           chi2(  1) =    1.37",
+            "         Prob > chi2 =    0.2414"
+          ]
+        },
+        {
+          "command": "test [2]i2.reg",
+          "lines": [
+            " ( 1)  [2]2.reg = 0",
+            "",
+            "           chi2(  1) =    1.37",
+            "         Prob > chi2 =    0.2414"
+          ]
+        },
+        {
+          "command": "capture noisily test [2]2.re",
+          "lines": ["2.re ambiguous abbreviation"]
+        },
+        {
+          "command": "capture noisily test 2.re",
+          "lines": ["2.re ambiguous abbreviation"]
+        },
+        {
+          "command": "capture noisily test [2]: 2.re",
+          "lines": ["2.re ambiguous abbreviation"]
+        },
+        {
+          "command": "capture noisily test [2]1.fem#c.education",
+          "lines": ["1.fem#c.education ambiguous abbreviation"]
+        },
+        {
+          "command": "test [2]c.education#1.female",
+          "lines": [
+            " ( 1)  [2]1.female#c.education = 0",
+            "",
+            "           chi2(  1) =    2.84",
+            "         Prob > chi2 =    0.0919"
+          ]
+        },
+        {
+          "command": "test [3]: 2.reg = 3.reg",
+          "lines": [
+            " ( 1)  - [1]3.reg + [3]2o.reg = 0",
+            "",
+            "           chi2(  1) =    0.02",
+            "         Prob > chi2 =    0.8830"
+          ]
+        },
+        {
+          "command": "test [2]: c.education#1.female = 2.reg",
+          "lines": [
+            " ( 1)  - [1]2.reg + [2]1.female#c.education = 0",
+            "",
+            "           chi2(  1) =    0.12",
+            "         Prob > chi2 =    0.7340"
+          ]
+        },
+        {
+          "command": "capture noisily lincom _b[9:2.reg]",
+          "lines": ["equation 9 not found"]
+        },
+        {
+          "command": "capture noisily lincom _b[[9]2.reg]",
+          "lines": ["[[9]2.reg] not found"]
+        },
+        {
+          "command": "capture noisily lincom [9]_b[2.reg]",
+          "lines": ["equation [9] not found"]
+        },
+        {
+          "command": "lincom _se[2:2.reg]",
+          "lines": [
+            " ( 1) = -.3292931",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .3292931          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly mlogit sat3 i.reg education", "lines": [] },
+        {
+          "command": "test [2]: education = 2.reg",
+          "lines": [
+            " ( 1)  - [1]2.reg + [2]education = 0",
+            "",
+            "           chi2(  1) =    0.12",
+            "         Prob > chi2 =    0.7287"
+          ]
+        },
+        {
+          "command": "test [2]: education + 2.reg = 0",
+          "lines": [
+            " ( 1)  [1]2.reg + [2]education = 0",
+            "",
+            "           chi2(  1) =    0.03",
+            "         Prob > chi2 =    0.8567"
+          ]
+        },
+        {
+          "command": "test [3]: 2.reg = education",
+          "lines": [
+            " ( 1)  - [1]education + [3]2o.reg = 0",
+            "",
+            "           chi2(  1) =    1.58",
+            "         Prob > chi2 =    0.2091"
+          ]
+        },
+        {
+          "command": "test [3]: 3.reg = 2.reg",
+          "lines": [
+            " ( 1)  - [1]2.reg + [3]3o.reg = 0",
+            "",
+            "           chi2(  1) =    0.01",
+            "         Prob > chi2 =    0.9323"
+          ]
+        },
+        {
+          "command": "test [2]: education = [3]2.reg",
+          "lines": [
+            " ( 1)  [2]education - [3]2o.reg = 0",
+            "",
+            "           chi2(  1) =    3.08",
+            "         Prob > chi2 =    0.0792"
+          ]
+        },
+        {
+          "command": "test [2]: education = _b[2.reg]",
+          "lines": [
+            " ( 1)  - [1]2.reg + [2]education = 0",
+            "",
+            "           chi2(  1) =    0.12",
+            "         Prob > chi2 =    0.7287"
+          ]
+        },
+        {
+          "command": "test [2]: education*2 = 0",
+          "lines": [
+            " ( 1)  2*[2]education = 0",
+            "",
+            "           chi2(  1) =    3.08",
+            "         Prob > chi2 =    0.0792"
+          ]
+        },
+        {
+          "command": "test [2]: educat = 0",
+          "lines": [
+            " ( 1)  [2]education = 0",
+            "",
+            "           chi2(  1) =    3.08",
+            "         Prob > chi2 =    0.0792"
+          ]
+        },
+        {
+          "command": "test [2]: education = 2o.reg",
+          "lines": [
+            " ( 1)  [2]education - [3]2o.reg = 0",
+            "",
+            "           chi2(  1) =    3.08",
+            "         Prob > chi2 =    0.0792"
+          ]
+        },
+        {
+          "command": "test [3]: 2o.reg = 0",
+          "lines": [
+            " ( 1)  [3]2o.reg = 0",
+            "       Constraint 1 dropped",
+            "",
+            "           chi2(  0) =       .",
+            "         Prob > chi2 =         ."
+          ]
+        },
+        {
+          "command": "capture noisily test [2]: foo = 0",
+          "lines": ["[:foo] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: 5.reg = 0",
+          "lines": ["[:5.reg] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: 2*education = 0",
+          "lines": ["[:2] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: (education) = 0",
+          "lines": ["[:(education)] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: [3]education = education",
+          "lines": ["[:[3]education] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: _b[education] = 0",
+          "lines": ["[:_b[education]] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: 2o.reg = 0",
+          "lines": ["[:2o.reg] not found"]
+        },
+        {
+          "command": "capture noisily test [2]: education#2.reg = 0",
+          "lines": ["[:education#2.reg] not found"]
+        },
+        { "command": "quietly tobit wage education, ll(5)", "lines": [] },
+        {
+          "command": "lincom [/]var(e.wag)",
+          "lines": [
+            " ( 1)  [/]var(e.wage) = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   12.43095   .7730568    16.08   0.000     10.91272    13.94918",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [/]var(e.wa)",
+          "lines": [
+            " ( 1)  [/]var(e.wage) = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   12.43095   .7730568    16.08   0.000     10.91272    13.94918",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _b[/var(e.wag)]",
+          "lines": [
+            " ( 1)  [/]var(e.wage) = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   12.43095   .7730568    16.08   0.000     10.91272    13.94918",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test [/]var(e.wag) = 1",
+          "lines": [
+            " ( 1)  [/]var(e.wage) = 1",
+            "",
+            "       F(  1,   599) =  218.65",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "capture noisily lincom var(e.wage)",
+          "lines": ["unknown function var()"]
+        },
+        {
+          "command": "capture noisily lincom 2*var(e.wage)",
+          "lines": ["unknown function var()"]
+        },
+        {
+          "command": "capture noisily lincom _b[lnalpha:_cons]",
+          "lines": ["equation lnalpha not found"]
+        },
+        {
+          "command": "capture noisily lincom _b[foo:education]",
+          "lines": ["equation foo not found"]
+        },
+        { "command": "quietly nbreg hours education", "lines": [] },
+        {
+          "command": "capture noisily lincom _b[lnalpha:_cons]",
+          "lines": ["equation lnalpha not found"]
+        },
+        {
+          "command": "capture noisily lincom _b[foo:education]",
+          "lines": ["equation foo not found"]
+        },
+        {
+          "command": "lincom _b[hours:educ]",
+          "lines": [
+            " ( 1)  [hours]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       hours | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    .045473   .0101958     4.46   0.000     .0254896    .0654564",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
