@@ -170,7 +170,10 @@ function maximumLikelihood(kind) {
         `${dependent.name} must be a nonnegative count`,
         459,
       );
-    const active = columns.filter((c) => !c.base),
+    // A variable collinear with those before it is omitted, as Stata's
+    // _rmcoll omits it, and stays in the table as (omitted).
+    for (const c of columns) c.omitted = !!c.collinear;
+    const active = columns.filter((c) => !c.base && !c.omitted),
       x = sample.map((i) => [
         ...active.map((c) => c.value(i)),
         ...(constant ? [1] : []),
@@ -293,25 +296,23 @@ function maximumLikelihood(kind) {
         ...columns.map((c) => c.name),
         ...(constant ? ["_cons"] : []),
       ],
-      position = new Map(active.map((c, k) => [c.name, k]));
-    if (constant) position.set("_cons", size - 1);
+      // Where each coefficient is in the fit, or -1: by column, since a
+      // variable named twice gives two columns of one name.
+      at = [
+        ...columns.map((c) => active.indexOf(c)),
+        ...(constant ? [size - 1] : []),
+      ];
     const model = {
       command: kind,
       title: family.title,
       dist: "z",
       depvar: dependent.name,
       names,
-      b: names.map((name) => (position.has(name) ? b[position.get(name)] : 0)),
-      V: names.map((r) =>
-        names.map((c) =>
-          position.has(r) && position.has(c)
-            ? V[position.get(r)][position.get(c)]
-            : 0,
-        ),
-      ),
+      b: at.map((j) => (j >= 0 ? b[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
       columns,
       constant,
-      estimable: names.map((name) => position.has(name)),
+      estimable: at.map((j) => j >= 0),
       N: n,
       df_m: active.length,
       rank: size,
@@ -343,7 +344,7 @@ function maximumLikelihood(kind) {
       p,
       r2_p: r2,
       rank: size,
-      k: size,
+      k: names.length,
       ic: log.length - 1,
       converged: 1,
       cmd: kind,
@@ -352,14 +353,31 @@ function maximumLikelihood(kind) {
       ...(robust ? { vcetype: "Robust" } : {}),
       ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
     };
-    ctx.out("");
-    if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
+    // Stata's built-in logit and probit print a blank line, the notes of
+    // omitted variables, then the log; poisson, an ado-file, prints the
+    // notes first and a blank line after them.
+    const logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? ""),
+      omitted = columns.filter((c) => c.omitted),
+      notes = () =>
+        omitted.forEach((c) =>
+          ctx.out(`note: ${c.name} omitted because of collinearity.`),
+        );
+    if (kind === "poisson") {
+      notes();
+      ctx.out("");
+    } else {
+      ctx.out("");
+      notes();
+      if (omitted.length && !logged) ctx.out("");
+    }
+    if (logged) {
       log.forEach((value, k) =>
         ctx.out(
           `Iteration ${k}:  ${word} = ${g(value, "%10.0g").padStart(10)}`,
         ),
       );
-    ctx.out("");
+      ctx.out("");
+    }
     ctx.out(`${family.title.padEnd(56)}${side("Number of obs", count(n))}`);
     ctx.out(
       `${"".padEnd(56)}${side(`${robust ? "Wald" : "LR"} chi2(${model.df_m})`, applyFormat(chi2, "%7.2f").trim())}`,

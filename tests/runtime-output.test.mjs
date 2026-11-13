@@ -105,6 +105,9 @@ for (const c of fixture.cases)
             "mlogit-coefficients",
             "outcome-predict-margins",
             "likelihood-factor-layout",
+            "models-interaction-terms",
+            "nbreg-stata-steps",
+            "models-repeated-terms",
           ].includes(c.id),
         )
       )
