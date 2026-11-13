@@ -14347,6 +14347,160 @@
       ]
     },
     {
+      "id": "table-width",
+      "source": "clear\nset seed 1\nset obs 50\ngenerate double abcdefghijklm = runiform()\ngenerate double abcdefghijklmn = runiform()\ngenerate double household_income_k = runiform()\ngenerate byte neighbourhood_group = 1 + floor(runiform() * 3)\ngenerate double outcome_variable_long = runiform()\nset linesize 80\nregress outcome_variable_long abcdefghijklm abcdefghijklmn household_income_k\nregress outcome_variable_long i.neighbourhood_group abcdefghijklm\nregress outcome_variable_long abcdefghijklm, vce(robust)\nset linesize 90\nregress outcome_variable_long abcdefghijklm abcdefghijklmn\nset linesize 200\nregress outcome_variable_long abcdefghijklm household_income_k\nregress outcome_variable_long i.neighbourhood_group\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        {
+          "command": "generate double abcdefghijklm = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double abcdefghijklmn = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate byte neighbourhood_group = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "generate double outcome_variable_long = runiform()",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm abcdefghijklmn household_income_k",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(3, 46)        =      3.64",
+            "       Model |  .637874998         3  .212624999   Prob > F        =    0.0194",
+            "    Residual |  2.68692961        46  .058411513   R-squared       =    0.1919",
+            "-------------+----------------------------------   Adj R-squared   =    0.1391",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .24168",
+            "",
+            "-------------------------------------------------------------------------------",
+            "outcome_var~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "abcdefghijklm |  -.2522897   .1260142    -2.00   0.051    -.5059431    .0013637",
+            "abcdefghijk~n |  -.0440163   .1187868    -0.37   0.713    -.2831218    .1950892",
+            "household_i~k |  -.3755575   .1313814    -2.86   0.006    -.6400146   -.1111004",
+            "        _cons |   .8421929   .1204019     6.99   0.000     .5998364    1.084549",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress outcome_variable_long i.neighbourhood_group abcdefghijklm",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(3, 46)        =      1.70",
+            "       Model |  .332069965         3  .110689988   Prob > F        =    0.1799",
+            "    Residual |  2.99273465        46  .065059449   R-squared       =    0.0999",
+            "-------------+----------------------------------   Adj R-squared   =    0.0412",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .25507",
+            "",
+            "-------------------------------------------------------------------------------",
+            "outcome_var~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "neighbourho~p |",
+            "           2  |   .1345829    .081083     1.66   0.104    -.0286287    .2977946",
+            "           3  |   .0674009   .1121533     0.60   0.551    -.1583519    .2931538",
+            "              |",
+            "abcdefghijklm |  -.1969297   .1332221    -1.48   0.146    -.4650918    .0712324",
+            "        _cons |   .5330244   .0895125     5.95   0.000     .3528451    .7132037",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =         50",
+            "                                                F(1, 48)          =       2.85",
+            "                                                Prob > F          =     0.0979",
+            "                                                R-squared         =     0.0454",
+            "                                                Root MSE          =     .25714",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "outcome_var~g | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "abcdefghijklm |  -.1995637   .1182405    -1.69   0.098    -.4373021    .0381747",
+            "        _cons |   .6149469    .059775    10.29   0.000     .4947613    .7351326",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 90", "lines": [] },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm abcdefghijklmn",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(2, 47)        =      1.19",
+            "       Model |  .160583741         2  .080291871   Prob > F        =    0.3124",
+            "    Residual |  3.16422087        47  .067323848   R-squared       =    0.0483",
+            "-------------+----------------------------------   Adj R-squared   =    0.0078",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .25947",
+            "",
+            "--------------------------------------------------------------------------------",
+            "outcome_vari~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------+----------------------------------------------------------------",
+            " abcdefghijklm |  -.2053429   .1341327    -1.53   0.132     -.475183    .0644972",
+            "abcdefghijklmn |    .046393   .1229239     0.38   0.708     -.200898     .293684",
+            "         _cons |   .5935196   .0893641     6.64   0.000     .4137422    .7732969",
+            "--------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm household_income_k",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(2, 47)        =      5.49",
+            "       Model |   .62985474         2   .31492737   Prob > F        =    0.0072",
+            "    Residual |  2.69494987        47  .057339359   R-squared       =    0.1894",
+            "-------------+----------------------------------   Adj R-squared   =    0.1549",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .23946",
+            "",
+            "------------------------------------------------------------------------------------",
+            "outcome_variable~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "     abcdefghijklm |  -.2557637   .1245063    -2.05   0.046    -.5062381   -.0052894",
+            "household_income_k |  -.3625953   .1254712    -2.89   0.006    -.6150107   -.1101798",
+            "             _cons |   .8147216   .0939954     8.67   0.000     .6256273    1.003816",
+            "------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress outcome_variable_long i.neighbourhood_group",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(2, 47)        =      1.42",
+            "       Model |   .18990898         2   .09495449   Prob > F        =    0.2510",
+            "    Residual |  3.13489563        47  .066699907   R-squared       =    0.0571",
+            "-------------+----------------------------------   Adj R-squared   =    0.0170",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .25826",
+            "",
+            "-------------------------------------------------------------------------------------",
+            "outcome_variable_~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------------+----------------------------------------------------------------",
+            "neighbourhood_group |",
+            "                 2  |   .1381898   .0820617     1.68   0.099    -.0268971    .3032767",
+            "                 3  |   .0962055   .1118313     0.86   0.394      -.12877     .321181",
+            "                    |",
+            "              _cons |   .4401644   .0645658     6.82   0.000     .3102748    .5700541",
+            "-------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "likelihood-factor-layout",
       "source": "clear\nset seed 2718\nset obs 400\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double income = runiform() * 10\ngenerate double y = 2 + .4 * income + .5 * g + runiform() * 4\nreplace y = 3 if y < 3\ngenerate byte r = 1 + (y > 5) + (y > 7)\ngenerate int k = floor(y * y * runiform())\ntobit y income i.g, ll(3) nolog\ntobit y income, ll(3)\ntobit y income i.g, ll(3) ul(9)\nologit r income i.g, nolog\nnbreg k income i.g, nolog\nregress y income i.g\n",
       "commands": [
