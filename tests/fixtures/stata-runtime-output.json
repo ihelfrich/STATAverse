@@ -31347,6 +31347,449 @@
       ]
     },
     {
+      "id": "test-lincom-regressor-references",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate byte reg = 1 + floor(runiform()*4)\ngenerate double education = 8 + floor(runiform()*10)\ngenerate byte female = runiform() < .5\ngenerate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)\ngenerate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))\ngenerate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))\ngenerate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))\nreplace satisfaction = 5 if satisfaction > 5\ngenerate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))\ngenerate double experience = floor(runiform()*30)\nreplace wage = wage + .1*experience*female\ngenerate exper = experience\nquietly regress wage i.reg##i.female##c.education\ntest c.education#1.female#2.reg\ntest 1.female#c.education#2.reg\ntest 1.female#2.reg#c.education\ntest c.education#2.reg = c.education#3.reg\nlincom c.education#1.female#2.reg - 1.female#3.reg#c.education\ncapture noisily lincom c.education#1.female#5.reg\ncapture noisily test c.education#1.female#5.reg\ntestparm c.education#i.female#i.reg\ntestparm i.female#i.reg\nquietly regress wage education i.reg i.female#c.experience\ncapture noisily test 5.reg = 0\ncapture noisily test 2b.reg = 0\ncapture noisily test exper = 0\ncapture noisily lincom foo\ncapture noisily lincom union\ncapture noisily lincom uni\ncapture noisily lincom e\ncapture noisily lincom 1.female#c.e\ncapture noisily lincom 5.reg + education\ncapture noisily lincom 1.female\ncapture noisily lincom 2.reg#1.female\ncapture noisily lincom c.education#1.female\nlincom 1.female#c.exper\nlincom c.exper#1.fem\nlincom 0b.female#c.experience\nlincom 2bn.reg\ncapture noisily lincom 2n.reg\ncapture noisily lincom 5bn.reg\ncapture noisily lincom 5o.reg\ncapture noisily lincom c.education#c.experience\ncapture noisily lincom 2.reg#1.union\ncapture noisily lincom 2.reg#5.female\ncapture noisily lincom 1.female#c.experience#2.reg\ncapture noisily lincom ib2.reg\ncapture noisily lincom i.reg\ncapture noisily lincom 2bo.reg\nlincom c.education\nlincom co.education\nlincom 2.re\ncapture noisily lincom 5.r\ncapture noisily lincom c.union\ncapture noisily lincom o.foo\ncapture noisily lincom co.experience\ncapture noisily lincom co.education#1.female\ncapture noisily lincom reg\nlincom c._cons\nscalar s = 2\nlincom s*education\nlincom _pi*education\ncapture noisily lincom ln(2)*education\nscalar drop s\nquietly logit union education i.reg\ncapture noisily lincom 5.reg\ncapture noisily lincom exper\ncapture noisily lincom [union]5.reg\nquietly mlogit sat3 education i.reg\ncapture noisily lincom [2]5.reg\ncapture noisily lincom 5.reg\ncapture noisily lincom [2]exper\nquietly ologit satisfaction education i.reg\nlincom cut1\nlincom c.cut1\nlincom educ\nquietly nbreg hours education i.reg\ncapture noisily lincom 1.female\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        {
+          "command": "generate byte reg = 1 + floor(runiform()*4)",
+          "lines": []
+        },
+        {
+          "command": "generate double education = 8 + floor(runiform()*10)",
+          "lines": []
+        },
+        { "command": "generate byte female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))",
+          "lines": []
+        },
+        {
+          "command": "generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))",
+          "lines": []
+        },
+        {
+          "command": "generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))",
+          "lines": []
+        },
+        {
+          "command": "replace satisfaction = 5 if satisfaction > 5",
+          "lines": ["(56 real changes made)"]
+        },
+        {
+          "command": "generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))",
+          "lines": []
+        },
+        {
+          "command": "generate double experience = floor(runiform()*30)",
+          "lines": []
+        },
+        {
+          "command": "replace wage = wage + .1*experience*female",
+          "lines": ["(312 real changes made)"]
+        },
+        { "command": "generate exper = experience", "lines": [] },
+        {
+          "command": "quietly regress wage i.reg##i.female##c.education",
+          "lines": []
+        },
+        {
+          "command": "test c.education#1.female#2.reg",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education = 0",
+            "",
+            "       F(  1,   584) =    0.30",
+            "            Prob > F =    0.5846"
+          ]
+        },
+        {
+          "command": "test 1.female#c.education#2.reg",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education = 0",
+            "",
+            "       F(  1,   584) =    0.30",
+            "            Prob > F =    0.5846"
+          ]
+        },
+        {
+          "command": "test 1.female#2.reg#c.education",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education = 0",
+            "",
+            "       F(  1,   584) =    0.30",
+            "            Prob > F =    0.5846"
+          ]
+        },
+        {
+          "command": "test c.education#2.reg = c.education#3.reg",
+          "lines": [
+            " ( 1)  2.reg#c.education - 3.reg#c.education = 0",
+            "",
+            "       F(  1,   584) =    0.01",
+            "            Prob > F =    0.9379"
+          ]
+        },
+        {
+          "command": "lincom c.education#1.female#2.reg - 1.female#3.reg#c.education",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education - 3.reg#1.female#c.education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.1334598   .2528488    -0.53   0.598    -.6300635    .3631439",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom c.education#1.female#5.reg",
+          "lines": ["regressor I1.female#I5.reg#C.education not found"]
+        },
+        {
+          "command": "capture noisily test c.education#1.female#5.reg",
+          "lines": ["c.education#1.female#5.reg not found"]
+        },
+        {
+          "command": "testparm c.education#i.female#i.reg",
+          "lines": [
+            " ( 1)  2.reg#1.female#c.education = 0",
+            " ( 2)  3.reg#1.female#c.education = 0",
+            " ( 3)  4.reg#1.female#c.education = 0",
+            "",
+            "       F(  3,   584) =    0.65",
+            "            Prob > F =    0.5849"
+          ]
+        },
+        {
+          "command": "testparm i.female#i.reg",
+          "lines": [
+            " ( 1)  2.reg#1.female = 0",
+            " ( 2)  3.reg#1.female = 0",
+            " ( 3)  4.reg#1.female = 0",
+            "",
+            "       F(  3,   584) =    0.63",
+            "            Prob > F =    0.5941"
+          ]
+        },
+        {
+          "command": "quietly regress wage education i.reg i.female#c.experience",
+          "lines": []
+        },
+        {
+          "command": "capture noisily test 5.reg = 0",
+          "lines": ["regressor I5.reg not found"]
+        },
+        {
+          "command": "capture noisily test 2b.reg = 0",
+          "lines": ["regressor I2B.reg not found"]
+        },
+        {
+          "command": "capture noisily test exper = 0",
+          "lines": ["regressor experience not found"]
+        },
+        { "command": "capture noisily lincom foo", "lines": ["foo not found"] },
+        {
+          "command": "capture noisily lincom union",
+          "lines": ["union not found"]
+        },
+        { "command": "capture noisily lincom uni", "lines": ["uni not found"] },
+        {
+          "command": "capture noisily lincom e",
+          "lines": ["e ambiguous abbreviation"]
+        },
+        {
+          "command": "capture noisily lincom 1.female#c.e",
+          "lines": ["e ambiguous abbreviation"]
+        },
+        {
+          "command": "capture noisily lincom 5.reg + education",
+          "lines": ["regressor I5.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom 1.female",
+          "lines": ["regressor I1.female not found"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg#1.female",
+          "lines": ["regressor I2.reg#I1.female not found"]
+        },
+        {
+          "command": "capture noisily lincom c.education#1.female",
+          "lines": ["regressor I1.female#C.education not found"]
+        },
+        {
+          "command": "lincom 1.female#c.exper",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1463839   .0162822     8.99   0.000     .1144061    .1783616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom c.exper#1.fem",
+          "lines": [
+            " ( 1)  1.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1463839   .0162822     8.99   0.000     .1144061    .1783616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 0b.female#c.experience",
+          "lines": [
+            " ( 1)  0b.female#c.experience = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0255384   .0167667    -1.52   0.128    -.0584677    .0073909",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2bn.reg",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.210547   .3593971     3.37   0.001     .5047007    1.916393",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom 2n.reg",
+          "lines": ["2n:  operator invalid"]
+        },
+        {
+          "command": "capture noisily lincom 5bn.reg",
+          "lines": ["regressor I5.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom 5o.reg",
+          "lines": ["regressor I5O.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom c.education#c.experience",
+          "lines": ["regressor C.education#C.experience not found"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg#1.union",
+          "lines": ["variable union not found"]
+        },
+        {
+          "command": "capture noisily lincom 2.reg#5.female",
+          "lines": ["regressor I2.reg#I5.female not found"]
+        },
+        {
+          "command": "capture noisily lincom 1.female#c.experience#2.reg",
+          "lines": ["regressor I1.female#I2.reg#C.experience not found"]
+        },
+        {
+          "command": "capture noisily lincom ib2.reg",
+          "lines": ["ib2:  operator invalid"]
+        },
+        {
+          "command": "capture noisily lincom i.reg",
+          "lines": ["i:  operator invalid"]
+        },
+        {
+          "command": "capture noisily lincom 2bo.reg",
+          "lines": ["2bo:  operator invalid"]
+        },
+        {
+          "command": "lincom c.education",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4804716   .0439351    10.94   0.000     .3941843     .566759",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom co.education",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4804716   .0439351    10.94   0.000     .3941843     .566759",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.re",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.210547   .3593971     3.37   0.001     .5047007    1.916393",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom 5.r",
+          "lines": ["regressor I5.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom c.union",
+          "lines": ["variable union not found"]
+        },
+        {
+          "command": "capture noisily lincom o.foo",
+          "lines": ["variable foo not found"]
+        },
+        {
+          "command": "capture noisily lincom co.experience",
+          "lines": ["regressor experience not found"]
+        },
+        {
+          "command": "capture noisily lincom co.education#1.female",
+          "lines": ["regressor I1.female#CO.education not found"]
+        },
+        {
+          "command": "capture noisily lincom reg",
+          "lines": ["regressor reg not found"]
+        },
+        {
+          "command": "lincom c._cons",
+          "lines": [
+            " ( 1)  _cons = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   2.466829   .6280999     3.93   0.000     1.233258      3.7004",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "scalar s = 2", "lines": [] },
+        {
+          "command": "lincom s*education",
+          "lines": [
+            " ( 1)  2*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .9609433   .0878702    10.94   0.000     .7883687    1.133518",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _pi*education",
+          "lines": [
+            " ( 1)  3.141593*education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.509446   .1380262    10.94   0.000     1.238367    1.780526",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom ln(2)*education",
+          "lines": ["not possible with test"]
+        },
+        { "command": "scalar drop s", "lines": [] },
+        { "command": "quietly logit union education i.reg", "lines": [] },
+        {
+          "command": "capture noisily lincom 5.reg",
+          "lines": ["regressor I5.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom exper",
+          "lines": ["exper not found"]
+        },
+        {
+          "command": "capture noisily lincom [union]5.reg",
+          "lines": ["[5.reg] not found"]
+        },
+        { "command": "quietly mlogit sat3 education i.reg", "lines": [] },
+        {
+          "command": "capture noisily lincom [2]5.reg",
+          "lines": ["[5.reg] not found"]
+        },
+        {
+          "command": "capture noisily lincom 5.reg",
+          "lines": ["regressor I5.reg not found"]
+        },
+        {
+          "command": "capture noisily lincom [2]exper",
+          "lines": ["[exper] not found"]
+        },
+        {
+          "command": "quietly ologit satisfaction education i.reg",
+          "lines": []
+        },
+        {
+          "command": "lincom cut1",
+          "lines": [
+            " ( 1)  [/]cut1 = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "satisfaction | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.7490083   .3388818    -2.21   0.027    -1.413205   -.0848122",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom c.cut1",
+          "lines": [
+            " ( 1)  [/]cut1 = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "satisfaction | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.7490083   .3388818    -2.21   0.027    -1.413205   -.0848122",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom educ",
+          "lines": [
+            " ( 1)  [satisfaction]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "satisfaction | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .0526076   .0247788     2.12   0.034     .0040421    .1011731",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly nbreg hours education i.reg", "lines": [] },
+        {
+          "command": "capture noisily lincom 1.female",
+          "lines": ["variable female not found"]
+        }
+      ]
+    },
+    {
       "id": "margins-factor-at-list",
       "source": "clear\nset seed 2511\nset obs 300\ngenerate byte female = runiform() < .45\ngenerate byte union = runiform() < .3\ngenerate double education = 8 + floor(runiform() * 12)\ngenerate double wage = 2 + 1.5*education - 2*female + 3*union + 6*runiform()\ngenerate byte high = wage > 22\nregress wage i.female education\nmargins female, at(education=(12 16))\nmargins female, at(education=12)\nmargins i.female, at(education=(12(4)20))\nregress wage i.female##c.education\nmargins female, at(education=(12 16))\nregress wage i.female i.union education\nmargins female union, at(education=(12 16))\nlogit high i.female education, nolog\nmargins female, at(education=(10 14))\nregress wage i.female education\nlabel define fl 0 \"male\" 1 \"female\"\nlabel values female fl\nmargins female, at(education=(12 16))\nquietly regress wage i.union i.female\nmargins female\nmargins female, at(union=(0 1))\n",
       "commands": [

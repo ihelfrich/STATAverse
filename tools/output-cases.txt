@@ -4604,6 +4604,88 @@ capture noisily testparm i.reg, eq(/)
 quietly mlogit sat3 education i.female i.reg, baseoutcome(1)
 testparm i.reg, equal
 testparm i.reg
+=== test-lincom-regressor-references
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+generate double experience = floor(runiform()*30)
+replace wage = wage + .1*experience*female
+generate exper = experience
+quietly regress wage i.reg##i.female##c.education
+test c.education#1.female#2.reg
+test 1.female#c.education#2.reg
+test 1.female#2.reg#c.education
+test c.education#2.reg = c.education#3.reg
+lincom c.education#1.female#2.reg - 1.female#3.reg#c.education
+capture noisily lincom c.education#1.female#5.reg
+capture noisily test c.education#1.female#5.reg
+testparm c.education#i.female#i.reg
+testparm i.female#i.reg
+quietly regress wage education i.reg i.female#c.experience
+capture noisily test 5.reg = 0
+capture noisily test 2b.reg = 0
+capture noisily test exper = 0
+capture noisily lincom foo
+capture noisily lincom union
+capture noisily lincom uni
+capture noisily lincom e
+capture noisily lincom 1.female#c.e
+capture noisily lincom 5.reg + education
+capture noisily lincom 1.female
+capture noisily lincom 2.reg#1.female
+capture noisily lincom c.education#1.female
+lincom 1.female#c.exper
+lincom c.exper#1.fem
+lincom 0b.female#c.experience
+lincom 2bn.reg
+capture noisily lincom 2n.reg
+capture noisily lincom 5bn.reg
+capture noisily lincom 5o.reg
+capture noisily lincom c.education#c.experience
+capture noisily lincom 2.reg#1.union
+capture noisily lincom 2.reg#5.female
+capture noisily lincom 1.female#c.experience#2.reg
+capture noisily lincom ib2.reg
+capture noisily lincom i.reg
+capture noisily lincom 2bo.reg
+lincom c.education
+lincom co.education
+lincom 2.re
+capture noisily lincom 5.r
+capture noisily lincom c.union
+capture noisily lincom o.foo
+capture noisily lincom co.experience
+capture noisily lincom co.education#1.female
+capture noisily lincom reg
+lincom c._cons
+scalar s = 2
+lincom s*education
+lincom _pi*education
+capture noisily lincom ln(2)*education
+scalar drop s
+quietly logit union education i.reg
+capture noisily lincom 5.reg
+capture noisily lincom exper
+capture noisily lincom [union]5.reg
+quietly mlogit sat3 education i.reg
+capture noisily lincom [2]5.reg
+capture noisily lincom 5.reg
+capture noisily lincom [2]exper
+quietly ologit satisfaction education i.reg
+lincom cut1
+lincom c.cut1
+lincom educ
+quietly nbreg hours education i.reg
+capture noisily lincom 1.female
 === margins-factor-at-list
 clear
 set seed 2511
