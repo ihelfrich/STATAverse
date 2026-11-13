@@ -3399,3 +3399,202 @@ generate double after = runiform()
 list v after, noobs clean
 matrix drop M N
 clear
+=== tabulate-two-panels
+clear
+set obs 30
+set seed 11
+gen g = 1 + floor(runiform()*3)
+gen str21 s = word("apple pear fig kiwi plum lime", 1+floor(runiform()*6))
+replace s = "" in 3
+sort g, stable
+by g: replace s = s + "-longer-than-five" if _n==1
+set linesize 80
+tab g s
+tab g s, missing
+tab s g
+set linesize 200
+=== tabulate-two-panel-widths
+clear
+set obs 60
+set seed 11
+gen g = 1 + floor(runiform()*3)
+gen h = 1 + floor(runiform()*12)
+gen str12 longrow = "row-value-" + string(g) + "xyz"
+gen str40 r = "x" + string(g) + "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+gen str15 r15 = substr(r, 1, 15)
+set linesize 80
+tab g h
+tab g h, row
+tab g h, column cell chi2
+tab longrow h
+tab r15 h
+tab r h
+set linesize 120
+tab g h
+set linesize 79
+tab g h
+set linesize 78
+tab g h
+set linesize 50
+tab g h
+set linesize 80
+label define gl 1 "abcdefghijklmnopqrstuvwxyz" 2 "two" 3 "abcdefghijklm"
+label values g gl
+tab g h
+label define hl 1 "abcdefghijk" 2 "abcdefghij" 3 "abcdefghi"
+label values h hl
+label variable h "A long variable label for the column variable that goes on and on"
+tab g h
+label values g
+label variable g "word averyveryverylongword end"
+tab g h if h < 4
+set linesize 40
+tab g h if h < 4
+set linesize 200
+=== tabulate-wide-numbers
+clear
+set obs 60
+set seed 5
+gen g = 1 + floor(runiform()*3)
+gen h = 1 + floor(runiform()*7)
+gen long id = 1000000000 + g
+set linesize 80
+tab h id
+tab id h
+gen double w = g * 1e15
+format w %22.0f
+tab g w
+tab w h
+tab w
+gen double z = g * 1234567.891
+tab z
+tab g z
+format z %12.2f
+tab z
+tab g z
+tab z g
+gen v = g + .123456789
+format v %15.9f
+tab v h
+gen double q = (g - 2) * 1234567.891
+format q %12.0fc
+tab q
+format q %9.1f
+tab q h
+gen double t = (g - 2) / 7
+format t %15.9f
+tab t
+tab h t
+replace t = 0 if g == 2
+tab t
+gen double u = 12345678 * g
+format u %12.2fc
+tab u
+format u %9.3gc
+tab u
+format u %10.2e
+tab u
+gen double y = 123456.789 * g
+format y %12.2fc
+tab y
+format y %6.3f
+tab y
+gen d = 21915 + g
+format d %tdDD/NN/CCYY
+tab d h
+format d %tdnn/dd
+tab d
+set linesize 200
+=== tabulate-unicode-stub
+clear
+set obs 60
+set seed 5
+gen g = 1 + floor(runiform()*3)
+gen h = 1 + floor(runiform()*7)
+label define pl 1 "Préférence" 2 "Économie" 3 "x"
+label values g pl
+set linesize 80
+tab g h
+tab g h, row
+label define ul 1 "Ñandúgrandeñoño" 2 "über-alles-café" 3 "é"
+label values h ul
+tab h g
+tab g h
+label define ll 1 "àéîõüàéîõüabcdefghijklmno" 2 "àéîõüàéîõüabcdefghij" 3 "ü"
+label values g ll
+tab g h if h < 3
+tab g
+label define cl 1 "àéîõüàéî" 2 "àbcdefghi" 3 "ü"
+label values h cl
+tab g h if h < 4
+gen str24 s = "àéîõüàéîõüabcdefghij" if g == 1
+replace s = "plain" if g != 1
+tab s h
+tab h s
+set linesize 200
+=== tabulate-two-summarize
+clear
+set obs 60
+set seed 5
+gen g = 1 + floor(runiform()*3)
+gen h = 1 + floor(runiform()*7)
+gen x = runiform()
+replace x = . in 1/4
+tab g h, summarize(x)
+tab g h if h <= 3, summarize(x)
+tab g h if h < 3 [fw=h], summarize(x)
+gen big = x * 1e7
+tab g h if h < 3, summarize(big)
+label variable x "A label that is a good deal longer than the seventy-five characters of the line"
+tab g h if h < 3, summarize(x)
+label variable x ""
+label variable g "row title that is long enough to wrap twice here"
+label variable h "column title that is long enough to wrap"
+tab g h if h <= 2, summarize(x)
+label variable h "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"
+tab g h, summarize(x)
+label variable g ""
+label variable h ""
+label define pl 1 "Préférence" 2 "Économie" 3 "abcdefghijklmnopqrstuvwxyz"
+label values g pl
+tab g h, summarize(x)
+tab g h, summarize(x) nolabel
+label values g
+gen str30 s = cond(g == 1, "a-rather-long-string-of-26c", cond(g == 2, "short", "exactly10c"))
+tab s h, summarize(x)
+tab h s, summarize(x)
+gen str11 s11 = s + "-and-on-and-on-to-sixty-characters-and-beyond-them"
+tab s11 h, summarize(x)
+gen str12 s12 = s11
+tab s12 h, summarize(x)
+gen str60 s60 = s11 + "-and-on-and-on-to-sixty-characters-and-beyond-them"
+replace s60 = s + "-and-on-and-on-to-sixty-characters-and-beyond-them" if g == 1
+tab s60 h, summarize(x)
+replace x = . if g == 2
+tab g h if h < 3, summarize(x)
+tab g, summarize(x)
+gen str4 sx = "a"
+tab g h, summarize(sx)
+capture noisily tab g h, summarize(x) chi2
+capture noisily tab g h, summarize(x) row
+capture noisily tab g h, summarize(x) V
+capture noisily tab g h, generate(dd)
+capture noisily tab g h, sort
+=== tabulate-cramers-v
+clear
+set obs 400
+set seed 21
+gen a = 1 + floor(runiform()*2)
+gen c = floor(runiform()*20)
+gen b = 1 + (runiform() < .4)
+set linesize 80
+tab a c, V
+tab a b, V
+tab a b, chi2 V exact
+gen nb = 3 - b
+tab a nb, V chi2
+tab c b if c < 4, chi2 V
+tab a c if a == 1, V chi2
+capture noisily tab a c, v
+capture noisily tab a, V
+set linesize 200
