@@ -1,6 +1,7 @@
 // Smaller commands: levelsof, ds, unab and ttest.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
+import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
 import { count, labelled, moments, percentile } from "./reports.js";
 import {
@@ -91,10 +92,9 @@ function unab(session, text, ctx) {
   ctx.frame.locals.set(m[1], names.join(" "));
 }
 
-function ttest(session, text, ctx) {
-  const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,]+)([\s\S]*)$/.exec(text),
-    data = session.data,
-    row = (label, m, level) => {
+/** The pieces ttest and ttesti print their tables with. */
+function tPrinters(ctx) {
+  const row = (label, m, level) => {
       const se = m.sd / Math.sqrt(m.n),
         critical = invttail(m.n - 1, (1 - level / 100) / 2);
       return `${label.padStart(8)} |${count(m.n).padStart(8)}${g(m.mean).padStart(12)}${g(se).padStart(12)}${g(m.sd).padStart(12)}${g(m.mean - critical * se).padStart(12)}${g(m.mean + critical * se).padStart(12)}`;
@@ -112,7 +112,9 @@ function ttest(session, text, ctx) {
       ctx.out(
         wide
           ? ` Ha: ${what} < ${value}           Ha: ${what} != ${value}           Ha: ${what} > ${value}`
-          : `    Ha: ${what} < ${value}                 Ha: ${what} != ${value}                 Ha: ${what} > ${value}`,
+          : // The left alternative starts in column 5, the middle one ends
+            // in column 46 and the right one starts in column 64.
+            `${`    Ha: ${what} < ${value}`}${`Ha: ${what} != ${value}`.padStart(46 - `    Ha: ${what} < ${value}`.length)}${" ".repeat(17)}Ha: ${what} > ${value}`,
       );
       ctx.out(
         ` Pr(T < t) = ${four(lower)}         Pr(|T| > |t|) = ${four(2 * ttail(df, Math.abs(t)))}          Pr(T > t) = ${four(1 - lower)}`,
@@ -120,12 +122,32 @@ function ttest(session, text, ctx) {
       ctx.out("");
       return { p_l: lower, p: 2 * ttail(df, Math.abs(t)), p_u: 1 - lower };
     },
-    finish = (left, hypothesis, t, df) => {
+    finish = (left, hypothesis, t, df, kind = "") => {
       ctx.out(`${left.padEnd(66)}t =${applyFormat(t, "%9.4f")}`);
+      // The degrees of freedom end at column 78 whatever their label.
+      const label = `${kind}${kind ? "d" : "D"}egrees of freedom =`,
+        value = kind
+          ? applyFormat(Number(df.toPrecision(6)), "%9.0g")
+          : count(df).padStart(9);
       ctx.out(
-        `${hypothesis.padEnd(49)}Degrees of freedom =${count(df).padStart(9)}`,
+        `${hypothesis}${label.padStart(69 - hypothesis.length)}${value.padStart(9)}`,
       );
     };
+  return { row, rule, middle, head, tails, finish };
+}
+
+function ttest(session, text, ctx) {
+  const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,]+)([\s\S]*)$/.exec(text),
+    data = session.data,
+    { row, rule, middle, head, tails, finish } = tPrinters(ctx),
+    twoSample = twoSampleTable(ctx, session, {
+      row,
+      rule,
+      middle,
+      head,
+      tails,
+      finish,
+    });
   ctx.out("");
   if (paired) {
     const parsed = session.parse("[if] [in] [, Level(cilevel)]", paired[3]),
@@ -211,60 +233,167 @@ function ttest(session, text, ctx) {
     levels = [...new Set(rows.map((i) => by.data[i]))].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
     );
-  if (parsed.options.unequal || parsed.options.welch)
-    throw new StataError(
-      "ttest with unequal variances is not available yet",
-      198,
-    );
+
   if (levels.length !== 2)
     throw new StataError(
       `${levels.length < 2 ? "1 group" : "more than 2 groups"} found, 2 required`,
       420,
     );
   const [a, b] = levels.map((value) =>
-      moments(
-        rows.filter((i) => by.data[i] === value).map((i) => variable.data[i]),
-      ),
+    moments(
+      rows.filter((i) => by.data[i] === value).map((i) => variable.data[i]),
     ),
-    all = moments(rows.map((i) => variable.data[i])),
-    df = a.n + b.n - 2,
-    pooled = Math.sqrt(((a.n - 1) * a.variance + (b.n - 1) * b.variance) / df),
-    se = pooled * Math.sqrt(1 / a.n + 1 / b.n),
-    difference = a.mean - b.mean,
-    t = difference / se,
-    critical = invttail(df, (1 - level / 100) / 2),
-    names = levels.map((value) => labelled(session, by, value).slice(0, 8));
-  ctx.out("Two-sample t test with equal variances");
-  ctx.out(rule);
-  ctx.out(head("Group", level));
-  ctx.out(middle);
-  ctx.out(row(names[0], a, level));
-  ctx.out(row(names[1], b, level));
-  ctx.out(middle);
-  ctx.out(row("Combined", all, level));
-  ctx.out(middle);
-  ctx.out(
-    `${"diff".padStart(8)} |${" ".repeat(8)}${g(difference).padStart(12)}${g(se).padStart(12)}${" ".repeat(12)}${g(difference - critical * se).padStart(12)}${g(difference + critical * se).padStart(12)}`,
   );
-  ctx.out(rule);
-  finish(
-    `    diff = mean(${names[0]}) - mean(${names[1]})`,
-    "H0: diff = 0",
-    t,
-    df,
+  twoSample(
+    a,
+    b,
+    moments(rows.map((i) => variable.data[i])),
+    levels.map((value) => labelled(session, by, value).slice(0, 8)),
+    level,
+    parsed.options.welch
+      ? "Welch's "
+      : parsed.options.unequal
+        ? "Satterthwaite's "
+        : "",
+    "Group",
   );
-  session.results.r = {
-    t,
-    df_t: df,
-    N_1: a.n,
-    N_2: b.n,
-    mu_1: a.mean,
-    mu_2: b.mean,
-    sd_1: a.sd,
-    sd_2: b.sd,
-    se,
-    ...tails(t, df, "diff", "0"),
+}
+
+/**
+ * The two-sample table of ttest and ttesti. kind is "" for equal variances,
+ * or the name of the approximation to the degrees of freedom.
+ */
+function twoSampleTable(
+  ctx,
+  session,
+  { row, rule, middle, head, tails, finish },
+) {
+  return (a, b, all, names, level, kind, first) => {
+    const equal = !kind,
+      va = a.variance / a.n,
+      vb = b.variance / b.n,
+      df = equal
+        ? a.n + b.n - 2
+        : kind === "Welch's "
+          ? (va + vb) ** 2 / (va ** 2 / (a.n + 1) + vb ** 2 / (b.n + 1)) - 2
+          : (va + vb) ** 2 / (va ** 2 / (a.n - 1) + vb ** 2 / (b.n - 1)),
+      se = equal
+        ? Math.sqrt(
+            ((a.n - 1) * a.variance + (b.n - 1) * b.variance) / (a.n + b.n - 2),
+          ) * Math.sqrt(1 / a.n + 1 / b.n)
+        : Math.sqrt(va + vb),
+      difference = a.mean - b.mean,
+      t = difference / se,
+      critical = invttail(df, (1 - level / 100) / 2);
+    ctx.out(`Two-sample t test with ${equal ? "equal" : "unequal"} variances`);
+    ctx.out(rule);
+    ctx.out(head(first, level));
+    ctx.out(middle);
+    ctx.out(row(names[0], a, level));
+    ctx.out(row(names[1], b, level));
+    ctx.out(middle);
+    ctx.out(row("Combined", all, level));
+    ctx.out(middle);
+    ctx.out(
+      `${"diff".padStart(8)} |${" ".repeat(8)}${g(difference).padStart(12)}${g(se).padStart(12)}${" ".repeat(12)}${g(difference - critical * se).padStart(12)}${g(difference + critical * se).padStart(12)}`,
+    );
+    ctx.out(rule);
+    finish(
+      `    diff = mean(${names[0]}) - mean(${names[1]})`,
+      "H0: diff = 0",
+      t,
+      df,
+      kind,
+    );
+    session.results.r = {
+      t,
+      df_t: df,
+      N_1: a.n,
+      N_2: b.n,
+      mu_1: a.mean,
+      mu_2: b.mean,
+      sd_1: a.sd,
+      sd_2: b.sd,
+      se,
+      ...tails(t, df, "diff", "0"),
+    };
   };
+}
+
+/**
+ * ttesti n mean sd value, and ttesti n1 mean1 sd1 n2 mean2 sd2: ttest from
+ * summary statistics, the samples called x and y as Stata calls them.
+ */
+function ttesti(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    options = session.parse(
+      "[, Level(cilevel) UNEqual Welch]",
+      optionText ? "," + optionText : "",
+    ).options,
+    numbers = head.trim().split(/\s+/).filter(Boolean).map(Number);
+  if (
+    ![4, 6].includes(numbers.length) ||
+    numbers.some((v) => !Number.isFinite(v))
+  )
+    throw new StataError("invalid syntax", 198);
+  const sample = (n, mean, sd, which = "") => {
+    if (!(n > 0) || !Number.isInteger(n) || !(sd >= 0))
+      throw new StataError("invalid syntax", 198);
+    // One observation has no spread; Stata refuses a positive sd for it.
+    if (n === 1 && sd > 0)
+      throw new StataError(
+        `${which ? `${which} sample has only` : "only"} one observation, but positive standard deviation`,
+        499,
+      );
+    return { n, mean, sd, variance: sd * sd };
+  };
+  const printers = tPrinters(ctx),
+    { row, rule, middle, head: header, tails, finish } = printers,
+    level = options.level;
+  ctx.out("");
+  if (numbers.length === 4) {
+    if (options.unequal || options.welch)
+      throw new StataError("unequal and welch need two samples", 198);
+    const [n, mean, sd, value] = numbers,
+      m = sample(n, mean, sd),
+      t = (m.mean - value) / (m.sd / Math.sqrt(m.n));
+    ctx.out("One-sample t test");
+    ctx.out(rule);
+    ctx.out(header("", level));
+    ctx.out(middle);
+    ctx.out(row("x", m, level));
+    ctx.out(rule);
+    finish("    mean = mean(x)", `H0: mean = ${g(value)}`, t, m.n - 1);
+    session.results.r = {
+      t,
+      df_t: m.n - 1,
+      N_1: m.n,
+      mu_1: m.mean,
+      sd_1: m.sd,
+      ...tails(t, m.n - 1, "mean", g(value)),
+    };
+    return;
+  }
+  const a = sample(numbers[0], numbers[1], numbers[2], "first"),
+    b = sample(numbers[3], numbers[4], numbers[5], "second"),
+    n = a.n + b.n,
+    mean = (a.n * a.mean + b.n * b.mean) / n,
+    variance =
+      ((a.n - 1) * a.variance +
+        (b.n - 1) * b.variance +
+        a.n * (a.mean - mean) ** 2 +
+        b.n * (b.mean - mean) ** 2) /
+      (n - 1),
+    all = { n, mean, sd: Math.sqrt(variance), variance };
+  twoSampleTable(ctx, session, printers)(
+    a,
+    b,
+    all,
+    ["x", "y"],
+    level,
+    options.welch ? "Welch's " : options.unequal ? "Satterthwaite's " : "",
+    "",
+  );
 }
 
 // The largest power of ten that divides every value, as codebook's Units.
@@ -461,4 +590,5 @@ export const UTILITY_COMMANDS = [
   { name: "ds", minimum: 2, run: ds },
   { name: "unab", minimum: 4, run: unab },
   { name: "ttest", minimum: 5, run: ttest },
+  { name: "ttesti", minimum: 6, run: ttesti },
 ];

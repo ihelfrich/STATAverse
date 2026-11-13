@@ -6,7 +6,7 @@ import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { ranks } from "./everyday.js";
-import { count, labelled, moments, tabulate } from "./reports.js";
+import { count, labelled, moments, percentile, tabulate } from "./reports.js";
 import { Dataset } from "./store.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
@@ -73,103 +73,114 @@ function target(text) {
   return { name: m[1], value: m[2], rest: m[3] ?? "" };
 }
 
-function prtest(session, text, ctx) {
-  const t = target(text),
-    parsed = session.parse("[if] [in] [, BY(varlist) Level(cilevel)]", t.rest),
-    level = parsed.options.level,
-    variable = numericVariable(session, t.name),
-    critical = invnormal(1 - (1 - level / 100) / 2),
+/** The rows, tails and tables prtest and prtesti print. */
+function proportionPrinters(ctx, level) {
+  const critical = invnormal(1 - (1 - level / 100) / 2),
     row = (label, p, se) =>
       `${label.padStart(12)} |${g(p).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(p - critical * se).padStart(13)}${g(p + critical * se).padStart(12)}`,
     tails = (z) => {
+      if (isMissing(z)) {
+        ctx.out(
+          " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      .",
+        );
+        ctx.out("");
+        return { p_l: MISSING, p: MISSING, p_u: MISSING };
+      }
       const lower = normal(z);
       ctx.out(
         ` Pr(Z < z) = ${four(lower)}         Pr(|Z| > |z|) = ${four(2 * normal(-Math.abs(z)))}          Pr(Z > z) = ${four(1 - lower)}`,
       );
       ctx.out("");
       return { p_l: lower, p: 2 * normal(-Math.abs(z)), p_u: 1 - lower };
-    },
-    proportion = (rows) => {
-      const v = values(variable, rows);
-      if (v.some((x) => x !== 0 && x !== 1))
-        throw new StataError(`${variable.name} is not a 0/1 variable`, 450);
-      const p = v.reduce((a, b) => a + b, 0) / v.length;
-      return { n: v.length, p, se: Math.sqrt((p * (1 - p)) / v.length) };
     };
-  ctx.out("");
-  if (parsed.options.by) {
-    const two = twoGroups(session, parsed, variable),
-      [a, b] = two.groups.map(proportion),
-      difference = a.p - b.p,
-      se = Math.sqrt(a.se ** 2 + b.se ** 2),
-      pooled = (a.p * a.n + b.p * b.n) / (a.n + b.n),
-      se0 = Math.sqrt(pooled * (1 - pooled) * (1 / a.n + 1 / b.n)),
-      z = difference / se0;
-    ctx.out(
-      `${"Two-sample test of proportions".padEnd(51)}${`${two.labels[0]}: Number of obs =`}${count(a.n).padStart(9)}`,
-    );
-    ctx.out(
-      `${" ".repeat(51)}${`${two.labels[1]}: Number of obs =`}${count(b.n).padStart(9)}`,
-    );
-    ctx.out(RULE);
-    ctx.out(
-      `       Group |       Mean   Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-    );
-    ctx.out(
-      "-------------+----------------------------------------------------------------",
-    );
-    ctx.out(row(two.labels[0], a.p, a.se));
-    ctx.out(row(two.labels[1], b.p, b.se));
-    ctx.out(
-      "-------------+----------------------------------------------------------------",
-    );
-    ctx.out(row("diff", difference, se));
-    ctx.out(
-      `             |  under H0:${g(se0).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}`,
-    );
-    ctx.out(RULE);
-    ctx.out(
-      `${`        diff = prop(${two.labels[0]}) - prop(${two.labels[1]})`.padEnd(66)}z =${applyFormat(z, "%9.4f")}`,
-    );
-    ctx.out("    H0: diff = 0");
-    ctx.out("");
-    ctx.out(alternatives("Ha: diff < 0", "Ha: diff != 0", "Ha: diff > 0"));
-    session.results.r = {
-      N1: a.n,
-      P1: a.p,
-      se1: a.se,
-      N2: b.n,
-      P2: b.p,
-      se2: b.se,
-      P_diff: difference,
-      se_diff: se,
-      se_diff0: se0,
-      z,
-      ...tails(z),
-      level,
-    };
-    return;
-  }
-  if (t.value === undefined) throw new StataError("invalid syntax", 198);
-  const p0 = session.scalar(t.value),
-    one = proportion(session.rows(parsed, null)),
-    z = (one.p - p0) / Math.sqrt((p0 * (1 - p0)) / one.n),
-    shown = String(p0);
+  return { critical, row, tails };
+}
+/** A sample's proportion and its standard error. */
+const proportionOf = (n, p) => ({ n, p, se: Math.sqrt((p * (1 - p)) / n) });
+
+/** The two-sample table; first heads the label column ("Group" or ""). */
+function twoProportions(ctx, session, a, b, labels, level, first) {
+  const { row, tails } = proportionPrinters(ctx, level),
+    difference = a.p - b.p,
+    se = Math.sqrt(a.se ** 2 + b.se ** 2),
+    pooled = (a.p * a.n + b.p * b.n) / (a.n + b.n),
+    se0 = Math.sqrt(pooled * (1 - pooled) * (1 / a.n + 1 / b.n)),
+    z = difference / se0;
   ctx.out(
-    `${"One-sample test of proportion".padEnd(48)}Number of obs      =${count(one.n).padStart(10)}`,
+    `${"Two-sample test of proportions".padEnd(51)}${`${labels[0]}: Number of obs =`}${count(a.n).padStart(9)}`,
   );
-  ctx.out("");
+  ctx.out(
+    `${" ".repeat(51)}${`${labels[1]}: Number of obs =`}${count(b.n).padStart(9)}`,
+  );
   ctx.out(RULE);
   ctx.out(
-    `    Variable |       Mean   Std. err.                     [${g(level)}% conf. interval]`,
+    `${first.padStart(12)} |       Mean   Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
   );
   ctx.out(
     "-------------+----------------------------------------------------------------",
   );
-  ctx.out(row(variable.name, one.p, one.se));
+  ctx.out(row(labels[0], a.p, a.se));
+  ctx.out(row(labels[1], b.p, b.se));
+  ctx.out(
+    "-------------+----------------------------------------------------------------",
+  );
+  ctx.out(row("diff", difference, se));
+  ctx.out(
+    `             |  under H0:${g(se0).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}`,
+  );
   ctx.out(RULE);
   ctx.out(
-    `${`    p = proportion(${variable.name})`.padEnd(66)}z =${applyFormat(z, "%9.4f")}`,
+    `${`        diff = prop(${labels[0]}) - prop(${labels[1]})`.padEnd(66)}z =${applyFormat(z, "%9.4f")}`,
+  );
+  ctx.out("    H0: diff = 0");
+  ctx.out("");
+  ctx.out(alternatives("Ha: diff < 0", "Ha: diff != 0", "Ha: diff > 0"));
+  session.results.r = {
+    N1: a.n,
+    P1: a.p,
+    se1: a.se,
+    N2: b.n,
+    P2: b.p,
+    se2: b.se,
+    P_diff: difference,
+    se_diff: se,
+    se_diff0: se0,
+    z,
+    ...tails(z),
+    level,
+  };
+}
+
+/**
+ * The one-sample table. prtest heads the label column Variable and gives
+ * the count on its own line; prtesti, immediate, as the two-sample table
+ * does.
+ */
+function oneProportion(ctx, session, one, name, p0, level, immediate) {
+  const { critical, row, tails } = proportionPrinters(ctx, level),
+    // At p0 = 0 or 1 the statistic is undefined; Stata shows it missing.
+    z =
+      p0 > 0 && p0 < 1
+        ? (one.p - p0) / Math.sqrt((p0 * (1 - p0)) / one.n)
+        : MISSING,
+    shown = String(p0);
+  ctx.out(
+    immediate
+      ? `${"One-sample test of proportion".padEnd(51)}${name}: Number of obs =${count(one.n).padStart(9)}`
+      : `${"One-sample test of proportion".padEnd(48)}Number of obs      =${count(one.n).padStart(10)}`,
+  );
+  if (!immediate) ctx.out("");
+  ctx.out(RULE);
+  ctx.out(
+    `${(immediate ? "" : "Variable").padStart(12)} |       Mean   Std. err.                     [${g(level)}% conf. interval]`,
+  );
+  ctx.out(
+    "-------------+----------------------------------------------------------------",
+  );
+  ctx.out(row(name, one.p, one.se));
+  ctx.out(RULE);
+  ctx.out(
+    `${`    p = proportion(${name})`.padEnd(66)}z =${applyFormat(z, "%9.4f")}`,
   );
   ctx.out(`H0: p = ${shown}`);
   ctx.out("");
@@ -186,6 +197,84 @@ function prtest(session, text, ctx) {
     ...tails(z),
     level,
   };
+}
+
+function prtest(session, text, ctx) {
+  const t = target(text),
+    parsed = session.parse("[if] [in] [, BY(varlist) Level(cilevel)]", t.rest),
+    level = parsed.options.level,
+    variable = numericVariable(session, t.name),
+    proportion = (rows) => {
+      const v = values(variable, rows);
+      if (v.some((x) => x !== 0 && x !== 1))
+        throw new StataError(`${variable.name} is not a 0/1 variable`, 450);
+      return proportionOf(v.length, v.reduce((a, b) => a + b, 0) / v.length);
+    };
+  ctx.out("");
+  if (parsed.options.by) {
+    const two = twoGroups(session, parsed, variable),
+      [a, b] = two.groups.map(proportion);
+    return twoProportions(ctx, session, a, b, two.labels, level, "Group");
+  }
+  if (t.value === undefined) throw new StataError("invalid syntax", 198);
+  oneProportion(
+    ctx,
+    session,
+    proportion(session.rows(parsed, null)),
+    variable.name,
+    session.scalar(t.value),
+    level,
+    false,
+  );
+}
+
+/**
+ * prtesti n p p0, and prtesti n1 p1 n2 p2, from summary statistics; with
+ * count the proportions are given as counts of successes.
+ */
+function prtesti(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    options = session.parse(
+      "[, Level(cilevel) Count]",
+      optionText ? "," + optionText : "",
+    ).options,
+    numbers = head.trim().split(/\s+/).filter(Boolean).map(Number);
+  if (
+    ![3, 4].includes(numbers.length) ||
+    numbers.some((v) => !Number.isFinite(v))
+  )
+    throw new StataError("invalid syntax", 198);
+  const sample = (n, p) => {
+    const share = options.count ? p / n : p;
+    if (!(n > 0) || !Number.isInteger(n) || !(share >= 0 && share <= 1))
+      throw new StataError("invalid syntax", 198);
+    return proportionOf(n, share);
+  };
+  ctx.out("");
+  if (numbers.length === 3) {
+    const [n, p, p0] = numbers;
+    if (!(p0 >= 0 && p0 <= 1))
+      throw new StataError(`${g(p0)} not in [0,1]`, 198);
+    return oneProportion(
+      ctx,
+      session,
+      sample(n, p),
+      "x",
+      // Under count the successes are a count; the hypothesis stays a share.
+      p0,
+      options.level,
+      true,
+    );
+  }
+  twoProportions(
+    ctx,
+    session,
+    sample(numbers[0], numbers[1]),
+    sample(numbers[2], numbers[3]),
+    ["x", "y"],
+    options.level,
+    "",
+  );
 }
 
 function sdtest(session, text, ctx) {
@@ -656,6 +745,88 @@ function bitesti(session, text, ctx) {
   binomialTest(ctx, session, n, k, p);
 }
 
+/**
+ * robvar: Levene's test of equal variances across groups (W0) and Brown and
+ * Forsythe's versions with the median (W50) and the 10 percent trimmed mean
+ * (W10): each is the one-way F test of the absolute deviations from the
+ * group's centre. The trimmed mean is the mean of the values between the
+ * group's 10th and 90th percentiles.
+ */
+function robvar(session, text, ctx) {
+  const parsed = session.parse("varname [if] [in] , BY(varlist)", text);
+  if (parsed.options.by.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  const f = grouped(session, parsed),
+    groups = f.groups.map((rows) => values(f.variable, rows)),
+    n = groups.reduce((t, v) => t + v.length, 0),
+    k = groups.length;
+  if (k < 2) throw new StataError("1 group found, 2 or more required", 420);
+  const condition = [
+    parsed.if ? `if ${parsed.if}` : "",
+    parsed.in ? `in ${parsed.in[0]}/${parsed.in[1]}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  tabulate(
+    session,
+    `${f.by.name} ${condition}, summarize(${f.variable.name})`,
+    ctx,
+  );
+  const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length,
+    sorted = (v) => [...v].sort((a, b) => a - b),
+    centres = {
+      w0: mean,
+      w50: (v) => percentile(sorted(v), 50),
+      w10: (v) => {
+        const s = sorted(v),
+          low = percentile(s, 10),
+          high = percentile(s, 90);
+        return mean(s.filter((x) => x >= low && x <= high));
+      },
+    },
+    test = (centre) => {
+      const deviations = groups.map((v) => {
+          const c = centre(v);
+          return v.map((x) => Math.abs(x - c));
+        }),
+        all = mean(deviations.flat()),
+        between = deviations.reduce(
+          (t, d) => t + d.length * (mean(d) - all) ** 2,
+          0,
+        ),
+        within = deviations.reduce((t, d) => {
+          const m = mean(d);
+          return t + d.reduce((u, x) => u + (x - m) ** 2, 0);
+        }, 0),
+        F = between / (k - 1) / (within / (n - k));
+      return { F, p: Ftail(k - 1, n - k, F) };
+    },
+    // Stata shows the probability with its leading zero.
+    probability = (p) => {
+      if (isMissing(p) || !Number.isFinite(p)) return ".";
+      const text = applyFormat(p, "%10.0g").trim();
+      // Too small for %g without an exponent, Stata writes it fixed.
+      if (/e/.test(text)) return applyFormat(p, "%10.8f").trim();
+      return text.startsWith(".") ? `0${text}` : text;
+    },
+    results = { N: n, df_1: k - 1, df_2: n - k };
+  for (const [name, label] of [
+    ["w0", "W0 "],
+    ["w50", "W50"],
+    ["w10", "W10"],
+  ]) {
+    const { F, p } = test(centres[name]);
+    // The table ends with a blank line; each statistic is followed by one.
+    ctx.out(
+      `${label} = ${applyFormat(F, "%10.0g")}   df(${k - 1}, ${n - k})     Pr > F = ${probability(p)}`,
+    );
+    ctx.out("");
+    results[name] = F;
+    results[`p_${name}`] = p;
+  }
+  session.results.r = results;
+}
+
 function oneway(session, text, ctx) {
   const parsed = session.parse(
       "varlist(min=2 max=2) [if] [in] [, Tabulate | Bonferroni SCHeffe SIdak Means STandard Freq Obs noAnova noLabel Wrap Missing]",
@@ -830,6 +1001,8 @@ export const TEST_COMMANDS = [
   { name: "prtest", minimum: 6, run: prtest },
   { name: "bitest", minimum: 6, run: bitest },
   { name: "bitesti", minimum: 7, run: bitesti },
+  { name: "robvar", minimum: 6, run: robvar },
+  { name: "prtesti", minimum: 7, run: prtesti },
   { name: "sdtest", minimum: 6, run: sdtest },
   { name: "ranksum", minimum: 7, run: ranksum },
   { name: "signrank", minimum: 8, run: signrank },

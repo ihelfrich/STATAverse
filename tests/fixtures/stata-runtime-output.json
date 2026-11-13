@@ -14347,187 +14347,1769 @@
       ]
     },
     {
-      "id": "binomial-test",
-      "source": "clear\nset seed 13\nset obs 90\ngenerate byte d = runiform() < .3\ngenerate byte g = runiform() > .5\nbitest d == .25\nbitest d == .5 if g == 1\nbitesti 100 30 0.25\nbitesti 20 3 0.5\nbitesti 10 10 0.5\nbitesti 10 0 0.5\nbitesti 10 9 0.95\nbitesti 50 1 0.01\nbitesti 50 0 0.01\nbitesti 7 3 0.333\ncapture noisily bitesti 10 5 0\ndisplay _rc\ncapture noisily bitesti 10 10 1\ndisplay _rc\ncapture noisily bitest d == 1.5\ndisplay _rc\ncapture noisily bitest d == .5 if g == 9\ndisplay _rc\n",
+      "id": "robvar",
+      "source": "clear\nset seed 11\nset obs 240\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double y = runiform() * g * 4\ngenerate byte two = runiform() > .5\nrobvar y, by(g)\nrobvar y if y > 1, by(two)\ncapture noisily robvar y, by(g two)\ndisplay _rc\n",
       "commands": [
         { "command": "clear", "lines": [] },
-        { "command": "set seed 13", "lines": [] },
+        { "command": "set seed 11", "lines": [] },
+        {
+          "command": "set obs 240",
+          "lines": ["Number of observations (_N) was 0, now 240."]
+        },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate double y = runiform() * g * 4", "lines": [] },
+        { "command": "generate byte two = runiform() > .5", "lines": [] },
+        {
+          "command": "robvar y, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |   1.9084232   1.2479581          77",
+            "          2 |   3.9952446   2.2068503          82",
+            "          3 |   5.9374237   3.3371428          81",
+            "------------+------------------------------------",
+            "      Total |   3.9812082   2.9248469         240",
+            "",
+            "W0  =  45.931277   df(2, 237)     Pr > F = 0.00000000",
+            "",
+            "W50 =  41.026613   df(2, 237)     Pr > F = 0.00000000",
+            "",
+            "W10 =  45.561919   df(2, 237)     Pr > F = 0.00000000"
+          ]
+        },
+        {
+          "command": "robvar y if y > 1, by(two)",
+          "lines": [
+            "            |            Summary of y",
+            "        two |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          0 |   4.4948385   2.5321558          98",
+            "          1 |   4.8264069   2.8626937         103",
+            "------------+------------------------------------",
+            "      Total |   4.6647467   2.7049569         201",
+            "",
+            "W0  =  2.3868319   df(1, 199)     Pr > F = 0.12395014",
+            "",
+            "W50 =  1.9092529   df(1, 199)     Pr > F = 0.1685955",
+            "",
+            "W10 =  2.4345514   df(1, 199)     Pr > F = 0.12027673"
+          ]
+        },
+        {
+          "command": "capture noisily robvar y, by(g two)",
+          "lines": ["by():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] }
+      ]
+    },
+    {
+      "id": "prtest-immediate",
+      "source": "clear\nset seed 5\nset obs 150\ngenerate byte d = runiform() < .45\ngenerate byte grp = runiform() > .5\nprtesti 100 .4 .5\nprtesti 100 .4 120 .5\nprtesti 100 40 120 60, count\nprtesti 100 40 .5, count\nprtesti 80 .3 .25, level(90)\nprtest d == .5\nprtest d, by(grp)\ncapture noisily prtesti 100 .4 1.5\ndisplay _rc\nprtesti 100 .4 0\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "set obs 150",
+          "lines": ["Number of observations (_N) was 0, now 150."]
+        },
+        { "command": "generate byte d = runiform() < .45", "lines": [] },
+        { "command": "generate byte grp = runiform() > .5", "lines": [] },
+        {
+          "command": "prtesti 100 .4 .5",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =      100",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z =  -2.0000",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.0228         Pr(|Z| > |z|) = 0.0455          Pr(Z > z) = 0.9772"
+          ]
+        },
+        {
+          "command": "prtesti 100 .4 120 .5",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =      100",
+            "                                                   y: Number of obs =      120",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "           y |         .5   .0456435                      .4105403    .5894597",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.1   .0669577                     -.2312347    .0312347",
+            "             |  under H0:     .06742    -1.48   0.138",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z =  -1.4832",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0690         Pr(|Z| > |z|) = 0.1380          Pr(Z > z) = 0.9310"
+          ]
+        },
+        {
+          "command": "prtesti 100 40 120 60, count",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =      100",
+            "                                                   y: Number of obs =      120",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "           y |         .5   .0456435                      .4105403    .5894597",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.1   .0669577                     -.2312347    .0312347",
+            "             |  under H0:     .06742    -1.48   0.138",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z =  -1.4832",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0690         Pr(|Z| > |z|) = 0.1380          Pr(Z > z) = 0.9310"
+          ]
+        },
+        {
+          "command": "prtesti 100 40 .5, count",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =      100",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z =  -2.0000",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.0228         Pr(|Z| > |z|) = 0.0455          Pr(Z > z) = 0.9772"
+          ]
+        },
+        {
+          "command": "prtesti 80 .3 .25, level(90)",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =       80",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .3   .0512348                      .2157263    .3842737",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z =   1.0328",
+            "H0: p = 0.25",
+            "",
+            "    Ha: p < 0.25                 Ha: p != 0.25                 Ha: p > 0.25",
+            " Pr(Z < z) = 0.8492         Pr(|Z| > |z|) = 0.3017          Pr(Z > z) = 0.1508"
+          ]
+        },
+        {
+          "command": "prtest d == .5",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =       150",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           d |   .5333333    .040734                      .4534961    .6131705",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(d)                                             z =   0.8165",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.7929         Pr(|Z| > |z|) = 0.4142          Pr(Z > z) = 0.2071"
+          ]
+        },
+        {
+          "command": "prtest d, by(grp)",
+          "lines": [
+            "Two-sample test of proportions                     0: Number of obs =       83",
+            "                                                   1: Number of obs =       67",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           0 |   .5542169   .0545585                      .4472841    .6611496",
+            "           1 |   .5074627   .0610779                      .3877522    .6271732",
+            "-------------+----------------------------------------------------------------",
+            "        diff |   .0467542   .0818972                     -.1137613    .2072697",
+            "             |  under H0:   .0819355     0.57   0.568",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(0) - prop(1)                                  z =   0.5706",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.7159         Pr(|Z| > |z|) = 0.5683          Pr(Z > z) = 0.2841"
+          ]
+        },
+        {
+          "command": "capture noisily prtesti 100 .4 1.5",
+          "lines": ["1.5 not in [0,1]"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "prtesti 100 .4 0",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =      100",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z =        .",
+            "H0: p = 0",
+            "",
+            "      Ha: p < 0                   Ha: p != 0                     Ha: p > 0",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ttest-immediate-unequal",
+      "source": "clear\nset seed 99\nset obs 120\ngenerate double y = runiform() * 10\ngenerate byte grp = runiform() > .4\nreplace y = y * 2 if grp\nttesti 30 20 5 18\nttesti 30 20 5 40 22 6\nttesti 30 20 5 40 22 6, unequal\nttesti 30 20 5 40 22 6, welch level(90)\nttest y, by(grp) unequal\nttest y, by(grp) welch\nttest y == 7\nttest y, by(grp)\ncapture noisily ttesti 1 20 5 18\ndisplay _rc\ncapture noisily ttesti 1 20 5 1 22 6\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate double y = runiform() * 10", "lines": [] },
+        { "command": "generate byte grp = runiform() > .4", "lines": [] },
+        {
+          "command": "replace y = y * 2 if grp",
+          "lines": ["(71 real changes made)"]
+        },
+        {
+          "command": "ttesti 30 20 5 18",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30          20    .9128709           5    18.13297    21.86703",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(x)                                                t =   2.1909",
+            "H0: mean = 18                                    Degrees of freedom =       29",
+            "",
+            "    Ha: mean < 18               Ha: mean != 18                 Ha: mean > 18",
+            " Pr(T < t) = 0.9817         Pr(|T| > |t|) = 0.0366          Pr(T > t) = 0.0183"
+          ]
+        },
+        {
+          "command": "ttesti 30 20 5 40 22 6",
+          "lines": [
+            "Two-sample t test with equal variances",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30          20    .9128709           5    18.13297    21.86703",
+            "       y |      40          22    .9486833           6    20.08111    23.91889",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70    21.14286    .6745248     5.64348    19.79722     22.4885",
+            "---------+--------------------------------------------------------------------",
+            "    diff |                  -2    1.351424               -4.696725    .6967255",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(x) - mean(y)                                      t =  -1.4799",
+            "H0: diff = 0                                     Degrees of freedom =       68",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) = 0.0718         Pr(|T| > |t|) = 0.1435          Pr(T > t) = 0.9282"
+          ]
+        },
+        {
+          "command": "ttesti 30 20 5 40 22 6, unequal",
+          "lines": [
+            "Two-sample t test with unequal variances",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30          20    .9128709           5    18.13297    21.86703",
+            "       y |      40          22    .9486833           6    20.08111    23.91889",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70    21.14286    .6745248     5.64348    19.79722     22.4885",
+            "---------+--------------------------------------------------------------------",
+            "    diff |                  -2    1.316561                -4.62773    .6277305",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(x) - mean(y)                                      t =  -1.5191",
+            "H0: diff = 0                     Satterthwaite's degrees of freedom =  67.1901",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) = 0.0667         Pr(|T| > |t|) = 0.1334          Pr(T > t) = 0.9333"
+          ]
+        },
+        {
+          "command": "ttesti 30 20 5 40 22 6, welch level(90)",
+          "lines": [
+            "Two-sample t test with unequal variances",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [90% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30          20    .9128709           5    18.44892    21.55108",
+            "       y |      40          22    .9486833           6    20.40159    23.59841",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70    21.14286    .6745248     5.64348    20.01826    22.26745",
+            "---------+--------------------------------------------------------------------",
+            "    diff |                  -2    1.316561               -4.194906    .1949064",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(x) - mean(y)                                      t =  -1.5191",
+            "H0: diff = 0                             Welch's degrees of freedom =  69.2671",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) = 0.0666         Pr(|T| > |t|) = 0.1333          Pr(T > t) = 0.9334"
+          ]
+        },
+        {
+          "command": "ttest y, by(grp) unequal",
+          "lines": [
+            "Two-sample t test with unequal variances",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       0 |      49    5.278771    .4251021    2.975715    4.424046    6.133496",
+            "       1 |      71     9.85018    .7068632    5.956135    8.440386    11.25997",
+            "---------+--------------------------------------------------------------------",
+            "Combined |     120    7.983521    .4960759    5.434239    7.001241    8.965801",
+            "---------+--------------------------------------------------------------------",
+            "    diff |           -4.571409    .8248438               -6.206223   -2.936595",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(0) - mean(1)                                      t =  -5.5422",
+            "H0: diff = 0                     Satterthwaite's degrees of freedom =  108.998",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000"
+          ]
+        },
+        {
+          "command": "ttest y, by(grp) welch",
+          "lines": [
+            "Two-sample t test with unequal variances",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       0 |      49    5.278771    .4251021    2.975715    4.424046    6.133496",
+            "       1 |      71     9.85018    .7068632    5.956135    8.440386    11.25997",
+            "---------+--------------------------------------------------------------------",
+            "Combined |     120    7.983521    .4960759    5.434239    7.001241    8.965801",
+            "---------+--------------------------------------------------------------------",
+            "    diff |           -4.571409    .8248438                  -6.206   -2.936818",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(0) - mean(1)                                      t =  -5.5422",
+            "H0: diff = 0                             Welch's degrees of freedom =  110.339",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000"
+          ]
+        },
+        {
+          "command": "ttest y == 7",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       y |     120    7.983521    .4960759    5.434239    7.001241    8.965801",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(y)                                                t =   1.9826",
+            "H0: mean = 7                                     Degrees of freedom =      119",
+            "",
+            "    Ha: mean < 7                 Ha: mean != 7                 Ha: mean > 7",
+            " Pr(T < t) = 0.9751         Pr(|T| > |t|) = 0.0497          Pr(T > t) = 0.0249"
+          ]
+        },
+        {
+          "command": "ttest y, by(grp)",
+          "lines": [
+            "Two-sample t test with equal variances",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       0 |      49    5.278771    .4251021    2.975715    4.424046    6.133496",
+            "       1 |      71     9.85018    .7068632    5.956135    8.440386    11.25997",
+            "---------+--------------------------------------------------------------------",
+            "Combined |     120    7.983521    .4960759    5.434239    7.001241    8.965801",
+            "---------+--------------------------------------------------------------------",
+            "    diff |           -4.571409     .922027               -6.397273   -2.745544",
+            "------------------------------------------------------------------------------",
+            "    diff = mean(0) - mean(1)                                      t =  -4.9580",
+            "H0: diff = 0                                     Degrees of freedom =      118",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000"
+          ]
+        },
+        {
+          "command": "capture noisily ttesti 1 20 5 18",
+          "lines": ["only one observation, but positive standard deviation"]
+        },
+        { "command": "display _rc", "lines": ["499"] },
+        {
+          "command": "capture noisily ttesti 1 20 5 1 22 6",
+          "lines": [
+            "first sample has only one observation, but positive standard deviation"
+          ]
+        },
+        { "command": "display _rc", "lines": ["499"] }
+      ]
+    },
+    {
+      "id": "table-width",
+      "source": "clear\nset seed 1\nset obs 50\ngenerate double abcdefghijklm = runiform()\ngenerate double abcdefghijklmn = runiform()\ngenerate double household_income_k = runiform()\ngenerate byte neighbourhood_group = 1 + floor(runiform() * 3)\ngenerate double outcome_variable_long = runiform()\nset linesize 80\nregress outcome_variable_long abcdefghijklm abcdefghijklmn household_income_k\nregress outcome_variable_long i.neighbourhood_group abcdefghijklm\nregress outcome_variable_long abcdefghijklm, vce(robust)\nset linesize 90\nregress outcome_variable_long abcdefghijklm abcdefghijklmn\nset linesize 200\nregress outcome_variable_long abcdefghijklm household_income_k\nregress outcome_variable_long i.neighbourhood_group\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        {
+          "command": "generate double abcdefghijklm = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double abcdefghijklmn = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate byte neighbourhood_group = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "generate double outcome_variable_long = runiform()",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm abcdefghijklmn household_income_k",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(3, 46)        =      3.64",
+            "       Model |  .637874998         3  .212624999   Prob > F        =    0.0194",
+            "    Residual |  2.68692961        46  .058411513   R-squared       =    0.1919",
+            "-------------+----------------------------------   Adj R-squared   =    0.1391",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .24168",
+            "",
+            "-------------------------------------------------------------------------------",
+            "outcome_var~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "abcdefghijklm |  -.2522897   .1260142    -2.00   0.051    -.5059431    .0013637",
+            "abcdefghijk~n |  -.0440163   .1187868    -0.37   0.713    -.2831218    .1950892",
+            "household_i~k |  -.3755575   .1313814    -2.86   0.006    -.6400146   -.1111004",
+            "        _cons |   .8421929   .1204019     6.99   0.000     .5998364    1.084549",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress outcome_variable_long i.neighbourhood_group abcdefghijklm",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(3, 46)        =      1.70",
+            "       Model |  .332069965         3  .110689988   Prob > F        =    0.1799",
+            "    Residual |  2.99273465        46  .065059449   R-squared       =    0.0999",
+            "-------------+----------------------------------   Adj R-squared   =    0.0412",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .25507",
+            "",
+            "-------------------------------------------------------------------------------",
+            "outcome_var~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "neighbourho~p |",
+            "           2  |   .1345829    .081083     1.66   0.104    -.0286287    .2977946",
+            "           3  |   .0674009   .1121533     0.60   0.551    -.1583519    .2931538",
+            "              |",
+            "abcdefghijklm |  -.1969297   .1332221    -1.48   0.146    -.4650918    .0712324",
+            "        _cons |   .5330244   .0895125     5.95   0.000     .3528451    .7132037",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =         50",
+            "                                                F(1, 48)          =       2.85",
+            "                                                Prob > F          =     0.0979",
+            "                                                R-squared         =     0.0454",
+            "                                                Root MSE          =     .25714",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "outcome_var~g | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "abcdefghijklm |  -.1995637   .1182405    -1.69   0.098    -.4373021    .0381747",
+            "        _cons |   .6149469    .059775    10.29   0.000     .4947613    .7351326",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 90", "lines": [] },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm abcdefghijklmn",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(2, 47)        =      1.19",
+            "       Model |  .160583741         2  .080291871   Prob > F        =    0.3124",
+            "    Residual |  3.16422087        47  .067323848   R-squared       =    0.0483",
+            "-------------+----------------------------------   Adj R-squared   =    0.0078",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .25947",
+            "",
+            "--------------------------------------------------------------------------------",
+            "outcome_vari~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------+----------------------------------------------------------------",
+            " abcdefghijklm |  -.2053429   .1341327    -1.53   0.132     -.475183    .0644972",
+            "abcdefghijklmn |    .046393   .1229239     0.38   0.708     -.200898     .293684",
+            "         _cons |   .5935196   .0893641     6.64   0.000     .4137422    .7732969",
+            "--------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress outcome_variable_long abcdefghijklm household_income_k",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(2, 47)        =      5.49",
+            "       Model |   .62985474         2   .31492737   Prob > F        =    0.0072",
+            "    Residual |  2.69494987        47  .057339359   R-squared       =    0.1894",
+            "-------------+----------------------------------   Adj R-squared   =    0.1549",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .23946",
+            "",
+            "------------------------------------------------------------------------------------",
+            "outcome_variable~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "     abcdefghijklm |  -.2557637   .1245063    -2.05   0.046    -.5062381   -.0052894",
+            "household_income_k |  -.3625953   .1254712    -2.89   0.006    -.6150107   -.1101798",
+            "             _cons |   .8147216   .0939954     8.67   0.000     .6256273    1.003816",
+            "------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress outcome_variable_long i.neighbourhood_group",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(2, 47)        =      1.42",
+            "       Model |   .18990898         2   .09495449   Prob > F        =    0.2510",
+            "    Residual |  3.13489563        47  .066699907   R-squared       =    0.0571",
+            "-------------+----------------------------------   Adj R-squared   =    0.0170",
+            "       Total |  3.32480461        49  .067853155   Root MSE        =    .25826",
+            "",
+            "-------------------------------------------------------------------------------------",
+            "outcome_variable_~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------------+----------------------------------------------------------------",
+            "neighbourhood_group |",
+            "                 2  |   .1381898   .0820617     1.68   0.099    -.0268971    .3032767",
+            "                 3  |   .0962055   .1118313     0.86   0.394      -.12877     .321181",
+            "                    |",
+            "              _cons |   .4401644   .0645658     6.82   0.000     .3102748    .5700541",
+            "-------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-width-models",
+      "source": "clear\nset seed 7\nset obs 200\ngenerate double household_income_k = runiform()\ngenerate byte neighbourhood_group = 1 + floor(runiform() * 3)\ngenerate byte employed_full_time = runiform() < invlogit(-.5 + household_income_k)\ngenerate int visits = floor(runiform() * 5)\nset linesize 80\nlogit employed_full_time household_income_k i.neighbourhood_group\nprobit employed_full_time household_income_k, vce(robust)\npoisson visits household_income_k\nlogit employed_full_time household_income_k, or\nset linesize 200\nlogit employed_full_time household_income_k\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate byte neighbourhood_group = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "generate byte employed_full_time = runiform() < invlogit(-.5 + household_income_k)",
+          "lines": []
+        },
+        {
+          "command": "generate int visits = floor(runiform() * 5)",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "logit employed_full_time household_income_k i.neighbourhood_group",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136.93464",
+            "Iteration 1:  Log likelihood = -131.21388",
+            "Iteration 2:  Log likelihood = -131.19099",
+            "Iteration 3:  Log likelihood = -131.19098",
+            "",
+            "Logistic regression                                     Number of obs =    200",
+            "                                                        LR chi2(3)    =  11.49",
+            "                                                        Prob > chi2   = 0.0094",
+            "Log likelihood = -131.19098                             Pseudo R2     = 0.0419",
+            "",
+            "-------------------------------------------------------------------------------",
+            "employed_fu~e | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   1.136085   .5021567     2.26   0.024     .1518762    2.120294",
+            "              |",
+            "neighbourho~p |",
+            "           2  |   .0958745   .3590152     0.27   0.789    -.6077825    .7995314",
+            "           3  |   .8104694   .3854213     2.10   0.035     .0550576    1.565881",
+            "              |",
+            "        _cons |  -.5785205   .3669935    -1.58   0.115    -1.297814    .1407735",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit employed_full_time household_income_k, vce(robust)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood = -136.93464",
+            "Iteration 1:  Log pseudolikelihood = -134.09821",
+            "Iteration 2:  Log pseudolikelihood = -134.09735",
+            "Iteration 3:  Log pseudolikelihood = -134.09735",
+            "",
+            "Probit regression                                       Number of obs =    200",
+            "                                                        Wald chi2(1)  =   5.64",
+            "                                                        Prob > chi2   = 0.0175",
+            "Log pseudolikelihood = -134.09735                       Pseudo R2     = 0.0207",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "employed_fu~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .7228243   .3042548     2.38   0.018     .1264959    1.319153",
+            "        _cons |  -.1817631   .1707828    -1.06   0.287    -.5164912     .152965",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson visits household_income_k",
+          "lines": [
+            "Iteration 0:  Log likelihood = -359.15477",
+            "Iteration 1:  Log likelihood = -359.15477",
+            "",
+            "Poisson regression                                      Number of obs =    200",
+            "                                                        LR chi2(1)    =   0.27",
+            "                                                        Prob > chi2   = 0.6050",
+            "Log likelihood = -359.15477                             Pseudo R2     = 0.0004",
+            "",
+            "-------------------------------------------------------------------------------",
+            "       visits | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |  -.0880777   .1703433    -0.52   0.605    -.4219445     .245789",
+            "        _cons |   .7151854   .0954862     7.49   0.000     .5280359     .902335",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit employed_full_time household_income_k, or",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136.93464",
+            "Iteration 1:  Log likelihood = -134.10508",
+            "Iteration 2:  Log likelihood = -134.10281",
+            "Iteration 3:  Log likelihood = -134.10281",
+            "",
+            "Logistic regression                                     Number of obs =    200",
+            "                                                        LR chi2(1)    =   5.66",
+            "                                                        Prob > chi2   = 0.0173",
+            "Log likelihood = -134.10281                             Pseudo R2     = 0.0207",
+            "",
+            "-------------------------------------------------------------------------------",
+            "employed_fu~e | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   3.188539   1.574361     2.35   0.019      1.21145     8.39224",
+            "        _cons |   .7472834   .2043353    -1.07   0.287     .4372551    1.277132",
+            "-------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "logit employed_full_time household_income_k",
+          "lines": [
+            "Iteration 0:  Log likelihood = -136.93464",
+            "Iteration 1:  Log likelihood = -134.10508",
+            "Iteration 2:  Log likelihood = -134.10281",
+            "Iteration 3:  Log likelihood = -134.10281",
+            "",
+            "Logistic regression                                     Number of obs =    200",
+            "                                                        LR chi2(1)    =   5.66",
+            "                                                        Prob > chi2   = 0.0173",
+            "Log likelihood = -134.10281                             Pseudo R2     = 0.0207",
+            "",
+            "------------------------------------------------------------------------------------",
+            "employed_full_time | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "household_income_k |   1.159563   .4937564     2.35   0.019     .1918179    2.127308",
+            "             _cons |  -.2913107   .2734375    -1.07   0.287    -.8272385     .244617",
+            "------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "continuous-interaction-label",
+      "source": "clear\nset seed 31\nset obs 200\ngenerate double education = runiform() * 16\ngenerate double experience = runiform() * 30\ngenerate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4\nset linesize 80\nregress wage education c.education#c.experience\nregress wage c.education##c.experience\nset linesize 200\nregress wage education c.education#c.experience\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        {
+          "command": "generate double education = runiform() * 16",
+          "lines": []
+        },
+        {
+          "command": "generate double experience = runiform() * 30",
+          "lines": []
+        },
+        {
+          "command": "generate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress wage education c.education#c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =    805.35",
+            "       Model |  2144.50355         2  1072.25178   Prob > F        =    0.0000",
+            "    Residual |  262.289239       197  1.33141746   R-squared       =    0.8910",
+            "-------------+----------------------------------   Adj R-squared   =    0.8899",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1539",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .3339823   .0243888    13.69   0.000     .2858856     .382079",
+            "             |",
+            " c.education#|",
+            "c.experience |   .0192075   .0010183    18.86   0.000     .0171993    .0212156",
+            "             |",
+            "       _cons |   5.722633   .1644112    34.81   0.000     5.398401    6.046865",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage c.education##c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(3, 196)       =    550.57",
+            "       Model |  2151.48818         3  717.162727   Prob > F        =    0.0000",
+            "    Residual |  255.304612       196  1.30257455   R-squared       =    0.8939",
+            "-------------+----------------------------------   Adj R-squared   =    0.8923",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1413",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4058677   .0393145    10.32   0.000      .328334    .4834014",
+            "  experience |    .048159   .0207973     2.32   0.022     .0071438    .0891742",
+            "             |",
+            " c.education#|",
+            "c.experience |   .0146903   .0021954     6.69   0.000     .0103607    .0190199",
+            "             |",
+            "       _cons |   4.962805   .3662161    13.55   0.000     4.240575    5.685035",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress wage education c.education#c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =    805.35",
+            "       Model |  2144.50355         2  1072.25178   Prob > F        =    0.0000",
+            "    Residual |  262.289239       197  1.33141746   R-squared       =    0.8910",
+            "-------------+----------------------------------   Adj R-squared   =    0.8899",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1539",
+            "",
+            "------------------------------------------------------------------------------------------",
+            "                    wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------------+----------------------------------------------------------------",
+            "               education |   .3339823   .0243888    13.69   0.000     .2858856     .382079",
+            "                         |",
+            "c.education#c.experience |   .0192075   .0010183    18.86   0.000     .0171993    .0212156",
+            "                         |",
+            "                   _cons |   5.722633   .1644112    34.81   0.000     5.398401    6.046865",
+            "------------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "factor-label-width",
+      "source": "clear\nset seed 4\nset obs 90\ngenerate byte g = 1 + floor(runiform() * 3)\nlabel define gl 1 \"Short\" 2 \"A rather long label\" 3 \"Mid label\"\nlabel values g gl\ngenerate double y = g + runiform()\nset linesize 80\nregress y i.g\nset linesize 200\nregress y i.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4", "lines": [] },
         {
           "command": "set obs 90",
           "lines": ["Number of observations (_N) was 0, now 90."]
         },
-        { "command": "generate byte d = runiform() < .3", "lines": [] },
-        { "command": "generate byte g = runiform() > .5", "lines": [] },
         {
-          "command": "bitest d == .25",
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "label define gl 1 \"Short\" 2 \"A rather long label\" 3 \"Mid label\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "generate double y = g + runiform()", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y i.g",
           "lines": [
-            "Binomial probability test",
+            "      Source |       SS           df       MS      Number of obs   =        90",
+            "-------------+----------------------------------   F(2, 87)        =    404.78",
+            "       Model |  65.2056613         2  32.6028307   Prob > F        =    0.0000",
+            "    Residual |    7.007338        87  .080544115   R-squared       =    0.9030",
+            "-------------+----------------------------------   Adj R-squared   =    0.9007",
+            "       Total |  72.2129993        89  .811382015   Root MSE        =     .2838",
             "",
-            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            g |",
+            "A rather l..  |   .9700621   .0751928    12.90   0.000     .8206083    1.119516",
+            "   Mid label  |   2.067859   .0729199    28.36   0.000     1.922923    2.212796",
+            "              |",
+            "        _cons |   1.446661   .0536337    26.97   0.000     1.340058    1.553263",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress y i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        90",
+            "-------------+----------------------------------   F(2, 87)        =    404.78",
+            "       Model |  65.2056613         2  32.6028307   Prob > F        =    0.0000",
+            "    Residual |    7.007338        87  .080544115   R-squared       =    0.9030",
+            "-------------+----------------------------------   Adj R-squared   =    0.9007",
+            "       Total |  72.2129993        89  .811382015   Root MSE        =     .2838",
+            "",
+            "--------------------------------------------------------------------------------------",
+            "                   y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------+----------------------------------------------------------------",
+            "                   g |",
+            "A rather long label  |   .9700621   .0751928    12.90   0.000     .8206083    1.119516",
+            "          Mid label  |   2.067859   .0729199    28.36   0.000     1.922923    2.212796",
+            "                     |",
+            "               _cons |   1.446661   .0536337    26.97   0.000     1.340058    1.553263",
+            "--------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beta-width",
+      "source": "clear\nset seed 8\nset obs 60\ngenerate double household_income_k = runiform()\ngenerate double y = household_income_k + runiform()\nset linesize 80\nregress y household_income_k, beta\nregress y household_income_k, beta vce(robust)\nset linesize 200\nregress y household_income_k, beta\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double y = household_income_k + runiform()",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y household_income_k, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     47.01",
+            "       Model |    3.748039         1    3.748039   Prob > F        =    0.0000",
+            "    Residual |  4.62389617        58  .079722348   R-squared       =    0.4477",
+            "-------------+----------------------------------   Adj R-squared   =    0.4382",
+            "       Total |  8.37193517        59  .141897206   Root MSE        =    .28235",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .9129323   .1331455     6.86   0.000                 .6690971",
+            "        _cons |   .6038799   .0766163     7.88   0.000                        .",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y household_income_k, beta vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =         60",
+            "                                                F(1, 58)          =      43.95",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.4477",
+            "                                                Root MSE          =     .28235",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "            y | Coefficient  std. err.      t    P>|t|                     Beta",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .9129323   .1377076     6.63   0.000                 .6690971",
+            "        _cons |   .6038799   .0765852     7.89   0.000                        .",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress y household_income_k, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     47.01",
+            "       Model |    3.748039         1    3.748039   Prob > F        =    0.0000",
+            "    Residual |  4.62389617        58  .079722348   R-squared       =    0.4477",
+            "-------------+----------------------------------   Adj R-squared   =    0.4382",
+            "       Total |  8.37193517        59  .141897206   Root MSE        =    .28235",
+            "",
+            "------------------------------------------------------------------------------------",
+            "                 y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------------+----------------------------------------------------------------",
+            "household_income_k |   .9129323   .1331455     6.86   0.000                 .6690971",
+            "             _cons |   .6038799   .0766163     7.88   0.000                        .",
+            "------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lincom-depvar",
+      "source": "clear\nset seed 2\nset obs 40\ngenerate double outcome_variable_long = runiform()\ngenerate double x = runiform()\nset linesize 80\nquietly regress outcome_variable_long x\nlincom x\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        {
+          "command": "generate double outcome_variable_long = runiform()",
+          "lines": []
+        },
+        { "command": "generate double x = runiform()", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "quietly regress outcome_variable_long x", "lines": [] },
+        {
+          "command": "lincom x",
+          "lines": [
+            " ( 1)  x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "outcome_va~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
             "-------------+----------------------------------------------------------------",
-            "           d |           90           22         22.5     0.25000      0.24444",
-            "",
-            "  Pr(k >= 22)            = 0.588583  (one-sided test)",
-            "  Pr(k <= 22)            = 0.508147  (one-sided test)",
-            "  Pr(k <= 22 or k >= 23) = 1.000000  (two-sided test)"
+            "         (1) |    .062548   .1653009     0.38   0.707    -.2720861    .3971821",
+            "------------------------------------------------------------------------------"
           ]
         },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "likelihood-factor-layout",
+      "source": "clear\nset seed 2718\nset obs 400\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double income = runiform() * 10\ngenerate double y = 2 + .4 * income + .5 * g + runiform() * 4\nreplace y = 3 if y < 3\ngenerate byte r = 1 + (y > 5) + (y > 7)\ngenerate int k = floor(y * y * runiform())\ntobit y income i.g, ll(3) nolog\ntobit y income, ll(3)\ntobit y income i.g, ll(3) ul(9)\nologit r income i.g, nolog\nnbreg k income i.g, nolog\nregress y income i.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2718", "lines": [] },
         {
-          "command": "bitest d == .5 if g == 1",
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate double income = runiform() * 10", "lines": [] },
+        {
+          "command": "generate double y = 2 + .4 * income + .5 * g + runiform() * 4",
+          "lines": []
+        },
+        {
+          "command": "replace y = 3 if y < 3",
+          "lines": ["(0 real changes made)"]
+        },
+        { "command": "generate byte r = 1 + (y > 5) + (y > 7)", "lines": [] },
+        {
+          "command": "generate int k = floor(y * y * runiform())",
+          "lines": []
+        },
+        {
+          "command": "tobit y income i.g, ll(3) nolog",
           "lines": [
-            "Binomial probability test",
+            "Tobit regression                                    Number of obs     =    400",
+            "                                                           Uncensored =    400",
+            "Limits: Lower =    3                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
             "",
-            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "                                                    LR chi2(3)        = 332.90",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -625.04101                         Pseudo R2         = 0.2103",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
             "-------------+----------------------------------------------------------------",
-            "           d |           45           10         22.5     0.50000      0.22222",
-            "",
-            "  Pr(k >= 10)            = 0.999967  (one-sided test)",
-            "  Pr(k <= 10)            = 0.000124  (one-sided test)",
-            "  Pr(k <= 10 or k >= 35) = 0.000247  (two-sided test)"
+            "      income |   .4243279   .0195979    21.65   0.000     .3857993    .4628566",
+            "             |",
+            "           g |",
+            "          2  |   .4184766   .1431033     2.92   0.004     .1371417    .6998116",
+            "          3  |   .8300021   .1443707     5.75   0.000     .5461755    1.113829",
+            "             |",
+            "       _cons |   4.517076   .1463092    30.87   0.000     4.229439    4.804714",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.332861   .0942475                      1.159877    1.531645",
+            "------------------------------------------------------------------------------"
           ]
         },
         {
-          "command": "bitesti 100 30 0.25",
+          "command": "tobit y income, ll(3)",
           "lines": [
-            "Binomial probability test",
+            "Refining starting values:",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "          100           30           25     0.25000      0.30000",
+            "Grid node 0:  Log likelihood = -640.92959",
             "",
-            "  Pr(k >= 30)            = 0.149541  (one-sided test)",
-            "  Pr(k <= 30)            = 0.896213  (one-sided test)",
-            "  Pr(k <= 19 or k >= 30) = 0.249071  (two-sided test)"
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -640.92959",
+            "Iteration 1:  Log likelihood = -640.92959",
+            "",
+            "Tobit regression                                    Number of obs     =    400",
+            "                                                           Uncensored =    400",
+            "Limits: Lower =    3                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(1)        = 301.12",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -640.92959                         Pseudo R2         = 0.1902",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .4287333   .0202291    21.19   0.000     .3889643    .4685023",
+            "       _cons |    4.92653   .1189233    41.43   0.000     4.692735    5.160325",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.443067   .1020403                      1.255782    1.658283",
+            "------------------------------------------------------------------------------"
           ]
         },
         {
-          "command": "bitesti 20 3 0.5",
+          "command": "tobit y income i.g, ll(3) ul(9)",
           "lines": [
-            "Binomial probability test",
+            "Refining starting values:",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "           20            3           10     0.50000      0.15000",
+            "Grid node 0:  Log likelihood = -600.75024",
             "",
-            "  Pr(k >= 3)            = 0.999799  (one-sided test)",
-            "  Pr(k <= 3)            = 0.001288  (one-sided test)",
-            "  Pr(k <= 3 or k >= 17) = 0.002577  (two-sided test)"
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -600.75024",
+            "Iteration 1:  Log likelihood =  -589.6353",
+            "Iteration 2:  Log likelihood = -589.31925",
+            "Iteration 3:  Log likelihood = -589.31875",
+            "Iteration 4:  Log likelihood = -589.31875",
+            "",
+            "Tobit regression                                    Number of obs     =    400",
+            "                                                           Uncensored =    335",
+            "Limits: Lower = 3                                       Left-censored =      0",
+            "        Upper = 9                                      Right-censored =     65",
+            "",
+            "                                                    LR chi2(3)        = 314.44",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -589.31875                         Pseudo R2         = 0.2106",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .4328464   .0216634    19.98   0.000      .390257    .4754358",
+            "             |",
+            "           g |",
+            "          2  |   .4155487   .1525452     2.72   0.007     .1156513    .7154461",
+            "          3  |   .7877056   .1551865     5.08   0.000     .4826155    1.092796",
+            "             |",
+            "       _cons |   4.517001   .1565605    28.85   0.000      4.20921    4.824792",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.455819   .1150526                      1.246326    1.700525",
+            "------------------------------------------------------------------------------"
           ]
         },
         {
-          "command": "bitesti 10 10 0.5",
+          "command": "ologit r income i.g, nolog",
           "lines": [
-            "Binomial probability test",
+            "Ordered logistic regression                             Number of obs =    400",
+            "                                                        LR chi2(3)    = 207.22",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -288.19937                             Pseudo R2     = 0.2644",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "           10           10            5     0.50000      1.00000",
-            "",
-            "  Pr(k >= 10)           = 0.000977  (one-sided test)",
-            "  Pr(k <= 10)           = 1.000000  (one-sided test)",
-            "  Pr(k <= 0 or k >= 10) = 0.001953  (two-sided test)"
+            "------------------------------------------------------------------------------",
+            "           r | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .5634397   .0486611    11.58   0.000     .4680658    .6588137",
+            "             |",
+            "           g |",
+            "          2  |   .4158536   .2631985     1.58   0.114    -.1000058    .9317131",
+            "          3  |   1.123422   .2847989     3.94   0.000     .5652268    1.681618",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |   .6165751   .2710028                      .0854194    1.147731",
+            "       /cut2 |     3.3182   .3330604                      2.665413    3.970986",
+            "------------------------------------------------------------------------------"
           ]
         },
         {
-          "command": "bitesti 10 0 0.5",
+          "command": "nbreg k income i.g, nolog",
           "lines": [
-            "Binomial probability test",
+            "Negative binomial regression                            Number of obs =    400",
+            "                                                        LR chi2(3)    =  95.45",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -1669.1231                             Pseudo R2     = 0.0278",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "           10            0            5     0.50000      0.00000",
-            "",
-            "  Pr(k >= 0)            = 1.000000  (one-sided test)",
-            "  Pr(k <= 0)            = 0.000977  (one-sided test)",
-            "  Pr(k <= 0 or k >= 10) = 0.001953  (two-sided test)"
+            "------------------------------------------------------------------------------",
+            "           k | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .1421716   .0140696    10.10   0.000     .1145957    .1697475",
+            "             |",
+            "           g |",
+            "          2  |   .2511177   .1004369     2.50   0.012      .054265    .4479704",
+            "          3  |    .247946    .101067     2.45   0.014     .0498583    .4460337",
+            "             |",
+            "       _cons |   2.306771   .1060369    21.75   0.000     2.098943      2.5146",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -.4963553   .0750376                     -.6434262   -.3492844",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .6087453   .0456788                      .5254889    .7051925",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 3879.33              Prob >= chibar2 = 0.000"
           ]
         },
         {
-          "command": "bitesti 10 9 0.95",
+          "command": "regress y income i.g",
           "lines": [
-            "Binomial probability test",
+            "      Source |       SS           df       MS      Number of obs   =       400",
+            "-------------+----------------------------------   F(3, 396)       =    171.40",
+            "       Model |  692.279324         3  230.759775   Prob > F        =    0.0000",
+            "    Residual |  533.144509       396  1.34632452   R-squared       =    0.5649",
+            "-------------+----------------------------------   Adj R-squared   =    0.5616",
+            "       Total |  1225.42383       399  3.07123768   Root MSE        =    1.1603",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "           10            9          9.5     0.95000      0.90000",
-            "",
-            "  Pr(k >= 9) = 0.913862  (one-sided test)",
-            "  Pr(k <= 9) = 0.401263  (one-sided test)",
-            "  Pr(k <= 9) = 0.401263  (two-sided test)",
-            "",
-            "  note: upper tail of two-sided p-value is empty"
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .4243279   .0196966    21.54   0.000     .3856049     .463051",
+            "             |",
+            "           g |",
+            "          2  |   .4184766   .1438242     2.91   0.004     .1357222    .7012311",
+            "          3  |   .8300021    .145098     5.72   0.000     .5447435    1.115261",
+            "             |",
+            "       _cons |   4.517076   .1470462    30.72   0.000     4.227988    4.806165",
+            "------------------------------------------------------------------------------"
           ]
+        }
+      ]
+    },
+    {
+      "id": "coefficient-references",
+      "source": "clear\nset seed 3141\nset obs 300\ngenerate byte female = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double x = runiform() * 10\ngenerate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3\nregress y x i.female i.g i.female#c.x\ntest 1.female\ntest 2.g = 3.g\ntest 2.g 3.g\ntest 1.female#c.x\ntest c.x#1.female\ntest _b[x] = .5\ntest _b[1.female] = 0\ntest (_b[2.g] = 0) (_b[3.g] = 0)\ntest 2*x = 1\nlincom x + 1.female#c.x\nlincom _b[x] + _b[1.female#c.x]\nlincom 2.g - 3.g\nlincom 1.female + .5*x\nlogit female x i.g\ntest 2.g = 3.g\nlincom 2.g - 3.g\nregress y x i.female c.x#c.g\ntest c.x#c.g\nlincom x + c.g#c.x\ncapture noisily test 1.female 2.female\ndisplay _rc\ncapture noisily test 1b.female\ndisplay _rc\ncapture noisily lincom _b[nosuch]\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 3141", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate byte female = runiform() > .5", "lines": [] },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate double x = runiform() * 10", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3",
+          "lines": []
         },
         {
-          "command": "bitesti 50 1 0.01",
+          "command": "regress y x i.female i.g i.female#c.x",
           "lines": [
-            "Binomial probability test",
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(5, 294)       =    306.63",
+            "       Model |   1101.4567         5   220.29134   Prob > F        =    0.0000",
+            "    Residual |  211.219533       294  .718433786   R-squared       =    0.8391",
+            "-------------+----------------------------------   Adj R-squared   =    0.8364",
+            "       Total |  1312.67623       299  4.39022151   Root MSE        =     .8476",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "           50            1           .5     0.01000      0.02000",
-            "",
-            "  Pr(k >= 1) = 0.394994  (one-sided test)",
-            "  Pr(k <= 1) = 0.910565  (one-sided test)",
-            "  Pr(k >= 1) = 0.394994  (two-sided test)",
-            "",
-            "  note: lower tail of two-sided p-value is empty"
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4808233   .0247784    19.40   0.000     .4320577    .5295889",
+            "    1.female |   .5835659   .1996952     2.92   0.004     .1905527    .9765791",
+            "             |",
+            "           g |",
+            "          2  |   .3005814   .1174475     2.56   0.011     .0694369    .5317259",
+            "          3  |   .5620697   .1211651     4.64   0.000     .3236088    .8005307",
+            "             |",
+            "  female#c.x |",
+            "          1  |   .2400758   .0348398     6.89   0.000     .1715089    .3086427",
+            "             |",
+            "       _cons |   2.878593   .1586181    18.15   0.000     2.566422    3.190763",
+            "------------------------------------------------------------------------------"
           ]
         },
         {
-          "command": "bitesti 50 0 0.01",
+          "command": "test 1.female",
           "lines": [
-            "Binomial probability test",
+            " ( 1)  1.female = 0",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "           50            0           .5     0.01000      0.00000",
-            "",
-            "  Pr(k >= 0)           = 1.000000  (one-sided test)",
-            "  Pr(k <= 0)           = 0.605006  (one-sided test)",
-            "  Pr(k <= 0 or k >= 1) = 1.000000  (two-sided test)"
+            "       F(  1,   294) =    8.54",
+            "            Prob > F =    0.0037"
           ]
         },
         {
-          "command": "bitesti 7 3 0.333",
+          "command": "test 2.g = 3.g",
           "lines": [
-            "Binomial probability test",
+            " ( 1)  2.g - 3.g = 0",
             "",
-            "            N   Observed k   Expected k   Assumed p   Observed p",
-            "----------------------------------------------------------------",
-            "            7            3        2.331     0.33300      0.42857",
+            "       F(  1,   294) =    4.52",
+            "            Prob > F =    0.0342"
+          ]
+        },
+        {
+          "command": "test 2.g 3.g",
+          "lines": [
+            " ( 1)  2.g = 0",
+            " ( 2)  3.g = 0",
             "",
-            "  Pr(k >= 3)           = 0.428587  (one-sided test)",
-            "  Pr(k <= 3)           = 0.827215  (one-sided test)",
-            "  Pr(k <= 1 or k >= 3) = 0.692577  (two-sided test)"
+            "       F(  2,   294) =   10.85",
+            "            Prob > F =    0.0000"
           ]
         },
         {
-          "command": "capture noisily bitesti 10 5 0",
+          "command": "test 1.female#c.x",
           "lines": [
-            "invalid success probability",
-            "    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+            " ( 1)  1.female#c.x = 0",
+            "",
+            "       F(  1,   294) =   47.48",
+            "            Prob > F =    0.0000"
           ]
         },
-        { "command": "display _rc", "lines": ["450"] },
         {
-          "command": "capture noisily bitesti 10 10 1",
+          "command": "test c.x#1.female",
           "lines": [
-            "invalid success probability",
-            "    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+            " ( 1)  1.female#c.x = 0",
+            "",
+            "       F(  1,   294) =   47.48",
+            "            Prob > F =    0.0000"
           ]
         },
-        { "command": "display _rc", "lines": ["450"] },
         {
-          "command": "capture noisily bitest d == 1.5",
-          "lines": ["success probability #p must be in (0,1)"]
+          "command": "test _b[x] = .5",
+          "lines": [
+            " ( 1)  x = .5",
+            "",
+            "       F(  1,   294) =    0.60",
+            "            Prob > F =    0.4396"
+          ]
         },
-        { "command": "display _rc", "lines": ["450"] },
         {
-          "command": "capture noisily bitest d == .5 if g == 9",
+          "command": "test _b[1.female] = 0",
+          "lines": [
+            " ( 1)  1.female = 0",
+            "",
+            "       F(  1,   294) =    8.54",
+            "            Prob > F =    0.0037"
+          ]
+        },
+        {
+          "command": "test (_b[2.g] = 0) (_b[3.g] = 0)",
+          "lines": [
+            " ( 1)  2.g = 0",
+            " ( 2)  3.g = 0",
+            "",
+            "       F(  2,   294) =   10.85",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 2*x = 1",
+          "lines": [
+            " ( 1)  2*x = 1",
+            "",
+            "       F(  1,   294) =    0.60",
+            "            Prob > F =    0.4396"
+          ]
+        },
+        {
+          "command": "lincom x + 1.female#c.x",
+          "lines": [
+            " ( 1)  x + 1.female#c.x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .7208992   .0245203    29.40   0.000     .6726417    .7691567",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom _b[x] + _b[1.female#c.x]",
+          "lines": [
+            " ( 1)  x + 1.female#c.x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .7208992   .0245203    29.40   0.000     .6726417    .7691567",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.g - 3.g",
+          "lines": [
+            " ( 1)  2.g - 3.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.2614883   .1229347    -2.13   0.034     -.503432   -.0195447",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 1.female + .5*x",
+          "lines": [
+            " ( 1)  .5*x + 1.female = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .8239776   .2078035     3.97   0.000     .4150067    1.232948",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit female x i.g",
+          "lines": [
+            "Iteration 0:  Log likelihood = -207.88415",
+            "Iteration 1:  Log likelihood = -206.01405",
+            "Iteration 2:  Log likelihood = -206.01391",
+            "Iteration 3:  Log likelihood = -206.01391",
+            "",
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(3)    =   3.74",
+            "                                                        Prob > chi2   = 0.2909",
+            "Log likelihood = -206.01391                             Pseudo R2     = 0.0090",
+            "",
+            "------------------------------------------------------------------------------",
+            "      female | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   -.038775   .0414207    -0.94   0.349     -.119958    .0424081",
+            "             |",
+            "           g |",
+            "          2  |  -.1330853   .2784872    -0.48   0.633    -.6789101    .4127395",
+            "          3  |   .3329698   .2869007     1.16   0.246    -.2293453    .8952849",
+            "             |",
+            "       _cons |   .0974367   .2811758     0.35   0.729    -.4536578    .6485311",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 2.g = 3.g",
+          "lines": [
+            " ( 1)  [female]2.g - [female]3.g = 0",
+            "",
+            "           chi2(  1) =    2.56",
+            "         Prob > chi2 =    0.1095"
+          ]
+        },
+        {
+          "command": "lincom 2.g - 3.g",
+          "lines": [
+            " ( 1)  [female]2.g - [female]3.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "      female | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.4660551   .2911947    -1.60   0.109    -1.036786     .104676",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x i.female c.x#c.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(3, 296)       =    433.46",
+            "       Model |  1069.28189         3  356.427298   Prob > F        =    0.0000",
+            "    Residual |  243.394338       296   .82227817   R-squared       =    0.8146",
+            "-------------+----------------------------------   Adj R-squared   =    0.8127",
+            "       Total |  1312.67623       299  4.39022151   Root MSE        =     .9068",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4939692   .0295655    16.71   0.000     .4357841    .5521544",
+            "    1.female |   1.776831   .1051225    16.90   0.000     1.569949    1.983713",
+            "             |",
+            "     c.x#c.g |   .0541894   .0115667     4.68   0.000     .0314261    .0769528",
+            "             |",
+            "       _cons |   2.543555   .1208697    21.04   0.000     2.305682    2.781428",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test c.x#c.g",
+          "lines": [
+            " ( 1)  c.x#c.g = 0",
+            "",
+            "       F(  1,   296) =   21.95",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom x + c.g#c.x",
+          "lines": [
+            " ( 1)  x + c.x#c.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .5481587   .0218373    25.10   0.000     .5051827    .5911347",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily test 1.female 2.female",
+          "lines": ["2.female not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily test 1b.female",
+          "lines": ["1b.female not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily lincom _b[nosuch]",
+          "lines": ["[nosuch] not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
+      ]
+    },
+    {
+      "id": "error-messages",
+      "source": "capture noisily error 2\ndisplay _rc\ncapture noisily error 4\ndisplay _rc\ncapture noisily error 18\ndisplay _rc\ncapture noisily error 50\ndisplay _rc\ncapture noisily error 100\ndisplay _rc\ncapture noisily error 102\ndisplay _rc\ncapture noisily error 109\ndisplay _rc\ncapture noisily error 110\ndisplay _rc\ncapture noisily error 111\ndisplay _rc\ncapture noisily error 119\ndisplay _rc\ncapture noisily error 121\ndisplay _rc\ncapture noisily error 123\ndisplay _rc\ncapture noisily error 130\ndisplay _rc\ncapture noisily error 131\ndisplay _rc\ncapture noisily error 135\ndisplay _rc\ncapture noisily error 190\ndisplay _rc\ncapture noisily error 198\ndisplay _rc\ncapture noisily error 199\ndisplay _rc\ncapture noisily error 200\ndisplay _rc\ncapture noisily error 301\ndisplay _rc\ncapture noisily error 321\ndisplay _rc\ncapture noisily error 322\ndisplay _rc\ncapture noisily error 402\ndisplay _rc\ncapture noisily error 430\ndisplay _rc\ncapture noisily error 459\ndisplay _rc\ncapture noisily error 503\ndisplay _rc\ncapture noisily error 506\ndisplay _rc\ncapture noisily error 601\ndisplay _rc\ncapture noisily error 2000\ndisplay _rc\ncapture noisily error 2001\ndisplay _rc\ncapture noisily error 12345\ndisplay _rc\nscalar k = 3\ncapture noisily error 100 + k\ndisplay _rc\n",
+      "commands": [
+        {
+          "command": "capture noisily error 2",
+          "lines": ["connection timed out"]
+        },
+        { "command": "display _rc", "lines": ["2"] },
+        {
+          "command": "capture noisily error 4",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "display _rc", "lines": ["4"] },
+        {
+          "command": "capture noisily error 18",
+          "lines": ["you must start with an empty dataset"]
+        },
+        { "command": "display _rc", "lines": ["18"] },
+        { "command": "capture noisily error 50", "lines": [] },
+        { "command": "display _rc", "lines": ["50"] },
+        { "command": "capture noisily error 100", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["100"] },
+        {
+          "command": "capture noisily error 102",
+          "lines": ["too few variables specified"]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        { "command": "capture noisily error 109", "lines": ["type mismatch"] },
+        { "command": "display _rc", "lines": ["109"] },
+        { "command": "capture noisily error 110", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["110"] },
+        { "command": "capture noisily error 111", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily error 119",
+          "lines": ["statement out of context"]
+        },
+        { "command": "display _rc", "lines": ["119"] },
+        {
+          "command": "capture noisily error 121",
+          "lines": ["invalid numlist"]
+        },
+        { "command": "display _rc", "lines": ["121"] },
+        {
+          "command": "capture noisily error 123",
+          "lines": ["invalid numlist has too many elements"]
+        },
+        { "command": "display _rc", "lines": ["123"] },
+        {
+          "command": "capture noisily error 130",
+          "lines": ["expression too long"]
+        },
+        { "command": "display _rc", "lines": ["130"] },
+        {
+          "command": "capture noisily error 131",
+          "lines": ["not possible with test"]
+        },
+        { "command": "display _rc", "lines": ["131"] },
+        {
+          "command": "capture noisily error 135",
+          "lines": ["not possible with weighted data"]
+        },
+        { "command": "display _rc", "lines": ["135"] },
+        {
+          "command": "capture noisily error 190",
+          "lines": ["request may not be combined with by"]
+        },
+        { "command": "display _rc", "lines": ["190"] },
+        { "command": "capture noisily error 198", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily error 199",
+          "lines": ["unrecognized command"]
+        },
+        { "command": "display _rc", "lines": ["199"] },
+        { "command": "capture noisily error 200", "lines": [] },
+        { "command": "display _rc", "lines": ["200"] },
+        {
+          "command": "capture noisily error 301",
+          "lines": ["last estimates not found"]
+        },
+        { "command": "display _rc", "lines": ["301"] },
+        {
+          "command": "capture noisily error 321",
+          "lines": [
+            "requested action not valid after most recent estimation command"
+          ]
+        },
+        { "command": "display _rc", "lines": ["321"] },
+        {
+          "command": "capture noisily error 322",
+          "lines": [
+            "something that should be true of your estimation results is not"
+          ]
+        },
+        { "command": "display _rc", "lines": ["322"] },
+        {
+          "command": "capture noisily error 402",
+          "lines": ["negative weights encountered"]
+        },
+        { "command": "display _rc", "lines": ["402"] },
+        {
+          "command": "capture noisily error 430",
+          "lines": ["convergence not achieved"]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "capture noisily error 459",
+          "lines": ["something that should be true of your data is not"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily error 503",
+          "lines": ["conformability error"]
+        },
+        { "command": "display _rc", "lines": ["503"] },
+        {
+          "command": "capture noisily error 506",
+          "lines": ["matrix not positive definite"]
+        },
+        { "command": "display _rc", "lines": ["506"] },
+        { "command": "capture noisily error 601", "lines": ["file not found"] },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily error 2000",
           "lines": ["no observations"]
         },
-        { "command": "display _rc", "lines": ["2000"] }
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily error 2001",
+          "lines": ["insufficient observations"]
+        },
+        { "command": "display _rc", "lines": ["2001"] },
+        { "command": "capture noisily error 12345", "lines": [] },
+        { "command": "display _rc", "lines": ["12345"] },
+        { "command": "scalar k = 3", "lines": [] },
+        {
+          "command": "capture noisily error 100 + k",
+          "lines": ["too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] }
+      ]
+    },
+    {
+      "id": "scalar-list",
+      "source": "clear\nscalar zeta = 3\nscalar a = 22.346666666667\nscalar longername_here = -1234567.891\nscalar s = \"hello world\"\nscalar m = .\nscalar big = 1e20\nscalar list\nscalar list a s\nscalar dir\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "scalar zeta = 3", "lines": [] },
+        { "command": "scalar a = 22.346666666667", "lines": [] },
+        { "command": "scalar longername_here = -1234567.891", "lines": [] },
+        { "command": "scalar s = \"hello world\"", "lines": [] },
+        { "command": "scalar m = .", "lines": [] },
+        { "command": "scalar big = 1e20", "lines": [] },
+        {
+          "command": "scalar list",
+          "lines": [
+            "       big =  1.000e+20",
+            "         m =          .",
+            "         s = hello world",
+            "longername_here = -1234567.9",
+            "         a =  22.346667",
+            "      zeta =          3"
+          ]
+        },
+        {
+          "command": "scalar list a s",
+          "lines": ["         a =  22.346667", "         s = hello world"]
+        },
+        {
+          "command": "scalar dir",
+          "lines": [
+            "       big =  1.000e+20",
+            "         m =          .",
+            "         s = hello world",
+            "longername_here = -1234567.9",
+            "         a =  22.346667",
+            "      zeta =          3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "margins-atmeans-factor",
+      "source": "clear\nset seed 4127\nset obs 600\ngenerate double x1 = runiform() * 10\ngenerate byte f = runiform() > .5\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)\nlogit d x1 i.f\nmargins, atmeans\nmargins, dydx(*) atmeans\nregress x1 i.f i.g\nmargins, atmeans\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4127", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate double x1 = runiform() * 10", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "generate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)",
+          "lines": []
+        },
+        {
+          "command": "logit d x1 i.f",
+          "lines": [
+            "Iteration 0:  Log likelihood = -406.82929",
+            "Iteration 1:  Log likelihood = -385.39087",
+            "Iteration 2:  Log likelihood = -385.30326",
+            "Iteration 3:  Log likelihood = -385.30324",
+            "",
+            "Logistic regression                                     Number of obs =    600",
+            "                                                        LR chi2(2)    =  43.05",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -385.30324                             Pseudo R2     = 0.0529",
+            "",
+            "------------------------------------------------------------------------------",
+            "           d | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1774831   .0307832     5.77   0.000     .1171492    .2378169",
+            "         1.f |    .500923   .1723024     2.91   0.004     .1632165    .8386294",
+            "       _cons |  -.8064754   .1999289    -4.03   0.000    -1.198329   -.4146219",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 600",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(d), predict()",
+            "At: x1  = 5.193606 (mean)",
+            "    0.f =      .48 (mean)",
+            "    1.f =      .52 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .5928553   .0208356    28.45   0.000     .5520182    .6336924",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*) atmeans",
+          "lines": [
+            "Conditional marginal effects                               Number of obs = 600",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(d), predict()",
+            "dy/dx wrt:  x1 1.f",
+            "At: x1  = 5.193606 (mean)",
+            "    0.f =      .48 (mean)",
+            "    1.f =      .52 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .0428405   .0074068     5.78   0.000     .0283235    .0573575",
+            "         1.f |   .1205659   .0411191     2.93   0.003     .0399739    .2011579",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "regress x1 i.f i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(3, 596)       =      0.78",
+            "       Model |  19.1230278         3   6.3743426   Prob > F        =    0.5074",
+            "    Residual |  4892.94783       596  8.20964401   R-squared       =    0.0039",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0011",
+            "       Total |  4912.07086       599  8.20045219   Root MSE        =    2.8652",
+            "",
+            "------------------------------------------------------------------------------",
+            "          x1 | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.f |  -.0176033   .2343563    -0.08   0.940    -.4778679    .4426612",
+            "             |",
+            "           g |",
+            "          2  |   .4193726   .2913907     1.44   0.151    -.1529049      .99165",
+            "          3  |   .0977959   .2893046     0.34   0.735    -.4703846    .6659763",
+            "             |",
+            "       _cons |    5.02492   .2461956    20.41   0.000     4.541404    5.508436",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 600",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: 0.f =      .48 (mean)",
+            "    1.f =      .52 (mean)",
+            "    1.g =     .305 (mean)",
+            "    2.g = .3416667 (mean)",
+            "    3.g = .3533333 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   5.193606   .1169732    44.40   0.000     4.963877    5.423336",
+            "------------------------------------------------------------------------------"
+          ]
+        }
       ]
     },
     {

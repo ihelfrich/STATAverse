@@ -1,4 +1,5 @@
 import { chromium, devices } from "@playwright/test";
+import { receiptPath, screenshotPath } from "./receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -158,10 +159,9 @@ try {
     "https://ihelfrich.github.io/learn/stata/",
   );
   await page.locator(".sv-site-menu summary").click();
-  await fs.mkdir("docs/verification/screenshots", { recursive: true });
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
-    path: "docs/verification/screenshots/site-integration-desktop.png",
+    path: screenshotPath("site-integration-desktop.png"),
     fullPage: false,
   });
   assert.equal(
@@ -467,7 +467,7 @@ try {
   await page.locator("#iv-tab-uncertainty").click();
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
-    path: "docs/verification/screenshots/site-iv-desktop.png",
+    path: screenshotPath("site-iv-desktop.png"),
     fullPage: false,
   });
   await context.setOffline(true);
@@ -542,7 +542,7 @@ try {
   assert.equal((await new AxeBuilder({ page }).analyze()).violations.length, 0);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
-    path: "docs/verification/screenshots/site-method-desktop.png",
+    path: screenshotPath("site-method-desktop.png"),
     fullPage: false,
   });
   receipt.checks.push(
@@ -586,7 +586,7 @@ try {
   assert.equal((await new AxeBuilder({ page }).analyze()).violations.length, 0);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
-    path: "docs/verification/screenshots/site-worked-desktop.png",
+    path: screenshotPath("site-worked-desktop.png"),
     fullPage: false,
   });
   receipt.checks.push(
@@ -686,7 +686,7 @@ try {
   );
   await mobile.evaluate(() => document.fonts.ready);
   await mobile.screenshot({
-    path: "docs/verification/screenshots/site-integration-mobile.png",
+    path: screenshotPath("site-integration-mobile.png"),
     fullPage: false,
   });
   await mobile.goto(root + "Labs/IV/");
@@ -703,7 +703,7 @@ try {
   );
   await mobile.evaluate(() => document.fonts.ready);
   await mobile.screenshot({
-    path: "docs/verification/screenshots/site-iv-mobile.png",
+    path: screenshotPath("site-iv-mobile.png"),
     fullPage: false,
   });
   const plain = await browser.newContext({ javaScriptEnabled: false });
@@ -777,7 +777,7 @@ try {
   }
   assert.ok(receipt.coreOfflinePackage.gzipBytes < 600000);
   await fs.writeFile(
-    process.env.SITE_TEST_RECEIPT || "docs/verification/site-integration.json",
+    process.env.SITE_TEST_RECEIPT || receiptPath("site-integration.json"),
     JSON.stringify(receipt, null, 2) + "\n",
   );
   console.log(JSON.stringify(receipt, null, 2));
