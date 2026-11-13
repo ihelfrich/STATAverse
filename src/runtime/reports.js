@@ -288,6 +288,29 @@ function wrap(text, width) {
   return lines.map((line) => line.slice(0, width).padStart(width));
 }
 
+// Fills lines of at most `width` characters with words, as the headings of
+// a two-way table do; a word longer than a line is cut into pieces of the
+// line's width, and its last piece continues the next line.
+function wrapWords(text, width) {
+  const lines = [];
+  let line = null;
+  for (const word of text.split(" ")) {
+    if (line !== null && (line + " " + word).length <= width) {
+      line += " " + word;
+      continue;
+    }
+    if (line !== null) lines.push(line);
+    let rest = word;
+    while (rest.length > width) {
+      lines.push(rest.slice(0, width));
+      rest = rest.slice(width);
+    }
+    line = rest || null;
+  }
+  if (line !== null) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
 export function tabulate(session, text, ctx) {
   const parsed = session.parse(
       "varlist(min=1 max=2) [if] [in] [fweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact | NOFreq LRchi2 Gamma TAUb V EXPected]",
@@ -417,16 +440,47 @@ export function tabulate(session, text, ctx) {
     table[levels[0].indexOf(variables[0].data[i])][
       levels[1].indexOf(variables[1].data[i])
     ]++;
-  const short = (item) => (item.length > 10 ? item.slice(0, 7) + ".." : item),
-    span = 11 * levels[1].length,
+  // Stata shows a row value in up to 21 characters (a string longer than
+  // that as its first 19 and ".."; a value label cut at 21) and a column
+  // value in up to 9 (a string as its first 7 and "..").
+  const rowText = (value) => {
+      const item = show(0, value);
+      return typeof value === "string" && item.length > 21
+        ? item.slice(0, 19) + ".."
+        : item.slice(0, 21);
+    },
+    columnText = (value) => {
+      const item = show(1, value);
+      return typeof value === "string" && item.length > 9
+        ? item.slice(0, 7) + ".."
+        : item.slice(0, 9);
+    },
+    rowShown = levels[0].map(rowText),
+    columnShown = levels[1].map(columnText),
+    // The row stub is as wide as a str# row variable's storage width, or
+    // its widest value as shown otherwise, between 10 and 21 characters.
+    storage = /^str(\d+)$/.exec(variables[0].type ?? ""),
+    stub = Math.min(
+      21,
+      Math.max(
+        10,
+        storage
+          ? Number(storage[1])
+          : greatest(rowShown.map((item) => item.length)),
+      ),
+    ),
+    // Stata splits the columns into panels, each with its own Total
+    // column, so that a line stays shorter than the line size.
+    perPanel = Math.max(
+      1,
+      Math.floor(((session.settings.linesize ?? 80) - 14 - stub) / 11),
+    ),
     cells = (items) =>
       items
         .map((item) => item.padStart(11))
         .join("")
         .slice(1),
-    rule = `-----------+${"-".repeat(span)}+----------`,
-    columnTitle = title(1).slice(0, span),
-    rowHeading = wrap(title(0), 10),
+    rowHeading = wrapWords(title(0), stub).map((line) => line.padStart(stub)),
     rowTotal = table.map((row) => row.reduce((a, b) => a + b, 0)),
     columnTotal = levels[1].map((_, k) =>
       table.reduce((t, row) => t + row[k], 0),
@@ -452,51 +506,63 @@ export function tabulate(session, text, ctx) {
     ctx.out(`+${"-".repeat(inner)}+`);
     ctx.out("");
   }
-  const percentLines = (row, r) =>
-    kinds.map(([option]) => {
-      const of = (k) =>
-        option === "row"
-          ? r === null
-            ? total
-            : rowTotal[r]
-          : option === "column"
-            ? columnTotal[k]
-            : total;
-      return `${" ".repeat(10)} |${cells(row.map((n, k) => percent(n, of(k))))} |${percent(
-        option === "column"
-          ? r === null
-            ? total
-            : rowTotal[r]
-          : r === null
-            ? total
-            : rowTotal[r],
-        option === "row" ? (r === null ? total : rowTotal[r]) : total,
-      ).padStart(10)}`;
+  const blank = " ".repeat(stub),
+    percentLines = (row, r, columns) =>
+      kinds.map(([option]) => {
+        const of = (k) =>
+          option === "row"
+            ? r === null
+              ? total
+              : rowTotal[r]
+            : option === "column"
+              ? columnTotal[k]
+              : total;
+        return `${blank} |${cells(columns.map((k) => percent(row[k], of(k))))} |${percent(
+          option === "column"
+            ? r === null
+              ? total
+              : rowTotal[r]
+            : r === null
+              ? total
+              : rowTotal[r],
+          option === "row" ? (r === null ? total : rowTotal[r]) : total,
+        ).padStart(10)}`;
+      });
+  for (let from = 0; from < levels[1].length; from += perPanel) {
+    const columns = levels[1].map((_, k) => k).slice(from, from + perPanel),
+      span = 11 * columns.length,
+      rule = `${"-".repeat(stub + 1)}+${"-".repeat(span)}+----------`,
+      columnTitle = wrapWords(title(1), span - 1).map(
+        (line) =>
+          " ".repeat(Math.max(0, Math.ceil((span - line.length) / 2))) + line,
+      ),
+      // The column title ends on the line above the column values, the
+      // row title on the line of the column values.
+      height = Math.max(columnTitle.length + 1, rowHeading.length);
+    if (from) ctx.out("");
+    for (let k = 0; k < height; k++) {
+      const left = rowHeading[k - (height - rowHeading.length)] ?? blank,
+        right =
+          k === height - 1
+            ? `${cells(columns.map((c) => columnShown[c]))} |     Total`
+            : (columnTitle[k - (height - 1 - columnTitle.length)] ?? "");
+      ctx.out(`${left} |${right}`);
+    }
+    ctx.out(rule);
+    table.forEach((row, r) => {
+      if (r && kinds.length) ctx.out(rule);
+      ctx.out(
+        `${rowShown[r].padStart(stub)} |${cells(columns.map((c) => count(row[c])))} |${count(rowTotal[r]).padStart(10)}`,
+      );
+      percentLines(row, r, columns).forEach(ctx.out);
     });
-  ctx.out(
-    `           |${" ".repeat(Math.max(0, Math.ceil((span - columnTitle.length) / 2)))}${columnTitle}`,
-  );
-  rowHeading.forEach((line, k) =>
+    ctx.out(rule);
     ctx.out(
-      k === rowHeading.length - 1
-        ? `${line} |${cells(levels[1].map((value) => short(show(1, value))))} |     Total`
-        : `${line} |`,
-    ),
-  );
-  ctx.out(rule);
-  table.forEach((row, r) => {
-    if (r && kinds.length) ctx.out(rule);
-    ctx.out(
-      `${short(show(0, levels[0][r])).padStart(10)} |${cells(row.map(count))} |${count(rowTotal[r]).padStart(10)}`,
+      `${"Total".padStart(stub)} |${cells(columns.map((c) => count(columnTotal[c])))} |${count(total).padStart(10)}`,
     );
-    percentLines(row, r).forEach(ctx.out);
-  });
-  ctx.out(rule);
-  ctx.out(
-    `${"Total".padStart(10)} |${cells(levels[1].map((_, k) => count(table.reduce((t, row) => t + row[k], 0))))} |${count(keep.length).padStart(10)}`,
-  );
-  percentLines(columnTotal, null).forEach(ctx.out);
-  ctx.out("");
+    percentLines(columnTotal, null, columns).forEach(ctx.out);
+    ctx.out("");
+  }
   session.results.r = {
     N: keep.length,
     r: levels[0].length,
@@ -518,7 +584,7 @@ export function tabulate(session, text, ctx) {
       p = chi2tail(df, chi2);
     Object.assign(session.results.r, { chi2, p });
     ctx.out(
-      `          Pearson chi2(${df}) = ${applyFormat(chi2, "%8.4f")}   Pr = ${applyFormat(p, "%5.3f")}`,
+      `${`Pearson chi2(${df})`.padStart(25)} = ${applyFormat(chi2, "%8.4f")}   Pr = ${applyFormat(p, "%5.3f")}`,
     );
     if (!parsed.options.exact) ctx.out("");
   }

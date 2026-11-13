@@ -3328,3 +3328,55 @@ quietly tabulate c1200 r1
 display r(r) " " r(c)
 capture noisily tabulate c1201 r1
 clear
+=== tabulate-two-panels
+clear
+set obs 30
+set seed 11
+gen g = 1 + floor(runiform()*3)
+gen str21 s = word("apple pear fig kiwi plum lime", 1+floor(runiform()*6))
+replace s = "" in 3
+sort g, stable
+by g: replace s = s + "-longer-than-five" if _n==1
+set linesize 80
+tab g s
+tab g s, missing
+tab s g
+set linesize 200
+=== tabulate-two-panel-widths
+clear
+set obs 60
+set seed 11
+gen g = 1 + floor(runiform()*3)
+gen h = 1 + floor(runiform()*12)
+gen str12 longrow = "row-value-" + string(g) + "xyz"
+gen str40 r = "x" + string(g) + "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+gen str15 r15 = substr(r, 1, 15)
+set linesize 80
+tab g h
+tab g h, row
+tab g h, column cell chi2
+tab longrow h
+tab r15 h
+tab r h
+set linesize 120
+tab g h
+set linesize 79
+tab g h
+set linesize 78
+tab g h
+set linesize 50
+tab g h
+set linesize 80
+label define gl 1 "abcdefghijklmnopqrstuvwxyz" 2 "two" 3 "abcdefghijklm"
+label values g gl
+tab g h
+label define hl 1 "abcdefghijk" 2 "abcdefghij" 3 "abcdefghi"
+label values h hl
+label variable h "A long variable label for the column variable that goes on and on"
+tab g h
+label values g
+label variable g "word averyveryverylongword end"
+tab g h if h < 4
+set linesize 40
+tab g h if h < 4
+set linesize 200
