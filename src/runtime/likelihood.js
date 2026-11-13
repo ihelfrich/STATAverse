@@ -1,8 +1,10 @@
 // Maximum-likelihood estimators with more than one index or with ancillary
-// parameters: tobit, ologit, oprobit and mlogit. Each supplies its log
+// parameters: tobit, ologit, oprobit, mlogit and nbreg. Each supplies its log
 // likelihood and gradient; the fitter takes Newton steps using a Hessian
 // obtained by differencing the gradient. Estimates are compared with
 // installed Stata; iteration logs follow a different path and are not.
+// nbreg, whose likelihood can be nearly flat in lnalpha, is fitted instead
+// by maximizeNR, which takes Stata's own steps from the analytic Hessian.
 import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
@@ -108,13 +110,18 @@ function layoutRows(session, f, cell) {
   );
 }
 
-/** The design of a model: outcome, rows of regressors, and their names. */
-function frame(session, parsed, constant) {
+/**
+ * The design of a model: outcome, rows of regressors, and their names.
+ * intercept says the model has an intercept that is not a column of x, as
+ * the cut points of ologit and oprobit are; base cells of interactions are
+ * then omitted as they would be beside a constant.
+ */
+function frame(session, parsed, constant, intercept = constant) {
   const { dependent, columns, sample } = design(
       session,
       parsed.anything,
       session.rows(parsed, null),
-      constant,
+      intercept,
     ),
     active = columns.filter((c) => !c.base);
   if (!sample.length) throw new StataError("no observations", 2000);
@@ -371,7 +378,7 @@ function ordered(kind) {
         text,
       ),
       options = parsed.options,
-      f = frame(session, parsed, false),
+      f = frame(session, parsed, false, true),
       n = f.y.length,
       levels = [...new Set(f.y)].sort((a, b) => a - b),
       cuts = levels.length - 1,
@@ -685,22 +692,148 @@ const lnFactorial = (n) => {
   for (let k = 2; k <= n; k++) total += Math.log(k);
   return total;
 };
+
 /**
- * The inverse of the Poisson information X'WX, W the fitted means, padded
- * with a zero row and column for lnalpha.
+ * A generalised inverse of a symmetric matrix, as Mata's invsym() gives:
+ * columns are taken in order, one whose pivot is not positive is dropped,
+ * and the rows and columns of dropped ones are zero.
  */
-function poissonCovariance(x, theta) {
-  const k = x[0].length,
-    information = Array.from({ length: k }, () => new Array(k).fill(0));
-  for (const r of x) {
-    const mu = Math.exp(dot(r, theta));
-    for (let a = 0; a < k; a++)
-      for (let c = 0; c < k; c++) information[a][c] += mu * r[a] * r[c];
+export function generalizedInverse(a) {
+  const n = a.length,
+    keep = [],
+    // Rows of the Cholesky factor of the kept columns.
+    factor = [];
+  for (let j = 0; j < n; j++) {
+    const row = keep.map(() => 0);
+    let pivot = a[j][j];
+    keep.forEach((c, q) => {
+      let v = a[j][c];
+      for (let p = 0; p < q; p++) v -= row[p] * factor[q][p];
+      row[q] = v / factor[q][q];
+      pivot -= row[q] * row[q];
+    });
+    if (!(pivot > 1e-13 * Math.abs(a[j][j]))) continue;
+    row.push(Math.sqrt(pivot));
+    keep.push(j);
+    factor.push(row);
   }
-  const inverse = invertSymmetric(information);
-  if (!inverse)
-    throw new StataError("the variance matrix is not positive definite", 430);
-  return [...inverse.map((row) => [...row, 0]), new Array(k + 1).fill(0)];
+  const out = Array.from({ length: n }, () => new Array(n).fill(0));
+  if (!keep.length) return out;
+  const inverse = invertSymmetric(keep.map((r) => keep.map((c) => a[r][c])));
+  if (inverse)
+    keep.forEach((r, i) => keep.forEach((c, j) => (out[r][c] = inverse[i][j])));
+  return out;
+}
+
+/**
+ * Maximises evaluate(theta, todo) -> { value, gradient, information } as
+ * Stata's ml does with technique nr, so that where the likelihood is flat
+ * the fit stops where Stata's stops: Newton steps from the analytic
+ * information (the negative Hessian), a step that improves is stepped
+ * forward and one that does not is halved, a region that is not concave is
+ * crossed by Marquardt's adjustment, and convergence is declared when the
+ * parameters (1e-6) or the log likelihood (1e-7) settle and g'inv(H)g is
+ * below 1e-5. Returns the estimates, the log likelihood at each iteration
+ * and the generalised inverse of the information.
+ */
+export function maximizeNR(evaluate, start) {
+  const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1),
+    times = (m, v) => m.map((row) => row.reduce((t, x, k) => t + x * v[k], 0)),
+    // Concave unless a column the inverse dropped has curvature.
+    concave = (h, v) => h.every((_, j) => v[j][j] !== 0 || h[j][j] === 0),
+    feasible = (value) => Number.isFinite(value);
+  let theta = start.slice(),
+    current = evaluate(theta, 2);
+  if (!feasible(current.value))
+    throw new StataError("initial values not feasible", 1400);
+  const log = [current.value];
+  for (let iteration = 1; ; iteration++) {
+    if (iteration > 300) throw new StataError("convergence not achieved", 430);
+    const before = theta,
+      v0 = current.value,
+      information = current.information;
+    let inverse = generalizedInverse(information),
+      delta,
+      forward = 1 / 8;
+    if (concave(information, inverse)) delta = times(inverse, current.gradient);
+    else {
+      // Marquardt: weight the diagonal until the information is positive
+      // definite, keep the original scale, and take a step that should
+      // raise the log likelihood by a small share of its value.
+      const trace0 = inverse.reduce((t, row, j) => t + row[j], 0),
+        adjusted = information.map((row) => row.slice());
+      for (let weight = 1.1; ; weight *= 2) {
+        adjusted.forEach((row, j) => (row[j] += weight * Math.abs(row[j])));
+        inverse = generalizedInverse(adjusted);
+        if (concave(adjusted, inverse)) break;
+        if (weight > 1e300)
+          throw new StataError(
+            "the variance matrix is not positive definite",
+            430,
+          );
+      }
+      const ratio = trace0 / inverse.reduce((t, row, j) => t + row[j], 0);
+      if (ratio > 0) inverse = inverse.map((row) => row.map((v) => v * ratio));
+      delta = times(inverse, current.gradient);
+      const eps =
+          iteration <= 2
+            ? 1e-2
+            : Math.min(
+                1e-2,
+                Math.max(
+                  1e-8,
+                  (0.1 * (log[iteration - 1] - log[iteration - 2])) /
+                    Math.abs(log[iteration - 2]),
+                ),
+              ),
+        c =
+          (eps * Math.abs(v0)) /
+          current.gradient.reduce((t, g, k) => t + g * delta[k], 0);
+      delta = delta.map((v) => v * (Number.isFinite(c) ? c : 2));
+      forward = 1;
+    }
+    let next = theta.map((v, k) => v + delta[k]),
+      value = evaluate(next, 0).value;
+    if (!feasible(value) || value < v0) {
+      let back = 1;
+      for (; back <= 60 && (!feasible(value) || value < v0); back++) {
+        next = next.map((v, k) => (v + theta[k]) / 2);
+        value = evaluate(next, 0).value;
+      }
+      if (back > 60) next = theta;
+    } else {
+      // Step on along the direction, doubling, while the value rises.
+      let step = delta.map((v) => v * forward),
+        last,
+        lastValue;
+      do {
+        last = next;
+        lastValue = value;
+        next = last.map((v, k) => v + step[k]);
+        value = evaluate(next, 0).value;
+        step = step.map((v) => 2 * v);
+      } while (feasible(value) && value > lastValue);
+      next = last;
+    }
+    theta = next;
+    current = evaluate(theta, 2);
+    if (!feasible(current.value))
+      throw new StataError("discontinuous region encountered", 430);
+    log.push(current.value);
+    if (
+      before.every((v, k) => reldif(theta[k], v) <= 1e-6) ||
+      reldif(current.value, v0) <= 1e-7
+    ) {
+      const V = generalizedInverse(current.information),
+        step = times(V, current.gradient);
+      if (
+        concave(current.information, V) &&
+        Math.abs(current.gradient.reduce((t, g, k) => t + g * step[k], 0)) <
+          1e-5
+      )
+        return { theta, ll: current.value, V, log };
+    }
+  }
 }
 
 function nbreg(session, text, ctx) {
@@ -733,60 +866,112 @@ function nbreg(session, text, ctx) {
         return { value, gradient };
       }, start);
     },
-    negative = (x, start) => {
-      const k = x[0].length;
-      return maximize((theta) => {
-        const a = Math.exp(-theta[k]),
-          gradient = new Array(k + 1).fill(0);
-        let value = 0;
-        x.forEach((r, i) => {
-          const mu = Math.exp(dot(r, theta)),
-            y = f.y[i];
-          let lnGamma = 0,
-            digamma = 0;
-          for (let j = 0; j < y; j++) {
-            lnGamma += Math.log(a + j);
-            digamma += 1 / (a + j);
-          }
-          // log1p keeps these terms exact as alpha goes to zero (a to
-          // infinity), where the data are not overdispersed. Written as
-          // logs of ratios, they cancel to noise that a multiplies, and
-          // the fit never settles.
-          const shrink = Math.log1p(mu / a);
-          value +=
-            lnGamma -
-            lnFactorial(y) -
-            a * shrink +
-            y * (Math.log(mu / a) - shrink);
-          const dxb = ((y - mu) * a) / (a + mu),
-            da = digamma - shrink + (mu - y) / (a + mu);
-          r.forEach((v, c) => (gradient[c] += dxb * v));
-          gradient[k] -= a * da;
+    lnFact = f.y.map(lnFactorial),
+    // Stata's nbreg_lf: the log likelihood, its gradient and the negative
+    // Hessian in (xb, lnalpha). Below lnalpha = -20 it is the Poisson
+    // likelihood, flat in lnalpha. The gamma functions of 1/alpha + y are
+    // taken as sums over the count, exact where 1/alpha is large.
+    negative = (x) => (theta, todo) => {
+      const k = x[0].length,
+        ln = theta[k],
+        m = Math.exp(-ln),
+        alpha = Math.exp(ln),
+        gradient = new Array(k + 1).fill(0),
+        information = Array.from({ length: k + 1 }, () =>
+          new Array(k + 1).fill(0),
+        );
+      let value = 0;
+      x.forEach((r, i) => {
+        const xb = dot(r, theta),
+          y = f.y[i],
+          mu = Math.exp(xb);
+        if (ln < -20) {
+          value += -lnFact[i] - mu + y * xb;
+          if (todo)
+            r.forEach((v, a) => {
+              gradient[a] += (y - mu) * v;
+              r.forEach((w, c) => (information[a][c] += mu * v * w));
+            });
+          return;
+        }
+        let lnGamma = 0,
+          digamma = 0,
+          trigamma = 0;
+        for (let j = 0; j < y; j++) {
+          lnGamma += Math.log(m + j);
+          digamma += 1 / (m + j);
+          trigamma += j / (m + j) ** 2;
+        }
+        const lnp = -Math.log1p(Math.exp(xb + ln)),
+          p = Math.exp(lnp);
+        value +=
+          lnGamma - lnFact[i] + m * lnp - y * Math.log1p(Math.exp(-xb - ln));
+        if (!todo) return;
+        const s1 = p * (y - mu),
+          s2 = m * (-digamma - lnp) + s1,
+          d11 = mu * p * (alpha * p * (y - mu) + 1),
+          d12 = alpha * mu * p * p * (y - mu),
+          // trigamma here is the sum of j/(m+j)^2, which is
+          // m(trigamma(m) - trigamma(y+m)) - (digamma(y+m) - digamma(m)).
+          d22 = m * (-lnp - trigamma) + mu * p * (alpha * p * (y - mu) - 1);
+        r.forEach((v, a) => {
+          gradient[a] += s1 * v;
+          r.forEach((w, c) => (information[a][c] += d11 * v * w));
+          information[a][k] += d12 * v;
+          information[k][a] += d12 * v;
         });
-        return { value, gradient };
-      }, start);
+        gradient[k] += s2;
+        information[k][k] += d22;
+      });
+      return { value, gradient, information };
     },
-    ones = f.x.map(() => [1]),
     base = poisson(f.x),
     k = f.x[0].length,
-    null0 = constant ? negative(ones, [...poisson(ones).theta, 0]) : null,
-    full = negative(f.x, [...base.theta, null0 ? null0.theta[1] : 0]),
+    mean = f.y.reduce((a, b) => a + b, 0) / n,
+    // Starting values as nbreg.ado chooses them: the constant-only model
+    // from ln(mean) and lnalpha 0; the full model from the Poisson
+    // estimates, shifted so the mean index is the constant-only constant,
+    // with its lnalpha, unless the constant-only estimates fit better.
+    // nbreg.ado passes ln(mean) through a local macro, which keeps it to
+    // %18.0g. Where the data are not overdispersed the fit runs along a
+    // flat ridge, and where it stops depends on that last digit.
+    c0 = Number(applyFormat(Math.log(mean), "%18.0g")),
+    null0 = constant
+      ? maximizeNR(negative(f.x.map(() => [1])), [
+          Number.isFinite(c0) ? c0 : 0,
+          0,
+        ])
+      : null,
+    start = (() => {
+      if (!null0) return [...base.theta, 0];
+      if (k === 1) return null0.theta;
+      const shift =
+          null0.theta[0] - f.x.reduce((t, r) => t + dot(r, base.theta), 0) / n,
+        shifted = [
+          ...base.theta.map((v, j) => (j === k - 1 ? v + shift : v)),
+          null0.theta[1],
+        ],
+        bounded = [...shifted.slice(0, k), Math.max(-20, shifted[k])];
+      return negative(f.x)(bounded, 0).value > null0.ll
+        ? shifted
+        : [...new Array(k - 1).fill(0), ...null0.theta];
+    })(),
+    full = maximizeNR(negative(f.x), start),
     dfModel = f.active.length,
     ll0 = null0 ? null0.ll : MISSING,
     chi2 = null0 ? 2 * (full.ll - ll0) : MISSING,
     p = null0 ? chi2tail(dfModel, chi2) : MISSING,
     lnalpha = full.theta[k],
     // When the data are not overdispersed, alpha runs to zero and the
-    // likelihood is flat in lnalpha. Stata then reports the Poisson fit with
-    // no standard error for lnalpha, and the LR statistic is zero. Where the
-    // fit stops on the way to zero is arbitrary, in Stata and here.
+    // likelihood is flat in lnalpha. Past lnalpha = -20 Stata fits the
+    // Poisson model, reports no standard error for lnalpha, and sets the LR
+    // statistic to zero. Where the fit stops on the way is decided by
+    // rounding, in Stata and here.
     boundary = lnalpha < -20,
-    chi2c = boundary ? 0 : Math.max(0, 2 * (full.ll - base.ll)),
-    seLn = boundary ? MISSING : Math.sqrt(full.V[k][k]),
-    // There the coefficients are a Poisson fit, and their variance is the
-    // inverse of the Poisson information, worked exactly rather than by the
-    // differences the general fitter takes.
-    cov = boundary ? poissonCovariance(f.x, full.theta) : full.V,
+    chi2c = boundary || full.ll < base.ll ? 0 : 2 * (full.ll - base.ll),
+    cov = full.V,
+    seLn = cov[k][k] > 0 ? Math.sqrt(cov[k][k]) : MISSING,
+    noSe = isMissing(seLn),
     alpha = Math.exp(lnalpha),
     critical = invnormal(1 - (1 - options.level / 100) / 2),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
@@ -886,8 +1071,8 @@ function nbreg(session, text, ctx) {
       "    /lnalpha ",
       lnalpha,
       seLn,
-      boundary ? MISSING : lnalpha - critical * seLn,
-      boundary ? MISSING : lnalpha + critical * seLn,
+      noSe ? MISSING : lnalpha - critical * seLn,
+      noSe ? MISSING : lnalpha + critical * seLn,
     ),
   );
   ctx.out(SPLIT);
@@ -895,9 +1080,9 @@ function nbreg(session, text, ctx) {
     plainRow(
       "       alpha ",
       alpha,
-      boundary ? MISSING : alpha * seLn,
-      boundary ? MISSING : Math.exp(lnalpha - critical * seLn),
-      boundary ? MISSING : Math.exp(lnalpha + critical * seLn),
+      noSe ? MISSING : alpha * seLn,
+      noSe ? MISSING : Math.exp(lnalpha - critical * seLn),
+      noSe ? MISSING : Math.exp(lnalpha + critical * seLn),
     ),
   );
   ctx.out(RULE);
@@ -908,7 +1093,7 @@ function nbreg(session, text, ctx) {
     if (constant) ctx.out("Note: _cons estimates baseline incidence rate.");
   }
   ctx.out(
-    `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, "%5.2f").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(chi2c > 0 ? 0.5 * chi2tail(1, chi2c) : 1, "%5.3f")}`,
+    `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, (chi2c > 0.005 && chi2c < 1e4) || boundary ? "%8.2f" : "%8.2e").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(boundary ? 1 : 0.5 * chi2tail(1, chi2c), "%5.3f")}`,
   );
   ctx.out("");
 }

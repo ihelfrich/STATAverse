@@ -2447,3 +2447,53 @@ margins, atmeans
 margins, dydx(*) atmeans
 regress x1 i.f i.g
 margins, atmeans
+=== models-interaction-terms
+clear
+set seed 4401
+set obs 500
+generate byte a = runiform() > .5
+generate byte b = runiform() > .6
+generate double x = 8 + floor(runiform() * 12)
+generate double u = runiform()
+generate double latent = .4 * a + .2 * b - .3 * a * b + .1 * x + ln(u / (1 - u))
+generate byte r = 1 + (latent > 0) + (latent > 1) + (latent > 2)
+generate double w = 5 + 2 * x - .05 * x^2 + runiform() * 8
+generate byte d = runiform() < invlogit(-2 + .1 * x)
+generate int c = floor(runiform() * (10 + x))
+ologit r i.a#i.b, nolog
+ologit r i.a##i.b, nolog
+oprobit r i.a##i.b, nolog
+ologit r i.a#i.b x, nolog
+regress w c.x##c.x
+regress w c.x##c.x##c.x
+logit d c.x##c.x, nolog
+tobit w c.x##c.x, ll(10) nolog
+nbreg c c.x##c.x, nolog
+regress w i.a i.a
+regress w i.a#c.x c.x#i.a
+=== nbreg-stata-steps
+clear
+set seed 4403
+set obs 600
+generate byte a = runiform() > .5
+generate double x = 8 + floor(runiform() * 12)
+generate int k1 = 25 + floor(runiform() * 22) + floor(6 * runiform()^3)
+generate int k2 = 25 + floor(runiform() * 22) + floor(9 * runiform()^4) * a
+generate int k3 = 30 + floor(runiform() * 26) + floor(4 * runiform()^2)
+generate int k4 = 20 + floor(runiform() * 24) + floor(10 * runiform()^6)
+nbreg k1 x, nolog
+nbreg k1 i.a##c.x, nolog
+nbreg k2 x i.a, nolog
+nbreg k3 x, nolog
+nbreg k4 i.a x, nolog
+nbreg k4 c.x##c.x, nolog
+clear
+set seed 4402
+set obs 600
+generate byte a = runiform() > .5
+generate byte b = runiform() > .6
+generate double x = 8 + floor(runiform() * 12)
+generate int h1 = 30 + floor(runiform() * 13) + floor(runiform() * 3) * a
+generate int h2 = 30 + floor(runiform() * 25)
+generate int h3 = 20 + floor(runiform() * 22)
+nbreg h3 i.a##c.x, nolog

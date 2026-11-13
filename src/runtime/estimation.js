@@ -82,9 +82,24 @@ export function design(session, text, rows, constant = true) {
       factor: m ? m[1] === "i" : inInteraction,
     };
   };
+  // A term is the same term whatever the order of its components, so
+  // i.a#c.x and c.x#i.a are one term.
+  const key = (components) =>
+    components
+      .map((c) => `${c.factor ? "i" : "c"}.${c.variable.name}`)
+      .sort()
+      .join("#");
   const dependent = numeric(tokens[0]),
     terms = [],
     add = (components) => {
+      // Stata keeps a factor or an interaction only the first time it is
+      // named; a continuous variable named twice stays twice and the
+      // second is omitted for collinearity.
+      if (
+        (components.length > 1 || components[0].factor) &&
+        terms.some((t) => key(t.components) === key(components))
+      )
+        return;
       const [only] = components;
       terms.push({
         components,
@@ -104,13 +119,18 @@ export function design(session, text, rows, constant = true) {
     if (token.includes("##")) {
       // a##b##c is (a##b)##c: each new part is added on its own and
       // crossed with every term so far, giving Stata's order
-      // a b a#b c a#c b#c a#b#c.
+      // a b a#b c a#c b#c a#b#c. A term the expansion has already made
+      // is not made again, so c.x##c.x is x and c.x#c.x.
       let expanded = [];
       for (const part of token.split("##")) {
         const next = component(part, true);
         expanded = [...expanded, [next], ...expanded.map((t) => [...t, next])];
       }
-      expanded.forEach(add);
+      expanded
+        .filter(
+          (t, k) => expanded.findIndex((other) => key(other) === key(t)) === k,
+        )
+        .forEach(add);
     } else if (token.includes("#"))
       add(token.split("#").map((part) => component(part, true)));
     else if (/^(i|c)\./.test(token)) add([component(token, false)]);
