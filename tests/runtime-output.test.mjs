@@ -20,7 +20,9 @@ const trimmed = (lines) => {
 // Maximum-likelihood estimators reach the same estimates as Stata by a
 // different sequence of steps. Their iteration lines are not compared, and
 // numbers that follow from the last step may differ in the seventh digit.
-const iteration = (line) => /^Iteration \d+:/.test(line);
+// tobit's "Grid node" lines, which log its starting values, are of the same
+// kind.
+const iteration = (line) => /^(Iteration|Grid node) \d+:/.test(line);
 function sameLine(a, b) {
   if (a === b) return true;
   const x = a.split(/\s+/),
@@ -102,6 +104,7 @@ for (const c of fixture.cases)
             "predict-defaults",
             "mlogit-coefficients",
             "outcome-predict-margins",
+            "likelihood-factor-layout",
           ].includes(c.id),
         )
       )

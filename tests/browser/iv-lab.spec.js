@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
@@ -163,7 +164,7 @@ test("IV views fit narrow screens, support keyboard tabs and pass accessibility 
   await page.evaluate(() => document.fonts.ready);
   await page.locator("#iv-stages").scrollIntoViewIfNeeded();
   await page.screenshot({
-    path: `docs/verification/screenshots/iv-uncertainty-${testInfo.project.name}.png`,
+    path: screenshotPath(`iv-uncertainty-${testInfo.project.name}.png`),
     fullPage: false,
   });
   expect(errors).toEqual([]);

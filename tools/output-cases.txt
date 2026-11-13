@@ -2227,3 +2227,143 @@ set linesize 80
 quietly regress outcome_variable_long x
 lincom x
 set linesize 200
+=== likelihood-factor-layout
+clear
+set seed 2718
+set obs 400
+generate byte g = 1 + floor(runiform() * 3)
+generate double income = runiform() * 10
+generate double y = 2 + .4 * income + .5 * g + runiform() * 4
+replace y = 3 if y < 3
+generate byte r = 1 + (y > 5) + (y > 7)
+generate int k = floor(y * y * runiform())
+tobit y income i.g, ll(3) nolog
+tobit y income, ll(3)
+tobit y income i.g, ll(3) ul(9)
+ologit r income i.g, nolog
+nbreg k income i.g, nolog
+regress y income i.g
+=== coefficient-references
+clear
+set seed 3141
+set obs 300
+generate byte female = runiform() > .5
+generate byte g = 1 + floor(runiform() * 3)
+generate double x = runiform() * 10
+generate double y = 1 + .5 * x + .8 * female + .3 * g + .2 * x * female + runiform() * 3
+regress y x i.female i.g i.female#c.x
+test 1.female
+test 2.g = 3.g
+test 2.g 3.g
+test 1.female#c.x
+test c.x#1.female
+test _b[x] = .5
+test _b[1.female] = 0
+test (_b[2.g] = 0) (_b[3.g] = 0)
+test 2*x = 1
+lincom x + 1.female#c.x
+lincom _b[x] + _b[1.female#c.x]
+lincom 2.g - 3.g
+lincom 1.female + .5*x
+logit female x i.g
+test 2.g = 3.g
+lincom 2.g - 3.g
+regress y x i.female c.x#c.g
+test c.x#c.g
+lincom x + c.g#c.x
+capture noisily test 1.female 2.female
+display _rc
+capture noisily test 1b.female
+display _rc
+capture noisily lincom _b[nosuch]
+display _rc
+=== error-messages
+capture noisily error 2
+display _rc
+capture noisily error 4
+display _rc
+capture noisily error 18
+display _rc
+capture noisily error 50
+display _rc
+capture noisily error 100
+display _rc
+capture noisily error 102
+display _rc
+capture noisily error 109
+display _rc
+capture noisily error 110
+display _rc
+capture noisily error 111
+display _rc
+capture noisily error 119
+display _rc
+capture noisily error 121
+display _rc
+capture noisily error 123
+display _rc
+capture noisily error 130
+display _rc
+capture noisily error 131
+display _rc
+capture noisily error 135
+display _rc
+capture noisily error 190
+display _rc
+capture noisily error 198
+display _rc
+capture noisily error 199
+display _rc
+capture noisily error 200
+display _rc
+capture noisily error 301
+display _rc
+capture noisily error 321
+display _rc
+capture noisily error 322
+display _rc
+capture noisily error 402
+display _rc
+capture noisily error 430
+display _rc
+capture noisily error 459
+display _rc
+capture noisily error 503
+display _rc
+capture noisily error 506
+display _rc
+capture noisily error 601
+display _rc
+capture noisily error 2000
+display _rc
+capture noisily error 2001
+display _rc
+capture noisily error 12345
+display _rc
+scalar k = 3
+capture noisily error 100 + k
+display _rc
+=== scalar-list
+clear
+scalar zeta = 3
+scalar a = 22.346666666667
+scalar longername_here = -1234567.891
+scalar s = "hello world"
+scalar m = .
+scalar big = 1e20
+scalar list
+scalar list a s
+scalar dir
+=== margins-atmeans-factor
+clear
+set seed 4127
+set obs 600
+generate double x1 = runiform() * 10
+generate byte f = runiform() > .5
+generate byte g = 1 + floor(runiform() * 3)
+generate byte d = runiform() < invlogit(-1 + .2 * x1 + .5 * f)
+logit d x1 i.f
+margins, atmeans
+margins, dydx(*) atmeans
+regress x1 i.f i.g
+margins, atmeans
