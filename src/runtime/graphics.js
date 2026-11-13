@@ -64,15 +64,20 @@ export function unquote(text) {
   return t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1) : t;
 }
 
-/** Every x and y value the layers will draw, which set the axes. */
+/**
+ * Every x and y value the layers will draw, which set the axes; a plot of
+ * points gives the span of each of its variables over its rows.
+ */
 function extents(layers) {
+  const along = (l, k) =>
+    l.span?.[k ? "ys" : "xs"] ?? l.points.map((p) => p[k]);
   return {
     xs: layers.flatMap((l) =>
       l.bars
         ? l.bars.flatMap((b) => [b.x0, b.x1])
         : l.boxes
           ? l.boxes.flatMap((b) => [b.x - b.width, b.x + b.width])
-          : l.points.map((p) => p[0]),
+          : along(l, 0),
     ),
     ys: layers.flatMap((l) =>
       l.bars
@@ -82,23 +87,32 @@ function extents(layers) {
           : l.kind === "band"
             ? l.points.flatMap((p) => [p[1], p[2]])
             : l.kind === "area"
-              ? [0, ...l.points.map((p) => p[1])]
-              : l.points.map((p) => p[1]),
+              ? [0, ...along(l, 1)]
+              : along(l, 1),
     ),
   };
 }
 
+/** The attributes that draw a text in the size and colour asked for. */
+function textLook(style, size) {
+  return ` font-size="${style?.size ?? size}"${style?.color ? ` fill="${style.color}"` : ""}`;
+}
+
 /**
  * Several drawn graphs on one canvas of the usual size, in a grid of cols
- * columns, with optional overall title, axis titles and note.
+ * columns, with optional overall titles, axis titles, note and caption.
  */
-function tile(svgs, { cols, rows, title, subtitle, xTitle, yTitle, note }) {
+function tile(
+  svgs,
+  { cols, rows, title, subtitle, xTitle, yTitle, note, caption, styles = {} },
+) {
   if (!cols && !rows) cols = Math.ceil(Math.sqrt(svgs.length));
   if (!cols) cols = Math.ceil(svgs.length / rows);
   rows = Math.ceil(svgs.length / cols);
   const top = (title ? 32 : 0) + (subtitle ? 18 : 0),
     left = yTitle ? 24 : 0,
-    bottom = (xTitle ? 22 : 0) + (note ? 18 : 0),
+    below = (note ? 18 : 0) + (caption ? 18 : 0),
+    bottom = (xTitle ? 22 : 0) + below,
     cellW = (WIDTH - left) / cols,
     cellH = (HEIGHT - top - bottom) / rows,
     scale = Math.min(cellW / WIDTH, cellH / HEIGHT),
@@ -109,11 +123,11 @@ function tile(svgs, { cols, rows, title, subtitle, xTitle, yTitle, note }) {
     ];
   if (title)
     parts.push(
-      `<text x="${WIDTH / 2}" y="22" text-anchor="middle" font-size="16">${escape(title)}</text>`,
+      `<text x="${WIDTH / 2}" y="22" text-anchor="middle"${textLook(styles.title, 16)}>${escape(title)}</text>`,
     );
   if (subtitle)
     parts.push(
-      `<text x="${WIDTH / 2}" y="${title ? 44 : 22}" text-anchor="middle" font-size="13">${escape(subtitle)}</text>`,
+      `<text x="${WIDTH / 2}" y="${title ? 44 : 22}" text-anchor="middle"${textLook(styles.subtitle, 13)}>${escape(subtitle)}</text>`,
     );
   svgs.forEach((svg, k) => {
     const x = left + (k % cols) * cellW + (cellW - w) / 2,
@@ -127,52 +141,97 @@ function tile(svgs, { cols, rows, title, subtitle, xTitle, yTitle, note }) {
   });
   if (xTitle)
     parts.push(
-      `<text x="${left + (WIDTH - left) / 2}" y="${HEIGHT - (note ? 24 : 6)}" text-anchor="middle">${escape(xTitle)}</text>`,
+      `<text x="${left + (WIDTH - left) / 2}" y="${HEIGHT - 6 - below}" text-anchor="middle"${textLook(styles.xtitle, 12)}>${escape(xTitle)}</text>`,
     );
   if (yTitle)
     parts.push(
-      `<text transform="translate(16 ${top + (HEIGHT - top - bottom) / 2}) rotate(-90)" text-anchor="middle">${escape(yTitle)}</text>`,
+      `<text transform="translate(16 ${top + (HEIGHT - top - bottom) / 2}) rotate(-90)" text-anchor="middle"${textLook(styles.ytitle, 12)}>${escape(yTitle)}</text>`,
     );
   if (note)
     parts.push(
-      `<text x="8" y="${HEIGHT - 6}" font-size="11">${escape(note)}</text>`,
+      `<text x="8" y="${HEIGHT - 6 - (caption ? 18 : 0)}"${textLook(styles.note, 11)}>${escape(note)}</text>`,
+    );
+  if (caption)
+    parts.push(
+      `<text x="8" y="${HEIGHT - 6}"${textLook(styles.caption, 11)}>${escape(caption)}</text>`,
     );
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
 }
 
 /**
- * by(varname [, total cols(#) rows(#) note()]) of a graph command, or null.
- * One variable only; other suboptions are refused.
+ * by(varname [, total cols(#) rows(#) title() subtitle() note() caption()])
+ * of a graph command, given the text inside by(), or null. One variable
+ * only; other suboptions are refused. The titles are the whole graph's.
  */
-function byOption(session, optionText) {
-  const m = /\bby\(((?:[^()]|\([^()]*\))*)\)/.exec(optionText ?? "");
-  if (!m) return null;
-  const [head, rest] = splitAtComma(m[1]),
+function byOption(session, text) {
+  if (text === undefined || text === null) return null;
+  const [head, rest] = splitAtComma(text),
     names = session.varlist(head.trim());
   if (names.length !== 1)
     throw new StataError(
       "by() with more than one variable is not available here",
       198,
     );
-  const options = session.parse(
-      "[, TOTal Cols(integer 0) Rows(integer 0) NOTE(string)]",
-      rest ? "," + rest : "",
-    ).options,
-    variable = session.data.get(names[0]),
-    data = Array.from(variable.data),
-    values = [...new Set(data)]
-      .filter((v) => (typeof v === "string" ? v !== "" : !isMissing(v)))
-      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const options = parseGraph(
+    session,
+    "[, TOTal Cols(integer 0) Rows(integer 0) TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis)]",
+    rest ? "," + rest : "",
+    { styled: true },
+  ).options;
   return {
-    variable,
+    variable: session.data.get(names[0]),
     options,
-    groups: [
-      ...values.map((value) => ({
-        label: labelOf(session, variable, value),
-        rows: new Set(data.flatMap((v, i) => (v === value ? [i] : []))),
-      })),
-      ...(options.total ? [{ label: "Total", rows: null }] : []),
-    ],
+    looks: {
+      title: options.title,
+      subtitle: options.subtitle,
+      note: options.note,
+      caption: options.caption,
+      styles: options.styles,
+    },
+  };
+}
+/**
+ * The panels of by(): one for each value of the by-variable among the rows
+ * of the graph's sample (all rows when sample is null), whether or not those
+ * rows have anything to draw, and the Total of those groups when asked.
+ * Rows whose by-variable is missing are in no panel.
+ */
+function byGroups(session, by, sample) {
+  const data = by.variable.data,
+    rows = sample ?? Array.from({ length: session.data.n }, (_, i) => i),
+    found = new Map();
+  for (const i of rows) {
+    const v = data[i];
+    if (typeof v === "string" ? v === "" : isMissing(v)) continue;
+    if (!found.has(v)) found.set(v, new Set());
+    found.get(v).add(i);
+  }
+  if (!found.size) throw new StataError("nothing to graph", 198);
+  const groups = [...found.keys()]
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .map((value) => ({
+      label: labelOf(session, by.variable, value),
+      rows: found.get(value),
+    }));
+  if (by.options.total)
+    groups.push({
+      label: "Total",
+      rows: new Set(groups.flatMap((group) => [...group.rows])),
+    });
+  return groups;
+}
+/**
+ * Sorts the data on the by-variable, as a twoway graph with by() does
+ * before it reads if, in and _n, and returns what puts them back.
+ */
+function sortedOn(session, variable) {
+  const data = session.data,
+    saved = data.variables.map((v) => v.data),
+    order = data.sortedBy;
+  data.sort([variable.name]);
+  return () => {
+    data.variables.forEach((v, k) => (v.data = saved[k]));
+    data.sortedBy = order;
   };
 }
 /** A value as its label, or as Stata prints it. */
@@ -183,63 +242,103 @@ function labelOf(session, variable, value) {
     : null;
   return labels?.get(value) ?? g(value);
 }
+/** A marker's mlabel(): its value label, or its value in the display format. */
+function markerLabel(session, variable, value) {
+  if (typeof value === "string") return value;
+  const labels = variable.valueLabel
+    ? session.data.valueLabels?.get(variable.valueLabel)
+    : null;
+  return labels?.get(value) ?? applyFormat(value, variable.format).trim();
+}
+/** Calls build() with the graph's commands reading only the given rows. */
+function within(session, rows, build) {
+  session.panelRows = rows;
+  try {
+    return build();
+  } finally {
+    session.panelRows = null;
+  }
+}
 /**
- * Draws one panel per group of by(), on common axes: build(rows) returns the
- * layers of one panel, drawn from those rows only.
+ * The panels of by() that can be drawn: build(out) returns the layers of
+ * one panel, drawn from that group's rows only. A group with nothing to
+ * draw still gets its panel, empty, as in Stata, but one whose plot cannot
+ * be estimated, as lfit or kdensity of a single observation, is left out
+ * after Stata's message; when none is left there is nothing to graph.
  */
-function byPanels(
-  session,
-  by,
-  build,
-  { xTitle, yTitle, title, yFromZero, looks = {} },
-) {
-  // A group with nothing to draw in the sample gets no panel, as in Stata.
-  const panels = by.groups
-    .map((group) => {
-      session.panelRows = group.rows;
-      try {
-        return { label: group.label, layers: build() };
-      } finally {
-        session.panelRows = null;
-      }
-    })
-    .filter((p) => p.layers.some((l) => l.points.length || l.bars?.length));
-  const { xs, ys } = extents(panels.flatMap((p) => p.layers));
-  if (!xs.length) throw new StataError("no observations", 2000);
-  const xRange = [least(xs), greatest(xs)],
-    yRange = [yFromZero ? 0 : least(ys), greatest(ys)],
-    note =
-      by.options.note !== undefined
-        ? unquote(by.options.note)
-        : `Graphs by ${titleOf(by.variable)}`;
-  return {
-    svg: tile(
-      panels.map((p) =>
-        draw({
-          layers: p.layers.length ? p.layers : [{ points: [], label: "" }],
-          xTitle: "",
-          yTitle: "",
-          title: p.label,
-          xRange,
-          yRange,
-          xLines: looks.xLines,
-          yLines: looks.yLines,
-          xTicks: looks.xTicks,
-          yTicks: looks.yTicks,
-          legend: looks.legend,
-        }),
-      ),
-      {
-        cols: by.options.cols,
-        rows: by.options.rows,
-        title,
-        xTitle,
-        yTitle,
-        note,
-      },
+function drawablePanels(session, groups, build, out) {
+  const panels = [];
+  for (const group of groups)
+    try {
+      panels.push({
+        ...group,
+        layers: within(session, group.rows, () => build(out)),
+      });
+    } catch (error) {
+      if (!(error instanceof StataError) || error.code !== 2001) throw error;
+      if (!error.quietInPanel) out(error.message);
+    }
+  if (!panels.length) throw new StataError("nothing to graph", 198);
+  return panels;
+}
+/**
+ * Draws the panels of by(), each { label, layers }, on common axes. The
+ * graph's title(), subtitle(), note() and caption() are drawn in every
+ * panel, a subtitle in place of the group's name; by()'s own are the whole
+ * graph's.
+ */
+function byPanels(by, panels, { xTitle, yTitle, yFromZero, looks = {} }) {
+  const { xs, ys } = extents(panels.flatMap((p) => p.layers)),
+    xRange = xs.length ? [least(xs), greatest(xs)] : undefined,
+    yRange = ys.length ? [yFromZero ? 0 : least(ys), greatest(ys)] : undefined,
+    styles = looks.styles ?? {},
+    overall = by.looks;
+  return tile(
+    panels.map((p) =>
+      draw({
+        layers: p.layers.length ? p.layers : [{ points: [], label: "" }],
+        xTitle: "",
+        yTitle: "",
+        title: looks.title,
+        // subtitle("") leaves the panels without their names.
+        subtitle: looks.subtitle ?? p.label,
+        note: looks.note,
+        caption: looks.caption,
+        styles: {
+          title: styles.title,
+          subtitle: styles.subtitle,
+          note: styles.note,
+          caption: styles.caption,
+        },
+        xRange,
+        yRange,
+        xLines: looks.xLines,
+        yLines: looks.yLines,
+        xTicks: looks.xTicks,
+        yTicks: looks.yTicks,
+        legend: looks.legend,
+        allowEmpty: true,
+      }),
     ),
-    panels: panels.length,
-  };
+    {
+      cols: by.options.cols,
+      rows: by.options.rows,
+      title: overall.title,
+      subtitle: overall.subtitle,
+      xTitle,
+      yTitle,
+      note:
+        overall.note !== undefined
+          ? overall.note
+          : `Graphs by ${titleOf(by.variable)}`,
+      caption: overall.caption,
+      styles: {
+        ...overall.styles,
+        xtitle: styles.xtitle,
+        ytitle: styles.ytitle,
+      },
+    },
+  );
 }
 
 /** Draws layers on shared axes. Each layer: { kind, points | bars, label }. */
@@ -259,12 +358,25 @@ export function draw({
   xTicks,
   yTicks,
   legend = {},
+  styles = {},
+  allowEmpty = false,
 }) {
   const { xs, ys } = extents(layers);
-  // Given both ranges (graph bar with every statistic missing), the axes are
-  // drawn with nothing on them.
-  if (!xs.length && !(xRange && yRange))
+  // Drawn with nothing on it, as in Stata: a twoway graph with no data
+  // (allowEmpty), or a graph bar whose every statistic is missing, which
+  // gives both ranges. An axis with no values and no range has no labels.
+  if (!xs.length && !allowEmpty && !(xRange && yRange))
     throw new StataError("no observations", 2000);
+  const axisTicks = (given, range, values) =>
+    Array.isArray(given)
+      ? given
+      : range || values.length
+        ? ticks(
+            range?.[0] ?? least(values),
+            range?.[1] ?? greatest(values),
+            given?.count,
+          )
+        : [];
   // Room for a subtitle above the plot and a note and caption below it.
   const below = (note ? 14 : 0) + (caption ? 14 : 0),
     P = {
@@ -274,24 +386,12 @@ export function draw({
       bottom: PLOT.bottom + below,
     },
     // xlabel(0(5)20) gives the ticks; xlabel(#7) about how many.
-    xt = Array.isArray(xTicks)
-      ? xTicks
-      : ticks(
-          xRange?.[0] ?? least(xs),
-          xRange?.[1] ?? greatest(xs),
-          xTicks?.count,
-        ),
-    yt = Array.isArray(yTicks)
-      ? yTicks
-      : ticks(
-          yRange?.[0] ?? least(ys),
-          yRange?.[1] ?? greatest(ys),
-          yTicks?.count,
-        ),
-    x0 = Math.min(xt[0], least(xs)),
-    x1 = Math.max(xt.at(-1), greatest(xs)),
-    y0 = Math.min(yt[0], least(ys)),
-    y1 = Math.max(yt.at(-1), greatest(ys)),
+    xt = axisTicks(xTicks, xRange, xs),
+    yt = axisTicks(yTicks, yRange, ys),
+    x0 = xt.length ? Math.min(xt[0], least(xs)) : 0,
+    x1 = xt.length ? Math.max(xt.at(-1), greatest(xs)) : 1,
+    y0 = yt.length ? Math.min(yt[0], least(ys)) : 0,
+    y1 = yt.length ? Math.max(yt.at(-1), greatest(ys)) : 1,
     w = WIDTH - P.left - P.right,
     h = HEIGHT - P.top - P.bottom,
     px = (v) => P.left + ((v - x0) / (x1 - x0)) * w,
@@ -365,15 +465,16 @@ export function draw({
             .map((p) => `${n(px(p[0]))},${n(py(p[2]))}`),
         ].join(" ")}"/>`,
       );
-    else if (layer.kind === "area")
-      parts.push(
-        `<polygon fill="${color}" fill-opacity="0.5" stroke="${color}" points="${[
-          `${n(px(layer.points[0][0]))},${n(py(0))}`,
-          ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
-          `${n(px(layer.points.at(-1)[0]))},${n(py(0))}`,
-        ].join(" ")}"/>`,
-      );
-    else if (layer.kind === "segments")
+    else if (layer.kind === "area") {
+      if (layer.points.length)
+        parts.push(
+          `<polygon fill="${color}" fill-opacity="0.5" stroke="${color}" points="${[
+            `${n(px(layer.points[0][0]))},${n(py(0))}`,
+            ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
+            `${n(px(layer.points.at(-1)[0]))},${n(py(0))}`,
+          ].join(" ")}"/>`,
+        );
+    } else if (layer.kind === "segments")
       // Pairs of points joined one pair at a time, with caps: intervals.
       for (let p = 0; p + 1 < layer.points.length; p += 2) {
         const [a, b] = [layer.points[p], layer.points[p + 1]];
@@ -406,24 +507,29 @@ export function draw({
   });
   if (title)
     parts.push(
-      `<text x="${WIDTH / 2}" y="24" text-anchor="middle" font-size="16">${escape(title)}</text>`,
+      `<text x="${WIDTH / 2}" y="24" text-anchor="middle"${textLook(styles.title, 16)}>${escape(title)}</text>`,
     );
   if (subtitle)
     parts.push(
-      `<text x="${WIDTH / 2}" y="${title ? 42 : 24}" text-anchor="middle" font-size="13">${escape(subtitle)}</text>`,
+      `<text x="${WIDTH / 2}" y="${title ? 42 : 24}" text-anchor="middle"${textLook(styles.subtitle, 13)}>${escape(subtitle)}</text>`,
     );
   if (note)
     parts.push(
-      `<text x="8" y="${HEIGHT - 6 - (caption ? 14 : 0)}" font-size="11">${escape(note)}</text>`,
+      `<text x="8" y="${HEIGHT - 6 - (caption ? 14 : 0)}"${textLook(styles.note, 11)}>${escape(note)}</text>`,
     );
   if (caption)
     parts.push(
-      `<text x="8" y="${HEIGHT - 6}" font-size="11">${escape(caption)}</text>`,
+      `<text x="8" y="${HEIGHT - 6}"${textLook(styles.caption, 11)}>${escape(caption)}</text>`,
     );
-  parts.push(
-    `<text x="${P.left + w / 2}" y="${HEIGHT - 22 - below}" text-anchor="middle">${escape(xTitle)}</text>`,
-    `<text transform="translate(18 ${P.top + h / 2}) rotate(-90)" text-anchor="middle">${escape(yTitle)}</text>`,
-  );
+  // xtitle("") and ytitle("") leave the axis without a title.
+  if (xTitle)
+    parts.push(
+      `<text x="${P.left + w / 2}" y="${HEIGHT - 22 - below}" text-anchor="middle"${textLook(styles.xtitle, 12)}>${escape(xTitle)}</text>`,
+    );
+  if (yTitle)
+    parts.push(
+      `<text transform="translate(18 ${P.top + h / 2}) rotate(-90)" text-anchor="middle"${textLook(styles.ytitle, 12)}>${escape(yTitle)}</text>`,
+    );
   // The legend: every labelled plot when there are several, or those that
   // legend(order()) names, under the names legend() gives them.
   if (!legend.off) {
@@ -538,6 +644,7 @@ function functionPlot(session, text) {
       session,
       `[, ${OWN.function} ${PLOT_LOOKS} ${LOOKS}]`,
       optionText ? "," + optionText : "",
+      { styled: true },
     ).options,
     expression = head.replace(/^\s*\w+\s*=(?!=)/, "").trim(),
     scalars = new Map(session.scalars).set("x", 0),
@@ -661,12 +768,14 @@ export function histogramBars(values, options, text, note) {
   return { bars, bins, width, start, yTitle, curveScale, n };
 }
 
+const DENSITY = { name: "Density", label: "Density" };
 // A plot of one variable: twoway histogram and twoway kdensity.
 function univariatePlot(session, kind, text) {
   const parsed = parseGraph(
       session,
       `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
+      { styled: true },
     ),
     variable = numeric(session, parsed.varlist[0]),
     values = session
@@ -674,7 +783,40 @@ function univariatePlot(session, kind, text) {
       .map((i) => variable.data[i])
       .filter((v) => !isMissing(v)),
     axis = { name: variable.name, label: titleOf(variable) };
-  if (!values.length) throw new StataError("no observations", 2000);
+  // Nothing to draw, as in an empty by() panel: the plot is drawn empty.
+  if (!values.length) {
+    const o = parsed.options,
+      name = o.frequency
+        ? "Frequency"
+        : o.percent
+          ? "Percent"
+          : o.fraction
+            ? "Fraction"
+            : "Density";
+    return [
+      kind === "histogram"
+        ? {
+            bars: [],
+            points: [],
+            label: name,
+            x: axis,
+            y: { name, label: name },
+          }
+        : {
+            kind: "line",
+            points: [],
+            label: `kdensity ${variable.name}`,
+            x: axis,
+            y: DENSITY,
+          },
+    ];
+  }
+  // A density of one value stops, as in Stata; in a by() panel the panel
+  // is left out without a word.
+  if (kind === "kdensity" && values.length === 1)
+    throw Object.assign(new StataError("insufficient observations", 2001), {
+      quietInPanel: true,
+    });
   if (kind === "histogram") {
     const made = histogramBars(values, parsed.options, text, () => {});
     return [
@@ -714,7 +856,11 @@ export function kernelName(text) {
   return found;
 }
 
-function plot(session, kind, text) {
+/**
+ * One plot of a twoway graph, as layers. note(line) prints what Stata
+ * prints while drawing, such as a fit that could not be made.
+ */
+function plot(session, kind, text, note = () => {}) {
   if (kind === "function") return functionPlot(session, text);
   if (kind === "histogram" || kind === "kdensity")
     return univariatePlot(session, kind, text);
@@ -722,6 +868,7 @@ function plot(session, kind, text) {
       session,
       `varlist(numeric min=2) [if] [in] [, ${OWN.points} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
+      { styled: true },
     ),
     variables = parsed.varlist.map((name) => session.data.get(name)),
     x = variables.at(-1),
@@ -731,6 +878,25 @@ function plot(session, kind, text) {
     let points = rows
       .filter((i) => !isMissing(x.data[i]) && !isMissing(y.data[i]))
       .map((i) => [x.data[i], y.data[i]]);
+    // A fit with no observations is drawn empty, with Stata's note, and
+    // the legend names it by its variable; an empty by() panel draws so.
+    // With one observation lfit and lfitci stop, as in Stata, where qfit
+    // and qfitci are drawn empty.
+    if (FITS.includes(kind) && points.length < 2) {
+      note("(note:  regress could not fit model)");
+      if (points.length && kind.startsWith("l"))
+        throw new StataError("insufficient observations", 2001);
+      if (kind.endsWith("ci"))
+        layers.push({
+          kind: "band",
+          points: [],
+          label: `${g(parsed.options.level)}% CI`,
+          y,
+          x,
+        });
+      layers.push({ kind: "line", points: [], label: y.name, y, x });
+      continue;
+    }
     if (kind === "lfit") {
       const n = points.length,
         mx = points.reduce((t, p) => t + p[0], 0) / n,
@@ -796,7 +962,8 @@ function plot(session, kind, text) {
       });
       continue;
     }
-    // mlabel(): each marker's label, kept with its point through sorting.
+    // mlabel(): each marker's label, kept with its point through sorting:
+    // the value label, or the value in the variable's display format.
     let labels = null;
     if (parsed.options.mlabel) {
       if (kind !== "scatter")
@@ -804,7 +971,7 @@ function plot(session, kind, text) {
       const variable = session.data.get(parsed.options.mlabel);
       labels = rows
         .filter((i) => !isMissing(x.data[i]) && !isMissing(y.data[i]))
-        .map((i) => labelOf(session, variable, variable.data[i]));
+        .map((i) => markerLabel(session, variable, variable.data[i]));
     }
     if (parsed.options.sort || kind !== "scatter") {
       const order = points
@@ -831,11 +998,17 @@ function plot(session, kind, text) {
       });
       continue;
     }
+    // Stata scales the axes on each variable over the plot's rows, a row
+    // whose y is missing still reaching along x, so a plot with nothing
+    // to draw has its x axis labelled.
+    const span = (variable) =>
+      rows.map((i) => variable.data[i]).filter((v) => !isMissing(v));
     layers.push({
       kind,
       points,
       labels,
       label: titleOf(y),
+      span: { xs: span(x), ys: span(y) },
       y,
       x,
     });
@@ -905,6 +1078,7 @@ const OWN = {
   univariate:
     "BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0)",
 };
+const FITS = ["lfit", "qfit", "lfitci", "qfitci"];
 const ownOf = (kind) =>
   kind === "function"
     ? OWN.function
@@ -921,87 +1095,203 @@ function graphOptions(session, text, own = "") {
     session,
     `[, ${LOOKS} ${PLOT_LOOKS} ${own}]`,
     text ? "," + text : "",
+    { styled: true },
   ).options;
+}
+
+// Stata's twoway plot types that this page does not draw, which are named
+// as such when written after the plots in parentheses.
+const OTHER_PLOT_TYPES = new Set(
+  "rarea rbar rspike rcap rcapsym rscatter rline rconnected pcspike pccapsym pcarrow pcbarrow pcscatter pci pcarrowi scatteri spike dropline dot tsline tsrline contour contourline mband mspline fpfit fpfitci lpoly lpolyci".split(
+    " ",
+  ),
+);
+/**
+ * Where the text from i on reaches depth 0 again at a ) or, with stop, at
+ * ||, skipping what is quoted; -1 when the parentheses do not balance.
+ */
+function closing(head, i, stop) {
+  let depth = 0,
+    quote = false;
+  for (let j = i; j < head.length; j++) {
+    const c = head[j];
+    if (quote) quote = c !== '"';
+    else if (c === '"') quote = true;
+    else if (c === "(") depth++;
+    else if (c === ")" && --depth === 0 && !stop) return j;
+    else if (stop && !depth && head.startsWith("||", j)) return j;
+    if (depth < 0) return -1;
+  }
+  return stop && !depth ? head.length : -1;
+}
+/**
+ * The plots written in parentheses at the start of head, (scatter y x)
+ * (lfit y x), with || allowed between them, and the text after them, an if
+ * or in for every plot. A plot may follow them without parentheses,
+ * (scatter y x) lfit y x, and runs to the next ||, its if and in its own;
+ * last says whether the last plot was written so.
+ */
+function plotsInParentheses(head) {
+  const specs = [];
+  let i = 0,
+    last = false;
+  for (;;) {
+    while (/\s/.test(head[i] ?? "")) i++;
+    if (i >= head.length) break;
+    if (head.startsWith("||", i)) {
+      i += 2;
+      continue;
+    }
+    if (head[i] === "(") {
+      const j = closing(head, i, false);
+      if (j < 0) throw new StataError("parentheses do not balance", 198);
+      specs.push(head.slice(i + 1, j));
+      i = j + 1;
+      last = false;
+      continue;
+    }
+    // Stata names the first word, or the first character that is not part
+    // of one: [aw=x] after the plots is "[ is not a twoway plot type".
+    const word = /^\w+|^\S/.exec(head.slice(i))[0];
+    if (word === "if" || word === "in") break;
+    if (!PLOT_KINDS[word] && !/^sc(a(t(t(er?)?)?)?)?$/.test(word))
+      throw new StataError(
+        OTHER_PLOT_TYPES.has(word)
+          ? `${word} is not a twoway plot type available here`
+          : `${word} is not a twoway plot type`,
+        198,
+      );
+    const j = closing(head, i, true);
+    if (j < 0) throw new StataError("parentheses do not balance", 198);
+    specs.push(head.slice(i, j).trim());
+    i = j;
+    last = true;
+  }
+  return { specs, rest: head.slice(i), last };
+}
+
+/**
+ * The plots of a twoway command, the text of its options, and the text of
+ * the if and in that apply to every plot: those written after the plots in
+ * parentheses, (scatter y x) (lfit y x) if female == 0.
+ */
+function twowayParts(text, single) {
+  if (single)
+    return {
+      specs: [`${single} ${text}`],
+      optionText: splitAtComma(text)[1] ?? "",
+      grouped: false,
+      sample: "",
+    };
+  const [head, options] = splitAtComma(text);
+  if (head.trim().startsWith("(")) {
+    const { specs, rest, last } = plotsInParentheses(head),
+      optionText = (options ?? "").trim();
+    // A last plot without parentheses takes the options as its own too, as
+    // the last plot of a || list does.
+    if (last && optionText) specs[specs.length - 1] += `, ${optionText}`;
+    return {
+      specs,
+      optionText,
+      grouped: !last,
+      sample: rest.trim(),
+    };
+  }
+  const pieces = text
+    .split("||")
+    .map((piece) => piece.trim())
+    .filter(Boolean);
+  // Options after the last plot may belong to it (range(), sort) or to the
+  // graph (title()); each reader allows the other's.
+  return {
+    specs: pieces,
+    optionText: splitAtComma(pieces.at(-1) ?? "")[1] ?? "",
+    grouped: false,
+    sample: "",
+  };
+}
+
+/**
+ * The rows of the graph's sample, or null for all rows: the if and in
+ * written after the plots, and, when there is only one plot, that plot's
+ * own if and in, which Stata reads as the graph's (by() makes its panels
+ * from this sample).
+ */
+function twowaySample(session, sample, specs) {
+  let rows = sample ? session.rows(sample, null) : null;
+  if (specs.length === 1) {
+    const m = /^\s*(\w+)\s+([\s\S]*)$/.exec(specs[0]);
+    if (m && plotKind(m[1]) !== "function") {
+      const own = session.parse("anything [if] [in] [, *]", m[2]);
+      if (own.if || own.in) {
+        const kept = new Set(session.rows(own, null));
+        rows = (rows ?? session.rows({}, null)).filter((i) => kept.has(i));
+      }
+    }
+  }
+  return rows;
 }
 
 function twoway(session, text, ctx, single) {
   // Plots are written (scatter y x) (line y x), or separated by ||.
-  let specs,
-    optionText = "",
-    grouped = false;
-  if (single) {
-    specs = [`${single} ${text}`];
-    optionText = splitAtComma(text)[1] ?? "";
-  } else {
-    const [head, options] = splitAtComma(text),
-      groups = head.match(/\((?:[^()]|\([^()]*\))*\)/g);
-    if (groups && head.trim().startsWith("(")) {
-      specs = groups.map((group) => group.slice(1, -1));
-      optionText = (options ?? "").trim();
-      grouped = true;
-    } else {
-      const pieces = text
-        .split("||")
-        .map((piece) => piece.trim())
-        .filter(Boolean);
-      specs = pieces.map((piece, k) => {
-        if (k < pieces.length - 1) return piece;
-        // Options after the last plot may belong to it (range(), sort) or
-        // to the graph (title()); each reader allows the other's.
-        optionText = splitAtComma(piece)[1] ?? "";
-        return piece;
+  const { specs, optionText, grouped, sample } = twowayParts(text, single);
+  if (!specs.length) throw new StataError("invalid syntax", 198);
+  // What follows the plots in parentheses is an if or an in by now.
+  const sampleParsed = sample ? session.parse("[if] [in]", sample) : null;
+  const kinds = specs.map((spec) => {
+      const m = /^\s*(\w+)\s+([\s\S]*)$/.exec(spec);
+      if (!m) throw new StataError("invalid syntax", 198);
+      return { kind: plotKind(m[1]), text: m[2] };
+    }),
+    build = (out) =>
+      kinds.flatMap(({ kind, text }) => plot(session, kind, text, out)),
+    last = kinds.at(-1).kind,
+    options = graphOptions(session, optionText, grouped ? "" : ownOf(last)),
+    looks = looksOf(options),
+    by = byOption(session, options.by);
+  if (by && kinds.every((k) => k.kind === "function"))
+    throw new StataError("by() needs a plot of data, not only a function", 198);
+  // With by(), Stata sorts the data on the by-variable before it reads if,
+  // in and _n; the data are put back afterwards.
+  const restore = by ? sortedOn(session, by.variable) : null;
+  try {
+    const rows = twowaySample(session, sampleParsed, by ? specs : []),
+      kept = rows && new Set(rows),
+      groups = by ? byGroups(session, by, rows) : null,
+      panels = groups && drawablePanels(session, groups, build, ctx.out),
+      // The layers on the whole sample (by()'s: the rows of the panels
+      // drawn), which name the axes and the description.
+      layers = by
+        ? within(
+            session,
+            new Set(panels.flatMap((panel) => [...panel.rows])),
+            () => build(() => {}),
+          )
+        : within(session, kept, () => build(ctx.out)),
+      first = layers[0],
+      xTitle = options.xtitle ?? titleOf(first.x),
+      yTitle = options.ytitle ?? (layers.length === 1 ? titleOf(first.y) : ""),
+      count =
+        layers.reduce(
+          (t, l) => t + (l.kind === "scatter" ? l.points.length : 0),
+          0,
+        ) || first.points.length,
+      description = `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${count} points`;
+    if (by) {
+      const svg = byPanels(by, panels, { xTitle, yTitle, looks }),
+        drawn = panels.length;
+      return ctx.graph({
+        svg,
+        description: `${description}, in ${drawn} panel${drawn === 1 ? "" : "s"} by ${by.variable.name}.`,
       });
     }
-  }
-  const build = () =>
-      specs.flatMap((spec) => {
-        const m = /^\s*(\w+)\s+([\s\S]*)$/.exec(spec);
-        if (!m) throw new StataError("invalid syntax", 198);
-        return plot(session, plotKind(m[1]), m[2]);
-      }),
-    layers = build(),
-    last = /^\s*(\w+)/.exec(specs.at(-1))?.[1],
-    options = graphOptions(
-      session,
-      optionText,
-      grouped || !last ? "" : ownOf(plotKind(last)),
-    ),
-    looks = looksOf(options),
-    by = byOption(session, optionText),
-    first = layers[0];
-  if (!layers.some((l) => l.points.length || l.bars?.length))
-    throw new StataError("no observations", 2000);
-  const xTitle = unquote(options.xtitle) || titleOf(first.x),
-    yTitle =
-      unquote(options.ytitle) || (layers.length === 1 ? titleOf(first.y) : ""),
-    title = looks.title,
-    description = `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points`;
-  if (by) {
-    if (specs.every((spec) => /^\s*function\b/.test(spec)))
-      throw new StataError(
-        "by() needs a plot of data, not only a function",
-        198,
-      );
-    if (looks.subtitle || looks.note || looks.caption)
-      throw new StataError(
-        "with by(), give a note as by(…, note()); subtitle() and caption() are not drawn with by() here",
-        198,
-      );
-    const { svg, panels } = byPanels(session, by, build, {
-      xTitle,
-      yTitle,
-      title,
-      looks,
+    ctx.graph({
+      svg: draw({ layers, xTitle, yTitle, ...looks, allowEmpty: true }),
+      description: `${description}.`,
     });
-    return ctx.graph({
-      svg,
-      description: `${description}, in ${panels} panel${panels === 1 ? "" : "s"} by ${by.variable.name}.`,
-    });
+  } finally {
+    restore?.();
   }
-  ctx.graph({
-    svg: draw({ layers, xTitle, yTitle, ...looks }),
-    description: `${description}.`,
-  });
 }
 
 function histogram(session, text, ctx) {
@@ -1009,6 +1299,7 @@ function histogram(session, text, ctx) {
       session,
       `varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
       text,
+      { styled: true },
     ),
     options = parsed.options,
     variable = numeric(session, parsed.varlist[0]),
@@ -1018,7 +1309,7 @@ function histogram(session, text, ctx) {
       .filter((v) => !isMissing(v)),
     n = values.length;
   if (!n) throw new StataError("no observations", 2000);
-  const by = byOption(session, splitAtComma(text)[1]);
+  const by = byOption(session, options.by);
   if (by) return histogramBy(session, parsed, variable, values, by, ctx);
   const { bars, bins, width, start, yTitle, curveScale } = histogramBars(
       values,
@@ -1059,8 +1350,8 @@ function histogram(session, text, ctx) {
     svg: draw({
       ...looksOf(options),
       layers,
-      xTitle: unquote(options.xtitle) || titleOf(variable),
-      yTitle: unquote(options.ytitle) || yTitle,
+      xTitle: options.xtitle ?? titleOf(variable),
+      yTitle: options.ytitle ?? yTitle,
       yRange: [
         0,
         Math.max(
@@ -1085,12 +1376,10 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
       "normal and kdensity with by() are not available here",
       198,
     );
-  const looks = looksOf(options);
-  if (looks.subtitle || looks.note || looks.caption)
-    throw new StataError(
-      "with by(), give a note as by(…, note()); subtitle() and caption() are not drawn with by() here",
-      198,
-    );
+  const looks = looksOf(options),
+    // The panels are the groups among the rows that pass if and in, though
+    // the bins are those of all of them; Total is the groups together.
+    groups = byGroups(session, by, session.rows(parsed, null));
   const whole = histogramBars(values, options, "", () => {}),
     { width, start, yTitle } = whole,
     build = () => {
@@ -1127,13 +1416,17 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
         },
       ];
     },
-    { svg, panels } = byPanels(session, by, build, {
-      xTitle: unquote(options.xtitle) || titleOf(variable),
-      yTitle: unquote(options.ytitle) || yTitle,
-      title: looks.title,
+    drawn = groups.map((group) => ({
+      label: group.label,
+      layers: within(session, group.rows, build),
+    })),
+    svg = byPanels(by, drawn, {
+      xTitle: options.xtitle ?? titleOf(variable),
+      yTitle: options.ytitle ?? yTitle,
       yFromZero: true,
       looks,
-    });
+    }),
+    panels = drawn.length;
   ctx.graph({
     svg,
     description: `Histogram of ${titleOf(variable)}: ${whole.bins} bins of width ${g(width)} starting at ${g(start)}, in ${panels} panel${panels === 1 ? "" : "s"} by ${by.variable.name}.`,
@@ -1151,9 +1444,13 @@ function memoryGraph(session, name) {
 /** Graphs drawn side by side on one canvas, as graph combine draws them. */
 function combine(session, text, ctx) {
   const [head, optionText] = splitAtComma(text),
-    options = session.parse(
-      "[, Cols(integer 0) Rows(integer 0) TItle(string) SUBtitle(string) NOTE(string) NAME(string) NODRAW]",
+    // The titles are read as every graph reads them: title(Main,
+    // size(large)) is Main, drawn large.
+    options = parseGraph(
+      session,
+      "[, Cols(integer 0) Rows(integer 0) TItle(string asis) SUBtitle(string asis) NOTE(string asis) NAME(string) NODRAW]",
       optionText ? "," + optionText : "",
+      { styled: true },
     ).options,
     names = head.trim().split(/\s+/).filter(Boolean);
   if (!names.length) throw new StataError("graph names required", 198);
@@ -1170,9 +1467,10 @@ function combine(session, text, ctx) {
       {
         cols: options.cols,
         rows: options.rows,
-        title: unquote(options.title),
-        subtitle: unquote(options.subtitle),
-        note: unquote(options.note),
+        title: options.title,
+        subtitle: options.subtitle,
+        note: options.note,
+        styles: options.styles,
       },
     ),
     description: `Combined graph of ${names.join(", ")}, ${pictures.length} panels: ${pictures.map((p) => p.description).join(" ")}`,

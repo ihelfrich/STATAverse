@@ -12,7 +12,7 @@ import { splitAtComma } from "./syntax.js";
 
 /** The drawn options, as they appear in a syntax declaration. */
 export const LOOKS =
-  "TItle(string) SUBtitle(string) NOTE(string) CAPtion(string) XTItle(string) YTItle(string) LEGend(string) XLAbel(string) YLAbel(string) XLIne(string) YLIne(string) NAME(string) NODRAW BY(string)";
+  "TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) XTItle(string asis) YTItle(string asis) LEGend(string) XLAbel(string) YLAbel(string) XLIne(string) YLIne(string) NAME(string) NODRAW BY(string)";
 /** Options of one plot in a twoway graph that are drawn. */
 export const PLOT_LOOKS =
   "MColor(string) LColor(string) MSize(string) LWidth(string) LPattern(string) MLABel(varname)";
@@ -64,8 +64,37 @@ const NOT_DRAWN = [
  * Parses a graph command's options against its declaration. When one is
  * refused because it is not declared and it is one Stata uses only for the
  * look of a graph, the refusal says so.
+ *
+ * The text options (title(), xtitle() and the rest) are read into their text
+ * and their size() and color(), which replace the option's value and go to
+ * options.styles. A command that draws those styles says styled: true; any
+ * other refuses them rather than drawing the text plainly.
  */
-export function parseGraph(session, declaration, text) {
+export function parseGraph(
+  session,
+  declaration,
+  text,
+  { styled = false } = {},
+) {
+  const parsed = parseDeclared(session, declaration, text),
+    options = parsed.options,
+    styles = {};
+  for (const name of TEXT_OPTIONS) {
+    const read = textOption(options[name], name);
+    if (!read) continue;
+    options[name] = read.text;
+    if (!read.size && !read.color) continue;
+    if (!styled)
+      throw new StataError(
+        `${name}(…, size() color()) is drawn here for scatter, line, twoway and histogram; remove it to draw this graph`,
+        198,
+      );
+    styles[name] = read;
+  }
+  options.styles = styles;
+  return parsed;
+}
+function parseDeclared(session, declaration, text) {
   try {
     return session.parse(declaration, text);
   } catch (error) {
@@ -230,10 +259,83 @@ export function patternOf(text) {
   );
 }
 
-const unquote = (text) => {
-  const t = (text ?? "").trim();
-  return t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1) : t;
+/** The options whose value is text drawn on the graph. */
+const TEXT_OPTIONS = [
+  "title",
+  "subtitle",
+  "note",
+  "caption",
+  "xtitle",
+  "ytitle",
+];
+// Stata's named text sizes, as font sizes on this page's 640 by 460 canvas,
+// where a title is drawn large.
+const TEXT_SIZES = {
+  tiny: 8,
+  vsmall: 9,
+  small: 10,
+  medsmall: 11,
+  medium: 12,
+  medlarge: 14,
+  large: 16,
+  vlarge: 19,
+  huge: 23,
+  vhuge: 28,
 };
+const QUOTED = /`"([\s\S]*?)"'|"([^"]*)"/g;
+/**
+ * title("text", size(large) color(navy)) and the other text options: the
+ * text, and the size and colour it is drawn in. Other textbox suboptions,
+ * and the several lines that several quoted strings ask for, are refused,
+ * not ignored.
+ */
+export function textOption(value, option) {
+  if (value === undefined || value === null) return undefined;
+  const [head, rest] = splitAtComma(value),
+    quoted = [...head.matchAll(QUOTED)],
+    whole = quoted.length && !head.replace(QUOTED, "").trim();
+  if (whole && quoted.length > 1)
+    throw new StataError(
+      `${option}(): several quoted strings are lines, which this page does not draw; give the text as one quoted string`,
+      198,
+    );
+  // No text at all, as in ytitle(, size(small)), restyles the text the
+  // graph would draw anyway; ytitle("") is an empty text, which removes it.
+  const read = {
+    text: whole
+      ? (quoted[0][1] ?? quoted[0][2])
+      : head.trim()
+        ? head.trim()
+        : undefined,
+  };
+  for (const m of (rest ?? "").matchAll(/(\w+)\s*(?:\(([^()]*)\))?/g)) {
+    // Stata's suboption names are lower case, size() down to s() and
+    // color() down to c(); SIZE() or colour() is not allowed.
+    const word = m[1],
+      inner = (m[2] ?? "").trim().toLowerCase(),
+      size = "size".startsWith(word),
+      color = "color".startsWith(word);
+    if (!size && !color && /^(s(i(ze?)?)?|c(o(l(o(u?r)?)?)?)?)$/i.test(word))
+      throw new StataError(`option ${word}() not allowed`, 198);
+    if (size && TEXT_SIZES[inner]) read.size = TEXT_SIZES[inner];
+    else if (size)
+      throw new StataError(
+        `${option}(…, size(${m[2] ?? ""})): text sizes here are named, from tiny to vhuge`,
+        198,
+      );
+    else if (color) read.color = colourOf(m[2], `${option}(…, color`);
+    else
+      throw new StataError(
+        `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes its text with size() and color()`,
+        198,
+      );
+  }
+  if (
+    (rest ?? "").replace(/(\w+)\s*(?:\([^()]*\))?/g, "").replace(/[\s,]/g, "")
+  )
+    throw new StataError(`${option}(${value}): invalid syntax`, 198);
+  return read;
+}
 
 /**
  * xlabel() or ylabel(): a numlist of tick positions, with angle(0) or
@@ -323,17 +425,22 @@ function legendOf(text) {
   return legend;
 }
 
-/** What the drawn graph-level options ask for, read and checked. */
+/**
+ * What the drawn graph-level options ask for, read and checked. The text
+ * options are as parseGraph read them, already out of their quotes; one
+ * not given stays undefined, apart from one given as "".
+ */
 export function looksOf(options) {
   return {
-    title: unquote(options.title),
-    subtitle: unquote(options.subtitle),
-    note: unquote(options.note),
-    caption: unquote(options.caption),
+    title: options.title,
+    subtitle: options.subtitle,
+    note: options.note,
+    caption: options.caption,
     xLines: lines(options.xline, "xline"),
     yLines: lines(options.yline, "yline"),
     xTicks: axisLabels(options.xlabel, "xlabel"),
     yTicks: axisLabels(options.ylabel, "ylabel"),
     legend: legendOf(options.legend),
+    styles: options.styles ?? {},
   };
 }

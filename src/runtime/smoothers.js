@@ -90,9 +90,19 @@ export function densityGrid(values, bandwidth, n) {
 
 /**
  * Least squares of y on 1, x, ..., x^degree. Returns predict(x) and
- * band(x, level): the confidence limits of the fitted mean.
+ * band(x, level): the confidence limits of the fitted mean. When the
+ * powers of x are collinear, as with x taking two values in qfit, the
+ * highest are left out, as regress omits them, and the fit is of a lower
+ * degree.
  */
 export function polynomialFit(x, y, degree) {
+  for (let d = degree; d >= 0; d--) {
+    const fitted = fitOfDegree(x, y, d);
+    if (fitted) return fitted;
+  }
+  return null;
+}
+function fitOfDegree(x, y, degree) {
   const n = x.length,
     size = degree + 1,
     row = (v) => Array.from({ length: size }, (_, p) => v ** p),
@@ -105,18 +115,20 @@ export function polynomialFit(x, y, degree) {
       for (let b = 0; b < size; b++) xtx[a][b] += r[a] * r[b];
     }
   });
-  // Gauss-Jordan inverse; the systems here are two or three wide.
-  const inverse = xtx.map((r, i) => [
-    ...r,
-    ...Array.from({ length: size }, (_, j) => Number(i === j)),
-  ]);
+  // Gauss-Jordan inverse; the systems here are two or three wide. A pivot
+  // that is zero against the size of its column marks collinear powers.
+  const scale = xtx.map((r, c) => Math.max(...xtx.map((q) => Math.abs(q[c])))),
+    inverse = xtx.map((r, i) => [
+      ...r,
+      ...Array.from({ length: size }, (_, j) => Number(i === j)),
+    ]);
   for (let c = 0; c < size; c++) {
     let pivot = c;
     for (let r = c + 1; r < size; r++)
       if (Math.abs(inverse[r][c]) > Math.abs(inverse[pivot][c])) pivot = r;
     [inverse[c], inverse[pivot]] = [inverse[pivot], inverse[c]];
     const d = inverse[c][c];
-    if (!(Math.abs(d) > 0)) return null;
+    if (!(Math.abs(d) > 1e-12 * scale[c])) return null;
     for (let j = 0; j < 2 * size; j++) inverse[c][j] /= d;
     for (let r = 0; r < size; r++) {
       if (r === c) continue;

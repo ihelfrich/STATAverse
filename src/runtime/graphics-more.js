@@ -17,7 +17,6 @@ import {
   kernelName,
   registerGraph,
   titleOf,
-  unquote,
 } from "./graphics.js";
 import { labelled, moments, percentile } from "./reports.js";
 import {
@@ -138,9 +137,9 @@ function kdensity(session, text, ctx) {
     svg: draw({
       ...drawnLooks(options),
       layers,
-      xTitle: unquote(options.xtitle) || titleOf(variable),
-      yTitle: unquote(options.ytitle) || "Density",
-      title: unquote(options.title) || "Kernel density estimate",
+      xTitle: options.xtitle ?? titleOf(variable),
+      yTitle: options.ytitle ?? "Density",
+      title: options.title ?? "Kernel density estimate",
     }),
     description: `Kernel density estimate of ${titleOf(variable)}: ${kernel} kernel, bandwidth ${g(bandwidth)}, ${values.length} observations.`,
   });
@@ -190,9 +189,9 @@ function lowessCommand(session, text, ctx) {
           label: "lowess",
         },
       ],
-      xTitle: unquote(options.xtitle) || titleOf(x),
-      yTitle: unquote(options.ytitle) || titleOf(y),
-      title: unquote(options.title) || "Lowess smoother",
+      xTitle: options.xtitle ?? titleOf(x),
+      yTitle: options.ytitle ?? titleOf(y),
+      title: options.title ?? "Lowess smoother",
     }),
     description: `Lowess smoother of ${titleOf(y)} on ${titleOf(x)}, bandwidth ${g(options.bwidth)}, ${rows.length} points.`,
   });
@@ -409,9 +408,8 @@ function graphBar(horizontal) {
             values: heights.map((row) => row[k]),
           })),
           series: names,
-          xTitle:
-            unquote(options.ytitle) || (names.length === 1 ? names[0] : ""),
-          title: unquote(options.title),
+          xTitle: options.ytitle ?? (names.length === 1 ? names[0] : ""),
+          title: options.title,
           labelled: options.blabel !== undefined,
         }),
         description,
@@ -429,10 +427,9 @@ function graphBar(horizontal) {
         ...looks,
         ...(empty ? { yRange: [-1, 1], yTicks: looks.yTicks ?? [-1, 1] } : {}),
         layers,
-        xTitle:
-          unquote(options.xtitle) || (parts.over ? titleOf(parts.over) : ""),
-        yTitle: unquote(options.ytitle) || (names.length === 1 ? names[0] : ""),
-        title: unquote(options.title),
+        xTitle: options.xtitle ?? (parts.over ? titleOf(parts.over) : ""),
+        yTitle: options.ytitle ?? (names.length === 1 ? names[0] : ""),
+        title: options.title,
         xRange: [0.5, parts.levels.length + 0.5],
         xLabels: labels.map((text, k) => ({ at: k + 1, text })),
       }),
@@ -478,12 +475,10 @@ function graphBox(session, text, ctx) {
     svg: draw({
       ...drawnLooks(options),
       layers,
-      xTitle:
-        unquote(options.xtitle) || (parts.over ? titleOf(parts.over) : ""),
+      xTitle: options.xtitle ?? (parts.over ? titleOf(parts.over) : ""),
       yTitle:
-        unquote(options.ytitle) ||
-        (variables.length === 1 ? titleOf(variables[0]) : ""),
-      title: unquote(options.title),
+        options.ytitle ?? (variables.length === 1 ? titleOf(variables[0]) : ""),
+      title: options.title,
       xRange: [0.5, parts.levels.length + 0.5],
       xLabels: parts.labels.map((label, k) => ({ at: k + 1, text: label })),
     }),
@@ -526,9 +521,9 @@ function rvfplot(session, text, ctx) {
           label: "Residuals",
         },
       ],
-      xTitle: unquote(options.xtitle) || "Fitted values",
-      yTitle: unquote(options.ytitle) || "Residuals",
-      title: unquote(options.title),
+      xTitle: options.xtitle ?? "Fitted values",
+      yTitle: options.ytitle ?? "Residuals",
+      title: options.title,
     }),
     description: `Residuals against fitted values of ${model.depvar}, ${frame.rows.length} points.`,
   });
@@ -561,9 +556,9 @@ function avplot(session, text, ctx) {
         { kind: "scatter", points, label: `e( ${model.depvar} | X )` },
         { kind: "line", points: line.points, label: "Fitted values" },
       ],
-      xTitle: unquote(options.xtitle) || `e( ${name} | X )`,
-      yTitle: unquote(options.ytitle) || `e( ${model.depvar} | X )`,
-      title: unquote(options.title),
+      xTitle: options.xtitle ?? `e( ${name} | X )`,
+      yTitle: options.ytitle ?? `e( ${model.depvar} | X )`,
+      title: options.title,
     }),
     description: `Added-variable plot for ${name}: coef = ${g(model.b[at])}, se = ${g(se)}, t = ${applyFormat(model.b[at] / se, "%5.2f").trim()}.`,
   });
@@ -589,9 +584,9 @@ function lvr2plot(session, text, ctx) {
           label: "Leverage",
         },
       ],
-      xTitle: unquote(options.xtitle) || "Normalized residual squared",
-      yTitle: unquote(options.ytitle) || "Leverage",
-      title: unquote(options.title),
+      xTitle: options.xtitle ?? "Normalized residual squared",
+      yTitle: options.ytitle ?? "Leverage",
+      title: options.title,
     }),
     description: `Leverage against normalized squared residuals, ${frame.rows.length} points.`,
   });
@@ -634,14 +629,14 @@ function normalPlot(kind) {
           },
         ],
         xTitle:
-          unquote(options.xtitle) ||
+          options.xtitle ??
           (kind === "qnorm" ? "Inverse Normal" : "Empirical P[i] = i/(N+1)"),
         yTitle:
-          unquote(options.ytitle) ||
+          options.ytitle ??
           (kind === "qnorm"
             ? titleOf(variable)
             : `Normal F[(${variable.name}-m)/s]`),
-        title: unquote(options.title),
+        title: options.title,
       }),
       description: `${kind === "qnorm" ? "Quantiles" : "Standardized normal probability plot"} of ${titleOf(variable)} against the normal distribution, ${n} points.`,
     });
@@ -672,10 +667,9 @@ function tsline(session, text, ctx) {
     svg: draw({
       ...drawnLooks(options),
       layers,
-      xTitle: unquote(options.xtitle) || titleOf(time),
-      yTitle:
-        unquote(options.ytitle) || (layers.length === 1 ? layers[0].label : ""),
-      title: unquote(options.title),
+      xTitle: options.xtitle ?? titleOf(time),
+      yTitle: options.ytitle ?? (layers.length === 1 ? layers[0].label : ""),
+      title: options.title,
     }),
     description: `Time-series line plot of ${layers.map((l) => l.label).join(", ")} against ${titleOf(time)}, ${layers[0].points.length} points.`,
   });
