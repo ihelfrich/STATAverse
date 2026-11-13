@@ -14641,6 +14641,272 @@
       ]
     },
     {
+      "id": "continuous-interaction-label",
+      "source": "clear\nset seed 31\nset obs 200\ngenerate double education = runiform() * 16\ngenerate double experience = runiform() * 30\ngenerate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4\nset linesize 80\nregress wage education c.education#c.experience\nregress wage c.education##c.experience\nset linesize 200\nregress wage education c.education#c.experience\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        {
+          "command": "generate double education = runiform() * 16",
+          "lines": []
+        },
+        {
+          "command": "generate double experience = runiform() * 30",
+          "lines": []
+        },
+        {
+          "command": "generate double wage = 2 + .5 * education + .1 * experience + .01 * education * experience + runiform() * 4",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress wage education c.education#c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =    805.35",
+            "       Model |  2144.50355         2  1072.25178   Prob > F        =    0.0000",
+            "    Residual |  262.289239       197  1.33141746   R-squared       =    0.8910",
+            "-------------+----------------------------------   Adj R-squared   =    0.8899",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1539",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .3339823   .0243888    13.69   0.000     .2858856     .382079",
+            "             |",
+            " c.education#|",
+            "c.experience |   .0192075   .0010183    18.86   0.000     .0171993    .0212156",
+            "             |",
+            "       _cons |   5.722633   .1644112    34.81   0.000     5.398401    6.046865",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage c.education##c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(3, 196)       =    550.57",
+            "       Model |  2151.48818         3  717.162727   Prob > F        =    0.0000",
+            "    Residual |  255.304612       196  1.30257455   R-squared       =    0.8939",
+            "-------------+----------------------------------   Adj R-squared   =    0.8923",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1413",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4058677   .0393145    10.32   0.000      .328334    .4834014",
+            "  experience |    .048159   .0207973     2.32   0.022     .0071438    .0891742",
+            "             |",
+            " c.education#|",
+            "c.experience |   .0146903   .0021954     6.69   0.000     .0103607    .0190199",
+            "             |",
+            "       _cons |   4.962805   .3662161    13.55   0.000     4.240575    5.685035",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress wage education c.education#c.experience",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =    805.35",
+            "       Model |  2144.50355         2  1072.25178   Prob > F        =    0.0000",
+            "    Residual |  262.289239       197  1.33141746   R-squared       =    0.8910",
+            "-------------+----------------------------------   Adj R-squared   =    0.8899",
+            "       Total |  2406.79279       199  12.0944361   Root MSE        =    1.1539",
+            "",
+            "------------------------------------------------------------------------------------------",
+            "                    wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------------+----------------------------------------------------------------",
+            "               education |   .3339823   .0243888    13.69   0.000     .2858856     .382079",
+            "                         |",
+            "c.education#c.experience |   .0192075   .0010183    18.86   0.000     .0171993    .0212156",
+            "                         |",
+            "                   _cons |   5.722633   .1644112    34.81   0.000     5.398401    6.046865",
+            "------------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "factor-label-width",
+      "source": "clear\nset seed 4\nset obs 90\ngenerate byte g = 1 + floor(runiform() * 3)\nlabel define gl 1 \"Short\" 2 \"A rather long label\" 3 \"Mid label\"\nlabel values g gl\ngenerate double y = g + runiform()\nset linesize 80\nregress y i.g\nset linesize 200\nregress y i.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        {
+          "command": "label define gl 1 \"Short\" 2 \"A rather long label\" 3 \"Mid label\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "generate double y = g + runiform()", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        90",
+            "-------------+----------------------------------   F(2, 87)        =    404.78",
+            "       Model |  65.2056613         2  32.6028307   Prob > F        =    0.0000",
+            "    Residual |    7.007338        87  .080544115   R-squared       =    0.9030",
+            "-------------+----------------------------------   Adj R-squared   =    0.9007",
+            "       Total |  72.2129993        89  .811382015   Root MSE        =     .2838",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            g |",
+            "A rather l..  |   .9700621   .0751928    12.90   0.000     .8206083    1.119516",
+            "   Mid label  |   2.067859   .0729199    28.36   0.000     1.922923    2.212796",
+            "              |",
+            "        _cons |   1.446661   .0536337    26.97   0.000     1.340058    1.553263",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress y i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        90",
+            "-------------+----------------------------------   F(2, 87)        =    404.78",
+            "       Model |  65.2056613         2  32.6028307   Prob > F        =    0.0000",
+            "    Residual |    7.007338        87  .080544115   R-squared       =    0.9030",
+            "-------------+----------------------------------   Adj R-squared   =    0.9007",
+            "       Total |  72.2129993        89  .811382015   Root MSE        =     .2838",
+            "",
+            "--------------------------------------------------------------------------------------",
+            "                   y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------+----------------------------------------------------------------",
+            "                   g |",
+            "A rather long label  |   .9700621   .0751928    12.90   0.000     .8206083    1.119516",
+            "          Mid label  |   2.067859   .0729199    28.36   0.000     1.922923    2.212796",
+            "                     |",
+            "               _cons |   1.446661   .0536337    26.97   0.000     1.340058    1.553263",
+            "--------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beta-width",
+      "source": "clear\nset seed 8\nset obs 60\ngenerate double household_income_k = runiform()\ngenerate double y = household_income_k + runiform()\nset linesize 80\nregress y household_income_k, beta\nregress y household_income_k, beta vce(robust)\nset linesize 200\nregress y household_income_k, beta\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        {
+          "command": "generate double household_income_k = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double y = household_income_k + runiform()",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y household_income_k, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     47.01",
+            "       Model |    3.748039         1    3.748039   Prob > F        =    0.0000",
+            "    Residual |  4.62389617        58  .079722348   R-squared       =    0.4477",
+            "-------------+----------------------------------   Adj R-squared   =    0.4382",
+            "       Total |  8.37193517        59  .141897206   Root MSE        =    .28235",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .9129323   .1331455     6.86   0.000                 .6690971",
+            "        _cons |   .6038799   .0766163     7.88   0.000                        .",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y household_income_k, beta vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =         60",
+            "                                                F(1, 58)          =      43.95",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.4477",
+            "                                                Root MSE          =     .28235",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "            y | Coefficient  std. err.      t    P>|t|                     Beta",
+            "--------------+----------------------------------------------------------------",
+            "household_i~k |   .9129323   .1377076     6.63   0.000                 .6690971",
+            "        _cons |   .6038799   .0765852     7.89   0.000                        .",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "regress y household_income_k, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     47.01",
+            "       Model |    3.748039         1    3.748039   Prob > F        =    0.0000",
+            "    Residual |  4.62389617        58  .079722348   R-squared       =    0.4477",
+            "-------------+----------------------------------   Adj R-squared   =    0.4382",
+            "       Total |  8.37193517        59  .141897206   Root MSE        =    .28235",
+            "",
+            "------------------------------------------------------------------------------------",
+            "                 y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------------+----------------------------------------------------------------",
+            "household_income_k |   .9129323   .1331455     6.86   0.000                 .6690971",
+            "             _cons |   .6038799   .0766163     7.88   0.000                        .",
+            "------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lincom-depvar",
+      "source": "clear\nset seed 2\nset obs 40\ngenerate double outcome_variable_long = runiform()\ngenerate double x = runiform()\nset linesize 80\nquietly regress outcome_variable_long x\nlincom x\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        {
+          "command": "generate double outcome_variable_long = runiform()",
+          "lines": []
+        },
+        { "command": "generate double x = runiform()", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "quietly regress outcome_variable_long x", "lines": [] },
+        {
+          "command": "lincom x",
+          "lines": [
+            " ( 1)  x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "outcome_va~g | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    .062548   .1653009     0.38   0.707    -.2720861    .3971821",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "likelihood-factor-layout",
       "source": "clear\nset seed 2718\nset obs 400\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double income = runiform() * 10\ngenerate double y = 2 + .4 * income + .5 * g + runiform() * 4\nreplace y = 3 if y < 3\ngenerate byte r = 1 + (y > 5) + (y > 7)\ngenerate int k = floor(y * y * runiform())\ntobit y income i.g, ll(3) nolog\ntobit y income, ll(3)\ntobit y income i.g, ll(3) ul(9)\nologit r income i.g, nolog\nnbreg k income i.g, nolog\nregress y income i.g\n",
       "commands": [

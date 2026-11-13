@@ -522,9 +522,30 @@ export function tableWidth(session, model) {
       return term && !term.variable ? term.header : name;
     });
   // The dependent variable does not widen the column; it is abbreviated.
-  const longest = Math.max(0, ...shown.map((n) => n.length)),
-    linesize = session.settings?.linesize ?? 80;
-  return Math.max(12, Math.min(longest, linesize - 67));
+  const cap = (session.settings?.linesize ?? 80) - 67,
+    // A name counts whole when the line allows it; an interaction that does
+    // not fit breaks after a #, so then its longest piece counts.
+    // A factor level's label counts too, with the space after it.
+    labels = model.names.flatMap((_, k) => {
+      const column = model.columns?.[k];
+      if (!column?.levels || column.base) return [];
+      const factors = column.term.components.filter((c) => c.factor);
+      return [
+        column.levels
+          .map((level, j) => labelled(session, factors[j].variable, level))
+          .join(" ").length + 1,
+      ];
+    }),
+    longest = Math.max(
+      0,
+      ...labels,
+      ...shown.map((n) =>
+        n.length <= cap || !n.includes("#")
+          ? n.length
+          : Math.max(...n.split("#").map((p) => p.length)),
+      ),
+    );
+  return Math.max(12, Math.min(longest, cap));
 }
 /** Stata's abbrev(name, width): the start, a ~, and the last character. */
 export const abbreviate = (name, width) =>
@@ -571,11 +592,26 @@ export function termRows(session, model, cells, width) {
         block.items[0],
       );
     // So is a product of continuous variables, though with blank rows.
-    if (
-      alone ||
-      (shown.length === 1 && block.term.components.every((c) => !c.factor))
-    )
+    if (alone)
       return row(`${short(model.names[shown[0]]).padStart(w)} `, shown[0]);
+    // A product of continuous variables is one row; a name too long for the
+    // column is broken after a #, the last piece labelling the row.
+    if (shown.length === 1 && block.term.components.every((c) => !c.factor)) {
+      const name = model.names[shown[0]];
+      if (name.length <= w || !name.includes("#"))
+        return row(`${short(name).padStart(w)} `, shown[0]);
+      const pieces = [];
+      for (const part of name.split("#")) {
+        const last = pieces.at(-1);
+        if (last !== undefined && `${last}#${part}`.length <= w)
+          pieces[pieces.length - 1] = `${last}#${part}`;
+        else pieces.push(part);
+      }
+      pieces
+        .slice(0, -1)
+        .forEach((piece) => out.push(`${`${piece}#`.padStart(w + 1)}|`));
+      return row(`${short(pieces.at(-1)).padStart(w)} `, shown[0]);
+    }
     // A header too long for the column is broken after a #.
     const parts = block.term.header.split("#"),
       pieces = [];
@@ -593,13 +629,14 @@ export function termRows(session, model, cells, width) {
       ),
     );
     const factors = block.term.components.filter((c) => c.factor);
-    for (const k of shown)
-      row(
-        `${model.columns[k].levels
-          .map((level, j) => labelled(session, factors[j].variable, level))
-          .join(" ")}  `.padStart(w + 1),
-        k,
-      );
+    for (const k of shown) {
+      let label = model.columns[k].levels
+        .map((level, j) => labelled(session, factors[j].variable, level))
+        .join(" ");
+      // A label too long for the column is cut and marked with two dots.
+      if (width && label.length > w - 1) label = `${label.slice(0, w - 3)}..`;
+      row(`${label}  `.padStart(w + 1), k);
+    }
   });
   return out;
 }
@@ -733,26 +770,32 @@ function regress(session, text, ctx) {
       },
       dependent = session.data.get(model.depvar),
       sdY = sd(model.sample.map((i) => dependent.data[i]));
-    ctx.out(RULE);
+    // The beta table's first column follows the same width rule.
+    const width = tableWidth(session, model);
+    ctx.out("-".repeat(66 + width));
     if (robust)
       ctx.out(
-        `             |${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
+        `${" ".repeat(width + 1)}|${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
       );
     ctx.out(
-      `${model.depvar.padStart(12)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
+      `${abbreviate(model.depvar, width).padStart(width)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
     );
-    ctx.out(
-      "-------------+----------------------------------------------------------------",
-    );
-    termRows(session, model, (k) => {
-      const se = Math.sqrt(model.V[k][k]),
-        t = model.b[k] / se,
-        beta =
-          model.names[k] === "_cons"
-            ? MISSING
-            : (model.b[k] * sd(model.sample.map(model.columns[k].value))) / sdY;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
-    }).forEach(ctx.out);
+    ctx.out(`${"-".repeat(width + 1)}+${"-".repeat(64)}`);
+    termRows(
+      session,
+      model,
+      (k) => {
+        const se = Math.sqrt(model.V[k][k]),
+          t = model.b[k] / se,
+          beta =
+            model.names[k] === "_cons"
+              ? MISSING
+              : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
+                sdY;
+        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
+      },
+      width,
+    ).forEach(ctx.out);
   } else {
     const width = tableWidth(session, model);
     coefficientHeader(model, level, model.depvar, width).forEach(ctx.out);
@@ -761,7 +804,7 @@ function regress(session, text, ctx) {
     ctx.out("");
     return;
   }
-  ctx.out(RULE);
+  ctx.out("-".repeat(66 + tableWidth(session, model)));
   ctx.out("");
 }
 
@@ -1100,7 +1143,9 @@ export function lincom(session, text, ctx) {
   ctx.out("");
   ctx.out(` ( 1)  ${describeLinear(model, weights, 0)}`);
   ctx.out("");
-  coefficientHeader({ ...model, vce: "ols" }, level).forEach(ctx.out);
+  coefficientHeader({ ...model, vce: "ols" }, level, model.depvar, 12).forEach(
+    ctx.out,
+  );
   ctx.out(
     `${"(1)".padStart(12)} |${g(estimate).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(p, "%8.3f")}${g(estimate - critical * se).padStart(13)}${g(estimate + critical * se).padStart(12)}`,
   );
