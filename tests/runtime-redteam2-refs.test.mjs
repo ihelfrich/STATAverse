@@ -231,3 +231,243 @@ test("[/]var(e.depvar) and [depvar]name after tobit", () => {
   // sigma is not a parameter of tobit's "/" equation.
   refused(s, "lincom [/]sigma", "[sigma] not found", 111);
 });
+
+// The second round, after the fixes above were checked again. Every value
+// below was recorded from Stata 19 MP (version 17, set processors 1).
+// Maximum-likelihood fits reach Stata's estimates by other steps, so their
+// statistics are compared to 1e-6.
+
+test("testparm after mlogit tests interactions and lists in every equation", () => {
+  const s = fitted("mlogit sat3 c.education##i.female");
+  assert.equal(rc(s, "testparm i.female c.education#i.female"), 0);
+  sameResults(
+    s.results.r,
+    {
+      dropped_2: 6,
+      dropped_1: 3,
+      drop: 1,
+      chi2: 1.605299279981514,
+      df: 4,
+      p: 0.8078393736312565,
+    },
+    1e-6,
+  );
+  const m = fitted("mlogit sat3 education i.female i.reg");
+  assert.equal(rc(m, "testparm i.(reg female)"), 0);
+  sameResults(
+    m.results.r,
+    {
+      dropped_4: 12,
+      dropped_3: 9,
+      dropped_2: 6,
+      dropped_1: 3,
+      drop: 1,
+      chi2: 3.522124508141468,
+      df: 8,
+      p: 0.8974658001573222,
+    },
+    1e-6,
+  );
+  // equation(3) is the base outcome, whose coefficients are all omitted.
+  refused(
+    m,
+    "testparm i.reg, equation(3)",
+    "identify any testable coefficients from\nequation(3)",
+    111,
+  );
+  refused(m, "testparm i.reg, eq(3) equal", "from\nequation(3)", 111);
+  refused(m, "testparm _cons", "variable _cons not found", 111);
+  refused(m, "testparm i.reg, equation(9)", "equation 9 not found", 303);
+});
+
+test("test [eq=eq] keeps repeated constraints and [eq]: takes an expression", () => {
+  const s = fitted("mlogit sat3 education i.female i.reg");
+  assert.equal(rc(s, "test [2=3=3]"), 0);
+  sameResults(
+    s.results.r,
+    {
+      dropped_9: 14,
+      dropped_8: 13,
+      dropped_7: 12,
+      dropped_6: 11,
+      dropped_5: 10,
+      dropped_4: 9,
+      dropped_3: 8,
+      dropped_2: 4,
+      dropped_1: 2,
+      drop: 1,
+      chi2: 5.489015254931129,
+      df: 5,
+      p: 0.3591519016472509,
+    },
+    1e-6,
+  );
+  assert.equal(rc(s, "test [2]: education = 0 = 1"), 0);
+  sameResults(
+    s.results.r,
+    {
+      dropped_1: 2,
+      drop: 1,
+      chi2: 3.124563754195991,
+      df: 1,
+      p: 0.0771205109841262,
+    },
+    1e-6,
+  );
+  refused(s, "test [2]: educ", "educ ambiguous abbreviation", 111);
+  refused(s, "test educ", "educ ambiguous abbreviation", 111);
+  refused(s, "test [2]: education 1.female = 0", "=exp required", 100);
+  refused(s, "test [2=3]: education = 0", "equation [2=3] not found", 303);
+  refused(s, "test [2=3] education", "invalid syntax", 198);
+  refused(s, "test [9]education", "equation 9 not found", 303);
+  refused(s, "test [9]education = 0", "equation [9] not found", 303);
+  const o = fitted("ologit satisfaction education i.female");
+  refused(
+    o,
+    "test [satisfaction=/]",
+    "variables differ between equations",
+    111,
+  );
+  refused(o, "test [satisfaction] [/]", "[satisfaction]cut1 not found", 111);
+  const n = fitted("nbreg hours education");
+  refused(n, "test [hours] [/]", "[hours]lnalpha not found", 111);
+});
+
+test("_b[] is not a name of test's list, and [eq]name() is not found", () => {
+  const s = fitted("regress wage education i.female i.reg");
+  refused(s, "test _b[education] _b[1.female]", "_b not found", 111);
+  refused(s, "test _coef[education]", "_coef not found", 111);
+  refused(s, "test 2*education", "2 not found", 111);
+  refused(s, "test education+1.female", "+ not found", 111);
+  refused(s, "test [#2]", "equation #2 not found", 303);
+  refused(s, "test [wage]education", "equation wage not found", 303);
+  refused(s, "lincom _b[education](1)", "invalid syntax", 198);
+  const o = fitted("ologit satisfaction education i.female");
+  refused(o, "test _b[/cut1] _b[/cut2]", "_b not found", 111);
+  refused(o, "lincom _b[/education]", "[/education] not found", 111);
+  refused(o, "lincom _b[cut1]", "[cut1] not found", 111);
+  refused(o, "lincom [/]cut1()", "[cut1()] not found", 111);
+  refused(
+    o,
+    "lincom [satisfaction]education(1)",
+    "[education(1)] not found",
+    111,
+  );
+  const n = fitted("nbreg hours education");
+  refused(n, "lincom _b[lnalpha]", "[lnalpha] not found", 111);
+  refused(n, "lincom [/]lnalpha()", "[lnalpha()] not found", 111);
+  const t = fitted("tobit wage education i.female, ll(4)");
+  refused(t, "lincom _b[var(e.wage)]", "[var(e.wage)] not found", 111);
+  refused(t, "lincom [/]var(e.wage)()", "[var(e.wage)()] not found", 111);
+  refused(t, "test [/]: var(e.wage)", "var not found", 111);
+  assert.equal(rc(t, "test ([/]var(e.wage) = 50) (education = 0)"), 0);
+  sameResults(
+    t.results.r,
+    {
+      drop: 0,
+      df_r: 598,
+      F: 2241.511407646505,
+      df: 2,
+      p: 1.4264667402e-278,
+    },
+    2e-6,
+  );
+  // [wage] [/] is [wage]_cons, as Stata reads it.
+  assert.equal(rc(t, "test [wage] [/]"), 0);
+  sameResults(
+    t.results.r,
+    {
+      drop: 0,
+      df_r: 598,
+      F: 15.967260238927,
+      df: 1,
+      p: 0.0000724919850987,
+    },
+    2e-6,
+  );
+});
+
+test("[#1] names regress's one equation", () => {
+  const s = fitted("regress wage education i.female i.reg");
+  assert.equal(rc(s, "lincom [#1]_b[education]"), 0);
+  sameResults(s.results.r, {
+    df: 594,
+    ub: 0.5568305890762956,
+    lb: 0.3859784962327479,
+    p: 4.25616810729e-25,
+    t: 10.83770583153106,
+    level: 95,
+    se: 0.043496709541887,
+    estimate: 0.4714045426545217,
+  });
+  assert.equal(rc(s, "test [#1]: education"), 0);
+});
+
+test("testparm after a one-equation model takes equal, df() and interactions", () => {
+  const s = fitted("regress wage education i.female i.reg");
+  assert.equal(rc(s, "testparm i.reg, equal"), 0);
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 594,
+    F: 5.920966546973007,
+    df: 2,
+    p: 0.0028435003370848,
+  });
+  assert.equal(rc(s, "testparm i.reg, df(100)"), 0);
+  sameResults(s.results.r, {
+    drop: 0,
+    df_r: 100,
+    F: 5.668897467812022,
+    df: 3,
+    p: 0.0012560993064994,
+  });
+  refused(
+    s,
+    "testparm i.reg, nosuchoption",
+    "option nosuchoption not allowed",
+    198,
+  );
+  refused(
+    s,
+    "testparm i.reg, df(0)",
+    "df() invalid -- invalid number, outside of allowed range",
+    125,
+  );
+  refused(s, "testparm i.reg, equation(wage)", "from\nequation(wage)", 111);
+  const l = fitted("logit union c.education##i.female");
+  assert.equal(rc(l, "testparm i.female education, eq(#1) equal"), 0);
+  sameResults(
+    l.results.r,
+    {
+      drop: 0,
+      chi2: 0.3582077898014268,
+      df: 1,
+      p: 0.5495032717899028,
+    },
+    1e-6,
+  );
+  refused(
+    l,
+    "testparm i.female, equation(nosuch)",
+    "equation nosuch not found",
+    303,
+  );
+});
+
+test("interactions are named with their factors first, base levels marked", () => {
+  const names = (model) => fitted(model).estimates.names.join(" ");
+  assert.equal(
+    names("regress wage c.education##i.female"),
+    "education 0b.female 1.female 0b.female#co.education 1.female#c.education _cons",
+  );
+  assert.equal(
+    names(
+      "regress wage c.education#i.female#i.union c.hours#c.education#i.reg",
+    ),
+    "0b.female#0b.union#c.education 0b.female#1.union#c.education 1.female#0b.union#c.education 1.female#1.union#c.education 1b.reg#c.hours#c.education 2.reg#c.hours#c.education 3.reg#c.hours#c.education 4.reg#c.hours#c.education _cons",
+  );
+  assert.equal(
+    names("regress wage i.female##i.union"),
+    "0b.female 1.female 0b.union 1.union 0b.female#0b.union 0b.female#1o.union 1o.female#0b.union 1.female#1.union _cons",
+  );
+});

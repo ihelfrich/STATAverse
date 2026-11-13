@@ -111,6 +111,7 @@ for (const c of fixture.cases)
             "test-accumulate-mlogit",
             "test-lincom-equations",
             "test-lincom-equation-references",
+            "test-references-stata-forms",
           ].includes(c.id),
         )
       )

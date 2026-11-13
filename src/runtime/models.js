@@ -5,7 +5,7 @@
 import { least, greatest } from "./extremes.js";
 import { firstStage, ivDiagnostic } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
-import { regressDiagnostic, testparm } from "./diagnostics.js";
+import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
@@ -20,7 +20,6 @@ import {
   design,
   equationOf,
   estimates,
-  findCoefficient,
   invertSymmetric,
   lincom as lincomT,
   waldTest,
@@ -813,102 +812,103 @@ function ivregress(session, text, ctx) {
 }
 
 // ----- post-estimation that depends on the distribution -----
-function test(session, text, ctx) {
+
+/** Every combination of one item from each list. */
+const combinations = (lists) =>
+  lists.reduce(
+    (made, list) => made.flatMap((done) => list.map((item) => [...done, item])),
+    [[]],
+  );
+
+/**
+ * The terms testparm's varlist(fv ts) names, each a list of parts: a
+ * factor, at any level or the one given, or a continuous variable. i.(a b)
+ * is i.a i.b, a##b is a, b and a#b, and in an interaction a name alone is
+ * a factor.
+ */
+function testparmTerms(session, head) {
+  const component = (word, inInteraction) => {
+      const m = /^(i|c|(\d+)b?n?)\.(.+)$/i.exec(word),
+        operator = m?.[1].toLowerCase(),
+        target = (m ? m[3] : word).replace(/^\((.*)\)$/, "$1");
+      return session.varlist(target).map((variable) => ({
+        variable,
+        factor: operator ? operator !== "c" : inInteraction,
+        level: m?.[2] === undefined ? null : Number(m[2]),
+      }));
+    },
+    terms = [];
+  for (const token of head.match(/(?:[^\s(]|\([^)]*\))+/g) ?? []) {
+    if (token.includes("##")) {
+      let expanded = [];
+      for (const part of token.split("##")) {
+        const next = component(part, true);
+        expanded = [...expanded, [next], ...expanded.map((t) => [...t, next])];
+      }
+      for (const term of expanded) terms.push(...combinations(term));
+    } else if (token.includes("#"))
+      terms.push(
+        ...combinations(token.split("#").map((part) => component(part, true))),
+      );
+    else terms.push(...component(token, false).map((part) => [part]));
+  }
+  return terms;
+}
+
+/** Whether the coefficient called name is the term: its parts in any order. */
+function isTerm(name, term) {
+  const parts = name.split("#").map((part) => {
+    const level = /^(\d+)[bon]*\.(.+)$/.exec(part);
+    return level
+      ? { variable: level[2], factor: true, level: Number(level[1]) }
+      : { variable: part.replace(/^c?o?\./, ""), factor: false };
+  });
+  if (parts.length !== term.length) return false;
+  const used = new Set();
+  return term.every((want) => {
+    const k = parts.findIndex(
+      (part, j) =>
+        !used.has(j) &&
+        part.variable === want.variable &&
+        part.factor === want.factor &&
+        (want.level === null || want.level === part.level),
+    );
+    used.add(k);
+    return k >= 0;
+  });
+}
+
+/** Stata's message when testparm finds nothing to test, wrapped to the line. */
+function nothingTestable(equation, linesize = 80) {
+  const lines = [""];
+  for (const word of `the specified varlist does not identify any testable coefficients${equation === null ? "" : ` from equation(${equation})`}`.split(
+    " ",
+  )) {
+    const last = lines.at(-1);
+    if (last && `${last} ${word}`.length > linesize - 1) lines.push(word);
+    else lines[lines.length - 1] = last ? `${last} ${word}` : word;
+  }
+  return new StataError(["no such variables;", ...lines].join("\n"), 111);
+}
+
+/**
+ * testparm, as Stata's testparm.ado runs test: the coefficients of the
+ * terms named that are neither omitted nor base levels, in the order of
+ * e(b), found in equation() or the first equation (the second after an
+ * mlogit whose base outcome comes first). Each is zero, in every equation
+ * after mlogit unless equation() is given, or with equal each equals the
+ * first, in equation() or, without it, the first equation that has it.
+ */
+function testparm(session, text, ctx) {
   const model = estimates(session),
     [head, tail] = splitAtComma(text);
   session.results.r = {};
-  // After mlogit a list of coefficients, variables or factor levels and
-  // interactions, is tested in every equation at once.
-  if (model.dist === "z" && model.equations && /^[\sA-Za-z_0-9.#]+$/.test(head))
-    return acrossEquations(
-      session,
-      model,
-      coefficientNames(session, model, head.trim().split(/\s+/), false),
-      tail,
-      ctx,
-    );
-  return testT(session, text, ctx);
-}
-
-/**
- * The coefficient names a list of test or testparm stands for, in the
- * order named: _cons, variables (abbreviated, or as a varlist), factor
- * levels and interactions such as 2.reg or 1.female#c.x, and for testparm
- * i.var, every level of var but its base. testparm passes over a name that
- * is not a coefficient; test says it is not found.
- */
-function coefficientNames(session, model, words, testparm) {
-  const space = coefficientSpace(model),
-    names = [],
-    add = (name) => {
-      if (!names.includes(name)) names.push(name);
-    };
-  for (const word of words) {
-    const factor = /^i\.(.+)$/i.exec(word);
-    if (factor && !testparm) throw new StataError("i:  operator invalid", 198);
-    if (factor)
-      for (const variable of session.varlist(factor[1]))
-        space.entries.forEach((e) => {
-          if (new RegExp(`^\\d+\\.${variable}$`).test(e.name)) add(e.name);
-        });
-    else if (/[.#]/.test(word)) {
-      const at = findCoefficient(model, space, null, word, session, !testparm);
-      // A base level is named only as it is written, 1b.reg.
-      if (at >= 0 && (!/\d+b\./.test(word) || space.entries[at].name === word))
-        add(space.entries[at].name);
-      else if (!testparm) throw new StataError(`${word} not found`, 111);
-    } else {
-      let variables = [word];
-      // test names a coefficient Stata cannot find without "variable".
-      if (!/^_cons$/.test(word))
-        try {
-          variables = session.varlist(word);
-        } catch (error) {
-          if (testparm || !(error instanceof StataError) || error.code !== 111)
-            throw error;
-          throw new StataError(`${word} not found`, 111);
-        }
-      for (const name of variables)
-        if (space.entries.some((e) => e.name === name)) add(name);
-        else if (!testparm) throw new StataError(`${name} not found`, 111);
-    }
-  }
-  if (!names.length)
-    throw new StataError(
-      "no such variables;\nthe specified varlist does not identify any testable coefficients",
-      111,
-    );
-  return names;
-}
-
-/**
- * test and testparm after mlogit: each named coefficient is zero in every
- * equation. Stata lists the base outcome's too and drops it.
- */
-function acrossEquations(session, model, names, tail, ctx) {
-  const space = coefficientSpace(model),
-    constraints = [];
-  for (const name of names)
-    // The base outcome's coefficient is fixed at zero, so its constraint
-    // carries no variance and the test drops it.
-    space.entries.forEach((e, k) => {
-      if (e.name === name) constraints.push(unitConstraint(space, k));
-    });
-  waldTest(session, model, constraints, tail, ctx);
-}
-
-/**
- * testparm after mlogit, as Stata's testparm.ado runs test: the
- * coefficients in the order of e(b), each zero in every equation or in
- * equation() alone, or with equal each equal to the first, in equation()
- * or the first equation.
- */
-function testparmEquations(session, model, text, ctx) {
-  const [head, tail] = splitAtComma(text),
+  const terms = testparmTerms(session, head),
     { options } = session.parse(
       "[, EQuation(string) Equal DF(string) NOSVYadjust SMALL]",
       tail === null ? "" : `,${tail}`,
-    );
+    ),
+    df = degreesOfFreedom(options.df);
   if (options.small)
     throw new StataError(
       "option small is allowed only if option dfmethod() was used with the mixed command during estimation",
@@ -920,42 +920,77 @@ function testparmEquations(session, model, text, ctx) {
       198,
     );
   const space = coefficientSpace(model),
-    first = (name) => space.entries.findIndex((e) => e.name === name),
-    names = coefficientNames(
-      session,
-      model,
-      head.trim().split(/\s+/).filter(Boolean),
-      true,
-    ).sort((a, b) => first(a) - first(b)),
-    equation =
-      options.equation === undefined || !options.equation.trim()
-        ? null
-        : equationOf(model, space, options.equation),
-    within = equation ?? space.entries[0].equation,
-    at = (name) =>
-      space.entries.findIndex((e) => e.equation === within && e.name === name),
-    dfTail =
-      options.df === undefined
-        ? null
-        : `df(${degreesOfFreedom(options.df) ?? ""})`;
+    asked = options.equation?.trim() || null,
+    named = space.entries.some((e) => e.equation !== null);
+  let within;
+  if (asked === null)
+    within =
+      model.equations &&
+      space.entries.every((e) => e.equation !== model.equations[0] || e.omitted)
+        ? model.equations[1]
+        : space.entries[0].equation;
+  else if (!named) {
+    // regress's one equation has no name but #1.
+    if (!/^#\s*1$/.test(asked))
+      throw nothingTestable(asked, session.settings?.linesize);
+    within = null;
+  } else {
+    try {
+      within = equationOf(model, space, asked);
+    } catch (error) {
+      if (error instanceof StataError && error.code === 303)
+        throw new StataError(`equation ${asked} not found`, 303);
+      throw error;
+    }
+    if (within === "/") throw new StataError("equation / not found", 303);
+  }
+  const chosen = space.entries.flatMap((e, k) =>
+    e.equation === within &&
+    !e.omitted &&
+    !(e.index >= 0 && model.estimable?.[e.index] === false) &&
+    !/^\d+b\.[^#]*$/.test(e.name) &&
+    terms.some((term) => isTerm(e.name, term))
+      ? [k]
+      : [],
+  );
+  if (!chosen.length) throw nothingTestable(asked, session.settings?.linesize);
+  const names = chosen.map((k) => space.entries[k].name),
+    zero = () => space.entries.map(() => 0),
+    constraint = (weights) => ({
+      weights,
+      constant: 0,
+      text: describeLinear(space, weights, 0),
+    });
   let constraints;
   if (options.equal) {
     if (names.length < 2)
       throw new StataError("too few variables specified", 102);
-    constraints = names.slice(1).map((name) => {
-      const weights = space.entries.map(() => 0);
-      weights[at(name)] += 1;
-      weights[at(names[0])] -= 1;
-      return {
-        weights,
-        constant: 0,
-        text: describeLinear(space, weights, 0),
-      };
+    const at = (k) =>
+      asked === null
+        ? space.entries.findIndex(
+            (e) => e.name === names[k] && e.equation !== "/",
+          )
+        : chosen[k];
+    constraints = names.slice(1).map((_, k) => {
+      const weights = zero();
+      weights[at(k + 1)] += 1;
+      weights[at(0)] -= 1;
+      return constraint(weights);
     });
-  } else if (equation !== null)
-    constraints = names.map((name) => unitConstraint(space, at(name)));
-  else return acrossEquations(session, model, names, dfTail, ctx);
-  waldTest(session, model, constraints, dfTail, ctx);
+  } else if (asked === null && model.equations)
+    constraints = names.flatMap((name) =>
+      space.entries.flatMap((e, k) =>
+        e.name === name && e.equation !== "/" ? [unitConstraint(space, k)] : [],
+      ),
+    );
+  else constraints = chosen.map((k) => unitConstraint(space, k));
+  waldTest(
+    session,
+    model,
+    constraints,
+    df === undefined ? null : `df(${df})`,
+    ctx,
+  );
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
@@ -1371,15 +1406,8 @@ export const MODEL_COMMANDS = [
   },
   { name: "lrtest", minimum: 6, run: lrtest },
   { name: "ivregress", minimum: 5, run: ivregress },
-  { name: "test", minimum: 4, run: test },
-  {
-    name: "testparm",
-    minimum: 8,
-    run: (session, text, ctx) =>
-      estimates(session).equations
-        ? testparmEquations(session, estimates(session), text, ctx)
-        : testparm(session, estimates(session), text, ctx),
-  },
+  { name: "test", minimum: 4, run: testT },
+  { name: "testparm", minimum: 8, run: testparm },
   { name: "lincom", minimum: 6, run: lincomT },
   { name: "predict", minimum: 7, run: predict },
   { name: "estat", minimum: 5, run: estat },
