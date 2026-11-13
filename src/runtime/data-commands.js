@@ -5,7 +5,7 @@
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { count } from "./reports.js";
+import { count, list } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
 import {
@@ -578,11 +578,21 @@ function expandCommand(session, text, ctx) {
   ctx.out(`(${plural(data.n - before, "observation")} created)`);
 }
 
+const DUPLICATES = ["report", "examples", "list", "tag"];
 function duplicates(session, text, ctx) {
-  const m = /^\s*(report|drop|tag|list|examples)\b([\s\S]*)$/.exec(text);
-  if (!m) throw invalid();
-  const parsed = session.parse(
-      "[varlist] [if] [in] [, Generate(name) force]",
+  const m = /^\s*([A-Za-z]*)([\s\S]*)$/.exec(text),
+    sub =
+      m[1] === "drop"
+        ? "drop"
+        : DUPLICATES.find((name) => m[1] && name.startsWith(m[1]));
+  if (!m[1]) throw invalid("subcommand required");
+  if (!sub) throw invalid(`${m[1]} invalid duplicates subcommand`);
+  // list and examples pass their options on to list.
+  const listing = sub === "list" || sub === "examples",
+    parsed = session.parse(
+      listing
+        ? "[varlist] [if] [in] [, *]"
+        : "[varlist] [if] [in] [, Generate(name) force]",
       m[2],
     ),
     data = session.data,
@@ -592,11 +602,19 @@ function duplicates(session, text, ctx) {
     groups = new Map();
   for (const i of rows) groups.set(keyOf(i), (groups.get(keyOf(i)) ?? 0) + 1);
   const all = !m[2]
-    .replace(/,.*$/, "")
-    .replace(/\b(if|in)\b[\s\S]*$/, "")
-    .trim();
-  if (m[1] === "tag") {
+      .replace(/,.*$/, "")
+      .replace(/\b(if|in)\b[\s\S]*$/, "")
+      .trim(),
+    heading = () => {
+      ctx.out("");
+      ctx.out(
+        `Duplicates in terms of ${all ? "all variables" : parsed.varlist.join(" ")}`,
+      );
+    };
+  if (sub === "tag") {
     if (!parsed.options.generate) throw invalid("option generate() required");
+    if (!rows.length) throw new StataError("no observations", 2000);
+    heading();
     const selected = new Set(rows),
       sorted = [...data.sortedBy];
     data.generate(
@@ -608,7 +626,8 @@ function duplicates(session, text, ctx) {
     );
     data.get(parsed.options.generate).format = "%12.0g";
     data.sortedBy = sorted;
-  } else if (m[1] === "drop") {
+    session.results.r = { N: rows.length };
+  } else if (sub === "drop") {
     if (!all && !parsed.options.force)
       throw new StataError(
         "force option required with duplicates drop varlist",
@@ -625,22 +644,20 @@ function duplicates(session, text, ctx) {
       }
     }
     const dropped = data.n - keep.length;
-    ctx.out("");
-    ctx.out(
-      `Duplicates in terms of ${all ? "all variables" : parsed.varlist.join(" ")}`,
-    );
+    heading();
     ctx.out("");
     ctx.out(`(${plural(dropped, "observation")} deleted)`);
     if (dropped) data.reorder(keep);
     session.results.r = { N_drop: dropped };
+  } else if (listing) {
+    if (!rows.length) throw new StataError("no observations", 2000);
+    heading();
+    listDuplicates(session, sub, parsed, rows, groups, keyOf, ctx);
   } else {
     const copies = new Map();
     for (const size of groups.values())
       copies.set(size, (copies.get(size) ?? 0) + size);
-    ctx.out("");
-    ctx.out(
-      `Duplicates in terms of ${all ? "all variables" : parsed.varlist.join(" ")}`,
-    );
+    heading();
     ctx.out("");
     ctx.out("--------------------------------------");
     ctx.out("   Copies | Observations       Surplus");
@@ -651,8 +668,101 @@ function duplicates(session, text, ctx) {
         `${String(size).padStart(9)} |${String(n).padStart(13)}${String(n - n / size).padStart(14)}`,
       );
     ctx.out("--------------------------------------");
-    session.results.r = { N: rows.length, unique_value: groups.size };
+    session.results.r = { unique_value: groups.size, N: rows.length };
   }
+}
+/**
+ * duplicates list and duplicates examples. duplicates.ado numbers the
+ * duplicated groups in the sort order of the varlist, then lists, by group
+ * and observation number, either every member or the first of each group.
+ * The group number is left out when there is only one group.
+ */
+function listDuplicates(session, sub, parsed, rows, groups, keyOf, ctx) {
+  const data = session.data,
+    columns = parsed.varlist.map((name) => data.get(name).data),
+    sorted = [...rows].sort((a, b) => {
+      for (const column of columns)
+        if (column[a] !== column[b]) return column[a] < column[b] ? -1 : 1;
+      return a - b;
+    }),
+    number = new Map(),
+    shown = [];
+  for (const i of sorted) {
+    const key = keyOf(i);
+    if (groups.get(key) < 2) continue;
+    if (!number.has(key)) {
+      number.set(key, number.size + 1);
+      shown.push(i);
+    } else if (sub === "list") shown.push(i);
+  }
+  session.results.r = { N: rows.length };
+  if (!number.size) {
+    ctx.out("");
+    ctx.out("(0 observations are duplicates)");
+    return;
+  }
+  // Temporary variables carry the headings Stata gives them.
+  const listed = new Dataset(),
+    names = [];
+  listed.setObservations(shown.length);
+  listed.valueLabels = data.valueLabels;
+  const temporary = (header, values, format) => {
+    let k = names.length,
+      name;
+    do name = `__00000${k++}`;
+    while (parsed.varlist.includes(name) || names.includes(name));
+    names.push(name);
+    return {
+      name,
+      header,
+      type: "long",
+      format,
+      label: "",
+      valueLabel: "",
+      data: Float64Array.from(values),
+    };
+  };
+  const front = [];
+  if (number.size > 1)
+    front.push(
+      temporary(
+        "Group",
+        shown.map((i) => number.get(keyOf(i))),
+        "%9.0g",
+      ),
+    );
+  if (sub === "examples")
+    front.push(
+      temporary(
+        "#",
+        shown.map((i) => groups.get(keyOf(i))),
+        "%12.0g",
+      ),
+    );
+  front.push(
+    temporary(
+      sub === "examples" ? "e.g. obs" : "Obs",
+      shown.map((i) => i + 1),
+      "%12.0g",
+    ),
+  );
+  listed.variables = [
+    ...front,
+    ...parsed.varlist.map((name) => {
+      const variable = data.get(name);
+      return {
+        ...variable,
+        data: isStringType(variable.type)
+          ? shown.map((i) => variable.data[i])
+          : Float64Array.from(shown, (i) => variable.data[i]),
+      };
+    }),
+  ];
+  list(
+    Object.assign(Object.create(session), { data: listed }),
+    `${listed.names.join(" ")}, noobs ${(parsed.options["*"] ?? []).join(" ")}`,
+    { ...ctx, group: undefined },
+  );
 }
 
 // ----- strings and numbers -----
@@ -829,10 +939,13 @@ function encode(session, text) {
     { type: "long" },
   );
   data.sortedBy = sorted;
+  // The display format is as wide as the longest label the new variable
+  // uses, in bytes, and never narrower than %8.0g.
+  const used = Array.from(source.data).filter((v, i) => rows.has(i) && v);
   Object.assign(data.get(target), {
     valueLabel: labelName,
     label: source.label,
-    format: "%12.0g",
+    format: `%${Math.max(8, greatest(used.map(byteLength)))}.0g`,
   });
 }
 function decode(session, text) {

@@ -22615,6 +22615,953 @@
       ]
     },
     {
+      "id": "label-list-and-dir",
+      "source": "clear\nset obs 6\ngenerate str5 s = word(\"b a c a b d\", _n)\nencode s, generate(sn)\nlabel list sn\nreturn list\nlabel list\nlabel define yn 0 no 1 yes\nlabel list yn\nlabel dir\nreturn list\nlabel list\nlabel define odd -5 \"neg\" 1000000 \"million\" .a \"dot a\" 3 `\"has \"quotes\"\"'\nlabel define odd 123456789 \"huge\" -1234567 \"negbig\" 2 \"two\", modify\nlabel define odd 2 \"\", modify\nlabel list odd\nreturn list\nlabel define a1 1 x\nlabel define b1 1 y\nlabel define a1 2 z, modify\nlabel dir\nlabel list b1 a1\nreturn list\ncapture noisily label list nosuch\ndisplay _rc\nlabel drop _all\nlabel dir\nlabel list\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        {
+          "command": "generate str5 s = word(\"b a c a b d\", _n)",
+          "lines": []
+        },
+        { "command": "encode s, generate(sn)", "lines": [] },
+        {
+          "command": "label list sn",
+          "lines": [
+            "sn:",
+            "           1 a",
+            "           2 b",
+            "           3 c",
+            "           4 d"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(min) =  1",
+            "                r(max) =  4",
+            "           r(hasemiss) =  0",
+            "                  r(k) =  4"
+          ]
+        },
+        {
+          "command": "label list",
+          "lines": [
+            "sn:",
+            "           1 a",
+            "           2 b",
+            "           3 c",
+            "           4 d"
+          ]
+        },
+        { "command": "label define yn 0 no 1 yes", "lines": [] },
+        {
+          "command": "label list yn",
+          "lines": ["yn:", "           0 no", "           1 yes"]
+        },
+        { "command": "label dir", "lines": ["yn", "sn"] },
+        {
+          "command": "return list",
+          "lines": ["macros:", "              r(names) : \"yn sn\""]
+        },
+        {
+          "command": "label list",
+          "lines": [
+            "yn:",
+            "           0 no",
+            "           1 yes",
+            "sn:",
+            "           1 a",
+            "           2 b",
+            "           3 c",
+            "           4 d"
+          ]
+        },
+        {
+          "command": "label define odd -5 \"neg\" 1000000 \"million\" .a \"dot a\" 3 `\"has \"quotes\"\"'",
+          "lines": []
+        },
+        {
+          "command": "label define odd 123456789 \"huge\" -1234567 \"negbig\" 2 \"two\", modify",
+          "lines": []
+        },
+        { "command": "label define odd 2 \"\", modify", "lines": [] },
+        {
+          "command": "label list odd",
+          "lines": [
+            "odd:",
+            "    -1234567 negbig",
+            "          -5 neg",
+            "           3 has \"quotes\"",
+            "     1000000 million",
+            "   123456789 huge",
+            "          .a dot a"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(min) =  -1234567",
+            "                r(max) =  123456789",
+            "           r(hasemiss) =  1",
+            "                  r(k) =  6"
+          ]
+        },
+        { "command": "label define a1 1 x", "lines": [] },
+        { "command": "label define b1 1 y", "lines": [] },
+        { "command": "label define a1 2 z, modify", "lines": [] },
+        { "command": "label dir", "lines": ["a1", "b1", "odd", "yn", "sn"] },
+        {
+          "command": "label list b1 a1",
+          "lines": [
+            "b1:",
+            "           1 y",
+            "a1:",
+            "           1 x",
+            "           2 z"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(min) =  1",
+            "                r(max) =  2",
+            "           r(hasemiss) =  0",
+            "                  r(k) =  2"
+          ]
+        },
+        {
+          "command": "capture noisily label list nosuch",
+          "lines": ["value label nosuch not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        { "command": "label drop _all", "lines": [] },
+        { "command": "label dir", "lines": [] },
+        { "command": "label list", "lines": [] },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "duplicates-list-examples-tag",
+      "source": "clear\nset obs 8\ngenerate str5 s = word(\"b a c a b d b e\", _n)\ngenerate x = mod(_n, 2)\nreplace x = . in 8\nduplicates list s\nreturn list\nduplicates examples s\nduplicates list s x\nduplicates list x\nduplicates examples x\nduplicates list s if x == 0\nduplicates list s, sepby(s)\nduplicates list\nduplicates list s in 3/4\nduplicates tag s, generate(d)\nreturn list\ndescribe d\nduplicates tag, generate(d2)\nlist\nduplicates drop s x, force\ncapture noisily duplicates list s if x == 7\ndisplay _rc\ncapture noisily duplicates tag s if x == 7, generate(d3)\ndisplay _rc\nduplicates report s x\nreturn list\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        {
+          "command": "generate str5 s = word(\"b a c a b d b e\", _n)",
+          "lines": []
+        },
+        { "command": "generate x = mod(_n, 2)", "lines": [] },
+        {
+          "command": "replace x = . in 8",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "duplicates list s",
+          "lines": [
+            "Duplicates in terms of s",
+            "",
+            "  +-----------------+",
+            "  | Group   Obs   s |",
+            "  |-----------------|",
+            "  |     1     2   a |",
+            "  |     1     4   a |",
+            "  |     2     1   b |",
+            "  |     2     5   b |",
+            "  |     2     7   b |",
+            "  +-----------------+"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": ["scalars:", "                  r(N) =  8"]
+        },
+        {
+          "command": "duplicates examples s",
+          "lines": [
+            "Duplicates in terms of s",
+            "",
+            "  +--------------------------+",
+            "  | Group   #   e.g. obs   s |",
+            "  |--------------------------|",
+            "  |     1   2          2   a |",
+            "  |     2   3          1   b |",
+            "  +--------------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list s x",
+          "lines": [
+            "Duplicates in terms of s x",
+            "",
+            "  +---------------------+",
+            "  | Group   Obs   s   x |",
+            "  |---------------------|",
+            "  |     1     2   a   0 |",
+            "  |     1     4   a   0 |",
+            "  |     2     1   b   1 |",
+            "  |     2     5   b   1 |",
+            "  |     2     7   b   1 |",
+            "  +---------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list x",
+          "lines": [
+            "Duplicates in terms of x",
+            "",
+            "  +-----------------+",
+            "  | Group   Obs   x |",
+            "  |-----------------|",
+            "  |     1     2   0 |",
+            "  |     1     4   0 |",
+            "  |     1     6   0 |",
+            "  |     2     1   1 |",
+            "  |     2     3   1 |",
+            "  |-----------------|",
+            "  |     2     5   1 |",
+            "  |     2     7   1 |",
+            "  +-----------------+"
+          ]
+        },
+        {
+          "command": "duplicates examples x",
+          "lines": [
+            "Duplicates in terms of x",
+            "",
+            "  +--------------------------+",
+            "  | Group   #   e.g. obs   x |",
+            "  |--------------------------|",
+            "  |     1   3          2   0 |",
+            "  |     2   4          1   1 |",
+            "  +--------------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list s if x == 0",
+          "lines": [
+            "Duplicates in terms of s",
+            "",
+            "  +---------+",
+            "  | Obs   s |",
+            "  |---------|",
+            "  |   2   a |",
+            "  |   4   a |",
+            "  +---------+"
+          ]
+        },
+        {
+          "command": "duplicates list s, sepby(s)",
+          "lines": [
+            "Duplicates in terms of s",
+            "",
+            "  +-----------------+",
+            "  | Group   Obs   s |",
+            "  |-----------------|",
+            "  |     1     2   a |",
+            "  |     1     4   a |",
+            "  |-----------------|",
+            "  |     2     1   b |",
+            "  |     2     5   b |",
+            "  |     2     7   b |",
+            "  +-----------------+"
+          ]
+        },
+        {
+          "command": "duplicates list",
+          "lines": [
+            "Duplicates in terms of all variables",
+            "",
+            "  +---------------------+",
+            "  | Group   Obs   s   x |",
+            "  |---------------------|",
+            "  |     1     2   a   0 |",
+            "  |     1     4   a   0 |",
+            "  |     2     1   b   1 |",
+            "  |     2     5   b   1 |",
+            "  |     2     7   b   1 |",
+            "  +---------------------+"
+          ]
+        },
+        {
+          "command": "duplicates list s in 3/4",
+          "lines": [
+            "Duplicates in terms of s",
+            "",
+            "(0 observations are duplicates)"
+          ]
+        },
+        {
+          "command": "duplicates tag s, generate(d)",
+          "lines": ["Duplicates in terms of s"]
+        },
+        {
+          "command": "return list",
+          "lines": ["scalars:", "                  r(N) =  8"]
+        },
+        {
+          "command": "describe d",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "d               byte    %12.0g"
+          ]
+        },
+        {
+          "command": "duplicates tag, generate(d2)",
+          "lines": ["Duplicates in terms of all variables"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     | s   x   d   d2 |",
+            "     |----------------|",
+            "  1. | b   1   2    2 |",
+            "  2. | a   0   1    1 |",
+            "  3. | c   1   0    0 |",
+            "  4. | a   0   1    1 |",
+            "  5. | b   1   2    2 |",
+            "     |----------------|",
+            "  6. | d   0   0    0 |",
+            "  7. | b   1   2    2 |",
+            "  8. | e   .   0    0 |",
+            "     +----------------+"
+          ]
+        },
+        {
+          "command": "duplicates drop s x, force",
+          "lines": [
+            "Duplicates in terms of s x",
+            "",
+            "(3 observations deleted)"
+          ]
+        },
+        {
+          "command": "capture noisily duplicates list s if x == 7",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily duplicates tag s if x == 7, generate(d3)",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "duplicates report s x",
+          "lines": [
+            "Duplicates in terms of s x",
+            "",
+            "--------------------------------------",
+            "   Copies | Observations       Surplus",
+            "----------+---------------------------",
+            "        1 |            5             0",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "       r(unique_value) =  5",
+            "                  r(N) =  5"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "encode-display-format",
+      "source": "clear\nset obs 6\ngenerate str5 s = word(\"b a c a b d\", _n)\nencode s, generate(sn)\ngenerate str20 t = cond(_n < 3, \"abcdefghi\", \"abcdefghijklmnopqrst\")\nencode t, generate(tn)\nencode t if _n < 3, generate(tn2)\ngenerate u = \"é\" * 10\nencode u, generate(un)\nlabel define pre 1 \"averyveryveryverylonglabelxxxxx\"\ngenerate str40 v = cond(_n == 1, \"ab\", \"averyveryveryverylonglabelxxxxx\")\nencode v, generate(vn) label(pre)\ngenerate str3 w = \"ab\"\nlabel define pre2 1 \"averyveryveryverylonglabelxxxxx\"\nencode w, generate(wn) label(pre2)\ndescribe sn tn tn2 un vn wn\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        {
+          "command": "generate str5 s = word(\"b a c a b d\", _n)",
+          "lines": []
+        },
+        { "command": "encode s, generate(sn)", "lines": [] },
+        {
+          "command": "generate str20 t = cond(_n < 3, \"abcdefghi\", \"abcdefghijklmnopqrst\")",
+          "lines": []
+        },
+        { "command": "encode t, generate(tn)", "lines": [] },
+        { "command": "encode t if _n < 3, generate(tn2)", "lines": [] },
+        { "command": "generate u = \"é\" * 10", "lines": [] },
+        { "command": "encode u, generate(un)", "lines": [] },
+        {
+          "command": "label define pre 1 \"averyveryveryverylonglabelxxxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str40 v = cond(_n == 1, \"ab\", \"averyveryveryverylonglabelxxxxx\")",
+          "lines": []
+        },
+        { "command": "encode v, generate(vn) label(pre)", "lines": [] },
+        { "command": "generate str3 w = \"ab\"", "lines": [] },
+        {
+          "command": "label define pre2 1 \"averyveryveryverylonglabelxxxxx\"",
+          "lines": []
+        },
+        { "command": "encode w, generate(wn) label(pre2)", "lines": [] },
+        {
+          "command": "describe sn tn tn2 un vn wn",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sn              long    %8.0g      sn",
+            "tn              long    %20.0g     tn",
+            "tn2             long    %9.0g      tn2",
+            "un              long    %20.0g     un",
+            "vn              long    %31.0g     pre",
+            "wn              long    %8.0g      pre2"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "compress-types-and-order",
+      "source": "clear\nset obs 5\ngenerate str10 s1 = \"ab\"\ngenerate double d1 = _n\ngenerate int i1 = _n\ngenerate long l1 = _n\ngenerate float f1 = _n\ngenerate int i2 = 200 * _n\ngenerate double d2 = 1000 * _n\ngenerate str5 s2 = \"a\"\ngenerate long l2 = 1000 * _n\ngenerate float f2 = 1000 * _n\ngenerate float f3 = 100000 * _n\ngenerate double d3 = 100000 * _n\ngenerate double d4 = _n / 2\ngenerate float f4 = -1000 * _n\ncompress\ndescribe\ncompress\nclear\nset obs 40000\ngenerate long id = _n\ngenerate str12 name = \"id\" + string(_n)\ngenerate code = 40000 - _n\negen grp = group(name)\ncompress\ndescribe\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate str10 s1 = \"ab\"", "lines": [] },
+        { "command": "generate double d1 = _n", "lines": [] },
+        { "command": "generate int i1 = _n", "lines": [] },
+        { "command": "generate long l1 = _n", "lines": [] },
+        { "command": "generate float f1 = _n", "lines": [] },
+        { "command": "generate int i2 = 200 * _n", "lines": [] },
+        { "command": "generate double d2 = 1000 * _n", "lines": [] },
+        { "command": "generate str5 s2 = \"a\"", "lines": [] },
+        { "command": "generate long l2 = 1000 * _n", "lines": [] },
+        { "command": "generate float f2 = 1000 * _n", "lines": [] },
+        { "command": "generate float f3 = 100000 * _n", "lines": [] },
+        { "command": "generate double d3 = 100000 * _n", "lines": [] },
+        { "command": "generate double d4 = _n / 2", "lines": [] },
+        { "command": "generate float f4 = -1000 * _n", "lines": [] },
+        {
+          "command": "compress",
+          "lines": [
+            "  variable i1 was int now byte",
+            "  variable l1 was long now byte",
+            "  variable f1 was float now byte",
+            "  variable l2 was long now int",
+            "  variable f2 was float now int",
+            "  variable f4 was float now int",
+            "  variable d1 was double now byte",
+            "  variable d2 was double now int",
+            "  variable d3 was double now long",
+            "  variable s1 was str10 now str2",
+            "  variable s2 was str5 now str1",
+            "  (210 bytes saved)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             5",
+            "    Variables:            14",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s1              str2    %9s",
+            "d1              byte    %10.0g",
+            "i1              byte    %8.0g",
+            "l1              byte    %12.0g",
+            "f1              byte    %9.0g",
+            "i2              int     %8.0g",
+            "d2              int     %10.0g",
+            "s2              str1    %9s",
+            "l2              int     %12.0g",
+            "f2              int     %9.0g",
+            "f3              float   %9.0g",
+            "d3              long    %10.0g",
+            "d4              double  %10.0g",
+            "f4              int     %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "compress", "lines": ["  (0 bytes saved)"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40000",
+          "lines": ["Number of observations (_N) was 0, now 40,000."]
+        },
+        { "command": "generate long id = _n", "lines": [] },
+        { "command": "generate str12 name = \"id\" + string(_n)", "lines": [] },
+        { "command": "generate code = 40000 - _n", "lines": [] },
+        { "command": "egen grp = group(name)", "lines": [] },
+        {
+          "command": "compress",
+          "lines": [
+            "  variable name was str12 now str7",
+            "  (200,000 bytes saved)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:        40,000",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              long    %12.0g",
+            "name            str7    %9s",
+            "code            float   %9.0g",
+            "grp             float   %9.0g                 group(name)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "egen-count-of-strings",
+      "source": "clear\nset obs 40\nset seed 7\ngenerate u = runiform()\ngenerate g = 1 + floor(runiform() * 3)\ngenerate str12 s = cond(u < .3, \"alpha\", cond(u < .6, \"beta gamma\", cond(u < .9, \"\", \"delta\")))\negen n1 = count(s)\negen n2 = count(s), by(g)\negen n3 = count(s + \"x\") if g < 3\negen n4 = count(substr(s, 1, 1)) in 5/30\nsummarize n1 n2 n3 n4\ndescribe n1 n2 n3 n4\ntabulate g n2\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "set seed 7", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform() * 3)", "lines": [] },
+        {
+          "command": "generate str12 s = cond(u < .3, \"alpha\", cond(u < .6, \"beta gamma\", cond(u < .9, \"\", \"delta\")))",
+          "lines": ["(14 missing values generated)"]
+        },
+        { "command": "egen n1 = count(s)", "lines": [] },
+        { "command": "egen n2 = count(s), by(g)", "lines": [] },
+        {
+          "command": "egen n3 = count(s + \"x\") if g < 3",
+          "lines": ["(7 missing values generated)"]
+        },
+        {
+          "command": "egen n4 = count(substr(s, 1, 1)) in 5/30",
+          "lines": ["(14 missing values generated)"]
+        },
+        {
+          "command": "summarize n1 n2 n3 n4",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          n1 |         40          26           0         26         26",
+            "          n2 |         40          10    2.935198          4         12",
+            "          n3 |         33          33           0         33         33",
+            "          n4 |         26          18           0         18         18"
+          ]
+        },
+        {
+          "command": "describe n1 n2 n3 n4",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "n1              float   %9.0g",
+            "n2              float   %9.0g",
+            "n3              float   %9.0g",
+            "n4              float   %9.0g"
+          ]
+        },
+        {
+          "command": "tabulate g n2",
+          "lines": [
+            "           |                n2",
+            "         g |         4         10         12 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |         0          0         21 |        21",
+            "         2 |         0         12          0 |        12",
+            "         3 |         7          0          0 |         7",
+            "-----------+---------------------------------+----------",
+            "     Total |         7         12         21 |        40"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "tab1-too-many-values",
+      "source": "clear\nset obs 12001\ngenerate str8 b = \"v\" + string(_n)\ngenerate c = mod(_n, 3)\ncapture noisily tab1 c b\ndisplay _rc\ncapture noisily tab1 b c\ndisplay _rc\ntab1 b\ndisplay _rc\ntab1 c\ndisplay _rc\ncapture noisily tabulate b\ndisplay _rc\ntab1 c if c > 0\ntab1 c in 1/10, missing\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12001",
+          "lines": ["Number of observations (_N) was 0, now 12,001."]
+        },
+        { "command": "generate str8 b = \"v\" + string(_n)", "lines": [] },
+        { "command": "generate c = mod(_n, 3)", "lines": [] },
+        {
+          "command": "capture noisily tab1 c b",
+          "lines": [
+            "-> tabulation of c",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |      4,000       33.33       33.33",
+            "          1 |      4,001       33.34       66.67",
+            "          2 |      4,000       33.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |     12,001      100.00",
+            "",
+            "-> tabulation of b",
+            "too many values"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily tab1 b c",
+          "lines": ["-> tabulation of b", "too many values"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "tab1 b",
+          "lines": ["-> tabulation of b", "too many values"]
+        },
+        { "command": "display _rc", "lines": ["134"] },
+        {
+          "command": "tab1 c",
+          "lines": [
+            "-> tabulation of c",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |      4,000       33.33       33.33",
+            "          1 |      4,001       33.34       66.67",
+            "          2 |      4,000       33.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |     12,001      100.00"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily tabulate b",
+          "lines": ["too many values"]
+        },
+        { "command": "display _rc", "lines": ["134"] },
+        {
+          "command": "tab1 c if c > 0",
+          "lines": [
+            "-> tabulation of c if c > 0",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |      4,001       50.01       50.01",
+            "          2 |      4,000       49.99      100.00",
+            "------------+-----------------------------------",
+            "      Total |      8,001      100.00"
+          ]
+        },
+        {
+          "command": "tab1 c in 1/10, missing",
+          "lines": [
+            "-> tabulation of c  in 1/10",
+            "",
+            "          c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          3       30.00       30.00",
+            "          1 |          4       40.00       70.00",
+            "          2 |          3       30.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |         10      100.00"
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "codebook-string-examples",
+      "source": "clear\nset obs 20\ngenerate str6 s = word(\"a b c d e f g h i j k l\", min(_n, 12))\ncodebook s\nclear\nset obs 13\ngenerate str3 s = word(\"a b c d e f g h i j k l m\", _n)\ncodebook s\ncodebook s in 1/12\nreplace s = \"\" in 1/3\ncodebook s\ngenerate str80 t = \"word\" + string(_n) + \" the quick brown fox jumps over the lazy dog again and again\" if _n < 8\nreplace t = \"nospacesatallnospacesatallnospacesatallnospacesatallnospacesatall\" + string(_n) if _n >= 8\ncodebook t\nclear\nset obs 300\ngenerate str7 s = cond(_n <= 140, \"a\", cond(_n <= 290, \"abcdef\", \"n\" + string(_n)))\ncodebook s\ncodebook s if _n > 100\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        {
+          "command": "generate str6 s = word(\"a b c d e f g h i j k l\", min(_n, 12))",
+          "lines": []
+        },
+        {
+          "command": "codebook s",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str6), but longest is str1",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/20",
+            "",
+            "              Examples: \"d\"",
+            "                        \"h\"",
+            "                        \"l\"",
+            "                        \"l\""
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 13",
+          "lines": ["Number of observations (_N) was 0, now 13."]
+        },
+        {
+          "command": "generate str3 s = word(\"a b c d e f g h i j k l m\", _n)",
+          "lines": []
+        },
+        {
+          "command": "codebook s",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str3), but longest is str1",
+            "",
+            "         Unique values: 13                        Missing \"\": 0/13",
+            "",
+            "              Examples: \"b\"",
+            "                        \"e\"",
+            "                        \"g\"",
+            "                        \"j\""
+          ]
+        },
+        {
+          "command": "codebook s in 1/12",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str3), but longest is str1",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/12",
+            "",
+            "              Examples: \"b\"",
+            "                        \"d\"",
+            "                        \"g\"",
+            "                        \"i\""
+          ]
+        },
+        {
+          "command": "replace s = \"\" in 1/3",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "codebook s",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str3), but longest is str1",
+            "",
+            "         Unique values: 10                        Missing \"\": 3/13",
+            "",
+            "              Examples: \"\"",
+            "                        \"e\"",
+            "                        \"g\"",
+            "                        \"j\""
+          ]
+        },
+        {
+          "command": "generate str80 t = \"word\" + string(_n) + \" the quick brown fox jumps over the lazy dog again and again\" if _n < 8",
+          "lines": ["(6 missing values generated)"]
+        },
+        {
+          "command": "replace t = \"nospacesatallnospacesatallnospacesatallnospacesatallnospacesatall\" + string(_n) if _n >= 8",
+          "lines": ["(6 real changes made)"]
+        },
+        {
+          "command": "codebook t",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "t                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str80), but longest is str67",
+            "",
+            "         Unique values: 13                        Missing \"\": 0/13",
+            "",
+            "              Examples: \"nospacesatallnospacesatallnospacesatallnospacesatal",
+            "                        lnospacesatall11\"",
+            "                        \"nospacesatallnospacesatallnospacesatallnospacesatal",
+            "                        lnospacesatall8\"",
+            "                        \"word1 the quick brown fox jumps over the lazy dog",
+            "                        again and again\"",
+            "                        \"word4 the quick brown fox jumps over the lazy dog",
+            "                        again and again\"",
+            "",
+            "               Warning: Variable has embedded blanks."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        {
+          "command": "generate str7 s = cond(_n <= 140, \"a\", cond(_n <= 290, \"abcdef\", \"n\" + string(_n)))",
+          "lines": []
+        },
+        {
+          "command": "codebook s",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str7), but longest is str6",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/300",
+            "",
+            "              Examples: \"a\"",
+            "                        \"a\"",
+            "                        \"abcdef\"",
+            "                        \"abcdef\""
+          ]
+        },
+        {
+          "command": "codebook s if _n > 100",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: String (str7), but longest is str6",
+            "",
+            "         Unique values: 12                        Missing \"\": 0/200",
+            "",
+            "              Examples: \"a\"",
+            "                        \"abcdef\"",
+            "                        \"abcdef\"",
+            "                        \"abcdef\""
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "replace-under-by-reports-last-group-promotion",
+      "source": "clear\nset obs 9\ngenerate g = ceil(_n / 3)\nsort g\ngenerate str1 t = \"a\"\ngenerate str1 w = \"a\"\ngenerate str1 s = \"a\"\nby g: replace t = \"last group\" if g == 3 & _n == 1\nby g: replace w = w * g * 3 if _n == 1\nby g: replace s = \"first group\" if g == 1 & _n == 1\ngenerate byte b1 = 1\ngenerate byte b2 = 1\ngenerate byte b3 = 1\ngenerate int i1 = 1\nby g: replace b1 = 1.5 if g == 3\nby g: replace b2 = 1.5 if g == 1\nby g: replace b3 = 1000 * g\nby g: replace i1 = 100000 if g == 3\nby g: replace b1 = . if g == 3\ngenerate str3 u = \"abc\"\nby g: replace u = \"toolongvalue\" if _n == 1 & g == 2\nby g: replace u = \"toolongvalue2\" if g == 3 & 0\nby g: replace u = \"x\" + u if g == 3\nbysort g: replace u = u + \"-longer-than-five\" if _n == 1\ndescribe\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 9",
+          "lines": ["Number of observations (_N) was 0, now 9."]
+        },
+        { "command": "generate g = ceil(_n / 3)", "lines": [] },
+        { "command": "sort g", "lines": [] },
+        { "command": "generate str1 t = \"a\"", "lines": [] },
+        { "command": "generate str1 w = \"a\"", "lines": [] },
+        { "command": "generate str1 s = \"a\"", "lines": [] },
+        {
+          "command": "by g: replace t = \"last group\" if g == 3 & _n == 1",
+          "lines": ["variable t was str1 now str10", "(1 real change made)"]
+        },
+        {
+          "command": "by g: replace w = w * g * 3 if _n == 1",
+          "lines": ["variable w was str6 now str9", "(3 real changes made)"]
+        },
+        {
+          "command": "by g: replace s = \"first group\" if g == 1 & _n == 1",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate byte b1 = 1", "lines": [] },
+        { "command": "generate byte b2 = 1", "lines": [] },
+        { "command": "generate byte b3 = 1", "lines": [] },
+        { "command": "generate int i1 = 1", "lines": [] },
+        {
+          "command": "by g: replace b1 = 1.5 if g == 3",
+          "lines": ["variable b1 was byte now float", "(3 real changes made)"]
+        },
+        {
+          "command": "by g: replace b2 = 1.5 if g == 1",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "by g: replace b3 = 1000 * g",
+          "lines": ["(9 real changes made)"]
+        },
+        {
+          "command": "by g: replace i1 = 100000 if g == 3",
+          "lines": ["variable i1 was int now long", "(3 real changes made)"]
+        },
+        {
+          "command": "by g: replace b1 = . if g == 3",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        { "command": "generate str3 u = \"abc\"", "lines": [] },
+        {
+          "command": "by g: replace u = \"toolongvalue\" if _n == 1 & g == 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "by g: replace u = \"toolongvalue2\" if g == 3 & 0",
+          "lines": ["(0 real changes made)"]
+        },
+        {
+          "command": "by g: replace u = \"x\" + u if g == 3",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "bysort g: replace u = u + \"-longer-than-five\" if _n == 1",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             9",
+            "    Variables:             9",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "g               float   %9.0g",
+            "t               str10   %10s",
+            "w               str9    %9s",
+            "s               str11   %11s",
+            "b1              float   %8.0g",
+            "b2              float   %8.0g",
+            "b3              int     %8.0g",
+            "i1              long    %8.0g",
+            "u               str29   %29s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: g",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

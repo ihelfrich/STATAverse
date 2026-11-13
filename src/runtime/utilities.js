@@ -530,6 +530,32 @@ const ten = (value) => applyFormat(value, "%10.0g").trim();
 function six(value) {
   return applyFormat(value, "%8.0g").trim();
 }
+/**
+ * The pieces Stata's `: piece # len of` gives: at most len characters each,
+ * broken after the last blank when a word would run past the end, and cut
+ * where it must when one word is longer than len. Blanks at a break go.
+ */
+function pieces(text, len) {
+  const out = [];
+  let rest = text.replace(/^ +/, "");
+  while (rest) {
+    if (rest.length <= len) {
+      out.push(rest.trimEnd());
+      break;
+    }
+    const cut = rest.slice(0, len),
+      blank = cut.lastIndexOf(" ");
+    if (rest[len] !== " " && blank > 0) {
+      out.push(cut.slice(0, blank).trimEnd());
+      rest = rest.slice(blank + 1);
+    } else {
+      out.push(cut.trimEnd());
+      rest = rest.slice(len);
+    }
+    rest = rest.replace(/^ +/, "");
+  }
+  return out;
+}
 
 function codebook(session, text, ctx) {
   const parsed = session.parse(
@@ -640,9 +666,19 @@ function codebook(session, text, ctx) {
             `${count(all.filter((x) => x === level).length).padStart(29)}  "${level}"`,
           );
       } else {
-        ctx.out(`${field("Examples")}"${unique[0]}"`);
-        for (const example of unique.slice(1, 4))
-          ctx.out(`${" ".repeat(24)}"${example}"`);
+        // codebook.ado sorts the sample, empty strings included, and shows
+        // the values at positions .2, .4, .6 and .8 of the way through,
+        // truncated, repeats and all. Each is cut into pieces of 52.
+        const sorted = [...all].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+          f = data.n - all.length;
+        [0.2, 0.4, 0.6, 0.8].forEach((inc, k) => {
+          const position = Math.trunc(f + inc * all.length) - f;
+          pieces(`"${sorted[position - 1] ?? ""}"`, 52).forEach((piece, j) =>
+            ctx.out(
+              `${j || k ? " ".repeat(24) : field("Examples")}${piece}`.trimEnd(),
+            ),
+          );
+        });
       }
       if (present.some((x) => /\S \S/.test(x))) {
         ctx.out("");

@@ -3328,3 +3328,190 @@ quietly tabulate c1200 r1
 display r(r) " " r(c)
 capture noisily tabulate c1201 r1
 clear
+=== label-list-and-dir
+clear
+set obs 6
+generate str5 s = word("b a c a b d", _n)
+encode s, generate(sn)
+label list sn
+return list
+label list
+label define yn 0 no 1 yes
+label list yn
+label dir
+return list
+label list
+label define odd -5 "neg" 1000000 "million" .a "dot a" 3 `"has "quotes""'
+label define odd 123456789 "huge" -1234567 "negbig" 2 "two", modify
+label define odd 2 "", modify
+label list odd
+return list
+label define a1 1 x
+label define b1 1 y
+label define a1 2 z, modify
+label dir
+label list b1 a1
+return list
+capture noisily label list nosuch
+display _rc
+label drop _all
+label dir
+label list
+clear
+=== duplicates-list-examples-tag
+clear
+set obs 8
+generate str5 s = word("b a c a b d b e", _n)
+generate x = mod(_n, 2)
+replace x = . in 8
+duplicates list s
+return list
+duplicates examples s
+duplicates list s x
+duplicates list x
+duplicates examples x
+duplicates list s if x == 0
+duplicates list s, sepby(s)
+duplicates list
+duplicates list s in 3/4
+duplicates tag s, generate(d)
+return list
+describe d
+duplicates tag, generate(d2)
+list
+duplicates drop s x, force
+capture noisily duplicates list s if x == 7
+display _rc
+capture noisily duplicates tag s if x == 7, generate(d3)
+display _rc
+duplicates report s x
+return list
+clear
+=== encode-display-format
+clear
+set obs 6
+generate str5 s = word("b a c a b d", _n)
+encode s, generate(sn)
+generate str20 t = cond(_n < 3, "abcdefghi", "abcdefghijklmnopqrst")
+encode t, generate(tn)
+encode t if _n < 3, generate(tn2)
+generate u = "é" * 10
+encode u, generate(un)
+label define pre 1 "averyveryveryverylonglabelxxxxx"
+generate str40 v = cond(_n == 1, "ab", "averyveryveryverylonglabelxxxxx")
+encode v, generate(vn) label(pre)
+generate str3 w = "ab"
+label define pre2 1 "averyveryveryverylonglabelxxxxx"
+encode w, generate(wn) label(pre2)
+describe sn tn tn2 un vn wn
+clear
+=== compress-types-and-order
+clear
+set obs 5
+generate str10 s1 = "ab"
+generate double d1 = _n
+generate int i1 = _n
+generate long l1 = _n
+generate float f1 = _n
+generate int i2 = 200 * _n
+generate double d2 = 1000 * _n
+generate str5 s2 = "a"
+generate long l2 = 1000 * _n
+generate float f2 = 1000 * _n
+generate float f3 = 100000 * _n
+generate double d3 = 100000 * _n
+generate double d4 = _n / 2
+generate float f4 = -1000 * _n
+compress
+describe
+compress
+clear
+set obs 40000
+generate long id = _n
+generate str12 name = "id" + string(_n)
+generate code = 40000 - _n
+egen grp = group(name)
+compress
+describe
+clear
+=== egen-count-of-strings
+clear
+set obs 40
+set seed 7
+generate u = runiform()
+generate g = 1 + floor(runiform() * 3)
+generate str12 s = cond(u < .3, "alpha", cond(u < .6, "beta gamma", cond(u < .9, "", "delta")))
+egen n1 = count(s)
+egen n2 = count(s), by(g)
+egen n3 = count(s + "x") if g < 3
+egen n4 = count(substr(s, 1, 1)) in 5/30
+summarize n1 n2 n3 n4
+describe n1 n2 n3 n4
+tabulate g n2
+clear
+=== tab1-too-many-values
+clear
+set obs 12001
+generate str8 b = "v" + string(_n)
+generate c = mod(_n, 3)
+capture noisily tab1 c b
+display _rc
+capture noisily tab1 b c
+display _rc
+tab1 b
+display _rc
+tab1 c
+display _rc
+capture noisily tabulate b
+display _rc
+tab1 c if c > 0
+tab1 c in 1/10, missing
+clear
+=== codebook-string-examples
+clear
+set obs 20
+generate str6 s = word("a b c d e f g h i j k l", min(_n, 12))
+codebook s
+clear
+set obs 13
+generate str3 s = word("a b c d e f g h i j k l m", _n)
+codebook s
+codebook s in 1/12
+replace s = "" in 1/3
+codebook s
+generate str80 t = "word" + string(_n) + " the quick brown fox jumps over the lazy dog again and again" if _n < 8
+replace t = "nospacesatallnospacesatallnospacesatallnospacesatallnospacesatall" + string(_n) if _n >= 8
+codebook t
+clear
+set obs 300
+generate str7 s = cond(_n <= 140, "a", cond(_n <= 290, "abcdef", "n" + string(_n)))
+codebook s
+codebook s if _n > 100
+clear
+=== replace-under-by-reports-last-group-promotion
+clear
+set obs 9
+generate g = ceil(_n / 3)
+sort g
+generate str1 t = "a"
+generate str1 w = "a"
+generate str1 s = "a"
+by g: replace t = "last group" if g == 3 & _n == 1
+by g: replace w = w * g * 3 if _n == 1
+by g: replace s = "first group" if g == 1 & _n == 1
+generate byte b1 = 1
+generate byte b2 = 1
+generate byte b3 = 1
+generate int i1 = 1
+by g: replace b1 = 1.5 if g == 3
+by g: replace b2 = 1.5 if g == 1
+by g: replace b3 = 1000 * g
+by g: replace i1 = 100000 if g == 3
+by g: replace b1 = . if g == 3
+generate str3 u = "abc"
+by g: replace u = "toolongvalue" if _n == 1 & g == 2
+by g: replace u = "toolongvalue2" if g == 3 & 0
+by g: replace u = "x" + u if g == 3
+bysort g: replace u = u + "-longer-than-five" if _n == 1
+describe
+clear

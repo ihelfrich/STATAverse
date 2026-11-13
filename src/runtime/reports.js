@@ -7,6 +7,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
+import { splitAtComma } from "./syntax.js";
 import {
   MISSING,
   formatNumber,
@@ -586,8 +587,12 @@ export function list(session, text, ctx) {
         labelled(session, v, v.data[i], parsed.options.label !== false),
       ),
     ),
+    // A temporary variable may carry the heading Stata's subvarname gives it.
     widths = variables.map((v, k) =>
-      Math.max(v.name.length, greatest(cells.map((row) => row[k].length))),
+      Math.max(
+        (v.header ?? v.name).length,
+        greatest(cells.map((row) => row[k].length)),
+      ),
     ),
     // Under by:, observations are numbered within their group.
     first = ctx.group ? ctx.group.start : 0,
@@ -600,7 +605,7 @@ export function list(session, text, ctx) {
   if (parsed.options.clean) {
     // Without observation numbers the rows start one column further in.
     const indent = parsed.options.noobs ? " " : "    ";
-    ctx.out(`${indent}   ${line(variables.map((v) => v.name))}`);
+    ctx.out(`${indent}   ${line(variables.map((v) => v.header ?? v.name))}`);
     cells.forEach((row, k) =>
       ctx.out(
         `${parsed.options.noobs ? " " : number(rows[k]).trimEnd()}   ${line(row)}`,
@@ -611,7 +616,7 @@ export function list(session, text, ctx) {
   const inner =
     widths.reduce((total, w) => total + w, 0) + 3 * (widths.length - 1) + 2;
   ctx.out(`${margin}+${"-".repeat(inner)}+`);
-  ctx.out(`${margin}| ${line(variables.map((v) => v.name))} |`);
+  ctx.out(`${margin}| ${line(variables.map((v) => v.header ?? v.name))} |`);
   ctx.out(`${margin}|${"-".repeat(inner)}|`);
   const sepby = parsed.options.sepby
     ? parsed.options.sepby.map((name) => session.data.get(name).data)
@@ -701,10 +706,30 @@ export function tab1(session, text, ctx) {
   const m = splitVarlist(text),
     names = session.varlist(m[1]);
   if (!names.length) throw new StataError("varlist required", 100);
+  // tab1.ado runs each table under capture noisily, then leaves its loop
+  // inside a capture block: a failed table prints its message and ends the
+  // run, and tab1 itself still succeeds; the captures leave _rc behind. Only
+  // "too many values" is treated so here: another error may be an option
+  // Stata has and this runtime refuses, and a refusal must not pass as 0.
+  // The heading repeats the if and the in, each after a blank.
+  const [conditions] = splitAtComma(m[2] ?? ""),
+    range = /(?:^|\s)(in\s+\S+)/.exec(conditions),
+    condition = (range ? conditions.replace(range[0], " ") : conditions).trim();
   ctx.out("");
   for (const name of names) {
-    ctx.out(`-> tabulation of ${name}  `);
-    tabulate(session, `${name}${m[2] ?? ""}`, ctx);
+    ctx.out(
+      `-> tabulation of ${name} ${condition} ${range?.[1] ?? ""}`.trimEnd(),
+    );
+    try {
+      tabulate(session, `${name}${m[2] ?? ""}`, ctx);
+      session.rc = 0;
+    } catch (error) {
+      if (!(error instanceof StataError) || error.hint || error.code !== 134)
+        throw error;
+      ctx.out(error.message);
+      session.rc = error.code;
+      return;
+    }
   }
 }
 /** tab2: a two-way table for each pair of variables. */
