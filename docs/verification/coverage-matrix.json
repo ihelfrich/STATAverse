@@ -130,10 +130,10 @@
     },
     {
       "name": "lincom",
-      "recorded": 33,
+      "recorded": 35,
       "fixtures": {
         "stata-runtime-sessions.json": 3,
-        "stata-runtime-output.json": 28,
+        "stata-runtime-output.json": 30,
         "stata-postestimation-rc.json": 2
       }
     },
@@ -868,10 +868,10 @@
     },
     {
       "name": "regress",
-      "recorded": 246,
+      "recorded": 264,
       "fixtures": {
         "stata-runtime-sessions.json": 37,
-        "stata-runtime-output.json": 203,
+        "stata-runtime-output.json": 221,
         "stata-runtime-cluster.json": 3,
         "stata-postestimation-rc.json": 3
       }
@@ -1027,10 +1027,10 @@
     },
     {
       "name": "generate",
-      "recorded": 1726,
+      "recorded": 1744,
       "fixtures": {
         "stata-runtime-sessions.json": 1082,
-        "stata-runtime-output.json": 644
+        "stata-runtime-output.json": 662
       }
     },
     {
@@ -1187,10 +1187,10 @@
     },
     {
       "name": "label",
-      "recorded": 41,
+      "recorded": 45,
       "fixtures": {
         "stata-runtime-sessions.json": 9,
-        "stata-runtime-output.json": 32
+        "stata-runtime-output.json": 36
       }
     },
     {
@@ -1314,18 +1314,18 @@
     },
     {
       "name": "set",
-      "recorded": 242,
+      "recorded": 274,
       "fixtures": {
         "stata-runtime-sessions.json": 16,
-        "stata-runtime-output.json": 226
+        "stata-runtime-output.json": 258
       }
     },
     {
       "name": "clear",
-      "recorded": 718,
+      "recorded": 726,
       "fixtures": {
         "stata-runtime-sessions.json": 492,
-        "stata-runtime-output.json": 226
+        "stata-runtime-output.json": 234
       }
     },
     {
