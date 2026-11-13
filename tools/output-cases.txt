@@ -2527,3 +2527,151 @@ bitesti 1000000 300500 .3
 bitesti 2000000 1000 .0005
 bitesti 7 3 .3333333
 bitesti 10 5 .5
+=== prtest-empty-samples
+prtesti 10 .5 0 .3
+return list
+clear
+set obs 30
+set seed 77
+generate a = runiform() < .4
+prtest a == .5 if 0
+return list
+prtest a == .5 in 1
+clear
+set obs 20
+set seed 3
+generate a = runiform() < .3
+generate b = runiform() < .5
+replace b = . in 11/20
+capture noisily prtest a == b if _n > 10
+display _rc
+capture noisily prtest b == a if _n > 10
+display _rc
+clear
+set obs 30
+set seed 38
+generate y = runiform() < .5
+generate g = _n > 15
+replace y = . if g == 1
+capture noisily prtest y, by(g)
+display _rc
+capture noisily prtest y, by(nosuch)
+display _rc
+capture noisily prtest y, by(y g)
+display _rc
+=== prtesti-integer-counts
+capture noisily prtesti 50.0 .3 .5
+display _rc
+capture noisily prtesti 1e3 .3 .5
+display _rc
+capture noisily prtesti 5e1 .3 .5
+display _rc
+capture noisily prtesti 50 .3 6E1 .45
+display _rc
+capture noisily prtesti 50 1.5e1 .5, count
+display _rc
+capture noisily prtesti 50 15 .5e1 .5, count
+display _rc
+capture noisily prtesti 10 .5 .3 abc
+display _rc
+prtesti +50 15 060 30, count
+=== prtest-expressions-and-labels
+clear
+set obs 30
+set seed 9
+generate first_long_variable = runiform() < .4
+generate second_long_variable = runiform() < .6
+generate sh = runiform() < .5
+generate abcdefghijklm = runiform() < .5
+generate abcdefghijkl = runiform() < .5
+prtest first_long_variable == second_long_variable
+prtest first_long_variable == sh
+prtest first == sh
+prtest abcdefghijklm == sh
+prtest abcdefghijkl == sh
+prtest sh == (sh)
+prtest sh == (second_long_variable)
+prtest sh == second
+capture noisily prtest sh == sh + 0
+display _rc
+capture noisily prtest sh == "a"
+display _rc
+capture noisily prtest sh == second*
+display _rc
+capture noisily prtest sh == sh*2
+display _rc
+capture noisily prtest sh == 1-sh
+display _rc
+capture noisily prtest sh == sh-0
+display _rc
+capture noisily prtest sh == ((sh))
+display _rc
+capture noisily prtest sh == (sh
+display _rc
+capture noisily prtest sh == sh)
+display _rc
+capture noisily prtest sh == sh sh
+display _rc
+capture noisily prtest sh == nosuch
+display _rc
+capture noisily prtest sh == _n>1
+display _rc
+capture noisily prtest sh == 1*sh
+display _rc
+capture noisily prtest sh == sh==1
+display _rc
+capture noisily prtest sh ==
+display _rc
+capture noisily prtest sh == 1e3
+display _rc
+capture noisily prtest sh == .5 + 0
+display _rc
+clear
+set obs 10
+generate a = _n > 5
+generate str5 s = "x"
+replace s = "y" in 1/3
+generate g = _n > 4
+capture noisily prtest a == s
+display _rc
+capture noisily prtest s == a
+display _rc
+capture noisily prtest s == .5
+display _rc
+capture noisily prtest s, by(g)
+display _rc
+clear
+set obs 40
+set seed 40
+generate y = runiform() < .4
+generate k = cond(_n <= 20, .5, 2) if _n != 3
+prtest y, by(k)
+replace k = .25 if k == 2
+prtest y, by(k)
+=== prtest-table-forms
+prtesti 10 1 10 1
+prtesti 1000000 .3 1000000 .5
+prtesti 1000000 .3 .5
+clear
+set obs 30
+set seed 77
+generate a = runiform() < .4
+prtest a == .0000005
+clear
+set obs 50
+set seed 5
+generate a = runiform() < .3
+generate b = runiform() < .5
+prtest a == b, l(99.5)
+prtest a == .4, level(99.9)
+prtesti 50 .3 .5, level(80)
+prtesti 100 40 120 60, count
+return list
+=== bitesti-near-one
+bitesti 1000000000 999999990 .99999999
+display r(k_opp)
+display %15.13f r(p_u)
+bitesti 5000000 4999990 .999998
+display %15.13f r(p_u)
+bitesti 19652879 0 1.0713339e-8
+display %15.13f r(p_l)

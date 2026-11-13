@@ -16910,6 +16910,841 @@
       ]
     },
     {
+      "id": "prtest-empty-samples",
+      "source": "prtesti 10 .5 0 .3\nreturn list\nclear\nset obs 30\nset seed 77\ngenerate a = runiform() < .4\nprtest a == .5 if 0\nreturn list\nprtest a == .5 in 1\nclear\nset obs 20\nset seed 3\ngenerate a = runiform() < .3\ngenerate b = runiform() < .5\nreplace b = . in 11/20\ncapture noisily prtest a == b if _n > 10\ndisplay _rc\ncapture noisily prtest b == a if _n > 10\ndisplay _rc\nclear\nset obs 30\nset seed 38\ngenerate y = runiform() < .5\ngenerate g = _n > 15\nreplace y = . if g == 1\ncapture noisily prtest y, by(g)\ndisplay _rc\ncapture noisily prtest y, by(nosuch)\ndisplay _rc\ncapture noisily prtest y, by(y g)\ndisplay _rc\n",
+      "commands": [
+        {
+          "command": "prtesti 10 .5 0 .3",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =       10",
+            "                                                   y: Number of obs =        0",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .5   .1581139                      .1901025    .8098975",
+            "           y |         .3          .                             .           .",
+            "-------------+----------------------------------------------------------------",
+            "        diff |         .2          .                             .           .",
+            "             |  under H0:          .        .       .",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z =        .",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                 r(N1) =  10",
+            "                 r(N2) =  0",
+            "                 r(P1) =  .5",
+            "                 r(P2) =  .3",
+            "             r(P_diff) =  .2",
+            "                r(se1) =  .158113883008419",
+            "                r(se2) =  .",
+            "           r(se_diff0) =  .",
+            "            r(se_diff) =  .",
+            "                r(lb1) =  .1901024838477193",
+            "                r(ub1) =  .8098975161522808",
+            "                r(lb2) =  .",
+            "                r(ub2) =  .",
+            "            r(lb_diff) =  .",
+            "            r(ub_diff) =  .",
+            "                  r(z) =  .",
+            "                r(p_l) =  .",
+            "                  r(p) =  .",
+            "                r(p_u) =  .",
+            "              r(level) =  95"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "set seed 77", "lines": [] },
+        { "command": "generate a = runiform() < .4", "lines": [] },
+        {
+          "command": "prtest a == .5 if 0",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |          .          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(a)                                             z =        .",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "                  r(P) =  .",
+            "                 r(se) =  .",
+            "                 r(ub) =  .",
+            "                 r(lb) =  .",
+            "                  r(z) =  .",
+            "                r(p_l) =  .",
+            "                  r(p) =  .",
+            "                r(p_u) =  .",
+            "              r(level) =  95"
+          ]
+        },
+        {
+          "command": "prtest a == .5 in 1",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =         1",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |          1          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(a)                                             z =   1.0000",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.8413         Pr(|Z| > |z|) = 0.3173          Pr(Z > z) = 0.1587"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "set seed 3", "lines": [] },
+        { "command": "generate a = runiform() < .3", "lines": [] },
+        { "command": "generate b = runiform() < .5", "lines": [] },
+        {
+          "command": "replace b = . in 11/20",
+          "lines": ["(10 real changes made, 10 to missing)"]
+        },
+        {
+          "command": "capture noisily prtest a == b if _n > 10",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily prtest b == a if _n > 10",
+          "lines": ["'.' found where number expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "set seed 38", "lines": [] },
+        { "command": "generate y = runiform() < .5", "lines": [] },
+        { "command": "generate g = _n > 15", "lines": [] },
+        {
+          "command": "replace y = . if g == 1",
+          "lines": ["(15 real changes made, 15 to missing)"]
+        },
+        {
+          "command": "capture noisily prtest y, by(g)",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily prtest y, by(nosuch)",
+          "lines": ["variable nosuch not found", "(error in option by())"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily prtest y, by(y g)",
+          "lines": ["by():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] }
+      ]
+    },
+    {
+      "id": "prtesti-integer-counts",
+      "source": "capture noisily prtesti 50.0 .3 .5\ndisplay _rc\ncapture noisily prtesti 1e3 .3 .5\ndisplay _rc\ncapture noisily prtesti 5e1 .3 .5\ndisplay _rc\ncapture noisily prtesti 50 .3 6E1 .45\ndisplay _rc\ncapture noisily prtesti 50 1.5e1 .5, count\ndisplay _rc\ncapture noisily prtesti 50 15 .5e1 .5, count\ndisplay _rc\ncapture noisily prtesti 10 .5 .3 abc\ndisplay _rc\nprtesti +50 15 060 30, count\n",
+      "commands": [
+        {
+          "command": "capture noisily prtesti 50.0 .3 .5",
+          "lines": ["'50.0' found where integer expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily prtesti 1e3 .3 .5",
+          "lines": ["'1e3' found where integer expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily prtesti 5e1 .3 .5",
+          "lines": ["'5e1' found where integer expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily prtesti 50 .3 6E1 .45",
+          "lines": ["'6E1' found where integer expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily prtesti 50 1.5e1 .5, count",
+          "lines": ["'1.5e1' found where integer expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily prtesti 50 15 .5e1 .5, count",
+          "lines": ["'.5e1' found where integer expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily prtesti 10 .5 .3 abc",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "prtesti +50 15 060 30, count",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =       50",
+            "                                                   y: Number of obs =       60",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .3   .0648074                      .1729798    .4270202",
+            "           y |         .5   .0645497                      .3734849    .6265151",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.2   .0914695                     -.3792769   -.0207231",
+            "             |  under H0:   .0941469    -2.12   0.034",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z =  -2.1243",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0168         Pr(|Z| > |z|) = 0.0336          Pr(Z > z) = 0.9832"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prtest-expressions-and-labels",
+      "source": "clear\nset obs 30\nset seed 9\ngenerate first_long_variable = runiform() < .4\ngenerate second_long_variable = runiform() < .6\ngenerate sh = runiform() < .5\ngenerate abcdefghijklm = runiform() < .5\ngenerate abcdefghijkl = runiform() < .5\nprtest first_long_variable == second_long_variable\nprtest first_long_variable == sh\nprtest first == sh\nprtest abcdefghijklm == sh\nprtest abcdefghijkl == sh\nprtest sh == (sh)\nprtest sh == (second_long_variable)\nprtest sh == second\ncapture noisily prtest sh == sh + 0\ndisplay _rc\ncapture noisily prtest sh == \"a\"\ndisplay _rc\ncapture noisily prtest sh == second*\ndisplay _rc\ncapture noisily prtest sh == sh*2\ndisplay _rc\ncapture noisily prtest sh == 1-sh\ndisplay _rc\ncapture noisily prtest sh == sh-0\ndisplay _rc\ncapture noisily prtest sh == ((sh))\ndisplay _rc\ncapture noisily prtest sh == (sh\ndisplay _rc\ncapture noisily prtest sh == sh)\ndisplay _rc\ncapture noisily prtest sh == sh sh\ndisplay _rc\ncapture noisily prtest sh == nosuch\ndisplay _rc\ncapture noisily prtest sh == _n>1\ndisplay _rc\ncapture noisily prtest sh == 1*sh\ndisplay _rc\ncapture noisily prtest sh == sh==1\ndisplay _rc\ncapture noisily prtest sh ==\ndisplay _rc\ncapture noisily prtest sh == 1e3\ndisplay _rc\ncapture noisily prtest sh == .5 + 0\ndisplay _rc\nclear\nset obs 10\ngenerate a = _n > 5\ngenerate str5 s = \"x\"\nreplace s = \"y\" in 1/3\ngenerate g = _n > 4\ncapture noisily prtest a == s\ndisplay _rc\ncapture noisily prtest s == a\ndisplay _rc\ncapture noisily prtest s == .5\ndisplay _rc\ncapture noisily prtest s, by(g)\ndisplay _rc\nclear\nset obs 40\nset seed 40\ngenerate y = runiform() < .4\ngenerate k = cond(_n <= 20, .5, 2) if _n != 3\nprtest y, by(k)\nreplace k = .25 if k == 2\nprtest y, by(k)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "generate first_long_variable = runiform() < .4",
+          "lines": []
+        },
+        {
+          "command": "generate second_long_variable = runiform() < .6",
+          "lines": []
+        },
+        { "command": "generate sh = runiform() < .5", "lines": [] },
+        { "command": "generate abcdefghijklm = runiform() < .5", "lines": [] },
+        { "command": "generate abcdefghijkl = runiform() < .5", "lines": [] },
+        {
+          "command": "prtest first_long_variable == second_long_variable",
+          "lines": [
+            "Two-sample test of proportions          first_long_v: Number of obs =       30",
+            "                                        second_long_: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "first_long_v |         .5   .0912871                      .3210806    .6789194",
+            "second_long_ |   .6666667   .0860663                      .4979798    .8353535",
+            "-------------+----------------------------------------------------------------",
+            "        diff |  -.1666667   .1254621                     -.4125679    .0792345",
+            "             |  under H0:   .1272938    -1.31   0.190",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(first_long_v) - prop(second_long_)            z =  -1.3093",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0952         Pr(|Z| > |z|) = 0.1904          Pr(Z > z) = 0.9048"
+          ]
+        },
+        {
+          "command": "prtest first_long_variable == sh",
+          "lines": [
+            "Two-sample test of proportions          first_long_v: Number of obs =       30",
+            "                                                  sh: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "first_long_v |         .5   .0912871                      .3210806    .6789194",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.1   .1278019                     -.3504872    .1504872",
+            "             |  under H0:   .1284523    -0.78   0.436",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(first_long_v) - prop(sh)                      z =  -0.7785",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.2181         Pr(|Z| > |z|) = 0.4363          Pr(Z > z) = 0.7819"
+          ]
+        },
+        {
+          "command": "prtest first == sh",
+          "lines": [
+            "Two-sample test of proportions          first_long_v: Number of obs =       30",
+            "                                                  sh: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "first_long_v |         .5   .0912871                      .3210806    .6789194",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.1   .1278019                     -.3504872    .1504872",
+            "             |  under H0:   .1284523    -0.78   0.436",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(first_long_v) - prop(sh)                      z =  -0.7785",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.2181         Pr(|Z| > |z|) = 0.4363          Pr(Z > z) = 0.7819"
+          ]
+        },
+        {
+          "command": "prtest abcdefghijklm == sh",
+          "lines": [
+            "Two-sample test of proportions          abcdefghijkl: Number of obs =       30",
+            "                                                  sh: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "abcdefghijkl |   .5666667    .090472                      .3893448    .7439886",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "-------------+----------------------------------------------------------------",
+            "        diff |  -.0333333    .127221                     -.2826819    .2160153",
+            "             |  under H0:   .1272938    -0.26   0.793",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(abcdefghijkl) - prop(sh)                      z =  -0.2619",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.3967         Pr(|Z| > |z|) = 0.7934          Pr(Z > z) = 0.6033"
+          ]
+        },
+        {
+          "command": "prtest abcdefghijkl == sh",
+          "lines": [
+            "Two-sample test of proportions          abcdefghijkl: Number of obs =       30",
+            "                                                  sh: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "abcdefghijkl |   .4666667    .091084                      .2881453     .645188",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "-------------+----------------------------------------------------------------",
+            "        diff |  -.1333333   .1276569                     -.3835364    .1168697",
+            "             |  under H0:   .1288122    -1.04   0.301",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(abcdefghijkl) - prop(sh)                      z =  -1.0351",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.1503         Pr(|Z| > |z|) = 0.3006          Pr(Z > z) = 0.8497"
+          ]
+        },
+        {
+          "command": "prtest sh == (sh)",
+          "lines": [
+            "Two-sample test of proportions                    sh: Number of obs =       30",
+            "                                                  sh: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "-------------+----------------------------------------------------------------",
+            "        diff |          0   .1264911                      -.247918     .247918",
+            "             |  under H0:   .1264911     0.00   1.000",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(sh) - prop(sh)                                z =   0.0000",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.5000         Pr(|Z| > |z|) = 1.0000          Pr(Z > z) = 0.5000"
+          ]
+        },
+        {
+          "command": "prtest sh == (second_long_variable)",
+          "lines": [
+            "Two-sample test of proportions                    sh: Number of obs =       30",
+            "                                        second_long_: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "second_long_ |   .6666667   .0860663                      .4979798    .8353535",
+            "-------------+----------------------------------------------------------------",
+            "        diff |  -.0666667   .1241266                     -.3099503     .176617",
+            "             |  under H0:   .1244246    -0.54   0.592",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(sh) - prop(second_long_)                      z =  -0.5358",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.2960         Pr(|Z| > |z|) = 0.5921          Pr(Z > z) = 0.7040"
+          ]
+        },
+        {
+          "command": "prtest sh == second",
+          "lines": [
+            "Two-sample test of proportions                    sh: Number of obs =       30",
+            "                                        second_long_: Number of obs =       30",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          sh |         .6   .0894427                      .4246955    .7753045",
+            "second_long_ |   .6666667   .0860663                      .4979798    .8353535",
+            "-------------+----------------------------------------------------------------",
+            "        diff |  -.0666667   .1241266                     -.3099503     .176617",
+            "             |  under H0:   .1244246    -0.54   0.592",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(sh) - prop(second_long_)                      z =  -0.5358",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.2960         Pr(|Z| > |z|) = 0.5921          Pr(Z > z) = 0.7040"
+          ]
+        },
+        {
+          "command": "capture noisily prtest sh == sh + 0",
+          "lines": ["+ invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh == \"a\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily prtest sh == second*",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh == sh*2",
+          "lines": ["sh*2 is not a 0/1 variable"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily prtest sh == 1-sh",
+          "lines": ["1 invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh == sh-0",
+          "lines": ["0 invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh == ((sh))",
+          "lines": ["( not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily prtest sh == (sh",
+          "lines": ["too few ')' or ']'"]
+        },
+        { "command": "display _rc", "lines": ["132"] },
+        {
+          "command": "capture noisily prtest sh == sh)",
+          "lines": ["too many ')' or ']'"]
+        },
+        { "command": "display _rc", "lines": ["132"] },
+        {
+          "command": "capture noisily prtest sh == sh sh",
+          "lines": ["invalid 'sh'"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh == nosuch",
+          "lines": ["nosuch not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily prtest sh == _n>1",
+          "lines": ["variable _n not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily prtest sh == 1*sh",
+          "lines": ["variable 1*sh not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily prtest sh == sh==1",
+          "lines": ["== invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh ==",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest sh == 1e3",
+          "lines": ["1e3 is not in (0,1)"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily prtest sh == .5 + 0",
+          "lines": [".5 + 0 is not a 0/1 variable"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate a = _n > 5", "lines": [] },
+        { "command": "generate str5 s = \"x\"", "lines": [] },
+        {
+          "command": "replace s = \"y\" in 1/3",
+          "lines": ["(3 real changes made)"]
+        },
+        { "command": "generate g = _n > 4", "lines": [] },
+        {
+          "command": "capture noisily prtest a == s",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily prtest s == a",
+          "lines": ["s is not a 0/1 variable"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily prtest s == .5",
+          "lines": ["s is not a 0/1 variable"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily prtest s, by(g)",
+          "lines": ["'.' found where number expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "set seed 40", "lines": [] },
+        { "command": "generate y = runiform() < .4", "lines": [] },
+        {
+          "command": "generate k = cond(_n <= 20, .5, 2) if _n != 3",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "prtest y, by(k)",
+          "lines": [
+            "Two-sample test of proportions                    .5: Number of obs =       19",
+            "                                                   2: Number of obs =       20",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           5 |   .4736842   .1145489                      .2491725    .6981959",
+            "           2 |         .4   .1095445                      .1852967    .6147033",
+            "-------------+----------------------------------------------------------------",
+            "        diff |   .0736842   .1584975                     -.2369651    .3843335",
+            "             |  under H0:    .158859     0.46   0.643",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(.5) - prop(2)                                 z =   0.4638",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.6786         Pr(|Z| > |z|) = 0.6428          Pr(Z > z) = 0.3214"
+          ]
+        },
+        {
+          "command": "replace k = .25 if k == 2",
+          "lines": ["(20 real changes made)"]
+        },
+        {
+          "command": "prtest y, by(k)",
+          "lines": [
+            "Two-sample test of proportions                   .25: Number of obs =       20",
+            "                                                  .5: Number of obs =       19",
+            "------------------------------------------------------------------------------",
+            "       Group |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          25 |         .4   .1095445                      .1852967    .6147033",
+            "           5 |   .4736842   .1145489                      .2491725    .6981959",
+            "-------------+----------------------------------------------------------------",
+            "        diff |  -.0736842   .1584975                     -.3843335    .2369651",
+            "             |  under H0:    .158859    -0.46   0.643",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(.25) - prop(.5)                               z =  -0.4638",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.3214         Pr(|Z| > |z|) = 0.6428          Pr(Z > z) = 0.6786"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prtest-table-forms",
+      "source": "prtesti 10 1 10 1\nprtesti 1000000 .3 1000000 .5\nprtesti 1000000 .3 .5\nclear\nset obs 30\nset seed 77\ngenerate a = runiform() < .4\nprtest a == .0000005\nclear\nset obs 50\nset seed 5\ngenerate a = runiform() < .3\ngenerate b = runiform() < .5\nprtest a == b, l(99.5)\nprtest a == .4, level(99.9)\nprtesti 50 .3 .5, level(80)\nprtesti 100 40 120 60, count\nreturn list\n",
+      "commands": [
+        {
+          "command": "prtesti 10 1 10 1",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =       10",
+            "                                                   y: Number of obs =       10",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          1          0                             1           1",
+            "           y |          1          0                             1           1",
+            "-------------+----------------------------------------------------------------",
+            "        diff |          0          0                             0           0",
+            "             |  under H0:          0        .       .",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z =        .",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
+          ]
+        },
+        {
+          "command": "prtesti 1000000 .3 1000000 .5",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =  1.0e+06",
+            "                                                   y: Number of obs =  1.0e+06",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .3   .0004583                      .2991018    .3008982",
+            "           y |         .5      .0005                        .49902      .50098",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.2   .0006782                     -.2013293   -.1986707",
+            "             |  under H0:   .0006928  -288.68   0.000",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z = -2.9e+02",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0000         Pr(|Z| > |z|) = 0.0000          Pr(Z > z) = 1.0000"
+          ]
+        },
+        {
+          "command": "prtesti 1000000 .3 .5",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =  1.0e+06",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .3   .0004583                      .2991018    .3008982",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z = -4.0e+02",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.0000         Pr(|Z| > |z|) = 0.0000          Pr(Z > z) = 1.0000"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "set seed 77", "lines": [] },
+        { "command": "generate a = runiform() < .4", "lines": [] },
+        {
+          "command": "prtest a == .0000005",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =        30",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |         .4   .0894427                      .2246955    .5753045",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(a)                                             z =  3.1e+03",
+            "H0: p = 5.0e-07",
+            "",
+            "   Ha: p < 5.0e-07             Ha: p != 5.0e-07               Ha: p > 5.0e-07",
+            " Pr(Z < z) = 1.0000         Pr(|Z| > |z|) = 0.0000          Pr(Z > z) = 0.0000"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "generate a = runiform() < .3", "lines": [] },
+        { "command": "generate b = runiform() < .5", "lines": [] },
+        {
+          "command": "prtest a == b, l(99.5)",
+          "lines": [
+            "Two-sample test of proportions                     a: Number of obs =       50",
+            "                                                   b: Number of obs =       50",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.      z    P>|z|   [99.5% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |        .44   .0701997                       .242947     .637053",
+            "           b |         .6    .069282                       .405523     .794477",
+            "-------------+----------------------------------------------------------------",
+            "        diff |       -.16   .0986306                     -.4368595    .1168595",
+            "             |  under H0:     .09992    -1.60   0.109",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(a) - prop(b)                                  z =  -1.6013",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0547         Pr(|Z| > |z|) = 0.1093          Pr(Z > z) = 0.9453"
+          ]
+        },
+        {
+          "command": "prtest a == .4, level(99.9)",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =        50",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                   [99.9% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |        .44   .0701997                       .209006     .670994",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(a)                                             z =   0.5774",
+            "H0: p = 0.4",
+            "",
+            "     Ha: p < 0.4                 Ha: p != 0.4                   Ha: p > 0.4",
+            " Pr(Z < z) = 0.7181         Pr(|Z| > |z|) = 0.5637          Pr(Z > z) = 0.2819"
+          ]
+        },
+        {
+          "command": "prtesti 50 .3 .5, level(80)",
+          "lines": [
+            "One-sample test of proportion                      x: Number of obs =       50",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.                     [80% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .3   .0648074                       .216946     .383054",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(x)                                             z =  -2.8284",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.0023         Pr(|Z| > |z|) = 0.0047          Pr(Z > z) = 0.9977"
+          ]
+        },
+        {
+          "command": "prtesti 100 40 120 60, count",
+          "lines": [
+            "Two-sample test of proportions                     x: Number of obs =      100",
+            "                                                   y: Number of obs =      120",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |         .4   .0489898                      .3039818    .4960182",
+            "           y |         .5   .0456435                      .4105403    .5894597",
+            "-------------+----------------------------------------------------------------",
+            "        diff |        -.1   .0669577                     -.2312347    .0312347",
+            "             |  under H0:     .06742    -1.48   0.138",
+            "------------------------------------------------------------------------------",
+            "        diff = prop(x) - prop(y)                                  z =  -1.4832",
+            "    H0: diff = 0",
+            "",
+            "    Ha: diff < 0                 Ha: diff != 0                 Ha: diff > 0",
+            " Pr(Z < z) = 0.0690         Pr(|Z| > |z|) = 0.1380          Pr(Z > z) = 0.9310"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                 r(N1) =  100",
+            "                 r(N2) =  120",
+            "                 r(P1) =  .4",
+            "                 r(P2) =  .5",
+            "             r(P_diff) =  -.1",
+            "                r(se1) =  .0489897948556636",
+            "                r(se2) =  .0456435464587638",
+            "           r(se_diff0) =  .0674199862463242",
+            "            r(se_diff) =  .0669576980886689",
+            "                r(lb1) =  .3039817664728939",
+            "                r(ub1) =  .4960182335271062",
+            "                r(lb2) =  .4105402928141422",
+            "                r(ub2) =  .5894597071858578",
+            "            r(lb_diff) =  -.2312346767414974",
+            "            r(ub_diff) =  .0312346767414974",
+            "                  r(z) =  -1.483239697419132",
+            "                r(p_l) =  .0690053687843298",
+            "                  r(p) =  .1380107375686597",
+            "                r(p_u) =  .9309946312156702",
+            "              r(level) =  95"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bitesti-near-one",
+      "source": "bitesti 1000000000 999999990 .99999999\ndisplay r(k_opp)\ndisplay %15.13f r(p_u)\nbitesti 5000000 4999990 .999998\ndisplay %15.13f r(p_u)\nbitesti 19652879 0 1.0713339e-8\ndisplay %15.13f r(p_l)\n",
+      "commands": [
+        {
+          "command": "bitesti 1000000000 999999990 .99999999",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "1,000,000,000  999,999,990    999999990     1.00000      1.00000",
+            "",
+            "  Pr(k >= 999,999,990)                     = 0.583040  (one-sided test)",
+            "  Pr(k <= 999,999,990)                     = 0.542070  (one-sided test)",
+            "  Pr(k <= 999,999,990 or k >= 999,999,992) = 0.874890  (two-sided test)"
+          ]
+        },
+        { "command": "display r(k_opp)", "lines": ["1.000e+09"] },
+        { "command": "display %15.13f r(p_u)", "lines": ["0.5830397439065"] },
+        {
+          "command": "bitesti 5000000 4999990 .999998",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "    5,000,000    4,999,990    4,999,990     1.00000      1.00000",
+            "",
+            "  Pr(k >= 4,999,990)                   = 0.583040  (one-sided test)",
+            "  Pr(k <= 4,999,990)                   = 0.542070  (one-sided test)",
+            "  Pr(k <= 4,999,990 or k >= 4,999,991) = 1.000000  (two-sided test)"
+          ]
+        },
+        { "command": "display %15.13f r(p_u)", "lines": ["0.5830397502265"] },
+        {
+          "command": "bitesti 19652879 0 1.0713339e-8",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "            N   Observed k   Expected k   Assumed p   Observed p",
+            "----------------------------------------------------------------",
+            "   19,652,879            0  .2105479551     0.00000      0.00000",
+            "",
+            "  Pr(k >= 0)           = 1.000000  (one-sided test)",
+            "  Pr(k <= 0)           = 0.810140  (one-sided test)",
+            "  Pr(k <= 0 or k >= 1) = 1.000000  (two-sided test)"
+          ]
+        },
+        { "command": "display %15.13f r(p_l)", "lines": ["0.8101402030917"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

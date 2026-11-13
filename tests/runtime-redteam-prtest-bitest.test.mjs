@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Session } from "../src/runtime/session.js";
+import { isMissing } from "../src/runtime/values.js";
 
 function run(source) {
   const session = new Session(),
@@ -17,7 +18,10 @@ function close(actual, expected, tolerance, label) {
     `${label}: ${actual} vs Stata ${expected}`,
   );
 }
-function matches(r, expected, tolerance = 1e-12) {
+// return list shows 16 digits, so a value within 2e-16 (below 1, absolute;
+// above, relative) is Stata's double to the last bit or the next one. The
+// earlier 1e-12 hid limits that were off in their last three digits.
+function matches(r, expected, tolerance = 2e-16) {
   for (const [key, value] of Object.entries(expected))
     close(r[key], value, tolerance, `r(${key})`);
 }
@@ -231,4 +235,199 @@ test("bitesti stores its results in Stata's return list order", () => {
     "p_l",
     "p_u",
   ]);
+});
+
+// The values below were recorded from Stata 19 MP (version 17, set
+// processors 1) with display %21.0g, to every digit Stata shows.
+const missing = (r, keys) =>
+  keys.forEach((key) => assert.ok(isMissing(r[key]), `r(${key}) = ${r[key]}`));
+/** The return code and message of a do-file's last command. */
+function messages(source) {
+  const block = new Session().run(source).output.at(-1);
+  return {
+    rc: block.rc,
+    lines: block.lines.filter((line) => line && !/^r\(\d+\);$/.test(line)),
+  };
+}
+
+test("prtesti with an empty second sample stores missing results and return list runs", () => {
+  const { rc, r } = run("prtesti 10 .5 0 .3\nreturn list");
+  assert.equal(rc, 0);
+  assert.equal(r.N2, 0);
+  assert.equal(r.P2, 0.3);
+  close(r.se1, 0.1581138830084189706, 2e-16, "r(se1)");
+  missing(r, [
+    "se2",
+    "se_diff0",
+    "se_diff",
+    "lb2",
+    "ub2",
+    "lb_diff",
+    "ub_diff",
+    "z",
+    "p_l",
+    "p",
+    "p_u",
+  ]);
+  // 0 successes in 0 trials is 0/0, missing. The output fixture cannot hold
+  // a message that starts with a period, so these are checked here.
+  for (const line of ["prtesti 10 5 0 0, count", "prtesti 0 0 10 3, count"])
+    assert.deepEqual(messages(line), {
+      rc: 198,
+      lines: [". not less than 0"],
+    });
+  assert.deepEqual(
+    messages("clear\nset obs 5\ngen sh = _n > 2\nprtest sh == ."),
+    { rc: 198, lines: [". invalid name"] },
+  );
+  assert.deepEqual(
+    messages("clear\nset obs 5\ngen sh = _n > 2\nprtest sh == (.)"),
+    { rc: 198, lines: [". invalid name"] },
+  );
+});
+
+test("prtest on an empty sample leaves z and its tails missing", () => {
+  const { rc, r } = run(
+    [
+      "clear",
+      "set obs 30",
+      "set seed 77",
+      "gen a = runiform() < .4",
+      "prtest a == .5 if 0",
+    ].join("\n"),
+  );
+  assert.equal(rc, 0);
+  assert.equal(r.N, 0);
+  missing(r, ["P", "se", "lb", "ub", "z", "p_l", "p", "p_u"]);
+});
+
+test("prtesti's confirm integer number takes only digits", () => {
+  for (const line of [
+    "prtesti 50.0 .3 .5",
+    "prtesti 1e3 .3 .5",
+    "prtesti 5e1 .3 .5",
+    "prtesti 50 .3 6E1 .45",
+    "prtesti 50 1.5e1 .5, count",
+    "prtesti 50 15 .5e1 .5, count",
+  ])
+    assert.equal(run(line).rc, 7, line);
+  assert.equal(run("prtesti +50 15 060 30, count").rc, 0);
+});
+
+test("prtest var == exp and string variables give Stata's return codes", () => {
+  const data = [
+    "clear",
+    "set obs 30",
+    "set seed 9",
+    "gen sh = runiform() < .5",
+    "gen second_long_variable = runiform() < .6",
+  ].join("\n");
+  for (const [line, code] of [
+    ["prtest sh == (sh)", 0],
+    ["prtest sh == second", 0],
+    ["prtest sh == sh + 0", 198],
+    ['prtest sh == "a"', 109],
+    ["prtest sh == second*", 198],
+    ["prtest sh == .", 198],
+    ["prtest sh == ((sh))", 101],
+    ["prtest sh == (sh", 132],
+    ["prtest sh == _n>1", 111],
+    ["prtest sh, by(nosuch)", 111],
+    ["prtest sh, by(sh second)", 103],
+  ])
+    assert.equal(run(`${data}\n${line}`).rc, code, line);
+  const strings = [
+    "clear",
+    "set obs 10",
+    "gen a = _n > 5",
+    'gen str5 s = "x"',
+    'replace s = "y" in 1/3',
+    "gen g = _n > 4",
+  ].join("\n");
+  for (const [line, code] of [
+    ["prtest a == s", 109],
+    ["prtest s == a", 450],
+    ["prtest s == .5", 450],
+    ["prtest s, by(g)", 7],
+  ])
+    assert.equal(run(`${strings}\n${line}`).rc, code, line);
+});
+
+test("prtest passes an empty sample's mean to prtesti as '.'", () => {
+  const data = [
+    "clear",
+    "set obs 20",
+    "set seed 3",
+    "gen a = runiform() < .3",
+    "gen b = runiform() < .5",
+    "replace b = . in 11/20",
+  ].join("\n");
+  // Stata: "varlist not allowed" and "'.' found where number expected".
+  assert.equal(run(`${data}\nprtest a == b if _n > 10`).rc, 101);
+  assert.equal(run(`${data}\nprtest b == a if _n > 10`).rc, 7);
+});
+
+test("prtesti limits and p-values agree with Stata to the last digit", () => {
+  matches(run("prtesti 100 40 120 60, count").r, {
+    lb1: 0.3039817664728938773,
+    ub1: 0.4960182335271061671,
+    lb2: 0.4105402928141421715,
+    ub2: 0.5894597071858578285,
+    lb_diff: -0.2312346767414973914,
+    ub_diff: 0.0312346767414974358,
+    p: 0.1380107375686596971,
+    p_l: 0.0690053687843298486,
+    p_u: 0.9309946312156701653,
+  });
+  matches(run("prtesti 100 40 120 60, count level(99)").r, {
+    lb1: 0.2738106508359327007,
+    ub1: 0.5261893491640673437,
+    lb_diff: -0.2724716008349734597,
+    ub_diff: 0.0724716008349735041,
+  });
+});
+
+test("normal() and invnormal() return Stata's doubles", () => {
+  for (const [expression, expected] of [
+    ["invnormal(.995)", 2.57582930354889994],
+    ["normal(-1.483239697419132)", 0.0690053687843298624],
+    ["invnormal(.975)", 1.959963984540053605],
+    ["normal(1.2)", 0.8849303297782917799],
+  ]) {
+    const session = new Session();
+    session.run(`scalar v = ${expression}`);
+    assert.equal(session.scalar("v"), expected, expression);
+  }
+});
+
+test("bitesti with p near 1 keeps the upper tail exact and finds Stata's opposite k", () => {
+  for (const [line, expected] of [
+    [
+      "bitesti 1000000000 999999990 .99999999",
+      {
+        k_opp: 999999992,
+        p: 0.8748899644070754489,
+        p_u: 0.5830397439065069243,
+        p_l: 0.5420702924401774592,
+      },
+    ],
+    [
+      "bitesti 5000000 4999990 .999998",
+      {
+        k_opp: 4999991,
+        p: 1,
+        p_u: 0.5830397502265005638,
+        p_l: 0.5420704106048505055,
+      },
+    ],
+    // Pr(k <= 0) is Binomial(n, n, 1 - p), and Stata rounds 1 - p first.
+    [
+      "bitesti 19652879 0 1.0713339e-8",
+      { p: 1, p_u: 1, p_l: 0.8101402030917204122 },
+    ],
+  ]) {
+    const { rc, r } = run(line);
+    assert.equal(rc, 0, line);
+    matches(r, expected, 1e-14);
+  }
 });
