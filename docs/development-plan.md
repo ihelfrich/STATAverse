@@ -749,6 +749,11 @@ the fixture must be re-recorded after merging several of them
 rerun `node tools/wide-probe.mjs --write` and
 `node tools/coverage-matrix.mjs --write` on `main`.
 
+A recorded case that changes a setting must restore it at its end. The
+output recorder runs every case in one Stata session, so a case that ends at
+`set linesize 80` records every later case at 80. The width cases all end
+with `set linesize 200`.
+
 A trial merge of every branch above into one local branch, made at 19:47,
 showed the hazards. The conflicts in `src/runtime/tests.js` nest, and
 resolving them by keeping both sides cut the end of `robvar` off from the
