@@ -2173,6 +2173,16 @@ capture noisily bitest d == 1.5
 display _rc
 capture noisily bitest d == .5 if g == 9
 display _rc
+=== sign-test
+clear
+set seed 21
+set obs 41
+generate double a = round(runiform() * 10)
+generate double b = round(runiform() * 10)
+signtest a = b
+signtest a = 5
+signtest a = b if a > 2
+signtest a = b + 1
 === robvar
 clear
 set seed 11

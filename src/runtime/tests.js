@@ -745,6 +745,99 @@ function bitesti(session, text, ctx) {
   binomialTest(ctx, session, n, k, p);
 }
 
+/** P(X >= x) for X binomial with n trials and probability one half. */
+function halfTail(n, x) {
+  if (x <= 0) return 1;
+  if (x > n) return 0;
+  let logFactorial = 0;
+  const logs = [0];
+  for (let j = 1; j <= n; j++) logs[j] = logFactorial += Math.log(j);
+  let t = 0;
+  for (let j = x; j <= n; j++)
+    t += Math.exp(logs[n] - logs[j] - logs[n - j] - n * Math.LN2);
+  return Math.min(1, t);
+}
+
+/**
+ * signtest var = exp: the sign test that the median of var - exp is zero,
+ * with Stata's table and its one- and two-sided binomial probabilities.
+ */
+function signtest(session, text, ctx) {
+  // Stata prints the expression as typed up to if or in, the space before
+  // them included: signtest a = b if a > 2 shows "a - b  = 0".
+  const m =
+    /^\s*([^\s=]+)\s*=\s*([\s\S]*?)(?:(\s+)((?:if|in)\s[\s\S]*))?$/.exec(text);
+  if (!m) throw new StataError("invalid syntax", 198);
+  const variable = numericVariable(session, m[1]),
+    expression = m[2].trim(),
+    typed = `${m[2]}${m[3] ?? ""}`,
+    parsed = session.parse("[if] [in]", m[4] ? ` ${m[4]}` : ""),
+    compiled = session.compile(expression);
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  let positive = 0,
+    negative = 0,
+    zero = 0;
+  session.select(parsed, null, (i, env) => {
+    const a = variable.data[i],
+      b = compiled.evaluate(i, env);
+    if (isMissing(a) || isMissing(b)) return;
+    if (a > b) positive++;
+    else if (a < b) negative++;
+    else zero++;
+  });
+  const n = positive + negative,
+    all = n + zero,
+    expected = n / 2,
+    shown = (v) => g(v).padStart(12),
+    four = (v) => applyFormat(v, "%6.4f"),
+    difference = `${variable.name} - ${typed}`,
+    upper = halfTail(n, positive),
+    lower = halfTail(n, negative),
+    most = Math.max(positive, negative),
+    two = Math.min(1, 2 * halfTail(n, most));
+  ctx.out("");
+  ctx.out("Sign test");
+  ctx.out("");
+  ctx.out("        Sign |    Observed    Expected");
+  ctx.out("-------------+------------------------");
+  ctx.out(`    Positive |${shown(positive)}${shown(expected)}`);
+  ctx.out(`    Negative |${shown(negative)}${shown(expected)}`);
+  ctx.out(`        Zero |${shown(zero)}${shown(zero)}`);
+  ctx.out("-------------+------------------------");
+  ctx.out(`         All |${shown(all)}${shown(all)}`);
+  ctx.out("");
+  ctx.out("One-sided tests:");
+  for (const [sign, count_, p, side] of [
+    ["positive", positive, upper, ">"],
+    ["negative", negative, lower, "<"],
+  ]) {
+    ctx.out(`  H0: median of ${difference} = 0 vs.`);
+    ctx.out(`  Ha: median of ${difference} ${side} 0`);
+    ctx.out(`      Pr(#${sign} >= ${count_}) =`);
+    ctx.out(
+      `         Binomial(n = ${n}, x >= ${count_}, p = 0.5) = ${four(p)}`,
+    );
+    ctx.out("");
+  }
+  ctx.out("Two-sided test:");
+  ctx.out(`  H0: median of ${difference} = 0 vs.`);
+  ctx.out(`  Ha: median of ${difference} != 0`);
+  ctx.out(`      Pr(#positive >= ${most} or #negative >= ${most}) =`);
+  ctx.out(
+    `         min(1, 2*Binomial(n = ${n}, x >= ${most}, p = 0.5)) = ${four(two)}`,
+  );
+  ctx.out("");
+  session.results.r = {
+    N: all,
+    N_pos: positive,
+    N_neg: negative,
+    N_tie: zero,
+    p: two,
+    p_l: lower,
+    p_u: upper,
+  };
+}
+
 /**
  * robvar: Levene's test of equal variances across groups (W0) and Brown and
  * Forsythe's versions with the median (W50) and the 10 percent trimmed mean
@@ -1001,6 +1094,7 @@ export const TEST_COMMANDS = [
   { name: "prtest", minimum: 6, run: prtest },
   { name: "bitest", minimum: 6, run: bitest },
   { name: "bitesti", minimum: 7, run: bitesti },
+  { name: "signtest", minimum: 8, run: signtest },
   { name: "robvar", minimum: 6, run: robvar },
   { name: "prtesti", minimum: 7, run: prtesti },
   { name: "sdtest", minimum: 6, run: sdtest },
