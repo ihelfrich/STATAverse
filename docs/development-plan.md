@@ -749,6 +749,15 @@ the fixture must be re-recorded after merging several of them
 rerun `node tools/wide-probe.mjs --write` and
 `node tools/coverage-matrix.mjs --write` on `main`.
 
+A trial merge of every branch above into one local branch, made at 19:47,
+showed the hazards. The conflicts in `src/runtime/tests.js` nest, and
+resolving them by keeping both sides cut the end of `robvar` off from the
+`bitest` comment that follows it. Run `node --check src/runtime/tests.js`
+after resolving. With that repaired, the bundles rebuilt and the output
+fixture re-recorded (118 cases), all 406 unit tests passed. The wide probe
+stood at 519 cases: 391 pass, 128 refused, 0 wrong, 0 crash. The coverage
+matrix showed 143 of 193 registered commands in a recorded fixture.
+
 Found and not yet fixed, each measured against Stata:
 
 - The coefficient-table width (#41, #42) is not yet used by the likelihood
