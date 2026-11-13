@@ -102,6 +102,7 @@ for (const c of fixture.cases)
             "predict-defaults",
             "mlogit-coefficients",
             "outcome-predict-margins",
+            "likelihood-factor-layout",
           ].includes(c.id),
         )
       )

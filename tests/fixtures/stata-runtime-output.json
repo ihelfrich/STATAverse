@@ -14347,6 +14347,134 @@
       ]
     },
     {
+      "id": "likelihood-factor-layout",
+      "source": "clear\nset seed 2718\nset obs 400\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double income = runiform() * 10\ngenerate double y = 2 + .4 * income + .5 * g + runiform() * 4\nreplace y = 3 if y < 3\ngenerate byte r = 1 + (y > 5) + (y > 7)\ngenerate int k = floor(y * y * runiform())\ntobit y income i.g, ll(3) nolog\nologit r income i.g, nolog\nnbreg k income i.g, nolog\nregress y income i.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2718", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate double income = runiform() * 10", "lines": [] },
+        {
+          "command": "generate double y = 2 + .4 * income + .5 * g + runiform() * 4",
+          "lines": []
+        },
+        {
+          "command": "replace y = 3 if y < 3",
+          "lines": ["(0 real changes made)"]
+        },
+        { "command": "generate byte r = 1 + (y > 5) + (y > 7)", "lines": [] },
+        {
+          "command": "generate int k = floor(y * y * runiform())",
+          "lines": []
+        },
+        {
+          "command": "tobit y income i.g, ll(3) nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =    400",
+            "                                                           Uncensored =    400",
+            "Limits: Lower =    3                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(3)        = 332.90",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -625.04101                         Pseudo R2         = 0.2103",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .4243279   .0195979    21.65   0.000     .3857993    .4628566",
+            "             |",
+            "           g |",
+            "          2  |   .4184766   .1431033     2.92   0.004     .1371417    .6998116",
+            "          3  |   .8300021   .1443707     5.75   0.000     .5461755    1.113829",
+            "             |",
+            "       _cons |   4.517076   .1463092    30.87   0.000     4.229439    4.804714",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.332861   .0942475                      1.159877    1.531645",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ologit r income i.g, nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    400",
+            "                                                        LR chi2(3)    = 207.22",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -288.19937                             Pseudo R2     = 0.2644",
+            "",
+            "------------------------------------------------------------------------------",
+            "           r | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .5634397   .0486611    11.58   0.000     .4680658    .6588137",
+            "             |",
+            "           g |",
+            "          2  |   .4158536   .2631985     1.58   0.114    -.1000058    .9317131",
+            "          3  |   1.123422   .2847989     3.94   0.000     .5652268    1.681618",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |   .6165751   .2710028                      .0854194    1.147731",
+            "       /cut2 |     3.3182   .3330604                      2.665413    3.970986",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "nbreg k income i.g, nolog",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    400",
+            "                                                        LR chi2(3)    =  95.45",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -1669.1231                             Pseudo R2     = 0.0278",
+            "",
+            "------------------------------------------------------------------------------",
+            "           k | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .1421716   .0140696    10.10   0.000     .1145957    .1697475",
+            "             |",
+            "           g |",
+            "          2  |   .2511177   .1004369     2.50   0.012      .054265    .4479704",
+            "          3  |    .247946    .101067     2.45   0.014     .0498583    .4460337",
+            "             |",
+            "       _cons |   2.306771   .1060369    21.75   0.000     2.098943      2.5146",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -.4963553   .0750376                     -.6434262   -.3492844",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .6087453   .0456788                      .5254889    .7051925",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 3879.33              Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "regress y income i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       400",
+            "-------------+----------------------------------   F(3, 396)       =    171.40",
+            "       Model |  692.279324         3  230.759775   Prob > F        =    0.0000",
+            "    Residual |  533.144509       396  1.34632452   R-squared       =    0.5649",
+            "-------------+----------------------------------   Adj R-squared   =    0.5616",
+            "       Total |  1225.42383       399  3.07123768   Root MSE        =    1.1603",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |   .4243279   .0196966    21.54   0.000     .3856049     .463051",
+            "             |",
+            "           g |",
+            "          2  |   .4184766   .1438242     2.91   0.004     .1357222    .7012311",
+            "          3  |   .8300021    .145098     5.72   0.000     .5447435    1.115261",
+            "             |",
+            "       _cons |   4.517076   .1470462    30.72   0.000     4.227988    4.806165",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
