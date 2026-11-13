@@ -2149,3 +2149,12 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== robvar
+clear
+set seed 11
+set obs 240
+generate byte g = 1 + floor(runiform() * 3)
+generate double y = runiform() * g * 4
+generate byte two = runiform() > .5
+robvar y, by(g)
+robvar y if y > 1, by(two)

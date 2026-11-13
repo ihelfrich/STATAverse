@@ -14347,6 +14347,61 @@
       ]
     },
     {
+      "id": "robvar",
+      "source": "clear\nset seed 11\nset obs 240\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double y = runiform() * g * 4\ngenerate byte two = runiform() > .5\nrobvar y, by(g)\nrobvar y if y > 1, by(two)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 11", "lines": [] },
+        {
+          "command": "set obs 240",
+          "lines": ["Number of observations (_N) was 0, now 240."]
+        },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate double y = runiform() * g * 4", "lines": [] },
+        { "command": "generate byte two = runiform() > .5", "lines": [] },
+        {
+          "command": "robvar y, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |   1.9084232   1.2479581          77",
+            "          2 |   3.9952446   2.2068503          82",
+            "          3 |   5.9374237   3.3371428          81",
+            "------------+------------------------------------",
+            "      Total |   3.9812082   2.9248469         240",
+            "",
+            "W0  =  45.931277   df(2, 237)     Pr > F = 0.00000000",
+            "",
+            "W50 =  41.026613   df(2, 237)     Pr > F = 0.00000000",
+            "",
+            "W10 =  45.561919   df(2, 237)     Pr > F = 0.00000000"
+          ]
+        },
+        {
+          "command": "robvar y if y > 1, by(two)",
+          "lines": [
+            "            |            Summary of y",
+            "        two |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          0 |   4.4948385   2.5321558          98",
+            "          1 |   4.8264069   2.8626937         103",
+            "------------+------------------------------------",
+            "      Total |   4.6647467   2.7049569         201",
+            "",
+            "W0  =  2.3868319   df(1, 199)     Pr > F = 0.12395014",
+            "",
+            "W50 =  1.9092529   df(1, 199)     Pr > F = 0.1685955",
+            "",
+            "W10 =  2.4345514   df(1, 199)     Pr > F = 0.12027673"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
