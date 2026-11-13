@@ -19,7 +19,8 @@
     "coverage:corpus": "node tools/corpus-coverage.mjs --write",
     "differential": "node tools/differential.mjs --write",
     "probe:students": "node tools/student-probe.mjs",
-    "probe:postestimation": "node tools/postestimation-probe.mjs"
+    "probe:postestimation": "node tools/postestimation-probe.mjs",
+    "probe:wide": "node tools/wide-probe.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.4",
