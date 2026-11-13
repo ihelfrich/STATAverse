@@ -10,7 +10,7 @@ import { RULE, estimates, quadratic } from "./estimation.js";
 import { parseNumlist } from "./numlist.js";
 import { draw } from "./graphics.js";
 import { count, labelled } from "./reports.js";
-import { isMissing } from "./values.js";
+import { MISSING, isMissing } from "./values.js";
 import { outcomeMargins } from "./outcome-margins.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -56,6 +56,52 @@ export function linkOf(model) {
   if (model.kind === "nbreg") return LINKS.poisson;
   if (LINKS[model.kind]) return LINKS[model.kind];
   return LINEAR_COMMANDS.includes(model.command) ? LINKS.linear : null;
+}
+
+/**
+ * A basis of the null space of the design over the estimation sample:
+ * every column of the model, base levels and omitted columns included,
+ * and the constant. Columns are taken in turn and orthogonalised against
+ * those before; one that adds nothing gives the combination that vanishes.
+ */
+function nullSpace(model, rows) {
+  const k = model.names.length,
+    column = (j) =>
+      model.names[j] === "_cons"
+        ? rows.map(() => 1)
+        : rows.map((i) => model.columns[j].value(i)),
+    basis = [],
+    nulls = [];
+  for (let j = 0; j < k; j++) {
+    let rest = column(j);
+    const coefficients = new Array(k).fill(0),
+      original = rest.reduce((t, v) => t + v * v, 0);
+    coefficients[j] = 1;
+    for (const q of basis) {
+      const weight = rest.reduce((t, v, m) => t + v * q.vector[m], 0) / q.norm;
+      if (!weight) continue;
+      rest = rest.map((v, m) => v - weight * q.vector[m]);
+      q.coefficients.forEach((c, m) => (coefficients[m] -= weight * c));
+    }
+    const norm = rest.reduce((t, v) => t + v * v, 0);
+    if (original > 0 && norm > 1e-9 * original)
+      basis.push({ vector: rest, norm, coefficients });
+    else nulls.push(coefficients);
+  }
+  return nulls;
+}
+
+/** Whether a row of the design is orthogonal to each null vector. */
+function inRowSpace(row, nulls) {
+  return nulls.every((v) => {
+    let dot = 0,
+      scale = 0;
+    v.forEach((c, j) => {
+      dot += c * row[j];
+      scale += Math.abs(c * row[j]);
+    });
+    return Math.abs(dot) <= 1e-8 * scale;
+  });
 }
 
 function margins(session, text, ctx) {
@@ -119,6 +165,15 @@ function margins(session, text, ctx) {
         rows.reduce((t, i) => t + v.data[i], 0) / n,
       ]),
     );
+  // When the fit omitted a coefficient or left a level with no
+  // observations, some predictions are not estimable: those whose row of
+  // the design is not a combination of the rows in the estimation sample.
+  // The design's null space, over every column (base levels included),
+  // tells which; Stata checks each observation's row as margins does.
+  const restricted = model.columns.some(
+      (c, j) => c && (c.empty || (!c.base && model.estimable?.[j] === false)),
+    ),
+    nulls = restricted ? nullSpace(model, rows) : [];
   // Values of the variables for observation i under a set of fixed values.
   // fixed: Map of variable name to a value, or "mean".
   const getter = (i, fixed) => (variable) => {
@@ -147,15 +202,19 @@ function margins(session, text, ctx) {
   const xb = (r) => r.reduce((t, v, j) => t + v * model.b[j], 0);
   // Average of a function of each row, with its gradient in b.
   const average = (fixed, each) => {
-    let value = 0;
+    let value = 0,
+      estimable = true;
     const gradient = new Array(k).fill(0);
     for (const i of rows) {
       const r = row(i, fixed),
         [v, dv] = each(r, xb(r), i);
       value += v / n;
       dv.forEach((d, j) => (gradient[j] += d / n));
+      if (estimable && nulls.length) estimable = inRowSpace(r, nulls);
     }
-    return { value, gradient };
+    return estimable
+      ? { value, gradient }
+      : { value: 0, gradient: new Array(k).fill(0), estimable: false };
   };
   const prediction = (fixed) =>
     average(fixed, (r, e) => [mean(e), r.map((v) => slope(e) * v)]);
@@ -170,10 +229,34 @@ function margins(session, text, ctx) {
         r.map((v, c) => curve(e) * v * total + slope(e) * d[c]),
       ];
     });
-  const difference = (a, b) => ({
-    value: a.value - b.value,
-    gradient: a.gradient.map((v, j) => v - b.gradient[j]),
-  });
+  const difference = (a, b) =>
+    a.estimable === false || b.estimable === false
+      ? { value: 0, gradient: new Array(k).fill(0), estimable: false }
+      : {
+          value: a.value - b.value,
+          gradient: a.gradient.map((v, j) => v - b.gradient[j]),
+        };
+  // The levels of a factor in the model, those the fit left without
+  // observations included, and whether the first, the base, is empty.
+  const modelLevels = (name) => {
+    const own = model.columns.filter((c) => c?.term.factor?.name === name);
+    return own.length
+      ? { levels: own.map((c) => c.level), emptyBase: !!own[0].empty }
+      : { levels: levelsOf(name), emptyBase: false };
+  };
+  // A variable all of whose coefficients were omitted has no effect to
+  // estimate; Stata shows it as (omitted).
+  const omittedVariable = (name) => {
+    const own = model.columns
+      .map((c, j) => [c, j])
+      .filter(([c]) =>
+        (c?.term.variables ?? [c?.term.variable]).some((v) => v?.name === name),
+      );
+    return (
+      own.length > 0 &&
+      own.every(([c, j]) => !c.base && model.estimable?.[j] === false)
+    );
+  };
 
   // at(): each variable takes one value or a list; sets are their product.
   const base = new Map();
@@ -205,7 +288,15 @@ function margins(session, text, ctx) {
     }
     if (!atNames.length) throw new StataError("invalid at() option", 198);
   }
-  const allFixed = (set) => covariates.every((name) => set.has(name));
+  // Covariates are all fixed when at() sets them or they are the factors
+  // whose margins or effects are asked for.
+  const allFixed = (set) =>
+    covariates.every(
+      (name) =>
+        set.has(name) ||
+        marginVariables.includes(name) ||
+        (factors.has(name) && !!dydx?.includes(name)),
+    );
 
   // What to compute.
   const results = [];
@@ -287,17 +378,49 @@ function margins(session, text, ctx) {
             });
         }
       } else if (factors.has(name)) {
-        const [first, ...others] = levelsOf(name),
-          atBase = prediction(new Map(set).set(name, first));
+        // After a fit that omitted levels, every level of the model is
+        // listed, as Stata lists it, and an empty base level is shown.
+        const { levels, emptyBase } = restricted
+            ? modelLevels(name)
+            : { levels: levelsOf(name), emptyBase: false },
+          [first, ...others] = levels,
+          atBase = prediction(new Map(set).set(name, first)),
+          label = (lv) =>
+            `${labelled(session, factors.get(name), lv)}  `.padStart(13);
         results.push({ group: name });
-        for (const lv of others)
+        if (emptyBase)
           results.push({
-            label: `${labelled(session, factors.get(name), lv)}  `.padStart(13),
-            ...difference(prediction(new Map(set).set(name, lv)), atBase),
+            label: label(first),
+            value: 0,
+            gradient: new Array(k).fill(0),
+            factor: name,
+            empty: true,
+            column: `${first}b.${name}`,
+          });
+        for (const lv of others) {
+          const contrast = difference(
+            prediction(new Map(set).set(name, lv)),
+            atBase,
+          );
+          results.push({
+            label: label(lv),
+            ...contrast,
             factor: name,
             wrt: `${lv}.${name}`,
+            ...(contrast.estimable === false
+              ? { column: `${lv}o.${name}` }
+              : {}),
           });
-      } else {
+        }
+      } else if (!several && omittedVariable(name))
+        results.push({
+          label: `${name.padStart(12)} `,
+          value: 0,
+          gradient: new Array(k).fill(0),
+          wrt: name,
+          omitted: true,
+        });
+      else {
         const variable = variables.find((v) => v.name === name);
         if (several) {
           // One effect for each setting, under the variable's name.
@@ -481,6 +604,14 @@ function margins(session, text, ctx) {
     } else {
       if (previous && previous.factor && !previous.single && !result.factor)
         ctx.out("             |");
+      if (result.estimable === false || result.empty || result.omitted) {
+        ctx.out(
+          `${result.label}|          ${result.estimable === false ? ".  (not estimable)" : `0  (${result.empty ? "empty" : "omitted"})`}`,
+        );
+        result.se = MISSING;
+        previous = result;
+        continue;
+      }
       const se = Math.sqrt(quadratic(result.gradient, model.V)),
         z = result.value / se;
       ctx.out(
@@ -502,7 +633,10 @@ function margins(session, text, ctx) {
   const values = results.filter((r) => !r.group && !r.heading && !r.rule);
   // r(b) and r(V): the estimates and their covariance, from the same
   // gradients that gave the standard errors.
-  const labels = values.map((r, j) => (r.wrt ?? r.label.trim()) || `m${j + 1}`),
+  const labels = values.map(
+      (r, j) => (r.column ?? r.wrt ?? r.label.trim()) || `m${j + 1}`,
+    ),
+    unmarked = labels.map((label) => label.replace(/^(\d+)o\./, "$1.")),
     covariance = values.map((a) =>
       values.map((b2) =>
         a.gradient.reduce(
@@ -521,7 +655,12 @@ function margins(session, text, ctx) {
       colNames: labels,
       values: [values.map((r) => r.value)],
     },
-    "matrix:V": { rowNames: labels, colNames: labels, values: covariance },
+    // r(V) marks base levels but not the levels left out (1.g, not 1o.g).
+    "matrix:V": {
+      rowNames: unmarked,
+      colNames: unmarked,
+      values: covariance,
+    },
   };
   // Kept for marginsplot: each estimate with its interval and where it
   // sits on the horizontal axis.

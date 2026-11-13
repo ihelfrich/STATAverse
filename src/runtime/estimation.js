@@ -95,13 +95,19 @@ export function design(session, text, rows, constant = true) {
     terms = [],
     add = (named) => {
       // A factor crossed with itself is that factor: i.a#i.a is i.a.
-      const components = named.filter(
-        (c, k) =>
-          !c.factor ||
-          named.findIndex(
-            (other) => other.factor && other.variable === c.variable,
-          ) === k,
-      );
+      const distinct = named.filter(
+          (c, k) =>
+            !c.factor ||
+            named.findIndex(
+              (other) => other.factor && other.variable === c.variable,
+            ) === k,
+        ),
+        // Stata names an interaction with its factors first, each group in
+        // the order given: c.x#i.g is g#c.x and its columns 1.g#c.x.
+        components = [
+          ...distinct.filter((c) => c.factor),
+          ...distinct.filter((c) => !c.factor),
+        ];
       // Stata keeps a factor or an interaction only the first time it is
       // named; a continuous variable named twice stays twice and the
       // second is omitted for collinearity (tobit drops it instead, so the
@@ -259,7 +265,9 @@ export function design(session, text, rows, constant = true) {
       made.forEach((column, k) => {
         column.base = k === 0;
         if (k === 0) column.name = column.name.replace(".", "b.");
-        else independent(column);
+        // A level that adds nothing, such as 2.g beside a dummy for g == 2,
+        // is collinear; the likelihood fitters omit it.
+        else if (!independent(column)) column.collinear = true;
       });
     else if (factors.length)
       // In an interaction, cells at base levels give way first: a cell is
@@ -552,7 +560,7 @@ export function fit(session, parsed, by) {
  */
 export function tableWidth(session, model) {
   const shown = model.names
-    .filter((_, k) => !model.columns?.[k]?.base)
+    .filter((_, k) => !hiddenBase(model.columns?.[k]))
     .map((name) => {
       const term = model.columns?.[model.names.indexOf(name)]?.term;
       return term && !term.variable ? term.header : name;
@@ -564,7 +572,7 @@ export function tableWidth(session, model) {
     // A factor level's label counts too, with the space after it.
     labels = model.names.flatMap((_, k) => {
       const column = model.columns?.[k];
-      if (!column?.levels || column.base) return [];
+      if (!column?.levels || hiddenBase(column)) return [];
       const factors = column.term.components.filter((c) => c.factor);
       return [
         column.levels
@@ -583,11 +591,18 @@ export function tableWidth(session, model) {
     );
   return Math.max(12, Math.min(longest, cap));
 }
+/**
+ * A base level is not shown in a coefficient table, unless no observation
+ * of the estimation sample has it (after logit sets aside the observations
+ * a perfect predictor explains): then it is shown as (empty).
+ */
+const hiddenBase = (column) => !!column?.base && !column.empty;
+
 /** Stata's abbrev(name, width): the start, a ~, and the last character. */
 export const abbreviate = (name, width) =>
   name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
 
-export function termRows(session, model, cells, width) {
+export function termRows(session, model, cells, width, omittedValue = 0) {
   // Without a width the column is twelve and names are not shortened.
   const w = width ?? 12,
     short = (name) => (width ? abbreviate(name, w) : name),
@@ -603,7 +618,7 @@ export function termRows(session, model, cells, width) {
   });
   let previousPlain = true;
   blocks.forEach((block, b) => {
-    const shown = block.items.filter((k) => !model.columns[k]?.base),
+    const shown = block.items.filter((k) => !hiddenBase(model.columns[k])),
       // A factor with one level to show, such as a 0/1 variable, is printed
       // on one row like a plain variable, with no blank rows around it.
       alone =
@@ -620,7 +635,7 @@ export function termRows(session, model, cells, width) {
       out.push(
         model.estimable[k]
           ? `${label}|${cells(k)}`
-          : `${label}|          0  (omitted)`,
+          : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
@@ -1270,11 +1285,19 @@ export function coefficientIndex(model, name) {
   const text = name.trim().replace(/^\[\s*([^\]]+?)\s*\]\s*/, "$1:"),
     exact = model.names.indexOf(text);
   if (exact >= 0) return exact;
+  // An interaction may be named in any order, as c.x#1.g for 1.g#c.x.
+  const parts = (n) => n.split("#").sort().join("#"),
+    same = (a, b) => a === b || (b.includes("#") && parts(a) === parts(b));
   if (model.names.some((n) => n.includes(":")))
     return text.includes(":")
-      ? -1
-      : model.names.findIndex((n) => n.replace(/^[^:]+:/, "") === text);
-  return model.names.indexOf(text.replace(/^[^:]+:/, ""));
+      ? model.names.findIndex(
+          (n) =>
+            n.replace(/:.*$/, "") === text.replace(/:.*$/, "") &&
+            same(n.replace(/^[^:]+:/, ""), text.replace(/^[^:]+:/, "")),
+        )
+      : model.names.findIndex((n) => same(n.replace(/^[^:]+:/, ""), text));
+  const wanted = text.replace(/^[^:]+:/, "");
+  return model.names.findIndex((n) => same(n, wanted));
 }
 
 /** A constraint as Stata lists it: "x1 - 2*o.k = 1", or "= 0" for none. */

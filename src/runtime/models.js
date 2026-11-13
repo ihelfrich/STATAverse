@@ -113,6 +113,8 @@ function zTable(session, model, level, transform) {
         return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
       },
       w,
+      // A coefficient fixed at zero is an odds ratio (or rate ratio) of one.
+      transform ? 1 : 0,
     ),
   );
   lines.push(rule);
@@ -135,11 +137,141 @@ function waldChi2(model) {
     : MISSING;
 }
 
+/**
+ * Stata's search for regressors that predict a binary outcome perfectly,
+ * which logit and probit make before fitting (_rmcoll with the logit
+ * option; the rules are those of _binperfect.ado). Every column, base
+ * levels of factors included, is compared between failures and successes:
+ *
+ * - when every failure has one value and some success has it too, the
+ *   observations with any other value are all successes; they are set
+ *   aside and the column is omitted (likewise with the outcomes swapped);
+ * - when the largest value among failures is the smallest among successes
+ *   (or the reverse), the outcome is known except at that value, and only
+ *   the observations with that value are kept;
+ * - when the values of failures and successes do not meet at all, the
+ *   outcome is known everywhere and the model cannot be fitted, r(2000).
+ *
+ * After each reduction the search starts again from the first column. A
+ * column that takes one value in what remains is left to the collinearity
+ * check. Returns the observations kept (as flags over the sample), the
+ * rules applied and the notes, each followed by a blank line as Stata
+ * prints them; a complete separation throws after printing the notes.
+ */
+function perfectPrediction(columns, sample, outcome, ctx, lead) {
+  const keep = sample.map(() => true),
+    rules = [],
+    notes = [],
+    left = [...columns];
+  // Positions in the sample still in use.
+  let kept = sample.map((_, j) => j);
+  for (let k = 0; k < left.length;) {
+    const column = left[k],
+      name = column.name.replace(/^(\d+)b\./, "$1."),
+      // The message of a complete separation names the column by its
+      // variables alone, as g#x for 1.g#c.x.
+      variables = column.term.components.map((c) => c.variable.name).join("#");
+    let m0 = Infinity,
+      M0 = -Infinity,
+      m1 = Infinity,
+      M1 = -Infinity;
+    for (const j of kept) {
+      const v = column.value(sample[j]);
+      if (outcome[j]) {
+        if (v < m1) m1 = v;
+        if (v > M1) M1 = v;
+      } else {
+        if (v < m0) m0 = v;
+        if (v > M0) M0 = v;
+      }
+    }
+    // One value everywhere: nothing to separate.
+    if (m0 === M0 && m1 === M1 && m0 === m1) {
+      k++;
+      continue;
+    }
+    // Keep the observations at value; the rest are not used.
+    const reduce = (value, text) => {
+      const before = kept.length;
+      kept = kept.filter((j) => {
+        if (column.value(sample[j]) === value) return true;
+        keep[j] = false;
+        return false;
+      });
+      const dropped = before - kept.length;
+      rules.push({ column, value });
+      notes.push(
+        ...text,
+        `      ${name} omitted and ${dropped} obs not used.`,
+        "",
+      );
+      left.splice(k, 1);
+      k = 0;
+    };
+    const exceptAt = (relation, value) => [
+      `note: outcome = ${name} ${relation} ${g(value)} predicts data perfectly except for`,
+      `      ${name} == ${g(value)} subsample:`,
+    ];
+    if (m0 === M0 && (m0 === m1 || m0 === M1))
+      reduce(m0, [`note: ${name} != ${g(m0)} predicts success perfectly;`]);
+    else if (m1 === M1 && (m1 === m0 || m1 === M0))
+      reduce(m1, [`note: ${name} != ${g(m1)} predicts failure perfectly;`]);
+    else if (M0 === m1) reduce(M0, exceptAt(">", M0));
+    else if (M1 === m0) reduce(M1, exceptAt("<", M1));
+    else if (M0 < m1 || M1 < m0) {
+      if (lead) ctx.out("");
+      notes.forEach(ctx.out);
+      throw new StataError(
+        M0 < m1
+          ? `outcome = ${variables} > ${g(M0)} predicts data perfectly`
+          : `outcome = ${variables} <= ${g(M1)} predicts data perfectly`,
+        2000,
+      );
+    } else k++;
+  }
+  return { keep, rules, notes };
+}
+
+/**
+ * Which columns are collinear with the constant and the columns before
+ * them over these observations, as _rmcoll finds them after perfect
+ * predictors have set observations aside. Base levels and the perfect
+ * predictors themselves are left out. A factor level with no observations
+ * left is marked empty, so the table shows it as (empty).
+ */
+function recheckCollinearity(columns, sample, constant) {
+  const basis = [],
+    independent = (vector) => {
+      let rest = vector;
+      const original = rest.reduce((t, v) => t + v * v, 0);
+      for (const q of basis) {
+        const weight =
+          rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+        rest = rest.map((v, k) => v - weight * q.vector[k]);
+      }
+      const norm = rest.reduce((t, v) => t + v * v, 0);
+      if (!(original > 0 && norm > 1e-9 * original)) return false;
+      basis.push({ vector: rest, norm });
+      return true;
+    };
+  if (constant) independent(sample.map(() => 1));
+  for (const c of columns) {
+    if (c.levels) {
+      const factors = c.term.components.filter((f) => f.factor);
+      c.empty = !sample.some((i) =>
+        factors.every((f, k) => f.variable.data[i] === c.levels[k]),
+      );
+    }
+    if (c.base || c.perfect) continue;
+    c.collinear = !independent(sample.map(c.value));
+  }
+}
+
 function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr]",
+        `anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr${family.binary ? " | ASIS" : ""}]`,
         text,
       ),
       options = parsed.options,
@@ -151,12 +283,14 @@ function maximumLikelihood(kind) {
         columns,
         sample: complete,
       } = design(session, parsed.anything, rows, constant),
-      sample = cluster
+      logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? "");
+    let sample = cluster
         ? complete.filter((i) => !noCluster(cluster, i))
         : complete,
-      n = sample.length;
+      n = sample.length,
+      perfect = { rules: [], notes: [] };
     if (!n) throw new StataError("no observations", 2000);
-    const y = sample.map((i) => dependent.data[i]);
+    let y = sample.map((i) => dependent.data[i]);
     if (family.binary) {
       const outcome = y.map((v) => Number(v !== 0));
       if (outcome.every((v) => v === outcome[0]))
@@ -169,14 +303,26 @@ function maximumLikelihood(kind) {
       outcome.forEach((v, i) => {
         y[i] = v;
       });
+      // Observations whose outcome a regressor predicts perfectly are set
+      // aside, and collinearity is judged again over those that remain.
+      const found = perfectPrediction(columns, sample, y, ctx, logged);
+      if (found.rules.length) {
+        perfect = found;
+        for (const rule of found.rules) rule.column.perfect = true;
+        sample = sample.filter((_, j) => found.keep[j]);
+        y = y.filter((_, j) => found.keep[j]);
+        n = sample.length;
+        recheckCollinearity(columns, sample, constant);
+      }
     } else if (y.some((v) => v < 0 || !Number.isInteger(v)))
       throw new StataError(
         `${dependent.name} must be a nonnegative count`,
         459,
       );
     // A variable collinear with those before it is omitted, as Stata's
-    // _rmcoll omits it, and stays in the table as (omitted).
-    for (const c of columns) c.omitted = !!c.collinear;
+    // _rmcoll omits it, and stays in the table as (omitted); so does a
+    // perfect predictor.
+    for (const c of columns) c.omitted = !!c.collinear || !!c.perfect;
     const active = columns.filter((c) => !c.base && !c.omitted),
       x = sample.map((i) => [
         ...active.map((c) => c.value(i)),
@@ -265,6 +411,14 @@ function maximumLikelihood(kind) {
         throw new StataError("convergence not achieved", 430);
     }
     information = invertSymmetric(derivatives().hessian);
+    // A fit that ran off to a boundary the search above did not catch, as
+    // when an interaction separates the outcome only in part: Stata reports
+    // its observations as completely determined, which is not done here.
+    if (!information)
+      throw new StataError(
+        "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
+        430,
+      );
     let V = information,
       clusters = null;
     if (robust) {
@@ -328,8 +482,14 @@ function maximumLikelihood(kind) {
       family,
       kind,
       sample,
+      // The perfect-prediction rules; predict leaves the observations they
+      // set aside missing.
+      rules: perfect.rules,
     };
-    const chi2 = robust ? waldChi2(model) : 2 * (ll - ll0),
+    // A model without a constant has no constant-only model to compare
+    // with, so its test is a Wald test, as with a robust variance.
+    const wald = robust || !constant,
+      chi2 = wald ? waldChi2(model) : 2 * (ll - ll0),
       p = isMissing(chi2) ? MISSING : chi2tail(model.df_m, chi2),
       r2 = isMissing(ll0) ? MISSING : 1 - ll / ll0,
       transform =
@@ -356,6 +516,7 @@ function maximumLikelihood(kind) {
       ll,
       ll_0: ll0,
       chi2,
+      chi2type: wald ? "Wald" : "LR",
       p,
       r2_p: r2,
       rank: size,
@@ -368,11 +529,12 @@ function maximumLikelihood(kind) {
       ...(robust ? { vcetype: "Robust" } : {}),
       ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
     };
-    // Stata's built-in logit and probit print a blank line, the notes of
-    // omitted variables, then the log; poisson, an ado-file, prints the
-    // notes first and a blank line after them.
-    const logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? ""),
-      omitted = columns.filter((c) => c.omitted),
+    // Stata's built-in logit and probit print, with the log, a blank line,
+    // the notes of perfect predictors (each followed by a blank line) and
+    // of omitted variables, then the log; without it, the notes and a
+    // blank line. poisson, an ado-file, prints the notes first and a blank
+    // line after them.
+    const omitted = columns.filter((c) => c.collinear && !c.perfect),
       notes = () =>
         omitted.forEach((c) =>
           ctx.out(`note: ${c.name} omitted because of collinearity.`),
@@ -381,9 +543,10 @@ function maximumLikelihood(kind) {
       notes();
       ctx.out("");
     } else {
-      ctx.out("");
+      if (logged) ctx.out("");
+      perfect.notes.forEach(ctx.out);
       notes();
-      if (omitted.length && !logged) ctx.out("");
+      if (!logged) ctx.out("");
     }
     if (logged) {
       log.forEach((value, k) =>
@@ -395,12 +558,19 @@ function maximumLikelihood(kind) {
     }
     ctx.out(`${family.title.padEnd(left)}${side("Number of obs", shown[0])}`);
     ctx.out(
-      `${"".padEnd(left)}${side(`${robust ? "Wald" : "LR"} chi2(${model.df_m})`, shown[1])}`,
+      `${"".padEnd(left)}${side(`${wald ? "Wald" : "LR"} chi2(${model.df_m})`, shown[1])}`,
     );
-    ctx.out(`${"".padEnd(left)}${side("Prob > chi2", shown[2])}`);
-    ctx.out(
-      `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Pseudo R2", shown[3])}`,
-    );
+    // Without a constant there is no pseudo R2, and the log likelihood
+    // shares the line of the p-value.
+    if (constant) {
+      ctx.out(`${"".padEnd(left)}${side("Prob > chi2", shown[2])}`);
+      ctx.out(
+        `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Pseudo R2", shown[3])}`,
+      );
+    } else
+      ctx.out(
+        `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Prob > chi2", shown[2])}`,
+      );
     ctx.out("");
     if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
     zTable(session, model, options.level, transform).forEach(ctx.out);
@@ -871,9 +1041,16 @@ function predict(session, text, ctx) {
     mean = family.mean ?? linkOf(model)[0],
     pearson = model.kind === "logit",
     parsed = session.parse(
-      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${pearson ? " Residuals" : ""}]`,
+      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${pearson ? " Residuals" : ""}${family.binary ? " ASIF | RULEs" : ""}]`,
       text,
     ),
+    // Observations a perfect-prediction rule set aside are missing unless
+    // asif asks for the prediction regardless. Stata compares in float.
+    rules = parsed.options.asif ? [] : (model.rules ?? []),
+    setAside = (i) =>
+      rules.some(
+        (r) => Math.fround(r.column.value(i)) !== Math.fround(r.value),
+      ),
     wantXb = parsed.options.xb,
     data = session.data,
     values = new Array(data.n).fill(MISSING);
@@ -907,7 +1084,8 @@ function predict(session, text, ctx) {
         (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
           isMissing(v.data[i]),
         ),
-      )
+      ) ||
+      setAside(i)
     )
       return;
     const row = model.names.map((name, k) =>
@@ -1131,9 +1309,10 @@ function estat(session, text, ctx) {
       line = (label, code, a, b) =>
         ctx.out(`${label.padEnd(32)}${code}${percent(a, b)}`),
       rule = "-".repeat(50),
+      // The counts have no thousands separators, as Stata prints them.
       row = (label, a, b) =>
         ctx.out(
-          `${label}|${count(a).padStart(10)}${count(b).padStart(14)}  |${count(a + b).padStart(11)}`,
+          `${label}|${String(a).padStart(10)}${String(b).padStart(14)}  |${String(a + b).padStart(11)}`,
         );
     ctx.out(
       `${kind[0].toUpperCase() + kind.slice(1)} model for ${model.depvar}`,

@@ -110,6 +110,8 @@ for (const c of fixture.cases)
             "models-repeated-terms",
             "test-accumulate-mlogit",
             "test-lincom-equations",
+            "perfect-prediction",
+            "binary-noconstant",
           ].includes(c.id),
         )
       )

@@ -4234,3 +4234,170 @@ egen r5 = rank(x) if g == 1, track
 list
 describe r0 r1 r2 r3 r4 r5
 clear
+=== perfect-prediction
+clear
+set obs 2000
+set seed 5
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate y = cond(g==0, 0, runiform() < .4 + .2*x)
+logit y x i.g, nolog
+logit y x i.g
+probit y x i.g, nolog
+generate x2 = 2*x
+generate d = g == 0
+generate dd = 2*d
+logit y x x2 d, nolog
+logit y d x x2
+logit y x dd d, nolog
+logit y x d, nolog noconstant
+logit y x d, nolog vce(robust)
+logit y i.g##c.x, nolog
+logit y i.g#c.x, nolog
+logit y x i.d, nolog
+logit y i.d##c.x, nolog
+generate e = cond(g==1, 1, 0)
+generate y3 = cond(g==0, 0, cond(g==1, 1, runiform() < .5))
+logit y3 x d e, nolog
+logit y3 x e d, nolog
+generate v = cond(y==0, -1.5, -1.5 + floor(runiform()*3)/7)
+logit y x v, nolog
+predict p
+summarize p
+predict p2, asif
+summarize p2
+predict xb, xb
+summarize xb
+count if !missing(p)
+generate z = _n/7
+generate y2 = z > 100.5
+capture noisily logit y2 z, nolog
+display _rc
+capture noisily probit y2 d z
+display _rc
+generate y4 = cond(d, 1, x > .3)
+capture noisily logit y4 d x
+display _rc
+generate w = floor(_n/500)
+generate y5 = w > 2
+replace y5 = runiform() < .5 if w == 2
+logit y5 w
+generate y6 = w < 2
+replace y6 = runiform() < .5 if w == 2
+probit y6 w x, nolog
+generate y7 = g == 1
+replace y7 = 0 if x < .5 & g == 1
+logit y7 x i.g, nolog
+=== binary-noconstant
+clear
+set obs 500
+set seed 21
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate y = runiform() < .3 + .3*x
+logit y x, nolog noconstant
+display e(chi2type) " " e(r2_p) " " e(ll_0)
+probit y x g, noconstant
+logit y x, nolog noconstant robust
+generate c = floor(3*runiform()*x)
+poisson c x, nolog noconstant
+=== perfect-prediction-names
+clear
+set obs 3000
+set seed 21
+generate g = floor(runiform()*3)
+generate h = floor(runiform()*2)
+generate x = runiform()
+generate v = runiform()
+generate y1 = g == 2
+capture noisily logit y1 i.g, nolog
+generate y2 = g != 2
+capture noisily logit y2 i.g, nolog
+generate y3 = g == 1 & h == 1
+capture noisily logit y3 i.g#i.h, nolog
+generate y4 = g == 1 & x > .5
+capture noisily logit y4 i.g#c.x, nolog
+capture noisily logit y4 c.x#i.g, nolog
+generate y8 = g == 1 & h == 1 & x > .5
+capture noisily logit y8 c.x#i.h#i.g, nolog
+generate y6 = g == 1
+capture noisily logit y6 x i.g
+capture noisily probit y6 x i.g, nolog
+generate y7 = x > .5
+capture noisily logit y7 c.x#c.x, nolog
+capture noisily logit y7 c.x##c.x, nolog
+generate y5 = v < .4
+replace y5 = 0 if g == 1
+logit y5 c.x#i.g, nolog
+logit y5 i.g c.x#i.g, nolog
+logit y5 c.x##i.g, nolog
+regress v c.x#i.h#c.v#i.g
+generate d2 = g == 2
+logit y5 x d2 i.g, nolog
+margins, dydx(*)
+margins g
+=== perfect-prediction-or-margins
+clear
+set obs 2000
+set seed 5
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate u = runiform()
+generate y = cond(g==0, 0, u < .4 + .2*x)
+label define gl 0 "none" 1 "some" 2 "lots"
+label values g gl
+logit y x i.g, or nolog
+logistic y x i.g
+margins, dydx(*)
+margins, dydx(g)
+margins g
+margins g, at(x=.5)
+probit y x i.g, nolog
+margins, dydx(*)
+generate x2 = 2*x
+logit y x x2, or nolog
+poisson y x x2, irr nolog
+generate y2 = u < .4 + .2*x
+replace y2 = 0 if g == 2
+logit y2 x i.g, nolog
+margins, dydx(*)
+margins, dydx(g) at(x=.5)
+margins, dydx(*) at(x=.5)
+margins, dydx(x) at(x=.5)
+margins g
+capture noisily margins, at(g=2)
+generate d = g == 2
+logit y2 x d, nolog
+margins, dydx(*)
+logit y2 x x2, nolog
+margins, dydx(*)
+logit y2 x if g < 2, nolog
+estat classification
+=== classification-counts
+clear
+set obs 30000
+set seed 5
+generate x = runiform()
+generate y = runiform() < .3 + .4*x
+logit y x, nolog
+estat classification
+=== interaction-order
+clear
+set obs 300
+set seed 21
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate z = runiform()
+generate y = runiform() + x
+regress y c.x#i.g
+display _b[c.x#1.g]
+display _b[1.g#c.x]
+display _se[c.x#2.g]
+test c.x#1.g = c.x#2.g
+lincom 1.g#c.x - c.x#2.g
+regress y c.z#c.x
+display _b[c.x#c.z]
+generate yb = y > 1
+logit yb c.x#i.g, nolog
+margins, dydx(*)
+margins g
