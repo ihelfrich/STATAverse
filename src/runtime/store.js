@@ -36,6 +36,49 @@ const descending = (a, b) =>
       : -1
     : compare(b, a);
 
+/**
+ * The characteristics of _dta or of a variable as Stata lists them, newest
+ * first, as [name, text] pairs. Notes are the characteristics note1, note2,
+ * ... with note0 counting them; their text comes from data.notes, which the
+ * notes command keeps, and their place from data.chars when it has one.
+ */
+export function characteristicsOf(data, owner) {
+  const notes = (data.notes?.get(owner) ?? []).filter((note) => note !== ""),
+    count = notes.length,
+    text = (k) => (k ? notes[k - 1] : String(count)),
+    out = [],
+    seen = new Set();
+  for (const [name, value] of data.chars?.get(owner) ?? []) {
+    const note = /^note(\d+)$/.exec(name);
+    if (!note) {
+      if (value !== "") out.push([name, value]);
+      continue;
+    }
+    const k = Number(note[1]);
+    if (count && k <= count && !seen.has(k)) {
+      out.push([`note${k}`, text(k)]);
+      seen.add(k);
+    }
+  }
+  // Notes not placed yet come first, as the newest: noteN, note0, note1, ...
+  const order = count
+    ? [count, 0, ...Array.from({ length: count - 1 }, (_, k) => k + 1)]
+    : [];
+  const first = order
+    .filter((k) => !seen.has(k))
+    .map((k) => [`note${k}`, text(k)]);
+  return [...first, ...out];
+}
+
+const copyNotes = (from) => ({
+  notes: new Map(
+    [...(from.notes ?? [])].map(([name, list]) => [name, [...list]]),
+  ),
+  chars: new Map(
+    [...(from.chars ?? [])].map(([name, map]) => [name, new Map(map)]),
+  ),
+});
+
 export class Dataset {
   constructor({ defaultType = "float" } = {}) {
     this.n = 0;
@@ -45,6 +88,10 @@ export class Dataset {
     this.label = "";
     // Value labels: label name to a Map from number to text.
     this.valueLabels = new Map();
+    // Notes (name to a list of texts) and characteristics (name to a Map
+    // from characteristic to text), for _dta and each variable.
+    this.notes = new Map();
+    this.chars = new Map();
   }
 
   get names() {
@@ -244,6 +291,10 @@ export class Dataset {
     for (const name of names) this.get(name);
     for (const name of names) this.unsortFrom(name);
     this.variables = this.variables.filter((v) => !names.includes(v.name));
+    for (const name of names) {
+      this.notes?.delete(name);
+      this.chars?.delete(name);
+    }
     // Stata has no observations without variables.
     if (!this.variables.length) this.n = 0;
   }
@@ -259,6 +310,12 @@ export class Dataset {
       throw new StataError(`variable ${to} already defined`, 110);
     variable.name = to;
     this.sortedBy = this.sortedBy.map((name) => (name === from ? to : name));
+    // Its notes and characteristics go with it.
+    for (const store of [this.notes, this.chars])
+      if (store?.has(from)) {
+        store.set(to, store.get(from));
+        store.delete(from);
+      }
   }
   /** Moves the listed variables to the front, in the order given. */
   order(names) {
@@ -285,6 +342,7 @@ export class Dataset {
       valueLabels: new Map(
         [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
+      ...copyNotes(this),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
     };
   }
@@ -295,6 +353,7 @@ export class Dataset {
       valueLabels: new Map(
         [...snapshot.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
+      ...copyNotes(snapshot),
       variables: snapshot.variables.map((v) => ({
         ...v,
         data: v.data.slice(),

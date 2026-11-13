@@ -134,5 +134,8 @@ const RESERVED = new Set(
     " ",
   ),
 );
-export const isName = (name) => /^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(name);
+// A name is a letter (any alphabet) or _ followed by letters, digits and _,
+// at most 32 characters, as in Stata 14 and later.
+export const isName = (name) =>
+  /^[\p{L}_][\p{L}\p{M}\p{Nd}_]{0,31}$/u.test(name);
 export const isReserved = (name) => RESERVED.has(name) || /^str\d+$/.test(name);

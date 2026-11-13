@@ -12,6 +12,7 @@ function pattern(word) {
         .map((c) => (c === "*" || c === "~" ? ".*" : c === "?" ? "." : c))
         .join("") +
       "$",
+    "u",
   );
 }
 
@@ -27,12 +28,12 @@ export function expandVarlist(text, names) {
   const out = [];
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
     if (word === "_all") out.push(...names);
-    else if (/^[A-Za-z_0-9]*\.[A-Za-z_#(]/.test(word) || /[#()]/.test(word))
+    else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
       throw new StataError(
         "factor-variable and time-series operators not allowed",
         101,
       );
-    else if (!/^[A-Za-z_*?~][A-Za-z_0-9*?~-]*$/.test(word))
+    else if (!/^[\p{L}_*?~][\p{L}\p{M}\p{Nd}_*?~-]*$/u.test(word))
       throw new StataError(`${word} invalid name`, 198);
     else if (word.includes("-")) {
       const ends = word.split("-");

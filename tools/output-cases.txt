@@ -4681,3 +4681,55 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== char-and-notes
+clear
+set obs 2
+generate x = _n
+generate y = _n
+notes
+notes: first
+notes x: about x
+char x[source] "src"
+char _dta[author] "me"
+notes y: about y
+notes y: more y
+notes
+char list
+char list x[]
+char list _dta[author]
+char define x[unit] "kg"
+char list x[]
+char x[unit]
+char list x[]
+char x[w] `"quoted "text""'
+char list x[w]
+local s : char x[source]
+display "`s'"
+local all : char _dta[]
+display "`all'"
+capture noisily char rename x y
+char _dta[abcdefghijklmnopqrs] "nineteen"
+char _dta[abcdefghijklmnopqrst] "twenty"
+char _dta[abcdefghijklmnopqrstu] "twenty-one"
+char list _dta[]
+char _dta[long] "This is a very long characteristic text that keeps going and going past the right edge of the screen"
+set linesize 80
+char list _dta[long]
+set linesize 200
+generate z = 1
+char rename y z
+char list
+notes
+=== unicode-names
+clear
+set obs 3
+generate größe = _n * 1.5
+generate byte ñ_count = _n
+label variable größe "Körpergröße"
+summarize größe
+generate y = größe * 2
+list
+summarize grö*
+rename ñ_count número
+tabulate número if größe > 2
+count if número >= 2 & größe < 4

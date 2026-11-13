@@ -58,7 +58,7 @@ const cleared = () => ({}),
       .filter(Boolean)
       .some((word) => {
         const name = word.replace(/^.*\./, "").replace(/^\(|\)$/g, "");
-        if (!/^[A-Za-z_]\w*\*?$/.test(name)) return false;
+        if (!/^[\p{L}_][\p{L}\p{M}\p{Nd}_]*\*?$/u.test(name)) return false;
         try {
           session.varlist(name);
           return false;

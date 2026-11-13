@@ -6,6 +6,7 @@ import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import { count, labelled, moments } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
+import { characteristicsOf } from "./store.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -367,6 +368,14 @@ function notes(session, text, ctx) {
     const name = add[1] ? session.varlist(add[1])[0] : "_dta";
     if (!store.has(name)) store.set(name, []);
     store.get(name).push(add[2].trim().replace(/ {2,}/g, " "));
+    // As in Stata, note0 (the count) is updated, then the new note is
+    // defined; each becomes the newest characteristic.
+    const chars = (session.data.chars ??= new Map()),
+      own = chars.get(name) ?? new Map(),
+      last = `note${store.get(name).length}`;
+    own.delete("note0");
+    own.delete(last);
+    chars.set(name, new Map([[last, ""], ["note0", ""], ...own]));
     return;
   }
   const words = text.trim().split(/\s+/).filter(Boolean);
@@ -388,6 +397,126 @@ function notes(session, text, ctx) {
             .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w)))
         : ["_dta", ...session.data.names];
   list(names);
+}
+
+/**
+ * char: characteristics, the named texts kept with the dataset (_dta) and
+ * with each variable. char [define] evarname[charname] [text] defines one
+ * (no text deletes it); char list [evarname[[charname]]] lists them; char
+ * rename oldvar newvar [, replace] moves a variable's to another.
+ */
+function char(session, text, ctx) {
+  const data = session.data,
+    chars = (data.chars ??= new Map()),
+    notes = (data.notes ??= new Map()),
+    owner = (word) => {
+      if (word === "_dta") return word;
+      if (/[*?~\s-]/.test(word))
+        throw new StataError(`${word} invalid name`, 198);
+      return session.varlist(word)[0];
+    },
+    target = (word, empty) => {
+      const m = /^([^[\]\s]+)\[([^[\]\s]*)\]$/.exec(word);
+      if (!m || (!empty && !m[2]))
+        throw new StataError(`${word || "nothing"} invalid name`, 198);
+      if (m[2] && !/^[\p{L}_][\p{L}\p{N}_]{0,31}$/u.test(m[2]))
+        throw new StataError(`${m[2]} invalid name`, 198);
+      return [owner(m[1]), m[2]];
+    },
+    show = (who, name, value) => {
+      const head = `  ${who}[${name}]:`,
+        room = (session.settings.linesize ?? 80) - 31,
+        shown =
+          value.length > room
+            ? value.slice(0, Math.max(0, room - 2)) + ".."
+            : value;
+      if (head.length > 29) {
+        ctx.out(head);
+        ctx.out(" ".repeat(30) + shown);
+      } else ctx.out(head.padEnd(30) + shown);
+    };
+  const m = /^\s*(\S*)\s*([\s\S]*)$/.exec(text),
+    verb = m[1];
+  if (/^l(i(st?)?)?$/.test(verb)) {
+    const word = m[2].trim();
+    if (!word) {
+      for (const who of ["_dta", ...data.names])
+        for (const [name, value] of characteristicsOf(data, who))
+          show(who, name, value);
+      return;
+    }
+    if (/\s/.test(word)) throw new StataError("invalid syntax", 198);
+    const [who, name] = target(word, true);
+    for (const [key, value] of characteristicsOf(data, who))
+      if (!name || key === name) show(who, key, value);
+    return;
+  }
+  if (verb === "rename") {
+    const parsed = /^(\S+)\s+(\S+)\s*(?:,\s*(\S*)\s*)?$/.exec(m[2]);
+    if (!parsed) throw new StataError("invalid syntax", 198);
+    if (parsed[3] !== undefined && parsed[3] !== "replace")
+      throw new StataError(`option ${parsed[3]} not allowed`, 198);
+    const from = owner(parsed[1]),
+      to = owner(parsed[2]),
+      theirs = characteristicsOf(data, to);
+    if (from === to) return;
+    if (!parsed[3])
+      for (const [name] of characteristicsOf(data, from))
+        if (theirs.some(([key]) => key === name))
+          throw new StataError(
+            `characteristic ${to}[${name}] already exists`,
+            110,
+          );
+    // Each is defined again on the new owner in turn, so their order turns
+    // over, as it does in Stata.
+    const theirsMoved = characteristicsOf(data, from).reverse(),
+      moved = new Map([
+        ...theirsMoved,
+        ...[...(chars.get(to) ?? [])].filter(
+          ([key]) => !theirsMoved.some(([name]) => name === key),
+        ),
+      ]);
+    if (notes.has(from)) notes.set(to, notes.get(from));
+    chars.set(to, moved);
+    chars.delete(from);
+    notes.delete(from);
+    return;
+  }
+  // char [define] evarname[charname] [text]
+  const rest =
+      verb === "define" || verb === "def" || verb === "defi" || verb === "defin"
+        ? m[2]
+        : text,
+    d = /^\s*(\S+?\[[^\]]*\])\s?([\s\S]*)$/.exec(rest);
+  if (!d) throw new StataError("invalid syntax", 198);
+  const [who, name] = target(d[1], false),
+    value = unquote(d[2].trim()),
+    own = chars.get(who) ?? new Map(),
+    note = /^note(\d+)$/.exec(name);
+  own.delete(name);
+  if (value !== "") chars.set(who, new Map([[name, value], ...own]));
+  else chars.set(who, own);
+  if (note && note[1] !== "0") {
+    const list = notes.get(who) ?? [],
+      k = Number(note[1]);
+    while (list.length < k) list.push("");
+    list[k - 1] = value;
+    while (list.length && list.at(-1) === "") list.pop();
+    if (list.length) notes.set(who, list);
+    else notes.delete(who);
+  }
+}
+/** Text written in double quotes or compound quotes, without them. */
+function unquote(text) {
+  if (text.startsWith('`"') && text.endsWith("\"'")) return text.slice(2, -2);
+  if (
+    text.length >= 2 &&
+    text.startsWith('"') &&
+    text.endsWith('"') &&
+    text.indexOf('"', 1) === text.length - 1
+  )
+    return text.slice(1, -1);
+  return text;
 }
 
 /** numlabel: puts each value in front of its label, or takes it away. */
@@ -414,6 +543,7 @@ function numlabel(session, text, ctx) {
 
 export const EVERYDAY_COMMANDS = [
   { name: "notes", minimum: 4, run: notes },
+  { name: "char", minimum: 4, run: char },
   { name: "numlabel", minimum: 8, run: numlabel },
   {
     name: "which",

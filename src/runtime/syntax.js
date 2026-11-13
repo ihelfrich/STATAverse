@@ -236,7 +236,8 @@ export function clauses(head, expAllowed = true) {
         found.push({ kind: "weight", at: i, after: i });
     }
   }
-  const word = /(?<![A-Za-z_0-9.])(if|in|using)(?![A-Za-z_0-9])/g;
+  const word =
+    /(?<![\p{L}\p{M}\p{Nd}_.])(if|in|using)(?![\p{L}\p{M}\p{Nd}_])/gu;
   for (let m; (m = word.exec(head));)
     if (flags[m.index])
       found.push({ kind: m[1], at: m.index, after: m.index + m[1].length });

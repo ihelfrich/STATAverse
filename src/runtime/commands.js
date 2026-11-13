@@ -32,6 +32,7 @@ import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
 import { DATA_COMMANDS } from "./data-commands.js";
+import { characteristicsOf } from "./store.js";
 import {
   count,
   countCommand,
@@ -174,6 +175,13 @@ export function extendedFunction(session, frame, source) {
   if ((m = /^f(?:o(?:r(?:m(?:at?)?)?)?)?\s+(\S+)$/.exec(text)))
     return data.get(session.varlist(m[1])[0]).format;
   if (/^sortedby$/.test(text)) return data.sortedBy.join(" ");
+  if ((m = /^char\s+(\S+?)\[(\S*)\]$/.exec(text))) {
+    const owner = m[1] === "_dta" ? "_dta" : session.varlist(m[1])[0],
+      chars = characteristicsOf(data, owner);
+    return m[2]
+      ? (chars.find(([name]) => name === m[2])?.[1] ?? "")
+      : chars.map(([name]) => name).join(" ");
+  }
   if (/^data\s+l(a(b(el?)?)?)?$/.test(text)) return data.label;
   if ((m = /^l(?:a(?:b(?:el?)?)?)?\s+(\S+)\s+(\S+)$/.exec(text))) {
     const map = data.valueLabels.get(m[1]),

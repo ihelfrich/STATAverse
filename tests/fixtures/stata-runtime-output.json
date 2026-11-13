@@ -32425,6 +32425,226 @@
       ]
     },
     {
+      "id": "char-and-notes",
+      "source": "clear\nset obs 2\ngenerate x = _n\ngenerate y = _n\nnotes\nnotes: first\nnotes x: about x\nchar x[source] \"src\"\nchar _dta[author] \"me\"\nnotes y: about y\nnotes y: more y\nnotes\nchar list\nchar list x[]\nchar list _dta[author]\nchar define x[unit] \"kg\"\nchar list x[]\nchar x[unit]\nchar list x[]\nchar x[w] `\"quoted \"text\"\"'\nchar list x[w]\nlocal s : char x[source]\ndisplay \"`s'\"\nlocal all : char _dta[]\ndisplay \"`all'\"\ncapture noisily char rename x y\nchar _dta[abcdefghijklmnopqrs] \"nineteen\"\nchar _dta[abcdefghijklmnopqrst] \"twenty\"\nchar _dta[abcdefghijklmnopqrstu] \"twenty-one\"\nchar list _dta[]\nchar _dta[long] \"This is a very long characteristic text that keeps going and going past the right edge of the screen\"\nset linesize 80\nchar list _dta[long]\nset linesize 200\ngenerate z = 1\nchar rename y z\nchar list\nnotes\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "notes", "lines": [] },
+        { "command": "notes: first", "lines": [] },
+        { "command": "notes x: about x", "lines": [] },
+        { "command": "char x[source] \"src\"", "lines": [] },
+        { "command": "char _dta[author] \"me\"", "lines": [] },
+        { "command": "notes y: about y", "lines": [] },
+        { "command": "notes y: more y", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  first",
+            "",
+            "x:",
+            "  1.  about x",
+            "",
+            "y:",
+            "  1.  about y",
+            "  2.  more y"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[author]:               me",
+            "  _dta[note1]:                first",
+            "  _dta[note0]:                1",
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1",
+            "  y[note2]:                   more y",
+            "  y[note0]:                   2",
+            "  y[note1]:                   about y"
+          ]
+        },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1"
+          ]
+        },
+        {
+          "command": "char list _dta[author]",
+          "lines": ["  _dta[author]:               me"]
+        },
+        { "command": "char define x[unit] \"kg\"", "lines": [] },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[unit]:                    kg",
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1"
+          ]
+        },
+        { "command": "char x[unit]", "lines": [] },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1"
+          ]
+        },
+        { "command": "char x[w] `\"quoted \"text\"\"'", "lines": [] },
+        {
+          "command": "char list x[w]",
+          "lines": ["  x[w]:                       quoted \"text\""]
+        },
+        { "command": "local s : char x[source]", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["src"] },
+        { "command": "local all : char _dta[]", "lines": [] },
+        { "command": "display \"`all'\"", "lines": ["author note1 note0"] },
+        {
+          "command": "capture noisily char rename x y",
+          "lines": ["characteristic y[note1] already exists"]
+        },
+        {
+          "command": "char _dta[abcdefghijklmnopqrs] \"nineteen\"",
+          "lines": []
+        },
+        {
+          "command": "char _dta[abcdefghijklmnopqrst] \"twenty\"",
+          "lines": []
+        },
+        {
+          "command": "char _dta[abcdefghijklmnopqrstu] \"twenty-one\"",
+          "lines": []
+        },
+        {
+          "command": "char list _dta[]",
+          "lines": [
+            "  _dta[abcdefghijklmnopqrstu]:",
+            "                              twenty-one",
+            "  _dta[abcdefghijklmnopqrst]: twenty",
+            "  _dta[abcdefghijklmnopqrs]:  nineteen",
+            "  _dta[author]:               me",
+            "  _dta[note1]:                first",
+            "  _dta[note0]:                1"
+          ]
+        },
+        {
+          "command": "char _dta[long] \"This is a very long characteristic text that keeps going and going past the right edge of the screen\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "char list _dta[long]",
+          "lines": [
+            "  _dta[long]:                 This is a very long characteristic text that ke.."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        { "command": "generate z = 1", "lines": [] },
+        { "command": "char rename y z", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[long]:                 This is a very long characteristic text that keeps going and going past the right edge of the screen",
+            "  _dta[abcdefghijklmnopqrstu]:",
+            "                              twenty-one",
+            "  _dta[abcdefghijklmnopqrst]: twenty",
+            "  _dta[abcdefghijklmnopqrs]:  nineteen",
+            "  _dta[author]:               me",
+            "  _dta[note1]:                first",
+            "  _dta[note0]:                1",
+            "  x[w]:                       quoted \"text\"",
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1",
+            "  z[note1]:                   about y",
+            "  z[note0]:                   2",
+            "  z[note2]:                   more y"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  first",
+            "",
+            "x:",
+            "  1.  about x",
+            "",
+            "z:",
+            "  1.  about y",
+            "  2.  more y"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unicode-names",
+      "source": "clear\nset obs 3\ngenerate größe = _n * 1.5\ngenerate byte ñ_count = _n\nlabel variable größe \"Körpergröße\"\nsummarize größe\ngenerate y = größe * 2\nlist\nsummarize grö*\nrename ñ_count número\ntabulate número if größe > 2\ncount if número >= 2 & größe < 4\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate größe = _n * 1.5", "lines": [] },
+        { "command": "generate byte ñ_count = _n", "lines": [] },
+        { "command": "label variable größe \"Körpergröße\"", "lines": [] },
+        {
+          "command": "summarize größe",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "       größe |          3           3         1.5        1.5        4.5"
+          ]
+        },
+        { "command": "generate y = größe * 2", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------+",
+            "     | größe   ñ_count   y |",
+            "     |---------------------|",
+            "  1. |   1.5         1   3 |",
+            "  2. |     3         2   6 |",
+            "  3. |   4.5         3   9 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "summarize grö*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "       größe |          3           3         1.5        1.5        4.5"
+          ]
+        },
+        { "command": "rename ñ_count número", "lines": [] },
+        {
+          "command": "tabulate número if größe > 2",
+          "lines": [
+            "     número |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          2 |          1       50.00       50.00",
+            "          3 |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00"
+          ]
+        },
+        { "command": "count if número >= 2 & größe < 4", "lines": ["  1"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -69,10 +69,10 @@ for (const name of ["fromstata118.dta", "fromstata117.dta"])
       ],
     );
     // Sorted by i: the row of -300, the row of 100, then the missing row.
-    assert.deepEqual(by.i.data.slice(0, 2), [-300, 100]);
+    assert.deepEqual([...by.i.data.slice(0, 2)], [-300, 100]);
     assert.deepEqual(by.s.data, ["é ü", "apple", ""]);
-    assert.deepEqual(by.d.data.slice(0, 2), [1e300, 3.25]);
-    assert.deepEqual(by.f.data.slice(0, 2), [-2.5, 1.5]);
+    assert.deepEqual([...by.d.data.slice(0, 2)], [1e300, 3.25]);
+    assert.deepEqual([...by.f.data.slice(0, 2)], [-2.5, 1.5]);
     // Each kind of missing value keeps its letter: .a . .b .c .z
     const step = 2 ** 1011;
     assert.equal(by.b.data[2], MISSING + step);
@@ -129,9 +129,15 @@ test("files that are not a readable .dta are refused with a reason", () => {
     () => readDta(bytes("not a dataset")),
     /not a Stata \.dta file/,
   );
+  // Formats 105 to 115 are read; a header cut short is damaged, and the
+  // formats of Stata 4 and earlier are refused.
   assert.throws(
     () => readDta(new Uint8Array([114, 2, 1, 0, 9, 0, 0, 0])),
-    /older than Stata 13/,
+    /damaged or cut short/,
+  );
+  assert.throws(
+    () => readDta(new Uint8Array([104, 2, 1, 0, 9, 0, 0, 0])),
+    /Stata 4 or earlier/,
   );
   assert.throws(
     () => readDta(bytes("<stata_dta><header><release>121</release>")),
