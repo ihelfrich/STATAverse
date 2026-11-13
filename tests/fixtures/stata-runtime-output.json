@@ -32425,6 +32425,104 @@
       ]
     },
     {
+      "id": "graph-bar-sort-and-statistics",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngraph bar (count)\ngraph hbar (percent)\ncapture noisily graph bar\ncapture noisily graph bar (mean)\ngraph bar (count) if g == 2, blabel(bar)\ngraph bar (mean) y, over(g, descending)\ngraph bar (mean) y, over(g, sort(x1) descending)\ngraph bar (mean) y, over(g, sort((max) x2))\ngraph bar (mean) y, over(g, sort(nosuch))\ngraph bar (median) y (p75) y (p25) x1, over(g)\ngraph bar (p50) y, over(cl)\ngraph hbar (p90) y, over(g, des)\ngraph box y, over(g, descending)\ngraph box y x1, over(g, sort(2) descending)\ncapture noisily graph bar (p0) y\ncapture noisily graph bar (p100) y\ncapture noisily graph bar (foo) y\ncapture noisily graph bar (P50) y\ncapture noisily graph bar (mean) y, over(g, sort((foo) x1))\ncapture noisily graph bar (mean) y, over(g, sort(1) sort(x1))\ncapture noisily graph bar (mean) y, over(g, descending descending)\ncapture noisily graph bar (mean) y, over(g, sort(2))\ncapture noisily graph box y, over(g, sort(2))\ncapture noisily graph box y, over(g, sort((max) x1))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        { "command": "graph bar (count)", "lines": [] },
+        { "command": "graph hbar (percent)", "lines": [] },
+        {
+          "command": "capture noisily graph bar",
+          "lines": ["graph specification required"]
+        },
+        {
+          "command": "capture noisily graph bar (mean)",
+          "lines": ["varlist required"]
+        },
+        { "command": "graph bar (count) if g == 2, blabel(bar)", "lines": [] },
+        { "command": "graph bar (mean) y, over(g, descending)", "lines": [] },
+        {
+          "command": "graph bar (mean) y, over(g, sort(x1) descending)",
+          "lines": []
+        },
+        {
+          "command": "graph bar (mean) y, over(g, sort((max) x2))",
+          "lines": []
+        },
+        { "command": "graph bar (mean) y, over(g, sort(nosuch))", "lines": [] },
+        {
+          "command": "graph bar (median) y (p75) y (p25) x1, over(g)",
+          "lines": []
+        },
+        { "command": "graph bar (p50) y, over(cl)", "lines": [] },
+        { "command": "graph hbar (p90) y, over(g, des)", "lines": [] },
+        { "command": "graph box y, over(g, descending)", "lines": [] },
+        {
+          "command": "graph box y x1, over(g, sort(2) descending)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily graph bar (p0) y",
+          "lines": ["(0) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (p100) y",
+          "lines": ["(100) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (foo) y",
+          "lines": ["(foo) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (P50) y",
+          "lines": ["(P50) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort((foo) x1))",
+          "lines": ["(foo) invalid statistic"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort(1) sort(x1))",
+          "lines": ["option sort() not allowed"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, descending descending)",
+          "lines": ["option descending not allowed"]
+        },
+        {
+          "command": "capture noisily graph bar (mean) y, over(g, sort(2))",
+          "lines": ["sort() invalid, category 2 not found"]
+        },
+        {
+          "command": "capture noisily graph box y, over(g, sort(2))",
+          "lines": ["sort() invalid, category 2 not found"]
+        },
+        {
+          "command": "capture noisily graph box y, over(g, sort((max) x1))",
+          "lines": ["invalid syntax"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -137,7 +137,8 @@ test("graph bar, hbar and box report the statistics they draw", () => {
   assert.equal(graphs.length, 4);
   // Means of y by g: (1 + 3)/2, 3.5 from the two present values, and 8.
   assert.match(graphs[0].description, /mean of y by g: 1 2, 2 3\.5, 3 8/);
-  assert.match(graphs[1].description, /median of x by g: 1 1\.5, 2 4, 3 6/);
+  // Stata titles (median) as p 50.
+  assert.match(graphs[1].description, /p 50 of x by g: 1 1\.5, 2 4, 3 6/);
   assert.match(graphs[2].description, /x \(2\): median 4, quartiles 3 and 5/);
   assert.match(graphs[3].description, /percent by g: 1 33\.33333, 2 50/);
   assert.match(graphs[1].svg, />1<\/text>/);
