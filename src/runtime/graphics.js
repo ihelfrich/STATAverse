@@ -461,10 +461,10 @@ export function drawHorizontalBars({
   labelled,
 }) {
   // A null value is a missing statistic: its slot is left empty. With every
-  // value missing, Stata draws the axis from -1 to 1 and nothing on it.
+  // value missing or 0, Stata labels the axis only -1 and 1.
   const all = groups.flatMap((group) => group.values).filter((v) => v !== null);
   if (!groups.length) throw new StataError("no observations", 2000);
-  const xt = all.length
+  const xt = all.some((v) => v !== 0)
       ? ticks(Math.min(0, least(all)), Math.max(0, greatest(all)))
       : [-1, 1],
     x0 = xt[0],

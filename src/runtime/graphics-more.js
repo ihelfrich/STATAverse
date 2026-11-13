@@ -250,8 +250,12 @@ function statisticList(session, text) {
 }
 /** Splits a graph command into its yvars, its if/in, and its options. */
 function graphParts(session, text, declaration) {
-  // The if or in may open the text, as in graph bar if x > 0, over(g).
-  const m = /^([\s\S]*?)((?:^|\s+)(?:if|in)\s[\s\S]*?)?(,[\s\S]*)?$/.exec(text),
+  // The if or in may open the text, as in graph bar if x > 0, over(g), and
+  // an if may run straight into its parenthesis, as in if(x > 0).
+  const m =
+      /^([\s\S]*?)((?:^|\s+)(?:if(?=[\s(])|in\s)[\s\S]*?)?(,[\s\S]*)?$/.exec(
+        text,
+      ),
     parsed = parseGraph(
       session,
       `[if] [in] [, OVer(string) ${declaration} ${LOOKS}]`,
@@ -413,9 +417,12 @@ function graphBar(horizontal) {
         description,
       });
     }
-    // When no statistic can be drawn, Stata still draws the axes, the y axis
-    // from -1 to 1, with every group's label.
-    const empty = heights.every((row) => row.every((h) => h === null)),
+    // When no statistic can be drawn, or every one is 0 (as count and sum of
+    // no values are), Stata still draws the axes, the y axis labelled only
+    // -1 and 1, with every group's label.
+    const empty = heights.every((row) =>
+        row.every((h) => h === null || h === 0),
+      ),
       looks = drawnLooks(options);
     ctx.graph({
       svg: draw({

@@ -253,3 +253,75 @@ test("blabel(bar) writes heights in %8.0g whatever the variable's format", () =>
   assert.deepEqual(barLabels(graphs[1]), stata);
   assert.deepEqual(barLabels(graphs[2]), seventh);
 });
+
+test("with every statistic 0 Stata labels the axis only -1 and 1", () => {
+  // Recorded from Stata 19 (graph export .svg) on the same commands.
+  const s = createConsoleSession();
+  s.reset("labor");
+  for (const c of [
+    "gen allm = .",
+    "gen z = 0",
+    'gen w3 = wage if region!="West"',
+  ])
+    s.run(c);
+  const run = (c) => {
+    const result = s.run(c);
+    assert.equal(result.rc, 0, c);
+    return result.output.at(-1).graph.svg;
+  };
+  const stata = [
+    // Stata: bar labels 0 | 0 | 0 | 0, axis -1 | 1.
+    ["graph bar (count) allm, over(region) blabel(bar)", ["0", "0", "0", "0"]],
+    ['graph bar (count) w3 if region=="West", over(region) blabel(bar)', ["0"]],
+    [
+      "graph bar (mean) allm (count) allm, over(region) blabel(bar)",
+      ["0", "0", "0", "0"],
+    ],
+    ["graph bar (mean) z, over(region) blabel(bar)", ["0", "0", "0", "0"]],
+    ["graph bar (sum) z", []],
+    ["graph hbar (count) allm, over(region)", []],
+    ["graph hbar (sum) allm, over(region) blabel(bar)", ["0", "0", "0", "0"]],
+    ["graph hbar (mean) z", []],
+  ];
+  for (const [command, labels] of stata) {
+    const svg = run(command);
+    assert.deepEqual(axisNumbers(svg), ["-1", "1"], command);
+    assert.deepEqual(barLabels(svg), labels, command);
+  }
+  // A series of zeros beside a nonzero one keeps an ordinary axis from 0
+  // (Stata: 0 5 10 15 20); the runtime's general tick choice is not what
+  // this test checks.
+  const mixed = axisNumbers(
+    run("graph bar (mean) z (mean) wage, over(region)"),
+  );
+  assert.equal(mixed[0], "0");
+  assert.ok(!mixed.includes("-1"));
+});
+
+test("an if may run straight into its parenthesis", () => {
+  const [percent, mean, over, count, hbar] = labor(
+    "graph bar if(wage>20), over(region) blabel(bar)",
+    "graph bar (mean) wage if(wage>20)",
+    "graph bar (mean) wage if(wage>20), over(region)",
+    "graph bar (count) if(wage>20), over(region)",
+    "graph hbar (mean) wage if(wage>20), over(region)",
+  );
+  for (const r of [percent, mean, over, count, hbar])
+    assert.equal(r.result.rc, 0);
+  // Stata 19: rc 0, axis 0 10 20 30 titled "percent", with the same shares
+  // as graph bar if wage>20.
+  assert.deepEqual(barLabels(percent.graph.svg), [
+    ...["23.0769", "29.4872", "25.641", "21.7949"],
+  ]);
+  assert.ok(texts(percent.graph.svg).includes("percent"));
+  assert.deepEqual(axisNumbers(percent.graph.svg), ["0", "10", "20", "30"]);
+  // Stata 19: one bar, axis 0 10 20 30; over(region) four bars, same axis.
+  assert.equal(bars(mean.graph.svg), 1);
+  assert.deepEqual(axisNumbers(mean.graph.svg), ["0", "10", "20", "30"]);
+  assert.equal(bars(over.graph.svg), 4);
+  assert.deepEqual(axisNumbers(over.graph.svg), ["0", "10", "20", "30"]);
+  // Stata 19: axis 0 20 40 60 80, titled frequency.
+  assert.deepEqual(axisNumbers(count.graph.svg), ["0", "20", "40", "60", "80"]);
+  assert.ok(texts(count.graph.svg).includes("frequency"));
+  assert.ok(texts(hbar.graph.svg).includes("mean of wage"));
+});
