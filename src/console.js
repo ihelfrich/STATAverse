@@ -66,9 +66,23 @@ function startWorker() {
       if (!data.ready) return;
       clearTimeout(timer);
       candidate.onerror = () => {
-        // A worker that dies mid-run loses the session.
-        pending?.reject(new Error("the interpreter stopped unexpectedly"));
+        // The worker answers every fault in the interpreter with a message,
+        // so an error event means the worker itself has died, and with it
+        // the session. It cannot be asked anything again: replace it.
+        const lost = pending;
         pending = null;
+        candidate.terminate();
+        if (worker === candidate) worker = null;
+        if (lost)
+          lost.reject(
+            Object.assign(new Error("the interpreter stopped unexpectedly"), {
+              lost: true,
+            }),
+          );
+        else
+          restart(
+            "The interpreter stopped unexpectedly. The session was cleared; the do-file text is unchanged.",
+          );
       };
       candidate.onmessage = ({ data: reply }) => {
         if (!pending || reply.id !== pending.id) return;
@@ -639,10 +653,16 @@ async function perform(text, origin) {
       `\nThe interpreter stopped unexpectedly: ${error.message}\n`,
       "console-error",
     );
-    status.textContent =
-      "The interpreter stopped unexpectedly. Please report the do-file that caused this.";
-    status.dataset.state = "error";
     fox.idle();
+    if (error.lost) {
+      status.textContent = "The interpreter stopped. Starting a new session…";
+      await restart(
+        "The interpreter stopped unexpectedly. The session was cleared; the do-file text is unchanged. Please report the do-file that caused this.",
+      );
+    } else
+      status.textContent =
+        "The interpreter stopped unexpectedly. Please report the do-file that caused this.";
+    status.dataset.state = "error";
     busy(false);
     return null;
   }
@@ -738,6 +758,12 @@ async function runSteps(entries, mark) {
   finish(0, commands, started);
 }
 
+/** A new worker with the student's files, and a new session in it. */
+async function restart(message) {
+  await startWorker();
+  for (const [name, data] of uploads) await sendUpload(name, data);
+  await newSession(message);
+}
 async function newSession(message) {
   const result = await ask({ kind: "reset", dataset: "" });
   known = null;
@@ -1008,9 +1034,7 @@ stop.addEventListener("click", async () => {
   append("\n--Break--\n", "console-error");
   fox.idle();
   status.textContent = "Stopped. Starting a new session…";
-  await startWorker();
-  for (const [name, data] of uploads) await sendUpload(name, data);
-  await newSession(
+  await restart(
     "Stopped. The session was cleared; the do-file text is unchanged.",
   );
   busy(false);
@@ -1079,7 +1103,7 @@ function hint(block) {
 output.addEventListener("pointerover", (event) => {
   const block = event.target.closest?.(".console-record");
   hint(block);
-  if (mapping && block?.dataset.step)
+  if (mapping && block?.dataset.step && map.hovering())
     map.point(Number(block.dataset.step), true);
 });
 output.addEventListener("pointerleave", () => hint(null));
