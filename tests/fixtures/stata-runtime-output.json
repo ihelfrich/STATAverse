@@ -34318,6 +34318,643 @@
       ]
     },
     {
+      "id": "redteam3-bitest-by-empty-groups",
+      "source": "clear\nset obs 20\nset seed 66\ngenerate g = _n > 10\ngenerate h = runiform() < .5\nby g, sort: bitest h == .5 if g == 1\nby g: bitest h == .5 if g == 0\ngenerate str3 s = cond(_n < 11, \"aa\", cond(_n < 17, \"bb\", \"cc\"))\nreplace h = . if s == \"bb\"\ncapture noisily bysort s: bitest h == .5\ndisplay _rc\ncapture noisily bysort s: bitest h == .5, detail\ndisplay _rc\ngenerate y = _n\ncapture noisily bysort s: bitest h == .5 if y > 100\ndisplay _rc\nbysort s: signtest y = 3 if y > 100\nbysort s: prtest h == .5 if y > 100\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "set seed 66", "lines": [] },
+        { "command": "generate g = _n > 10", "lines": [] },
+        { "command": "generate h = runiform() < .5", "lines": [] },
+        {
+          "command": "by g, sort: bitest h == .5 if g == 1",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 0",
+            "no observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           h |           10            4            5     0.50000      0.40000",
+            "",
+            "  Pr(k >= 4)           = 0.828125  (one-sided test)",
+            "  Pr(k <= 4)           = 0.376953  (one-sided test)",
+            "  Pr(k <= 4 or k >= 6) = 0.753906  (two-sided test)"
+          ]
+        },
+        {
+          "command": "by g: bitest h == .5 if g == 0",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 0",
+            "",
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           h |           10            7            5     0.50000      0.70000",
+            "",
+            "  Pr(k >= 7)           = 0.171875  (one-sided test)",
+            "  Pr(k <= 7)           = 0.945312  (one-sided test)",
+            "  Pr(k <= 3 or k >= 7) = 0.343750  (two-sided test)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "no observations"
+          ]
+        },
+        {
+          "command": "generate str3 s = cond(_n < 11, \"aa\", cond(_n < 17, \"bb\", \"cc\"))",
+          "lines": []
+        },
+        {
+          "command": "replace h = . if s == \"bb\"",
+          "lines": ["(6 real changes made, 6 to missing)"]
+        },
+        {
+          "command": "capture noisily bysort s: bitest h == .5",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = aa",
+            "",
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           h |           10            7            5     0.50000      0.70000",
+            "",
+            "  Pr(k >= 7)           = 0.171875  (one-sided test)",
+            "  Pr(k <= 7)           = 0.945312  (one-sided test)",
+            "  Pr(k <= 3 or k >= 7) = 0.343750  (two-sided test)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = bb",
+            "no observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = cc",
+            "",
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           h |            4            2            2     0.50000      0.50000",
+            "",
+            "  Pr(k >= 2)           = 0.687500  (one-sided test)",
+            "  Pr(k <= 2)           = 0.687500  (one-sided test)",
+            "  Pr(k <= 2 or k >= 2) = 1.000000  (two-sided test)"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily bysort s: bitest h == .5, detail",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = aa",
+            "",
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           h |           10            7            5     0.50000      0.70000",
+            "",
+            "  Pr(k >= 7)           = 0.171875  (one-sided test)",
+            "  Pr(k <= 7)           = 0.945312  (one-sided test)",
+            "  Pr(k <= 3 or k >= 7) = 0.343750  (two-sided test)",
+            "",
+            "  Pr(k == 7)           = 0.117188  (observed)",
+            "  Pr(k == 4)           = 0.205078",
+            "  Pr(k == 3)           = 0.117188  (opposite extreme)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = bb",
+            "no observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = cc",
+            "",
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           h |            4            2            2     0.50000      0.50000",
+            "",
+            "  Pr(k >= 2)           = 0.687500  (one-sided test)",
+            "  Pr(k <= 2)           = 0.687500  (one-sided test)",
+            "  Pr(k <= 2 or k >= 2) = 1.000000  (two-sided test)",
+            "",
+            "  Pr(k == 2)           = 0.375000  (observed)",
+            "  Pr(k == 2)           = 0.375000  (opposite extreme)"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "generate y = _n", "lines": [] },
+        {
+          "command": "capture noisily bysort s: bitest h == .5 if y > 100",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = aa",
+            "no observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = bb",
+            "no observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = cc",
+            "no observations"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "bysort s: signtest y = 3 if y > 100",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = aa",
+            "",
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |           0           0",
+            "    Negative |           0           0",
+            "        Zero |           0           0",
+            "-------------+------------------------",
+            "         All |           0           0",
+            "",
+            "One-sided tests:",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  > 0",
+            "      Pr(#positive >= 0) =",
+            "         Binomial(n = 0, x >= 0, p = 0.5) = 1.0000",
+            "",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  < 0",
+            "      Pr(#negative >= 0) =",
+            "         Binomial(n = 0, x >= 0, p = 0.5) = 1.0000",
+            "",
+            "Two-sided test:",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  != 0",
+            "      Pr(#positive >= 0 or #negative >= 0) =",
+            "         min(1, 2*Binomial(n = 0, x >= 0, p = 0.5)) = 1.0000",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = bb",
+            "",
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |           0           0",
+            "    Negative |           0           0",
+            "        Zero |           0           0",
+            "-------------+------------------------",
+            "         All |           0           0",
+            "",
+            "One-sided tests:",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  > 0",
+            "      Pr(#positive >= 0) =",
+            "         Binomial(n = 0, x >= 0, p = 0.5) = 1.0000",
+            "",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  < 0",
+            "      Pr(#negative >= 0) =",
+            "         Binomial(n = 0, x >= 0, p = 0.5) = 1.0000",
+            "",
+            "Two-sided test:",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  != 0",
+            "      Pr(#positive >= 0 or #negative >= 0) =",
+            "         min(1, 2*Binomial(n = 0, x >= 0, p = 0.5)) = 1.0000",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = cc",
+            "",
+            "Sign test",
+            "",
+            "        Sign |    Observed    Expected",
+            "-------------+------------------------",
+            "    Positive |           0           0",
+            "    Negative |           0           0",
+            "        Zero |           0           0",
+            "-------------+------------------------",
+            "         All |           0           0",
+            "",
+            "One-sided tests:",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  > 0",
+            "      Pr(#positive >= 0) =",
+            "         Binomial(n = 0, x >= 0, p = 0.5) = 1.0000",
+            "",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  < 0",
+            "      Pr(#negative >= 0) =",
+            "         Binomial(n = 0, x >= 0, p = 0.5) = 1.0000",
+            "",
+            "Two-sided test:",
+            "  H0: median of y - 3  = 0 vs.",
+            "  Ha: median of y - 3  != 0",
+            "      Pr(#positive >= 0 or #negative >= 0) =",
+            "         min(1, 2*Binomial(n = 0, x >= 0, p = 0.5)) = 1.0000"
+          ]
+        },
+        {
+          "command": "bysort s: prtest h == .5 if y > 100",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = aa",
+            "",
+            "One-sample test of proportion                   Number of obs      =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           h |          .          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(h)                                             z =        .",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      .",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = bb",
+            "",
+            "One-sample test of proportion                   Number of obs      =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           h |          .          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(h)                                             z =        .",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      .",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> s = cc",
+            "",
+            "One-sample test of proportion                   Number of obs      =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           h |          .          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(h)                                             z =        .",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) =      .         Pr(|Z| > |z|) =      .          Pr(Z > z) =      ."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam3-robvar-equal-spread",
+      "source": "clear\nset obs 30\ngenerate g = 1 + (_n > 15)\ngenerate y = mod(_n, 15) + 10*g\nrobvar y, by(g)\nclear\ninput y g\n1 1\n3 1\n5 1\n2 2\n4 2\n6 2\n7 3\n9 3\n11 3\nend\nrobvar y if g < 3, by(g)\nrobvar y, by(g)\nclear\ninput y g\n1 1\n2 1\n4 2\n5 2\nend\nrobvar y, by(g)\nreplace y = y * 10 + 1\nrobvar y, by(g)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate g = 1 + (_n > 15)", "lines": [] },
+        { "command": "generate y = mod(_n, 15) + 10*g", "lines": [] },
+        {
+          "command": "robvar y, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |          17    4.472136          15",
+            "          2 |          27    4.472136          15",
+            "------------+------------------------------------",
+            "      Total |          22   6.7210426          30",
+            "",
+            "W0  =  0.0000000   df(1, 28)     Pr > F = 01",
+            "",
+            "W50 =  0.0000000   df(1, 28)     Pr > F = 01",
+            "",
+            "W10 =  0.0000000   df(1, 28)     Pr > F = 01"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input y g",
+          "lines": [
+            "             y          g",
+            "  1. 1 1",
+            "  2. 3 1",
+            "  3. 5 1",
+            "  4. 2 2",
+            "  5. 4 2",
+            "  6. 6 2",
+            "  7. 7 3",
+            "  8. 9 3",
+            "  9. 11 3",
+            " 10. end"
+          ]
+        },
+        {
+          "command": "robvar y if g < 3, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |           3           2           3",
+            "          2 |           4           2           3",
+            "------------+------------------------------------",
+            "      Total |         3.5   1.8708287           6",
+            "",
+            "W0  =  0.0000000   df(1, 4)     Pr > F = 01",
+            "",
+            "W50 =  0.0000000   df(1, 4)     Pr > F = 01",
+            "",
+            "W10 =  0.0000000   df(1, 4)     Pr > F = 01"
+          ]
+        },
+        {
+          "command": "robvar y, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |           3           2           3",
+            "          2 |           4           2           3",
+            "          3 |           9           2           3",
+            "------------+------------------------------------",
+            "      Total |   5.3333333   3.2787193           9",
+            "",
+            "W0  =  0.0000000   df(2, 6)     Pr > F = 01",
+            "",
+            "W50 =  0.0000000   df(2, 6)     Pr > F = 01",
+            "",
+            "W10 =  0.0000000   df(2, 6)     Pr > F = 01"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input y g",
+          "lines": [
+            "             y          g",
+            "  1. 1 1",
+            "  2. 2 1",
+            "  3. 4 2",
+            "  4. 5 2",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "robvar y, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |         1.5   .70710678           2",
+            "          2 |         4.5   .70710678           2",
+            "------------+------------------------------------",
+            "      Total |           3   1.8257419           4",
+            "",
+            "W0  =   .   df(1, 2)     Pr > F =  .",
+            "",
+            "W50 =   .   df(1, 2)     Pr > F =  .",
+            "",
+            "W10 =   .   df(1, 2)     Pr > F =  ."
+          ]
+        },
+        {
+          "command": "replace y = y * 10 + 1",
+          "lines": ["(4 real changes made)"]
+        },
+        {
+          "command": "robvar y, by(g)",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |          16   7.0710678           2",
+            "          2 |          46   7.0710678           2",
+            "------------+------------------------------------",
+            "      Total |          31   18.257419           4",
+            "",
+            "W0  =   .   df(1, 2)     Pr > F =  .",
+            "",
+            "W50 =   .   df(1, 2)     Pr > F =  .",
+            "",
+            "W10 =   .   df(1, 2)     Pr > F =  ."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam3-bitest-syntax-errors",
+      "source": "clear\nset obs 30\nset seed 77\ngenerate y = runiform() < .4\ngenerate str3 s = cond(_n < 10, \"a\", \"b\")\ngenerate z = 2\ncapture noisily bitest y\ndisplay _rc\ncapture noisily bitest y == s\ndisplay _rc\ncapture noisily bitest y ==\ndisplay _rc\ncapture noisily bitest y == \"a\"\ndisplay _rc\ncapture noisily bitest y .5\ndisplay _rc\ncapture noisily bitest y, detail\ndisplay _rc\ncapture noisily bitest y if y == 1\ndisplay _rc\ncapture noisily bitest y s\ndisplay _rc\ncapture noisily bitest y zz\ndisplay _rc\ncapture noisily bitest y z == .5\ndisplay _rc\ncapture noisily bitest y s = .5\ndisplay _rc\ncapture noisily bitest y in 1/5\ndisplay _rc\ncapture noisily bitest z == s\ndisplay _rc\ncapture noisily bitest y == s if _n > 40\ndisplay _rc\ncapture noisily bitest y == z\ndisplay _rc\nbitest y = .5\nbitest y==1/3 if s == \"b\"\ncapture noisily bitesti 10 3 .5 if 1\ndisplay _rc\ncapture noisily bitesti 10 3 .5 in 1/5\ndisplay _rc\ncapture noisily bitesti 10 3 .5 [fw=2]\ndisplay _rc\ncapture noisily bitesti 10 3 .5 using x\ndisplay _rc\ncapture noisily bitesti 10 3 .5 y\ndisplay _rc\ncapture noisily bitesti 10 3 .5 if 1, detail\ndisplay _rc\ncapture noisily bitesti 10 3 .5 [fw=2] if 1\ndisplay _rc\ncapture noisily bitesti 10 3 .5 if 1 [fw=2]\ndisplay _rc\ncapture noisily bitesti 10 3 .5 using x if 1\ndisplay _rc\ncapture noisily bitesti 10 3 .5 in 1 if 1\ndisplay _rc\ncapture noisily bitesti 10 3 .5 y if 1\ndisplay _rc\ncapture noisily bitesti 10 3 .5 [aw=2]\ndisplay _rc\ncapture noisily bitesti 10 3 .5 =\ndisplay _rc\ncapture noisily bitesti 10 3 .5 1\ndisplay _rc\ncapture noisily bitesti 10 3 .5 if\ndisplay _rc\ncapture noisily bitesti 10 3 .5 ifx\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "set seed 77", "lines": [] },
+        { "command": "generate y = runiform() < .4", "lines": [] },
+        {
+          "command": "generate str3 s = cond(_n < 10, \"a\", \"b\")",
+          "lines": []
+        },
+        { "command": "generate z = 2", "lines": [] },
+        { "command": "capture noisily bitest y", "lines": ["=exp required"] },
+        { "command": "display _rc", "lines": ["100"] },
+        {
+          "command": "capture noisily bitest y == s",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily bitest y ==",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily bitest y == \"a\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily bitest y .5",
+          "lines": [".5 invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily bitest y, detail",
+          "lines": ["=exp required"]
+        },
+        { "command": "display _rc", "lines": ["100"] },
+        {
+          "command": "capture noisily bitest y if y == 1",
+          "lines": ["=exp required"]
+        },
+        { "command": "display _rc", "lines": ["100"] },
+        { "command": "capture noisily bitest y s", "lines": ["=exp required"] },
+        { "command": "display _rc", "lines": ["100"] },
+        {
+          "command": "capture noisily bitest y zz",
+          "lines": ["variable zz not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily bitest y z == .5",
+          "lines": ["== invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily bitest y s = .5",
+          "lines": ["too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily bitest y in 1/5",
+          "lines": ["=exp required"]
+        },
+        { "command": "display _rc", "lines": ["100"] },
+        {
+          "command": "capture noisily bitest z == s",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily bitest y == s if _n > 40",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily bitest y == z",
+          "lines": ["success probability #p must be in (0,1)"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "bitest y = .5",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           y |           30           12           15     0.50000      0.40000",
+            "",
+            "  Pr(k >= 12)            = 0.899756  (one-sided test)",
+            "  Pr(k <= 12)            = 0.180797  (one-sided test)",
+            "  Pr(k <= 12 or k >= 18) = 0.361595  (two-sided test)"
+          ]
+        },
+        {
+          "command": "bitest y==1/3 if s == \"b\"",
+          "lines": [
+            "Binomial probability test",
+            "",
+            "    Variable |            N   Observed k   Expected k   Assumed p   Observed p",
+            "-------------+----------------------------------------------------------------",
+            "           y |           21            9            7     0.33333      0.42857",
+            "",
+            "  Pr(k >= 9)           = 0.239875  (one-sided test)",
+            "  Pr(k <= 9)           = 0.875220  (one-sided test)",
+            "  Pr(k <= 4 or k >= 9) = 0.361031  (two-sided test)"
+          ]
+        },
+        {
+          "command": "capture noisily bitesti 10 3 .5 if 1",
+          "lines": ["if not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 in 1/5",
+          "lines": ["in range not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 [fw=2]",
+          "lines": ["weights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 using x",
+          "lines": ["using not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 y",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 if 1, detail",
+          "lines": ["if not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 [fw=2] if 1",
+          "lines": ["weights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 if 1 [fw=2]",
+          "lines": ["if not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 using x if 1",
+          "lines": ["using not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 in 1 if 1",
+          "lines": ["in range not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 y if 1",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 [aw=2]",
+          "lines": ["weights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 =",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 1",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 if",
+          "lines": ["if not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily bitesti 10 3 .5 ifx",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

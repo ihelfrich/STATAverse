@@ -1034,7 +1034,11 @@ export function describe(session, text, ctx) {
   session.results.r = { N: data.n, k: data.variables.length };
 }
 
-/** Runs a reporting command once per by-group, under Stata's group heading. */
+/**
+ * Runs a reporting command once per by-group, under Stata's group heading.
+ * As in Stata's by, a group with no observations, r(2000), is not an
+ * error: its message is shown and the next group runs.
+ */
 export const perGroup = (run) => (session, text, ctx) => {
   if (!ctx.by) return run(session, text, ctx);
   const rule = "-".repeat(session.settings.linesize ?? 80);
@@ -1049,7 +1053,13 @@ export const perGroup = (run) => (session, text, ctx) => {
           })
           .join(", "),
     );
-    run(session, text, { ...ctx, group });
+    try {
+      run(session, text, { ...ctx, group });
+    } catch (error) {
+      if (!(error instanceof StataError && error.code === 2000)) throw error;
+      ctx.out(error.message);
+      ctx.out("");
+    }
   }
 };
 

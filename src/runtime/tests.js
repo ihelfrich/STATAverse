@@ -16,7 +16,7 @@ import {
   tabulate,
 } from "./reports.js";
 import { Dataset } from "./store.js";
-import { splitAtComma } from "./syntax.js";
+import { clauses, splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -1409,17 +1409,50 @@ const reorderDetail = (added) =>
  * bitest.ado passes to bitesti with the variable's name.
  */
 function bitest(session, text, ctx) {
-  const t = target(text);
-  if (t.value === undefined) throw new StataError("invalid syntax", 198);
-  const parsed = parseOptions(session, "[if] [in] [, Detail]", t.rest),
-    variable = session.data.get(session.varlist(t.name)[0]),
-    rows = session.rows(parsed, scope(ctx)),
+  // bitest.ado turns "var == exp" into "var = exp" for syntax varname
+  // =/exp [if] [in], which reads every word before the =exp, if, in, a
+  // weight or the options as the varlist, and the expression up to the
+  // next of those.
+  const [head, options] = splitAtComma(text),
+    start =
+      clauses(head, false).filter((clause) => clause.kind !== "exp")[0]?.at ??
+      head.length,
+    rest = head.slice(start) + (options === null ? "" : `,${options}`),
+    m = /^\s*([^\s=]+)\s*(?:={1,2}([\s\S]*))?$/.exec(head.slice(0, start));
+  if (!m) {
+    const words = head.slice(0, start).trim().split(/\s+/),
+      equals = words.findIndex((word) => /^=(?!=)/.test(word)),
+      names = equals < 0 ? words : words.slice(0, equals),
+      invalid = names.find((word) => !/^[A-Za-z_][\w*?~-]*$/.test(word));
+    if (invalid) throw new StataError(`${invalid} invalid name`, 198);
+    session.varlist(names.join(" "));
+    if (equals < 0) throw new StataError("=exp required", 100);
+    throw new StataError("too many variables specified", 103);
+  }
+  if (m[2] === undefined) {
+    session.varlist(m[1]);
+    throw new StataError("=exp required", 100);
+  }
+  const expression = m[2].trim();
+  if (!expression) throw new StataError("invalid syntax", 198);
+  const parsed = parseOptions(session, "[if] [in] [, Detail]", rest),
+    variable = session.data.get(session.varlist(m[1])[0]);
+  // syntax checks the expression before anything is counted: bitesti's
+  // scalar p = exp of a string is a type mismatch.
+  if (session.compile(expression).type !== "numeric")
+    throw new StataError("type mismatch", 109);
+  const rows = session.rows(parsed, scope(ctx)),
     // markout drops every observation of a string variable.
     v = isStringType(variable.type) ? [] : values(variable, rows);
-  if (!v.length) throw new StataError("no observations", 2000);
+  if (!v.length) {
+    // bitest is an r-class ado-file: failing, it leaves r() empty, also
+    // for a by-group with no observations that by goes on from.
+    session.results.r = {};
+    throw new StataError("no observations", 2000);
+  }
   if (v.some((x) => x !== 0 && x !== 1))
     throw new StataError(`${variable.name} is not a 0/1 variable`, 450);
-  const p = session.scalar(t.value);
+  const p = session.scalar(expression);
   if (!(p > 0 && p < 1))
     throw new StataError("success probability #p must be in (0,1)", 450);
   binomialTest(ctx, session, {
@@ -1464,8 +1497,25 @@ function bitesti(session, text, ctx) {
   if (words.length < 3) throw new StataError("invalid syntax", 198);
   const p = evaluate(words[2]),
     rest = text.slice(words[2].end);
-  if (rest.trim() && !rest.trim().startsWith(","))
-    throw new StataError("varlist not allowed", 101);
+  // parse "`*'" with only options allowed names the first thing it finds.
+  const extra = rest.trim();
+  if (extra && !extra.startsWith(","))
+    throw new StataError(
+      `${
+        /^if(?!\w)/.test(extra)
+          ? "if"
+          : /^in(?!\w)/.test(extra)
+            ? "in range"
+            : /^using(?!\w)/.test(extra)
+              ? "using"
+              : extra.startsWith("[")
+                ? "weights"
+                : extra.startsWith("=")
+                  ? "=exp"
+                  : "varlist"
+      } not allowed`,
+      101,
+    );
   const options = parseOptions(
       session,
       "[, XName(string) Detail]",
@@ -1655,22 +1705,36 @@ function robvar(session, text, ctx) {
       },
     },
     // robvar.ado's DoCal and the ratio it forms; division by zero and
-    // arithmetic on a missing value are missing (NaN here).
+    // arithmetic on a missing value are missing (NaN here). DoCal passes
+    // the overall mean deviation, the sums and the between-group term
+    // through local macros, which keep the digits %18.0g shows: groups
+    // with equal spread then leave a between-group sum of about 1e-31,
+    // not 0, as in Stata.
+    macro = (value) => (Number.isFinite(value) ? viaMacro(value) : NaN),
     test = (centre) => {
       const deviations = groups.map((v) => {
           const c = centre(v);
           return v.map((x) => Math.abs(x - c));
         }),
-        all = n ? mean(deviations.flat()) : NaN,
-        between = over(
-          deviations.reduce((t, d) => t + d.length * (mean(d) - all) ** 2, 0),
-          k - 1,
+        all = n ? macro(mean(deviations.flat())) : NaN,
+        between = macro(
+          over(
+            macro(
+              deviations.reduce(
+                (t, d) => t + d.length * (mean(d) - all) ** 2,
+                0,
+              ),
+            ),
+            k - 1,
+          ),
         ),
         within = over(
-          deviations.reduce((t, d) => {
-            const m = mean(d);
-            return t + d.reduce((u, x) => u + (x - m) ** 2, 0);
-          }, 0),
+          macro(
+            deviations.reduce((t, d) => {
+              const m = mean(d);
+              return t + d.reduce((u, x) => u + (x - m) ** 2, 0);
+            }, 0),
+          ),
           n - k,
         ),
         F = stata(over(between, within));

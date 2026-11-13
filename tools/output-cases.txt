@@ -4898,3 +4898,123 @@ signtest x=0
 signtest x =   0  if x < 5
 signtest a_long_variable_name = 0
 signtest a_long_variable_name = x
+=== redteam3-bitest-by-empty-groups
+clear
+set obs 20
+set seed 66
+generate g = _n > 10
+generate h = runiform() < .5
+by g, sort: bitest h == .5 if g == 1
+by g: bitest h == .5 if g == 0
+generate str3 s = cond(_n < 11, "aa", cond(_n < 17, "bb", "cc"))
+replace h = . if s == "bb"
+capture noisily bysort s: bitest h == .5
+display _rc
+capture noisily bysort s: bitest h == .5, detail
+display _rc
+generate y = _n
+capture noisily bysort s: bitest h == .5 if y > 100
+display _rc
+bysort s: signtest y = 3 if y > 100
+bysort s: prtest h == .5 if y > 100
+=== redteam3-robvar-equal-spread
+clear
+set obs 30
+generate g = 1 + (_n > 15)
+generate y = mod(_n, 15) + 10*g
+robvar y, by(g)
+clear
+input y g
+1 1
+3 1
+5 1
+2 2
+4 2
+6 2
+7 3
+9 3
+11 3
+end
+robvar y if g < 3, by(g)
+robvar y, by(g)
+clear
+input y g
+1 1
+2 1
+4 2
+5 2
+end
+robvar y, by(g)
+replace y = y * 10 + 1
+robvar y, by(g)
+=== redteam3-bitest-syntax-errors
+clear
+set obs 30
+set seed 77
+generate y = runiform() < .4
+generate str3 s = cond(_n < 10, "a", "b")
+generate z = 2
+capture noisily bitest y
+display _rc
+capture noisily bitest y == s
+display _rc
+capture noisily bitest y ==
+display _rc
+capture noisily bitest y == "a"
+display _rc
+capture noisily bitest y .5
+display _rc
+capture noisily bitest y, detail
+display _rc
+capture noisily bitest y if y == 1
+display _rc
+capture noisily bitest y s
+display _rc
+capture noisily bitest y zz
+display _rc
+capture noisily bitest y z == .5
+display _rc
+capture noisily bitest y s = .5
+display _rc
+capture noisily bitest y in 1/5
+display _rc
+capture noisily bitest z == s
+display _rc
+capture noisily bitest y == s if _n > 40
+display _rc
+capture noisily bitest y == z
+display _rc
+bitest y = .5
+bitest y==1/3 if s == "b"
+capture noisily bitesti 10 3 .5 if 1
+display _rc
+capture noisily bitesti 10 3 .5 in 1/5
+display _rc
+capture noisily bitesti 10 3 .5 [fw=2]
+display _rc
+capture noisily bitesti 10 3 .5 using x
+display _rc
+capture noisily bitesti 10 3 .5 y
+display _rc
+capture noisily bitesti 10 3 .5 if 1, detail
+display _rc
+capture noisily bitesti 10 3 .5 [fw=2] if 1
+display _rc
+capture noisily bitesti 10 3 .5 if 1 [fw=2]
+display _rc
+capture noisily bitesti 10 3 .5 using x if 1
+display _rc
+capture noisily bitesti 10 3 .5 in 1 if 1
+display _rc
+capture noisily bitesti 10 3 .5 y if 1
+display _rc
+capture noisily bitesti 10 3 .5 [aw=2]
+display _rc
+capture noisily bitesti 10 3 .5 =
+display _rc
+capture noisily bitesti 10 3 .5 1
+display _rc
+capture noisily bitesti 10 3 .5 if
+display _rc
+capture noisily bitesti 10 3 .5 ifx
+display _rc

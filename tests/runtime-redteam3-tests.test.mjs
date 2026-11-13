@@ -266,3 +266,137 @@ test("invalid arguments and variables give Stata's return codes", () => {
   ])
     assert.equal(run(`${data}\n${command}`).rc, code, command);
 });
+
+// Round 3 of the red team. Recorded from Stata 19 MP (version 17, set
+// processors 1) on the same do-file lines.
+const EMPTY_DATA = [
+  "clear",
+  "set obs 20",
+  "set seed 66",
+  "generate g = _n > 10",
+  "generate h = runiform() < .5",
+].join("\n");
+
+test("by goes on past a bitest by-group with no observations", () => {
+  let { rc, r } = run(`${EMPTY_DATA}\nby g, sort: bitest h == .5 if g == 1`);
+  assert.equal(rc, 0);
+  matches(r, {
+    k_opp: 6,
+    p: 0.7539062500000002,
+    k: 4,
+    P_p: 0.5,
+    N: 10,
+    p_l: 0.3769531250000001,
+    p_u: 0.828125,
+  });
+  // The last group empty: Stata's return list then shows nothing.
+  ({ rc, r } = run(`${EMPTY_DATA}\nby g, sort: bitest h == .5 if g == 0`));
+  assert.equal(rc, 0);
+  assert.deepEqual(r, {});
+  const groups = [
+    EMPTY_DATA,
+    'generate str3 s = cond(_n<8,"aa",cond(_n<17,"bb","cc"))',
+    'replace h = . if s == "bb"',
+    "generate y = _n",
+  ].join("\n");
+  for (const detail of ["", ", detail"]) {
+    ({ rc, r } = run(
+      `${groups}\ncapture noisily bysort s: bitest h == .5${detail}\nassert _rc == 0`,
+    ));
+    assert.equal(rc, 0);
+    assert.equal(r.N, 4);
+    assert.equal(r.k, 2);
+  }
+  ({ rc, r } = run(
+    `${groups}\nsummarize y\ncapture noisily bysort s: bitest h == .5 if y > 100\nassert _rc == 0`,
+  ));
+  assert.equal(rc, 0);
+  assert.deepEqual(r, {});
+});
+
+test("robvar keeps Stata's ~1e-31 W for groups of equal spread", () => {
+  // Relative agreement, since these statistics are tiny.
+  const near = (actual, expected) =>
+    assert.ok(
+      Math.abs(actual / expected - 1) < 1e-9,
+      `${actual} vs Stata ${expected}`,
+    );
+  const shifted = [
+    "clear",
+    "input y g",
+    "1 1",
+    "3 1",
+    "5 1",
+    "2 2",
+    "4 2",
+    "6 2",
+    "7 3",
+    "9 3",
+    "11 3",
+    "end",
+  ].join("\n");
+  for (const [source, w, p] of [
+    [
+      "clear\nset obs 30\ngenerate g = 1 + (_n > 15)\ngenerate y = mod(_n, 15) + 10*g\nrobvar y, by(g)",
+      1.1677217347e-30,
+      0.9999999999999991,
+    ],
+    [
+      `${shifted}\nrobvar y if g < 3, by(g)`,
+      2.218671295935e-31,
+      0.9999999999999997,
+    ],
+    [`${shifted}\nrobvar y, by(g)`, 1.66400347195e-31, 1],
+  ]) {
+    const { rc, r } = run(source);
+    assert.equal(rc, 0);
+    for (const name of ["w0", "w50", "w10"]) {
+      near(r[name], w);
+      assert.ok(Math.abs(r[`p_${name}`] - p) < 1e-14);
+    }
+  }
+  // Shifted copies Stata's arithmetic leaves at exactly 0.
+  const { r } = run(
+    "clear\ninput y g\n1 1\n2 1\n3 1\n11 2\n12 2\n13 2\nend\nrobvar y, by(g)",
+  );
+  assert.equal(r.w0, 0);
+  assert.equal(r.w50, 0);
+  assert.equal(r.w10, 0);
+});
+
+test("bitest and bitesti syntax errors return Stata's codes", () => {
+  const data = [
+    "clear",
+    "set obs 30",
+    "set seed 77",
+    "generate y = runiform() < .4",
+    'generate str3 s = cond(_n < 10, "a", "b")',
+    "generate z = 2",
+  ].join("\n");
+  for (const [command, code] of [
+    ["bitest y", 100],
+    ["bitest y, detail", 100],
+    ["bitest y if y == 1", 100],
+    ["bitest y in 1/5", 100],
+    ["bitest y s", 100],
+    ["bitest y == s", 109],
+    ['bitest y == "a"', 109],
+    ["bitest z == s", 109],
+    ["bitest y == s if _n > 40", 109],
+    ["bitest y ==", 198],
+    ["bitest y .5", 198],
+    ["bitest y z == .5", 198],
+    ["bitest y zz", 111],
+    ["bitest y s = .5", 103],
+    ["bitest y == z", 450],
+    ["bitest y = .5", 0],
+    ['bitest y==1/3 if s == "b"', 0],
+    ["bitesti 10 3 .5 if 1", 101],
+    ["bitesti 10 3 .5 in 1/5", 101],
+    ["bitesti 10 3 .5 [fw=2]", 101],
+    ["bitesti 10 3 .5 using x", 101],
+    ["bitesti 10 3 .5 =", 101],
+    ["bitesti 10 3 .5 1", 101],
+  ])
+    assert.equal(run(`${data}\n${command}`).rc, code, command);
+});
