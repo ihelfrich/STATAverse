@@ -539,29 +539,29 @@
     },
     {
       "name": "nbreg",
-      "recorded": 14,
+      "recorded": 16,
       "fixtures": {
         "stata-runtime-sessions.json": 2,
-        "stata-runtime-output.json": 10,
+        "stata-runtime-output.json": 12,
         "stata-postestimation-rc.json": 1,
         "stata-nbreg-boundary.json": 1
       }
     },
     {
       "name": "tobit",
-      "recorded": 12,
+      "recorded": 18,
       "fixtures": {
         "stata-runtime-sessions.json": 1,
-        "stata-runtime-output.json": 10,
+        "stata-runtime-output.json": 16,
         "stata-postestimation-rc.json": 1
       }
     },
     {
       "name": "ologit",
-      "recorded": 15,
+      "recorded": 17,
       "fixtures": {
         "stata-runtime-sessions.json": 2,
-        "stata-runtime-output.json": 12,
+        "stata-runtime-output.json": 14,
         "stata-postestimation-rc.json": 1
       }
     },
@@ -868,10 +868,10 @@
     },
     {
       "name": "regress",
-      "recorded": 232,
+      "recorded": 234,
       "fixtures": {
         "stata-runtime-sessions.json": 37,
-        "stata-runtime-output.json": 189,
+        "stata-runtime-output.json": 191,
         "stata-runtime-cluster.json": 3,
         "stata-postestimation-rc.json": 3
       }
@@ -1027,18 +1027,18 @@
     },
     {
       "name": "generate",
-      "recorded": 1698,
+      "recorded": 1708,
       "fixtures": {
         "stata-runtime-sessions.json": 1082,
-        "stata-runtime-output.json": 616
+        "stata-runtime-output.json": 626
       }
     },
     {
       "name": "replace",
-      "recorded": 629,
+      "recorded": 631,
       "fixtures": {
         "stata-runtime-sessions.json": 467,
-        "stata-runtime-output.json": 162
+        "stata-runtime-output.json": 164
       }
     },
     {
@@ -1314,18 +1314,18 @@
     },
     {
       "name": "set",
-      "recorded": 220,
+      "recorded": 224,
       "fixtures": {
         "stata-runtime-sessions.json": 16,
-        "stata-runtime-output.json": 204
+        "stata-runtime-output.json": 208
       }
     },
     {
       "name": "clear",
-      "recorded": 712,
+      "recorded": 714,
       "fixtures": {
         "stata-runtime-sessions.json": 492,
-        "stata-runtime-output.json": 220
+        "stata-runtime-output.json": 222
       }
     },
     {
