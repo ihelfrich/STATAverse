@@ -242,7 +242,17 @@ const unquote = (text) => {
 function axisLabels(text, option) {
   if (text === undefined) return undefined;
   const [head, rest] = splitAtComma(text),
-    ticks = head.trim() ? parseNumlist(head.trim()) : undefined;
+    approximate = /^#\s*(\d+)$/.exec(head.trim()),
+    ticks = approximate
+      ? { count: Math.max(1, Number(approximate[1])) }
+      : head.trim()
+        ? parseNumlist(head.trim())
+        : undefined;
+  if (Array.isArray(ticks) && ticks.length > 200)
+    throw new StataError(
+      `${option}(): ${ticks.length} values is more labels than an axis can show; give at most 200`,
+      198,
+    );
   for (const m of (rest ?? "").matchAll(/(\w+)(?:\(([^)]*)\))?/g)) {
     const [, word, value] = m;
     if (

@@ -3,6 +3,7 @@
 //
 // A numeric function returns system missing when any numeric argument is
 // missing, unless it is marked lenient and decides for itself.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import {
   MISSING,
@@ -291,7 +292,7 @@ export const FUNCTIONS = {
     lenient: true,
     fn: (...a) => {
       const v = a.filter((x) => !isMissing(x));
-      return v.length ? Math.min(...v) : MISSING;
+      return v.length ? least(v) : MISSING;
     },
   },
   max: {
@@ -302,7 +303,7 @@ export const FUNCTIONS = {
     lenient: true,
     fn: (...a) => {
       const v = a.filter((x) => !isMissing(x));
-      return v.length ? Math.max(...v) : MISSING;
+      return v.length ? greatest(v) : MISSING;
     },
   },
   cond: {

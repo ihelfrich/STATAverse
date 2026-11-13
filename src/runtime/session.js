@@ -482,12 +482,12 @@ export class Session {
         if (capture) this.rc = 0;
       } catch (error) {
         if (!(error instanceof StataError) || !capture) {
-          if (!quiet) output.push(...inner);
+          if (!quiet) for (const entry of inner) output.push(entry);
           throw error;
         }
         this.rc = error.code;
       }
-      if (!quiet) output.push(...inner);
+      if (!quiet) for (const entry of inner) output.push(entry);
     } else
       throw new StataError(`${header.split(/\s/)[0]} { is not supported`, 199);
   }

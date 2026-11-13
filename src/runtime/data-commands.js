@@ -2,6 +2,7 @@
 // that convert between strings and numbers. Datasets are saved to a folder
 // that lives in the session (session.files), so save, use, append and merge
 // work together without touching the student's disk.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count } from "./reports.js";
@@ -802,7 +803,7 @@ function encode(session, text) {
         ),
       ),
     ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  let next = Math.max(0, ...map.keys());
+  let next = Math.max(0, greatest(map.keys()));
   for (const label of fresh) {
     codes.set(label, ++next);
     map.set(next, label);
@@ -875,8 +876,8 @@ function recode(session, text, ctx) {
       throw new StataError("recode only allows numeric variables", 108);
     const column = variable.data,
       nonmissing = Array.from(column).filter((v) => !isMissing(v)),
-      low = Math.min(...nonmissing),
-      high = Math.max(...nonmissing),
+      low = least(nonmissing),
+      high = greatest(nonmissing),
       // A rule's numbers are read at the variable's own precision.
       point = (word) =>
         word === "min"

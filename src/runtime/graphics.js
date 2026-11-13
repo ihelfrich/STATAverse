@@ -3,6 +3,7 @@
 // page decides how to show it. Bin choices for histogram follow Stata's
 // rules and its "(bin=..., start=..., width=...)" line is compared with
 // installed Stata. The drawing itself is this site's own.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { splitAtComma } from "./syntax.js";
@@ -38,13 +39,13 @@ const escape = (text) =>
   );
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
-/** About five round tick values covering [low, high]. */
-export function ticks(low, high) {
+/** About count (five) round tick values covering [low, high]. */
+export function ticks(low, high, count = 5) {
   if (low === high) {
     low -= 1;
     high += 1;
   }
-  const raw = (high - low) / 5,
+  const raw = (high - low) / count,
     power = 10 ** Math.floor(Math.log10(raw)),
     step = [1, 2, 5, 10].map((m) => m * power).find((s) => s >= raw),
     first = Math.floor(low / step) * step,
@@ -189,18 +190,21 @@ function byPanels(
   build,
   { xTitle, yTitle, title, yFromZero, looks = {} },
 ) {
-  const panels = by.groups.map((group) => {
-    session.panelRows = group.rows;
-    try {
-      return { label: group.label, layers: build() };
-    } finally {
-      session.panelRows = null;
-    }
-  });
+  // A group with nothing to draw in the sample gets no panel, as in Stata.
+  const panels = by.groups
+    .map((group) => {
+      session.panelRows = group.rows;
+      try {
+        return { label: group.label, layers: build() };
+      } finally {
+        session.panelRows = null;
+      }
+    })
+    .filter((p) => p.layers.some((l) => l.points.length || l.bars?.length));
   const { xs, ys } = extents(panels.flatMap((p) => p.layers));
   if (!xs.length) throw new StataError("no observations", 2000);
-  const xRange = [Math.min(...xs), Math.max(...xs)],
-    yRange = [yFromZero ? 0 : Math.min(...ys), Math.max(...ys)],
+  const xRange = [least(xs), greatest(xs)],
+    yRange = [yFromZero ? 0 : least(ys), greatest(ys)],
     note =
       by.options.note !== undefined
         ? unquote(by.options.note)
@@ -263,16 +267,25 @@ export function draw({
       top: PLOT.top + (subtitle ? 16 : 0),
       bottom: PLOT.bottom + below,
     },
-    xt =
-      xTicks ??
-      ticks(xRange?.[0] ?? Math.min(...xs), xRange?.[1] ?? Math.max(...xs)),
-    yt =
-      yTicks ??
-      ticks(yRange?.[0] ?? Math.min(...ys), yRange?.[1] ?? Math.max(...ys)),
-    x0 = Math.min(xt[0], ...xs),
-    x1 = Math.max(xt.at(-1), ...xs),
-    y0 = Math.min(yt[0], ...ys),
-    y1 = Math.max(yt.at(-1), ...ys),
+    // xlabel(0(5)20) gives the ticks; xlabel(#7) about how many.
+    xt = Array.isArray(xTicks)
+      ? xTicks
+      : ticks(
+          xRange?.[0] ?? least(xs),
+          xRange?.[1] ?? greatest(xs),
+          xTicks?.count,
+        ),
+    yt = Array.isArray(yTicks)
+      ? yTicks
+      : ticks(
+          yRange?.[0] ?? least(ys),
+          yRange?.[1] ?? greatest(ys),
+          yTicks?.count,
+        ),
+    x0 = Math.min(xt[0], least(xs)),
+    x1 = Math.max(xt.at(-1), greatest(xs)),
+    y0 = Math.min(yt[0], least(ys)),
+    y1 = Math.max(yt.at(-1), greatest(ys)),
     w = WIDTH - P.left - P.right,
     h = HEIGHT - P.top - P.bottom,
     px = (v) => P.left + ((v - x0) / (x1 - x0)) * w,
@@ -443,7 +456,7 @@ export function drawHorizontalBars({
 }) {
   const all = groups.flatMap((group) => group.values);
   if (!all.length) throw new StataError("no observations", 2000);
-  const xt = ticks(Math.min(0, ...all), Math.max(0, ...all)),
+  const xt = ticks(Math.min(0, least(all)), Math.max(0, greatest(all))),
     x0 = xt[0],
     x1 = xt.at(-1),
     left = 120,
@@ -532,8 +545,8 @@ function functionPlot(session, text) {
     const values = Array.from(
       session.data.get(session.varlist(range[0])[0]).data,
     ).filter((v) => !isMissing(v));
-    low = Math.min(...values);
-    high = Math.max(...values);
+    low = least(values);
+    high = greatest(values);
   }
   if (!(high > low))
     throw new StataError("range() must give two increasing values", 198);
@@ -563,8 +576,8 @@ function functionPlot(session, text) {
 /** The bars of a histogram and what was decided about its bins. */
 export function histogramBars(values, options, text, note) {
   const n = values.length,
-    low = Math.min(...values),
-    high = Math.max(...values),
+    low = least(values),
+    high = greatest(values),
     startGiven = /\bstart\(/.test(text);
   let start = startGiven ? options.start : low,
     width,
@@ -578,7 +591,7 @@ export function histogramBars(values, options, text, note) {
     const sorted = [...new Set(values)].sort((a, b) => a - b);
     width =
       options.width ||
-      Math.min(...sorted.slice(1).map((v, k) => v - sorted[k]), Infinity);
+      Math.min(least(sorted.slice(1).map((v, k) => v - sorted[k])), Infinity);
     if (!Number.isFinite(width)) width = 1;
     start = startGiven ? options.start : low;
     bins = Math.round((high - start) / width) + 1;
@@ -715,8 +728,8 @@ function plot(session, kind, text) {
         slope = sxx
           ? points.reduce((t, p) => t + (p[0] - mx) * (p[1] - my), 0) / sxx
           : 0,
-        low = Math.min(...points.map((p) => p[0])),
-        high = Math.max(...points.map((p) => p[0]));
+        low = least(points.map((p) => p[0])),
+        high = greatest(points.map((p) => p[0]));
       points = [low, high].map((v) => [v, my + slope * (v - mx)]);
       layers.push({ kind: "line", points, label: "Fitted values", y, x });
       continue;
@@ -728,8 +741,8 @@ function plot(session, kind, text) {
         kind.startsWith("q") ? 2 : 1,
       );
       if (!fitted) throw new StataError("the fit is not determined", 2001);
-      const low = Math.min(...points.map((p) => p[0])),
-        high = Math.max(...points.map((p) => p[0])),
+      const low = least(points.map((p) => p[0])),
+        high = greatest(points.map((p) => p[0])),
         grid = Array.from(
           { length: 100 },
           (_, k) => low + ((high - low) * k) / 99,
@@ -793,7 +806,7 @@ function plot(session, kind, text) {
       const gaps = points.slice(1).map((p, k) => p[0] - points[k][0]),
         width =
           parsed.options.barwidth ||
-          0.8 * Math.min(1, ...gaps.filter((gap) => gap > 0));
+          0.8 * Math.min(1, least(gaps.filter((gap) => gap > 0)));
       layers.push({
         bars: points.map((p) => ({
           x0: p[0] - width / 2,
@@ -953,6 +966,11 @@ function twoway(session, text, ctx, single) {
     title = looks.title,
     description = `${layers.length === 1 ? (first.kind === "scatter" ? "Scatterplot" : first.bars ? "Bar chart" : "Line plot") : "Graph"} of ${[...new Set(layers.map((l) => titleOf(l.y)))].join(", ")} against ${titleOf(first.x)}, ${layers.reduce((t, l) => t + (l.kind === "scatter" ? l.points.length : 0), 0) || first.points.length} points`;
   if (by) {
+    if (specs.every((spec) => /^\s*function\b/.test(spec)))
+      throw new StataError(
+        "by() needs a plot of data, not only a function",
+        198,
+      );
     if (looks.subtitle || looks.note || looks.caption)
       throw new StataError(
         "with by(), give a note as by(…, note()); subtitle() and caption() are not drawn with by() here",
@@ -966,7 +984,7 @@ function twoway(session, text, ctx, single) {
     });
     return ctx.graph({
       svg,
-      description: `${description}, in ${panels} panels by ${by.variable.name}.`,
+      description: `${description}, in ${panels} panel${panels === 1 ? "" : "s"} by ${by.variable.name}.`,
     });
   }
   ctx.graph({
@@ -998,8 +1016,8 @@ function histogram(session, text, ctx) {
       ctx.out,
     ),
     layers = [{ bars, points: [], label: yTitle }],
-    low = Math.min(...values),
-    high = Math.max(...values),
+    low = least(values),
+    high = greatest(values),
     grid = Array.from(
       { length: 200 },
       (_, k) => low + ((high - low) * k) / 199,
@@ -1035,8 +1053,8 @@ function histogram(session, text, ctx) {
       yRange: [
         0,
         Math.max(
-          ...bars.map((b) => b.height),
-          ...layers.slice(1).flatMap((l) => l.points.map((p) => p[1])),
+          greatest(bars.map((b) => b.height)),
+          greatest(layers.slice(1).flatMap((l) => l.points.map((p) => p[1]))),
         ),
       ],
     }),
@@ -1107,7 +1125,7 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
     });
   ctx.graph({
     svg,
-    description: `Histogram of ${titleOf(variable)}: ${whole.bins} bins of width ${g(width)} starting at ${g(start)}, in ${panels} panels by ${by.variable.name}.`,
+    description: `Histogram of ${titleOf(variable)}: ${whole.bins} bins of width ${g(width)} starting at ${g(start)}, in ${panels} panel${panels === 1 ? "" : "s"} by ${by.variable.name}.`,
   });
 }
 
@@ -1160,7 +1178,7 @@ const memoryGraphs = {
       a < b ? -1 : a > b ? 1 : 0,
     );
     if (!names.length) return;
-    const width = Math.max(...names.map((name) => name.length)) + 2;
+    const width = greatest(names.map((name) => name.length)) + 2;
     ctx.out(
       `    ${names
         .map((name) => name.padEnd(width))
