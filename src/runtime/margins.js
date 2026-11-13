@@ -8,7 +8,7 @@ import { invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import { RULE, estimates, quadratic } from "./estimation.js";
 import { parseNumlist } from "./numlist.js";
-import { draw } from "./graphics.js";
+import { draw, titleOf } from "./graphics.js";
 import { count, labelled } from "./reports.js";
 import { isMissing } from "./values.js";
 import { outcomeMargins } from "./outcome-margins.js";
@@ -318,14 +318,33 @@ function margins(session, text, ctx) {
       }
     }
   } else if (marginVariables.length) {
+    // With several at() settings each level is estimated at each setting,
+    // under _at#name, the setting's number first: "1 0", or "1#male" when
+    // the level has a value label.
+    const several = sets.length > 1;
     for (const name of marginVariables) {
-      results.push({ group: name });
-      for (const lv of levelsOf(name))
-        results.push({
-          label: `${labelled(session, factors.get(name), lv)}  `.padStart(13),
-          ...prediction(new Map(sets[0]).set(name, lv)),
-          factor: name,
-        });
+      const variable = factors.get(name),
+        labels = session.data.valueLabels.get(variable.valueLabel);
+      results.push({ group: several ? `_at#${name}` : name });
+      sets.forEach((set, s) => {
+        if (s && !several) return;
+        for (const lv of levelsOf(name)) {
+          const text = labelled(session, variable, lv),
+            label = several
+              ? `${s + 1}${labels?.has(lv) ? "#" : " "}${text}`
+              : text;
+          results.push({
+            label: `${label}  `.padStart(13),
+            ...prediction(new Map(set).set(name, lv)),
+            factor: name,
+            ...(several && {
+              name: `${s + 1}._at#${lv}.${name}`,
+              set,
+              level: lv,
+            }),
+          });
+        }
+      });
     }
   } else if (sets.length > 1) {
     results.push({ group: "_at" });
@@ -344,7 +363,13 @@ function margins(session, text, ctx) {
       : invnormal(1 - (1 - level / 100) / 2),
     tail = (z) =>
       t ? 2 * ttail(model.df_r, Math.abs(z)) : 2 * normal(-Math.abs(z)),
-    fixedAll = sets.every(allFixed),
+    // Adjusted predictions when every covariate is held fixed, the factor
+    // whose margins are taken counting as fixed in its own block.
+    fixedAll = sets.every((set) =>
+      !dydx && marginVariables.length
+        ? marginVariables.every((name) => allFixed(new Map(set).set(name, 0)))
+        : allFixed(set),
+    ),
     title = dydx
       ? fixedAll
         ? "Conditional marginal effects"
@@ -502,7 +527,9 @@ function margins(session, text, ctx) {
   const values = results.filter((r) => !r.group && !r.heading && !r.rule);
   // r(b) and r(V): the estimates and their covariance, from the same
   // gradients that gave the standard errors.
-  const labels = values.map((r, j) => (r.wrt ?? r.label.trim()) || `m${j + 1}`),
+  const labels = values.map(
+      (r, j) => (r.name ?? r.wrt ?? r.label.trim()) || `m${j + 1}`,
+    ),
     covariance = values.map((a) =>
       values.map((b2) =>
         a.gradient.reduce(
@@ -528,10 +555,15 @@ function margins(session, text, ctx) {
   const varying = atNames.find(
       (name) => new Set(sets.map((set) => set.get(name))).size > 1,
     ),
+    // Levels of a factor estimated at each at() setting are drawn as one
+    // line per level against the setting, as marginsplot draws them.
+    byLevel = varying && values.some((r) => r.level !== undefined),
     axis = values.map((r, j) =>
-      sets.length > 1 && varying && !r.wrt?.includes(".")
-        ? sets[j % sets.length].get(varying)
-        : j + 1,
+      byLevel
+        ? r.set.get(varying)
+        : sets.length > 1 && varying && !r.wrt?.includes(".")
+          ? sets[j % sets.length].get(varying)
+          : j + 1,
     );
   session.margins = {
     points: values.map((r, j) => ({
@@ -539,13 +571,18 @@ function margins(session, text, ctx) {
       value: r.value,
       low: r.value - critical * r.se,
       high: r.value + critical * r.se,
+      ...(byLevel && { group: `${r.factor}=${r.level}` }),
     })),
-    xTitle:
-      sets.length > 1 && varying
+    xTitle: byLevel
+      ? titleOf(variables.find((v) => v.name === varying))
+      : sets.length > 1 && varying
         ? varying
         : (marginVariables[0] ?? (dydx ? "Effects with respect to" : "")),
     yTitle: dydx ? `Effects on ${expression}` : expression,
-    title: `${title} with ${g(level)}% CIs`,
+    title:
+      byLevel && marginVariables.length === 1
+        ? `${title} of ${marginVariables[0]} with ${g(level)}% CIs`
+        : `${title} with ${g(level)}% CIs`,
   };
   if (values.some((r) => isMissing(r.value))) return;
 }
@@ -564,19 +601,31 @@ export const MARGINS_COMMANDS = [
           text,
         ).options,
         clean = (value) => (value ?? "").trim().replace(/^"|"$/g, "");
+      // One line with its intervals for each group of estimates (each level
+      // of a factor across at() settings), in Stata's s2color order.
+      const groups = [...new Set(last.points.map((p) => p.group))],
+        colors = ["#1a476f", "#90353b", "#55752f", "#e37e00", "#6e8e84"];
       ctx.graph({
         svg: draw({
-          layers: [
-            {
-              kind: "segments",
-              points: last.points.flatMap((p) => [
-                [p.x, p.low],
-                [p.x, p.high],
-              ]),
-            },
-            { kind: "line", points: last.points.map((p) => [p.x, p.value]) },
-            { kind: "scatter", points: last.points.map((p) => [p.x, p.value]) },
-          ].map((layer) => ({ ...layer, label: "", color: "#1a476f" })),
+          layers: groups.flatMap((group, k) => {
+            const points = last.points.filter((p) => p.group === group),
+              color = colors[k % colors.length];
+            return [
+              {
+                kind: "segments",
+                points: points.flatMap((p) => [
+                  [p.x, p.low],
+                  [p.x, p.high],
+                ]),
+              },
+              { kind: "line", points: points.map((p) => [p.x, p.value]) },
+              {
+                kind: "scatter",
+                points: points.map((p) => [p.x, p.value]),
+                label: group ?? "",
+              },
+            ].map((layer) => ({ label: "", ...layer, color }));
+          }),
           xTitle: clean(options.xtitle) || last.xTitle,
           yTitle: clean(options.ytitle) || last.yTitle,
           title: clean(options.title) || last.title,

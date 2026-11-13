@@ -3328,3 +3328,29 @@ quietly tabulate c1200 r1
 display r(r) " " r(c)
 capture noisily tabulate c1201 r1
 clear
+=== margins-factor-at-list
+clear
+set seed 2511
+set obs 300
+generate byte female = runiform() < .45
+generate byte union = runiform() < .3
+generate double education = 8 + floor(runiform() * 12)
+generate double wage = 2 + 1.5*education - 2*female + 3*union + 6*runiform()
+generate byte high = wage > 22
+regress wage i.female education
+margins female, at(education=(12 16))
+margins female, at(education=12)
+margins i.female, at(education=(12(4)20))
+regress wage i.female##c.education
+margins female, at(education=(12 16))
+regress wage i.female i.union education
+margins female union, at(education=(12 16))
+logit high i.female education, nolog
+margins female, at(education=(10 14))
+regress wage i.female education
+label define fl 0 "male" 1 "female"
+label values female fl
+margins female, at(education=(12 16))
+quietly regress wage i.union i.female
+margins female
+margins female, at(union=(0 1))

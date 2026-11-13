@@ -22615,6 +22615,330 @@
       ]
     },
     {
+      "id": "margins-factor-at-list",
+      "source": "clear\nset seed 2511\nset obs 300\ngenerate byte female = runiform() < .45\ngenerate byte union = runiform() < .3\ngenerate double education = 8 + floor(runiform() * 12)\ngenerate double wage = 2 + 1.5*education - 2*female + 3*union + 6*runiform()\ngenerate byte high = wage > 22\nregress wage i.female education\nmargins female, at(education=(12 16))\nmargins female, at(education=12)\nmargins i.female, at(education=(12(4)20))\nregress wage i.female##c.education\nmargins female, at(education=(12 16))\nregress wage i.female i.union education\nmargins female union, at(education=(12 16))\nlogit high i.female education, nolog\nmargins female, at(education=(10 14))\nregress wage i.female education\nlabel define fl 0 \"male\" 1 \"female\"\nlabel values female fl\nmargins female, at(education=(12 16))\nquietly regress wage i.union i.female\nmargins female\nmargins female, at(union=(0 1))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2511", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate byte female = runiform() < .45", "lines": [] },
+        { "command": "generate byte union = runiform() < .3", "lines": [] },
+        {
+          "command": "generate double education = 8 + floor(runiform() * 12)",
+          "lines": []
+        },
+        {
+          "command": "generate double wage = 2 + 1.5*education - 2*female + 3*union + 6*runiform()",
+          "lines": []
+        },
+        { "command": "generate byte high = wage > 22", "lines": [] },
+        {
+          "command": "regress wage i.female education",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(2, 297)       =    891.72",
+            "       Model |  8362.28652         2  4181.14326   Prob > F        =    0.0000",
+            "    Residual |  1392.59429       297  4.68886967   R-squared       =    0.8572",
+            "-------------+----------------------------------   Adj R-squared   =    0.8563",
+            "       Total |  9754.88081       299  32.6250194   Root MSE        =    2.1654",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    1.female |  -2.185258   .2501777    -8.73   0.000    -2.677603   -1.692912",
+            "   education |   1.519478   .0366251    41.49   0.000     1.447401    1.591556",
+            "       _cons |   5.622858   .5216349    10.78   0.000     4.596289    6.649427",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins female, at(education=(12 16))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: education = 12",
+            "2._at: education = 16",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "        1 0  |    23.8566   .1820987   131.01   0.000     23.49823    24.21496",
+            "        1 1  |   21.67134   .1881139   115.20   0.000     21.30113    22.04154",
+            "        2 0  |   29.93451   .1983979   150.88   0.000     29.54407    30.32495",
+            "        2 1  |   27.74925   .2002272   138.59   0.000     27.35521     28.1433",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins female, at(education=12)",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: education = 12",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      female |",
+            "          0  |    23.8566   .1820987   131.01   0.000     23.49823    24.21496",
+            "          1  |   21.67134   .1881139   115.20   0.000     21.30113    22.04154",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins i.female, at(education=(12(4)20))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: education = 12",
+            "2._at: education = 16",
+            "3._at: education = 20",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "        1 0  |    23.8566   .1820987   131.01   0.000     23.49823    24.21496",
+            "        1 1  |   21.67134   .1881139   115.20   0.000     21.30113    22.04154",
+            "        2 0  |   29.93451   .1983979   150.88   0.000     29.54407    30.32495",
+            "        2 1  |   27.74925   .2002272   138.59   0.000     27.35521     28.1433",
+            "        3 0  |   36.01242   .2974697   121.06   0.000     35.42701    36.59784",
+            "        3 1  |   33.82717   .2961752   114.21   0.000      33.2443    34.41003",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage i.female##c.education",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(3, 296)       =    593.99",
+            "       Model |  8365.32863         3  2788.44288   Prob > F        =    0.0000",
+            "    Residual |  1389.55218       296  4.69443303   R-squared       =    0.8576",
+            "-------------+----------------------------------   Adj R-squared   =    0.8561",
+            "       Total |  9754.88081       299  32.6250194   Root MSE        =    2.1667",
+            "",
+            "------------------------------------------------------------------------------------",
+            "              wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "          1.female |  -1.384004   1.026341    -1.35   0.179    -3.403853    .6358455",
+            "         education |    1.55273   .0552195    28.12   0.000     1.444057    1.661402",
+            "                   |",
+            "female#c.education |",
+            "                1  |  -.0594246   .0738192    -0.81   0.421    -.2047016    .0858525",
+            "                   |",
+            "             _cons |   5.176553   .7614475     6.80   0.000     3.678016     6.67509",
+            "------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins female, at(education=(12 16))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: education = 12",
+            "2._at: education = 16",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "        1 0  |   23.80931   .1914412   124.37   0.000     23.43255    24.18607",
+            "        1 1  |   21.71221   .1949534   111.37   0.000     21.32854    22.09588",
+            "        2 0  |   30.02023   .2252716   133.26   0.000     29.57689    30.46357",
+            "        2 1  |   27.68543   .2154612   128.49   0.000      27.2614    28.10946",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage i.female i.union education",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(3, 296)       =    992.79",
+            "       Model |  8873.04652         3  2957.68217   Prob > F        =    0.0000",
+            "    Residual |  881.834291       296   2.9791699   R-squared       =    0.9096",
+            "-------------+----------------------------------   Adj R-squared   =    0.9087",
+            "       Total |  9754.88081       299  32.6250194   Root MSE        =     1.726",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    1.female |  -1.935303   .2003286    -9.66   0.000    -2.329552   -1.541054",
+            "     1.union |   2.911966   .2223953    13.09   0.000      2.47429    3.349643",
+            "   education |   1.500952   .0292282    51.35   0.000     1.443431    1.558474",
+            "       _cons |   4.926072   .4191874    11.75   0.000     4.101107    5.751038",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins female union, at(education=(12 16))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: education = 12",
+            "2._at: education = 16",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "        1 0  |   23.76256   .1453287   163.51   0.000     23.47655    24.04856",
+            "        1 1  |   21.82725   .1504179   145.11   0.000     21.53123    22.12328",
+            "        2 0  |   29.76636   .1586637   187.61   0.000     29.45411    30.07862",
+            "        2 1  |   27.83106   .1597236   174.25   0.000     27.51672     28.1454",
+            "             |",
+            "   _at#union |",
+            "        1 0  |   21.99565   .1246274   176.49   0.000     21.75038    22.24092",
+            "        1 1  |   24.90762   .1946849   127.94   0.000     24.52448    25.29076",
+            "        2 0  |   27.99946   .1404661   199.33   0.000     27.72302     28.2759",
+            "        2 1  |   30.91143   .1989564   155.37   0.000     30.51988    31.30297",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit high i.female education, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(2)    = 252.14",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -64.184737                             Pseudo R2     = 0.6626",
+            "",
+            "------------------------------------------------------------------------------",
+            "        high | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    1.female |   -1.61295   .4767898    -3.38   0.001     -2.54744   -.6784588",
+            "   education |   1.252483   .1636673     7.65   0.000     .9317009    1.573265",
+            "       _cons |  -13.70228   1.856034    -7.38   0.000    -17.34004   -10.06452",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins female, at(education=(10 14))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(high), predict()",
+            "1._at: education = 10",
+            "2._at: education = 14",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "        1 0  |   .2355107   .0661202     3.56   0.000     .1059174     .365104",
+            "        1 1  |   .0578451   .0259614     2.23   0.026     .0069618    .1087284",
+            "        2 0  |   .9788032   .0115692    84.60   0.000      .956128    1.001478",
+            "        2 1  |   .9019897   .0394449    22.87   0.000     .8246791    .9793002",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage i.female education",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(2, 297)       =    891.72",
+            "       Model |  8362.28652         2  4181.14326   Prob > F        =    0.0000",
+            "    Residual |  1392.59429       297  4.68886967   R-squared       =    0.8572",
+            "-------------+----------------------------------   Adj R-squared   =    0.8563",
+            "       Total |  9754.88081       299  32.6250194   Root MSE        =    2.1654",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "    1.female |  -2.185258   .2501777    -8.73   0.000    -2.677603   -1.692912",
+            "   education |   1.519478   .0366251    41.49   0.000     1.447401    1.591556",
+            "       _cons |   5.622858   .5216349    10.78   0.000     4.596289    6.649427",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "label define fl 0 \"male\" 1 \"female\"", "lines": [] },
+        { "command": "label values female fl", "lines": [] },
+        {
+          "command": "margins female, at(education=(12 16))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: education = 12",
+            "2._at: education = 16",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "     1#male  |    23.8566   .1820987   131.01   0.000     23.49823    24.21496",
+            "   1#female  |   21.67134   .1881139   115.20   0.000     21.30113    22.04154",
+            "     2#male  |   29.93451   .1983979   150.88   0.000     29.54407    30.32495",
+            "   2#female  |   27.74925   .2002272   138.59   0.000     27.35521     28.1433",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly regress wage i.union i.female", "lines": [] },
+        {
+          "command": "margins female",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      female |",
+            "       male  |   25.87417   .4380449    59.07   0.000     25.01211    26.73624",
+            "     female  |   24.19531   .4499396    53.77   0.000     23.30984    25.08079",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins female, at(union=(0 1))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: union = 0",
+            "2._at: union = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _at#female |",
+            "     1#male  |   24.89247   .4923615    50.56   0.000     23.92351    25.86143",
+            "   1#female  |   23.21362   .4790867    48.45   0.000     22.27078    24.15645",
+            "     2#male  |   28.35729   .6428802    44.11   0.000     27.09211    29.62247",
+            "   2#female  |   26.67844   .6951205    38.38   0.000     25.31045    28.04642",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
