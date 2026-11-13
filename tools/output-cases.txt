@@ -4604,3 +4604,80 @@ capture noisily testparm i.reg, eq(/)
 quietly mlogit sat3 education i.female i.reg, baseoutcome(1)
 testparm i.reg, equal
 testparm i.reg
+=== margins-factor-at-list
+clear
+set seed 2511
+set obs 300
+generate byte female = runiform() < .45
+generate byte union = runiform() < .3
+generate double education = 8 + floor(runiform() * 12)
+generate double wage = 2 + 1.5*education - 2*female + 3*union + 6*runiform()
+generate byte high = wage > 22
+regress wage i.female education
+margins female, at(education=(12 16))
+margins female, at(education=12)
+margins i.female, at(education=(12(4)20))
+regress wage i.female##c.education
+margins female, at(education=(12 16))
+regress wage i.female i.union education
+margins female union, at(education=(12 16))
+logit high i.female education, nolog
+margins female, at(education=(10 14))
+regress wage i.female education
+label define fl 0 "male" 1 "female"
+label values female fl
+margins female, at(education=(12 16))
+quietly regress wage i.union i.female
+margins female
+margins female, at(union=(0 1))
+=== margins-at-order-layout
+clear
+set seed 4123
+set obs 400
+generate byte female = runiform() < .45
+generate byte union = runiform() < .3
+generate double education = 8 + floor(runiform() * 12)
+generate double experience = floor(runiform() * 30) + runiform()
+generate byte satisfaction = 1 + floor(runiform() * 5)
+generate double wage = 2 + 1.5*education + .2*experience - 2*female + 3*union + .5*satisfaction + 6*runiform()
+regress wage i.female i.union education experience
+margins, at(education=(12 16) union=(0 1))
+margins female, at(experience=(5 20) education=(12 16))
+margins female, at(union=(0 1) education=(12 16))
+margins female, at(education=(12 16)) atmeans
+margins, at(education=(12 16)) atmeans
+margins female, atmeans
+margins female, at(education=12) atmeans
+margins, atmeans
+margins, at(education=12.3 experience=5.1 female=1)
+margins female, at(experience=(5 20) education=(10 12))
+marginsplot
+margins, at(education=(12 16) experience=(5 20))
+marginsplot
+margins, dydx(education) at(experience=(5 20))
+marginsplot
+margins female
+marginsplot
+margins female, at(education=(8(1)18))
+set linesize 80
+regress wage i.education experience
+margins education, at(experience=(5 20))
+regress wage i.female i.satisfaction education
+margins satisfaction, at(education=(12 16))
+label define fl 0 "Male worker with long label" 1 "Female"
+label values female fl
+margins female
+margins female, at(education=(12 16))
+label define fl2 0 "Male worker1" 1 "Female worker"
+label values female fl2
+margins female, at(education=(12 16))
+label define fl3 0 "Male work1" 1 "Female wor1"
+label values female fl3
+margins female, at(education=(12 16))
+label define fl4 0 "Male work12" 1 "Female wor1"
+label values female fl4
+margins female, at(education=(12 16))
+label define sl 1 "low" 5 "high"
+label values satisfaction sl
+margins satisfaction, at(education=(12 16))
+set linesize 200
