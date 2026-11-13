@@ -1,8 +1,11 @@
 // Smaller data-management commands: _pctile, pctile, cumul, mvdecode,
-// mvencode, separate, split, insobs, fillin and lookfor.
+// mvencode, separate, split, insobs, fillin, lookfor and describe.
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
-import { count, describe, percentile } from "./reports.js";
+import { count, percentile } from "./reports.js";
+import { changed, fileName, load } from "./data-commands.js";
+import { Dataset } from "./store.js";
+import { expandVarlist } from "./varlist.js";
 import { MISSING, inferType, isMissing, isStringType } from "./values.js";
 
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;
@@ -352,3 +355,299 @@ export const DATA_UTILITIES = [
   { name: "fillin", minimum: 6, run: fillin },
   { name: "lookfor", minimum: 7, run: lookfor },
 ];
+
+// ----- describe -----
+
+/**
+ * Stata's abbrev(name, width): the start of the name, a ~, and its end. The
+ * end is the last character, or the last run of digits with at most one
+ * character after it when that leaves room for a character in front.
+ */
+export function abbreviateName(name, width) {
+  if (name.length <= width) return name;
+  const digits = /\d+\D?$/.exec(name)?.[0] ?? "",
+    tail = digits && digits.length <= width - 2 ? digits : name.at(-1);
+  return `${name.slice(0, width - 1 - tail.length)}~${tail}`;
+}
+/**
+ * The abbreviation describe shows: abbrev()'s, with the end lengthened until
+ * it names no other variable of the dataset.
+ */
+export function uniqueName(name, width, names) {
+  const short = abbreviateName(name, width);
+  if (short === name) return short;
+  const at = short.indexOf("~");
+  let front = short.slice(0, at),
+    tail = short.slice(at + 1);
+  const clash = () =>
+    names.some(
+      (other) =>
+        other !== name &&
+        other.length >= front.length + tail.length &&
+        other.startsWith(front) &&
+        other.endsWith(tail),
+    );
+  while (front.length > 1 && clash()) {
+    front = front.slice(0, -1);
+    tail = name.slice(name.length - tail.length - 1);
+  }
+  return `${front}~${tail}`;
+}
+/** Words in lines of the first width and then the rest, as Stata wraps. */
+function wrap(text, first, rest) {
+  const lines = [];
+  let line = "",
+    width = Math.max(first, 1);
+  const next = () => {
+    lines.push(line);
+    line = "";
+    width = Math.max(rest, 1);
+  };
+  for (let word of text.split(" ").filter(Boolean)) {
+    if (line && line.length + 1 + word.length <= width) {
+      line += " " + word;
+      continue;
+    }
+    if (line) next();
+    while (word.length > width) {
+      line = word.slice(0, width);
+      word = word.slice(width);
+      next();
+    }
+    line = word;
+  }
+  lines.push(line);
+  return lines;
+}
+/** Names in columns, read down each column, as describe, simple prints them. */
+function columns(ctx, names, linesize) {
+  if (!names.length) return;
+  const width = greatest(names.map((name) => name.length)) + 2,
+    across = Math.max(1, Math.floor((linesize + 1) / width)),
+    rows = Math.ceil(names.length / across);
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let k = r; k < names.length; k += rows) line += names[k].padEnd(width);
+    ctx.out(line.trimEnd());
+  }
+}
+const BYTES = { byte: 1, int: 2, long: 4, float: 4, double: 8, strL: 8 };
+const hasNotes = (data, name) => (data.notes?.get?.(name)?.length ?? 0) > 0;
+const CHANGED = "     Note: Dataset has changed since last saved.";
+
+/** describe, replace: a dataset with a row for each variable described. */
+function describeReplace(session, data, names) {
+  const result = new Dataset({ defaultType: session.data.defaultType }),
+    variables = names.map((name) => data.get(name)),
+    text = (pick) => variables.map(pick);
+  result.n = variables.length;
+  result.generate(
+    "position",
+    names.map((name) => data.names.indexOf(name) + 1),
+    { type: "int" },
+  );
+  result.generate(
+    "name",
+    text((v) => v.name),
+    { string: true },
+  );
+  result.generate(
+    "type",
+    text((v) => v.type),
+    { string: true },
+  );
+  result.generate(
+    "isnumeric",
+    text((v) => Number(!isStringType(v.type))),
+    { type: "byte" },
+  );
+  result.generate(
+    "format",
+    text((v) => v.format),
+    { string: true },
+  );
+  result.generate(
+    "vallab",
+    text((v) => v.valueLabel),
+    { string: true },
+  );
+  result.generate(
+    "varlab",
+    text((v) => v.label),
+    { string: true },
+  );
+  [
+    "Variable number",
+    "Variable name",
+    "Storage type",
+    "Whether numeric or string",
+    "Display format",
+    "Value label name",
+    "Variable label",
+  ].forEach((label, k) => (result.variables[k].label = label));
+  result.label = `describe ${data.filename || "<unnamed>"}`;
+  result.sortedBy = ["position"];
+  session.data = result;
+}
+
+/**
+ * describe [varlist] [, short simple fullnames numbers varlist replace
+ * clear], and describe [varlist] using filename [, short simple varlist]:
+ * the data's file, size, label and time stamp, then each variable's storage
+ * type, display format, value label and variable label.
+ */
+export function describe(session, text, ctx) {
+  const parsed = session.parse(
+      "[anything] [using/] [, Short SImple Fullnames Numbers varlist replace clear]",
+      text,
+    ),
+    o = parsed.options,
+    using = parsed.using !== undefined,
+    linesize = session.settings.linesize ?? 80;
+  if (o.simple && Object.keys(o).length > 1)
+    throw new StataError("simple may not be combined with other options", 198);
+  if (o.numbers && o.fullnames)
+    throw new StataError(
+      "options numbers and fullnames may not be combined",
+      198,
+    );
+  if (o.clear && !o.replace)
+    throw new StataError("option clear not allowed", 198);
+  for (const option of ["numbers", "fullnames"])
+    if (using && o[option])
+      throw new StataError(`option ${option} not allowed`, 198);
+  if (using && o.replace)
+    throw new StataError(
+      "describe using does not take replace here; use the file, then type describe, replace",
+      198,
+    );
+  const file = using ? fileName(parsed.using) : "",
+    data = using ? load(session, file) : session.data,
+    whole = !parsed.anything;
+  let names = data.names;
+  if (!whole)
+    try {
+      names = expandVarlist(parsed.anything, data.names);
+    } catch (error) {
+      if (
+        using &&
+        error.code === 111 &&
+        /^variable \S+ not found$/.test(error.message)
+      )
+        throw new StataError(`${error.message} in file ${file}`, 111);
+      throw error;
+    }
+  const variables = names.map((name) => data.get(name)),
+    dirty = !using && changed(session),
+    // r() in the order Stata lists it.
+    results = using ? {} : { changed: Number(dirty) };
+  results.width = data.variables.reduce(
+    (total, v) => total + (BYTES[v.type] ?? Number(v.type.slice(3))),
+    0,
+  );
+  results.k = data.variables.length;
+  results.N = data.n;
+  if (o.varlist) {
+    if (data.sortedBy.length) results.sortlist = data.sortedBy.join(" ");
+    results.varlist = names.join(" ");
+  }
+  if (whole && data.label) results.datalabel = data.label;
+  if (o.replace) {
+    if (dirty && !o.clear)
+      throw new StataError(
+        "no; data in memory would be lost\n    Specify describe ..., replace clear to perform the command anyway.",
+        4,
+      );
+    describeReplace(session, data, names);
+    session.results.r = results;
+    return;
+  }
+  session.results.r = results;
+  if (o.simple)
+    return columns(
+      ctx,
+      // describe using shows names in full.
+      using ? names : names.map((name) => uniqueName(name, 12, data.names)),
+      linesize,
+    );
+
+  const rule = "-".repeat(linesize),
+    gap = " ".repeat(18),
+    label = data.label ? wrap(data.label, linesize - 46, linesize - 48) : [""],
+    more = label.slice(1).map((line) => " ".repeat(48) + line),
+    stamp = data.filedate ?? "",
+    sorted = `Sorted by: ${data.sortedBy.join("  ")}`.trimEnd();
+  ctx.out("");
+  if (whole) {
+    if (using) {
+      // describe using puts the label on the first line, the time stamp on
+      // the second, and says nothing of notes or changes.
+      ctx.out(`${"Contains data".padEnd(46)}${label[0]}`.trimEnd());
+      more.forEach((line) => ctx.out(line));
+      ctx.out(
+        ` Observations:${count(data.n).padStart(14)}${gap}${stamp}`.trimEnd(),
+      );
+      ctx.out(`    Variables:${count(data.variables.length).padStart(14)}`);
+    } else {
+      ctx.out(
+        data.filename ? `Contains data from ${data.filename}` : "Contains data",
+      );
+      ctx.out(
+        ` Observations:${count(data.n).padStart(14)}${gap}${label[0]}`.trimEnd(),
+      );
+      more.forEach((line) => ctx.out(line));
+      ctx.out(
+        `    Variables:${count(data.variables.length).padStart(14)}${gap}${stamp}`.trimEnd(),
+      );
+      if (!o.short && hasNotes(data, "_dta"))
+        ctx.out(`${" ".repeat(46)}(_dta has notes)`);
+    }
+    if (o.short || !variables.length) {
+      ctx.out(sorted);
+      if (dirty) ctx.out(CHANGED);
+      return;
+    }
+    ctx.out(rule);
+  }
+  if (o.numbers) {
+    ctx.out("    Variable  Storage   Display    Value");
+    ctx.out("        name     type    format    label      Variable label");
+  } else {
+    ctx.out("Variable      Storage   Display    Value");
+    ctx.out("    name         type    format    label      Variable label");
+  }
+  ctx.out(rule);
+  // The variable label starts in column 47, one further with numbers.
+  const start = o.numbers ? 47 : 46;
+  for (const v of variables) {
+    let front;
+    if (o.numbers)
+      front = `${String(data.names.indexOf(v.name) + 1).padStart(5)}. ${uniqueName(v.name, 8, data.names).padEnd(10)}`;
+    else if ((o.fullnames || using) && v.name.length > 15) {
+      ctx.out(v.name);
+      front = " ".repeat(16);
+    } else
+      front = (
+        o.fullnames ? v.name : uniqueName(v.name, 15, data.names)
+      ).padEnd(16);
+    // A value label's name longer than eight characters takes the rest of
+    // the line, and the variable label starts the next.
+    const format =
+        v.format.length > 10 ? v.format.slice(0, 3) + ".." : v.format,
+      line = front + v.type.padEnd(8) + format.padEnd(11),
+      mark = !using && hasNotes(data, v.name) ? "*" : " ",
+      long = v.valueLabel.length > 8,
+      lines = wrap(v.label, linesize - (long ? 46 : start), linesize - 48);
+    if (long) ctx.out(line + v.valueLabel);
+    ctx.out(
+      `${long ? " ".repeat(44) : line + v.valueLabel.padEnd(9)}${mark} ${lines[0]}`.trimEnd(),
+    );
+    lines.slice(1).forEach((rest) => ctx.out(" ".repeat(48) + rest));
+  }
+  if (!whole) return;
+  if (!using && variables.some((v) => hasNotes(data, v.name)))
+    ctx.out(`${" ".repeat(44)}* indicated variables have notes`);
+  ctx.out(rule);
+  ctx.out(sorted);
+  if (dirty) ctx.out(CHANGED);
+}

@@ -4681,3 +4681,153 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== describe-layouts
+clear
+set obs 3
+generate int id = _n
+generate byte female = mod(_n, 2)
+generate double gpa = _n / 4
+generate str20 name = "Person " + string(_n)
+generate abcdefghijklmnopqrstuvwxyz123456 = 1
+generate averyveryverylongname = 2
+generate abcdefghijklmnop = 3
+generate abcdefghijklmno = 4
+generate abcdefghijklmnopqrstuvwxyz12 = 5
+generate abcdefghijklmnopqrstuvwxy_12 = 6
+format gpa %tdCCYY-NN-DD
+format name %-20s
+label define sexlbl 0 "Male" 1 "Female"
+label define lab9chars 1 "y"
+label define averyveryverylonglabelname 1 "x"
+label values female sexlbl
+label values id lab9chars
+label values abcdefghijklmno averyveryverylonglabelname
+label variable id "Student identifier"
+label variable female "Respondent is female"
+label variable gpa "Two  spaces  here"
+label variable name "A label that is quite long indeed, well over thirty-four characters and more t"
+label data "A data label that is long, about sixty characters, to see the wrap"
+notes: Collected in fall
+notes female: Self-reported
+sort id
+set linesize 80
+describe
+describe, short
+describe, fullnames
+describe, numbers
+describe, simple
+describe id female name, simple
+describe id name abcdefghijklmnopqrstuvwxyz12
+describe, varlist
+display r(N) " " r(k) " " r(width) " " r(changed) " `r(sortlist)'"
+display wordcount("`r(varlist)'") " `r(datalabel)'"
+describe id gpa, varlist
+return list
+capture noisily describe, simple numbers
+capture noisily describe, numbers fullnames
+capture noisily describe, replace
+describe, replace clear
+describe
+list position name type isnumeric, clean noobs
+set linesize 200
+=== describe-empty
+clear
+describe
+describe, short
+set obs 2
+describe
+generate a = 1
+describe, short
+return list
+display c(changed)
+clear
+display c(changed)
+=== use-subsets
+clear
+set obs 6
+generate int id = _n
+generate byte female = mod(_n, 2)
+generate float wage = 10 + _n
+generate region = 1 + mod(_n, 3)
+label define sexlbl 0 "Male" 1 "Female"
+label values female sexlbl
+label variable wage "Hourly wage"
+label data "Small course file"
+sort region id
+save describe_subsets, replace
+display c(changed)
+use describe_subsets, clear
+display c(changed) " " c(filename)
+sort id
+display c(changed)
+order wage
+display c(changed)
+replace wage = wage in 1
+display c(changed)
+replace wage = 0 in 1
+display c(changed)
+use id wage using describe_subsets, clear
+describe id wage
+display _N " " c(changed)
+use describe_subsets if female == 1, clear
+count
+use describe_subsets in 2/4, clear
+list, clean
+use id wage if wage > 12 using describe_subsets in 1/5, clear
+list, clean
+use female-wage using describe_subsets, clear
+describe, simple
+use describe_subsets, clear nolabel
+label list
+describe female
+use describe_subsets, clear
+label data
+display c(changed)
+capture noisily use describe_subsets
+capture noisily use id nosuch using describe_subsets, clear
+describe, short
+capture noisily use id if female == 1 using describe_subsets, clear
+capture noisily use describe_subsets in 1/50, clear
+capture noisily use no_such_file, clear
+describe id female using describe_subsets
+return list
+describe using describe_subsets, simple
+capture noisily describe nosuch using describe_subsets
+=== save-label-order
+clear
+set obs 2
+generate x = 1
+generate y = 1
+generate z = 1
+label define alab 1 "a"
+label define blab 1 "b"
+label define clab 1 "c"
+label define orphan 1 "o"
+label values x alab
+label values y blab
+label values z clab
+label dir
+save save_ord1, replace
+use save_ord1, clear
+label dir
+save save_ord2, replace
+use save_ord2, clear
+label dir
+label define dlab 1 "d"
+label values x dlab
+save save_ord3, replace orphans
+use save_ord3, clear
+label dir
+save save_ord4, replace nolabel
+use save_ord4, clear
+label dir
+describe x y z
+label variable x "A variable label that runs past the limit of eighty characters, which Stata enforces strictly"
+label data "A dataset label that runs past the limit of eighty characters, which Stata enforces as well"
+describe x
+display "`: data label'"
+clear
+capture noisily save save_empty, replace
+capture noisily save save_empty, replace emptyok
+set obs 2
+capture noisily save save_empty2, replace

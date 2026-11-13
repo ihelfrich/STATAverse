@@ -6,6 +6,7 @@ import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count } from "./reports.js";
+import { changed } from "./data-commands.js";
 import { Dataset } from "./store.js";
 import {
   MISSING,
@@ -84,19 +85,7 @@ function fileName(text) {
   return name;
 }
 function changedSinceSave(session) {
-  if (!session.data.variables.length) return false;
-  const data = session.data,
-    print = JSON.stringify([
-      data.n,
-      data.variables.map((v) => [
-        v.name,
-        v.type,
-        v.format,
-        v.label,
-        Array.from(v.data),
-      ]),
-    ]);
-  return print !== session.cleanFingerprint;
+  return changed(session);
 }
 
 function importDelimited(session, text, ctx) {
@@ -197,7 +186,6 @@ function importDelimited(session, text, ctx) {
       data.get(name2).label = rows[0][k].text.trim();
   }
   session.data = data;
-  session.cleanFingerprint = null;
   ctx.out(`(${count(width)} vars, ${count(body.length)} obs)`);
 }
 function invalidOption(option) {

@@ -13,6 +13,7 @@ import { expandVarlist } from "./varlist.js";
 import { applyFormat, stringOf } from "./format.js";
 import { formatNumber } from "./values.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
+import { changed } from "./data-commands.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientIndex } from "./estimation.js";
@@ -257,8 +258,9 @@ export class Session {
           pi: Math.PI,
           type: this.data.defaultType,
           rc: this.rc,
-          changed: Number(this.data.variables.length > 0),
-          filename: this.fileInUse ?? "",
+          changed: Number(changed(this)),
+          filename: this.data.filename ?? "",
+          filedate: this.data.filedate ?? "",
           current_date: currentDate(),
           current_time: new Date().toTimeString().slice(0, 8),
           stata_version: 17,

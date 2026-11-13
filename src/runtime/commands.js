@@ -31,11 +31,11 @@ import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
-import { DATA_COMMANDS } from "./data-commands.js";
+import { DATA_COMMANDS, remade, settle } from "./data-commands.js";
+import { describe } from "./data-utilities.js";
 import {
   count,
   countCommand,
-  describe,
   list,
   moments,
   percentile,
@@ -666,10 +666,16 @@ function clear(session, text) {
 function label(session, text, ctx) {
   const data = session.data;
   let m;
+  // Variable and dataset labels hold at most 80 characters.
+  const short = (label) => {
+    if ([...label].length <= 80) return label;
+    ctx.out("note: label truncated to 80 characters");
+    return [...label].slice(0, 80).join("");
+  };
   if ((m = /^var(?:i(?:a(?:b(?:le?)?)?)?)?\s+(\S+)\s*([\s\S]*)$/.exec(text))) {
-    data.get(session.varlist(m[1])[0]).label = unquoteMacro(m[2]);
+    data.get(session.varlist(m[1])[0]).label = short(unquoteMacro(m[2]));
   } else if ((m = /^da(?:ta?)?\s*([\s\S]*)$/.exec(text)))
-    data.label = unquoteMacro(m[1]);
+    data.label = short(unquoteMacro(m[1]));
   else if ((m = /^de(?:f(?:i(?:ne?)?)?)?\s+(\S+)\s+([\s\S]*)$/.exec(text))) {
     const [body, options = ""] = m[2].split(/,(?=[^"]*$)/),
       words = macroWords(body);
@@ -1602,7 +1608,7 @@ function collapse(session, text, ctx) {
     });
   }
   result.sortedBy = [...by];
-  session.data = result;
+  remade(session, result);
 }
 
 function sysuse(session, text) {
@@ -1625,6 +1631,8 @@ function sysuse(session, text) {
       4,
     );
   session.data = session.data.constructor.fromRows(library[name]);
+  // A site dataset is as it was read: unchanged, with its name.
+  settle(session.data, `${name}.dta`);
 }
 
 function xtile(session, text) {
@@ -1789,14 +1797,26 @@ export const COMMANDS = [
   command("preserve", 8, (session) => {
     if (session.preserved.length)
       throw new StataError("already preserved", 621);
-    session.preserved.push(session.data.snapshot());
+    // The file's name and whether the data had changed come back too.
+    const data = session.data;
+    session.preserved.push({
+      ...data.snapshot(),
+      filename: data.filename,
+      filedate: data.filedate,
+      clean: data.clean,
+      notes: data.notes && structuredClone(data.notes),
+      chars: data.chars && structuredClone(data.chars),
+    });
   }),
   command("restore", 7, (session, text) => {
     const options = text.replace(/^,/, "").trim();
     if (!session.preserved.length)
       throw new StataError("nothing to restore", 622);
     if (/\bnot\b/.test(options)) return void session.preserved.pop();
-    session.data.restore(session.preserved.at(-1));
+    const saved = session.preserved.at(-1);
+    session.data.restore(saved);
+    for (const key of ["notes", "chars"])
+      if (saved[key]) session.data[key] = structuredClone(saved[key]);
     if (!/\bpreserve\b/.test(options)) session.preserved.pop();
   }),
   command("version", 4, (session, text) => {

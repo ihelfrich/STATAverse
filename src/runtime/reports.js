@@ -1,5 +1,5 @@
-// Commands that print tables: count, summarize, tabulate, list and
-// describe. The layouts follow Stata's Results window column for column;
+// Commands that print tables: count, summarize, tabulate and list. The
+// layouts follow Stata's Results window column for column;
 // tests/runtime-output.test.mjs compares them with text recorded from
 // installed Stata.
 import { least, greatest } from "./extremes.js";
@@ -950,51 +950,6 @@ export function list(session, text, ctx) {
   });
   ctx.out(`${margin}+${"-".repeat(inner)}+`);
   ctx.out("");
-}
-
-export function describe(session, text, ctx) {
-  const whole = !text.replace(/,.*$/, "").trim(),
-    names = session.parse(
-      "[varlist] [, Fullnames Short | Simple Numbers Replace]",
-      text,
-    ).varlist,
-    data = session.data,
-    rule = "-".repeat(session.settings.linesize ?? 80);
-  ctx.out("");
-  if (/,\s*s(h(o(rt?)?)?)?\b/.test(text)) {
-    ctx.out("Contains data");
-    ctx.out(` Observations:${count(data.n).padStart(14)}`);
-    ctx.out(`    Variables:${count(data.variables.length).padStart(14)}`);
-    ctx.out(`Sorted by: ${data.sortedBy.join(" ")}`.trimEnd());
-    if (data.variables.length)
-      ctx.out("     Note: Dataset has changed since last saved.");
-    session.results.r = { N: data.n, k: data.variables.length };
-    return;
-  }
-  if (whole) {
-    ctx.out("Contains data");
-    ctx.out(
-      ` Observations:${count(data.n).padStart(14)}${data.label ? " ".repeat(18) + data.label : ""}`,
-    );
-    ctx.out(`    Variables:${count(data.variables.length).padStart(14)}`);
-    ctx.out(rule);
-  }
-  ctx.out("Variable      Storage   Display    Value");
-  ctx.out("    name         type    format    label      Variable label");
-  ctx.out(rule);
-  for (const name of names) {
-    const v = data.get(name);
-    ctx.out(
-      `${v.name.padEnd(16)}${v.type.padEnd(8)}${v.format.padEnd(11)}${v.valueLabel.padEnd(11)}${v.label.replace(/ {2,}/g, " ")}`.trimEnd(),
-    );
-  }
-  if (whole) {
-    ctx.out(rule);
-    ctx.out(`Sorted by: ${data.sortedBy.join(" ")}`.trimEnd());
-    if (data.variables.length)
-      ctx.out("     Note: Dataset has changed since last saved.");
-  }
-  session.results.r = { N: data.n, k: data.variables.length };
 }
 
 /** Runs a reporting command once per by-group, under Stata's group heading. */

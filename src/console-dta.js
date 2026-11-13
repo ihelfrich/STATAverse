@@ -268,8 +268,7 @@ export function readDta(bytes) {
   tag("</N><label>");
   const label = field(integer(wide ? 2 : 1) || 0);
   tag("</label><timestamp>");
-  const stamp = integer(1);
-  at += stamp;
+  const timestamp = field(integer(1));
   tag("</timestamp></header><map>");
   at += 14 * 8;
   tag("</map><variable_types>");
@@ -362,6 +361,7 @@ export function readDta(bytes) {
   return {
     n,
     label,
+    timestamp,
     sortedBy: order.filter((j) => j > 0 && j <= k).map((j) => names[j - 1]),
     valueLabels,
     variables: names.map((name, j) => ({
