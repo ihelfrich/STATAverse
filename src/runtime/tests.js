@@ -6,7 +6,7 @@ import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { ranks } from "./everyday.js";
-import { count, labelled, moments, tabulate } from "./reports.js";
+import { count, labelled, moments, percentile, tabulate } from "./reports.js";
 import { Dataset } from "./store.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
@@ -616,6 +616,88 @@ function grouped(session, parsed) {
   };
 }
 
+/**
+ * robvar: Levene's test of equal variances across groups (W0) and Brown and
+ * Forsythe's versions with the median (W50) and the 10 percent trimmed mean
+ * (W10): each is the one-way F test of the absolute deviations from the
+ * group's centre. The trimmed mean is the mean of the values between the
+ * group's 10th and 90th percentiles.
+ */
+function robvar(session, text, ctx) {
+  const parsed = session.parse("varname [if] [in] , BY(varlist)", text);
+  if (parsed.options.by.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  const f = grouped(session, parsed),
+    groups = f.groups.map((rows) => values(f.variable, rows)),
+    n = groups.reduce((t, v) => t + v.length, 0),
+    k = groups.length;
+  if (k < 2) throw new StataError("1 group found, 2 or more required", 420);
+  const condition = [
+    parsed.if ? `if ${parsed.if}` : "",
+    parsed.in ? `in ${parsed.in[0]}/${parsed.in[1]}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  tabulate(
+    session,
+    `${f.by.name} ${condition}, summarize(${f.variable.name})`,
+    ctx,
+  );
+  const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length,
+    sorted = (v) => [...v].sort((a, b) => a - b),
+    centres = {
+      w0: mean,
+      w50: (v) => percentile(sorted(v), 50),
+      w10: (v) => {
+        const s = sorted(v),
+          low = percentile(s, 10),
+          high = percentile(s, 90);
+        return mean(s.filter((x) => x >= low && x <= high));
+      },
+    },
+    test = (centre) => {
+      const deviations = groups.map((v) => {
+          const c = centre(v);
+          return v.map((x) => Math.abs(x - c));
+        }),
+        all = mean(deviations.flat()),
+        between = deviations.reduce(
+          (t, d) => t + d.length * (mean(d) - all) ** 2,
+          0,
+        ),
+        within = deviations.reduce((t, d) => {
+          const m = mean(d);
+          return t + d.reduce((u, x) => u + (x - m) ** 2, 0);
+        }, 0),
+        F = between / (k - 1) / (within / (n - k));
+      return { F, p: Ftail(k - 1, n - k, F) };
+    },
+    // Stata shows the probability with its leading zero.
+    probability = (p) => {
+      if (isMissing(p) || !Number.isFinite(p)) return ".";
+      const text = applyFormat(p, "%10.0g").trim();
+      // Too small for %g without an exponent, Stata writes it fixed.
+      if (/e/.test(text)) return applyFormat(p, "%10.8f").trim();
+      return text.startsWith(".") ? `0${text}` : text;
+    },
+    results = { N: n, df_1: k - 1, df_2: n - k };
+  for (const [name, label] of [
+    ["w0", "W0 "],
+    ["w50", "W50"],
+    ["w10", "W10"],
+  ]) {
+    const { F, p } = test(centres[name]);
+    // The table ends with a blank line; each statistic is followed by one.
+    ctx.out(
+      `${label} = ${applyFormat(F, "%10.0g")}   df(${k - 1}, ${n - k})     Pr > F = ${probability(p)}`,
+    );
+    ctx.out("");
+    results[name] = F;
+    results[`p_${name}`] = p;
+  }
+  session.results.r = results;
+}
+
 function oneway(session, text, ctx) {
   const parsed = session.parse(
       "varlist(min=2 max=2) [if] [in] [, Tabulate | Bonferroni SCHeffe SIdak Means STandard Freq Obs noAnova noLabel Wrap Missing]",
@@ -788,6 +870,7 @@ function tabi(session, text, ctx) {
 
 export const TEST_COMMANDS = [
   { name: "prtest", minimum: 6, run: prtest },
+  { name: "robvar", minimum: 6, run: robvar },
   { name: "prtesti", minimum: 7, run: prtesti },
   { name: "sdtest", minimum: 6, run: sdtest },
   { name: "ranksum", minimum: 7, run: ranksum },
