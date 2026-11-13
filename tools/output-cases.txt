@@ -2149,3 +2149,18 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== ttest-immediate-unequal
+clear
+set seed 99
+set obs 120
+generate double y = runiform() * 10
+generate byte grp = runiform() > .4
+replace y = y * 2 if grp
+ttesti 30 20 5 18
+ttesti 30 20 5 40 22 6
+ttesti 30 20 5 40 22 6, unequal
+ttesti 30 20 5 40 22 6, welch level(90)
+ttest y, by(grp) unequal
+ttest y, by(grp) welch
+ttest y == 7
+ttest y, by(grp)
