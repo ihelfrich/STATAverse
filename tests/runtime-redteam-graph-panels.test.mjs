@@ -366,3 +366,223 @@ test("mlabel() writes the value in the variable's display format", () => {
     "43.02",
   ]);
 });
+
+// The second round of findings, 13 November 2026. Expected values recorded
+// from Stata 19 MP (version 17, set processors 1) on the same labor data,
+// read from the SVG of graph export; the printed notes are also compared in
+// tools/output-cases.txt (case graph-panels-fits).
+// A panel's name, its subtitle: the text centred at the top of the panel.
+const panelNames = (svg) =>
+  panels(svg).map(
+    (panel) =>
+      /<text x="320" y="24" text-anchor="middle"[^>]*>([^<]*)</.exec(
+        panel,
+      )?.[1] ?? null,
+  );
+const printed = (out) => out.output.flatMap((o) => o.lines ?? []);
+
+test("a by() panel whose fit cannot be made is left out", () => {
+  const s = labor("gen g = (id==5)");
+  // Stata draws only panel 0, with axes, and prints nothing for kdensity.
+  let g = graph(s, "twoway kdensity wage, by(g)");
+  assert.deepEqual(panelNames(g.svg), ["0"]);
+  assert.deepEqual(g.lines, []);
+  assert.doesNotMatch(g.svg, /NaN|Infinity/);
+  assert.ok(yLabels(g.svg).length > 0);
+  // 585 markers: the g==1 point is left out with its panel.
+  g = graph(s, "twoway (kdensity wage) (scatter wage educ), by(g)");
+  assert.equal(circles(g.svg), 585);
+  assert.deepEqual(panelNames(g.svg), ["0"]);
+  assert.doesNotMatch(g.svg, /NaN|Infinity/);
+  // East has one wage among id<=8: Stata draws North and West.
+  g = graph(s, "twoway kdensity wage if id<=8, by(region)");
+  assert.deepEqual(panelNames(g.svg), ["North", "West"]);
+  // lfit and lfitci say why, and draw panel 0 alone.
+  const why = [
+    "(note:  regress could not fit model)",
+    "insufficient observations",
+  ];
+  for (const fit of ["lfit", "lfitci"]) {
+    g = graph(s, `twoway (scatter wage educ) (${fit} wage educ), by(g)`);
+    assert.deepEqual(g.lines, why, fit);
+    assert.equal(circles(g.svg), 585, fit);
+    assert.deepEqual(panelNames(g.svg), ["0"], fit);
+  }
+  g = graph(
+    s,
+    "twoway (scatter wage educ) (lfitci wage educ) if id<=8, by(region)",
+  );
+  assert.deepEqual(g.lines, why);
+  assert.deepEqual(panelNames(g.svg), ["North", "West"]);
+  // qfit of one observation is drawn empty: all three panels, one note.
+  g = graph(
+    s,
+    "twoway (scatter wage educ) (qfit wage educ) if id<=8, by(region)",
+  );
+  assert.deepEqual(g.lines, why.slice(0, 1));
+  assert.deepEqual(panelNames(g.svg), ["East", "North", "West"]);
+  // Stata's East panel reaches x = 10, the schooling of id 7, whose wage
+  // is missing: the axes span each variable over the plot's rows.
+  assert.ok(xLabels(panels(g.svg)[0]).includes("10"));
+  // No panel left: nothing to graph, r(198); without by(), r(2001).
+  let out = s.run(
+    "twoway (scatter wage educ) (lfit wage educ) if id==1, by(region)",
+  );
+  assert.equal(out.rc, 198);
+  assert.deepEqual(printed(out).slice(0, 3), [...why, "nothing to graph"]);
+  out = s.run("twoway (scatter wage educ) (lfit wage educ) if id==1");
+  assert.equal(out.rc, 2001);
+  assert.deepEqual(printed(out).slice(0, 2), why);
+});
+
+test("a fit of x with too few values is made at a lower degree", () => {
+  const s = labor("gen x2 = cond(educ<14, 12, 16)");
+  // Stata draws these without a note: qfit of two x values is a line.
+  for (const command of [
+    "twoway (scatter wage x2) (qfit wage x2)",
+    "twoway (scatter wage x2) (qfitci wage x2)",
+    "twoway (scatter wage educ) (lfitci wage educ) if educ==12",
+  ]) {
+    const g = graph(s, command);
+    assert.deepEqual(g.lines, [], command);
+    assert.doesNotMatch(g.svg, /NaN|Infinity/, command);
+  }
+});
+
+test("a plot after the plots in parentheses needs none of its own", () => {
+  const s = labor();
+  // Stata: both plots, 586 markers, legend Hourly wage | Fitted values.
+  const g = graph(s, "twoway (scatter wage educ) lfit wage educ");
+  assert.equal(circles(g.svg), 586);
+  assert.equal((g.svg.match(/<polyline/g) ?? []).length, 1);
+  assert.deepEqual(texts(g.svg).slice(-2), ["Hourly wage", "Fitted values"]);
+  // Its if is its own: every marker is drawn.
+  assert.equal(
+    circles(
+      graph(s, "twoway (scatter wage educ) lfit wage educ if female==0").svg,
+    ),
+    586,
+  );
+  // Stata's messages, r(198).
+  for (const [command, message] of [
+    [
+      "twoway (scatter wage educ (lfit wage educ)",
+      "parentheses do not balance",
+    ],
+    [
+      "twoway (scatter wage educ) (lfit wage educ) [aw=hours]",
+      "[ is not a twoway plot type",
+    ],
+    [
+      "twoway (scatter wage educ) (lfit wage educ))",
+      ") is not a twoway plot type",
+    ],
+  ]) {
+    const out = s.run(command);
+    assert.equal(out.rc, 198, command);
+    assert.equal(printed(out)[0], message, command);
+  }
+});
+
+test("text options: suboptions without text, empty text, quotes, case", () => {
+  const s = labor();
+  // xtitle(, …) and ytitle(, …) restyle the titles Stata draws anyway, and
+  // ytitle() changes nothing.
+  for (const command of [
+    "scatter wage educ, ytitle(, size(small))",
+    "scatter wage educ, xtitle(, color(red))",
+    "scatter wage educ, ytitle() xtitle()",
+  ]) {
+    const all = texts(graph(s, command).svg);
+    assert.ok(all.includes("Hourly wage"), command);
+    assert.ok(all.includes("Years of schooling"), command);
+  }
+  assert.match(
+    graph(s, "scatter wage educ, ytitle(, size(small))").svg,
+    /font-size="10">Hourly wage</,
+  );
+  const both = texts(
+    graph(
+      s,
+      'scatter wage educ, xtitle("Schooling", size(small)) ytitle(, size(small))',
+    ).svg,
+  );
+  assert.ok(both.includes("Schooling") && both.includes("Hourly wage"));
+  // subtitle("") beside by() removes the panel names; subtitle(, …) and
+  // by(, subtitle("")) keep them.
+  assert.deepEqual(
+    panelNames(graph(s, 'scatter wage educ, by(female) subtitle("")').svg),
+    [null, null],
+  );
+  assert.deepEqual(
+    panelNames(
+      graph(s, "scatter wage educ, by(female) subtitle(, size(small))").svg,
+    ),
+    ["0", "1"],
+  );
+  assert.deepEqual(
+    panelNames(graph(s, 'scatter wage educ, by(female, subtitle(""))').svg),
+    ["0", "1"],
+  );
+  // A compound-quoted title keeps its inner quotes: "Hi" there "you".
+  assert.ok(
+    texts(
+      graph(s, 'scatter wage educ, title(`""Hi" there "you""\')').svg,
+    ).includes("&quot;Hi&quot; there &quot;you&quot;"),
+  );
+  // Suboption names are lower case, size() to s() and color() to c().
+  const out = s.run('scatter wage educ, title("Main", SIZE(large))');
+  assert.equal(out.rc, 198);
+  assert.equal(printed(out)[0], "option SIZE() not allowed");
+  assert.equal(s.run("scatter wage educ, title(Main, colour(red))").rc, 198);
+  assert.match(
+    graph(s, "scatter wage educ, title(Main, s(large) c(red))").svg,
+    /font-size="16" fill="#ff0000">Main</,
+  );
+  // graph combine reads its title so: Stata draws Main.
+  assert.equal(s.run("scatter wage educ, name(a)").rc, 0);
+  assert.equal(s.run("scatter wage hours, name(b)").rc, 0);
+  const combined = texts(
+    graph(s, "graph combine a b, title(Main, size(large))").svg,
+  );
+  assert.ok(combined.includes("Main"));
+  assert.ok(!combined.some((t) => /size/.test(t)));
+});
+
+test('xtitle("") and ytitle("") in kdensity, lowess, graph box and graph bar', () => {
+  const s = labor();
+  const yTitled = (svg) => /rotate\(-90\)/.test(svg);
+  // Stata draws no axis titles in any of these.
+  let svg = graph(s, 'kdensity wage, xtitle("") ytitle("")').svg;
+  assert.ok(!texts(svg).includes("Hourly wage"));
+  assert.ok(!texts(svg).includes("Density"));
+  assert.ok(texts(svg).includes("Kernel density estimate"));
+  svg = graph(s, 'lowess wage educ, xtitle("") ytitle("")').svg;
+  assert.ok(!texts(svg).includes("Years of schooling"));
+  assert.ok(!yTitled(svg));
+  assert.ok(!yTitled(graph(s, 'graph box wage, ytitle("")').svg));
+  assert.ok(
+    !yTitled(graph(s, 'graph bar (mean) wage, over(female) ytitle("")').svg),
+  );
+});
+
+test("an empty twoway graph: its legend and its x axis", () => {
+  const s = labor(
+    "gen y2 = wage if female==0\ngen e2 = cond(female==1, 40, educ)",
+  );
+  // Stata: Years of schooling | Hourly wage | wage, the fit not made named
+  // by its variable.
+  const g = graph(s, "twoway (scatter wage educ) (lfit wage educ) if wage<0");
+  assert.deepEqual(texts(g.svg), ["Years of schooling", "Hourly wage", "wage"]);
+  // Stata labels the x axis 5 10 15 20 from educ, and the y axis not at all.
+  for (const command of [
+    "scatter y2 educ if female==1",
+    "scatter y2 educ if female==1, by(female)",
+  ]) {
+    const svg = graph(s, command).svg;
+    assert.deepEqual(xLabels(svg), ["5", "10", "15", "20"], command);
+    assert.deepEqual(yLabels(svg), [], command);
+  }
+  // A row whose y is missing still reaches along x: Stata's axis runs to 40.
+  assert.equal(xLabels(graph(s, "scatter y2 e2").svg).at(-1), "40");
+});

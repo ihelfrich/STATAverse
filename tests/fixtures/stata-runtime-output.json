@@ -2893,6 +2893,128 @@
       ]
     },
     {
+      "id": "graph-panels-fits",
+      "source": "clear\ninput double y double x byte g\n1 1 0\n3 2 0\n2 3 0\n5 4 0\n4 2 1\n6 5 2\n7 5 2\n. 9 2\nend\ntwoway (scatter y x) (lfit y x), by(g)\ntwoway (scatter y x) (lfitci y x), by(g)\ntwoway (scatter y x) (qfit y x), by(g)\ntwoway (scatter y x) (qfitci y x), by(g)\ntwoway kdensity y, by(g)\ntwoway (kdensity y) (scatter y x), by(g)\ncapture noisily twoway (scatter y x) (lfit y x) if g==1, by(g)\ncapture noisily twoway (scatter y x) (lfit y x) if g==1\ncapture noisily twoway (scatter y x) (lfitci y x) if g==1\ncapture noisily twoway kdensity y if g==1\ntwoway (scatter y x) (qfit y x) if g==1\ntwoway (scatter y x) (qfit y x) if g==2\ntwoway (scatter y x) (lfitci y x) if g==2\ntwoway (scatter y x) (qfitci y x) if g!=1 & x!=3\ntwoway (scatter y x) lfit y x\ntwoway (scatter y x) lfit y x if g==0\ncapture noisily twoway (scatter y x (lfit y x)\ncapture noisily twoway (scatter y x) (lfit y x) [aw=x]\ncapture noisily twoway (scatter y x) (lfit y x))\ncapture noisily twoway (scatter y x) junk y x\ncapture noisily scatter y x, title(\"Main\", SIZE(large))\ncapture noisily scatter y x, title(Main, colour(red))\nscatter y x, title(Main, s(large) c(red))\nscatter y x, ytitle(, size(small)) xtitle()\nscatter y x, by(g) subtitle(\"\")\nlowess y x, xtitle(\"\") ytitle(\"\")\ngraph box y, ytitle(\"\")\ngraph bar (mean) y, over(g) ytitle(\"\")\ntwoway (scatter y x) (lfit y x) if y<0\nscatter y x if y==.\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x byte g",
+          "lines": [
+            "              y           x         g",
+            "  1. 1 1 0",
+            "  2. 3 2 0",
+            "  3. 2 3 0",
+            "  4. 5 4 0",
+            "  5. 4 2 1",
+            "  6. 6 5 2",
+            "  7. 7 5 2",
+            "  8. . 9 2",
+            "  9. end"
+          ]
+        },
+        {
+          "command": "twoway (scatter y x) (lfit y x), by(g)",
+          "lines": [
+            "(note:  regress could not fit model)",
+            "insufficient observations"
+          ]
+        },
+        {
+          "command": "twoway (scatter y x) (lfitci y x), by(g)",
+          "lines": [
+            "(note:  regress could not fit model)",
+            "insufficient observations"
+          ]
+        },
+        {
+          "command": "twoway (scatter y x) (qfit y x), by(g)",
+          "lines": ["(note:  regress could not fit model)"]
+        },
+        {
+          "command": "twoway (scatter y x) (qfitci y x), by(g)",
+          "lines": ["(note:  regress could not fit model)"]
+        },
+        { "command": "twoway kdensity y, by(g)", "lines": [] },
+        { "command": "twoway (kdensity y) (scatter y x), by(g)", "lines": [] },
+        {
+          "command": "capture noisily twoway (scatter y x) (lfit y x) if g==1, by(g)",
+          "lines": [
+            "(note:  regress could not fit model)",
+            "insufficient observations",
+            "nothing to graph"
+          ]
+        },
+        {
+          "command": "capture noisily twoway (scatter y x) (lfit y x) if g==1",
+          "lines": [
+            "(note:  regress could not fit model)",
+            "insufficient observations"
+          ]
+        },
+        {
+          "command": "capture noisily twoway (scatter y x) (lfitci y x) if g==1",
+          "lines": [
+            "(note:  regress could not fit model)",
+            "insufficient observations"
+          ]
+        },
+        {
+          "command": "capture noisily twoway kdensity y if g==1",
+          "lines": ["insufficient observations"]
+        },
+        {
+          "command": "twoway (scatter y x) (qfit y x) if g==1",
+          "lines": ["(note:  regress could not fit model)"]
+        },
+        { "command": "twoway (scatter y x) (qfit y x) if g==2", "lines": [] },
+        { "command": "twoway (scatter y x) (lfitci y x) if g==2", "lines": [] },
+        {
+          "command": "twoway (scatter y x) (qfitci y x) if g!=1 & x!=3",
+          "lines": []
+        },
+        { "command": "twoway (scatter y x) lfit y x", "lines": [] },
+        { "command": "twoway (scatter y x) lfit y x if g==0", "lines": [] },
+        {
+          "command": "capture noisily twoway (scatter y x (lfit y x)",
+          "lines": ["parentheses do not balance"]
+        },
+        {
+          "command": "capture noisily twoway (scatter y x) (lfit y x) [aw=x]",
+          "lines": ["[ is not a twoway plot type"]
+        },
+        {
+          "command": "capture noisily twoway (scatter y x) (lfit y x))",
+          "lines": [") is not a twoway plot type"]
+        },
+        {
+          "command": "capture noisily twoway (scatter y x) junk y x",
+          "lines": ["junk is not a twoway plot type"]
+        },
+        {
+          "command": "capture noisily scatter y x, title(\"Main\", SIZE(large))",
+          "lines": ["option SIZE() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x, title(Main, colour(red))",
+          "lines": ["option colour() not allowed"]
+        },
+        { "command": "scatter y x, title(Main, s(large) c(red))", "lines": [] },
+        {
+          "command": "scatter y x, ytitle(, size(small)) xtitle()",
+          "lines": []
+        },
+        { "command": "scatter y x, by(g) subtitle(\"\")", "lines": [] },
+        { "command": "lowess y x, xtitle(\"\") ytitle(\"\")", "lines": [] },
+        { "command": "graph box y, ytitle(\"\")", "lines": [] },
+        { "command": "graph bar (mean) y, over(g) ytitle(\"\")", "lines": [] },
+        {
+          "command": "twoway (scatter y x) (lfit y x) if y<0",
+          "lines": ["(note:  regress could not fit model)"]
+        },
+        { "command": "scatter y x if y==.", "lines": [] }
+      ]
+    },
+    {
       "id": "margins",
       "source": "clear\ninput byte d double x1 double x2 byte n double z\n0 1.0 2.1 0 3\n0 1.5 1.2 1 1\n0 2.0 3.3 0 4\n1 2.2 0.9 2 2\n0 2.9 2.8 1 5\n0 3.1 1.1 3 2\n1 3.4 3.9 2 6\n0 4.0 2.0 4 3\n1 4.2 0.7 3 1\n1 4.8 3.1 5 5\n0 5.1 1.9 2 4\n1 5.5 2.6 6 4\n1 6.0 0.8 4 2\n1 6.3 3.5 7 7\n0 6.9 1.4 5 2\n1 7.2 2.2 9 5\n1 7.8 3.0 6 6\n1 8.1 1.0 8 3\n1 8.8 2.4 11 5\n1 9.4 3.6 10 8\nend\ngenerate byte g = 1 + (x2 > 2) + (x2 > 3)\nlogit d x1 x2\nmargins\nmargins, dydx(*)\nmargins, dydx(x1)\nmargins, at(x1=(2 5 8))\nmargins, atmeans\nmargins, dydx(x1) atmeans\nmargins, at(x1=5 x2=2)\nprobit d x1 x2\nmargins, dydx(*)\npoisson n x1 x2\nmargins\nmargins, dydx(x1)\nregress n x1 x2\nmargins\nmargins, dydx(*)\nmargins, at(x1=(1 5))\nregress n x1 i.g\nmargins g\nmargins, dydx(g)\nlogit d x1 i.g\nmargins g\nmargins, dydx(*) level(90)\ncapture noisily margins, dydx(nosuch)\n",
       "commands": [

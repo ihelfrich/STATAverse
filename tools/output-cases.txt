@@ -403,6 +403,48 @@ scatter y x, title(Main, size(large)) xtitle("") ytitle("")
 scatter y x, by(g) title(T) subtitle(S) note(N) caption(C)
 scatter y x, by(g, title(O) note(N))
 scatter y x, mlabel(y)
+=== graph-panels-fits
+clear
+input double y double x byte g
+1 1 0
+3 2 0
+2 3 0
+5 4 0
+4 2 1
+6 5 2
+7 5 2
+. 9 2
+end
+twoway (scatter y x) (lfit y x), by(g)
+twoway (scatter y x) (lfitci y x), by(g)
+twoway (scatter y x) (qfit y x), by(g)
+twoway (scatter y x) (qfitci y x), by(g)
+twoway kdensity y, by(g)
+twoway (kdensity y) (scatter y x), by(g)
+capture noisily twoway (scatter y x) (lfit y x) if g==1, by(g)
+capture noisily twoway (scatter y x) (lfit y x) if g==1
+capture noisily twoway (scatter y x) (lfitci y x) if g==1
+capture noisily twoway kdensity y if g==1
+twoway (scatter y x) (qfit y x) if g==1
+twoway (scatter y x) (qfit y x) if g==2
+twoway (scatter y x) (lfitci y x) if g==2
+twoway (scatter y x) (qfitci y x) if g!=1 & x!=3
+twoway (scatter y x) lfit y x
+twoway (scatter y x) lfit y x if g==0
+capture noisily twoway (scatter y x (lfit y x)
+capture noisily twoway (scatter y x) (lfit y x) [aw=x]
+capture noisily twoway (scatter y x) (lfit y x))
+capture noisily twoway (scatter y x) junk y x
+capture noisily scatter y x, title("Main", SIZE(large))
+capture noisily scatter y x, title(Main, colour(red))
+scatter y x, title(Main, s(large) c(red))
+scatter y x, ytitle(, size(small)) xtitle()
+scatter y x, by(g) subtitle("")
+lowess y x, xtitle("") ytitle("")
+graph box y, ytitle("")
+graph bar (mean) y, over(g) ytitle("")
+twoway (scatter y x) (lfit y x) if y<0
+scatter y x if y==.
 === margins
 clear
 input byte d double x1 double x2 byte n double z

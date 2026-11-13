@@ -259,11 +259,6 @@ export function patternOf(text) {
   );
 }
 
-const unquote = (text) => {
-  const t = (text ?? "").trim();
-  return t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1) : t;
-};
-
 /** The options whose value is text drawn on the graph. */
 const TEXT_OPTIONS = [
   "title",
@@ -304,18 +299,31 @@ export function textOption(value, option) {
       `${option}(): several quoted strings are lines, which this page does not draw; give the text as one quoted string`,
       198,
     );
-  const read = { text: whole ? (quoted[0][1] ?? quoted[0][2]) : head.trim() };
+  // No text at all, as in ytitle(, size(small)), restyles the text the
+  // graph would draw anyway; ytitle("") is an empty text, which removes it.
+  const read = {
+    text: whole
+      ? (quoted[0][1] ?? quoted[0][2])
+      : head.trim()
+        ? head.trim()
+        : undefined,
+  };
   for (const m of (rest ?? "").matchAll(/(\w+)\s*(?:\(([^()]*)\))?/g)) {
-    const word = m[1].toLowerCase(),
-      inner = (m[2] ?? "").trim().toLowerCase();
-    if (word === "size" && TEXT_SIZES[inner]) read.size = TEXT_SIZES[inner];
-    else if (word === "size")
+    // Stata's suboption names are lower case, size() down to s() and
+    // color() down to c(); SIZE() or colour() is not allowed.
+    const word = m[1],
+      inner = (m[2] ?? "").trim().toLowerCase(),
+      size = "size".startsWith(word),
+      color = "color".startsWith(word);
+    if (!size && !color && /^(s(i(ze?)?)?|c(o(l(o(u?r)?)?)?)?)$/i.test(word))
+      throw new StataError(`option ${word}() not allowed`, 198);
+    if (size && TEXT_SIZES[inner]) read.size = TEXT_SIZES[inner];
+    else if (size)
       throw new StataError(
         `${option}(…, size(${m[2] ?? ""})): text sizes here are named, from tiny to vhuge`,
         198,
       );
-    else if (word === "color")
-      read.color = colourOf(m[2], `${option}(…, color`);
+    else if (color) read.color = colourOf(m[2], `${option}(…, color`);
     else
       throw new StataError(
         `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes its text with size() and color()`,
@@ -417,13 +425,17 @@ function legendOf(text) {
   return legend;
 }
 
-/** What the drawn graph-level options ask for, read and checked. */
+/**
+ * What the drawn graph-level options ask for, read and checked. The text
+ * options are as parseGraph read them, already out of their quotes; one
+ * not given stays undefined, apart from one given as "".
+ */
 export function looksOf(options) {
   return {
-    title: unquote(options.title),
-    subtitle: unquote(options.subtitle),
-    note: unquote(options.note),
-    caption: unquote(options.caption),
+    title: options.title,
+    subtitle: options.subtitle,
+    note: options.note,
+    caption: options.caption,
     xLines: lines(options.xline, "xline"),
     yLines: lines(options.yline, "yline"),
     xTicks: axisLabels(options.xlabel, "xlabel"),
