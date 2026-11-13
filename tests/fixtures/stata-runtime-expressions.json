@@ -370,6 +370,19 @@
       "number": 8.98846567431158e307
     },
     { "expression": "date(\"20261110\",\"YMD\")", "number": 24420 },
+    { "expression": "date(\"15/3/24\", \"DMY\", 2050)", "number": 23450 },
+    { "expression": "date(\"15/3/1924\", \"DMY\", 2050)", "number": -13075 },
+    { "expression": "date(\"15/3/51\", \"DMY\", 2050)", "number": -3214 },
+    { "expression": "date(\"15/3/50\", \"DMY\", 2050)", "number": 32946 },
+    { "expression": "date(\"3/15/24\", \"MDY\", 2030)", "number": 23450 },
+    { "expression": "date(\"24-3-15\", \"YMD\", 2050)", "number": 23450 },
+    { "expression": "date(\"15/3/24\", \"DM19Y\")", "number": -13075 },
+    { "expression": "date(\"1/1/00\", \"MDY\", 1999)", "number": -21914 },
+    { "expression": "date(\"1/1/00\", \"MDY\", 2000)", "number": 14610 },
+    {
+      "expression": "date(\"1/1/24\", \"MDY\", .)",
+      "number": 8.98846567431158e307
+    },
     { "expression": "date(\"xx\",\"MDY\")", "number": 8.98846567431158e307 },
     {
       "expression": "date(\"2/30/2020\",\"MDY\")",

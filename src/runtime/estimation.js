@@ -899,6 +899,58 @@ export function predict(session, text, ctx) {
 }
 
 /**
+ * Replaces the coefficient references in a test or lincom expression by
+ * placeholders the expression parser can read: _b[name] and _coef[name],
+ * and factor-variable names such as 1.female, 2.g#c.x or c.x#2.g, which the
+ * parser would otherwise read as the number 1. followed by a name. The base
+ * level may be written with or without its b (0.female or 0b.female), and an
+ * interaction of two terms in either order.
+ */
+function references(model, text) {
+  const index = (name) => {
+    const at = coefficientIndex(model, name);
+    if (at >= 0) return at;
+    const plain = (n) => n.replace(/(\d+)[bon]+\./g, "$1.");
+    return model.names.findIndex((n) => plain(n) === plain(name.trim()));
+  };
+  let out = text.replace(/_(?:b|coef)\[\s*([^\]]+?)\s*\]/g, (all, name) => {
+    const at = index(name);
+    if (at < 0) throw new StataError(`[${name}] not found`, 111);
+    return `__c${at}`;
+  });
+  // Every spelling of each factor-variable coefficient, longest first so
+  // that 1.female#c.x is replaced before 1.female.
+  const spellings = [];
+  model.names.forEach((name, k) => {
+    const plain = name.replace(/^[^:]+:/, "");
+    // Factor levels, and interactions, which may be of continuous variables.
+    if (!/\d+[bon]*\.|#/.test(plain)) return;
+    const forms = new Set([plain, plain.replace(/(\d+)[bon]+\./g, "$1.")]);
+    for (const form of [...forms]) {
+      const parts = form.split("#");
+      if (parts.length === 2) forms.add(`${parts[1]}#${parts[0]}`);
+    }
+    for (const form of forms) spellings.push([form, k]);
+  });
+  spellings.sort((a, b) => b[0].length - a[0].length);
+  for (const [form, k] of spellings) {
+    const escaped = form.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(
+      new RegExp(`(?<![\\w.#])${escaped}(?![\\w.#])`, "g"),
+      `__c${k}`,
+    );
+  }
+  // What is still written as a level or an interaction names no coefficient
+  // of this model, and Stata says so rather than reading a number.
+  const unknown =
+    /(?<![\w.#])((?:\d+[bon]*|c)\.[A-Za-z_]\w*(?:#(?:(?:\d+[bon]*|c)\.)?[A-Za-z_]\w*)*)/.exec(
+      out,
+    );
+  if (unknown) throw new StataError(`${unknown[1]} not found`, 111);
+  return out;
+}
+
+/**
  * Reads a linear expression in the coefficients, such as "x1 - x2" or
  * "2*x1 + _cons", into weights and a constant by evaluating it with each
  * coefficient set to one in turn.
@@ -907,8 +959,8 @@ export function linear(model, text) {
   // Each scalar name the expression may use, with its coefficient. In a
   // model with several equations [eq]name picks one, and a bare name means
   // the first equation that has it.
-  const keys = [];
-  let source = text;
+  const keys = model.names.map((_, k) => [`__c${k}`, k]);
+  let source = references(model, text);
   if (model.names.some((name) => name.includes(":"))) {
     source = text.replace(
       /\[\s*([^\]]+?)\s*\]\s*([A-Za-z_]\w*)/g,
@@ -920,7 +972,6 @@ export function linear(model, text) {
       },
     );
     model.names.forEach((name, k) => {
-      keys.push([`__c${k}`, k]);
       const plain = name.replace(/^[^:]+:/, "");
       if (
         (isName(plain) || plain === "_cons") &&

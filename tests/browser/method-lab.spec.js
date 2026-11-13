@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 
@@ -153,7 +154,7 @@ test("the method comparison remains accessible with expanded syntax on desktop a
   await expect(page.locator("#method-card-panelCount pre")).toBeFocused();
   await page.locator("#method-jump").click();
   await page.screenshot({
-    path: `docs/verification/screenshots/method-comparison-${testInfo.project.name}.png`,
+    path: screenshotPath(`method-comparison-${testInfo.project.name}.png`),
     fullPage: false,
   });
   expect(errors).toEqual([]);

@@ -293,6 +293,49 @@ const note = (message) => (_session, _text, ctx) => ctx.out(message);
 const quiet = () => {};
 
 /** notes: text attached to the dataset or to a variable. */
+/**
+ * timer on|off|clear|list [#]: wall-clock timers 1 to 100. Each keeps its
+ * running total, how many times it was stopped, and when it was started.
+ */
+function timer(session, text, ctx) {
+  const [action = "", which = ""] = text.trim().split(/\s+/),
+    timers = (session.timers ??= new Map()),
+    number = () => {
+      const k = Number(which);
+      if (!Number.isInteger(k) || k < 1 || k > 100)
+        throw new StataError("timer number must be between 1 and 100", 198);
+      return k;
+    },
+    entry = (k) => {
+      if (!timers.has(k)) timers.set(k, { total: 0, count: 0, since: null });
+      return timers.get(k);
+    },
+    now = () => (globalThis.performance ?? Date).now() / 1000;
+  if (/^on$/.test(action)) {
+    const t = entry(number());
+    if (t.since !== null)
+      throw new StataError(`timer ${which} already on`, 198);
+    t.since = now();
+  } else if (/^off$/.test(action)) {
+    const t = entry(number());
+    if (t.since === null) throw new StataError(`timer ${which} not on`, 198);
+    t.total += now() - t.since;
+    t.count += 1;
+    t.since = null;
+  } else if (/^clear$/.test(action)) {
+    if (which) timers.delete(number());
+    else timers.clear();
+  } else if (/^(l(i(st?)?)?)?$/.test(action)) {
+    const shown = which ? [number()] : [...timers.keys()].sort((a, b) => a - b);
+    for (const k of shown) {
+      const t = timers.get(k);
+      if (!t?.count) continue;
+      ctx.out(
+        `${String(k).padStart(4)}:${applyFormat(t.total, "%10.2f")} /${String(t.count).padStart(9)} =${applyFormat(t.total / t.count, "%13.4f")}`,
+      );
+    }
+  } else throw new StataError("invalid syntax", 198);
+}
 function notes(session, text, ctx) {
   const store = (session.data.notes ??= new Map()),
     add = /^\s*(?:([A-Za-z_]\w*)\s*)?:\s*([\s\S]+)$/.exec(text),
@@ -437,7 +480,7 @@ export const EVERYDAY_COMMANDS = [
   },
   { name: "cls", minimum: 3, run: quiet },
   { name: "sleep", minimum: 5, run: quiet },
-  { name: "timer", minimum: 5, run: quiet },
+  { name: "timer", minimum: 5, run: timer },
   {
     name: "about",
     minimum: 5,
