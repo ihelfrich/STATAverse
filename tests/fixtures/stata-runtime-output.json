@@ -14348,7 +14348,7 @@
     },
     {
       "id": "binomial-test",
-      "source": "clear\nset seed 13\nset obs 90\ngenerate byte d = runiform() < .3\ngenerate byte g = runiform() > .5\nbitest d == .25\nbitest d == .5 if g == 1\nbitesti 100 30 0.25\nbitesti 20 3 0.5\nbitesti 10 10 0.5\nbitesti 10 0 0.5\nbitesti 10 9 0.95\nbitesti 50 1 0.01\nbitesti 50 0 0.01\nbitesti 7 3 0.333\n",
+      "source": "clear\nset seed 13\nset obs 90\ngenerate byte d = runiform() < .3\ngenerate byte g = runiform() > .5\nbitest d == .25\nbitest d == .5 if g == 1\nbitesti 100 30 0.25\nbitesti 20 3 0.5\nbitesti 10 10 0.5\nbitesti 10 0 0.5\nbitesti 10 9 0.95\nbitesti 50 1 0.01\nbitesti 50 0 0.01\nbitesti 7 3 0.333\ncapture noisily bitesti 10 5 0\ndisplay _rc\ncapture noisily bitesti 10 10 1\ndisplay _rc\ncapture noisily bitest d == 1.5\ndisplay _rc\ncapture noisily bitest d == .5 if g == 9\ndisplay _rc\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 13", "lines": [] },
@@ -14501,7 +14501,33 @@
             "  Pr(k <= 3)           = 0.827215  (one-sided test)",
             "  Pr(k <= 1 or k >= 3) = 0.692577  (two-sided test)"
           ]
-        }
+        },
+        {
+          "command": "capture noisily bitesti 10 5 0",
+          "lines": [
+            "invalid success probability",
+            "    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+          ]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily bitesti 10 10 1",
+          "lines": [
+            "invalid success probability",
+            "    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+          ]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily bitest d == 1.5",
+          "lines": ["success probability #p must be in (0,1)"]
+        },
+        { "command": "display _rc", "lines": ["450"] },
+        {
+          "command": "capture noisily bitest d == .5 if g == 9",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] }
       ]
     },
     {

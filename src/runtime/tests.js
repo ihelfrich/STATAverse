@@ -534,8 +534,14 @@ function grouped(session, parsed) {
  * other side of n p.
  */
 function binomialTest(ctx, session, n, k, p, name) {
-  if (!(p >= 0 && p <= 1))
-    throw new StataError("p must be between 0 and 1", 198);
+  if (!(p > 0 && p < 1))
+    throw new StataError(
+      name === undefined
+        ? "invalid success probability\n    Success probability #p must be in (0,1); syntax is bitesti #N #succ #p"
+        : "success probability #p must be in (0,1)",
+      450,
+    );
+  if (!n) throw new StataError("no observations", 2000);
   const logFactorial = [0];
   for (let j = 1; j <= n; j++)
     logFactorial[j] = logFactorial[j - 1] + Math.log(j);
