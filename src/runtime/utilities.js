@@ -4,7 +4,7 @@ import { greatest } from "./extremes.js";
 import { applyFormat } from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
-import { count, labelled, moments, percentile } from "./reports.js";
+import { count, labelled, moments, percentile, perGroup } from "./reports.js";
 import {
   formatNumber,
   isMissing,
@@ -100,7 +100,6 @@ function unab(session, text, ctx) {
 const known = (value) =>
   Number.isFinite(value) && value < MISSING ? value : NaN;
 const stored = (value) => (Number.isFinite(value) ? value : MISSING);
-const shown = (value) => g(stored(value));
 // The upper tail of Student's t, missing when t or the degrees of freedom are.
 const upper = (df, t) =>
   Number.isFinite(t) && df > 0 ? known(ttail(df, t)) : NaN;
@@ -128,66 +127,157 @@ const fromData = (values, level) => {
   return tSummary(m.n, m.mean, m.sd, level);
 };
 
+/** Stata's abbrev(name, width): the start, a ~, and the last character. */
+const abbrev = (name, width) =>
+  name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
+
+// Text placed at a column as display's _col() places it. A line already
+// past the column goes on where it is.
+const at = (line, column, text) => line.padEnd(column - 1) + text;
+
+/**
+ * Three pieces centred as _ttest center2 centres them: on columns 11, 40
+ * and 70, the third further right when it is longer than 20 characters,
+ * and each at least one blank after the one before. The length that moves
+ * the third piece counts the two @ signs ttesti.ado marks a highlighted
+ * number with, so marked tells whether the pieces carry them.
+ */
+function centred(pieces, marked) {
+  const long = pieces[2].length + (marked ? 2 : 0),
+    centres = [11, 40, long > 20 ? 79 - Math.floor(long / 2) : 70];
+  let line = "";
+  pieces.forEach((piece, k) => {
+    const skip = Math.max(
+      line ? 1 : 0,
+      centres[k] - Math.floor(piece.length / 2) - 1 - line.length,
+    );
+    line += " ".repeat(skip) + piece;
+  });
+  return line;
+}
+
+// A number as confirm number accepts it. ttest echoes the hypothesised
+// value as typed, in %8.0g only when it is longer than eight characters.
+const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+const echoed = (typed) =>
+  typed.length > 8 ? applyFormat(Number(typed), "%8.0g").trim() : typed;
+
+/** Whether text names variables, as confirm variable decides it. */
+function namesVariables(session, text) {
+  try {
+    return session.varlist(text).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** The pieces ttest and ttesti print their tables with. */
-function tPrinters(ctx) {
-  const row = (label, m) =>
-      `${label.padStart(8)} |${count(m.n).padStart(8)}${shown(m.mean).padStart(12)}${shown(m.se).padStart(12)}${shown(m.sd).padStart(12)}${shown(m.lb).padStart(12)}${shown(m.ub).padStart(12)}`,
+function tPrinters(ctx, session) {
+  const cell = (value) => applyFormat(stored(value), "%9.0g"),
+    // A row: the name in eight columns, then Obs from column 12 and each
+    // statistic in nine columns from columns 22, 34, 46, 58 and 70. The
+    // difference row of a two-sample test leaves out Obs and Std. dev.
+    row = (name, m) =>
+      [
+        [12, applyFormat(m.n, "%7.0fc")],
+        [22, cell(m.mean)],
+        [34, cell(m.se)],
+        [46, cell(m.sd)],
+        [58, cell(m.lb)],
+        [70, cell(m.ub)],
+      ].reduce(
+        (line, [column, text]) => at(line, column, text),
+        `${abbrev(name, 8).padStart(8)} |`,
+      ),
     rule = "-".repeat(78),
-    middle =
-      "---------+--------------------------------------------------------------------",
-    head = (first, level) =>
-      `${first.padStart(8)} |     Obs        Mean    Std. err.   Std. dev.   [${g(level)}% conf. interval]`,
-    tails = (t, df, what, value) => {
+    middle = `---------+${"-".repeat(68)}`,
+    // The first column is headed Variable when the first name names
+    // variables, Group when it is a group's label, and not at all for
+    // ttesti. A level of five characters leaves no blank in its label.
+    head = (xname, level) => {
+      const first =
+          xname === ""
+            ? ""
+            : namesVariables(session, xname)
+              ? "Variable"
+              : "   Group",
+        label = g(level),
+        wide = label.length === 5;
+      return at(
+        `${first.padEnd(9)}|     Obs        Mean    Std. err.   Std. dev.`,
+        61 - label.length + (wide ? 1 : 0),
+        `[${label}% ${wide ? "conf.interval" : "conf. interval"}]`,
+      );
+    },
+    // marked is true for the one-sample test, whose hypothesised value is
+    // highlighted.
+    tails = (t, df, what, value, marked = false) => {
       // Each tail is taken directly, never as one minus the other, so that
       // a tiny p-value keeps its digits instead of rounding to 0.
       const p_u = upper(df, t),
         p_l = upper(df, -t),
         p = 2 * upper(df, Math.abs(t)),
-        four = (p) => applyFormat(stored(p), "%6.4f"),
-        wide = what.length > 4;
+        four = (p) => applyFormat(stored(p), "%6.4f");
       ctx.out("");
       ctx.out(
-        wide
-          ? ` Ha: ${what} < ${value}           Ha: ${what} != ${value}           Ha: ${what} > ${value}`
-          : // The left alternative starts in column 5, the middle one ends
-            // in column 46 and the right one starts in column 64.
-            `${`    Ha: ${what} < ${value}`}${`Ha: ${what} != ${value}`.padStart(46 - `    Ha: ${what} < ${value}`.length)}${" ".repeat(17)}Ha: ${what} > ${value}`,
+        centred(
+          [
+            `Ha: ${what} < ${value}`,
+            `Ha: ${what} != ${value}`,
+            `Ha: ${what} > ${value}`,
+          ],
+          marked,
+        ),
       );
       ctx.out(
-        ` Pr(T < t) = ${four(p_l)}         Pr(|T| > |t|) = ${four(p)}          Pr(T > t) = ${four(p_u)}`,
+        centred(
+          [
+            `Pr(T < t) = ${four(p_l)}`,
+            `Pr(|T| > |t|) = ${four(p)}`,
+            `Pr(T > t) = ${four(p_u)}`,
+          ],
+          true,
+        ),
       );
       ctx.out("");
       return { p_u: stored(p_u), p_l: stored(p_l), p: stored(p) };
     },
-    finish = (left, hypothesis, t, df, kind = "") => {
-      ctx.out(`${left.padEnd(66)}t =${applyFormat(stored(t), "%9.4f")}`);
-      // The degrees of freedom end at column 78 whatever their label.
-      const label = `${kind}${kind ? "d" : "D"}egrees of freedom =`,
-        value = !Number.isFinite(df)
-          ? "."
-          : kind
-            ? applyFormat(Number(df.toPrecision(6)), "%9.0g")
-            : count(df).padStart(9);
-      ctx.out(
-        `${hypothesis}${label.padStart(69 - hypothesis.length)}${value.padStart(9)}`,
-      );
+    // The line naming the difference, with t from column 67, and the null
+    // hypothesis with the degrees of freedom from the given column.
+    finish = (left, t, hypothesis, column, label, df) => {
+      ctx.out(at(left, 67, `t = ${applyFormat(stored(t), "%8.4f")}`));
+      ctx.out(at(hypothesis, column, `${label} = ${df}`));
     };
-  return { row, rule, middle, head, tails, finish };
+  return { cell, row, rule, middle, head, tails, finish };
 }
 
-/** The one-sample test, from data or from ttesti. */
-function oneSample(ctx, session, printers, m, name, label, value, level) {
+/**
+ * The one-sample test, from data or from ttesti. xname is the variable,
+ * or "" for ttesti, whose sample is called x; typed is the hypothesised
+ * value as it was typed.
+ */
+function oneSample(ctx, session, printers, m, xname, typed, level) {
   const { row, rule, middle, head, tails, finish } = printers,
+    value = Number(typed),
+    name = xname || "x",
     t = (m.mean - value) / m.se,
     df = m.n - 1;
+  ctx.out("");
   ctx.out("One-sample t test");
   ctx.out(rule);
-  ctx.out(head(label, level));
+  ctx.out(head(xname, level));
   ctx.out(middle);
   ctx.out(row(name, m));
   ctx.out(rule);
-  finish(`    mean = mean(${name})`, `H0: mean = ${g(value)}`, t, df);
-  const { p_u, p_l, p } = tails(t, df, "mean", g(value));
+  finish(
+    `    mean = mean(${name})`,
+    t,
+    `H0: mean = ${echoed(typed)}`,
+    50,
+    "Degrees of freedom",
+    applyFormat(df, "%8.0f"),
+  );
+  const { p_u, p_l, p } = tails(t, df, "mean", echoed(typed), true);
   // In the order Stata stores them, which is the order return list shows.
   session.results.r = {
     ub_1: stored(m.ub),
@@ -205,11 +295,18 @@ function oneSample(ctx, session, printers, m, name, label, value, level) {
   };
 }
 
+// The approximation to the degrees of freedom that unequal or welch asks
+// for; welch wins when both are given, as in ttesti.ado.
+const approximation = (options) =>
+  options.welch ? "Welch's " : options.unequal ? "Satterthwaite's " : "";
+
 function ttest(session, text, ctx) {
   const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,]+)([\s\S]*)$/.exec(text),
     data = session.data,
-    printers = tPrinters(ctx),
-    { row, rule, middle, head, tails, finish } = printers;
+    printers = tPrinters(ctx, session),
+    { row, rule, middle, head, tails, finish } = printers,
+    // Under by, ttest sees one group's observations at a time.
+    within = ctx.group ? { groups: [ctx.group] } : null;
   if (paired) {
     // Stata compares with a quoted string as a type mismatch, before it
     // reads any if, in or option, once the variable on the left exists.
@@ -217,34 +314,75 @@ function ttest(session, text, ctx) {
       session.varlist(paired[1]);
       throw new StataError("type mismatch", 109);
     }
-    const parsed = session.parse("[if] [in] [, Level(cilevel)]", paired[3]),
-      level = parsed.options.level,
+    const parsed = session.parse(
+        "[if] [in] [, BY(varname) UNPaired UNEqual Welch Level(cilevel) REVerse]",
+        paired[3],
+      ),
+      options = parsed.options,
+      level = options.level,
       first = data.get(session.varlist(paired[1])[0]),
-      number = Number(paired[2]),
-      rows = session.rows(parsed, null);
-    if (!Number.isNaN(number) && !data.has(paired[2])) {
+      number = NUMBER.test(paired[2]),
+      second = number ? null : data.get(session.varlist(paired[2])[0]);
+    // A string variable after == is a type mismatch whatever the options.
+    if (second && isStringType(second.type))
+      throw new StataError("type mismatch", 109);
+    const rows = session.rows(parsed, within);
+    if (options.by)
+      throw new StataError("may not combine = and option by()", 198);
+    if (options.reverse)
+      throw new StataError("may not combine = and option reverse", 198);
+    if (options.unpaired) {
+      // Two samples, each of its own variable's nonmissing values.
+      if (number) throw new StataError(`${paired[2]} invalid name`, 198);
+      const sample = (variable, which) => {
+        const values = isStringType(variable.type)
+          ? []
+          : rows.map((i) => variable.data[i]).filter((v) => !isMissing(v));
+        if (!values.length)
+          throw new StataError(`${which} sample has no observations`, 2000);
+        return fromData(values, level);
+      };
+      const a = sample(first, "first"),
+        b = sample(second, "second");
+      twoSampleTable(ctx, session, printers)(
+        a,
+        b,
+        first.name,
+        second.name,
+        level,
+        approximation(options),
+      );
+      return;
+    }
+    if (options.unequal)
+      throw new StataError(
+        "unequal option invalid for one-sample or paired tests",
+        198,
+      );
+    if (options.welch)
+      throw new StataError(
+        "welch option invalid for one-sample or paired tests",
+        198,
+      );
+    if (number) {
       // A string variable has no numeric observations to test.
       const values = isStringType(first.type)
         ? []
         : rows.map((i) => first.data[i]).filter((v) => !isMissing(v));
       if (!values.length) throw new StataError("no observations", 2000);
-      ctx.out("");
       oneSample(
         ctx,
         session,
         printers,
         fromData(values, level),
         first.name,
-        "Variable",
-        number,
+        paired[2],
         level,
       );
       return;
     }
-    const second = data.get(session.varlist(paired[2])[0]);
     // Stata refuses a string on either side of ==, even two strings.
-    if (isStringType(first.type) || isStringType(second.type))
-      throw new StataError("type mismatch", 109);
+    if (isStringType(first.type)) throw new StataError("type mismatch", 109);
     const both = rows.filter(
       (i) => !isMissing(first.data[i]) && !isMissing(second.data[i]),
     );
@@ -266,7 +404,7 @@ function ttest(session, text, ctx) {
     ctx.out("");
     ctx.out("Paired t test");
     ctx.out(rule);
-    ctx.out(head("Variable", level));
+    ctx.out(head(first.name, level));
     ctx.out(middle);
     ctx.out(row(first.name, a));
     ctx.out(row(second.name, b));
@@ -274,10 +412,12 @@ function ttest(session, text, ctx) {
     ctx.out(row("diff", d));
     ctx.out(rule);
     finish(
-      `     mean(diff) = mean(${first.name} - ${second.name})`,
-      " H0: mean(diff) = 0",
+      `     mean(diff) = mean(${abbrev(first.name, 16)} - ${abbrev(second.name, 16)})`,
       t,
-      df,
+      " H0: mean(diff) = 0",
+      50,
+      "Degrees of freedom",
+      applyFormat(df, "%8.0f"),
     );
     const { p_u, p_l, p } = tails(t, df, "mean(diff)", "0");
     session.results.r = {
@@ -308,23 +448,24 @@ function ttest(session, text, ctx) {
     return;
   }
   const parsed = session.parse(
-      "varname [if] [in] , BY(varname) [ Level(cilevel) UNEqual Welch ]",
+      "varname [if] [in] [, BY(varname) UNPaired UNEqual Welch Level(cilevel) REVerse]",
       text,
     ),
-    level = parsed.options.level,
-    variable = data.get(parsed.varlist[0]),
-    by = data.get(parsed.options.by),
+    options = parsed.options,
+    level = options.level;
+  if (!options.by) throw new StataError("by() option required", 100);
+  const variable = data.get(parsed.varlist[0]),
+    by = data.get(options.by),
+    selected = session.rows(parsed, within),
     rows = isStringType(variable.type)
       ? []
-      : session
-          .rows(parsed, null)
-          .filter(
-            (i) =>
-              !isMissing(variable.data[i]) &&
-              !(isStringType(by.type)
-                ? by.data[i] === ""
-                : isMissing(by.data[i])),
-          ),
+      : selected.filter(
+          (i) =>
+            !isMissing(variable.data[i]) &&
+            !(isStringType(by.type)
+              ? by.data[i] === ""
+              : isMissing(by.data[i])),
+        ),
     levels = [...new Set(rows.map((i) => by.data[i]))].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
     );
@@ -335,24 +476,26 @@ function ttest(session, text, ctx) {
       `${levels.length < 2 ? "1 group" : "more than 2 groups"} found, 2 required`,
       420,
     );
+  // reverse puts the larger value first.
+  if (options.reverse) levels.reverse();
   const [a, b] = levels.map((value) =>
-    fromData(
-      rows.filter((i) => by.data[i] === value).map((i) => variable.data[i]),
-      level,
+      fromData(
+        rows.filter((i) => by.data[i] === value).map((i) => variable.data[i]),
+        level,
+      ),
     ),
-  );
-  ctx.out("");
+    // Each group is named by its first eight characters, without the
+    // blanks around them.
+    [xname, yname] = levels.map((value) =>
+      labelled(session, by, value).slice(0, 8).trim(),
+    );
   twoSampleTable(ctx, session, printers)(
     a,
     b,
-    levels.map((value) => labelled(session, by, value).slice(0, 8)),
+    xname,
+    yname,
     level,
-    parsed.options.welch
-      ? "Welch's "
-      : parsed.options.unequal
-        ? "Satterthwaite's "
-        : "",
-    "Group",
+    approximation(options),
   );
 }
 
@@ -360,15 +503,17 @@ function ttest(session, text, ctx) {
  * The two-sample table of ttest and ttesti. kind is "" for equal variances,
  * or the name of the approximation to the degrees of freedom. The combined
  * row is pooled from the two groups, as Stata pools it, so it is missing
- * when either group's standard deviation is.
+ * when either group's standard deviation is. xname and yname are "" for
+ * ttesti, whose samples are called x and y.
  */
 function twoSampleTable(
   ctx,
   session,
-  { row, rule, middle, head, tails, finish },
+  { cell, row, rule, middle, head, tails, finish },
 ) {
-  return (a, b, names, level, kind, first) => {
+  return (a, b, xname, yname, level, kind) => {
     const n = a.n + b.n,
+      names = [xname || "x", yname || "y"],
       mean = (a.n * a.mean + b.n * b.mean) / n,
       all = tSummary(
         n,
@@ -402,9 +547,10 @@ function twoSampleTable(
         : NaN,
       lb = difference - critical * se,
       ub = difference + critical * se;
+    ctx.out("");
     ctx.out(`Two-sample t test with ${equal ? "equal" : "unequal"} variances`);
     ctx.out(rule);
-    ctx.out(head(first, level));
+    ctx.out(head(xname, level));
     ctx.out(middle);
     ctx.out(row(names[0], a));
     ctx.out(row(names[1], b));
@@ -412,15 +558,25 @@ function twoSampleTable(
     ctx.out(row("Combined", all));
     ctx.out(middle);
     ctx.out(
-      `${"diff".padStart(8)} |${" ".repeat(8)}${shown(difference).padStart(12)}${shown(se).padStart(12)}${" ".repeat(12)}${shown(lb).padStart(12)}${shown(ub).padStart(12)}`,
+      [
+        [22, cell(difference)],
+        [34, cell(se)],
+        [58, cell(lb)],
+        [70, cell(ub)],
+      ].reduce(
+        (line, [column, text]) => at(line, column, text),
+        `${"diff".padStart(8)} |`,
+      ),
     );
     ctx.out(rule);
+    // The degrees of freedom end at column 78 whatever their label.
     finish(
-      `    diff = mean(${names[0]}) - mean(${names[1]})`,
-      "H0: diff = 0",
+      `    diff = mean(${abbrev(names[0], 16)}) - mean(${abbrev(names[1], 16)})`,
       t,
-      df,
-      kind,
+      "H0: diff = 0",
+      { "": 50, "Satterthwaite's ": 34, "Welch's ": 42 }[kind],
+      `${kind}${kind ? "d" : "D"}egrees of freedom`,
+      applyFormat(stored(df), "%8.0g"),
     );
     const { p_u, p_l, p } = tails(t, df, "diff", "0");
     session.results.r = {
@@ -459,14 +615,16 @@ function twoSampleTable(
 /**
  * ttesti n mean sd value, and ttesti n1 mean1 sd1 n2 mean2 sd2: ttest from
  * summary statistics, the samples called x and y as Stata calls them.
+ * reverse is accepted and changes nothing, as in ttesti.ado.
  */
 function ttesti(session, text, ctx) {
   const [head, optionText] = splitAtComma(text),
     options = session.parse(
-      "[, Level(cilevel) UNEqual Welch]",
+      "[, Level(cilevel) UNEqual Welch REVerse]",
       optionText ? "," + optionText : "",
     ).options,
-    numbers = head.trim().split(/\s+/).filter(Boolean).map(Number),
+    tokens = head.trim().split(/\s+/).filter(Boolean),
+    numbers = tokens.map(Number),
     level = options.level;
   if (
     ![4, 6].includes(numbers.length) ||
@@ -484,26 +642,24 @@ function ttesti(session, text, ctx) {
       );
     return tSummary(n, mean, sd, level);
   };
-  const printers = tPrinters(ctx);
+  const printers = tPrinters(ctx, session);
   if (numbers.length === 4) {
     if (options.unequal || options.welch)
       throw new StataError("unequal and welch need two samples", 198);
-    const [n, mean, sd, value] = numbers,
+    const [n, mean, sd] = numbers,
       m = sample(n, mean, sd);
-    ctx.out("");
-    oneSample(ctx, session, printers, m, "x", "", value, level);
+    oneSample(ctx, session, printers, m, "", tokens[3], level);
     return;
   }
   const a = sample(numbers[0], numbers[1], numbers[2], "first"),
     b = sample(numbers[3], numbers[4], numbers[5], "second");
-  ctx.out("");
   twoSampleTable(ctx, session, printers)(
     a,
     b,
-    ["x", "y"],
-    level,
-    options.welch ? "Welch's " : options.unequal ? "Satterthwaite's " : "",
     "",
+    "",
+    level,
+    approximation(options),
   );
 }
 
@@ -772,6 +928,6 @@ export const UTILITY_COMMANDS = [
   { name: "levelsof", minimum: 6, run: levelsof },
   { name: "ds", minimum: 2, run: ds },
   { name: "unab", minimum: 4, run: unab },
-  { name: "ttest", minimum: 5, run: ttest },
+  { name: "ttest", minimum: 5, run: perGroup(ttest), byable: true },
   { name: "ttesti", minimum: 6, run: ttesti },
 ];
