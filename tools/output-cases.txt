@@ -368,6 +368,41 @@ histogram y, frequency width(5)
 histogram x1, discrete
 histogram y if g > 1, percent
 capture noisily histogram nosuch
+=== graph-panels
+clear
+input double y double x byte g str1 s
+. 5 2 "c"
+. 6 2 "c"
+. 7 2 "c"
+. 8 2 "c"
+3 9 . ""
+1 1 0 "a"
+3 2 0 "a"
+2 3 0 "a"
+5 4 0 "a"
+4 1 1 "b"
+6 2 1 "b"
+5 3 1 "b"
+8 4 1 "b"
+end
+twoway (scatter y x) (lfit y x), by(g)
+twoway (scatter y x) (lfit y x), by(g, total)
+twoway (scatter y x) (qfit y x) (lfitci y x), by(s)
+twoway (scatter y x) (lfit y x) if y < 0
+twoway (scatter y x) (lfit y x) if g == 2
+twoway (scatter y x) (lfit y x) in 1/4, by(g)
+twoway (scatter y x) (lfit y x) in 9/12, by(g)
+twoway (scatter y x) (lfit y x) if inrange(_n, 9, 12), by(g)
+capture noisily twoway (scatter y x) (lfit y x) if y < 0, by(g)
+capture noisily scatter y x if y < 0, by(g)
+capture noisily twoway (scatter y x) (lfit y x) junk
+capture noisily twoway (scatter y x) (lfit y x) if
+capture noisily twoway (scatter y x) (lfit y x) in 90/100
+histogram y, by(g, total) frequency
+scatter y x, title(Main, size(large)) xtitle("") ytitle("")
+scatter y x, by(g) title(T) subtitle(S) note(N) caption(C)
+scatter y x, by(g, title(O) note(N))
+scatter y x, mlabel(y)
 === margins
 clear
 input byte d double x1 double x2 byte n double z

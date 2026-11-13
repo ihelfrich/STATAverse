@@ -58,7 +58,10 @@ test("histogram chooses bins as Stata does and still draws under quietly", () =>
 test("graph commands refuse what they cannot draw", () => {
   assert.equal(run("scatter y s").result.rc, 109);
   assert.equal(run("scatter y").result.rc, 102);
-  assert.equal(run("scatter y x if x > 99").result.rc, 2000);
+  // A twoway graph with no observations is drawn empty: Stata 19 returns 0
+  // for scatter wage educ if wage < 0 and draws the axes with no markers.
+  assert.equal(run("scatter y x if x > 99").result.rc, 0);
+  assert.equal(marks(run("scatter y x if x > 99").last.graph.svg, "circle"), 0);
   assert.equal(run("graph pie y").result.rc, 198);
   assert.equal(run("twoway (rcap y x x)").result.rc, 198);
   assert.equal(run("graph export out.png").result.rc, 0);
