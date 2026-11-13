@@ -16441,6 +16441,64 @@
       ]
     },
     {
+      "id": "string-generate-large-n",
+      "source": "clear\nset obs 300000\ngenerate s = \"a\"\nreplace s = \"bb\" in 1\ngenerate str1 t = \"a\"\nreplace t = \"ccc\"\ngenerate u = cond(_n == 1, \"xyz\", \"q\")\nreplace u = \"longer text\" if _n == 300000\ngenerate v = string(_n)\ndescribe\ncount if u == \"q\"\ndisplay u[1] \"|\" u[300000] \"|\" v[300000] \"|\" s[1] \"|\" s[2]\nclear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 300000",
+          "lines": ["Number of observations (_N) was 0, now 300,000."]
+        },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "replace s = \"bb\" in 1",
+          "lines": ["variable s was str1 now str2", "(1 real change made)"]
+        },
+        { "command": "generate str1 t = \"a\"", "lines": [] },
+        {
+          "command": "replace t = \"ccc\"",
+          "lines": [
+            "variable t was str1 now str3",
+            "(300,000 real changes made)"
+          ]
+        },
+        {
+          "command": "generate u = cond(_n == 1, \"xyz\", \"q\")",
+          "lines": []
+        },
+        {
+          "command": "replace u = \"longer text\" if _n == 300000",
+          "lines": ["variable u was str3 now str11", "(1 real change made)"]
+        },
+        { "command": "generate v = string(_n)", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:       300,000",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               str2    %9s",
+            "t               str3    %9s",
+            "u               str11   %11s",
+            "v               str6    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "count if u == \"q\"", "lines": ["  299,998"] },
+        {
+          "command": "display u[1] \"|\" u[300000] \"|\" v[300000] \"|\" s[1] \"|\" s[2]",
+          "lines": ["xyz|longer text|300000|bb|a"]
+        },
+        { "command": "clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

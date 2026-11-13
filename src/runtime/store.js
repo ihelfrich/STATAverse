@@ -2,6 +2,7 @@
 // operations on variables and observations that Stata's data commands share.
 // Commands sit on top of this; nothing here parses command text.
 import { StataError } from "./errors.js";
+import { greatest } from "./extremes.js";
 import {
   MISSING,
   byteLength,
@@ -19,8 +20,11 @@ import {
   truncateBytes,
 } from "./values.js";
 
+// The narrowest string type that holds every value. greatest() loops rather
+// than spreading one argument per observation into Math.max, which overflowed
+// the call stack once a variable had about 150,000 observations.
 const widthType = (values) => {
-  const width = Math.max(1, ...values.map(byteLength));
+  const width = Math.max(1, greatest(values.map(byteLength)));
   return width > MAX_STRING_WIDTH ? "strL" : "str" + width;
 };
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);

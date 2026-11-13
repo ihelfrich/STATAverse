@@ -2447,3 +2447,17 @@ margins, atmeans
 margins, dydx(*) atmeans
 regress x1 i.f i.g
 margins, atmeans
+=== string-generate-large-n
+clear
+set obs 300000
+generate s = "a"
+replace s = "bb" in 1
+generate str1 t = "a"
+replace t = "ccc"
+generate u = cond(_n == 1, "xyz", "q")
+replace u = "longer text" if _n == 300000
+generate v = string(_n)
+describe
+count if u == "q"
+display u[1] "|" u[300000] "|" v[300000] "|" s[1] "|" s[2]
+clear
