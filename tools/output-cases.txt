@@ -3328,3 +3328,70 @@ quietly tabulate c1200 r1
 display r(r) " " r(c)
 capture noisily tabulate c1201 r1
 clear
+=== perfect-prediction
+clear
+set obs 2000
+set seed 5
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate y = cond(g==0, 0, runiform() < .4 + .2*x)
+logit y x i.g, nolog
+logit y x i.g
+probit y x i.g, nolog
+generate x2 = 2*x
+generate d = g == 0
+generate dd = 2*d
+logit y x x2 d, nolog
+logit y d x x2
+logit y x dd d, nolog
+logit y x d, nolog noconstant
+logit y x d, nolog vce(robust)
+logit y i.g##c.x, nolog
+logit y i.g#c.x, nolog
+logit y x i.d, nolog
+logit y i.d##c.x, nolog
+generate e = cond(g==1, 1, 0)
+generate y3 = cond(g==0, 0, cond(g==1, 1, runiform() < .5))
+logit y3 x d e, nolog
+logit y3 x e d, nolog
+generate v = cond(y==0, -1.5, -1.5 + floor(runiform()*3)/7)
+logit y x v, nolog
+predict p
+summarize p
+predict p2, asif
+summarize p2
+predict xb, xb
+summarize xb
+count if !missing(p)
+generate z = _n/7
+generate y2 = z > 100.5
+capture noisily logit y2 z, nolog
+display _rc
+capture noisily probit y2 d z
+display _rc
+generate y4 = cond(d, 1, x > .3)
+capture noisily logit y4 d x
+display _rc
+generate w = floor(_n/500)
+generate y5 = w > 2
+replace y5 = runiform() < .5 if w == 2
+logit y5 w
+generate y6 = w < 2
+replace y6 = runiform() < .5 if w == 2
+probit y6 w x, nolog
+generate y7 = g == 1
+replace y7 = 0 if x < .5 & g == 1
+logit y7 x i.g, nolog
+=== binary-noconstant
+clear
+set obs 500
+set seed 21
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate y = runiform() < .3 + .3*x
+logit y x, nolog noconstant
+display e(chi2type) " " e(r2_p) " " e(ll_0)
+probit y x g, noconstant
+logit y x, nolog noconstant robust
+generate c = floor(3*runiform()*x)
+poisson c x, nolog noconstant

@@ -22615,6 +22615,632 @@
       ]
     },
     {
+      "id": "perfect-prediction",
+      "source": "clear\nset obs 2000\nset seed 5\ngenerate g = floor(runiform()*3)\ngenerate x = runiform()\ngenerate y = cond(g==0, 0, runiform() < .4 + .2*x)\nlogit y x i.g, nolog\nlogit y x i.g\nprobit y x i.g, nolog\ngenerate x2 = 2*x\ngenerate d = g == 0\ngenerate dd = 2*d\nlogit y x x2 d, nolog\nlogit y d x x2\nlogit y x dd d, nolog\nlogit y x d, nolog noconstant\nlogit y x d, nolog vce(robust)\nlogit y i.g##c.x, nolog\nlogit y i.g#c.x, nolog\nlogit y x i.d, nolog\nlogit y i.d##c.x, nolog\ngenerate e = cond(g==1, 1, 0)\ngenerate y3 = cond(g==0, 0, cond(g==1, 1, runiform() < .5))\nlogit y3 x d e, nolog\nlogit y3 x e d, nolog\ngenerate v = cond(y==0, -1.5, -1.5 + floor(runiform()*3)/7)\nlogit y x v, nolog\npredict p\nsummarize p\npredict p2, asif\nsummarize p2\npredict xb, xb\nsummarize xb\ncount if !missing(p)\ngenerate z = _n/7\ngenerate y2 = z > 100.5\ncapture noisily logit y2 z, nolog\ndisplay _rc\ncapture noisily probit y2 d z\ndisplay _rc\ngenerate y4 = cond(d, 1, x > .3)\ncapture noisily logit y4 d x\ndisplay _rc\ngenerate w = floor(_n/500)\ngenerate y5 = w > 2\nreplace y5 = runiform() < .5 if w == 2\nlogit y5 w\ngenerate y6 = w < 2\nreplace y6 = runiform() < .5 if w == 2\nprobit y6 w x, nolog\ngenerate y7 = g == 1\nreplace y7 = 0 if x < .5 & g == 1\nlogit y7 x i.g, nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2000",
+          "lines": ["Number of observations (_N) was 0, now 2,000."]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = cond(g==0, 0, runiform() < .4 + .2*x)",
+          "lines": []
+        },
+        {
+          "command": "logit y x i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.60086                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.176948   .1946963     6.05   0.000     .7953507    1.558546",
+            "             |",
+            "           g |",
+            "          0  |          0  (empty)",
+            "          1  |  -.0052806   .1109315    -0.05   0.962    -.2227024    .2121412",
+            "          2  |          0  (omitted)",
+            "             |",
+            "       _cons |  -.6004382    .125187    -4.80   0.000    -.8458001   -.3550762",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y x i.g",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "Iteration 0:  Log likelihood = -927.35768",
+            "Iteration 1:  Log likelihood = -908.60613",
+            "Iteration 2:  Log likelihood = -908.60086",
+            "Iteration 3:  Log likelihood = -908.60086",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.60086                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.176948   .1946963     6.05   0.000     .7953507    1.558546",
+            "             |",
+            "           g |",
+            "          0  |          0  (empty)",
+            "          1  |  -.0052806   .1109315    -0.05   0.962    -.2227024    .2121412",
+            "          2  |          0  (omitted)",
+            "             |",
+            "       _cons |  -.6004382    .125187    -4.80   0.000    -.8458001   -.3550762",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit y x i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "",
+            "Probit regression                                       Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.53",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.59458                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7352357   .1207562     6.09   0.000     .4985579    .9719135",
+            "             |",
+            "           g |",
+            "          0  |          0  (empty)",
+            "          1  |  -.0032854   .0691005    -0.05   0.962    -.1387199    .1321491",
+            "          2  |          0  (omitted)",
+            "             |",
+            "       _cons |  -.3749713   .0777287    -4.82   0.000    -.5273167   -.2226258",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate x2 = 2*x", "lines": [] },
+        { "command": "generate d = g == 0", "lines": [] },
+        { "command": "generate dd = 2*d", "lines": [] },
+        {
+          "command": "logit y x x2 d, nolog",
+          "lines": [
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(1)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.602                               Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.177113   .1946649     6.05   0.000      .795577     1.55865",
+            "          x2 |          0  (omitted)",
+            "           d |          0  (omitted)",
+            "       _cons |  -.6031776    .111186    -5.42   0.000    -.8210981    -.385257",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y d x x2",
+          "lines": [
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "note: x2 omitted because of collinearity.",
+            "Iteration 0:  Log likelihood = -927.35768",
+            "Iteration 1:  Log likelihood = -908.60725",
+            "Iteration 2:  Log likelihood =   -908.602",
+            "Iteration 3:  Log likelihood =   -908.602",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(1)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.602                               Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           d |          0  (omitted)",
+            "           x |   1.177113   .1946649     6.05   0.000      .795577     1.55865",
+            "          x2 |          0  (omitted)",
+            "       _cons |  -.6031776    .111186    -5.42   0.000    -.8210981    -.385257",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y x dd d, nolog",
+          "lines": [
+            "note: dd != 0 predicts failure perfectly;",
+            "      dd omitted and 662 obs not used.",
+            "",
+            "note: d omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(1)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.602                               Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.177113   .1946649     6.05   0.000      .795577     1.55865",
+            "          dd |          0  (omitted)",
+            "           d |          0  (omitted)",
+            "       _cons |  -.6031776    .111186    -5.42   0.000    -.8210981    -.385257",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y x d, nolog noconstant",
+          "lines": [
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        Wald chi2(1)  =   7.49",
+            "Log likelihood = -923.667                               Prob > chi2   = 0.0062",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2629098    .096069     2.74   0.006     .0746181    .4512015",
+            "           d |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y x d, nolog vce(robust)",
+          "lines": [
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        Wald chi2(1)  =  36.73",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -908.602                         Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.177113   .1942218     6.06   0.000     .7964455    1.557781",
+            "           d |          0  (omitted)",
+            "       _cons |  -.6031776   .1112119    -5.42   0.000    -.8211489   -.3852063",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y i.g##c.x, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 2.g omitted because of collinearity.",
+            "note: 2.g#c.x omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(3)    =  37.66",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.52613                             Pseudo R2     = 0.0203",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |          0  (empty)",
+            "          1  |  -.0798769   .2225647    -0.36   0.720    -.5160956    .3563418",
+            "          2  |          0  (omitted)",
+            "             |",
+            "           x |   1.099232    .279411     3.93   0.000     .5515964    1.646867",
+            "             |",
+            "       g#c.x |",
+            "          0  |          0  (empty)",
+            "          1  |   .1506203   .3895878     0.39   0.699    -.6129577    .9141983",
+            "          2  |          0  (omitted)",
+            "             |",
+            "       _cons |  -.5615732    .160294    -3.50   0.000    -.8757436   -.2474027",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y i.g#c.x, nolog",
+          "lines": [
+            "note: 0.g#c.x != 0 predicts failure perfectly;",
+            "      0.g#c.x omitted and 662 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(2)    =  37.53",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.59053                             Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       g#c.x |",
+            "          0  |          0  (empty)",
+            "          1  |   1.191782   .2175071     5.48   0.000     .7654761    1.618088",
+            "          2  |   1.162378   .2175622     5.34   0.000      .735964    1.588792",
+            "             |",
+            "       _cons |  -.6031292    .111185    -5.42   0.000    -.8210478   -.3852106",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y x i.d, nolog",
+          "lines": [
+            "note: 0.d != 1 predicts failure perfectly;",
+            "      0.d omitted and 662 obs not used.",
+            "",
+            "note: 1.d omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(1)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.602                               Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.177113   .1946649     6.05   0.000      .795577     1.55865",
+            "         1.d |          0  (empty)",
+            "       _cons |  -.6031776    .111186    -5.42   0.000    -.8210981    -.385257",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y i.d##c.x, nolog",
+          "lines": [
+            "note: 0.d != 1 predicts failure perfectly;",
+            "      0.d omitted and 662 obs not used.",
+            "",
+            "note: 1.d omitted because of collinearity.",
+            "note: 1.d#c.x omitted because of collinearity.",
+            "",
+            "Logistic regression                                     Number of obs =  1,338",
+            "                                                        LR chi2(1)    =  37.51",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -908.602                               Pseudo R2     = 0.0202",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.d |          0  (empty)",
+            "           x |   1.177113   .1946649     6.05   0.000      .795577     1.55865",
+            "             |",
+            "       d#c.x |",
+            "          1  |          0  (empty)",
+            "             |",
+            "       _cons |  -.6031776    .111186    -5.42   0.000    -.8210981    -.385257",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate e = cond(g==1, 1, 0)", "lines": [] },
+        {
+          "command": "generate y3 = cond(g==0, 0, cond(g==1, 1, runiform() < .5))",
+          "lines": []
+        },
+        {
+          "command": "logit y3 x d e, nolog",
+          "lines": [
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "note: e != 0 predicts success perfectly;",
+            "      e omitted and 674 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =    664",
+            "                                                        LR chi2(1)    =   3.16",
+            "                                                        Prob > chi2   = 0.0756",
+            "Log likelihood = -458.64402                             Pseudo R2     = 0.0034",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4865714   .2744492     1.77   0.076    -.0513391    1.024482",
+            "           d |          0  (omitted)",
+            "           e |          0  (omitted)",
+            "       _cons |  -.2249767   .1575836    -1.43   0.153    -.5338349    .0838814",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y3 x e d, nolog",
+          "lines": [
+            "note: e != 0 predicts success perfectly;",
+            "      e omitted and 674 obs not used.",
+            "",
+            "note: d != 0 predicts failure perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =    664",
+            "                                                        LR chi2(1)    =   3.16",
+            "                                                        Prob > chi2   = 0.0756",
+            "Log likelihood = -458.64402                             Pseudo R2     = 0.0034",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4865714   .2744492     1.77   0.076    -.0513391    1.024482",
+            "           e |          0  (omitted)",
+            "           d |          0  (omitted)",
+            "       _cons |  -.2249767   .1575836    -1.43   0.153    -.5338349    .0838814",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "generate v = cond(y==0, -1.5, -1.5 + floor(runiform()*3)/7)",
+          "lines": []
+        },
+        {
+          "command": "logit y x v, nolog",
+          "lines": [
+            "note: v != -1.5 predicts success perfectly;",
+            "      v omitted and 468 obs not used.",
+            "",
+            "",
+            "Logistic regression                                     Number of obs =  1,532",
+            "                                                        LR chi2(1)    =  11.64",
+            "                                                        Prob > chi2   = 0.0006",
+            "Log likelihood = -576.23581                             Pseudo R2     = 0.0100",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9172724   .2708776     3.39   0.001     .3863622    1.448183",
+            "           v |          0  (omitted)",
+            "       _cons |  -2.398874    .164871   -14.55   0.000    -2.722015   -2.075733",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict p",
+          "lines": [
+            "(option pr assumed; Pr(y))",
+            "(468 missing values generated)"
+          ]
+        },
+        {
+          "command": "summarize p",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           p |      1,532    .1266319    .0290691   .0833105   .1851381"
+          ]
+        },
+        {
+          "command": "predict p2, asif",
+          "lines": ["(option pr assumed; Pr(y))"]
+        },
+        {
+          "command": "summarize p2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          p2 |      2,000    .1280514    .0293512   .0833105   .1851381"
+          ]
+        },
+        {
+          "command": "predict xb, xb",
+          "lines": ["(468 missing values generated)"]
+        },
+        {
+          "command": "summarize xb",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          xb |      1,532   -1.956959    .2638509  -2.398195  -1.481917"
+          ]
+        },
+        { "command": "count if !missing(p)", "lines": ["  1,532"] },
+        { "command": "generate z = _n/7", "lines": [] },
+        { "command": "generate y2 = z > 100.5", "lines": [] },
+        {
+          "command": "capture noisily logit y2 z, nolog",
+          "lines": ["outcome = z > 100.4286 predicts data perfectly"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily probit y2 d z",
+          "lines": ["outcome = z > 100.4286 predicts data perfectly"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        { "command": "generate y4 = cond(d, 1, x > .3)", "lines": [] },
+        {
+          "command": "capture noisily logit y4 d x",
+          "lines": [
+            "note: d != 0 predicts success perfectly;",
+            "      d omitted and 662 obs not used.",
+            "",
+            "outcome = x > .2998961 predicts data perfectly"
+          ]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        { "command": "generate w = floor(_n/500)", "lines": [] },
+        { "command": "generate y5 = w > 2", "lines": [] },
+        {
+          "command": "replace y5 = runiform() < .5 if w == 2",
+          "lines": ["(255 real changes made)"]
+        },
+        {
+          "command": "logit y5 w",
+          "lines": [
+            "note: outcome = w > 2 predicts data perfectly except for",
+            "      w == 2 subsample:",
+            "      w omitted and 1500 obs not used.",
+            "",
+            "Iteration 0:  Log likelihood = -346.47358",
+            "Iteration 1:  Log likelihood = -346.47358",
+            "",
+            "Logistic regression                                     Number of obs =    500",
+            "                                                        LR chi2(0)    =   0.00",
+            "                                                        Prob > chi2   =      .",
+            "Log likelihood = -346.47358                             Pseudo R2     = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y5 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |          0  (omitted)",
+            "       _cons |   .0400053   .0894606     0.45   0.655    -.1353342    .2153449",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate y6 = w < 2", "lines": [] },
+        {
+          "command": "replace y6 = runiform() < .5 if w == 2",
+          "lines": ["(251 real changes made)"]
+        },
+        {
+          "command": "probit y6 w x, nolog",
+          "lines": [
+            "note: outcome = w < 2 predicts data perfectly except for",
+            "      w == 2 subsample:",
+            "      w omitted and 1500 obs not used.",
+            "",
+            "",
+            "Probit regression                                       Number of obs =    500",
+            "                                                        LR chi2(1)    =   1.02",
+            "                                                        Prob > chi2   = 0.3132",
+            "Log likelihood = -346.0611                              Pseudo R2     = 0.0015",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y6 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |          0  (omitted)",
+            "           x |   .1951417   .1935721     1.01   0.313    -.1842526    .5745361",
+            "       _cons |  -.0925071   .1118115    -0.83   0.408    -.3116536    .1266395",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate y7 = g == 1", "lines": [] },
+        {
+          "command": "replace y7 = 0 if x < .5 & g == 1",
+          "lines": ["(349 real changes made)"]
+        },
+        {
+          "command": "logit y7 x i.g, nolog",
+          "lines": [
+            "note: 0.g != 0 predicts failure perfectly;",
+            "      0.g omitted and 662 obs not used.",
+            "",
+            "note: 1.g != 1 predicts failure perfectly;",
+            "      1.g omitted and 664 obs not used.",
+            "",
+            "outcome = x > .4972416 predicts data perfectly",
+            "r(2000);"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "binary-noconstant",
+      "source": "clear\nset obs 500\nset seed 21\ngenerate g = floor(runiform()*3)\ngenerate x = runiform()\ngenerate y = runiform() < .3 + .3*x\nlogit y x, nolog noconstant\ndisplay e(chi2type) \" \" e(r2_p) \" \" e(ll_0)\nprobit y x g, noconstant\nlogit y x, nolog noconstant robust\ngenerate c = floor(3*runiform()*x)\npoisson c x, nolog noconstant\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 500",
+          "lines": ["Number of observations (_N) was 0, now 500."]
+        },
+        { "command": "set seed 21", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate y = runiform() < .3 + .3*x", "lines": [] },
+        {
+          "command": "logit y x, nolog noconstant",
+          "lines": [
+            "Logistic regression                                     Number of obs =    500",
+            "                                                        Wald chi2(1)  =   3.14",
+            "Log likelihood = -344.99746                             Prob > chi2   = 0.0766",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2719035   .1535557     1.77   0.077    -.0290601     .572867",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(chi2type) \" \" e(r2_p) \" \" e(ll_0)",
+          "lines": ["Wald . ."]
+        },
+        {
+          "command": "probit y x g, noconstant",
+          "lines": [
+            "Iteration 0:  Log likelihood = -346.57359",
+            "Iteration 1:  Log likelihood =  -342.3635",
+            "Iteration 2:  Log likelihood = -342.36325",
+            "Iteration 3:  Log likelihood = -342.36325",
+            "",
+            "Probit regression                                       Number of obs =    500",
+            "                                                        Wald chi2(2)  =   8.36",
+            "Log likelihood = -342.36325                             Prob > chi2   = 0.0153",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3713056   .1303364     2.85   0.004     .1158509    .6267603",
+            "           g |  -.1306507   .0570921    -2.29   0.022    -.2425491   -.0187523",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit y x, nolog noconstant robust",
+          "lines": [
+            "Logistic regression                                     Number of obs =    500",
+            "                                                        Wald chi2(1)  =   3.17",
+            "Log pseudolikelihood = -344.99746                       Prob > chi2   = 0.0752",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2719035   .1528251     1.78   0.075    -.0276283    .5714352",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate c = floor(3*runiform()*x)", "lines": [] },
+        {
+          "command": "poisson c x, nolog noconstant",
+          "lines": [
+            "Poisson regression                                      Number of obs =    500",
+            "                                                        Wald chi2(1)  =  76.52",
+            "Log likelihood = -474.45768                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.9365963   .1070717    -8.75   0.000    -1.146453   -.7267397",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

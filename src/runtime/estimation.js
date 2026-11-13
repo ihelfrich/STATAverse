@@ -552,7 +552,7 @@ export function fit(session, parsed, by) {
  */
 export function tableWidth(session, model) {
   const shown = model.names
-    .filter((_, k) => !model.columns?.[k]?.base)
+    .filter((_, k) => !hiddenBase(model.columns?.[k]))
     .map((name) => {
       const term = model.columns?.[model.names.indexOf(name)]?.term;
       return term && !term.variable ? term.header : name;
@@ -564,7 +564,7 @@ export function tableWidth(session, model) {
     // A factor level's label counts too, with the space after it.
     labels = model.names.flatMap((_, k) => {
       const column = model.columns?.[k];
-      if (!column?.levels || column.base) return [];
+      if (!column?.levels || hiddenBase(column)) return [];
       const factors = column.term.components.filter((c) => c.factor);
       return [
         column.levels
@@ -583,6 +583,13 @@ export function tableWidth(session, model) {
     );
   return Math.max(12, Math.min(longest, cap));
 }
+/**
+ * A base level is not shown in a coefficient table, unless no observation
+ * of the estimation sample has it (after logit sets aside the observations
+ * a perfect predictor explains): then it is shown as (empty).
+ */
+const hiddenBase = (column) => !!column?.base && !column.empty;
+
 /** Stata's abbrev(name, width): the start, a ~, and the last character. */
 export const abbreviate = (name, width) =>
   name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
@@ -603,7 +610,7 @@ export function termRows(session, model, cells, width) {
   });
   let previousPlain = true;
   blocks.forEach((block, b) => {
-    const shown = block.items.filter((k) => !model.columns[k]?.base),
+    const shown = block.items.filter((k) => !hiddenBase(model.columns[k])),
       // A factor with one level to show, such as a 0/1 variable, is printed
       // on one row like a plain variable, with no blank rows around it.
       alone =
@@ -620,7 +627,7 @@ export function termRows(session, model, cells, width) {
       out.push(
         model.estimable[k]
           ? `${label}|${cells(k)}`
-          : `${label}|          0  (omitted)`,
+          : `${label}|          0  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
