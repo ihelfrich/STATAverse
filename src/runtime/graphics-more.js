@@ -3,6 +3,7 @@
 // pnorm and tsline. The statistics drawn are the ones the corresponding
 // commands report; kdensity and lowess can store their values in variables,
 // which is how they are compared with Stata.
+import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { LOOKS, looksOf, parseGraph } from "./graph-looks.js";
 import { splitAtComma } from "./syntax.js";
@@ -206,8 +207,8 @@ const STATISTICS = {
     ),
   sum: (v) => v.reduce((a, b) => a + b, 0),
   count: (v) => v.length,
-  min: (v) => Math.min(...v),
-  max: (v) => Math.max(...v),
+  min: (v) => least(v),
+  max: (v) => greatest(v),
   sd: (v) => moments(v).sd,
 };
 /** yvars and their statistic, from "(mean) a b (median) c". */
@@ -466,10 +467,7 @@ const fitLine = (points) => {
     xs = points.map((p) => p[0]);
   return {
     slope,
-    points: [Math.min(...xs), Math.max(...xs)].map((v) => [
-      v,
-      my + slope * (v - mx),
-    ]),
+    points: [least(xs), greatest(xs)].map((v) => [v, my + slope * (v - mx)]),
   };
 };
 

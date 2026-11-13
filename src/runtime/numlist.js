@@ -21,6 +21,11 @@ function sequence(from, step, to) {
   return out;
 }
 
+// A long sequence spread into push() overflows the stack; this loops.
+function append(out, values) {
+  for (const value of values) out.push(value);
+}
+
 export function parseNumlist(text) {
   const out = [],
     tokens = text.replace(/:/g, " : ").trim().split(/\s+/).filter(Boolean);
@@ -33,13 +38,13 @@ export function parseNumlist(text) {
         throw invalid();
       const b = out.at(-1),
         a = out.at(-2);
-      out.push(...sequence(b, b - a, Number(to)).slice(1));
+      append(out, sequence(b, b - a, Number(to)).slice(1));
     } else if ((m = RANGE.exec(token))) {
       const a = Number(m[1]),
         b = Number(m[2]);
-      out.push(...sequence(a, b < a ? -1 : 1, b));
+      append(out, sequence(a, b < a ? -1 : 1, b));
     } else if ((m = STEPPED.exec(token)))
-      out.push(...sequence(Number(m[1]), Number(m[2] ?? m[3]), Number(m[4])));
+      append(out, sequence(Number(m[1]), Number(m[2] ?? m[3]), Number(m[4])));
     else if (SINGLE.test(token)) out.push(Number(token));
     else throw invalid();
   }

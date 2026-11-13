@@ -1,6 +1,7 @@
 // Matrices: matrix define from e(b), e(V), r(b), r(V), a literal, J(), I(),
 // a copy or a transpose; matrix list and drop; and A[i,j], rowsof(),
 // colsof() and el() in expressions. Matrix algebra is not here yet.
+import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { isMissing, isName } from "./values.js";
@@ -104,10 +105,10 @@ function list(session, text, ctx) {
     ),
     width =
       Math.max(
-        ...cells.flat().map((cell) => cell.length),
-        ...colNames.map((n) => n.length),
+        greatest(cells.flat().map((cell) => cell.length)),
+        greatest(colNames.map((n) => n.length)),
       ) + 2,
-    stub = Math.max(...rowNames.map((n) => n.length));
+    stub = greatest(rowNames.map((n) => n.length));
   ctx.out("");
   ctx.out(
     `${symmetric ? "symmetric " : ""}${name}[${values.length},${colNames.length}]`,

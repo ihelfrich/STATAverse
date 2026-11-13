@@ -3,6 +3,7 @@
 // function run(session, text, ctx). text is what follows the command name
 // after macro substitution; ctx carries the by-groups, the current macro
 // frame and out(line) for results.
+import { least, greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
@@ -552,7 +553,7 @@ function compress(session, text, ctx) {
     let target = before;
     if (isStringType(before)) {
       if (before !== "strL")
-        target = "str" + Math.max(1, ...variable.data.map(byteLength));
+        target = "str" + Math.max(1, greatest(variable.data.map(byteLength)));
     } else {
       const smallest = inferType(Array.from(variable.data));
       // compress moves to an integer type when it can, and never to float.
@@ -971,7 +972,7 @@ function egen(session, text, ctx) {
     // Stata sizes the variable before trimming the last separator.
     data.generate(name, text, {
       string: true,
-      type: `str${Math.max(1, ...text.map((v) => byteLength(v))) + (variables.length > 1 ? byteLength(punct) : 0)}`,
+      type: `str${Math.max(1, greatest(text.map((v) => byteLength(v)))) + (variables.length > 1 ? byteLength(punct) : 0)}`,
     });
     data.sortedBy = order;
     return;
@@ -1004,11 +1005,11 @@ function egen(session, text, ctx) {
               : MISSING
             : fcn === "rowmin"
               ? row.length
-                ? Math.min(...row)
+                ? least(row)
                 : MISSING
               : fcn === "rowmax"
                 ? row.length
-                  ? Math.max(...row)
+                  ? greatest(row)
                   : MISSING
                 : fcn === "rowmiss"
                   ? columns.length - row.length
