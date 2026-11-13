@@ -3,6 +3,7 @@
 // observations to the next. Standard errors assume independent, identically
 // distributed errors, with the sparsity estimated as Stata does by default:
 // from fits at two nearby quantiles a Hall-Sheather bandwidth apart.
+import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
@@ -37,7 +38,7 @@ export function quantileFit(x, observed, q) {
   // Ties make the search stall at a vertex shared by several bases. A tiny
   // distinct shift of each outcome removes them; the answer is then read
   // from the final basis with the outcomes as observed.
-  const spread = Math.max(...observed.map(Math.abs), 1) * 1e-9,
+  const spread = Math.max(greatest(observed.map(Math.abs)), 1) * 1e-9,
     y = observed.map((v, i) => v + (spread * ((i * 7919) % 104729)) / 104729),
     n = x.length,
     k = x[0].length,

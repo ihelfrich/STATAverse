@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { screenshotPath } from "../../tools/receipts.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
@@ -73,7 +74,9 @@ test("all investigation tasks require actual settings, source inspection and int
         .toBe(i + 1);
       if (step.id === "conflict-precedence")
         await page.screenshot({
-          path: `docs/verification/screenshots/data-investigation-${testInfo.project.name}.png`,
+          path: screenshotPath(
+            `data-investigation-${testInfo.project.name}.png`,
+          ),
           fullPage: true,
         });
       await page.locator("#investigation-next").click();

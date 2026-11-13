@@ -2,6 +2,7 @@
 // folder. Installed Stata on the development machine cannot run import
 // delimited, so these follow Stata's documentation and are not compared
 // with native output; the numerical contract says so.
+import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count } from "./reports.js";
@@ -132,7 +133,7 @@ function importDelimited(session, text, ctx) {
   } else delimiter = detect(stored.text);
   const rows = parseDelimitedText(stored.text, delimiter);
   if (!rows.length) throw new StataError("no observations", 2000);
-  const width = Math.max(...rows.map((r) => r.length)),
+  const width = greatest(rows.map((r) => r.length)),
     numeric = (cell) =>
       !cell.quoted &&
       parseNumber(cell.text) !== undefined &&

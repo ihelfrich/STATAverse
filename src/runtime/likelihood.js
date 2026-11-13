@@ -3,6 +3,7 @@
 // likelihood and gradient; the fitter takes Newton steps using a Hessian
 // obtained by differencing the gradient. Estimates are compared with
 // installed Stata; iteration logs follow a different path and are not.
+import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, invttail, ttail } from "./distributions.js";
@@ -76,7 +77,7 @@ export function maximize(objective, start) {
     theta = next;
     current = trial;
     log.push(current.value);
-    if (change < 1e-12 && Math.max(...current.gradient.map(Math.abs)) < 1e-6)
+    if (change < 1e-12 && greatest(current.gradient.map(Math.abs)) < 1e-6)
       break;
     if (iteration === 200)
       throw new StataError("convergence not achieved", 430);
@@ -544,7 +545,7 @@ function mlogit(session, text, ctx) {
     // The base is the most frequent outcome, the lowest of any tied.
     base = given
       ? outcomes.indexOf(options.baseoutcome)
-      : frequency.indexOf(Math.max(...frequency));
+      : frequency.indexOf(greatest(frequency));
   if (base < 0)
     throw new StataError(
       `baseoutcome(${options.baseoutcome}) is not an outcome`,
@@ -560,7 +561,7 @@ function mlogit(session, text, ctx) {
       let value = 0;
       f.x.forEach((r, i) => {
         const xb = others.map((_, e) => dot(r, theta, e * k)),
-          top = Math.max(0, ...xb),
+          top = Math.max(0, greatest(xb)),
           denominator =
             Math.exp(-top) + xb.reduce((t, v) => t + Math.exp(v - top), 0),
           logSum = top + Math.log(denominator);
