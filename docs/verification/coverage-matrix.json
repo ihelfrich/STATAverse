@@ -1,7 +1,7 @@
 {
   "basis": "Each command line in the recorded fixtures named in tools/coverage-matrix.mjs, resolved to the registered command it names. A command counts as recorded when at least one line ran it in installed Stata and in the runtime. Recorded is not the same as covered: a command can appear with only some of its options.",
-  "registered": 187,
-  "recorded": 137,
+  "registered": 188,
+  "recorded": 138,
   "unrecorded": [
     "which",
     "query",
@@ -227,9 +227,16 @@
     },
     {
       "name": "ttest",
-      "recorded": 10,
+      "recorded": 18,
       "fixtures": {
-        "stata-runtime-output.json": 10
+        "stata-runtime-output.json": 18
+      }
+    },
+    {
+      "name": "ttesti",
+      "recorded": 12,
+      "fixtures": {
+        "stata-runtime-output.json": 12
       }
     },
     {
@@ -1027,18 +1034,18 @@
     },
     {
       "name": "generate",
-      "recorded": 1744,
+      "recorded": 1748,
       "fixtures": {
         "stata-runtime-sessions.json": 1082,
-        "stata-runtime-output.json": 662
+        "stata-runtime-output.json": 666
       }
     },
     {
       "name": "replace",
-      "recorded": 631,
+      "recorded": 633,
       "fixtures": {
         "stata-runtime-sessions.json": 467,
-        "stata-runtime-output.json": 164
+        "stata-runtime-output.json": 166
       }
     },
     {
@@ -1203,10 +1210,10 @@
     },
     {
       "name": "display",
-      "recorded": 138,
+      "recorded": 142,
       "fixtures": {
         "stata-runtime-sessions.json": 6,
-        "stata-runtime-output.json": 128,
+        "stata-runtime-output.json": 132,
         "stata-postestimation-rc.json": 4
       }
     },
@@ -1314,18 +1321,18 @@
     },
     {
       "name": "set",
-      "recorded": 274,
+      "recorded": 278,
       "fixtures": {
         "stata-runtime-sessions.json": 16,
-        "stata-runtime-output.json": 258
+        "stata-runtime-output.json": 262
       }
     },
     {
       "name": "clear",
-      "recorded": 726,
+      "recorded": 728,
       "fixtures": {
         "stata-runtime-sessions.json": 492,
-        "stata-runtime-output.json": 234
+        "stata-runtime-output.json": 236
       }
     },
     {
