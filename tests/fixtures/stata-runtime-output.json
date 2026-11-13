@@ -32425,6 +32425,208 @@
       ]
     },
     {
+      "id": "delimited-export-import",
+      "source": "clear\nset obs 4\ngenerate id = _n\ngenerate double big = 123456789.123456 * _n\ngenerate float f = 63078.11 + _n\ngenerate g = 0.1 * _n\ngenerate d = mdy(3,12,2020) + _n\nformat d %td\ngenerate str10 s = \"a,b\" if _n == 1\nreplace s = \"  sp  \" in 3\nlabel define yn 0 \"No\" 1 \"Yes, sure\"\ngenerate lab = mod(_n,2)\nlabel values lab yn\ngenerate m = _n\nreplace m = .a in 3\nexport delimited using rt.csv, replace\nexport delimited using rt.csv\nimport delimited using rt.csv, clear\nlist\ncount if g == 0.3\ncount if f == 63079.11\nsummarize big f g m\nimport delimited id b2 using rt.csv, clear stringcols(4) colrange(1:4)\nlist\nimport delimited using rt.csv, clear varnames(nonames) rowrange(2:3)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate double big = 123456789.123456 * _n",
+          "lines": []
+        },
+        { "command": "generate float f = 63078.11 + _n", "lines": [] },
+        { "command": "generate g = 0.1 * _n", "lines": [] },
+        { "command": "generate d = mdy(3,12,2020) + _n", "lines": [] },
+        { "command": "format d %td", "lines": [] },
+        {
+          "command": "generate str10 s = \"a,b\" if _n == 1",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"  sp  \" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "label define yn 0 \"No\" 1 \"Yes, sure\"", "lines": [] },
+        { "command": "generate lab = mod(_n,2)", "lines": [] },
+        { "command": "label values lab yn", "lines": [] },
+        { "command": "generate m = _n", "lines": [] },
+        {
+          "command": "replace m = .a in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "export delimited using rt.csv, replace",
+          "lines": ["(file rt.csv not found)", "file rt.csv saved"]
+        },
+        {
+          "command": "export delimited using rt.csv",
+          "lines": ["file rt.csv already exists", "r(602);"]
+        }
+      ]
+    },
+    {
+      "id": "delimited-export-options",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate d = mdy(1,15,2021) + 30*_n\nformat d %tdCCYY-NN-DD\ngenerate float x = _n / 3\nformat x %5.2f\nlabel define grp 1 \"one\" 2 \"two\"\ngenerate grp = _n\nlabel values grp grp\nexport delimited using o1.csv, replace datafmt nolabel\nimport delimited using o1.csv, clear\nlist\nexport delimited x grp using o2.txt if id > 1, replace delimiter(tab) quote\nimport delimited using o2.txt, clear encoding(\"utf-8\")\nlist\noutsheet using o3.out, replace\ninsheet using o3.out, clear\nlist\noutsheet id grp using o4.csv, comma nolabel noquote nonames replace\ninsheet using o4.csv, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate d = mdy(1,15,2021) + 30*_n", "lines": [] },
+        { "command": "format d %tdCCYY-NN-DD", "lines": [] },
+        { "command": "generate float x = _n / 3", "lines": [] },
+        { "command": "format x %5.2f", "lines": [] },
+        { "command": "label define grp 1 \"one\" 2 \"two\"", "lines": [] },
+        { "command": "generate grp = _n", "lines": [] },
+        { "command": "label values grp grp", "lines": [] },
+        {
+          "command": "export delimited using o1.csv, replace datafmt nolabel",
+          "lines": ["(file o1.csv not found)", "file o1.csv saved"]
+        },
+        {
+          "command": "import delimited using o1.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(4 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------+",
+            "     | id            d     x   grp |",
+            "     |-----------------------------|",
+            "  1. |  1   2021-02-14   .33     1 |",
+            "  2. |  2   2021-03-16   .67     2 |",
+            "  3. |  3   2021-04-15     1     3 |",
+            "     +-----------------------------+"
+          ]
+        },
+        {
+          "command": "export delimited x grp using o2.txt if id > 1, replace delimiter(tab) quote",
+          "lines": ["(file o2.txt not found)", "file o2.txt saved"]
+        },
+        {
+          "command": "import delimited using o2.txt, clear encoding(\"utf-8\")",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |   x   grp |",
+            "     |-----------|",
+            "  1. | .67     2 |",
+            "  2. |   1     3 |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "outsheet using o3.out, replace",
+          "lines": ["(file o3.out not found)"]
+        },
+        {
+          "command": "insheet using o3.out, clear",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |   x   grp |",
+            "     |-----------|",
+            "  1. | .67     2 |",
+            "  2. |   1     3 |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "outsheet id grp using o4.csv, comma nolabel noquote nonames replace",
+          "lines": ["variable id not found", "r(111);"]
+        }
+      ]
+    },
+    {
+      "id": "delimited-unmatched-quote",
+      "source": "clear\nset obs 2\ngenerate str20 s = `\"x\"y\"' + char(10) + \"z\" in 1\nreplace s = \"plain\" in 2\ngenerate id = _n\nexport delimited using nl.csv, replace\nset linesize 80\nimport delimited using nl.csv, clear\nlist\nimport delimited using nl.csv, clear bindquotes(strict)\nlist\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str20 s = `\"x\"y\"' + char(10) + \"z\" in 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace s = \"plain\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "export delimited using nl.csv, replace",
+          "lines": ["(file nl.csv not found)", "file nl.csv saved"]
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "import delimited using nl.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "Note: Unmatched quote while processing row 2; this can be due to a formatting",
+            "    problem in the file or because a quoted data element spans multiple lines.",
+            "    You should carefully inspect your data after importing. Consider using",
+            "    option bindquote(strict) if quoted data spans multiple lines or option",
+            "    bindquote(nobind) if quotes are not used for binding data.",
+            "Note: Unmatched quote while processing row 3; this can be due to a formatting",
+            "    problem in the file or because a quoted data element spans multiple lines.",
+            "    You should carefully inspect your data after importing. Consider using",
+            "    option bindquote(strict) if quoted data spans multiple lines or option",
+            "    bindquote(nobind) if quotes are not used for binding data.",
+            "(2 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     |     s   id |",
+            "     |------------|",
+            "  1. |   x\"y    . |",
+            "  2. |  z\",1    . |",
+            "  3. | plain    2 |",
+            "     +------------+"
+          ]
+        },
+        {
+          "command": "import delimited using nl.csv, clear bindquotes(strict)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     |     s   id |",
+            "     |------------|",
+            "  1. | x\"y",
+            "z    1 |",
+            "  2. | plain    2 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

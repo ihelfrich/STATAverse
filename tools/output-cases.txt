@@ -4681,3 +4681,66 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== delimited-export-import
+clear
+set obs 4
+generate id = _n
+generate double big = 123456789.123456 * _n
+generate float f = 63078.11 + _n
+generate g = 0.1 * _n
+generate d = mdy(3,12,2020) + _n
+format d %td
+generate str10 s = "a,b" if _n == 1
+replace s = "  sp  " in 3
+label define yn 0 "No" 1 "Yes, sure"
+generate lab = mod(_n,2)
+label values lab yn
+generate m = _n
+replace m = .a in 3
+export delimited using rt.csv, replace
+export delimited using rt.csv
+import delimited using rt.csv, clear
+list
+count if g == 0.3
+count if f == 63079.11
+summarize big f g m
+import delimited id b2 using rt.csv, clear stringcols(4) colrange(1:4)
+list
+import delimited using rt.csv, clear varnames(nonames) rowrange(2:3)
+list
+=== delimited-export-options
+clear
+set obs 3
+generate id = _n
+generate d = mdy(1,15,2021) + 30*_n
+format d %tdCCYY-NN-DD
+generate float x = _n / 3
+format x %5.2f
+label define grp 1 "one" 2 "two"
+generate grp = _n
+label values grp grp
+export delimited using o1.csv, replace datafmt nolabel
+import delimited using o1.csv, clear
+list
+export delimited x grp using o2.txt if id > 1, replace delimiter(tab) quote
+import delimited using o2.txt, clear encoding("utf-8")
+list
+outsheet using o3.out, replace
+insheet using o3.out, clear
+list
+outsheet id grp using o4.csv, comma nolabel noquote nonames replace
+insheet using o4.csv, clear
+list
+=== delimited-unmatched-quote
+clear
+set obs 2
+generate str20 s = `"x"y"' + char(10) + "z" in 1
+replace s = "plain" in 2
+generate id = _n
+export delimited using nl.csv, replace
+set linesize 80
+import delimited using nl.csv, clear
+list
+import delimited using nl.csv, clear bindquotes(strict)
+list
+set linesize 200

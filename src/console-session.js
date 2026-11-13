@@ -15,9 +15,11 @@ export function createConsoleSession() {
   let session;
   // Files the student added stay available when the session is cleared.
   const added = new Map();
-  // A text file is kept as text; a .dta file as the dataset read from it.
+  // A text file is kept as text, or as its bytes with the text decoded from
+  // them; a .dta file as the dataset read from it.
   const put = (name, file) => {
-    if (typeof file === "string") addTextFile(session, name, file);
+    if (typeof file === "string" || file instanceof Uint8Array)
+      addTextFile(session, name, file);
     else (session.files ??= new Map()).set(name, file);
   };
   const memory = () => ({
@@ -45,9 +47,23 @@ export function createConsoleSession() {
   reset();
   return {
     reset,
-    addFile(name, text) {
-      added.set(name, text);
-      addTextFile(session, name, text);
+    /**
+     * A text file, as text or as the bytes the picker read. Bytes are
+     * decoded as import delimited's scan decodes them (UTF-8, UTF-16 with
+     * or without a byte-order mark, or Latin-1 and Windows-1252 when they
+     * are not UTF-8) and kept, so that encoding() can read them again.
+     */
+    addFile(name, content) {
+      const file =
+        content instanceof ArrayBuffer ? new Uint8Array(content) : content;
+      const before = session.files?.get(name),
+        stored = addTextFile(session, name, file);
+      if (file instanceof Uint8Array && stored.text.includes("\0")) {
+        if (before) session.files.set(name, before);
+        else session.files.delete(name);
+        throw new Error(`${name} is not a text file`);
+      }
+      added.set(name, file);
       return { memory: memory() };
     },
     /** A .dta file: read once, then there for use, merge and append. */
