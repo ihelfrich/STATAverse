@@ -9,6 +9,7 @@ import {
   isMissing,
   isStringType,
   missingName,
+  MISSING,
 } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -92,21 +93,56 @@ function unab(session, text, ctx) {
   ctx.frame.locals.set(m[1], names.join(" "));
 }
 
+// Inside the t tests a missing value is NaN, so that it passes through the
+// arithmetic as Stata's missing does; stored() turns it back into Stata's
+// missing value (and so does an infinite t when the standard error is 0).
+const known = (value) =>
+  Number.isFinite(value) && value < MISSING ? value : NaN;
+const stored = (value) => (Number.isFinite(value) ? value : MISSING);
+const shown = (value) => g(stored(value));
+// The upper tail of Student's t, missing when t or the degrees of freedom are.
+const upper = (df, t) =>
+  Number.isFinite(t) && df > 0 ? known(ttail(df, t)) : NaN;
+
+/**
+ * One row of a t-test table from n, the mean and the standard deviation.
+ * With one observation there is no standard deviation, whatever was given.
+ */
+function tSummary(n, mean, sd, level) {
+  const spread = n > 1 ? known(sd) : NaN,
+    se = spread / Math.sqrt(n),
+    critical = known(invttail(n - 1, (1 - level / 100) / 2));
+  return {
+    n,
+    mean,
+    sd: spread,
+    variance: spread * spread,
+    se,
+    lb: mean - critical * se,
+    ub: mean + critical * se,
+  };
+}
+const fromData = (values, level) => {
+  const m = moments(values);
+  return tSummary(m.n, m.mean, m.sd, level);
+};
+
 /** The pieces ttest and ttesti print their tables with. */
 function tPrinters(ctx) {
-  const row = (label, m, level) => {
-      const se = m.sd / Math.sqrt(m.n),
-        critical = invttail(m.n - 1, (1 - level / 100) / 2);
-      return `${label.padStart(8)} |${count(m.n).padStart(8)}${g(m.mean).padStart(12)}${g(se).padStart(12)}${g(m.sd).padStart(12)}${g(m.mean - critical * se).padStart(12)}${g(m.mean + critical * se).padStart(12)}`;
-    },
+  const row = (label, m) =>
+      `${label.padStart(8)} |${count(m.n).padStart(8)}${shown(m.mean).padStart(12)}${shown(m.se).padStart(12)}${shown(m.sd).padStart(12)}${shown(m.lb).padStart(12)}${shown(m.ub).padStart(12)}`,
     rule = "-".repeat(78),
     middle =
       "---------+--------------------------------------------------------------------",
     head = (first, level) =>
       `${first.padStart(8)} |     Obs        Mean    Std. err.   Std. dev.   [${g(level)}% conf. interval]`,
     tails = (t, df, what, value) => {
-      const lower = 1 - ttail(df, t),
-        four = (p) => applyFormat(p, "%6.4f").trim(),
+      // Each tail is taken directly, never as one minus the other, so that
+      // a tiny p-value keeps its digits instead of rounding to 0.
+      const p_u = upper(df, t),
+        p_l = upper(df, -t),
+        p = 2 * upper(df, Math.abs(t)),
+        four = (p) => applyFormat(stored(p), "%6.4f"),
         wide = what.length > 4;
       ctx.out("");
       ctx.out(
@@ -117,18 +153,20 @@ function tPrinters(ctx) {
             `${`    Ha: ${what} < ${value}`}${`Ha: ${what} != ${value}`.padStart(46 - `    Ha: ${what} < ${value}`.length)}${" ".repeat(17)}Ha: ${what} > ${value}`,
       );
       ctx.out(
-        ` Pr(T < t) = ${four(lower)}         Pr(|T| > |t|) = ${four(2 * ttail(df, Math.abs(t)))}          Pr(T > t) = ${four(1 - lower)}`,
+        ` Pr(T < t) = ${four(p_l)}         Pr(|T| > |t|) = ${four(p)}          Pr(T > t) = ${four(p_u)}`,
       );
       ctx.out("");
-      return { p_l: lower, p: 2 * ttail(df, Math.abs(t)), p_u: 1 - lower };
+      return { p_u: stored(p_u), p_l: stored(p_l), p: stored(p) };
     },
     finish = (left, hypothesis, t, df, kind = "") => {
-      ctx.out(`${left.padEnd(66)}t =${applyFormat(t, "%9.4f")}`);
+      ctx.out(`${left.padEnd(66)}t =${applyFormat(stored(t), "%9.4f")}`);
       // The degrees of freedom end at column 78 whatever their label.
       const label = `${kind}${kind ? "d" : "D"}egrees of freedom =`,
-        value = kind
-          ? applyFormat(Number(df.toPrecision(6)), "%9.0g")
-          : count(df).padStart(9);
+        value = !Number.isFinite(df)
+          ? "."
+          : kind
+            ? applyFormat(Number(df.toPrecision(6)), "%9.0g")
+            : count(df).padStart(9);
       ctx.out(
         `${hypothesis}${label.padStart(69 - hypothesis.length)}${value.padStart(9)}`,
       );
@@ -136,19 +174,41 @@ function tPrinters(ctx) {
   return { row, rule, middle, head, tails, finish };
 }
 
+/** The one-sample test, from data or from ttesti. */
+function oneSample(ctx, session, printers, m, name, label, value, level) {
+  const { row, rule, middle, head, tails, finish } = printers,
+    t = (m.mean - value) / m.se,
+    df = m.n - 1;
+  ctx.out("One-sample t test");
+  ctx.out(rule);
+  ctx.out(head(label, level));
+  ctx.out(middle);
+  ctx.out(row(name, m));
+  ctx.out(rule);
+  finish(`    mean = mean(${name})`, `H0: mean = ${g(value)}`, t, df);
+  const { p_u, p_l, p } = tails(t, df, "mean", g(value));
+  // In the order Stata stores them, which is the order return list shows.
+  session.results.r = {
+    ub_1: stored(m.ub),
+    lb_1: stored(m.lb),
+    level,
+    sd_1: stored(m.sd),
+    se: stored(m.se),
+    p_u,
+    p_l,
+    p,
+    t: stored(t),
+    df_t: df,
+    mu_1: m.mean,
+    N_1: m.n,
+  };
+}
+
 function ttest(session, text, ctx) {
   const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,]+)([\s\S]*)$/.exec(text),
     data = session.data,
-    { row, rule, middle, head, tails, finish } = tPrinters(ctx),
-    twoSample = twoSampleTable(ctx, session, {
-      row,
-      rule,
-      middle,
-      head,
-      tails,
-      finish,
-    });
-  ctx.out("");
+    printers = tPrinters(ctx),
+    { row, rule, middle, head, tails, finish } = printers;
   if (paired) {
     const parsed = session.parse("[if] [in] [, Level(cilevel)]", paired[3]),
       level = parsed.options.level,
@@ -156,63 +216,87 @@ function ttest(session, text, ctx) {
       number = Number(paired[2]),
       rows = session.rows(parsed, null);
     if (!Number.isNaN(number) && !data.has(paired[2])) {
-      const m = moments(
-          rows.map((i) => first.data[i]).filter((v) => !isMissing(v)),
-        ),
-        t = (m.mean - number) / (m.sd / Math.sqrt(m.n));
-      ctx.out("One-sample t test");
-      ctx.out(rule);
-      ctx.out(head("Variable", level));
-      ctx.out(middle);
-      ctx.out(row(first.name, m, level));
-      ctx.out(rule);
-      finish(
-        `    mean = mean(${first.name})`,
-        `H0: mean = ${g(number)}`,
-        t,
-        m.n - 1,
+      // A string variable has no numeric observations to test.
+      const values = isStringType(first.type)
+        ? []
+        : rows.map((i) => first.data[i]).filter((v) => !isMissing(v));
+      if (!values.length) throw new StataError("no observations", 2000);
+      ctx.out("");
+      oneSample(
+        ctx,
+        session,
+        printers,
+        fromData(values, level),
+        first.name,
+        "Variable",
+        number,
+        level,
       );
-      session.results.r = {
-        t,
-        df_t: m.n - 1,
-        N_1: m.n,
-        mu_1: m.mean,
-        sd_1: m.sd,
-        ...tails(t, m.n - 1, "mean", g(number)),
-      };
       return;
     }
-    const second = data.get(session.varlist(paired[2])[0]),
-      both = rows.filter(
-        (i) => !isMissing(first.data[i]) && !isMissing(second.data[i]),
+    const second = data.get(session.varlist(paired[2])[0]);
+    // Stata refuses a string on either side of ==, even two strings.
+    if (isStringType(first.type) || isStringType(second.type))
+      throw new StataError("type mismatch", 109);
+    const both = rows.filter(
+      (i) => !isMissing(first.data[i]) && !isMissing(second.data[i]),
+    );
+    if (!both.length) throw new StataError("no observations", 2000);
+    const a = fromData(
+        both.map((i) => first.data[i]),
+        level,
       ),
-      a = moments(both.map((i) => first.data[i])),
-      b = moments(both.map((i) => second.data[i])),
-      d = moments(both.map((i) => first.data[i] - second.data[i])),
-      t = d.mean / (d.sd / Math.sqrt(d.n));
+      b = fromData(
+        both.map((i) => second.data[i]),
+        level,
+      ),
+      d = fromData(
+        both.map((i) => first.data[i] - second.data[i]),
+        level,
+      ),
+      t = d.mean / d.se,
+      df = d.n - 1;
+    ctx.out("");
     ctx.out("Paired t test");
     ctx.out(rule);
     ctx.out(head("Variable", level));
     ctx.out(middle);
-    ctx.out(row(first.name, a, level));
-    ctx.out(row(second.name, b, level));
+    ctx.out(row(first.name, a));
+    ctx.out(row(second.name, b));
     ctx.out(middle);
-    ctx.out(row("diff", d, level));
+    ctx.out(row("diff", d));
     ctx.out(rule);
     finish(
       `     mean(diff) = mean(${first.name} - ${second.name})`,
       " H0: mean(diff) = 0",
       t,
-      d.n - 1,
+      df,
     );
+    const { p_u, p_l, p } = tails(t, df, "mean(diff)", "0");
     session.results.r = {
-      t,
-      df_t: d.n - 1,
-      N_1: a.n,
+      ub_diff: stored(d.ub),
+      lb_diff: stored(d.lb),
+      sd_diff: stored(d.sd),
+      mu_diff: d.mean,
+      ub_2: stored(b.ub),
+      lb_2: stored(b.lb),
+      se_2: stored(b.se),
+      ub_1: stored(a.ub),
+      lb_1: stored(a.lb),
+      se_1: stored(a.se),
+      level,
+      sd_2: stored(b.sd),
+      sd_1: stored(a.sd),
+      se: stored(d.se),
+      p_u,
+      p_l,
+      p,
+      t: stored(t),
+      df_t: df,
+      mu_2: b.mean,
       N_2: b.n,
       mu_1: a.mean,
-      mu_2: b.mean,
-      ...tails(t, d.n - 1, "mean(diff)", "0"),
+      N_1: a.n,
     };
     return;
   }
@@ -223,31 +307,37 @@ function ttest(session, text, ctx) {
     level = parsed.options.level,
     variable = data.get(parsed.varlist[0]),
     by = data.get(parsed.options.by),
-    rows = session
-      .rows(parsed, null)
-      .filter(
-        (i) =>
-          !isMissing(variable.data[i]) &&
-          !(isStringType(by.type) ? by.data[i] === "" : isMissing(by.data[i])),
-      ),
+    rows = isStringType(variable.type)
+      ? []
+      : session
+          .rows(parsed, null)
+          .filter(
+            (i) =>
+              !isMissing(variable.data[i]) &&
+              !(isStringType(by.type)
+                ? by.data[i] === ""
+                : isMissing(by.data[i])),
+          ),
     levels = [...new Set(rows.map((i) => by.data[i]))].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
     );
 
+  if (!rows.length) throw new StataError("no observations", 2000);
   if (levels.length !== 2)
     throw new StataError(
       `${levels.length < 2 ? "1 group" : "more than 2 groups"} found, 2 required`,
       420,
     );
   const [a, b] = levels.map((value) =>
-    moments(
+    fromData(
       rows.filter((i) => by.data[i] === value).map((i) => variable.data[i]),
+      level,
     ),
   );
-  twoSample(
+  ctx.out("");
+  twoSampleTable(ctx, session, printers)(
     a,
     b,
-    moments(rows.map((i) => variable.data[i])),
     levels.map((value) => labelled(session, by, value).slice(0, 8)),
     level,
     parsed.options.welch
@@ -261,15 +351,31 @@ function ttest(session, text, ctx) {
 
 /**
  * The two-sample table of ttest and ttesti. kind is "" for equal variances,
- * or the name of the approximation to the degrees of freedom.
+ * or the name of the approximation to the degrees of freedom. The combined
+ * row is pooled from the two groups, as Stata pools it, so it is missing
+ * when either group's standard deviation is.
  */
 function twoSampleTable(
   ctx,
   session,
   { row, rule, middle, head, tails, finish },
 ) {
-  return (a, b, all, names, level, kind, first) => {
-    const equal = !kind,
+  return (a, b, names, level, kind, first) => {
+    const n = a.n + b.n,
+      mean = (a.n * a.mean + b.n * b.mean) / n,
+      all = tSummary(
+        n,
+        mean,
+        Math.sqrt(
+          ((a.n - 1) * a.variance +
+            (b.n - 1) * b.variance +
+            a.n * (a.mean - mean) ** 2 +
+            b.n * (b.mean - mean) ** 2) /
+            (n - 1),
+        ),
+        level,
+      ),
+      equal = !kind,
       va = a.variance / a.n,
       vb = b.variance / b.n,
       df = equal
@@ -284,18 +390,22 @@ function twoSampleTable(
         : Math.sqrt(va + vb),
       difference = a.mean - b.mean,
       t = difference / se,
-      critical = invttail(df, (1 - level / 100) / 2);
+      critical = Number.isFinite(df)
+        ? known(invttail(df, (1 - level / 100) / 2))
+        : NaN,
+      lb = difference - critical * se,
+      ub = difference + critical * se;
     ctx.out(`Two-sample t test with ${equal ? "equal" : "unequal"} variances`);
     ctx.out(rule);
     ctx.out(head(first, level));
     ctx.out(middle);
-    ctx.out(row(names[0], a, level));
-    ctx.out(row(names[1], b, level));
+    ctx.out(row(names[0], a));
+    ctx.out(row(names[1], b));
     ctx.out(middle);
-    ctx.out(row("Combined", all, level));
+    ctx.out(row("Combined", all));
     ctx.out(middle);
     ctx.out(
-      `${"diff".padStart(8)} |${" ".repeat(8)}${g(difference).padStart(12)}${g(se).padStart(12)}${" ".repeat(12)}${g(difference - critical * se).padStart(12)}${g(difference + critical * se).padStart(12)}`,
+      `${"diff".padStart(8)} |${" ".repeat(8)}${shown(difference).padStart(12)}${shown(se).padStart(12)}${" ".repeat(12)}${shown(lb).padStart(12)}${shown(ub).padStart(12)}`,
     );
     ctx.out(rule);
     finish(
@@ -305,17 +415,36 @@ function twoSampleTable(
       df,
       kind,
     );
+    const { p_u, p_l, p } = tails(t, df, "diff", "0");
     session.results.r = {
-      t,
-      df_t: df,
-      N_1: a.n,
+      ub_diff: stored(ub),
+      lb_diff: stored(lb),
+      mu_diff: difference,
+      ub_combined: stored(all.ub),
+      lb_combined: stored(all.lb),
+      se_combined: stored(all.se),
+      mu_combined: mean,
+      N_combined: n,
+      ub_2: stored(b.ub),
+      lb_2: stored(b.lb),
+      se_2: stored(b.se),
+      ub_1: stored(a.ub),
+      lb_1: stored(a.lb),
+      se_1: stored(a.se),
+      level,
+      sd: stored(all.sd),
+      sd_2: stored(b.sd),
+      sd_1: stored(a.sd),
+      se: stored(se),
+      p_u,
+      p_l,
+      p,
+      t: stored(t),
+      df_t: stored(df),
+      mu_2: b.mean,
       N_2: b.n,
       mu_1: a.mean,
-      mu_2: b.mean,
-      sd_1: a.sd,
-      sd_2: b.sd,
-      se,
-      ...tails(t, df, "diff", "0"),
+      N_1: a.n,
     };
   };
 }
@@ -330,7 +459,8 @@ function ttesti(session, text, ctx) {
       "[, Level(cilevel) UNEqual Welch]",
       optionText ? "," + optionText : "",
     ).options,
-    numbers = head.trim().split(/\s+/).filter(Boolean).map(Number);
+    numbers = head.trim().split(/\s+/).filter(Boolean).map(Number),
+    level = options.level;
   if (
     ![4, 6].includes(numbers.length) ||
     numbers.some((v) => !Number.isFinite(v))
@@ -345,50 +475,24 @@ function ttesti(session, text, ctx) {
         `${which ? `${which} sample has only` : "only"} one observation, but positive standard deviation`,
         499,
       );
-    return { n, mean, sd, variance: sd * sd };
+    return tSummary(n, mean, sd, level);
   };
-  const printers = tPrinters(ctx),
-    { row, rule, middle, head: header, tails, finish } = printers,
-    level = options.level;
-  ctx.out("");
+  const printers = tPrinters(ctx);
   if (numbers.length === 4) {
     if (options.unequal || options.welch)
       throw new StataError("unequal and welch need two samples", 198);
     const [n, mean, sd, value] = numbers,
-      m = sample(n, mean, sd),
-      t = (m.mean - value) / (m.sd / Math.sqrt(m.n));
-    ctx.out("One-sample t test");
-    ctx.out(rule);
-    ctx.out(header("", level));
-    ctx.out(middle);
-    ctx.out(row("x", m, level));
-    ctx.out(rule);
-    finish("    mean = mean(x)", `H0: mean = ${g(value)}`, t, m.n - 1);
-    session.results.r = {
-      t,
-      df_t: m.n - 1,
-      N_1: m.n,
-      mu_1: m.mean,
-      sd_1: m.sd,
-      ...tails(t, m.n - 1, "mean", g(value)),
-    };
+      m = sample(n, mean, sd);
+    ctx.out("");
+    oneSample(ctx, session, printers, m, "x", "", value, level);
     return;
   }
   const a = sample(numbers[0], numbers[1], numbers[2], "first"),
-    b = sample(numbers[3], numbers[4], numbers[5], "second"),
-    n = a.n + b.n,
-    mean = (a.n * a.mean + b.n * b.mean) / n,
-    variance =
-      ((a.n - 1) * a.variance +
-        (b.n - 1) * b.variance +
-        a.n * (a.mean - mean) ** 2 +
-        b.n * (b.mean - mean) ** 2) /
-      (n - 1),
-    all = { n, mean, sd: Math.sqrt(variance), variance };
+    b = sample(numbers[3], numbers[4], numbers[5], "second");
+  ctx.out("");
   twoSampleTable(ctx, session, printers)(
     a,
     b,
-    all,
     ["x", "y"],
     level,
     options.welch ? "Welch's " : options.unequal ? "Satterthwaite's " : "",

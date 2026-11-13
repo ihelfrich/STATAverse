@@ -65,17 +65,27 @@ function betaFraction(a, b, x) {
   }
   return h;
 }
-/** Regularised incomplete beta function I_x(a, b). */
-export function ibeta(a, b, x) {
+/**
+ * Regularised incomplete beta function I_x(a, b). y, when given, is 1 - x
+ * computed by the caller without cancellation: with a large a and x close
+ * to 1, a * log(x) magnifies the rounding of x, so the logarithms and the
+ * complementary fraction are taken from y instead.
+ */
+export function ibeta(a, b, x, y) {
   if (!(a > 0 && b > 0) || x < 0 || x > 1) return MISSING;
   if (x === 0) return 0;
-  if (x === 1) return 1;
-  const front = Math.exp(
-    gammaRatio(a, b) - lngamma(b) + a * Math.log(x) + b * Math.log1p(-x),
-  );
-  return x < (a + 1) / (a + b + 2)
+  const exact = y !== undefined;
+  if (x === 1 && !(exact && y > 0)) return 1;
+  const logX = exact && x > 0.5 ? Math.log1p(-y) : Math.log(x),
+    logY = exact && y < 0.5 ? Math.log(y) : Math.log1p(-x),
+    front = Math.exp(gammaRatio(a, b) - lngamma(b) + a * logX + b * logY);
+  // Near the usual switch point a large a makes the fraction in x cancel
+  // badly (a t test with a million degrees of freedom lost ten digits), while
+  // the fraction in y stays accurate until a * y is several units.
+  const direct = exact && a > 50 ? a * y >= 5 : x < (a + 1) / (a + b + 2);
+  return direct
     ? (front * betaFraction(a, b, x)) / a
-    : 1 - (front * betaFraction(b, a, 1 - x)) / b;
+    : 1 - (front * betaFraction(b, a, exact ? y : 1 - x)) / b;
 }
 /** Regularised lower incomplete gamma function P(a, x). */
 export function gammap(a, x) {
@@ -123,7 +133,10 @@ export function gammaq(a, x) {
 
 export function ttail(df, t) {
   if (!(df > 0)) return MISSING;
-  const tail = 0.5 * ibeta(df / 2, 0.5, df / (df + t * t));
+  // Both df / (df + t^2) and its complement are formed directly, so that
+  // many degrees of freedom do not cost digits (ibeta above).
+  const square = t * t,
+    tail = 0.5 * ibeta(df / 2, 0.5, df / (df + square), 1 / (1 + df / square));
   return t >= 0 ? tail : 1 - tail;
 }
 export function Ftail(df1, df2, f) {

@@ -2447,3 +2447,47 @@ margins, atmeans
 margins, dydx(*) atmeans
 regress x1 i.f i.g
 margins, atmeans
+=== ttest-missing-statistics
+clear
+input y g
+1 0
+2 1
+3 1
+5 1
+end
+ttest y, by(g)
+ttest y, by(g) unequal
+ttest y, by(g) welch
+generate c = 3
+ttest c == 3
+ttest c == 2
+ttest c, by(g)
+clear
+input a b
+1 2
+end
+ttest a == b
+ttest a == 1
+ttesti 1 5 0 3
+ttesti 1 5 0 3 4 2
+ttesti 1 5 0 1 4 0
+ttesti 1 5 0 3 4 2, unequal
+clear
+set obs 10
+generate x = _n
+capture noisily ttest x == 1 if 0
+display _rc
+capture noisily ttest x == x if 0
+display _rc
+generate g = _n > 5
+capture noisily ttest x if 0, by(g)
+display _rc
+generate str3 s = "a"
+capture noisily ttest s == 0
+display _rc
+capture noisily ttest s, by(g)
+display _rc
+capture noisily ttest x == s
+display _rc
+capture noisily ttest s == x
+display _rc
