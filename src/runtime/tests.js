@@ -535,8 +535,10 @@ function grouped(session, parsed) {
  * group's 10th and 90th percentiles.
  */
 function robvar(session, text, ctx) {
-  const parsed = session.parse("varname [if] [in] , BY(varlist)", text),
-    f = grouped(session, parsed),
+  const parsed = session.parse("varname [if] [in] , BY(varlist)", text);
+  if (parsed.options.by.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  const f = grouped(session, parsed),
     groups = f.groups.map((rows) => values(f.variable, rows)),
     n = groups.reduce((t, v) => t + v.length, 0),
     k = groups.length;
@@ -583,6 +585,7 @@ function robvar(session, text, ctx) {
     },
     // Stata shows the probability with its leading zero.
     probability = (p) => {
+      if (isMissing(p) || !Number.isFinite(p)) return ".";
       const text = applyFormat(p, "%10.0g").trim();
       // Too small for %g without an exponent, Stata writes it fixed.
       if (/e/.test(text)) return applyFormat(p, "%10.8f").trim();

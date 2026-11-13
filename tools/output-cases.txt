@@ -2158,3 +2158,5 @@ generate double y = runiform() * g * 4
 generate byte two = runiform() > .5
 robvar y, by(g)
 robvar y if y > 1, by(two)
+capture noisily robvar y, by(g two)
+display _rc

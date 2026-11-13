@@ -14348,7 +14348,7 @@
     },
     {
       "id": "robvar",
-      "source": "clear\nset seed 11\nset obs 240\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double y = runiform() * g * 4\ngenerate byte two = runiform() > .5\nrobvar y, by(g)\nrobvar y if y > 1, by(two)\n",
+      "source": "clear\nset seed 11\nset obs 240\ngenerate byte g = 1 + floor(runiform() * 3)\ngenerate double y = runiform() * g * 4\ngenerate byte two = runiform() > .5\nrobvar y, by(g)\nrobvar y if y > 1, by(two)\ncapture noisily robvar y, by(g two)\ndisplay _rc\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 11", "lines": [] },
@@ -14398,7 +14398,12 @@
             "",
             "W10 =  2.4345514   df(1, 199)     Pr > F = 0.12027673"
           ]
-        }
+        },
+        {
+          "command": "capture noisily robvar y, by(g two)",
+          "lines": ["by():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] }
       ]
     },
     {
