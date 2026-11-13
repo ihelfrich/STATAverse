@@ -1,9 +1,9 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
-  "cases": 513,
-  "pass": 353,
-  "refused": 127,
-  "wrong": 33,
+  "cases": 519,
+  "pass": 383,
+  "refused": 136,
+  "wrong": 0,
   "crash": 0,
   "groups": {
     "dm": {
@@ -31,32 +31,32 @@
       "crash": 0
     },
     "post": {
-      "pass": 58,
+      "pass": 59,
       "refused": 22,
-      "wrong": 1,
+      "wrong": 0,
       "crash": 0
     },
     "graph": {
-      "pass": 26,
-      "refused": 8,
-      "wrong": 28,
+      "pass": 52,
+      "refused": 16,
+      "wrong": 0,
       "crash": 0
     },
     "prog": {
-      "pass": 85,
+      "pass": 88,
       "refused": 22,
-      "wrong": 3,
+      "wrong": 0,
       "crash": 0
     },
     "date": {
-      "pass": 18,
+      "pass": 19,
       "refused": 8,
-      "wrong": 1,
+      "wrong": 0,
       "crash": 0
     },
     "ts": {
-      "pass": 14,
-      "refused": 14,
+      "pass": 13,
+      "refused": 15,
       "wrong": 0,
       "crash": 0
     }
@@ -1239,7 +1239,7 @@
     },
     {
       "group": "post",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor|quietly logit union education experience i.female|margins, dydx(*) atmeans"
     },
     {
@@ -1479,7 +1479,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||histogram wage, by(female) width(5)"
     },
     {
@@ -1494,12 +1494,12 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, msize(small) mcolor(navy) xtitle(\"Years\") ytitle(\"Wage\") title(\"Returns\")"
     },
     {
       "group": "graph",
-      "outcome": "pass",
+      "outcome": "refused",
       "key": "labor||scatter wage education if female == 1, jitter(3)"
     },
     {
@@ -1514,7 +1514,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway (scatter wage education if female == 0) (scatter wage education if female == 1), legend(order(1 \"Men\" 2 \"Women\"))"
     },
     {
@@ -1524,12 +1524,12 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway (qfit wage experience) (scatter wage experience), by(female)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "refused",
       "key": "labor||twoway scatter wage education, by(region) scheme(s2mono)"
     },
     {
@@ -1544,7 +1544,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph twoway scatter wage hours, xline(40) yline(20) xlabel(0(10)80) ylabel(, angle(0))"
     },
     {
@@ -1559,12 +1559,12 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph bar (count), over(region)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph hbar (mean) wage, over(region, sort(1) descending)"
     },
     {
@@ -1644,12 +1644,12 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, name(g1, replace);;histogram wage, name(g2, replace);;graph combine g1 g2"
     },
     {
       "group": "graph",
-      "outcome": "pass",
+      "outcome": "refused",
       "key": "labor||scatter wage education, saving(g1, replace)"
     },
     {
@@ -1664,7 +1664,7 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway function y = x^2, range(0 5)"
     },
     {
@@ -1714,7 +1714,7 @@
     },
     {
       "group": "prog",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||summarize wage;;scalar mu = r(mean);;scalar list"
     },
     {
@@ -2199,7 +2199,7 @@
     },
     {
       "group": "prog",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||timer clear;;timer on 1;;summarize wage;;timer off 1;;timer list"
     },
     {
@@ -2394,7 +2394,7 @@
     },
     {
       "group": "ts",
-      "outcome": "pass",
+      "outcome": "refused",
       "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;tsline growth inflation, tline(2008q3) title(\"Macro\")"
     },
     {
@@ -2499,87 +2499,87 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, by(female)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, xline(12)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, yline(20)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, xlabel(0(4)20)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, ylabel(0(25)100)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, mcolor(cranberry)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education in 1/20, mlabel(id)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||twoway (scatter wage education if female == 0) (scatter wage education if female == 1), legend(label(1 \"Men\") label(2 \"Women\"))"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "refused",
       "key": "labor||scatter wage education, xscale(log)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "refused",
       "key": "labor||twoway (scatter wage education) (scatter hours education, yaxis(2))"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, subtitle(\"By schooling\")"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, note(\"Source: labor\")"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, caption(\"Figure 1\")"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph bar (mean) wage, over(region) blabel(bar)"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "refused",
       "key": "labor||graph bar (mean) wage, over(region) asyvars"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "refused",
       "key": "labor||graph bar (mean) wage hours, over(female) stack"
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||graph bar (count), over(female)"
     },
     {
@@ -2589,17 +2589,17 @@
     },
     {
       "group": "graph",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scatter wage education, name(a, replace);;scatter hours education, name(b, replace);;graph combine a b"
     },
     {
       "group": "date",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||display date(\"15/3/24\", \"DMY\", 2050)"
     },
     {
       "group": "prog",
-      "outcome": "wrong",
+      "outcome": "pass",
       "key": "labor||scalar a = 3;;scalar list"
     },
     {
@@ -2626,6 +2626,36 @@
       "group": "est",
       "outcome": "pass",
       "key": "labor||ivregress 2sls wage experience (education = near_college), vce(cluster region)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway line wage id in 1/50, sort lwidth(thick) lpattern(dash) lcolor(maroon)"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, name(a, replace);;scatter hours education, name(b, replace);;graph combine a b, title(\"Two\") subtitle(\"panels\") note(\"Source: labor\")"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||twoway (scatter wage education) (lfit wage education), legend(order(2 \"Fit\") position(6) rows(1))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||scatter wage education, xlabel(8(2)20) ylabel(0(10)60, angle(0))"
+    },
+    {
+      "group": "graph",
+      "outcome": "pass",
+      "key": "labor||graph bar (mean) wage, over(region, sort(1)) blabel(bar)"
+    },
+    {
+      "group": "graph",
+      "outcome": "refused",
+      "key": "labor||scatter wage education, scheme(s1mono)"
     }
   ]
 }

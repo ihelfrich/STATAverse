@@ -277,7 +277,10 @@ export function compileExpression(source, scope = {}) {
     if (resolved === null) {
       const value = scope.scalars.get(name);
       if (isOp("[")) throw invalid("a scalar cannot be subscripted");
-      return node(typeof value === "string" ? S : N, () => value);
+      // Read when evaluated: twoway function changes x between points.
+      return node(typeof value === "string" ? S : N, () =>
+        scope.scalars.get(name),
+      );
     }
     const column = dataset.get(resolved),
       text = isStringType(column.type),

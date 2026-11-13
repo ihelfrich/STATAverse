@@ -4,6 +4,8 @@
 // commands report; kdensity and lowess can store their values in variables,
 // which is how they are compared with Stata.
 import { StataError } from "./errors.js";
+import { LOOKS, looksOf, parseGraph } from "./graph-looks.js";
+import { splitAtComma } from "./syntax.js";
 import { applyFormat } from "./format.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { leverageStatistic, project, sampleFrame } from "./diagnostics.js";
@@ -27,8 +29,18 @@ import {
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
-const TITLES =
-  "TItle(string) XTItle(string) YTItle(string) SUBtitle(string) NOTE(string) LEGend(string) SCHeme(string) NAME(string) SAVing(string) XLAbel(string) YLAbel(string)";
+/**
+ * The drawn looks of a graph command here. by() is drawn only for scatter,
+ * twoway and histogram, so these commands refuse it.
+ */
+function drawnLooks(options) {
+  if (options.by !== undefined)
+    throw new StataError(
+      "by() is drawn here for scatter, twoway and histogram; draw one graph per group with if instead",
+      198,
+    );
+  return looksOf(options);
+}
 function numeric(session, name) {
   const variable = session.data.get(name);
   if (isStringType(variable.type))
@@ -49,8 +61,9 @@ function store(session, name, values, label) {
 }
 
 function kdensity(session, text, ctx) {
-  const parsed = session.parse(
-      `varname [if] [in] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal ${TITLES} *]`,
+  const parsed = parseGraph(
+      session,
+      `varname [if] [in] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal ${LOOKS}]`,
       text,
     ),
     options = parsed.options,
@@ -122,6 +135,7 @@ function kdensity(session, text, ctx) {
   }
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers,
       xTitle: unquote(options.xtitle) || titleOf(variable),
       yTitle: unquote(options.ytitle) || "Density",
@@ -132,8 +146,9 @@ function kdensity(session, text, ctx) {
 }
 
 function lowessCommand(session, text, ctx) {
-  const parsed = session.parse(
-      `varlist(min=2 max=2) [if] [in] [, BWidth(real 0.8) MEAN NOWeight Generate(name) NOGRaph ${TITLES} * | LOgit Adjust]`,
+  const parsed = parseGraph(
+      session,
+      `varlist(min=2 max=2) [if] [in] [, BWidth(real 0.8) MEAN NOWeight Generate(name) NOGRaph ${LOOKS} | LOgit Adjust]`,
       text,
     ),
     options = parsed.options,
@@ -159,6 +174,7 @@ function lowessCommand(session, text, ctx) {
   if (options.nograph) return;
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers: [
         {
           kind: "scatter",
@@ -201,7 +217,7 @@ function statisticList(session, text) {
   for (const token of text.match(/\([^)]*\)|\S+/g) ?? []) {
     const m = /^\((\w+)\)$/.exec(token);
     if (m) {
-      if (!STATISTICS[m[1]])
+      if (!STATISTICS[m[1]] && m[1] !== "percent")
         throw new StataError(`(${m[1]}) is not available in graph bar`, 198);
       current = m[1];
     } else
@@ -213,15 +229,33 @@ function statisticList(session, text) {
 /** Splits a graph command into its yvars, its if/in, and its options. */
 function graphParts(session, text, declaration) {
   const m = /^([\s\S]*?)(\s+(?:if|in)\s[\s\S]*?)?(,[\s\S]*)?$/.exec(text),
-    parsed = session.parse(
-      `[if] [in] [, OVer(string) ${declaration} ${TITLES} *]`,
+    parsed = parseGraph(
+      session,
+      `[if] [in] [, OVer(string) ${declaration} ${LOOKS}]`,
       `${m[2] ?? ""}${m[3] ?? ""}`,
     ),
-    over = parsed.options.over
-      ? session.data.get(
-          session.varlist(parsed.options.over.split(",")[0].trim())[0],
-        )
+    [overName, overOptions] = splitAtComma(parsed.options.over ?? ""),
+    over = overName.trim()
+      ? session.data.get(session.varlist(overName.trim())[0])
       : null,
+    // over(g, sort(#) descending) orders the groups by the #th statistic.
+    overSort = (() => {
+      let sort = null,
+        descending = false;
+      for (const o of (overOptions ?? "").matchAll(/(\w+)(?:\(([^)]*)\))?/g)) {
+        if (/^sort$/i.test(o[1]) && /^\s*\d+\s*$/.test(o[2] ?? ""))
+          sort = Number(o[2]);
+        else if (/^desc(e(n(d(i(ng?)?)?)?)?)?$/i.test(o[1])) descending = true;
+        else
+          throw new StataError(
+            `over(…, ${o[0]}) is not drawn on this page; over() takes sort(#) and descending`,
+            198,
+          );
+      }
+      if (descending && !sort)
+        throw new StataError("over(…, descending) needs sort(#)", 198);
+      return sort ? { sort, descending } : null;
+    })(),
     rows = session.rows(parsed, null),
     levels = over
       ? [...new Set(rows.map((i) => over.data[i]))]
@@ -232,6 +266,7 @@ function graphParts(session, text, declaration) {
     head: m[1].trim(),
     parsed,
     over,
+    overSort,
     levels,
     groups: levels.map((level) =>
       over ? rows.filter((i) => over.data[i] === level) : rows,
@@ -242,16 +277,25 @@ function graphParts(session, text, declaration) {
 
 function graphBar(horizontal) {
   return (session, text, ctx) => {
-    const parts = graphParts(session, text, "STack PERCentages ASYvars"),
+    const parts = graphParts(session, text, "BLABel(string)"),
       series = statisticList(session, parts.head),
       options = parts.parsed.options;
-    // graph bar, over(g) with no yvars shows the percentage in each group.
-    const frequencies = !series.length;
-    if (frequencies && !parts.over)
+    // With no yvars, graph bar, over(g) shows the percentage of observations
+    // in each group, and graph bar (count), over(g) their number.
+    const frequencies = !series.length,
+      counted = frequencies && /^\(\s*count\s*\)$/.test(parts.head);
+    if (
+      frequencies &&
+      (!parts.over || !/^(\(\s*(count|percent)\s*\))?$/.test(parts.head))
+    )
       throw new StataError("varlist required", 100);
     const total = parts.groups.reduce((t, rows) => t + rows.length, 0),
-      heights = frequencies
-        ? [parts.groups.map((rows) => (100 * rows.length) / total)]
+      unsorted = frequencies
+        ? [
+            parts.groups.map((rows) =>
+              counted ? rows.length : (100 * rows.length) / total,
+            ),
+          ]
         : series.map(({ statistic, variable }) =>
             parts.groups.map((rows) => {
               const v = rows
@@ -261,10 +305,31 @@ function graphBar(horizontal) {
             }),
           ),
       names = frequencies
-        ? ["percent"]
+        ? [counted ? "frequency" : "percent"]
         : series.map(
             ({ statistic, variable }) => `${statistic} of ${variable.name}`,
           ),
+      // over(g, sort(#)) puts the groups in order of the #th bar's height.
+      order = parts.labels.map((_, k) => k),
+      sorted = parts.overSort;
+    if (sorted) {
+      const by = unsorted[sorted.sort - 1];
+      if (!by)
+        throw new StataError(
+          `over(…, sort(${sorted.sort})): there are ${unsorted.length} statistics`,
+          198,
+        );
+      order.sort((a, b) => by[a] - by[b] || a - b);
+      if (sorted.descending) order.reverse();
+    }
+    // blabel(bar) writes each bar's height above it.
+    if (options.blabel !== undefined && !/^\s*bar\s*$/i.test(options.blabel))
+      throw new StataError(
+        `blabel(${options.blabel}): only blabel(bar) is drawn on this page`,
+        198,
+      );
+    const heights = unsorted.map((row) => order.map((k) => row[k])),
+      labels = order.map((k) => parts.labels[k]),
       slot = 1 / (heights.length + 1),
       layers = heights.map((row, s) => ({
         bars: row.map((height, k) => ({
@@ -274,21 +339,38 @@ function graphBar(horizontal) {
         })),
         points: [],
         label: names[s],
+        barLabels: options.blabel !== undefined,
       })),
       description = `${horizontal ? "Horizontal bar" : "Bar"} chart: ${names
         .map(
           (name, s) =>
-            `${name}${parts.over ? ` by ${parts.over.name}` : ""}: ${parts.labels
+            `${name}${parts.over ? ` by ${parts.over.name}` : ""}: ${labels
               .map(
                 (label, k) => `${label ? label + " " : ""}${g(heights[s][k])}`,
               )
               .join(", ")}`,
         )
         .join("; ")}.`;
-    if (horizontal)
+    if (horizontal) {
+      // The horizontal drawing has titles, a legend and bar labels only.
+      const looks = drawnLooks(options);
+      if (
+        looks.subtitle ||
+        looks.note ||
+        looks.caption ||
+        looks.xLines.length ||
+        looks.yLines.length ||
+        looks.xTicks ||
+        looks.yTicks ||
+        Object.keys(looks.legend).length
+      )
+        throw new StataError(
+          "graph hbar draws title(), ytitle() and blabel(bar) here; other looks are drawn for graph bar",
+          198,
+        );
       return ctx.graph({
         svg: drawHorizontalBars({
-          groups: parts.labels.map((label, k) => ({
+          groups: labels.map((label, k) => ({
             label,
             values: heights.map((row) => row[k]),
           })),
@@ -296,18 +378,21 @@ function graphBar(horizontal) {
           xTitle:
             unquote(options.ytitle) || (names.length === 1 ? names[0] : ""),
           title: unquote(options.title),
+          labelled: options.blabel !== undefined,
         }),
         description,
       });
+    }
     ctx.graph({
       svg: draw({
+        ...drawnLooks(options),
         layers,
         xTitle:
           unquote(options.xtitle) || (parts.over ? titleOf(parts.over) : ""),
         yTitle: unquote(options.ytitle) || (names.length === 1 ? names[0] : ""),
         title: unquote(options.title),
         xRange: [0.5, parts.levels.length + 0.5],
-        xLabels: parts.labels.map((text, k) => ({ at: k + 1, text })),
+        xLabels: labels.map((text, k) => ({ at: k + 1, text })),
       }),
       description,
     });
@@ -315,8 +400,10 @@ function graphBar(horizontal) {
 }
 
 function graphBox(session, text, ctx) {
-  const parts = graphParts(session, text, "NOOUTsides"),
-    variables = session
+  const parts = graphParts(session, text, "NOOUTsides");
+  if (parts.overSort)
+    throw new StataError("over(…, sort()) is drawn for graph bar here", 198);
+  const variables = session
       .varlist(parts.head)
       .map((name) => numeric(session, name)),
     options = parts.parsed.options;
@@ -347,6 +434,7 @@ function graphBox(session, text, ctx) {
     }));
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers,
       xTitle:
         unquote(options.xtitle) || (parts.over ? titleOf(parts.over) : ""),
@@ -387,10 +475,11 @@ const fitLine = (points) => {
 
 function rvfplot(session, text, ctx) {
   const model = afterRegress(session, "rvfplot"),
-    options = session.parse(`[, ${TITLES} *]`, text).options,
+    options = parseGraph(session, `[, ${LOOKS}]`, text).options,
     frame = sampleFrame(model, session);
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers: [
         {
           kind: "scatter",
@@ -410,7 +499,7 @@ function avplot(session, text, ctx) {
   const model = afterRegress(session, "avplot"),
     m = /^\s*(\S+)\s*(,[\s\S]*)?$/.exec(text);
   if (!m) throw new StataError("varname required", 100);
-  const options = session.parse(`[, ${TITLES} *]`, m[2] ?? "").options,
+  const options = parseGraph(session, `[, ${LOOKS}]`, m[2] ?? "").options,
     name = session.varlist(m[1])[0],
     frame = sampleFrame(model, session),
     target = frame.regressors.find((c) => c.name === name);
@@ -428,6 +517,7 @@ function avplot(session, text, ctx) {
     se = Math.sqrt(model.V[at][at]);
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers: [
         { kind: "scatter", points, label: `e( ${model.depvar} | X )` },
         { kind: "line", points: line.points, label: "Fitted values" },
@@ -443,12 +533,13 @@ function avplot(session, text, ctx) {
 
 function lvr2plot(session, text, ctx) {
   const model = afterRegress(session, "lvr2plot"),
-    options = session.parse(`[, ${TITLES} *]`, text).options,
+    options = parseGraph(session, `[, ${LOOKS}]`, text).options,
     frame = sampleFrame(model, session),
     leverage = leverageStatistic(session, model, "hat").values,
     total = frame.residuals.reduce((t, e) => t + e * e, 0);
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers: [
         {
           kind: "scatter",
@@ -469,7 +560,7 @@ function lvr2plot(session, text, ctx) {
 
 function normalPlot(kind) {
   return (session, text, ctx) => {
-    const parsed = session.parse(`varname [if] [in] [, ${TITLES} *]`, text),
+    const parsed = parseGraph(session, `varname [if] [in] [, ${LOOKS}]`, text),
       options = parsed.options,
       variable = numeric(session, parsed.varlist[0]),
       sorted = session
@@ -494,6 +585,7 @@ function normalPlot(kind) {
       ends = kind === "qnorm" ? [points[0][0], points.at(-1)[0]] : [0, 1];
     ctx.graph({
       svg: draw({
+        ...drawnLooks(options),
         layers: [
           { kind: "scatter", points, label: titleOf(variable) },
           {
@@ -520,7 +612,7 @@ function normalPlot(kind) {
 function tsline(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  const parsed = session.parse(`varlist [if] [in] [, ${TITLES} *]`, text),
+  const parsed = parseGraph(session, `varlist [if] [in] [, ${LOOKS}]`, text),
     options = parsed.options,
     time = session.data.get(session.panel.time),
     rows = session.rows(parsed, null),
@@ -539,6 +631,7 @@ function tsline(session, text, ctx) {
     });
   ctx.graph({
     svg: draw({
+      ...drawnLooks(options),
       layers,
       xTitle: unquote(options.xtitle) || titleOf(time),
       yTitle:

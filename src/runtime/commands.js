@@ -700,7 +700,7 @@ function format(session, text) {
 }
 
 // ----- scalars, macros and programs -----
-function scalar(session, text) {
+function scalar(session, text, ctx) {
   let m;
   if ((m = /^drop\s+([\s\S]+)$/.exec(text))) {
     if (m[1].trim() === "_all") return session.scalars.clear();
@@ -709,7 +709,23 @@ function scalar(session, text) {
         throw new StataError(`scalar ${name} not found`, 111);
     return;
   }
-  if (/^(l(i(st?)?)?|di(r)?)\b/.test(text)) return;
+  if ((m = /^(?:l(?:i(?:st?)?)?|di(?:r)?)\b([\s\S]*)$/.exec(text))) {
+    // Newest first, as Stata lists them; the name right-aligned in ten.
+    const asked = m[1].trim().split(/\s+/).filter(Boolean),
+      names =
+        asked.length && asked[0] !== "_all"
+          ? asked
+          : [...session.scalars.keys()].reverse();
+    for (const name of names) {
+      if (!session.scalars.has(name))
+        throw new StataError(`scalar ${name} not found`, 111);
+      const value = session.scalars.get(name);
+      ctx.out(
+        `${name.padStart(10)} = ${typeof value === "string" ? value : applyFormat(value, "%10.0g")}`,
+      );
+    }
+    return;
+  }
   m = /^(?:de(?:f(?:i(?:ne?)?)?)?\s+)?([A-Za-z_]\w*)\s*=\s*([\s\S]+)$/.exec(
     text.trim(),
   );
