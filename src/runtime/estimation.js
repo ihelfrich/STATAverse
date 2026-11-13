@@ -6,8 +6,9 @@ import { evaluateAll } from "./expression.js";
 import { leverageStatistic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
-import { applyFormat } from "./format.js";
-import { Ftail, invttail, ttail } from "./distributions.js";
+import { applyFormat, parseFormat } from "./format.js";
+import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
+import { invnormal, normal } from "./functions-normal.js";
 import { count, labelled, moments, percentile, present } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
@@ -1074,22 +1075,81 @@ export function describeLinear(model, weights, constant) {
       name = qualified ? `[${qualified[1]}]${qualified[2]}` : model.names[k];
     text += text
       ? ` ${w < 0 ? "-" : "+"} ${size}${name}`
-      : `${w < 0 ? (qualified ? "- " : "-") : ""}${size}${name}`;
+      : `${w < 0 ? "- " : ""}${size}${name}`;
   });
   return `${text} = ${g(-constant + 0)}`;
 }
 
-export function test(session, text, ctx) {
-  const model = estimates(session),
-    [head] = splitAtComma(text),
-    groups = head.match(/\([^()]*\)/g),
+/**
+ * Writes a constraint the way Stata lists it after a single-equation model
+ * fitted by maximum likelihood, each coefficient tagged with its equation,
+ * as in [union]education. regress and ivregress name the bare coefficient.
+ */
+export function tagEquation(model, line) {
+  if (model.dist !== "z" || model.kind === "ivregress") return line;
+  return line.replace(/(?<![\w.#\]])([A-Za-z_0-9][\w.#]*)/g, (name) =>
+    model.names.includes(name) ? `[${model.depvar}]${name}` : name,
+  );
+}
+
+const MTEST = [
+  [
+    /^b(o(n(f(e(r(r(o(ni?)?)?)?)?)?)?)?)?$/,
+    "bonferroni",
+    "Bonferroni-adjusted",
+  ],
+  [/^h(o(lm?)?)?$/, "holm", "Holm-adjusted"],
+  [/^s(i(d(ak?)?)?)?$/, "sidak", "Sidak-adjusted"],
+  [/^(noadj(u(st?)?)?)?$/, "noadjust", "Unadjusted"],
+];
+
+/** Reads the options of test: accumulate, notest, mtest[(method)] and df(#). */
+function testOptions(session, tail) {
+  // mtest may be typed without its parentheses.
+  const text =
+      tail === null
+        ? ""
+        : `,${tail.replace(/(^|[\s,])mtest(?=\s|,|$)/g, "$1mtest()")}`,
+    { options } = session.parse(
+      "[, ACCUMulate NOTEST MTEST(string) DF(real) | COEF COMMON CONSTant NOSVYadjust MINimum MATVlc(string)]",
+      text,
+    ),
+    mtest = options.mtest;
+  let method = null;
+  if (mtest !== undefined) {
+    if (options.accumulate)
+      throw new StataError(
+        "options mtest and accumulate may not be combined",
+        198,
+      );
+    if (options.notest)
+      throw new StataError("options mtest and notest may not be combined", 198);
+    method = MTEST.find(([pattern]) => pattern.test(mtest.trim()));
+    if (!method) throw new StataError(`invalid mtest(): ${mtest.trim()}`, 198);
+  }
+  if (options.df !== undefined && !(options.df > 0))
+    throw new StataError(
+      "df() invalid -- invalid number, outside of allowed range",
+      125,
+    );
+  return {
+    accumulate: !!options.accumulate,
+    notest: !!options.notest,
+    method,
+    df: options.df,
+  };
+}
+
+/** The coefficient constraints a test names, one per spec. */
+function testConstraints(model, head) {
+  const groups = head.match(/\([^()]*\)/g),
     specs = groups
       ? groups.map((s) => s.slice(1, -1))
       : /=/.test(head)
         ? [head]
         : head.trim().split(/\s+/).filter(Boolean);
   if (!specs.length) throw new StataError("nothing to test", 198);
-  const constraints = specs.map((spec) => {
+  return specs.map((spec) => {
     const sides = spec.split(/==?/);
     if (sides.length > 2) throw new StataError("invalid syntax", 198);
     return linear(
@@ -1097,69 +1157,310 @@ export function test(session, text, ctx) {
       sides.length === 2 ? `(${sides[0]}) - (${sides[1]})` : spec,
     );
   });
+}
+
+/**
+ * Which constraints a joint test keeps. Stata sweeps the covariance matrix
+ * of the constraints, at each step taking the constraint whose variance not
+ * explained by those already taken is largest (the first of equals), and
+ * drops a constraint once nothing of its variance is left: a repeated or
+ * implied constraint, or one on a coefficient that was omitted.
+ */
+function independentConstraints(middle) {
+  const a = middle.map((row) => row.slice()),
+    left = new Set(middle.keys()),
+    kept = [];
+  while (left.size) {
+    let pivot = -1;
+    for (const j of left) {
+      const own = middle[j][j];
+      if (!(own > 0) || !(a[j][j] > 1e-10 * own)) continue;
+      if (pivot < 0 || a[j][j] > a[pivot][pivot] * (1 + 1e-10)) pivot = j;
+    }
+    if (pivot < 0) break;
+    kept.push(pivot);
+    left.delete(pivot);
+    for (const i of left)
+      for (const k of left)
+        a[i][k] -= (a[i][pivot] * a[pivot][k]) / a[pivot][pivot];
+  }
+  return kept.sort((x, y) => x - y);
+}
+
+/**
+ * p-values adjusted for testing several constraints one at a time. A
+ * constraint that cannot be tested (its p-value is missing) is not counted.
+ */
+function adjust(method, p) {
+  const tested = p.map((_, k) => k).filter((k) => !isMissing(p[k])),
+    m = tested.length,
+    out = p.slice();
+  if (method === "bonferroni")
+    for (const k of tested) out[k] = Math.min(1, p[k] * m);
+  else if (method === "sidak")
+    for (const k of tested) out[k] = 1 - (1 - p[k]) ** m;
+  else if (method === "holm") {
+    let running = 0;
+    tested
+      .sort((x, y) => p[x] - p[y])
+      .forEach((k, rank) => {
+        running = Math.max(running, Math.min(1, (m - rank) * p[k]));
+        out[k] = running;
+      });
+  }
+  return out;
+}
+
+/**
+ * The Wald test of linear constraints on the coefficients of the current
+ * model: an F test after regress and the models that report t, or when
+ * df(#) is given, a chi-squared test otherwise. fresh are the constraints
+ * this command names; accumulate adds them to those of the previous test of
+ * the same model, notest only lists them, and mtest adds a test of each
+ * constraint on its own with adjusted p-values.
+ */
+export function waldTest(session, model, fresh, tail, ctx) {
+  const options = testOptions(session, tail),
+    constraints = options.accumulate
+      ? [...(model.testConstraints ?? []), ...fresh]
+      : fresh;
+  model.testConstraints = constraints;
+  ctx.out("");
   constraints.forEach((c, k) =>
     ctx.out(
-      ` (${String(k + 1).padStart(2)})  ${describeLinear(model, c.weights, c.constant)}`,
+      ` (${String(k + 1).padStart(2)})  ${c.text ?? tagEquation(model, describeLinear(model, c.weights, c.constant))}`,
     ),
   );
-  const q = constraints.length,
-    difference = constraints.map(
+  if (options.notest) {
+    session.results.r = {};
+    ctx.out("");
+    return;
+  }
+  const difference = constraints.map(
       (c) => c.weights.reduce((t, w, k) => t + w * model.b[k], 0) + c.constant,
     ),
     middle = constraints.map((a) =>
       constraints.map((b) =>
         a.weights.reduce(
           (t, wa, i) =>
-            t + wa * b.weights.reduce((u, wb, j) => u + model.V[i][j] * wb, 0),
+            t +
+            (wa &&
+              wa * b.weights.reduce((u, wb, j) => u + model.V[i][j] * wb, 0)),
           0,
         ),
       ),
     ),
-    inverse = invertSymmetric(middle);
-  if (!inverse) throw new StataError("the constraints are redundant", 111);
-  const F = quadratic(difference, inverse) / q,
-    p = Ftail(q, model.df_r, F);
+    kept = independentConstraints(middle),
+    dropped = constraints.map((_, k) => k).filter((k) => !kept.includes(k));
+  dropped.forEach((k) => ctx.out(`       Constraint ${k + 1} dropped`));
+  const fTest = options.df !== undefined || model.dist !== "z",
+    dfR = options.df ?? model.df_r,
+    // The statistic for a set of constraints and its p-value.
+    wald = (rows) => {
+      const q = rows.length;
+      if (!q) return [MISSING, MISSING, 0];
+      const inverse = invertSymmetric(
+        rows.map((i) => rows.map((j) => middle[i][j])),
+      );
+      if (!inverse) return [MISSING, MISSING, q];
+      const w = quadratic(
+        rows.map((k) => difference[k]),
+        inverse,
+      );
+      return fTest ? [w / q, Ftail(q, dfR, w / q), q] : [w, chi2tail(q, w), q];
+    },
+    [statistic, p, q] = wald(kept);
+  // mtest: each constraint tested on its own, with p-values adjusted for
+  // the number of them.
+  const single = options.method ? constraints.map((_, k) => wald([k])) : [],
+    adjusted = options.method
+      ? adjust(
+          options.method[1],
+          single.map(([, value]) => value),
+        )
+      : [];
   ctx.out("");
-  ctx.out(
-    `       F(${String(q).padStart(3)},${String(model.df_r).padStart(6)}) =${applyFormat(F, "%8.2f")}`,
-  );
-  ctx.out(`            Prob > F =${applyFormat(p, "%10.4f")}`);
+  if (options.method) {
+    const row = (label, value, df, pv) =>
+      `${label.padStart(6)} |${applyFormat(value, "%12.2f")}${applyFormat(df, "%7.0f")}${applyFormat(pv, "%11.4f")}`;
+    ctx.out("-".repeat(38));
+    ctx.out(
+      fTest
+        ? `       |${`F(df,${dfR})`.padStart(12)}     df      p > F`
+        : "       |        chi2     df   p > chi2",
+    );
+    ctx.out(`-------+${"-".repeat(30)}`);
+    single.forEach(([value, , df], k) =>
+      ctx.out(`${row(`(${k + 1})`, value, df, adjusted[k])}*`),
+    );
+    ctx.out(`-------+${"-".repeat(30)}`);
+    ctx.out(row("All", statistic, q, p));
+    ctx.out("-".repeat(38));
+    ctx.out(`* ${options.method[2]} p-values`);
+  } else if (fTest) {
+    ctx.out(
+      `       F(${String(q).padStart(3)},${String(dfR).padStart(6)}) =${applyFormat(statistic, "%8.2f")}`,
+    );
+    ctx.out(`            Prob > F =${applyFormat(p, "%10.4f")}`);
+  } else {
+    ctx.out(
+      `           chi2(${String(q).padStart(3)}) =${applyFormat(statistic, "%8.2f")}`,
+    );
+    ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
+  }
   ctx.out("");
-  session.results.r = { F, p, df: q, df_r: model.df_r, drop: 0 };
+  const unadjusted = options.method?.[1] === "noadjust";
+  session.results.r = {
+    ...Object.fromEntries(
+      dropped.map((k, n) => [`dropped_${n + 1}`, k + 1]).reverse(),
+    ),
+    drop: dropped.length ? 1 : 0,
+    ...(fTest
+      ? { df_r: dfR, F: statistic, df: q, p }
+      : { chi2: statistic, df: q, p }),
+    ...(options.method
+      ? {
+          mtmethod: options.method[1],
+          "matrix:mtest": {
+            rowNames: single.map((_, k) => `r${k + 1}`),
+            colNames: [
+              fTest ? "F" : "chi2",
+              "df",
+              "p",
+              // Stata names the column c1 when a constraint could not be
+              // tested on its own, as after a multinomial model.
+              ...(unadjusted
+                ? []
+                : [single.some(([v]) => isMissing(v)) ? "c1" : "adjustp"]),
+            ],
+            values: single.map(([value, pv, df], k) => [
+              value,
+              df,
+              pv,
+              ...(unadjusted ? [] : [adjusted[k]]),
+            ]),
+          },
+        }
+      : {}),
+  };
+}
+
+export function test(session, text, ctx) {
+  const model = estimates(session),
+    [head, tail] = splitAtComma(text);
+  // Stata clears r() as test begins, so a test that fails leaves none.
+  session.results.r = {};
+  waldTest(session, model, testConstraints(model, head), tail, ctx);
+}
+
+// The transformed displays of lincom: the option, its column title.
+const EFORM = [
+  ["eform", "exp(b)"],
+  ["or", "Odds ratio"],
+  ["hr", "Haz. ratio"],
+  ["shr", "SHR"],
+  ["irr", "IRR"],
+  ["rrr", "RRR"],
+];
+
+/**
+ * A display format given to cformat(), pformat() or sformat(): Stata
+ * refuses one that is not numeric and uses its default, with a note, for
+ * one wider than the column.
+ */
+function columnFormat(name, format, widest, ctx) {
+  if (format === undefined) return null;
+  const parsed = parseFormat(format.trim());
+  if (!parsed || parsed.kind !== "number")
+    throw new StataError(
+      `'${format.trim()}' found where numeric format expected`,
+      7,
+    );
+  if (parsed.width > widest) {
+    ctx.out(`note: invalid ${name}(), using default`);
+    return null;
+  }
+  return format.trim();
 }
 
 export function lincom(session, text, ctx) {
+  session.results.r = {};
   const model = estimates(session),
-    parsed = session.parse("anything [, Level(cilevel)]", text),
-    { weights, constant } = linear(model, parsed.anything),
+    // [eq]name would read as a weight, so the expression is set aside
+    // before the options are parsed.
+    [head, tail] = splitAtComma(text),
+    { options } = session.parse(
+      "[, Level(cilevel) DF(real) EForm OR HR SHR IRr RRr CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL]",
+      tail === null ? "" : `,${tail}`,
+    ),
+    eform = EFORM.filter(([name]) => options[name]);
+  if (eform.length > 1)
+    throw new StataError("only one display option can be specified", 198);
+  if (options.df !== undefined && !(options.df > 0))
+    throw new StataError(
+      "df() invalid -- invalid number, outside of allowed range",
+      125,
+    );
+  const { weights, constant } = linear(model, head.trim());
+  if (constant && eform.length)
+    throw new StataError(
+      `additive constant term not allowed with ${eform[0][0]} option`,
+      198,
+    );
+  // In the order Stata checks them, which is the order of its notes.
+  const cformat = columnFormat("cformat", options.cformat, 9, ctx),
+    sformat = columnFormat("sformat", options.sformat, 8, ctx),
+    pformat = columnFormat("pformat", options.pformat, 5, ctx),
     estimate = weights.reduce((t, w, k) => t + w * model.b[k], 0) + constant,
     se = Math.sqrt(quadratic(weights, model.V)),
-    level = parsed.options.level,
-    critical = invttail(model.df_r, (1 - level / 100) / 2),
-    t = estimate / se,
-    p = 2 * ttail(model.df_r, Math.abs(t));
-  if (constant)
-    throw new StataError("lincom does not allow a constant term", 198);
+    level = options.level,
+    // regress and the models that report t use its degrees of freedom;
+    // df(#) asks for t with # degrees of freedom after any model.
+    df = options.df ?? (model.dist === "z" ? null : model.df_r),
+    critical =
+      df === null
+        ? invnormal(1 - (1 - level / 100) / 2)
+        : invttail(df, (1 - level / 100) / 2),
+    statistic = estimate / se,
+    p =
+      df === null
+        ? 2 * normal(-Math.abs(statistic))
+        : 2 * ttail(df, Math.abs(statistic)),
+    letter = df === null ? "z" : "t",
+    // The transformed display reports exp(b), its standard error by the
+    // delta method and the interval's end points exponentiated.
+    shown = eform.length ? Math.exp : (v) => v,
+    point = shown(estimate),
+    spread = eform.length ? point * se : se,
+    lower = shown(estimate - critical * se),
+    upper = shown(estimate + critical * se),
+    number = (value, width) =>
+      (cformat ? applyFormat(value, cformat).trim() : g(value)).padStart(width),
+    pText = pformat ? applyFormat(p, pformat).trim() : applyFormat(p, "%5.3f");
   ctx.out("");
-  ctx.out(` ( 1)  ${describeLinear(model, weights, 0)}`);
-  ctx.out("");
-  coefficientHeader({ ...model, vce: "ols" }, level, model.depvar, 12).forEach(
-    ctx.out,
-  );
   ctx.out(
-    `${"(1)".padStart(12)} |${g(estimate).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(p, "%8.3f")}${g(estimate - critical * se).padStart(13)}${g(estimate + critical * se).padStart(12)}`,
+    ` ( 1)  ${tagEquation(model, describeLinear(model, weights, constant))}`,
+  );
+  ctx.out("");
+  ctx.out(RULE);
+  ctx.out(
+    `${abbreviate(model.depvar, 12).padStart(12)} |${eform.length ? `${eform[0][1].padStart(11)} ` : " Coefficient"}  Std. err.      ${letter}    P>|${letter}|     [${g(level)}% conf. interval]`,
+  );
+  ctx.out(`${"-".repeat(13)}+${"-".repeat(64)}`);
+  ctx.out(
+    `${"(1)".padStart(12)} |${number(point, 11)}${number(spread, 11)}${(sformat ? applyFormat(statistic, sformat).trim() : applyFormat(statistic, "%8.2f")).padStart(9)}${pText.length > 5 ? `   ${pText}` : pText.padStart(8)}${number(lower, 13)}${number(upper, 12)}`,
   );
   ctx.out(RULE);
   ctx.out("");
   session.results.r = {
-    estimate,
-    se,
-    df: model.df_r,
-    t,
+    ...(df === null ? {} : { df }),
+    ub: upper,
+    lb: lower,
     p,
-    lb: estimate - critical * se,
-    ub: estimate + critical * se,
+    [letter]: statistic,
     level,
+    se: spread,
+    estimate: point,
   };
 }
 

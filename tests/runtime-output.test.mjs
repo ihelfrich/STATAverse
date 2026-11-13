@@ -105,6 +105,7 @@ for (const c of fixture.cases)
             "mlogit-coefficients",
             "outcome-predict-margins",
             "likelihood-factor-layout",
+            "test-accumulate-mlogit",
           ].includes(c.id),
         )
       )

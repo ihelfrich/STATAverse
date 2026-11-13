@@ -14,13 +14,11 @@ import { count } from "./reports.js";
 import { linkOf } from "./margins.js";
 import { outcomePredict } from "./outcome-margins.js";
 import {
-  RULE,
-  describeLinear,
   design,
   estimates,
   invertSymmetric,
   lincom as lincomT,
-  linear,
+  waldTest,
   predict as predictT,
   quadratic,
   termRows,
@@ -779,173 +777,41 @@ function ivregress(session, text, ctx) {
 
 // ----- post-estimation that depends on the distribution -----
 function test(session, text, ctx) {
-  const model = estimates(session);
-  if (model.dist !== "z") return testT(session, text, ctx);
-  const [head] = splitAtComma(text);
+  const model = estimates(session),
+    [head, tail] = splitAtComma(text);
+  session.results.r = {};
   // After mlogit a list of variables is tested in every equation at once.
-  if (model.equations && /^[\sA-Za-z_0-9.]+$/.test(head))
-    return acrossEquations(session, model, head.trim().split(/\s+/), ctx);
-  const groups = head.match(/\([^()]*\)/g),
-    specs = groups
-      ? groups.map((s) => s.slice(1, -1))
-      : /=/.test(head)
-        ? [head]
-        : head.trim().split(/\s+/).filter(Boolean);
-  if (!specs.length) throw new StataError("nothing to test", 198);
-  const constraints = specs.map((spec) => {
-      const sides = spec.split(/==?/);
-      return linear(
-        model,
-        sides.length === 2 ? `(${sides[0]}) - (${sides[1]})` : spec,
-      );
-    }),
-    tag = (line) =>
-      model.kind === "ivregress"
-        ? line
-        : line.replace(
-            /(^|[-+*] ?|^-)([A-Za-z_0-9][\w.#]*)/g,
-            (all, lead, name) =>
-              model.names.includes(name)
-                ? `${lead}[${model.depvar}]${name}`
-                : all,
-          );
-  constraints.forEach((c, k) =>
-    ctx.out(
-      ` (${String(k + 1).padStart(2)})  ${tag(describeLinear(model, c.weights, c.constant))}`,
-    ),
-  );
-  const q = constraints.length,
-    difference = constraints.map(
-      (c) => c.weights.reduce((t, w, k) => t + w * model.b[k], 0) + c.constant,
-    ),
-    inverse = invertSymmetric(
-      constraints.map((a) =>
-        constraints.map((b) =>
-          a.weights.reduce(
-            (t, wa, i) =>
-              t +
-              wa * b.weights.reduce((u, wb, j) => u + model.V[i][j] * wb, 0),
-            0,
-          ),
-        ),
-      ),
-    );
-  if (!inverse) throw new StataError("the constraints are redundant", 111);
-  const chi2 = quadratic(difference, inverse),
-    p = chi2tail(q, chi2);
-  ctx.out("");
-  ctx.out(
-    `           chi2(${String(q).padStart(3)}) =${applyFormat(chi2, "%8.2f")}`,
-  );
-  ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
-  ctx.out("");
-  session.results.r = { drop: 0, chi2, df: q, p };
-}
-
-function lincom(session, text, ctx) {
-  const model = estimates(session);
-  if (model.dist !== "z") return lincomT(session, text, ctx);
-  // [eq]name would read as a weight, so the expression is set aside
-  // before the options are parsed.
-  const [head, tail] = splitAtComma(text),
-    parsed = {
-      ...session.parse(
-        "[, Level(cilevel) OR IRr EForm]",
-        tail === null ? "" : `,${tail}`,
-      ),
-      anything: head.trim(),
-    },
-    { weights, constant } = linear(model, parsed.anything),
-    estimate = weights.reduce((t, w, k) => t + w * model.b[k], 0) + constant,
-    se = Math.sqrt(quadratic(weights, model.V)),
-    level = parsed.options.level,
-    critical = invnormal(1 - (1 - level / 100) / 2),
-    z = estimate / se,
-    p = 2 * normal(-Math.abs(z)),
-    text1 = describeLinear(model, weights, 0),
-    shown =
-      model.kind === "ivregress"
-        ? text1
-        : text1.replace(/(?<![\w.#])([A-Za-z_0-9][\w.#]*)/g, (name) =>
-            model.names.includes(name) ? `[${model.depvar}]${name}` : name,
-          );
-  ctx.out("");
-  ctx.out(` ( 1)  ${shown}`);
-  ctx.out("");
-  ctx.out(RULE);
-  ctx.out(
-    `${model.depvar.padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(
-    "-------------+----------------------------------------------------------------",
-  );
-  ctx.out(
-    `${"(1)".padStart(12)} |${g(estimate).padStart(11)}${g(se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(p, "%8.3f")}${g(estimate - critical * se).padStart(13)}${g(estimate + critical * se).padStart(12)}`,
-  );
-  ctx.out(RULE);
-  ctx.out("");
-  session.results.r = {
-    estimate,
-    se,
-    z,
-    p,
-    lb: estimate - critical * se,
-    ub: estimate + critical * se,
-    level,
-  };
+  if (model.dist === "z" && model.equations && /^[\sA-Za-z_0-9.]+$/.test(head))
+    return acrossEquations(session, model, head.trim().split(/\s+/), tail, ctx);
+  return testT(session, text, ctx);
 }
 
 /**
  * test and testparm after mlogit: each named variable's coefficient is
  * zero in every equation. Stata lists the base outcome's too and drops it.
  */
-function acrossEquations(session, model, words, ctx) {
+function acrossEquations(session, model, words, tail, ctx) {
   const variables = [];
   for (const word of words)
     for (const name of /^_cons$/.test(word) ? [word] : session.varlist(word))
       if (!variables.includes(name)) variables.push(name);
-  const lines = [],
-    dropped = [],
-    at = [];
+  const constraints = [];
   for (const name of variables) {
     if (!model.names.some((n) => n.replace(/^[^:]+:/, "") === name))
       throw new StataError(`${name} not found`, 111);
     model.equations.forEach((equation, j) => {
-      const number = String(lines.length + 1).padStart(2);
-      if (j === model.baseEquation) {
-        lines.push(` (${number})  [${equation}]o.${name} = 0`);
-        dropped.push(lines.length);
-      } else {
-        lines.push(` (${number})  [${equation}]${name} = 0`);
-        at.push(model.names.indexOf(`${equation}:${name}`));
-      }
+      const at = model.names.indexOf(`${equation}:${name}`),
+        base = j === model.baseEquation;
+      // The base outcome's coefficient is fixed at zero, so its constraint
+      // carries no weight and the test drops it.
+      constraints.push({
+        weights: model.names.map((_, k) => (!base && k === at ? 1 : 0)),
+        constant: 0,
+        text: `[${equation}]${base ? "o." : ""}${name} = 0`,
+      });
     });
   }
-  const inverse = invertSymmetric(at.map((r) => at.map((c) => model.V[r][c])));
-  if (!inverse) throw new StataError("the constraints are redundant", 111);
-  const chi2 = quadratic(
-      at.map((k) => model.b[k]),
-      inverse,
-    ),
-    p = chi2tail(at.length, chi2);
-  ctx.out("");
-  lines.forEach(ctx.out);
-  dropped.forEach((k) => ctx.out(`       Constraint ${k} dropped`));
-  ctx.out("");
-  ctx.out(
-    `           chi2(${String(at.length).padStart(3)}) =${applyFormat(chi2, "%8.2f")}`,
-  );
-  ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
-  ctx.out("");
-  session.results.r = {
-    ...Object.fromEntries(
-      dropped.map((k, n) => [`dropped_${n + 1}`, k]).reverse(),
-    ),
-    drop: 1,
-    chi2,
-    df: at.length,
-    p,
-  };
+  waldTest(session, model, constraints, tail, ctx);
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
@@ -1371,11 +1237,12 @@ export const MODEL_COMMANDS = [
             session,
             estimates(session),
             splitAtComma(text)[0].trim().split(/\s+/).filter(Boolean),
+            null,
             ctx,
           )
         : testparm(session, estimates(session), text, ctx),
   },
-  { name: "lincom", minimum: 6, run: lincom },
+  { name: "lincom", minimum: 6, run: lincomT },
   { name: "predict", minimum: 7, run: predict },
   { name: "estat", minimum: 5, run: estat },
   { name: "estimates", minimum: 3, run: estimatesCommand },

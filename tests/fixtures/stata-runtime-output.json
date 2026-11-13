@@ -16441,6 +16441,1288 @@
       ]
     },
     {
+      "id": "test-accumulate-mtest",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate byte reg = 1 + floor(runiform()*4)\ngenerate double education = 8 + floor(runiform()*10)\ngenerate byte female = runiform() < .5\ngenerate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)\ngenerate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))\ngenerate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))\nreplace satisfaction = 5 if satisfaction > 5\ngenerate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))\nregress wage education i.reg\ntest 2.reg, notest\ntest 3.reg, accum\ntest 2.reg 3.reg 4.reg, mtest\ntest 2.reg 3.reg 4.reg, mtest(bonferroni)\ntest 2.reg 3.reg 4.reg, mtest(holm)\ntest 2.reg 3.reg 4.reg, mtest(sidak)\ntest (2.reg) (3.reg=4.reg), mtest(b)\ntest education, accum\ntest 4.reg, accum notest\ncapture noisily test education=1, accum mtest\ncapture noisily test 2.reg, mtest notest\ncapture noisily test 2.reg, mtest(foo)\ncapture noisily test 2.reg, mtest(noad)\ntest 2.reg, mtest(noadj)\ntest 2.reg=3.reg\ntest 2.reg=3.reg, accum\ntest (2.reg=3.reg) (3.reg=4.reg) (2.reg=4.reg)\ntest (2.reg=3.reg) (2.reg=4.reg) (3.reg=4.reg), mtest\ntest (3.reg=4.reg) (2.reg=3.reg) (2.reg=4.reg)\ntest (.01*2.reg=0) (3.reg=0) (4.reg=0) (10*2.reg+10*3.reg+10*4.reg=0)\ntest (2.reg) (education) (2.reg) (education)\ntest -education = 2\ntest 2.reg, df(100)\nregress wage education i.reg\ntest education, accum\nlogit union education i.reg, nolog\ntest 2.reg, notest\ntest 3.reg, accum\ntest 2.reg 3.reg 4.reg, mtest\ntest 2.reg 3.reg 4.reg, mtest(holm)\ntest 2.reg=3.reg, df(100) mtest(b)\ntest education + 2.reg = 1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        {
+          "command": "generate byte reg = 1 + floor(runiform()*4)",
+          "lines": []
+        },
+        {
+          "command": "generate double education = 8 + floor(runiform()*10)",
+          "lines": []
+        },
+        { "command": "generate byte female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))",
+          "lines": []
+        },
+        {
+          "command": "generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))",
+          "lines": []
+        },
+        {
+          "command": "replace satisfaction = 5 if satisfaction > 5",
+          "lines": ["(62 real changes made)"]
+        },
+        {
+          "command": "generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))",
+          "lines": []
+        },
+        {
+          "command": "regress wage education i.reg",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(4, 595)       =     34.33",
+            "       Model |  1369.16698         4  342.291745   Prob > F        =    0.0000",
+            "    Residual |  5931.77771       595  9.96937431   R-squared       =    0.1875",
+            "-------------+----------------------------------   Adj R-squared   =    0.1821",
+            "       Total |  7300.94469       599  12.1885554   Root MSE        =    3.1574",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "             |",
+            "         reg |",
+            "          2  |   1.261863   .3649482     3.46   0.001     .5451197    1.978606",
+            "          3  |   .0463625   .3624155     0.13   0.898    -.6654067    .7581317",
+            "          4  |   .5231907   .3656922     1.43   0.153    -.1950138    1.241395",
+            "             |",
+            "       _cons |   2.545111   .5958897     4.27   0.000     1.374808    3.715414",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "test 2.reg, notest", "lines": [" ( 1)  2.reg = 0"] },
+        {
+          "command": "test 3.reg, accum",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg = 0",
+            "",
+            "       F(  2,   595) =    7.67",
+            "            Prob > F =    0.0005"
+          ]
+        },
+        {
+          "command": "test 2.reg 3.reg 4.reg, mtest",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg = 0",
+            " ( 3)  4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.96      1     0.0006*",
+            "   (2) |        0.02      1     0.8983*",
+            "   (3) |        2.05      1     0.1530*",
+            "-------+------------------------------",
+            "   All |        5.15      3     0.0016",
+            "--------------------------------------",
+            "* Unadjusted p-values"
+          ]
+        },
+        {
+          "command": "test 2.reg 3.reg 4.reg, mtest(bonferroni)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg = 0",
+            " ( 3)  4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.96      1     0.0018*",
+            "   (2) |        0.02      1     1.0000*",
+            "   (3) |        2.05      1     0.4591*",
+            "-------+------------------------------",
+            "   All |        5.15      3     0.0016",
+            "--------------------------------------",
+            "* Bonferroni-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test 2.reg 3.reg 4.reg, mtest(holm)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg = 0",
+            " ( 3)  4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.96      1     0.0018*",
+            "   (2) |        0.02      1     0.8983*",
+            "   (3) |        2.05      1     0.3061*",
+            "-------+------------------------------",
+            "   All |        5.15      3     0.0016",
+            "--------------------------------------",
+            "* Holm-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test 2.reg 3.reg 4.reg, mtest(sidak)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg = 0",
+            " ( 3)  4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.96      1     0.0018*",
+            "   (2) |        0.02      1     0.9989*",
+            "   (3) |        2.05      1     0.3925*",
+            "-------+------------------------------",
+            "   All |        5.15      3     0.0016",
+            "--------------------------------------",
+            "* Sidak-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test (2.reg) (3.reg=4.reg), mtest(b)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg - 4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.96      1     0.0012*",
+            "   (2) |        1.71      1     0.3832*",
+            "-------+------------------------------",
+            "   All |        6.84      2     0.0012",
+            "--------------------------------------",
+            "* Bonferroni-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test education, accum",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg - 4.reg = 0",
+            " ( 3)  education = 0",
+            "",
+            "       F(  3,   595) =   45.59",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 4.reg, accum notest",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  3.reg - 4.reg = 0",
+            " ( 3)  education = 0",
+            " ( 4)  4.reg = 0"
+          ]
+        },
+        {
+          "command": "capture noisily test education=1, accum mtest",
+          "lines": ["options mtest and accumulate may not be combined"]
+        },
+        {
+          "command": "capture noisily test 2.reg, mtest notest",
+          "lines": ["options mtest and notest may not be combined"]
+        },
+        {
+          "command": "capture noisily test 2.reg, mtest(foo)",
+          "lines": ["invalid mtest(): foo"]
+        },
+        {
+          "command": "capture noisily test 2.reg, mtest(noad)",
+          "lines": ["invalid mtest(): noad"]
+        },
+        {
+          "command": "test 2.reg, mtest(noadj)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.96      1     0.0006*",
+            "-------+------------------------------",
+            "   All |       11.96      1     0.0006",
+            "--------------------------------------",
+            "* Unadjusted p-values"
+          ]
+        },
+        {
+          "command": "test 2.reg=3.reg",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "       F(  1,   595) =   11.14",
+            "            Prob > F =    0.0009"
+          ]
+        },
+        {
+          "command": "test 2.reg=3.reg, accum",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            " ( 2)  2.reg - 3.reg = 0",
+            "       Constraint 2 dropped",
+            "",
+            "       F(  1,   595) =   11.14",
+            "            Prob > F =    0.0009"
+          ]
+        },
+        {
+          "command": "test (2.reg=3.reg) (3.reg=4.reg) (2.reg=4.reg)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            " ( 2)  3.reg - 4.reg = 0",
+            " ( 3)  2.reg - 4.reg = 0",
+            "       Constraint 2 dropped",
+            "",
+            "       F(  2,   595) =    5.64",
+            "            Prob > F =    0.0037"
+          ]
+        },
+        {
+          "command": "test (2.reg=3.reg) (2.reg=4.reg) (3.reg=4.reg), mtest",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            " ( 2)  2.reg - 4.reg = 0",
+            " ( 3)  3.reg - 4.reg = 0",
+            "       Constraint 3 dropped",
+            "",
+            "--------------------------------------",
+            "       |   F(df,595)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |       11.14      1     0.0009*",
+            "   (2) |        4.04      1     0.0450*",
+            "   (3) |        1.71      1     0.1916*",
+            "-------+------------------------------",
+            "   All |        5.64      2     0.0037",
+            "--------------------------------------",
+            "* Unadjusted p-values"
+          ]
+        },
+        {
+          "command": "test (3.reg=4.reg) (2.reg=3.reg) (2.reg=4.reg)",
+          "lines": [
+            " ( 1)  3.reg - 4.reg = 0",
+            " ( 2)  2.reg - 3.reg = 0",
+            " ( 3)  2.reg - 4.reg = 0",
+            "       Constraint 2 dropped",
+            "",
+            "       F(  2,   595) =    5.64",
+            "            Prob > F =    0.0037"
+          ]
+        },
+        {
+          "command": "test (.01*2.reg=0) (3.reg=0) (4.reg=0) (10*2.reg+10*3.reg+10*4.reg=0)",
+          "lines": [
+            " ( 1)  .01*2.reg = 0",
+            " ( 2)  3.reg = 0",
+            " ( 3)  4.reg = 0",
+            " ( 4)  10*2.reg + 10*3.reg + 10*4.reg = 0",
+            "       Constraint 1 dropped",
+            "",
+            "       F(  3,   595) =    5.15",
+            "            Prob > F =    0.0016"
+          ]
+        },
+        {
+          "command": "test (2.reg) (education) (2.reg) (education)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            " ( 2)  education = 0",
+            " ( 3)  2.reg = 0",
+            " ( 4)  education = 0",
+            "       Constraint 3 dropped",
+            "       Constraint 4 dropped",
+            "",
+            "       F(  2,   595) =   67.77",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test -education = 2",
+          "lines": [
+            " ( 1)  - education = 2",
+            "",
+            "       F(  1,   595) = 3117.56",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 2.reg, df(100)",
+          "lines": [
+            " ( 1)  2.reg = 0",
+            "",
+            "       F(  1,   100) =   11.96",
+            "            Prob > F =    0.0008"
+          ]
+        },
+        {
+          "command": "regress wage education i.reg",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(4, 595)       =     34.33",
+            "       Model |  1369.16698         4  342.291745   Prob > F        =    0.0000",
+            "    Residual |  5931.77771       595  9.96937431   R-squared       =    0.1875",
+            "-------------+----------------------------------   Adj R-squared   =    0.1821",
+            "       Total |  7300.94469       599  12.1885554   Root MSE        =    3.1574",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "             |",
+            "         reg |",
+            "          2  |   1.261863   .3649482     3.46   0.001     .5451197    1.978606",
+            "          3  |   .0463625   .3624155     0.13   0.898    -.6654067    .7581317",
+            "          4  |   .5231907   .3656922     1.43   0.153    -.1950138    1.241395",
+            "             |",
+            "       _cons |   2.545111   .5958897     4.27   0.000     1.374808    3.715414",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test education, accum",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "       F(  1,   595) =  120.13",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "logit union education i.reg, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    600",
+            "                                                        LR chi2(4)    =  20.83",
+            "                                                        Prob > chi2   = 0.0003",
+            "Log likelihood = -402.26535                             Pseudo R2     = 0.0252",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .1077405    .029167     3.69   0.000     .0505743    .1649067",
+            "             |",
+            "         reg |",
+            "          2  |  -.5853798    .237018    -2.47   0.014    -1.049927    -.120833",
+            "          3  |  -.1035266   .2369689    -0.44   0.662     -.567977    .3609239",
+            "          4  |  -.3549977   .2374049    -1.50   0.135    -.8203028    .1103073",
+            "             |",
+            "       _cons |  -.8634973   .3852135    -2.24   0.025    -1.618502   -.1084928",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 2.reg, notest",
+          "lines": [" ( 1)  [union]2.reg = 0"]
+        },
+        {
+          "command": "test 3.reg, accum",
+          "lines": [
+            " ( 1)  [union]2.reg = 0",
+            " ( 2)  [union]3.reg = 0",
+            "",
+            "           chi2(  2) =    6.99",
+            "         Prob > chi2 =    0.0304"
+          ]
+        },
+        {
+          "command": "test 2.reg 3.reg 4.reg, mtest",
+          "lines": [
+            " ( 1)  [union]2.reg = 0",
+            " ( 2)  [union]3.reg = 0",
+            " ( 3)  [union]4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |        chi2     df   p > chi2",
+            "-------+------------------------------",
+            "   (1) |        6.10      1     0.0135*",
+            "   (2) |        0.19      1     0.6622*",
+            "   (3) |        2.24      1     0.1348*",
+            "-------+------------------------------",
+            "   All |        7.40      3     0.0603",
+            "--------------------------------------",
+            "* Unadjusted p-values"
+          ]
+        },
+        {
+          "command": "test 2.reg 3.reg 4.reg, mtest(holm)",
+          "lines": [
+            " ( 1)  [union]2.reg = 0",
+            " ( 2)  [union]3.reg = 0",
+            " ( 3)  [union]4.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |        chi2     df   p > chi2",
+            "-------+------------------------------",
+            "   (1) |        6.10      1     0.0406*",
+            "   (2) |        0.19      1     0.6622*",
+            "   (3) |        2.24      1     0.2697*",
+            "-------+------------------------------",
+            "   All |        7.40      3     0.0603",
+            "--------------------------------------",
+            "* Holm-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test 2.reg=3.reg, df(100) mtest(b)",
+          "lines": [
+            " ( 1)  [union]2.reg - [union]3.reg = 0",
+            "",
+            "--------------------------------------",
+            "       |   F(df,100)     df      p > F",
+            "-------+------------------------------",
+            "   (1) |        4.18      1     0.0435*",
+            "-------+------------------------------",
+            "   All |        4.18      1     0.0435",
+            "--------------------------------------",
+            "* Bonferroni-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test education + 2.reg = 1",
+          "lines": [
+            " ( 1)  [union]education + [union]2.reg = 1",
+            "",
+            "           chi2(  1) =   38.96",
+            "         Prob > chi2 =    0.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "test-accumulate-mlogit",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate byte reg = 1 + floor(runiform()*4)\ngenerate double education = 8 + floor(runiform()*10)\ngenerate byte female = runiform() < .5\ngenerate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)\ngenerate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))\ngenerate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))\nreplace satisfaction = 5 if satisfaction > 5\ngenerate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))\nmlogit sat3 education wage, nolog\ntest education, notest\ntest wage, accum\ntest education wage, mtest(sidak)\ntest education wage, mtest(holm)\ntest education wage, mtest\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        {
+          "command": "generate byte reg = 1 + floor(runiform()*4)",
+          "lines": []
+        },
+        {
+          "command": "generate double education = 8 + floor(runiform()*10)",
+          "lines": []
+        },
+        { "command": "generate byte female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))",
+          "lines": []
+        },
+        {
+          "command": "generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))",
+          "lines": []
+        },
+        {
+          "command": "replace satisfaction = 5 if satisfaction > 5",
+          "lines": ["(62 real changes made)"]
+        },
+        {
+          "command": "generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))",
+          "lines": []
+        },
+        {
+          "command": "mlogit sat3 education wage, nolog",
+          "lines": [
+            "Multinomial logistic regression                         Number of obs =    600",
+            "                                                        LR chi2(4)    =  30.80",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -610.19491                             Pseudo R2     = 0.0246",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "1            |",
+            "   education |  -.1563411   .0358988    -4.36   0.000    -.2267013   -.0859808",
+            "        wage |   .0566728   .0292709     1.94   0.053    -.0006971    .1140426",
+            "       _cons |    1.21658     .42381     2.87   0.004     .3859279    2.047233",
+            "-------------+----------------------------------------------------------------",
+            "2            |",
+            "   education |  -.1905563   .0442565    -4.31   0.000    -.2772976   -.1038151",
+            "        wage |   .0214261   .0358457     0.60   0.550    -.0488302    .0916825",
+            "       _cons |    1.29463   .5073345     2.55   0.011     .3002726    2.288987",
+            "-------------+----------------------------------------------------------------",
+            "3            |  (base outcome)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test education, notest",
+          "lines": [
+            " ( 1)  [1]education = 0",
+            " ( 2)  [2]education = 0",
+            " ( 3)  [3]o.education = 0"
+          ]
+        },
+        {
+          "command": "test wage, accum",
+          "lines": [
+            " ( 1)  [1]education = 0",
+            " ( 2)  [2]education = 0",
+            " ( 3)  [3]o.education = 0",
+            " ( 4)  [1]wage = 0",
+            " ( 5)  [2]wage = 0",
+            " ( 6)  [3]o.wage = 0",
+            "       Constraint 3 dropped",
+            "       Constraint 6 dropped",
+            "",
+            "           chi2(  4) =   29.37",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "test education wage, mtest(sidak)",
+          "lines": [
+            " ( 1)  [1]education = 0",
+            " ( 2)  [2]education = 0",
+            " ( 3)  [3]o.education = 0",
+            " ( 4)  [1]wage = 0",
+            " ( 5)  [2]wage = 0",
+            " ( 6)  [3]o.wage = 0",
+            "       Constraint 3 dropped",
+            "       Constraint 6 dropped",
+            "",
+            "--------------------------------------",
+            "       |        chi2     df   p > chi2",
+            "-------+------------------------------",
+            "   (1) |       18.97      1     0.0001*",
+            "   (2) |       18.54      1     0.0001*",
+            "   (3) |           .      1          .*",
+            "   (4) |        3.75      1     0.1952*",
+            "   (5) |        0.36      1     0.9590*",
+            "   (6) |           .      1          .*",
+            "-------+------------------------------",
+            "   All |       29.37      4     0.0000",
+            "--------------------------------------",
+            "* Sidak-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test education wage, mtest(holm)",
+          "lines": [
+            " ( 1)  [1]education = 0",
+            " ( 2)  [2]education = 0",
+            " ( 3)  [3]o.education = 0",
+            " ( 4)  [1]wage = 0",
+            " ( 5)  [2]wage = 0",
+            " ( 6)  [3]o.wage = 0",
+            "       Constraint 3 dropped",
+            "       Constraint 6 dropped",
+            "",
+            "--------------------------------------",
+            "       |        chi2     df   p > chi2",
+            "-------+------------------------------",
+            "   (1) |       18.97      1     0.0001*",
+            "   (2) |       18.54      1     0.0001*",
+            "   (3) |           .      1          .*",
+            "   (4) |        3.75      1     0.1057*",
+            "   (5) |        0.36      1     0.5500*",
+            "   (6) |           .      1          .*",
+            "-------+------------------------------",
+            "   All |       29.37      4     0.0000",
+            "--------------------------------------",
+            "* Holm-adjusted p-values"
+          ]
+        },
+        {
+          "command": "test education wage, mtest",
+          "lines": [
+            " ( 1)  [1]education = 0",
+            " ( 2)  [2]education = 0",
+            " ( 3)  [3]o.education = 0",
+            " ( 4)  [1]wage = 0",
+            " ( 5)  [2]wage = 0",
+            " ( 6)  [3]o.wage = 0",
+            "       Constraint 3 dropped",
+            "       Constraint 6 dropped",
+            "",
+            "--------------------------------------",
+            "       |        chi2     df   p > chi2",
+            "-------+------------------------------",
+            "   (1) |       18.97      1     0.0000*",
+            "   (2) |       18.54      1     0.0000*",
+            "   (3) |           .      1          .*",
+            "   (4) |        3.75      1     0.0528*",
+            "   (5) |        0.36      1     0.5500*",
+            "   (6) |           .      1          .*",
+            "-------+------------------------------",
+            "   All |       29.37      4     0.0000",
+            "--------------------------------------",
+            "* Unadjusted p-values"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lincom-eform-constant",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate byte reg = 1 + floor(runiform()*4)\ngenerate double education = 8 + floor(runiform()*10)\ngenerate byte female = runiform() < .5\ngenerate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)\ngenerate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))\ngenerate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))\ngenerate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))\nreplace satisfaction = 5 if satisfaction > 5\ngenerate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))\nregress wage education i.reg\nlincom education, eform\nlincom education, ef\nlincom education, or\nlincom education, hr\nlincom education, shr\nlincom education, ir\nlincom education, rrr\nlincom 2.reg + 1\nlincom education - 1, level(90)\nlincom 2*education + 3\nlincom -education - 2\nlincom 2.reg - 3.reg, cformat(%9.3f)\nlincom 2.reg - 3.reg, cformat(%9.3f) pformat(%5.2f) sformat(%7.3f)\nlincom 2.reg - 3.reg, cformat(%7.3f)\nlincom 2.reg - 3.reg, cformat(%9.0g)\nlincom 2.reg - 3.reg, cformat(%09.3f)\nlincom 2.reg - 3.reg, sformat(%8.5f)\nlincom 2.reg - 3.reg, pformat(%5.4f)\nlincom 2.reg - 3.reg, pformat(%3.1f)\nlincom education, cformat(%12.3f)\nlincom education, pformat(%6.3f) sformat(%9.3f)\nlincom education, sformat(%9.3f) cformat(%10.3f)\ncapture noisily lincom education, cformat(abc)\ncapture noisily lincom education, or irr\ncapture noisily lincom education, eform(foo)\ncapture noisily lincom education, df(0)\nlincom education, df(9) eform\nlincom education, nofvlabel\nregress wage education i.reg, vce(robust)\nlincom education, eform\nlogit union education i.reg, nolog\nlincom education, or\nlincom education + 1\ncapture noisily lincom education + 1, or level(80)\nlincom education, df(100)\nlincom education + 2.reg, df(100) or\nlincom 2.reg - 3.reg, cformat(%9.2f) sformat(%8.4f) pformat(%5.4f)\npoisson hours education i.reg, nolog\nlincom education, irr\nlincom education\nologit satisfaction education i.reg, nolog\nlincom 2.reg, or\ncapture noisily lincom 2.reg - 3.reg + .5, eform\nlincom 2.reg - 3.reg, eform level(80)\nmlogit sat3 education i.female, nolog\nlincom [2]education, rrr\nlincom [1]education - [2]education, rrr\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        {
+          "command": "generate byte reg = 1 + floor(runiform()*4)",
+          "lines": []
+        },
+        {
+          "command": "generate double education = 8 + floor(runiform()*10)",
+          "lines": []
+        },
+        { "command": "generate byte female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))",
+          "lines": []
+        },
+        {
+          "command": "generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))",
+          "lines": []
+        },
+        {
+          "command": "generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))",
+          "lines": []
+        },
+        {
+          "command": "replace satisfaction = 5 if satisfaction > 5",
+          "lines": ["(56 real changes made)"]
+        },
+        {
+          "command": "generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))",
+          "lines": []
+        },
+        {
+          "command": "regress wage education i.reg",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(4, 595)       =     34.33",
+            "       Model |  1369.16698         4  342.291745   Prob > F        =    0.0000",
+            "    Residual |  5931.77771       595  9.96937431   R-squared       =    0.1875",
+            "-------------+----------------------------------   Adj R-squared   =    0.1821",
+            "       Total |  7300.94469       599  12.1885554   Root MSE        =    3.1574",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "             |",
+            "         reg |",
+            "          2  |   1.261863   .3649482     3.46   0.001     .5451197    1.978606",
+            "          3  |   .0463625   .3624155     0.13   0.898    -.6654067    .7581317",
+            "          4  |   .5231907   .3656922     1.43   0.153    -.1950138    1.241395",
+            "             |",
+            "       _cons |   2.545111   .5958897     4.27   0.000     1.374808    3.715414",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, eform",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |     exp(b)   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, ef",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |     exp(b)   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, or",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Odds ratio   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, hr",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Haz. ratio   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, shr",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |        SHR   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, ir",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |        IRR   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, rrr",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |        RRR   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.493262    1.778953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg + 1",
+          "lines": [
+            " ( 1)  2.reg = -1",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   2.261863   .3649482     6.20   0.000      1.54512    2.978606",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education - 1, level(90)",
+          "lines": [
+            " ( 1)  education = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.5115062   .0445686   -11.48   0.000    -.5849293    -.438083",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2*education + 3",
+          "lines": [
+            " ( 1)  2*education = -3",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   3.976988   .0891372    44.62   0.000     3.801926     4.15205",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom -education - 2",
+          "lines": [
+            " ( 1)  - education = 2",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -2.488494   .0445686   -55.84   0.000    -2.576025   -2.400963",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, cformat(%9.3f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |      1.216      0.364     3.34   0.001        0.500       1.931",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, cformat(%9.3f) pformat(%5.2f) sformat(%7.3f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |      1.216      0.364    3.338    0.00        0.500       1.931",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, cformat(%7.3f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |      1.216      0.364     3.34   0.001        0.500       1.931",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, cformat(%9.0g)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |     1.2155   .3641442     3.34   0.001     .5003362    1.930665",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, cformat(%09.3f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  00001.216  00000.364     3.34   0.001    00000.500   00001.931",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, sformat(%8.5f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |     1.2155   .3641442  3.33796   0.001     .5003362    1.930665",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, pformat(%5.4f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |     1.2155   .3641442     3.34   0.0009     .5003362    1.930665",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, pformat(%3.1f)",
+          "lines": [
+            " ( 1)  2.reg - 3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |     1.2155   .3641442     3.34     0.0     .5003362    1.930665",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, cformat(%12.3f)",
+          "lines": [
+            "note: invalid cformat(), using default",
+            "",
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, pformat(%6.3f) sformat(%9.3f)",
+          "lines": [
+            "note: invalid sformat(), using default",
+            "note: invalid pformat(), using default",
+            "",
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, sformat(%9.3f) cformat(%10.3f)",
+          "lines": [
+            "note: invalid cformat(), using default",
+            "note: invalid sformat(), using default",
+            "",
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom education, cformat(abc)",
+          "lines": ["'abc' found where numeric format expected"]
+        },
+        {
+          "command": "capture noisily lincom education, or irr",
+          "lines": ["only one display option can be specified"]
+        },
+        {
+          "command": "capture noisily lincom education, eform(foo)",
+          "lines": ["option eform() not allowed"]
+        },
+        {
+          "command": "capture noisily lincom education, df(0)",
+          "lines": ["df() invalid -- invalid number, outside of allowed range"]
+        },
+        {
+          "command": "lincom education, df(9) eform",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |     exp(b)   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0726406    10.96   0.000     1.473547    1.802753",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, nofvlabel",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .4884938   .0445686    10.96   0.000     .4009629    .5760248",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage education i.reg, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =        600",
+            "                                                F(4, 595)         =      34.12",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.1875",
+            "                                                Root MSE          =     3.1574",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .4884938   .0431799    11.31   0.000     .4036903    .5732974",
+            "             |",
+            "         reg |",
+            "          2  |   1.261863   .3649639     3.46   0.001     .5450888    1.978637",
+            "          3  |   .0463625   .3530885     0.13   0.896    -.6470889    .7398139",
+            "          4  |   .5231907   .3725254     1.40   0.161    -.2084339    1.254815",
+            "             |",
+            "       _cons |   2.545111   .5926947     4.29   0.000     1.381083    3.709139",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, eform",
+          "lines": [
+            " ( 1)  education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |     exp(b)   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.62986   .0703772    11.31   0.000      1.49734    1.774107",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit union education i.reg, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    600",
+            "                                                        LR chi2(4)    =  20.83",
+            "                                                        Prob > chi2   = 0.0003",
+            "Log likelihood = -402.26535                             Pseudo R2     = 0.0252",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .1077405    .029167     3.69   0.000     .0505743    .1649067",
+            "             |",
+            "         reg |",
+            "          2  |  -.5853798    .237018    -2.47   0.014    -1.049927    -.120833",
+            "          3  |  -.1035266   .2369689    -0.44   0.662     -.567977    .3609239",
+            "          4  |  -.3549977   .2374049    -1.50   0.135    -.8203028    .1103073",
+            "             |",
+            "       _cons |  -.8634973   .3852135    -2.24   0.025    -1.618502   -.1084928",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, or",
+          "lines": [
+            " ( 1)  [union]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.113759    .032485     3.69   0.000     1.051875    1.179283",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education + 1",
+          "lines": [
+            " ( 1)  [union]education = -1",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    1.10774    .029167    37.98   0.000     1.050574    1.164907",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom education + 1, or level(80)",
+          "lines": ["additive constant term not allowed with or option"]
+        },
+        {
+          "command": "lincom education, df(100)",
+          "lines": [
+            " ( 1)  [union]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1077405    .029167     3.69   0.000      .049874    .1656069",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education + 2.reg, df(100) or",
+          "lines": [
+            " ( 1)  [union]education + [union]2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Odds ratio   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .6202459   .1468365    -2.02   0.046     .3877777    .9920761",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, cformat(%9.2f) sformat(%8.4f) pformat(%5.4f)",
+          "lines": [
+            " ( 1)  [union]2.reg - [union]3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       union | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |      -0.48       0.24  -2.0448   0.0409        -0.94       -0.02",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson hours education i.reg, nolog",
+          "lines": [
+            "Poisson regression                                      Number of obs =    600",
+            "                                                        LR chi2(4)    = 538.35",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -5295.4818                             Pseudo R2     = 0.0484",
+            "",
+            "------------------------------------------------------------------------------",
+            "       hours | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .0435118   .0024579    17.70   0.000     .0386944    .0483292",
+            "             |",
+            "         reg |",
+            "          2  |  -.0683077    .020509    -3.33   0.001    -.1085046   -.0281107",
+            "          3  |   .1591811    .019241     8.27   0.000     .1214695    .1968927",
+            "          4  |  -.0970432   .0206937    -4.69   0.000     -.137602   -.0564843",
+            "             |",
+            "       _cons |   2.952787   .0336521    87.74   0.000      2.88683    3.018743",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education, irr",
+          "lines": [
+            " ( 1)  [hours]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       hours |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.044472   .0025672    17.70   0.000     1.039453    1.049516",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom education",
+          "lines": [
+            " ( 1)  [hours]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       hours | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .0435118   .0024579    17.70   0.000     .0386944    .0483292",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ologit satisfaction education i.reg, nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    600",
+            "                                                        LR chi2(4)    =   5.65",
+            "                                                        Prob > chi2   = 0.2267",
+            "Log likelihood = -960.79818                             Pseudo R2     = 0.0029",
+            "",
+            "------------------------------------------------------------------------------",
+            "satisfaction | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "   education |   .0526076   .0247788     2.12   0.034     .0040421    .1011731",
+            "             |",
+            "         reg |",
+            "          2  |   .0674187   .2069439     0.33   0.745    -.3381838    .4730213",
+            "          3  |   .1860295   .2042466     0.91   0.362    -.2142866    .5863455",
+            "          4  |   .0227344   .2048687     0.11   0.912    -.3788009    .4242696",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.7490083   .3388818                     -1.413205   -.0848122",
+            "       /cut2 |   .2247344   .3348116                     -.4314842    .8809531",
+            "       /cut3 |   1.017542   .3354972                      .3599799    1.675105",
+            "       /cut4 |   1.911286    .342305                      1.240381    2.582192",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom 2.reg, or",
+          "lines": [
+            " ( 1)  [satisfaction]2.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "satisfaction | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.069743   .2213768     0.33   0.745     .7130642    1.604836",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom 2.reg - 3.reg + .5, eform",
+          "lines": ["additive constant term not allowed with eform option"]
+        },
+        {
+          "command": "lincom 2.reg - 3.reg, eform level(80)",
+          "lines": [
+            " ( 1)  [satisfaction]2.reg - [satisfaction]3.reg = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "satisfaction |     exp(b)   Std. err.      z    P>|z|     [80% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .8881535   .1818587    -0.58   0.562      .683163    1.154654",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mlogit sat3 education i.female, nolog",
+          "lines": [
+            "Multinomial logistic regression                         Number of obs =    600",
+            "                                                        LR chi2(4)    =   3.25",
+            "                                                        Prob > chi2   = 0.5173",
+            "Log likelihood = -628.44666                             Pseudo R2     = 0.0026",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "1            |",
+            "   education |  -.0402596   .0316063    -1.27   0.203    -.1022069    .0216876",
+            "    1.female |   .0403872   .1834514     0.22   0.826    -.3191709    .3999452",
+            "       _cons |   .3680825    .409477     0.90   0.369    -.4344777    1.170643",
+            "-------------+----------------------------------------------------------------",
+            "2            |",
+            "   education |  -.0642391   .0388336    -1.65   0.098    -.1403515    .0118734",
+            "    1.female |   .0453619   .2249429     0.20   0.840     -.395518    .4862419",
+            "       _cons |  -.0093696   .4962512    -0.02   0.985    -.9820042    .9632649",
+            "-------------+----------------------------------------------------------------",
+            "3            |  (base outcome)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [2]education, rrr",
+          "lines": [
+            " ( 1)  [2]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 |        RRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .9377808   .0364174    -1.65   0.098     .8690527    1.011944",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom [1]education - [2]education, rrr",
+          "lines": [
+            " ( 1)  [1]education - [2]education = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        sat3 |        RRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.024269     .04043     0.61   0.544     .9480155    1.106656",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

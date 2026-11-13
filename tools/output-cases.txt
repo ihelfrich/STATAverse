@@ -2447,3 +2447,127 @@ margins, atmeans
 margins, dydx(*) atmeans
 regress x1 i.f i.g
 margins, atmeans
+=== test-accumulate-mtest
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+regress wage education i.reg
+test 2.reg, notest
+test 3.reg, accum
+test 2.reg 3.reg 4.reg, mtest
+test 2.reg 3.reg 4.reg, mtest(bonferroni)
+test 2.reg 3.reg 4.reg, mtest(holm)
+test 2.reg 3.reg 4.reg, mtest(sidak)
+test (2.reg) (3.reg=4.reg), mtest(b)
+test education, accum
+test 4.reg, accum notest
+capture noisily test education=1, accum mtest
+capture noisily test 2.reg, mtest notest
+capture noisily test 2.reg, mtest(foo)
+capture noisily test 2.reg, mtest(noad)
+test 2.reg, mtest(noadj)
+test 2.reg=3.reg
+test 2.reg=3.reg, accum
+test (2.reg=3.reg) (3.reg=4.reg) (2.reg=4.reg)
+test (2.reg=3.reg) (2.reg=4.reg) (3.reg=4.reg), mtest
+test (3.reg=4.reg) (2.reg=3.reg) (2.reg=4.reg)
+test (.01*2.reg=0) (3.reg=0) (4.reg=0) (10*2.reg+10*3.reg+10*4.reg=0)
+test (2.reg) (education) (2.reg) (education)
+test -education = 2
+test 2.reg, df(100)
+regress wage education i.reg
+test education, accum
+logit union education i.reg, nolog
+test 2.reg, notest
+test 3.reg, accum
+test 2.reg 3.reg 4.reg, mtest
+test 2.reg 3.reg 4.reg, mtest(holm)
+test 2.reg=3.reg, df(100) mtest(b)
+test education + 2.reg = 1
+=== test-accumulate-mlogit
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+mlogit sat3 education wage, nolog
+test education, notest
+test wage, accum
+test education wage, mtest(sidak)
+test education wage, mtest(holm)
+test education wage, mtest
+=== lincom-eform-constant
+clear
+set seed 4242
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate double education = 8 + floor(runiform()*10)
+generate byte female = runiform() < .5
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate int hours = floor(runiform()*2*(20 + education + 3*(reg==3)))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+regress wage education i.reg
+lincom education, eform
+lincom education, ef
+lincom education, or
+lincom education, hr
+lincom education, shr
+lincom education, ir
+lincom education, rrr
+lincom 2.reg + 1
+lincom education - 1, level(90)
+lincom 2*education + 3
+lincom -education - 2
+lincom 2.reg - 3.reg, cformat(%9.3f)
+lincom 2.reg - 3.reg, cformat(%9.3f) pformat(%5.2f) sformat(%7.3f)
+lincom 2.reg - 3.reg, cformat(%7.3f)
+lincom 2.reg - 3.reg, cformat(%9.0g)
+lincom 2.reg - 3.reg, cformat(%09.3f)
+lincom 2.reg - 3.reg, sformat(%8.5f)
+lincom 2.reg - 3.reg, pformat(%5.4f)
+lincom 2.reg - 3.reg, pformat(%3.1f)
+lincom education, cformat(%12.3f)
+lincom education, pformat(%6.3f) sformat(%9.3f)
+lincom education, sformat(%9.3f) cformat(%10.3f)
+capture noisily lincom education, cformat(abc)
+capture noisily lincom education, or irr
+capture noisily lincom education, eform(foo)
+capture noisily lincom education, df(0)
+lincom education, df(9) eform
+lincom education, nofvlabel
+regress wage education i.reg, vce(robust)
+lincom education, eform
+logit union education i.reg, nolog
+lincom education, or
+lincom education + 1
+capture noisily lincom education + 1, or level(80)
+lincom education, df(100)
+lincom education + 2.reg, df(100) or
+lincom 2.reg - 3.reg, cformat(%9.2f) sformat(%8.4f) pformat(%5.4f)
+poisson hours education i.reg, nolog
+lincom education, irr
+lincom education
+ologit satisfaction education i.reg, nolog
+lincom 2.reg, or
+capture noisily lincom 2.reg - 3.reg + .5, eform
+lincom 2.reg - 3.reg, eform level(80)
+mlogit sat3 education i.female, nolog
+lincom [2]education, rrr
+lincom [1]education - [2]education, rrr
