@@ -263,8 +263,12 @@ export function readDta(bytes) {
     k = integer(release === 119 ? 4 : 2);
   tag("</K><N>");
   const n = integer(release === 117 ? 4 : 8);
-  if (k > 5000 || n * Math.max(k, 1) > 5_000_000)
-    throw new DtaError("this dataset is larger than this page reads");
+  // Stata MP's limit on variables, and 8 bytes a cell within what a browser
+  // tab can hold; a dataset that still does not fit is caught by the page.
+  if (k > 120_000 || n * Math.max(k, 1) > 150_000_000)
+    throw new DtaError(
+      "this dataset is larger than a browser tab can hold. In Stata, keep the variables and observations you need, save, and add that file",
+    );
   tag("</N><label>");
   const label = field(integer(wide ? 2 : 1) || 0);
   tag("</label><timestamp>");

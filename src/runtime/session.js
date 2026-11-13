@@ -552,7 +552,11 @@ export class Session {
           if (named && !named[2] && this.graphs.has(name))
             throw new StataError(`graph ${name} already exists`, 110);
           this.graphs.set(name, picture);
-          if (!/,[\s\S]*\bnodraw\b/.test(body)) flags.graph = picture;
+          if (!/,[\s\S]*\bnodraw\b/.test(body)) {
+            flags.graph = picture;
+            // The graph shown last is the one graph export writes.
+            this.currentGraph = picture;
+          }
         },
         output,
         flags,

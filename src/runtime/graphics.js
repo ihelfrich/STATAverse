@@ -1650,6 +1650,121 @@ const memoryGraphs = {
     for (const name of names) kept(session).delete(name);
   },
 };
+// ----- graph export: the picture as a file in the session's folder -----
+const EXPORTS = {
+    svg: "saved as SVG format",
+    png: "written in PNG format",
+    pdf: "saved as PDF format",
+  },
+  // Formats Stata writes that are not made here.
+  ELSEWHERE = {
+    eps: "EPS",
+    ps: "PostScript",
+    jpg: "JPEG",
+    jpeg: "JPEG",
+    tif: "TIFF",
+    tiff: "TIFF",
+    gif: "GIF",
+    emf: "EMF",
+  };
+/**
+ * graph export writes the current graph, or the one named, as .svg, .png or
+ * .pdf. The SVG is the file; a PNG or PDF is drawn from it by the page, so
+ * the file kept here carries the SVG and the size, and the page is told
+ * through session.exported.
+ */
+function exportGraph(session, text, ctx) {
+  const parsed = session.parse(
+      "[anything] [, AS(string) NAME(string) REPLACE WIDth(string) HEIght(string)]",
+      text,
+    ),
+    name = unquote(parsed.anything ?? ""),
+    options = parsed.options;
+  if (!name) throw new StataError("invalid file specification", 198);
+  const suffix = /\.([^.\\/]*)$/.exec(name)?.[1] ?? "";
+  let format = suffix;
+  if (options.as !== undefined) {
+    format = options.as.trim();
+    if (!EXPORTS[format] && !ELSEWHERE[format])
+      throw new StataError(`option as(${options.as}) invalid`, 198);
+  } else if (!EXPORTS[format] && !ELSEWHERE[format])
+    throw new StataError(
+      `output file suffix ${suffix} not recognized\n    Specify correct suffix or specify as() option.`,
+      198,
+    );
+  if (ELSEWHERE[format])
+    throw new StataError(
+      `graph export writes .svg, .png and .pdf files here, not ${ELSEWHERE[format]}`,
+      198,
+      "Export as .png for a picture, .pdf for a document or .svg to edit the graph.",
+    );
+  const picture =
+    options.name !== undefined
+      ? kept(session).get(options.name.trim())
+      : session.currentGraph;
+  if (!picture)
+    throw options.name !== undefined
+      ? new StataError("could not find Graph window", 693)
+      : new StataError("no Graph window open", 601);
+  // The graph's own size in pixels, from its viewBox.
+  const box = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(picture.svg),
+    native = {
+      width: Number(box?.[1] ?? 640),
+      height: Number(box?.[2] ?? 460),
+    },
+    pdf = format === "pdf",
+    size = (option, value) => {
+      if (value === undefined) return null;
+      const number = Number(value.trim());
+      if (pdf) {
+        if (!(number >= 0.5 && number <= 20) || !value.trim())
+          throw new StataError(
+            `${option}() must be a number between 0.5 and 20`,
+            198,
+          );
+        return number * 96;
+      }
+      if (
+        format === "png" &&
+        !(Number.isInteger(number) && number >= 8 && number <= 16000)
+      )
+        throw new StataError(
+          `${option}() must be an integer between 8 and 16,000`,
+          198,
+        );
+      if (!(number > 0))
+        throw new StataError(`option ${option}() invalid`, 198);
+      return number;
+    },
+    asked = {
+      width: size("width", options.width),
+      height: size("height", options.height),
+    },
+    width =
+      asked.width ??
+      (asked.height
+        ? (asked.height * native.width) / native.height
+        : native.width),
+    height = asked.height ?? (width * native.height) / native.width;
+  const files = (session.files ??= new Map());
+  if (files.has(name) && !options.replace)
+    throw new StataError(`file ${name} already exists`, 602);
+  // Stata 19 notes a missing file it replaces for SVG and PNG, not for PDF.
+  if (options.replace && !files.has(name) && !pdf)
+    ctx.out(`(file ${name} not found)`);
+  const svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${picture.svg.replace(
+      /^<svg /,
+      `<svg width="${Math.round(width)}px" height="${Math.round(height)}px" `,
+    )}\n`,
+    file = { format, svg, width, height };
+  files.set(
+    name,
+    format === "svg" ? { text: svg, picture: file } : { picture: file },
+  );
+  (session.exported ??= []).push({ name, ...file });
+  ctx.out(`file ${name} ${EXPORTS[format]}`);
+}
+
 /** Registers graph subcommands defined elsewhere: graph bar, graph box. */
 export function registerGraph(name, run) {
   otherGraphs[name] = run;
@@ -1658,7 +1773,8 @@ function graph(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
   if (/^tw(o(w(ay?)?)?)?$/.test(m[1])) return twoway(session, m[2], ctx);
-  if (/^(export|save)$/.test(m[1])) {
+  if (m[1] === "export") return exportGraph(session, m[2], ctx);
+  if (m[1] === "save") {
     ctx.out("(graphs stay on this page; use the browser to save the picture)");
     return;
   }

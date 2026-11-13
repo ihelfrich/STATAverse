@@ -32425,6 +32425,82 @@
       ]
     },
     {
+      "id": "graph-export-files",
+      "source": "clear\nset obs 5\ngenerate x = _n\ngenerate y = x^2\nscatter y x\ngraph export fig1.svg, replace\ngraph export fig1.png\ncapture noisily graph export fig1.png\ngraph export fig1.pdf, replace width(4)\ngraph export fig2, as(png)\ncapture noisily graph export fig3.bmp\ncapture noisily graph export fig4.png, width(5)\ncapture noisily graph export fig5.pdf, height(30)\ncapture noisily graph export fig6.svg, name(nosuch)\ncapture noisily graph export fig7.png, foo\ncapture noisily graph export fig8.png, as(PNG)\ncapture noisily graph export\nquietly graph export fig9.svg\ngraph export \"my fig.png\", replace\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = x^2", "lines": [] },
+        { "command": "scatter y x", "lines": [] },
+        {
+          "command": "graph export fig1.svg, replace",
+          "lines": [
+            "(file fig1.svg not found)",
+            "file fig1.svg saved as SVG format"
+          ]
+        },
+        {
+          "command": "graph export fig1.png",
+          "lines": ["file fig1.png written in PNG format"]
+        },
+        {
+          "command": "capture noisily graph export fig1.png",
+          "lines": ["file fig1.png already exists"]
+        },
+        {
+          "command": "graph export fig1.pdf, replace width(4)",
+          "lines": ["file fig1.pdf saved as PDF format"]
+        },
+        {
+          "command": "graph export fig2, as(png)",
+          "lines": ["file fig2 written in PNG format"]
+        },
+        {
+          "command": "capture noisily graph export fig3.bmp",
+          "lines": [
+            "output file suffix bmp not recognized",
+            "    Specify correct suffix or specify as() option."
+          ]
+        },
+        {
+          "command": "capture noisily graph export fig4.png, width(5)",
+          "lines": ["width() must be an integer between 8 and 16,000"]
+        },
+        {
+          "command": "capture noisily graph export fig5.pdf, height(30)",
+          "lines": ["height() must be a number between 0.5 and 20"]
+        },
+        {
+          "command": "capture noisily graph export fig6.svg, name(nosuch)",
+          "lines": ["could not find Graph window"]
+        },
+        {
+          "command": "capture noisily graph export fig7.png, foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily graph export fig8.png, as(PNG)",
+          "lines": ["option as(PNG) invalid"]
+        },
+        {
+          "command": "capture noisily graph export",
+          "lines": ["invalid file specification"]
+        },
+        { "command": "quietly graph export fig9.svg", "lines": [] },
+        {
+          "command": "graph export \"my fig.png\", replace",
+          "lines": [
+            "(file my fig.png not found)",
+            "file my fig.png written in PNG format"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

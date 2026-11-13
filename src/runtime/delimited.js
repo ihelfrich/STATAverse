@@ -18,7 +18,9 @@ import {
   parseNumber,
 } from "./values.js";
 
-const LIMIT_BYTES = 20_000_000;
+// A browser holds a string of about 500 million characters at most; the
+// Console reads files up to that size in its worker.
+const LIMIT_BYTES = 500_000_000;
 
 /** Splits delimited text into rows of cells; quotes may hold the delimiter. */
 export function parseDelimitedText(text, delimiter) {

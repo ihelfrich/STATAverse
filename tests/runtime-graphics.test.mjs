@@ -65,7 +65,10 @@ test("graph commands refuse what they cannot draw", () => {
   assert.equal(marks(run("scatter y x if x > 99").last.graph.svg, "circle"), 0);
   assert.equal(run("graph pie y").result.rc, 198);
   assert.equal(run("twoway (rcap y x x)").result.rc, 198);
-  assert.equal(run("graph export out.png").result.rc, 0);
+  // graph export writes the graph shown last; with none, Stata 19 says
+  // "no Graph window open", r(601).
+  assert.equal(run("graph export out.png").result.rc, 601);
+  assert.equal(run("scatter y x\ngraph export out.png").result.rc, 0);
 });
 
 test("ticks are round and cover the data", () => {

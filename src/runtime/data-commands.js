@@ -59,6 +59,9 @@ export function load(session, name) {
       `${name} is a text file, not a Stata dataset; use import delimited`,
       610,
     );
+  // A picture written by graph export, or a workbook kept as its bytes.
+  if (!Array.isArray(stored.variables))
+    throw new StataError(`file ${name} not Stata format`, 610);
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.restore(stored);
   data.defaultType = session.data.defaultType;

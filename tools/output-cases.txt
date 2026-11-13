@@ -4681,3 +4681,23 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== graph-export-files
+clear
+set obs 5
+generate x = _n
+generate y = x^2
+scatter y x
+graph export fig1.svg, replace
+graph export fig1.png
+capture noisily graph export fig1.png
+graph export fig1.pdf, replace width(4)
+graph export fig2, as(png)
+capture noisily graph export fig3.bmp
+capture noisily graph export fig4.png, width(5)
+capture noisily graph export fig5.pdf, height(30)
+capture noisily graph export fig6.svg, name(nosuch)
+capture noisily graph export fig7.png, foo
+capture noisily graph export fig8.png, as(PNG)
+capture noisily graph export
+quietly graph export fig9.svg
+graph export "my fig.png", replace

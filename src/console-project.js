@@ -52,7 +52,10 @@ function readme(files, used, added) {
       (id) =>
         `  data/${id}.dta    ${LIBRARY[id].title} (invented for teaching)`,
     ),
-    ...added.map((file) => `  ${file.name}    a file you added`),
+    ...added.map(
+      (file) =>
+        `  ${file.name}    ${file.made ? "a graph the do-file exported" : "a file you added"}`,
+    ),
     "",
     used.size
       ? 'In the Console these datasets are loaded with sysuse. Stata on your\ncomputer does not have them, so each sysuse line was rewritten as\nuse "data/name.dta" and the datasets are in the data folder.'
@@ -66,19 +69,39 @@ function readme(files, used, added) {
     .filter((line, k, all) => line !== "" || all[k - 1] !== "")
     .join("\r\n");
 }
+const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/**
+ * Whether commands name a file: by its whole name, or without its suffix,
+ * as `use left` names left.dta and `import delimited using sales` names
+ * sales.csv. Names are matched without regard to case, as on Windows and
+ * macOS.
+ */
+export function mentions(text, name) {
+  const stem = name.replace(/\.[^.]+$/, ""),
+    edge = "(^|[^\\w.])",
+    whole = new RegExp(`${edge}${escape(name)}(?![\\w])`, "i"),
+    bare = new RegExp(`${edge}${escape(stem)}(?![\\w.])`, "i");
+  return whole.test(text) || (!!stem && bare.test(text));
+}
 /**
  * The project as the bytes of a .zip file. files: [{ name, text }]; added:
- * the student's own files as [{ name, data }] with text or bytes.
+ * the student's own files as [{ name, data, made }] with text or bytes;
+ * typed: the commands run from the command line, which may use files too.
+ * Graphs the do-files exported (made) are always carried.
  */
-export function projectZip(files, added = [], now = new Date()) {
+export function projectZip(files, added = [], now = new Date(), typed = "") {
   const used = new Set(),
     entries = files.map((file) => ({
       name: file.name,
       data: localise(file.text, used).replace(/\r?\n/g, "\r\n"),
     })),
-    // Only the added files a do-file mentions are worth carrying.
-    mentioned = added.filter((file) =>
-      files.some((each) => each.text.includes(file.name)),
+    // Only the added files the commands mention are worth carrying.
+    mentioned = added.filter(
+      (file) =>
+        file.made ||
+        [typed, ...files.map((each) => each.text)].some((text) =>
+          mentions(text, file.name),
+        ),
     );
   for (const id of used)
     entries.push({ name: `data/${id}.dta`, data: datasetFile(id, now) });
