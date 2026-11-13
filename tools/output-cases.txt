@@ -2149,3 +2149,16 @@ margins, dydx(*)
 xtset id t
 xtsum y bp_before
 tabstat y bp_before, by(smoker) statistics(mean sd)
+=== prtest-immediate
+clear
+set seed 5
+set obs 150
+generate byte d = runiform() < .45
+generate byte grp = runiform() > .5
+prtesti 100 .4 .5
+prtesti 100 .4 120 .5
+prtesti 100 40 120 60, count
+prtesti 100 40 .5, count
+prtesti 80 .3 .25, level(90)
+prtest d == .5
+prtest d, by(grp)
