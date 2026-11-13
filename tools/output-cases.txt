@@ -2160,6 +2160,8 @@ replace y = 3 if y < 3
 generate byte r = 1 + (y > 5) + (y > 7)
 generate int k = floor(y * y * runiform())
 tobit y income i.g, ll(3) nolog
+tobit y income, ll(3)
+tobit y income i.g, ll(3) ul(9)
 ologit r income i.g, nolog
 nbreg k income i.g, nolog
 regress y income i.g

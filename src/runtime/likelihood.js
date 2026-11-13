@@ -289,6 +289,18 @@ function tobit(session, text, ctx) {
     vce: "oim",
   };
   ctx.out("");
+  // Stata's tobit first refines its starting values on a grid and logs the
+  // best node, which is where the full model's iterations begin.
+  if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) {
+    ctx.out("Refining starting values:");
+    ctx.out("");
+    ctx.out(
+      `Grid node 0:  Log likelihood = ${g(full.log[0], "%10.0g").padStart(10)}`,
+    );
+    ctx.out("");
+    ctx.out("Fitting full model:");
+    ctx.out("");
+  }
   iterations(ctx, text, full.log);
   const right = (label, value) => `${label.padStart(69)} =${value.padStart(7)}`;
   ctx.out(
