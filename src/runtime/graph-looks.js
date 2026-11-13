@@ -8,7 +8,7 @@
 // options named in NOT_DRAWN, stops the command; parseGraph says why.
 import { StataError } from "./errors.js";
 import { parseNumlist } from "./numlist.js";
-import { splitAtComma } from "./syntax.js";
+import { optionItems, splitAtComma } from "./syntax.js";
 
 /** The drawn options, as they appear in a syntax declaration. */
 export const LOOKS =
@@ -69,19 +69,144 @@ const NOT_DRAWN = [
  * and their size(), color() and position(), which replace the option's value
  * and go to options.styles. Every graph command here draws all three, since
  * every one draws its texts through the same few drawing functions.
+ *
+ * A text option given more than once is merged, as Stata merges it: the
+ * last text given is drawn, in the last size, colour and position given, so
+ * title(Main, color(red)) title(Other) draws Other in red. A graph with no
+ * x axis (graph bar, hbar and box) says xAxis: false, and refuses xtitle()
+ * as Stata does.
  */
-export function parseGraph(session, declaration, text) {
-  const parsed = parseDeclared(session, declaration, text),
+export function parseGraph(session, declaration, text, { xAxis = true } = {}) {
+  const { kept, repeated } = repeatedTexts(text),
+    parsed = parseDeclared(session, declaration, kept),
     options = parsed.options,
     styles = {};
+  if (!xAxis && options.xtitle !== undefined)
+    throw new StataError(
+      `xtitle(${options.xtitle}) not allowed, xaxis1 does not exist`,
+      198,
+    );
   for (const name of TEXT_OPTIONS) {
-    const read = textOption(options[name], name);
+    const read = repeated[name]
+      ? repeated[name]
+          .map((value) => textOption(value, name))
+          .reduce((merged, next) => ({
+            ...merged,
+            ...Object.fromEntries(
+              Object.entries(next).filter(([, v]) => v !== undefined),
+            ),
+          }))
+      : textOption(options[name], name);
     if (!read) continue;
     options[name] = read.text;
     if (read.size || read.color || read.position) styles[name] = read;
   }
   options.styles = styles;
   return parsed;
+}
+// The shortest abbreviation of each text option, as LOOKS declares them.
+const TEXT_ABBREVIATIONS = {
+  title: 2,
+  subtitle: 3,
+  note: 4,
+  caption: 3,
+  xtitle: 3,
+  ytitle: 3,
+};
+/**
+ * The text options that a graph command's text gives more than once: the
+ * values of each, in order, and the text with only the last of each kept,
+ * for the syntax declaration, which allows an option once.
+ */
+function repeatedTexts(text) {
+  const [head, rest] = splitAtComma(text ?? "");
+  if (rest === null) return { kept: text, repeated: {} };
+  let items;
+  try {
+    items = optionItems(rest);
+  } catch {
+    // The declaration reports what is wrong with the options.
+    return { kept: text, repeated: {} };
+  }
+  const nameOf = (item) =>
+      item.argument !== undefined &&
+      Object.keys(TEXT_ABBREVIATIONS).find(
+        (name) =>
+          item.name.length >= TEXT_ABBREVIATIONS[name] &&
+          name.startsWith(item.name),
+      ),
+    values = {};
+  for (const item of items) {
+    const name = nameOf(item);
+    if (name) (values[name] ??= []).push(item.argument);
+  }
+  const repeated = Object.fromEntries(
+    Object.entries(values).filter(([, list]) => list.length > 1),
+  );
+  if (!Object.keys(repeated).length) return { kept: text, repeated: {} };
+  const kept = items.filter((item, k) => {
+    const name = nameOf(item);
+    return (
+      !repeated[name] ||
+      !items.slice(k + 1).some((later) => nameOf(later) === name)
+    );
+  });
+  return {
+    kept: `${head},${kept.map((item) => item.word).join(" ")}`,
+    repeated,
+  };
+}
+
+// Notes that a graph command prints, as Stata does, just before it draws:
+// "(note:  named style … not found …)" for a colour or position Stata does
+// not know. withStyleNotes gives each graph command somewhere to keep them,
+// each note with the number of times Stata prints it: once for a text's
+// colour, twice for a marker or line colour and a text's position. A graph
+// may read its options more than once (scatter reads its own and the
+// graph's), which does not print a note again.
+let pendingNotes = null;
+function unknownStyle(name, kind, times) {
+  const note = `(note:  named style ${name} not found in class ${kind}, default attributes used)`;
+  pendingNotes?.set(note, Math.max(times, pendingNotes.get(note) ?? 0));
+}
+/**
+ * The graph commands, each printing the notes its options gave (wrapped to
+ * the line size, later lines indented four) before its graph is drawn.
+ */
+export function withStyleNotes(commands) {
+  return commands.map((command) => ({
+    ...command,
+    run: (session, text, ctx) => {
+      const outer = pendingNotes,
+        notes = (pendingNotes = new Map());
+      const flush = () => {
+        const width = session.settings.linesize ?? 80;
+        for (const [note, times] of notes) {
+          const lines = [""];
+          for (const word of note.split(" ")) {
+            const line = lines.at(-1);
+            if (line && line.length + 1 + word.length > width - 1)
+              lines.push("    " + word);
+            else lines[lines.length - 1] = line ? `${line} ${word}` : word;
+          }
+          for (let k = 0; k < times; k++)
+            lines.forEach((line) => ctx.out(line));
+        }
+        notes.clear();
+      };
+      try {
+        return command.run(session, text, {
+          ...ctx,
+          graph: (picture) => {
+            flush();
+            return ctx.graph(picture);
+          },
+        });
+      } finally {
+        pendingNotes = outer;
+      }
+    },
+  }));
 }
 function parseDeclared(session, declaration, text) {
   try {
@@ -104,68 +229,121 @@ function parseDeclared(session, declaration, text) {
   }
 }
 
-// Stata's named colours, as near as a hex value can be. A colour may also be
-// three numbers, "R G B".
+// Stata's named colours: every color-*.style that Stata 19 ships, with its
+// RGB value, apart from none. A colour may also be three numbers, "R G B".
 const COLOURS = {
   black: "#000000",
-  white: "#ffffff",
-  red: "#ff0000",
-  green: "#00ff00",
   blue: "#0000ff",
-  navy: "#1a476f",
-  maroon: "#90353b",
-  forest_green: "#55752f",
-  dkorange: "#e37e00",
-  teal: "#6e8e84",
+  bluishgray: "#d9e6eb",
+  bluishgray8: "#d2d7e4",
+  brown: "#9c8847",
+  chocolate: "#804000",
   cranberry: "#c10534",
-  lavender: "#938dd2",
-  khaki: "#cac27e",
-  sienna: "#a0522d",
-  emidblue: "#3f8fbf",
-  emerald: "#2e8b57",
-  brown: "#a52a2a",
-  olive: "#787822",
-  olive_teal: "#7b9e8d",
-  dknavy: "#00134c",
-  dkgreen: "#006400",
-  ltblue: "#87ceeb",
-  orange: "#ff7f00",
-  purple: "#800080",
-  magenta: "#ff00ff",
-  pink: "#ffc0cb",
-  gold: "#ffd700",
-  yellow: "#ffff00",
-  gray: "#808080",
-  grey: "#808080",
-  lime: "#00ff00",
   cyan: "#00ffff",
-  ebblue: "#0072b2",
-  eltblue: "#87b4dc",
-  edkblue: "#2a4b7c",
-  mint: "#98ff98",
-  sand: "#c2b280",
-  stone: "#888c8d",
+  dimgray: "#e8e8e8",
+  dkgreen: "#006000",
+  dknavy: "#1e2d53",
+  dkorange: "#e37e00",
+  ebblue: "#008bbc",
+  ebg: "#c6d3df",
+  edkbg: "#b2bfcb",
+  edkblue: "#3e647d",
+  eggshell: "#fffbf0",
+  eltblue: "#82c0e9",
+  eltgreen: "#97b6b0",
+  emerald: "#2d6d66",
+  emidblue: "#7b92a8",
+  erose: "#bfa19c",
+  forest_green: "#55752f",
+  gold: "#ffd200",
+  gray: "#808080",
+  green: "#008000",
+  gs0: "#000000",
+  gs1: "#101010",
+  gs2: "#202020",
+  gs3: "#303030",
+  gs4: "#404040",
+  gs5: "#505050",
+  gs6: "#606060",
+  gs7: "#707070",
+  gs8: "#808080",
+  gs9: "#909090",
+  gs10: "#a0a0a0",
+  gs11: "#b0b0b0",
+  gs12: "#c0c0c0",
+  gs13: "#d0d0d0",
+  gs14: "#e0e0e0",
+  gs15: "#f0f0f0",
+  gs16: "#ffffff",
+  khaki: "#cac27e",
+  lavender: "#938dd2",
+  lime: "#00ff00",
+  ltblue: "#add8e6",
+  ltbluishgray: "#eaf2f3",
+  ltbluishgray8: "#e1e6f0",
+  ltkhaki: "#e5daa5",
+  magenta: "#ff00ff",
+  maroon: "#90353b",
   midblue: "#0080ff",
-  midgreen: "#3cb371",
-  dkorange2: "#ff8c00",
+  midgreen: "#00b000",
+  mint: "#00ff80",
+  navy: "#1a476f",
+  navy8: "#273f6f",
+  olive: "#5c4717",
+  olive_teal: "#c0dcc0",
+  orange: "#ff7f00",
+  orange_red: "#ff4500",
+  pink: "#ff0080",
+  purple: "#800080",
+  red: "#ff0000",
+  sand: "#d9c263",
+  sandb: "#ffe474",
+  sienna: "#a0522d",
+  stblue: "#1a85ff",
+  stc1: "#1a85ff",
+  stc2: "#d41159",
+  stc3: "#00bf7f",
+  stc4: "#ffd400",
+  stc5: "#4f2c99",
+  stc6: "#ff6333",
+  stc7: "#4db7ff",
+  stc8: "#7c0015",
+  stc9: "#0fefaf",
+  stc10: "#faa307",
+  stc11: "#758bfd",
+  stc12: "#fed9b7",
+  stc13: "#08234c",
+  stc14: "#f88dad",
+  stc15: "#0f5156",
+  stgreen: "#00bf7f",
+  stone: "#d7d29e",
+  stred: "#d41159",
+  styellow: "#ffd400",
+  sunflowerlime: "#eaffaa",
+  teal: "#6e8e84",
+  white: "#ffffff",
+  yellow: "#ffff00",
 };
-/** A colour option's value as a hex colour; refused when not one known. */
-export function colourOf(text, option) {
+/**
+ * A colour option's value as a hex colour. A name Stata does not know gets
+ * Stata's note and the default colour (undefined), as in Stata; the note is
+ * printed times times, as often as Stata prints it for that option.
+ */
+export function colourOf(text, option, times = 1) {
   const t = (text ?? "").trim().toLowerCase();
   if (!t) return undefined;
   let m;
-  if ((m = /^gs(\d{1,2})$/.exec(t)) && Number(m[1]) <= 16) {
-    const v = Math.round((Number(m[1]) / 16) * 255)
-      .toString(16)
-      .padStart(2, "0");
-    return `#${v}${v}${v}`;
-  }
   if ((m = /^"?(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})"?$/.exec(t)))
     return `#${m
       .slice(1)
       .map((v) => Math.min(255, Number(v)).toString(16).padStart(2, "0"))
       .join("")}`;
   if (COLOURS[t]) return COLOURS[t];
+  // none draws nothing, which this page does not do.
+  if (t !== "none" && /^[a-z_][a-z0-9_]*$/.test(t)) {
+    unknownStyle(t, "color", times);
+    return undefined;
+  }
   throw new StataError(
     `${option}(${text}): colour ${t} is not known here`,
     198,
@@ -308,6 +486,7 @@ export function textOption(value, option) {
         ? head.trim()
         : undefined,
   };
+  const seen = new Set();
   for (const m of (rest ?? "").matchAll(/(\w+)\s*(?:\(([^()]*)\))?/g)) {
     // Stata's suboption names are lower case, size() down to s() and
     // color() down to c(); SIZE() or colour() is not allowed.
@@ -329,9 +508,21 @@ export function textOption(value, option) {
       throw new StataError(`option ${word}() not allowed`, 198);
     if ((position || word === "ring") && !POSITIONS[option])
       throw new StataError(`option ${word}() not allowed`, 198);
+    // A suboption given twice, as in size(small) size(large) or color(red)
+    // c(blue), is not allowed; Stata names the second as it was typed.
+    const kind = size ? "size" : color ? "color" : position ? "position" : "";
+    if (kind && seen.has(kind))
+      throw new StataError(`option ${word}() not allowed`, 198);
+    seen.add(kind);
     if (position) {
-      // position() with nothing in it leaves the text where it is.
+      // position() with nothing in it leaves the text where it is, and so
+      // does one that is not a clock position from 0 to 12, with the note
+      // Stata prints, twice, for that.
       if (!inner) continue;
+      if (!/^(?:\d|1[0-2])$/.test(inner)) {
+        unknownStyle(m[2].trim(), "clockdir", 2);
+        continue;
+      }
       const at = POSITIONS[option].find((p) => String(p) === inner);
       if (at === undefined)
         throw new StataError(

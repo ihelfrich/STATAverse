@@ -15,6 +15,7 @@ import {
   colourOf,
   looksOf,
   parseGraph,
+  withStyleNotes,
   patternOf,
   sizeOf,
   widthOf,
@@ -702,7 +703,7 @@ function functionPlot(session, text) {
   return [
     {
       kind: "line",
-      color: colourOf(options.lcolor, "lcolor"),
+      color: colourOf(options.lcolor, "lcolor", 2),
       stroke: widthOf(options.lwidth),
       dashes: patternOf(options.lpattern),
       points,
@@ -711,6 +712,41 @@ function functionPlot(session, text) {
       x: axis,
     },
   ];
+}
+
+/**
+ * bin() and width() given together, or bin() with discrete, which Stata's
+ * histogram refuses before it counts the sample.
+ */
+function binsCombined(options) {
+  if (options.discrete && options.bin !== undefined)
+    throw new StataError(
+      "options discrete and bins() may not be combined",
+      198,
+    );
+  if (options.bin !== undefined && options.width !== undefined)
+    throw new StataError("options bins() and width() may not be combined", 198);
+}
+/**
+ * bin() must be a whole number of at least 1 and width() positive; Stata
+ * checks this once it has found rows to draw.
+ */
+function binsInRange(options) {
+  if (options.bin !== undefined && options.bin < 1)
+    throw new StataError(
+      "bins() invalid -- invalid number, outside of allowed range",
+      125,
+    );
+  if (options.bin !== undefined && !Number.isInteger(options.bin))
+    throw new StataError(
+      "bins() invalid -- invalid number, noninteger value",
+      126,
+    );
+  if (options.width !== undefined && !(options.width > 0))
+    throw new StataError(
+      "width() invalid -- invalid number, outside of allowed range",
+      125,
+    );
 }
 
 /** The bars of a histogram and what was decided about its bins. */
@@ -804,7 +840,14 @@ function univariatePlot(session, kind, text) {
       .map((i) => variable.data[i])
       .filter((v) => !isMissing(v)),
     axis = { name: variable.name, label: titleOf(variable) };
+  if (kind === "histogram") {
+    binsCombined(parsed.options);
+    binsInRange(parsed.options);
+  }
   // Nothing to draw, as in an empty by() panel: the plot is drawn empty.
+  // An empty histogram has the axes Stata gives it: the y axis labelled
+  // -1 and 1 (emptyAxis), and the x axis titled x, the name of the bin
+  // variable Stata makes for it.
   if (!values.length) {
     const o = parsed.options,
       name = o.frequency
@@ -820,8 +863,9 @@ function univariatePlot(session, kind, text) {
             bars: [],
             points: [],
             label: name,
-            x: axis,
+            x: { name: "x", label: "x" },
             y: { name, label: name },
+            emptyAxis: true,
           }
         : {
             kind: "line",
@@ -1034,8 +1078,8 @@ function plot(session, kind, text, note = () => {}) {
     });
   }
   // mcolor() and msize() are for markers, lcolor() for lines.
-  const markers = colourOf(parsed.options.mcolor, "mcolor"),
-    linesColour = colourOf(parsed.options.lcolor, "lcolor"),
+  const markers = colourOf(parsed.options.mcolor, "mcolor", 2),
+    linesColour = colourOf(parsed.options.lcolor, "lcolor", 2),
     radius = sizeOf(parsed.options.msize),
     stroke = widthOf(parsed.options.lwidth),
     dashes = patternOf(parsed.options.lpattern);
@@ -1096,7 +1140,7 @@ const OWN = {
   points: "SORT BWidth(real 0.8) MEAN NOWeight Level(cilevel) BARWidth(real 0)",
   function: "RAnge(string) N(integer 300)",
   univariate:
-    "BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0)",
+    "BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0)",
 };
 const FITS = ["lfit", "qfit", "lfitci", "qfitci"];
 const ownOf = (kind) =>
@@ -1304,8 +1348,23 @@ function twoway(session, text, ctx, single) {
         description: `${description}, in ${drawn} panel${drawn === 1 ? "" : "s"} by ${by.variable.name}.`,
       });
     }
+    // Empty histograms alone: the y axis labelled only -1 and 1, as Stata
+    // labels it, and an x axis with no scale, any xline() across the middle
+    // of the plot, as for histogram.
+    const emptyAxis = layers.every((l) => l.emptyAxis);
+    if (emptyAxis && !Array.isArray(looks.xTicks))
+      looks.xLines = looks.xLines.map(() => 0.5);
     ctx.graph({
-      svg: draw({ layers, xTitle, yTitle, ...looks, allowEmpty: true }),
+      svg: draw({
+        layers,
+        xTitle,
+        yTitle,
+        ...looks,
+        ...(emptyAxis
+          ? { yRange: [-1, 1], yTicks: looks.yTicks ?? [-1, 1] }
+          : {}),
+        allowEmpty: true,
+      }),
       description: `${description}.`,
     });
   } finally {
@@ -1316,7 +1375,7 @@ function twoway(session, text, ctx, single) {
 function histogram(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varname [if] [in] [, BIN(integer 0) Width(real 0) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
+      `varname [if] [in] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
       text,
     ),
     options = parsed.options,
@@ -1324,11 +1383,13 @@ function histogram(session, text, ctx) {
     rows = session.rows(parsed, null),
     values = rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
     n = values.length;
+  binsCombined(options);
   // Stata leaves r(N) = 0 behind when if and in leave no rows.
   if (!rows.length) {
     session.results.r = { N: 0 };
     throw new StataError("no observations", 2000);
   }
+  binsInRange(options);
   const by = byOption(session, options.by);
   if (!n) return emptyHistogram(session, options, variable, by, ctx);
   if (by) return histogramBy(session, parsed, variable, values, by, ctx);
@@ -1392,15 +1453,23 @@ function histogram(session, text, ctx) {
  * values it has no width for its bins: it refuses by(), discrete and width()
  * for that with r(125), and otherwise draws the axes with no bars, the y
  * axis labelled -1 and 1, and prints no bin line. Either way r() is left
- * empty.
+ * empty. The x axis has no scale: an xline() is drawn across the middle of
+ * the plot, wherever it was asked for, unless xlabel() gives the axis one.
+ * A curve on frequencies, fractions or percentages is scaled by the area of
+ * the bars, which is 0, and Stata refuses that.
  */
 function emptyHistogram(session, options, variable, by, ctx) {
   session.results.r = {};
-  if (by || options.discrete || options.width !== 0)
+  if (by || options.discrete || options.width !== undefined)
     throw new StataError(
       "width() invalid -- invalid number, outside of allowed range",
       125,
     );
+  if (
+    (options.normal || options.kdensity) &&
+    (options.frequency || options.percent || options.fraction)
+  )
+    throw new StataError("option area() expects a positive number", 198);
   const looks = looksOf(options),
     yTitle = options.frequency
       ? "Frequency"
@@ -1420,7 +1489,11 @@ function emptyHistogram(session, options, variable, by, ctx) {
       yTitle: options.ytitle ?? yTitle,
       yRange: [-1, 1],
       yTicks: looks.yTicks ?? [-1, 1],
-      ...(curve ? { xRange: [-1, 1], xTicks: looks.xTicks ?? [-1, 1] } : {}),
+      ...(curve
+        ? { xRange: [-1, 1], xTicks: looks.xTicks ?? [-1, 1] }
+        : Array.isArray(looks.xTicks)
+          ? {}
+          : { xLines: looks.xLines.map(() => 0.5) }),
       allowEmpty: true,
     }),
     description: `Histogram of ${titleOf(variable)}: no bars, since it is missing in every observation.`,
@@ -1600,7 +1673,7 @@ function graph(session, text, ctx) {
 
 const single = (kind) => (session, text, ctx) =>
   twoway(session, text, ctx, kind);
-export const GRAPH_COMMANDS = [
+export const GRAPH_COMMANDS = withStyleNotes([
   { name: "scatter", minimum: 2, run: single("scatter") },
   { name: "line", minimum: 4, run: single("line") },
   {
@@ -1613,4 +1686,4 @@ export const GRAPH_COMMANDS = [
   },
   { name: "histogram", minimum: 4, run: histogram },
   { name: "graph", minimum: 2, run: graph },
-];
+]);

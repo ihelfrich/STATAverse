@@ -5,7 +5,7 @@
 // which is how they are compared with Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { LOOKS, looksOf, parseGraph } from "./graph-looks.js";
+import { LOOKS, looksOf, parseGraph, withStyleNotes } from "./graph-looks.js";
 import { splitAtComma } from "./syntax.js";
 import { applyFormat } from "./format.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -259,6 +259,9 @@ function graphParts(session, text, declaration) {
       session,
       `[if] [in] [, OVer(string) ${declaration} ${LOOKS}]`,
       `${m[2] ?? ""}${m[3] ?? ""}`,
+      // Bars and boxes stand on a categorical axis, not an x axis, so
+      // Stata refuses xtitle() here and draws no title under the groups.
+      { xAxis: false },
     ),
     [overName, overOptions] = splitAtComma(parsed.options.over ?? ""),
     over = overName.trim()
@@ -428,7 +431,7 @@ function graphBar(horizontal) {
         ...looks,
         ...(empty ? { yRange: [-1, 1], yTicks: looks.yTicks ?? [-1, 1] } : {}),
         layers,
-        xTitle: options.xtitle ?? (parts.over ? titleOf(parts.over) : ""),
+        xTitle: "",
         yTitle: options.ytitle ?? (names.length === 1 ? names[0] : ""),
         title: options.title,
         xRange: [0.5, parts.levels.length + 0.5],
@@ -476,7 +479,7 @@ function graphBox(session, text, ctx) {
     svg: draw({
       ...drawnLooks(options),
       layers,
-      xTitle: options.xtitle ?? (parts.over ? titleOf(parts.over) : ""),
+      xTitle: "",
       yTitle:
         options.ytitle ?? (variables.length === 1 ? titleOf(variables[0]) : ""),
       title: options.title,
@@ -681,7 +684,7 @@ registerGraph("hbar", graphBar(true));
 registerGraph("box", graphBox);
 registerGraph("hbox", graphBox);
 
-export const MORE_GRAPH_COMMANDS = [
+export const MORE_GRAPH_COMMANDS = withStyleNotes([
   { name: "kdensity", minimum: 4, run: kdensity },
   { name: "lowess", minimum: 6, run: lowessCommand },
   { name: "rvfplot", minimum: 7, run: rvfplot },
@@ -690,4 +693,4 @@ export const MORE_GRAPH_COMMANDS = [
   { name: "qnorm", minimum: 5, run: normalPlot("qnorm") },
   { name: "pnorm", minimum: 5, run: normalPlot("pnorm") },
   { name: "tsline", minimum: 6, run: tsline },
-];
+]);
