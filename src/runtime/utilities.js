@@ -1,10 +1,11 @@
 // Smaller commands: levelsof, ds, unab and ttest.
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
-import { applyFormat } from "./format.js";
+import { abbreviateName, applyFormat } from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
-import { count, labelled, moments, percentile, perGroup } from "./reports.js";
+import { FUNCTIONS } from "./functions.js";
+import { count, moments, percentile, perGroup } from "./reports.js";
 import {
   formatNumber,
   isMissing,
@@ -127,9 +128,7 @@ const fromData = (values, level) => {
   return tSummary(m.n, m.mean, m.sd, level);
 };
 
-/** Stata's abbrev(name, width): the start, a ~, and the last character. */
-const abbrev = (name, width) =>
-  name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
+const abbrev = abbreviateName;
 
 // Text placed at a column as display's _col() places it. A line already
 // past the column goes on where it is.
@@ -156,19 +155,135 @@ function centred(pieces, marked) {
   return line;
 }
 
-// A number as confirm number accepts it. ttest echoes the hypothesised
-// value as typed, in %8.0g only when it is longer than eight characters.
-const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+// A number as confirm number accepts it, in decimal or in Stata's
+// hexadecimal form, as 1.0x+0 for 1 or 1.4x+3 for 10, whose exponent of two
+// is also hexadecimal. ttest echoes the hypothesised value as typed, in
+// %8.0g only when it is longer than eight characters.
+const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i,
+  HEXADECIMAL = /^([+-]?)([0-9a-f]+)(?:\.([0-9a-f]*))?x([+-][0-9a-f]+)$/i,
+  NUMBER = { test: (text) => DECIMAL.test(text) || HEXADECIMAL.test(text) };
+function numberOf(text) {
+  const m = HEXADECIMAL.exec(text);
+  if (!m) return Number(text);
+  const fraction = m[3] ? parseInt(m[3], 16) / 16 ** m[3].length : 0;
+  return (
+    (m[1] === "-" ? -1 : 1) *
+    (parseInt(m[2], 16) + fraction) *
+    2 ** parseInt(m[4], 16)
+  );
+}
 const echoed = (typed) =>
-  typed.length > 8 ? applyFormat(Number(typed), "%8.0g").trim() : typed;
+  typed.length > 8 ? applyFormat(numberOf(typed), "%8.0g").trim() : typed;
 
-/** Whether text names variables, as confirm variable decides it. */
+/**
+ * Whether text names variables, as confirm variable decides it: each word a
+ * variable's name or an abbreviation of one. confirm variable takes no
+ * wildcard, range or _all, so a group labelled x* or _all is a Group.
+ */
 function namesVariables(session, text) {
-  try {
-    return session.varlist(text).length > 0;
-  } catch {
-    return false;
+  return text
+    .trim()
+    .split(/\s+/)
+    .every((word) => {
+      if (!/^[A-Za-z_]\w*$/.test(word) || word === "_all") return false;
+      try {
+        return session.varlist(word).length === 1;
+      } catch {
+        return false;
+      }
+    });
+}
+
+/**
+ * The check ttest's syntax makes of the expression after ==. A [ opens a
+ * weight, which ttest does not allow, and an operator with nothing after it
+ * ends the expression too soon when nothing follows in the command. Then,
+ * from the left: a variable, scalar or function that does not exist, two
+ * values with nothing between them, and unbalanced parentheses. An operator
+ * at the end with an if, in or options after it leaves the expression to
+ * confirm variable. last tells whether the expression ends the command.
+ */
+function checkExpression(session, text, last) {
+  if (text.includes("[")) throw new StataError("weights not allowed", 101);
+  const trailing = /[-+*/^&|<>!~=]$/.test(text);
+  if (trailing && last) throw new StataError("invalid syntax", 198);
+  const token =
+    /\s*(?:(==|!=|~=|>=|<=|[-+*/^&|<>!~=\]])|(\()|(\))|("[^"]*"|`"[\s\S]*?"')|(\d[0-9a-f]*(?:\.[0-9a-f]*)?x[+-][0-9a-f]+|(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|\.[a-z]?)|([A-Za-z_]\w*))/iy;
+  let depth = 0,
+    operand = false,
+    m;
+  while (token.lastIndex < text.length && (m = token.exec(text))) {
+    const [, op, open, close, , , name] = m;
+    if (op || open) {
+      if (open) depth++;
+      operand = false;
+      continue;
+    }
+    if (close) {
+      if (!depth) throw new StataError("too many ')' or ']'", 132);
+      depth--;
+      operand = true;
+      continue;
+    }
+    // Stata's message ends in a blank.
+    if (operand) throw new StataError(`invalid '${m[0].trim()}' `, 198);
+    operand = true;
+    if (!name) continue;
+    if (text[token.lastIndex] === "(") {
+      if (!(name in FUNCTIONS) && !/^str(ing|ofreal)$/.test(name))
+        throw new StataError(`unknown function ${name}()`, 133);
+    } else if (!session.scalars.has(name) && !/^_(n|N|pi)$/.test(name))
+      try {
+        session.varlist(name);
+      } catch (error) {
+        if (/ambiguous/.test(error.message)) throw error;
+        throw new StataError(`${name} not found`, 111);
+      }
   }
+  if (depth) throw new StataError("too few ')' or ']'", 132);
+  if (trailing) throw notVariables(session, text);
+}
+
+/**
+ * The error confirm variable gives, as ttest.ado runs it, for text that is
+ * not one variable's name. Its words end at blanks and at + - ( ) and =, so
+ * 2+1 is the invalid name 2 and b* is one word; a word before ( is taken
+ * for an operator.
+ */
+function notVariables(session, text) {
+  const number = /^\(?\s*(\d[^\s\-+()=]*)/.exec(text);
+  if (number) return new StataError(`${number[1]} invalid name`, 198);
+  for (const m of text.matchAll(/==|[-+()=]|[^\s\-+()=]+/g)) {
+    const word = m[0];
+    if (word === "_all") return new StataError("variable _all not found", 111);
+    if (/^[A-Za-z_]\w*$/.test(word)) {
+      if (text[m.index + word.length] === "(")
+        return new StataError(
+          "factor-variable and time-series operators not allowed",
+          101,
+        );
+      try {
+        session.varlist(word);
+        continue;
+      } catch {
+        return new StataError(`variable ${word} not found`, 111);
+      }
+    }
+    // A wildcard is an invalid name when it matches a variable.
+    if (/^[A-Za-z_][\w*?]*$/.test(word)) {
+      let found = false;
+      try {
+        found = session.varlist(word).length > 0;
+      } catch {
+        found = false;
+      }
+      return found
+        ? new StataError(`${word} invalid name`, 198)
+        : new StataError(`variable ${word} not found`, 111);
+    }
+    return new StataError(`${word} invalid name`, 198);
+  }
+  return new StataError("invalid syntax", 198);
 }
 
 /** The pieces ttest and ttesti print their tables with. */
@@ -193,15 +308,16 @@ function tPrinters(ctx, session) {
     middle = `---------+${"-".repeat(68)}`,
     // The first column is headed Variable when the first name names
     // variables, Group when it is a group's label, and not at all for
-    // ttesti. A level of five characters leaves no blank in its label.
+    // ttesti without xname(). A level of five characters leaves no blank
+    // in its label.
     head = (xname, level) => {
-      const first =
-          xname === ""
-            ? ""
-            : namesVariables(session, xname)
-              ? "Variable"
-              : "   Group",
-        label = g(level),
+      const variable = xname !== "" && namesVariables(session, xname),
+        first = xname === "" ? "" : variable ? "Variable" : "   Group";
+      // _ttest header asks capture confirm variable, which leaves its
+      // return code in _rc after ttest.
+      if (xname !== "")
+        session.rc = variable ? 0 : notVariables(session, xname).code;
+      const label = g(level),
         wide = label.length === 5;
       return at(
         `${first.padEnd(9)}|     Obs        Mean    Std. err.   Std. dev.`,
@@ -258,7 +374,7 @@ function tPrinters(ctx, session) {
  */
 function oneSample(ctx, session, printers, m, xname, typed, level) {
   const { row, rule, middle, head, tails, finish } = printers,
-    value = Number(typed),
+    value = numberOf(typed),
     name = xname || "x",
     t = (m.mean - value) / m.se,
     df = m.n - 1;
@@ -300,40 +416,97 @@ function oneSample(ctx, session, printers, m, xname, typed, level) {
 const approximation = (options) =>
   options.welch ? "Welch's " : options.unequal ? "Satterthwaite's " : "";
 
+/**
+ * The variable by() names, refused as syntax refuses a by(varname) option
+ * that names more or fewer than one variable or one that does not exist.
+ */
+function byVariable(session, text) {
+  if (text === undefined) return undefined;
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  if (!words.length)
+    throw new StataError("by():  too few variables specified", 102);
+  let names;
+  try {
+    names = session.varlist(words[0]);
+  } catch (error) {
+    if (error instanceof StataError)
+      throw new StataError(
+        `${error.message}\n(error in option by())`,
+        error.code,
+      );
+    throw error;
+  }
+  if (names.length > 1)
+    throw new StataError("by():  too many variables specified", 103);
+  return names[0];
+}
+
+/**
+ * Under by, a group with no observations does not end the run: its message
+ * is printed under the group's heading and by goes on to the next group,
+ * finishing with rc 0, as Stata's by does for r(2000). The failed group
+ * clears r(), so a run whose last group is empty leaves r() empty. Every
+ * other error still stops by at its group.
+ */
+const emptyGroups = (run) => (session, text, ctx) => {
+  if (!ctx.group) return run(session, text, ctx);
+  try {
+    run(session, text, ctx);
+  } catch (error) {
+    if (!(error instanceof StataError) || error.code !== 2000) throw error;
+    ctx.out(error.message);
+    ctx.out("");
+    session.results.r = {};
+  }
+};
+
 function ttest(session, text, ctx) {
-  const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,]+)([\s\S]*)$/.exec(text),
+  const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,][\s\S]*)$/.exec(text),
     data = session.data,
     printers = tPrinters(ctx, session),
     { row, rule, middle, head, tails, finish } = printers,
     // Under by, ttest sees one group's observations at a time.
     within = ctx.group ? { groups: [ctx.group] } : null;
   if (paired) {
+    // The expression after == runs to the options or to an if or in.
+    const [before, optionText] = splitAtComma(paired[2]),
+      cut = /\s(?:if|in)\b/.exec(before),
+      exp = (cut ? before.slice(0, cut.index) : before).trim(),
+      after =
+        (cut ? before.slice(cut.index) : "") +
+        (optionText === null ? "" : "," + optionText);
     // Stata compares with a quoted string as a type mismatch, before it
     // reads any if, in or option, once the variable on the left exists.
-    if (/^[`"]/.test(paired[2])) {
+    if (/^[`"]/.test(exp)) {
       session.varlist(paired[1]);
       throw new StataError("type mismatch", 109);
     }
+    // syntax reads the variable, then the expression, then the rest.
+    const first = data.get(session.varlist(paired[1])[0]);
+    checkExpression(session, exp, !after.trim());
     const parsed = session.parse(
-        "[if] [in] [, BY(varname) UNPaired UNEqual Welch Level(cilevel) REVerse]",
-        paired[3],
+        "[if] [in] [, BY(string) UNPaired UNEqual Welch Level(cilevel) REVerse cate]",
+        after,
       ),
       options = parsed.options,
       level = options.level,
-      first = data.get(session.varlist(paired[1])[0]),
-      number = NUMBER.test(paired[2]),
-      second = number ? null : data.get(session.varlist(paired[2])[0]);
+      number = NUMBER.test(exp),
+      second = /^[A-Za-z_]\w*$/.test(exp)
+        ? data.get(session.varlist(exp)[0])
+        : null;
     // A string variable after == is a type mismatch whatever the options.
     if (second && isStringType(second.type))
       throw new StataError("type mismatch", 109);
     const rows = session.rows(parsed, within);
-    if (options.by)
+    if (byVariable(session, options.by))
       throw new StataError("may not combine = and option by()", 198);
     if (options.reverse)
       throw new StataError("may not combine = and option reverse", 198);
     if (options.unpaired) {
       // Two samples, each of its own variable's nonmissing values.
-      if (number) throw new StataError(`${paired[2]} invalid name`, 198);
+      if (!second) throw notVariables(session, exp);
       const sample = (variable, which) => {
         const values = isStringType(variable.type)
           ? []
@@ -364,6 +537,8 @@ function ttest(session, text, ctx) {
         "welch option invalid for one-sample or paired tests",
         198,
       );
+    // ttest.ado's capture confirm number leaves 0 or 7 in _rc.
+    session.rc = number ? 0 : 7;
     if (number) {
       // A string variable has no numeric observations to test.
       const values = isStringType(first.type)
@@ -376,11 +551,12 @@ function ttest(session, text, ctx) {
         printers,
         fromData(values, level),
         first.name,
-        paired[2],
+        exp,
         level,
       );
       return;
     }
+    if (!second) throw notVariables(session, exp);
     // Stata refuses a string on either side of ==, even two strings.
     if (isStringType(first.type)) throw new StataError("type mismatch", 109);
     const both = rows.filter(
@@ -448,14 +624,14 @@ function ttest(session, text, ctx) {
     return;
   }
   const parsed = session.parse(
-      "varname [if] [in] [, BY(varname) UNPaired UNEqual Welch Level(cilevel) REVerse]",
+      "varname [if] [in] [, BY(string) UNPaired UNEqual Welch Level(cilevel) REVerse cate]",
       text,
     ),
     options = parsed.options,
     level = options.level;
   if (!options.by) throw new StataError("by() option required", 100);
   const variable = data.get(parsed.varlist[0]),
-    by = data.get(options.by),
+    by = data.get(byVariable(session, options.by)),
     selected = session.rows(parsed, within),
     rows = isStringType(variable.type)
       ? []
@@ -469,13 +645,12 @@ function ttest(session, text, ctx) {
     levels = [...new Set(rows.map((i) => by.data[i]))].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
     );
-
+  // _ttest by's capture confirm string variable leaves 0 or 7 in _rc.
+  session.rc = isStringType(by.type) ? 0 : 7;
   if (!rows.length) throw new StataError("no observations", 2000);
-  if (levels.length !== 2)
-    throw new StataError(
-      `${levels.length < 2 ? "1 group" : "more than 2 groups"} found, 2 required`,
-      420,
-    );
+  if (levels.length < 2) throw new StataError("1 group found, 2 required", 420);
+  if (levels.length > 2)
+    throw new StataError("more than 2 groups found, only 2 allowed", 420);
   // reverse puts the larger value first.
   if (options.reverse) levels.reverse();
   const [a, b] = levels.map((value) =>
@@ -485,9 +660,22 @@ function ttest(session, text, ctx) {
       ),
     ),
     // Each group is named by its first eight characters, without the
-    // blanks around them.
+    // blanks around them. A number is written out in full, as a macro
+    // holds it, whatever the variable's format, so 0.1 stored as a float
+    // is .1000000 (shown as 1000000 once abbrev() drops the period) and
+    // 1e10 is 10000000. Its value label stands in for it unless empty.
+    map = isStringType(by.type)
+      ? null
+      : session.data.valueLabels.get(by.valueLabel),
     [xname, yname] = levels.map((value) =>
-      labelled(session, by, value).slice(0, 8).trim(),
+      Array.from(
+        typeof value === "string"
+          ? value
+          : map?.get(value) || applyFormat(value, "%18.0g").trim(),
+      )
+        .slice(0, 8)
+        .join("")
+        .trim(),
     );
   twoSampleTable(ctx, session, printers)(
     a,
@@ -496,6 +684,7 @@ function ttest(session, text, ctx) {
     yname,
     level,
     approximation(options),
+    options.cate,
   );
 }
 
@@ -504,14 +693,15 @@ function ttest(session, text, ctx) {
  * or the name of the approximation to the degrees of freedom. The combined
  * row is pooled from the two groups, as Stata pools it, so it is missing
  * when either group's standard deviation is. xname and yname are "" for
- * ttesti, whose samples are called x and y.
+ * ttesti, whose samples are called x and y unless xname() and yname()
+ * name them. classification is cate's title.
  */
 function twoSampleTable(
   ctx,
   session,
   { cell, row, rule, middle, head, tails, finish },
 ) {
-  return (a, b, xname, yname, level, kind) => {
+  return (a, b, xname, yname, level, kind, classification = false) => {
     const n = a.n + b.n,
       names = [xname || "x", yname || "y"],
       mean = (a.n * a.mean + b.n * b.mean) / n,
@@ -548,7 +738,10 @@ function twoSampleTable(
       lb = difference - critical * se,
       ub = difference + critical * se;
     ctx.out("");
-    ctx.out(`Two-sample t test with ${equal ? "equal" : "unequal"} variances`);
+    // The undocumented cate option only retitles the table.
+    ctx.out(
+      `${classification ? "Classification" : "Two-sample"} t test with ${equal ? "equal" : "unequal"} variances`,
+    );
     ctx.out(rule);
     ctx.out(head(xname, level));
     ctx.out(middle);
@@ -612,54 +805,126 @@ function twoSampleTable(
   };
 }
 
+/** A {p 0 0 2} paragraph: words wrapped two columns short of the line. */
+function paragraph(session, text) {
+  const width = (session.settings.linesize ?? 80) - 2,
+    lines = [""];
+  for (const word of text.split(" ")) {
+    const last = lines.at(-1);
+    if (last && last.length + 1 + word.length > width) lines.push(word);
+    else lines[lines.length - 1] = last ? `${last} ${word}` : word;
+  }
+  return lines.join("\n");
+}
+
 /**
- * ttesti n mean sd value, and ttesti n1 mean1 sd1 n2 mean2 sd2: ttest from
- * summary statistics, the samples called x and y as Stata calls them.
- * reverse is accepted and changes nothing, as in ttesti.ado.
+ * The checks _ttest check makes of ttesti's arguments, as typed: sample is
+ * "one" for the one-sample test, whose hypothesised value is h, or "first"
+ * or "second". One observation may have a missing standard deviation, and
+ * then has none whatever was given.
  */
-function ttesti(session, text, ctx) {
-  const [head, optionText] = splitAtComma(text),
-    options = session.parse(
-      "[, Level(cilevel) UNEqual Welch REVerse]",
-      optionText ? "," + optionText : "",
-    ).options,
-    tokens = head.trim().split(/\s+/).filter(Boolean),
-    numbers = tokens.map(Number),
-    level = options.level;
-  if (
-    ![4, 6].includes(numbers.length) ||
-    numbers.some((v) => !Number.isFinite(v))
-  )
-    throw new StataError("invalid syntax", 198);
-  const sample = (n, mean, sd, which = "") => {
-    if (!(n > 0) || !Number.isInteger(n) || !(sd >= 0))
-      throw new StataError("invalid syntax", 198);
-    // One observation has no spread; Stata refuses a positive sd for it.
-    if (n === 1 && sd > 0)
+function checked(session, sample, n, m, s, h) {
+  const one = sample === "one",
+    of = one ? "" : ` of ${sample} sample`;
+  if ((one && h === "") || (sample === "second" && s === ""))
+    throw new StataError(
+      paragraph(
+        session,
+        "either four arguments for a one-sample test or six arguments for a two-sample test must be specified",
+      ),
+      198,
+    );
+  if (n === ".")
+    throw new StataError(`number of observations${of} is missing`, 416);
+  if (!/^[+-]?\d+$/.test(n))
+    throw new StataError(`'${n}' found where integer expected`, 7);
+  const count = Number(n),
+    number = (text) => {
+      if (!NUMBER.test(text))
+        throw new StataError(`'${text}' found where number expected`, 7);
+      return numberOf(text);
+    };
+  if (count < 0)
+    throw new StataError(`number of observations${of} is negative`, 411);
+  if (count === 0)
+    throw new StataError(
+      one ? "no observations" : `${sample} sample has no observations`,
+      2000,
+    );
+  if (m === ".")
+    throw new StataError(one ? "mean is missing" : `mean${of} is missing`, 416);
+  const mean = number(m);
+  let sd = NaN;
+  if (s === ".") {
+    if (count !== 1)
+      throw new StataError(`standard deviation${of} is missing`, 416);
+  } else {
+    sd = number(s);
+    if (sd < 0)
       throw new StataError(
-        `${which ? `${which} sample has only` : "only"} one observation, but positive standard deviation`,
+        one
+          ? "standard deviation is negative"
+          : `${sample} sample has a negative standard deviation`,
+        411,
+      );
+    // One observation has no spread; Stata refuses a positive sd for it.
+    if (count === 1 && sd !== 0)
+      throw new StataError(
+        `${one ? "only" : `${sample} sample has only`} one observation, but positive standard deviation`,
         499,
       );
-    return tSummary(n, mean, sd, level);
-  };
-  const printers = tPrinters(ctx, session);
-  if (numbers.length === 4) {
-    if (options.unequal || options.welch)
-      throw new StataError("unequal and welch need two samples", 198);
-    const [n, mean, sd] = numbers,
-      m = sample(n, mean, sd);
-    oneSample(ctx, session, printers, m, "", tokens[3], level);
+  }
+  if (one) {
+    if (h === ".") throw new StataError("hypothesized value is missing", 416);
+    number(h);
+  }
+  return { n: count, mean, sd };
+}
+
+/**
+ * ttesti n mean sd value, and ttesti n1 mean1 sd1 n2 mean2 sd2: ttest from
+ * summary statistics, the samples called x and y as Stata calls them unless
+ * xname() and yname() name them. The arguments are read as ttesti.ado reads
+ * them, a word at a time with a comma a word of its own, and four words
+ * followed by nothing or a comma make the one-sample test, whose options
+ * leave out unequal, welch and cate. reverse is accepted and changes
+ * nothing.
+ */
+function ttesti(session, text, ctx) {
+  let rest = text;
+  const word = (take) => {
+      const m = /^\s*(,|[^\s,]+)?/.exec(rest);
+      if (take) rest = rest.slice(m[0].length);
+      return m[1] ?? "";
+    },
+    args = [word(true), word(true), word(true), word(true)],
+    next = word(false),
+    one = next === "" || next === ",";
+  if (!one) args.push(word(true), word(true));
+  const options = session.parse(
+      one
+        ? "[, Xname(string) Yname(string) Level(cilevel) reverse]"
+        : "[, Xname(string) Yname(string) UNEqual Welch Level(cilevel) cate REVerse]",
+      rest,
+    ).options,
+    level = options.level,
+    printers = tPrinters(ctx, session),
+    summary = ({ n, mean, sd }) => tSummary(n, mean, sd, level);
+  if (one) {
+    const m = summary(checked(session, "one", ...args));
+    oneSample(ctx, session, printers, m, options.xname ?? "", args[3], level);
     return;
   }
-  const a = sample(numbers[0], numbers[1], numbers[2], "first"),
-    b = sample(numbers[3], numbers[4], numbers[5], "second");
+  const a = summary(checked(session, "first", ...args.slice(0, 3))),
+    b = summary(checked(session, "second", ...args.slice(3)));
   twoSampleTable(ctx, session, printers)(
     a,
     b,
-    "",
-    "",
+    options.xname ?? "",
+    options.yname ?? "",
     level,
     approximation(options),
+    options.cate,
   );
 }
 
@@ -928,6 +1193,11 @@ export const UTILITY_COMMANDS = [
   { name: "levelsof", minimum: 6, run: levelsof },
   { name: "ds", minimum: 2, run: ds },
   { name: "unab", minimum: 4, run: unab },
-  { name: "ttest", minimum: 5, run: perGroup(ttest), byable: true },
+  {
+    name: "ttest",
+    minimum: 5,
+    run: perGroup(emptyGroups(ttest)),
+    byable: true,
+  },
   { name: "ttesti", minimum: 6, run: ttesti },
 ];

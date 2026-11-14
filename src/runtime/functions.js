@@ -5,6 +5,7 @@
 // missing, unless it is marked lenient and decides for itself.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
+import { abbreviateName } from "./format.js";
 import {
   MISSING,
   byteLength,
@@ -679,10 +680,7 @@ export const FUNCTIONS = {
   abbrev: {
     args: [S, N],
     returns: S,
-    fn: (s, n) => {
-      const width = Math.max(5, Math.min(32, whole(n)));
-      return s.length <= width ? s : s.slice(0, width - 2) + "~" + s.at(-1);
-    },
+    fn: (s, n) => abbreviateName(s, Math.max(5, Math.min(32, whole(n)))),
   },
   regexm: {
     args: [S, S],

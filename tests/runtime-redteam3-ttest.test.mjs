@@ -291,3 +291,224 @@ capture noisily ttest y == g if g == 9, unpaired
   assert.deepEqual(first, ["1 group found, 2 required"]);
   assert.deepEqual(second, ["first sample has no observations"]);
 });
+
+// After the review of e3c04a6: empty by-groups, group labels, abbreviated
+// names, the expression after ==, ttesti's argument checks and the _rc
+// ttest leaves. Recorded from Stata 19 MP (version 17, set processors 1);
+// the printed text is compared in tests/runtime-output.test.mjs (cases
+// ttest-by-empty-groups, ttest-group-labels, ttest-abbrev-digits,
+// ttest-expression-errors and ttesti-argument-checks).
+const EMPTY = `clear
+set obs 30
+set seed 77
+gen id = _n
+gen g = ceil(_n/10)
+gen y = runiform()
+gen x = runiform()
+gen k = mod(_n, 2)
+replace y = . if g == 2
+sort g id
+`;
+
+test("by: a group with no observations prints its message and goes on", () => {
+  const { session, result } = run(
+    EMPTY +
+      `by g: ttest y == .5
+by g: ttest y == x
+by g: ttest y, by(k)
+by g: ttest x == y, unpaired
+`,
+  );
+  assert.equal(result.rc, 0);
+  const messages = result.output
+    .slice(-4)
+    .map((o) => o.lines.filter((line) => /observations/.test(line)));
+  assert.deepEqual(messages, [
+    ["no observations"],
+    ["no observations"],
+    ["no observations"],
+    ["second sample has no observations"],
+  ]);
+  // Each run reaches g = 3, whose results r() keeps.
+  for (const o of result.output.slice(-4))
+    assert.ok(o.lines.includes("-> g = 3"), o.command);
+  same(
+    session.results.r,
+    {
+      ub_diff: 0.4030589571148224,
+      lb_diff: 0.0164654137641122,
+      mu_diff: 0.2097621854394673,
+      ub_combined: 0.5452263877053914,
+      lb_combined: 0.3324437934647145,
+      se_combined: 0.0508313781183059,
+      mu_combined: 0.438835090585053,
+      N_combined: 20,
+      ub_2: 0.5009128673297364,
+      lb_2: 0.1669951284009022,
+      se_2: 0.0738051591684705,
+      ub_1: 0.6679875883079349,
+      lb_1: 0.4194447783016384,
+      se_1: 0.0549349121479381,
+      level: 95,
+      sd: 0.2273248337250548,
+      sd_2: 0.2333924060436257,
+      sd_1: 0.1737194454487371,
+      se: 0.092005685110133,
+      p_u: 0.0175117187137256,
+      p_l: 0.9824882812862744,
+      p: 0.0350234374274512,
+      t: 2.279882870155003,
+      df_t: 18,
+      mu_2: 0.3339539978653193,
+      N_2: 10,
+      mu_1: 0.5437161833047867,
+      N_1: 10,
+    },
+    "by g: ttest x == y, unpaired",
+  );
+});
+
+test("by: an empty last group leaves r() empty; other errors still stop", () => {
+  const empty = run(
+    EMPTY +
+      "replace y = runiform() if g == 2\nreplace y = . if g == 3\n" +
+      "by g: ttest y == .5\n",
+  );
+  assert.equal(empty.result.rc, 0);
+  assert.deepEqual(empty.session.results.r, {});
+  const { lines, rc } = codes(
+    EMPTY +
+      `capture noisily by g: ttest y == 0 if g == 1
+display _rc
+replace y = runiform() if g == 2
+replace k = 0 if g == 2
+capture noisily by g: ttest y, by(k)
+display _rc
+`,
+  );
+  assert.equal(rc, 0);
+  assert.deepEqual(lines, ["0", "420"]);
+});
+
+test("_rc after ttest is what ttest.ado's own captures leave", () => {
+  const { lines } = codes(`clear
+set obs 30
+set seed 77
+gen g = ceil(_n/10)
+gen k = mod(_n, 2)
+gen y = runiform()
+gen x = runiform()
+gen str3 s = cond(k, "a", "b")
+sort g
+capture error 459
+quietly ttest y == .5
+display _rc
+capture error 459
+quietly ttest y == x
+display _rc
+capture error 459
+quietly ttest y, by(k)
+display _rc
+capture error 459
+quietly ttest y, by(s)
+display _rc
+capture error 459
+quietly ttesti 5 1 1 0
+display _rc
+capture error 459
+quietly ttesti 5 1 1 0, xname(y)
+display _rc
+capture error 459
+quietly by g: ttest y == x
+display _rc
+replace y = . if g == 3
+capture error 459
+quietly by g: ttest y, by(k)
+display _rc
+`);
+  assert.deepEqual(lines, ["0", "0", "198", "111", "459", "0", "0", "7"]);
+});
+
+test("the expression after == fails as ttest's syntax and confirm fail", () => {
+  const { session } = run(`clear
+set obs 10
+gen a = _n
+gen b = _n^2
+`);
+  const failure = (command) => {
+    const result = session.run(`capture noisily ${command}\n`).output.at(-1);
+    return [result.lines.join("|").trimEnd(), session.rc];
+  };
+  assert.deepEqual(failure("ttest a == zz"), ["zz not found", 111]);
+  assert.deepEqual(failure("ttest a == zz, unpaired"), ["zz not found", 111]);
+  assert.deepEqual(failure("ttest a == 2+1"), ["2 invalid name", 198]);
+  assert.deepEqual(failure("ttest a == (2)"), ["2 invalid name", 198]);
+  assert.deepEqual(failure("ttest a == b c"), ["invalid 'c'", 198]);
+  assert.deepEqual(failure("ttest a == b*"), ["invalid syntax", 198]);
+  assert.deepEqual(failure("ttest a == b*, unpaired"), [
+    "b* invalid name",
+    198,
+  ]);
+  assert.deepEqual(failure("ttest a == ."), [". invalid name", 198]);
+  assert.deepEqual(failure("ttest a, by(b)"), [
+    "more than 2 groups found, only 2 allowed",
+    420,
+  ]);
+});
+
+test("ttesti allows one observation with a missing standard deviation", () => {
+  const { session, result } = run("ttesti 1 2 . 3\n");
+  assert.equal(result.rc, 0);
+  same(
+    session.results.r,
+    {
+      ub_1: _,
+      lb_1: _,
+      level: 95,
+      sd_1: _,
+      se: _,
+      p_u: _,
+      p_l: _,
+      p: _,
+      t: _,
+      df_t: 0,
+      mu_1: 2,
+      N_1: 1,
+    },
+    "ttesti 1 2 . 3",
+  );
+  const { lines, rc } = codes(`capture ttesti 1 2 . 3
+display _rc
+capture ttesti 0 2 1 3
+display _rc
+capture ttesti 5 2 -1 3
+display _rc
+capture ttesti 5 2 1 .
+display _rc
+capture ttesti 5 . 1 3
+display _rc
+capture ttesti 5 2 1 4 3
+display _rc
+capture ttesti 2.5 2 1 3
+display _rc
+capture ttesti 1 2 3 4 5 6 7
+display _rc
+capture ttesti 20 1 2 .5, unequal
+display _rc
+capture ttesti 5 2 1 3 6 1, cate
+display _rc
+`);
+  assert.equal(rc, 0);
+  assert.deepEqual(lines, [
+    "0",
+    "2000",
+    "411",
+    "416",
+    "416",
+    "198",
+    "7",
+    "101",
+    "198",
+    "0",
+  ]);
+});

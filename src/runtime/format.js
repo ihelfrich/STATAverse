@@ -397,3 +397,40 @@ export function stringOf(value, format) {
   if (!spec || spec.kind === "string") return "";
   return applyFormat(value, spec).replace(/^ +/, "");
 }
+
+/** A name without operators, shortened to width as abbrev() shortens it. */
+function shortened(name, width) {
+  if (name.length <= width) return name;
+  // A name ending in digits keeps them all, as in sco~2019, when at least
+  // one character can stand before the ~; otherwise only its last
+  // character follows the ~.
+  const digits = /\d*$/.exec(name)[0].length,
+    room = width - 1 - digits;
+  return digits > 1 && room >= 1
+    ? `${name.slice(0, room)}~${name.slice(-digits)}`
+    : `${name.slice(0, width - 2)}~${name.at(-1)}`;
+}
+
+/**
+ * Stata's abbrev(s, n) for a width of at least five: the name shortened to
+ * n characters, with a ~ where characters were left out. A leading period
+ * is dropped, so the group label .5 shows as 5. Operators before the last
+ * period, as in L.gdp, are kept, with at least eight characters in all and
+ * at least five for the name after them; operators too long for that are
+ * cut to make room. The rules were recorded from Stata 19.
+ */
+export function abbreviateName(text, width) {
+  if (text.startsWith(".") && text.length > 1)
+    return abbreviateName(text.slice(1), width);
+  const dot = text.lastIndexOf(".");
+  if (dot <= 0) return shortened(text, width);
+  const n = Math.max(width, 8);
+  if (text.length <= n) return text;
+  const operators = text.slice(0, dot),
+    room = Math.max(5, n - operators.length - 1),
+    kept =
+      operators.length + 1 + room > n
+        ? `${operators.slice(0, Math.max(0, n - room - 2))}.`
+        : operators;
+  return `${kept}.${shortened(text.slice(dot + 1), room)}`;
+}

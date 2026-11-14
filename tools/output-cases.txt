@@ -4803,3 +4803,649 @@ ttest a, by(g) level(99.95)
 ttest a, by(g) level(90.5)
 ttest a == .5, level(99.9)
 ttest a, by(g) level(10)
+=== ttest-by-empty-groups
+clear
+set obs 30
+set seed 77
+gen id = _n
+gen g = ceil(_n/10)
+gen y = runiform()
+gen x = runiform()
+gen k = mod(_n, 2)
+replace y = . if g == 2
+sort g id
+by g: ttest y == .5
+display _rc
+by g: ttest y == x
+by g: ttest y, by(k)
+by g: ttest x == y, unpaired
+replace y = runiform() if g == 2
+replace k = 0 if g == 2
+capture noisily by g: ttest y, by(k)
+display _rc
+replace k = mod(_n,2)
+replace x = . if g == 1
+capture noisily by g: ttest y == x
+display _rc
+capture noisily by g: ttest y == x, unpaired
+display _rc
+clear
+set obs 30
+set seed 77
+gen id = _n
+gen g = ceil(_n/10)
+gen y = runiform()
+gen x = runiform()
+gen k = mod(_n, 2)
+sort g id
+capture noisily by g: ttest y == .5
+display _rc
+replace k = 0 if g == 2
+capture noisily by g: ttest y, by(k)
+display _rc
+replace k = mod(_n,2)
+replace k = 2 if g==3 & _n > 27
+capture noisily by g: ttest y, by(k)
+display _rc
+replace k = mod(_n,2)
+replace y = . if g == 3 & k == 1
+capture noisily by g: ttest y, by(k)
+display _rc
+capture noisily by g: ttest y == 0 if g == 1
+display _rc
+replace y = . if g == 1 & _n > 1
+capture noisily by g: ttest y == x
+display _rc
+capture noisily by g: ttest y == 0
+display _rc
+capture noisily by g: ttest y, by(k)
+display _rc
+capture noisily by g: ttesti 10 1 1 0
+display _rc
+capture noisily by g: ttest y == 0, by(k)
+display _rc
+clear
+set obs 30
+set seed 77
+gen g = ceil(_n/10)
+gen y = runiform()
+sort g
+capture error 198
+display _rc
+by g: ttest y == .5
+display _rc
+capture error 198
+quietly by g: summarize y
+display _rc
+capture error 198
+ttest y == .5
+display _rc
+replace y = . if g == 2
+capture error 198
+by g: ttest y == .5
+display _rc
+capture error 198
+by g: ttest y == .5 if g == 1
+display _rc
+capture error 459
+quietly by g: summarize y
+display _rc
+replace y = . if g == 3
+capture error 459
+by g: ttest y == .5
+display _rc
+clear
+set obs 30
+set seed 77
+gen g = ceil(_n/10)
+gen k = mod(_n, 2)
+gen y = runiform()
+gen x = runiform()
+gen str3 s = cond(k, "a", "b")
+label define kl 0 "zero" 1 "y"
+gen kl = k
+label values kl kl
+sort g
+capture error 459
+quietly ttest y == .5
+display "one " _rc
+capture error 459
+quietly ttest y == x
+display "paired " _rc
+capture error 459
+quietly ttest y == x, unpaired
+display "unpaired " _rc
+capture error 459
+quietly ttest y, by(k)
+display "bynum " _rc
+capture error 459
+quietly ttest y, by(s)
+display "bystr " _rc
+capture error 459
+quietly ttest y, by(kl)
+display "bylab " _rc
+capture error 459
+quietly ttesti 5 1 1 0
+display "ti1 " _rc
+capture error 459
+quietly ttesti 5 1 1 0, xname(y)
+display "ti1x " _rc
+capture error 459
+quietly ttesti 5 1 1 5 2 1
+display "ti2 " _rc
+capture error 459
+quietly by g: ttest y, by(k)
+display "byg " _rc
+capture error 459
+quietly by g: ttest y == x
+display "bygp " _rc
+replace y = . if g == 3
+capture error 459
+quietly by g: ttest y == x
+display "bygp3 " _rc
+capture error 459
+quietly by g: ttest y, by(k)
+display "bygk3 " _rc
+clear
+set obs 30
+set seed 77
+gen id = _n
+gen g = ceil(_n/10)
+gen y = runiform()
+gen x = runiform()
+gen k = mod(_n, 2)
+replace y = . if g == 3
+sort g id
+by g: ttest y == .5
+display _rc
+replace y = . if g == 1
+capture noisily by g: ttest y, by(k) reverse
+display _rc
+capture noisily by g: ttest y == x, unpaired
+display _rc
+=== ttest-group-labels
+clear
+set obs 30
+set seed 32
+gen household_income = (50+(10)*invnormal(runiform()))
+gen spouse_income_level = household_income + (2+(5)*invnormal(runiform()))
+gen dose = cond(_n <= 15, 0.1, 0.2)
+ttest household_income, by(dose)
+gen double ddose = cond(_n <= 15, 0.1, 0.2)
+ttest household_income, by(ddose)
+gen big = cond(_n <= 15, 1e10, 2e10)
+ttest household_income, by(big)
+gen neg = cond(_n <= 15, -1.5, 123456789)
+ttest household_income, by(neg)
+gen fmt = cond(_n <= 15, 1, 2)
+format fmt %9.2f
+ttest household_income, by(fmt)
+label define partial 1 "one"
+label values fmt partial
+ttest household_income, by(fmt)
+label define emp 1 "" 2 "two"
+gen e = fmt
+label values e emp
+ttest household_income, by(e)
+gen str20 grp = cond(_n <= 15, "household_income", "zzz")
+ttest spouse_income_level, by(grp)
+gen str20 grp2 = cond(_n <= 15, "hou", "spouse_income_level")
+ttest spouse_income_level, by(grp2)
+gen str20 grp3 = cond(_n <= 15, "  lead", "trail   x")
+ttest spouse_income_level, by(grp3)
+gen str20 grp4 = cond(_n <= 15, "a b", "*")
+ttest spouse_income_level, by(grp4)
+ttest household_income == spouse_income_level, unpaired
+ttest spouse_income_level == household_income, unpaired unequal
+rename household_income income_of_household_head_2020
+ttest income_of_household_head_2020 == spouse_income_level
+ttest income_of_household_head_2020 == 50
+ttest income_of_household_head_2020, by(dose)
+gen str20 u = cond(_n <= 15, "Ünïcödé_grp_long", "école")
+ttest spouse_income_level, by(u)
+gen abcdefghi = spouse_income_level
+gen abcdefgh = spouse_income_level
+ttest abcdefghi == abcdefgh, unpaired
+ttest abcdefgh == 1
+clear
+set obs 20
+gen y = _n
+gen x = _n^.5
+gen income_total = _n
+gen str12 s = ""
+replace s = cond(_n<=10, "x y", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "x*", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "x-y", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "_all", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "inc", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "x?", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "*", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "y", "zz")
+ttest x, by(s)
+replace s = cond(_n<=10, "i.x", "zz")
+ttest y, by(s)
+replace s = cond(_n<=10, "L.x", "zz")
+ttest y, by(s)
+clear
+set obs 20
+set seed 5
+gen y = runiform()
+local lo1 1e20
+local hi1 2e20
+local lo2 1e-10
+local hi2 2e-10
+local lo3 1e15
+local hi3 1e16
+local lo4 -.25
+local hi4 .75
+local lo5 0
+local hi5 .001
+local lo6 123456.789
+local hi6 7
+local lo7 -1234567
+local hi7 1
+local lo8 3.14159
+local hi8 2.71828
+local lo9 .5
+local hi9 1.5
+capture drop f d
+gen f = cond(_n <= 10, `lo1', `hi1')
+gen double d = cond(_n <= 10, `lo1', `hi1')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo2', `hi2')
+gen double d = cond(_n <= 10, `lo2', `hi2')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo3', `hi3')
+gen double d = cond(_n <= 10, `lo3', `hi3')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo4', `hi4')
+gen double d = cond(_n <= 10, `lo4', `hi4')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo5', `hi5')
+gen double d = cond(_n <= 10, `lo5', `hi5')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo6', `hi6')
+gen double d = cond(_n <= 10, `lo6', `hi6')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo7', `hi7')
+gen double d = cond(_n <= 10, `lo7', `hi7')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo8', `hi8')
+gen double d = cond(_n <= 10, `lo8', `hi8')
+ttest y, by(f)
+ttest y, by(d) reverse
+capture drop f d
+gen f = cond(_n <= 10, `lo9', `hi9')
+gen double d = cond(_n <= 10, `lo9', `hi9')
+ttest y, by(f)
+ttest y, by(d) reverse
+gen e = cond(_n<=10, 1, 2)
+label define lab 1 ".hidden" 2 "abcdefghijklm_2019"
+label values e lab
+display "[labels]"
+ttest y, by(e)
+label define lab2 1 "x*" 2 "_all"
+label values e lab2
+ttest y, by(e)
+gen str20 s = cond(_n<=10, ".25", "abcdefghijk")
+ttest y, by(s)
+=== ttest-abbrev-digits
+display abbrev("income_of_household_head_2020", 8)
+display abbrev("income_of_household_head_2020", 16)
+display abbrev("household_income_1", 8)
+display abbrev("variable_number_12", 8)
+display abbrev("var_123456789", 8)
+display abbrev("longname_a1", 8)
+display abbrev("score2020_math", 8)
+clear
+set obs 20
+set seed 12
+gen y = _n
+gen g = cond(_n<=10, .5, -.5)
+ttest y, by(g)
+replace g = cond(_n<=10, 10.25, 3)
+ttest y, by(g)
+replace g = cond(_n<=10, .25, 3)
+ttest y, by(g)
+gen gg = cond(_n<=10, 1.5, 2.5)
+gen score_wave_2019 = y + runiform()
+ttest score_wave_2019 == y
+display abbrev("score_wave_2019", 5)
+display abbrev("score_wave_2019", 6)
+display abbrev("score_wave_2019", 12)
+display abbrev("income_of_household_head_2020", 16)
+display abbrev("variable_number_12", 8)
+display abbrev("household_income_1", 8)
+display abbrev("x_123456789", 8)
+display abbrev("abcdefghijk1234567", 8)
+display abbrev("abcdefghijk1234567", 12)
+display abbrev("abcdefghi_12345", 6)
+display abbrev("abcdefghi_12345", 7)
+display abbrev("abc12def456789", 7)
+display abbrev("abc12def456789", 8)
+display abbrev("a123456789012", 12)
+display abbrev(".5", 8)
+display abbrev(".1000000", 5)
+display abbrev(".abcdefghij", 8)
+display abbrev("L.abcdefghijkl", 5)
+display abbrev("L.abcdefghij_2019", 8)
+display abbrev("abc.defghijklmn", 8)
+display abbrev("12345679", 5)
+rename score_wave_2019 income_of_household_head_2020
+ttest income_of_household_head_2020 == y
+ttest income_of_household_head_2020 == y, unpaired
+ttesti 5 2 1 3 6 1, xname(very_long_name_here) yname(another_long_name_2019)
+=== ttest-expression-errors
+clear
+set obs 10
+gen a = _n
+gen b = _n^2
+gen str3 s = "x"
+capture noisily ttest a == zz
+display _rc
+capture noisily ttest zz == a
+display _rc
+capture noisily ttest a == zz, unpaired
+display _rc
+capture noisily ttest a == 2+1
+display _rc
+capture noisily ttest a == (2)
+display _rc
+capture noisily ttest a == 1e400
+display _rc
+capture noisily ttest a == "x"
+display _rc
+capture noisily ttest a == s
+display _rc
+capture noisily ttest s == a
+display _rc
+capture noisily ttest s == 1
+display _rc
+capture noisily ttest a == b c
+display _rc
+capture noisily ttest a b == 1
+display _rc
+capture noisily ttest a, by(s)
+display _rc
+capture noisily ttest a, by(zz)
+display _rc
+capture noisily ttest a, by(a b)
+display _rc
+capture noisily ttest a, by(b)
+display _rc
+capture noisily ttest a == b, level(101)
+display _rc
+capture noisily ttest a == 1, unequal
+display _rc
+capture noisily ttest a == b, welch
+display _rc
+capture noisily ttest a == 1, by(b)
+display _rc
+capture noisily ttest a == 1, reverse
+display _rc
+capture noisily ttest a == 1, foo
+display _rc
+capture noisily ttest a if a > 20, by(b)
+display _rc
+capture noisily ttest a == b if a > 20
+display _rc
+capture noisily ttest a == b if a > 20, unpaired
+display _rc
+capture noisily ttest a == 1 if a > 20
+display _rc
+gen income = _n
+scalar sc = 3
+capture noisily ttest a == zz
+display _rc
+capture noisily ttest a == b c
+display _rc
+capture noisily ttest a == b c d
+display _rc
+capture noisily ttest a == b*
+display _rc
+capture noisily ttest a == zz c
+display _rc
+capture noisily ttest a == zz+1
+display _rc
+capture noisily ttest a == b+zz
+display _rc
+capture noisily ttest a == 2+1
+display _rc
+capture noisily ttest a == (2)
+display _rc
+capture noisily ttest a == 2 3
+display _rc
+capture noisily ttest a == b 2
+display _rc
+capture noisily ttest a == zz*
+display _rc
+capture noisily ttest a == inc
+display _rc
+capture noisily ttest a == b-
+display _rc
+capture noisily ttest a == b c, unpaired
+display _rc
+capture noisily ttest a == zz, unpaired
+display _rc
+capture noisily ttest a == b*, unpaired
+display _rc
+capture noisily ttest a == 2+1, unpaired
+display _rc
+capture noisily ttest a == (b)
+display _rc
+capture noisily ttest a == (b), unpaired
+display _rc
+capture noisily ttest a == b c if a > 2
+display _rc
+capture noisily ttest a == b if
+display _rc
+capture noisily ttest a == 1e400
+display _rc
+capture noisily ttest a == b)
+display _rc
+capture noisily ttest a == (b
+display _rc
+capture noisily ttest a == b[1]
+display _rc
+capture noisily ttest a == b(1)
+display _rc
+capture noisily ttest a == exp(b)
+display _rc
+capture noisily ttest a == -b
+display _rc
+capture noisily ttest a == --1
+display _rc
+capture noisily ttest a == -1
+display _rc
+capture noisily ttest a == +1
+display _rc
+capture noisily ttest a == 1e-3
+display _rc
+capture noisily ttest a == .5
+display _rc
+capture noisily ttest a == .a
+display _rc
+capture noisily ttest a == b==1
+display _rc
+capture noisily ttest a == b*, unequal
+display _rc
+capture noisily ttest a == b*, level(90)
+display _rc
+capture noisily ttest a == b*, unpaired level(90)
+display _rc
+capture noisily ttest a == b c, unequal
+display _rc
+capture noisily ttest a == zz, unequal
+display _rc
+capture noisily ttest a == zz+1, unpaired
+display _rc
+capture noisily ttest a == b+1, unpaired
+display _rc
+capture noisily ttest a == zz c, unpaired
+display _rc
+capture noisily ttest a == b*1
+display _rc
+capture noisily ttest a == b*1, unpaired
+display _rc
+capture noisily ttest a == b*1, unequal
+display _rc
+capture noisily ttest a == 2*
+display _rc
+capture noisily ttest a == 2*, level(90)
+display _rc
+capture noisily ttest a == b/
+display _rc
+capture noisily ttest a == b/, level(90)
+display _rc
+capture noisily ttest a == b^
+display _rc
+capture noisily ttest a == b c, level(90)
+display _rc
+capture noisily ttest a == zz in 1/5
+display _rc
+capture noisily ttest a == sc
+display _rc
+capture noisily ttest a == 1.0x+0
+display _rc
+capture noisily ttest a == 1.4x+3
+display _rc
+scalar drop sc
+=== ttesti-argument-checks
+set linesize 80
+capture noisily ttesti 1 2 . 3
+display _rc
+capture noisily ttesti 0 2 1 3
+display _rc
+capture noisily ttesti 5 2 -1 3
+display _rc
+capture noisily ttesti 5 2 1 .
+display _rc
+capture noisily ttesti 5 . 1 3
+display _rc
+capture noisily ttesti 5 2 1 4 3
+display _rc
+capture noisily ttesti 5 2 1
+display _rc
+capture noisily ttesti 5 2
+display _rc
+capture noisily ttesti 5
+display _rc
+capture noisily ttesti 
+display _rc
+capture noisily ttesti . 2 1 3
+display _rc
+capture noisily ttesti 2.5 2 1 3
+display _rc
+capture noisily ttesti -3 2 1 3
+display _rc
+capture noisily ttesti abc 2 1 3
+display _rc
+capture noisily ttesti 5 abc 1 3
+display _rc
+capture noisily ttesti 5 2 abc 3
+display _rc
+capture noisily ttesti 5 2 1 abc
+display _rc
+capture noisily ttesti 5 2 . 3
+display _rc
+capture noisily ttesti 1 2 0 3
+display _rc
+capture noisily ttesti 1 2 . 3 4 5
+display _rc
+capture noisily ttesti 1 2 3 4 5 6 7
+display _rc
+capture noisily ttesti 5 2 1 3, unequal
+display _rc
+capture noisily ttesti 5 2 1 3, welch
+display _rc
+capture noisily ttesti 5 2 1 3, reverse welch
+display _rc
+capture noisily ttesti 5 2 1 3, rev
+display _rc
+capture noisily ttesti 5 2 1 3, reverse
+display _rc
+capture noisily ttesti 5 2 1 3 4 1, rev
+display _rc
+capture noisily ttesti 0 2 1 3 4 1
+display _rc
+capture noisily ttesti 3 2 1 0 4 1
+display _rc
+capture noisily ttesti 3 2 -1 3 4 1
+display _rc
+capture noisily ttesti 3 2 1 3 4 -1
+display _rc
+capture noisily ttesti 3 . 1 3 4 1
+display _rc
+capture noisily ttesti 3 2 1 3 . 1
+display _rc
+capture noisily ttesti 3 2 . 3 4 1
+display _rc
+capture noisily ttesti 3 2 1 3 4 .
+display _rc
+capture noisily ttesti 1 2 . 1 4 .,
+display _rc
+capture noisily ttesti 1 2 1 3 4 1
+display _rc
+capture noisily ttesti 3 2 1 1 4 1
+display _rc
+capture noisily ttesti 1e3 2 1 3
+display _rc
+capture noisily ttesti 5 2 1 3 4
+display _rc
+capture noisily ttesti 5 2 1 3, xname(foo)
+display _rc
+capture noisily ttesti 5 2 1 3 6 1, xname(foo) yname(bar)
+display _rc
+capture noisily ttesti 5 2 1 3 6 1, cate
+display _rc
+capture noisily ttesti 5 2 1 3, cate
+display _rc
+capture noisily ttesti 5 2 1 3, xname(b)
+display _rc
+capture noisily ttesti 5,2 1 3
+display _rc
+capture noisily ttesti 5 2 1 3 6 1, xname(a b)
+display _rc
+capture noisily ttesti 5 2 1, level(90)
+display _rc
+capture noisily ttesti +5 2 1 3
+display _rc
+capture noisily ttesti 5 2 1 1.0x+1
+display _rc
+capture noisily ttesti . . . .
+display _rc
+capture noisily ttesti 4 2 . 3 4 .
+display _rc
+capture noisily ttesti -0 2 1 3
+display _rc
+capture noisily ttesti 5 -2 0 -3
+display _rc
+clear
+set obs 3
+gen b = 1
+capture noisily ttesti 5 2 1 3, xname(b)
+capture noisily ttesti 5 2 1 3 6 1, xname(b) yname(zzz)
+ttesti 1 2 . 3
+ttesti 1 2 . 3 4 5
+set linesize 200
