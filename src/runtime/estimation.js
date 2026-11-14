@@ -59,6 +59,53 @@ export const quadratic = (v, m) =>
 
 // ----- the model -----
 /**
+ * A factor-variable operator on one variable: c., i., ibn., and the base
+ * operators ib#., ib(#n)., ib(first)., ib(last)., ib(freq). and b#.
+ */
+const FACTOR_OPERATOR =
+  /^(c|i|ibn|i?b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))\.([A-Za-z_]\w*)$/;
+/** What a base operator asks for: undefined for the first level. */
+function baseSpecification(operator) {
+  if (operator === "ibn") return "none";
+  const m = /^i?b\(?\s*(#?)(\d+|first|last|freq)\s*\)?$/.exec(operator);
+  if (!m) return undefined;
+  if (/^\d+$/.test(m[2]))
+    return m[1] ? { ordinal: Number(m[2]) } : { value: Number(m[2]) };
+  return { which: m[2] };
+}
+/**
+ * The base level of a factor whose levels in the sample are given: the
+ * first unless the operator chose another, null for ibn. A level asked for
+ * that the sample does not have is Stata's error.
+ */
+function baseLevel(spec, levels, variable, sample) {
+  if (spec === undefined || spec.which === "first") return levels[0];
+  if (spec === "none") return null;
+  if (spec.which === "last") return levels.at(-1);
+  if (spec.which === "freq") {
+    const counts = new Map();
+    for (const i of sample)
+      counts.set(variable.data[i], (counts.get(variable.data[i]) ?? 0) + 1);
+    let best = levels[0];
+    for (const level of levels)
+      if (counts.get(level) > counts.get(best)) best = level;
+    return best;
+  }
+  if (spec.ordinal !== undefined) {
+    if (spec.ordinal < 1 || spec.ordinal > levels.length)
+      throw new StataError("factor level out of range", 175);
+    return levels[spec.ordinal - 1];
+  }
+  // Stata then reports the base as an empty level and omits another for
+  // collinearity; that is not done here.
+  if (!levels.includes(spec.value))
+    throw new StataError(
+      `ib${spec.value}.${variable.name}: a base level the estimation sample does not have is not available here; choose one of the levels of ${variable.name} it has (${levels.join(" ")})`,
+      198,
+    );
+  return spec.value;
+}
+/**
  * Reads "y x1 i.g c.x1#c.x2 i.g##c.x1" into a dependent variable and design
  * columns. Each term is a product of components, a component being a
  * continuous variable or the levels of a factor. A bare name is continuous
@@ -74,7 +121,7 @@ export function design(session, text, rows, constant = true) {
     return variable;
   };
   const component = (word, inInteraction) => {
-    const m = /^(i|c)\.(.+)$/.exec(word);
+    const m = FACTOR_OPERATOR.exec(word);
     if (!m && /[.()]/.test(word))
       throw new StataError(
         `${word}: this factor-variable or time-series operator is not available yet`,
@@ -82,7 +129,10 @@ export function design(session, text, rows, constant = true) {
       );
     return {
       variable: numeric(m ? m[2] : word),
-      factor: m ? m[1] === "i" : inInteraction,
+      factor: m ? m[1] !== "c" : inInteraction,
+      // The base level ib#., ib(#n)., ib(first|last|freq). or b#. asks
+      // for, or none for ibn.
+      base: m ? baseSpecification(m[1]) : undefined,
     };
   };
   // A term is the same term whatever the order of its components, so
@@ -134,7 +184,13 @@ export function design(session, text, rows, constant = true) {
           .join("#"),
       });
     };
-  for (const token of tokens.slice(1)) {
+  for (const written of tokens.slice(1)) {
+    // The # of ib(#2). is not an interaction: it is held aside while the
+    // token is split.
+    const token = written.replace(/\([^()]*\)/g, (group) =>
+        group.replace(/#/g, "\u0001"),
+      ),
+      restore = (part) => part.replace(/\u0001/g, "#");
     if (token.includes("##")) {
       // a##b##c is (a##b)##c: each new part is added on its own and
       // crossed with every term so far, giving Stata's order
@@ -142,7 +198,7 @@ export function design(session, text, rows, constant = true) {
       // is not made again, so c.x##c.x is x and c.x#c.x.
       let expanded = [];
       for (const part of token.split("##")) {
-        const next = component(part, true);
+        const next = component(restore(part), true);
         expanded = [...expanded, [next], ...expanded.map((t) => [...t, next])];
       }
       expanded
@@ -151,8 +207,8 @@ export function design(session, text, rows, constant = true) {
         )
         .forEach(add);
     } else if (token.includes("#"))
-      add(token.split("#").map((part) => component(part, true)));
-    else if (/^(i|c)\./.test(token)) add([component(token, false)]);
+      add(token.split("#").map((part) => component(restore(part), true)));
+    else if (FACTOR_OPERATOR.test(written)) add([component(written, false)]);
     else
       for (const name of session.varlist(token)) add([component(name, false)]);
   }
@@ -161,7 +217,9 @@ export function design(session, text, rows, constant = true) {
       !isMissing(dependent.data[i]) &&
       terms.every((t) => t.variables.every((v) => !isMissing(v.data[i]))),
   );
-  const levelsOf = new Map();
+  const levelsOf = new Map(),
+    // Each factor's base level, null for none.
+    baseOf = new Map();
   for (const term of terms)
     for (const c of term.components) {
       if (!c.factor || levelsOf.has(c.variable)) continue;
@@ -174,6 +232,7 @@ export function design(session, text, rows, constant = true) {
           452,
         );
       levelsOf.set(c.variable, levels);
+      baseOf.set(c.variable, baseLevel(c.base, levels, c.variable, sample));
     }
   // Columns already accepted, orthogonalised, to test later ones against.
   const basis = [];
@@ -220,7 +279,7 @@ export function design(session, text, rows, constant = true) {
       continuous = term.components.filter((c) => !c.factor),
       made = cells.map((cell) => {
         const bases = cell.filter(
-          (level, k) => level === levelsOf.get(factors[k].variable)[0],
+          (level, k) => level === baseOf.get(factors[k].variable),
         ).length;
         return {
           name: term.components
@@ -265,10 +324,14 @@ export function design(session, text, rows, constant = true) {
         };
       });
     if (term.factor)
-      // A factor on its own: the first level is the base.
-      made.forEach((column, k) => {
-        column.base = k === 0;
-        if (k === 0) column.name = column.name.replace(".", "b.");
+      // A factor on its own: the first level is the base, unless ib#.
+      // chose another or ibn. none. A factor with a single level has no
+      // base: its level is a column like any other, omitted beside the
+      // constant.
+      made.forEach((column) => {
+        column.base =
+          made.length > 1 && column.level === baseOf.get(term.factor);
+        if (column.base) column.name = column.name.replace(".", "b.");
         // A level that adds nothing, such as 2.g beside a dummy for g == 2,
         // is collinear; the likelihood fitters omit it.
         else if (!independent(column)) column.collinear = true;
@@ -290,7 +353,7 @@ export function design(session, text, rows, constant = true) {
                 return `${column.base ? "co" : "c"}.${c.variable.name}`;
               const level = column.levels[k],
                 mark =
-                  level === levelsOf.get(c.variable)[0]
+                  level === baseOf.get(c.variable)
                     ? "b"
                     : column.base
                       ? "o"
@@ -1225,11 +1288,16 @@ export function coefficientSpace(model) {
         (model.dist === "z" &&
           !unnamed.includes(model.kind) &&
           !unnamed.includes(model.command)) ||
-        !!model.auxiliary;
+        !!model.auxiliary ||
+        // svy: logit and the like, which report t.
+        !!model.namedEquation;
     model.names.forEach((name, index) =>
       entries.push({
         equation: tagged ? model.depvar : null,
         name,
+        // How a constraint writes it, when that differs from its name:
+        // the first level of mean's over() group is 1bn.g there.
+        ...(model.shownNames ? { shownName: model.shownNames[index] } : {}),
         index,
         // A base level keeps its b; any other coefficient held at zero
         // was omitted.
@@ -1315,7 +1383,7 @@ const termKey = (terms) =>
     .sort()
     .join("#");
 const shown = (e) =>
-  `${e.equation === null ? "" : `[${e.equation}]`}${e.omitted ? omittedName(e.name) : e.name}`;
+  `${e.equation === null ? "" : `[${e.equation}]`}${e.shownName ?? (e.omitted ? omittedName(e.name) : e.name)}`;
 
 /**
  * The variables of a model's coefficients. test and lincom unabbreviate a
@@ -1614,6 +1682,42 @@ export function linear(model, text, session) {
       return value(kind, at);
     },
   );
+  // The estimates of mean, total and the like over groups are named
+  // c.y@1.g, or c.y@1.g#2.h; the c. may be left out and the names
+  // abbreviated.
+  if (space.entries.some((e) => e.name.includes("@")))
+    source = source.replace(
+      /(?<![\w.#@])(?:c\.)?([A-Za-z_]\w*)@(\d+[a-z]*\.[A-Za-z_]\w*(?:#\d+[a-z]*\.[A-Za-z_]\w*)*)(?![\w.#@])/g,
+      (token, variable, levels) => {
+        const named = space.entries.map((e) => /^c\.(\w+)@(.+)$/.exec(e.name)),
+          full = (name, names) =>
+            names.includes(name)
+              ? name
+              : names.filter((n) => n.startsWith(name)).length === 1
+                ? names.find((n) => n.startsWith(name))
+                : name,
+          y = full(variable, [
+            ...new Set(named.filter(Boolean).map((m) => m[1])),
+          ]),
+          overs = [
+            ...new Set(
+              named
+                .filter(Boolean)
+                .flatMap((m) => m[2].split("#").map((p) => p.split(".")[1])),
+            ),
+          ],
+          wanted = `c.${y}@${levels
+            .split("#")
+            .map((part) => {
+              const [, level, name] = /^(\d+)[a-z]*\.(\w+)$/.exec(part);
+              return `${Number(level)}.${full(name, overs)}`;
+            })
+            .join("#")}`,
+          at = space.entries.findIndex((e) => e.name === wanted);
+        if (at < 0) throw new StataError(`${token} not found`, 111);
+        return placed(at, token);
+      },
+    );
   source = source.replace(
     /\[\s*([^\]]*?)\s*\]\s*([A-Za-z_0-9][\w.#]*)(\([^()]*\))?/g,
     (all, equation, name, paren) => findWith(equation, name, paren),
@@ -2327,6 +2431,13 @@ export function waldTest(session, model, fresh, tail, ctx) {
       : fresh;
   model.testConstraints = constraints;
   ctx.out("");
+  // After svy, the F statistic is adjusted for the design's degrees of
+  // freedom, as Stata's test does unless told nosvyadjust.
+  const svyAdjust = !!model.svy && options.df === undefined;
+  if (svyAdjust) {
+    ctx.out("Adjusted Wald test");
+    ctx.out("");
+  }
   constraints.forEach((c, k) =>
     constraintLines(session, k, c.text).forEach((line) => ctx.out(line)),
   );
@@ -2374,9 +2485,14 @@ export function waldTest(session, model, fresh, tail, ctx) {
         rows.map((k) => difference[k]),
         inverse,
       );
+      if (svyAdjust) {
+        const F = ((dfR - q + 1) * w) / (dfR * q);
+        return [F, Ftail(q, dfR - q + 1, F), q];
+      }
       return fTest ? [w / q, Ftail(q, dfR, w / q), q] : [w, chi2tail(q, w), q];
     },
-    [statistic, p, q] = wald(kept);
+    [statistic, p, q] = wald(kept),
+    dfShown = svyAdjust && q ? dfR - q + 1 : dfR;
   // mtest: each constraint tested on its own, with p-values adjusted for
   // the number of them.
   const single = options.method ? constraints.map((_, k) => wald([k])) : [],
@@ -2407,7 +2523,7 @@ export function waldTest(session, model, fresh, tail, ctx) {
   } else if (fTest) {
     // Stata writes the denominator degrees of freedom as %6.0f.
     ctx.out(
-      `       F(${String(q).padStart(3)},${applyFormat(dfR, "%6.0f")}) =${applyFormat(statistic, "%8.2f")}`,
+      `       F(${String(q).padStart(3)},${applyFormat(dfShown, "%6.0f")}) =${applyFormat(statistic, "%8.2f")}`,
     );
     ctx.out(`            Prob > F =${applyFormat(p, "%10.4f")}`);
   } else {
@@ -2425,7 +2541,7 @@ export function waldTest(session, model, fresh, tail, ctx) {
     session.results.r = {
       p,
       df: q,
-      ...(fTest ? { F: statistic, df_r: dfR } : { chi2: statistic }),
+      ...(fTest ? { F: statistic, df_r: dfShown } : { chi2: statistic }),
       drop: dropped.length ? 1 : 0,
       ...Object.fromEntries(droppedResults),
     };
@@ -2436,7 +2552,7 @@ export function waldTest(session, model, fresh, tail, ctx) {
     ...Object.fromEntries(droppedResults.reverse()),
     drop: dropped.length ? 1 : 0,
     ...(fTest
-      ? { df_r: dfR, F: statistic, df: q, p }
+      ? { df_r: dfShown, F: statistic, df: q, p }
       : { chi2: statistic, df: q, p }),
     ...(options.method
       ? {

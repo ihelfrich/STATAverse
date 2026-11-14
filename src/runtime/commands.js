@@ -36,6 +36,13 @@ import { DATA_COMMANDS, fold, remade, settle } from "./data-commands.js";
 import { describe } from "./data-utilities.js";
 import { characteristicsOf } from "./store.js";
 import {
+  GUARDED_AFTER_SVY,
+  REPLAYED_AFTER_SVY,
+  SVY_COMMANDS,
+  guardAfterSvy,
+  replayAfterSvy,
+} from "./svy.js";
+import {
   count,
   countCommand,
   list,
@@ -1924,6 +1931,7 @@ const command = (name, minimum, run, byable = false) => ({
 export const COMMANDS = [
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
+  ...SVY_COMMANDS,
   ...PANEL_COMMANDS,
   ...UTILITY_COMMANDS,
   ...EVERYDAY_COMMANDS,
@@ -2119,6 +2127,32 @@ export const COMMANDS = [
     }
   }),
 ];
+// Post-estimation commands that do not yet take a survey design into
+// account stop after a svy estimate rather than report as if the data were
+// a simple random sample.
+COMMANDS.forEach((c, k) => {
+  if (!GUARDED_AFTER_SVY.has(c.name)) return;
+  COMMANDS[k] = {
+    ...c,
+    run: (session, text, ctx) => {
+      guardAfterSvy(session, c.name, text);
+      return c.run(session, text, ctx);
+    },
+  };
+});
+// After a svy estimate, the estimation command typed alone shows it again,
+// and ereturn display shows its coefficient table.
+COMMANDS.forEach((c, k) => {
+  if (!REPLAYED_AFTER_SVY.has(c.name)) return;
+  const run = COMMANDS[k].run;
+  COMMANDS[k] = {
+    ...COMMANDS[k],
+    run: (session, text, ctx) =>
+      replayAfterSvy(session, c.name, text, ctx)
+        ? undefined
+        : run(session, text, ctx),
+  };
+});
 function findCommandName(session, word) {
   const name = /^[A-Za-z_]\w*(?=,?$)/.exec(word)?.[0];
   if (!name) return false;

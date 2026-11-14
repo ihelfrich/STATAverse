@@ -326,6 +326,9 @@ export class Dataset {
       sortedBy: [...this.sortedBy],
       defaultType: this.defaultType,
       label: this.label,
+      // The survey design svyset keeps with the data, as Stata keeps it in
+      // the data's characteristics.
+      svyset: this.svyset,
       valueLabels: new Map(
         [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
