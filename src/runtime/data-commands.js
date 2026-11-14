@@ -11,7 +11,9 @@ import { Dataset } from "./store.js";
 import {
   MISSING,
   byteLength,
+  coerce,
   defaultFormat,
+  formatNumber,
   inferType,
   isMissing,
   isName,
@@ -95,108 +97,229 @@ function use(session, text) {
   session.cleanFingerprint = fingerprint(data);
 }
 
-// ----- append -----
+// ----- append and merge -----
 function widerType(a, b) {
   if (isStringType(a) !== isStringType(b)) return null;
   if (isStringType(a)) return stringWidth(a) >= stringWidth(b) ? a : b;
   return RANK[Math.max(RANK.indexOf(a), RANK.indexOf(b))];
 }
-function append(session, text) {
-  const parsed = session.parse(
-      "using/ [, GENerate(name) FORCE | KEEP(string) noLabel noNOTEs]",
-      text,
-    ),
-    other = load(session, fileName(parsed.using)),
-    data = session.data,
-    n = data.n,
-    total = n + other.n;
-  if (parsed.options.generate && data.has(parsed.options.generate))
-    throw new StataError(
-      `variable ${parsed.options.generate} already defined`,
-      110,
-    );
-  for (const theirs of other.variables) {
-    if (!data.has(theirs.name)) continue;
-    if (
-      widerType(data.get(theirs.name).type, theirs.type) === null &&
-      !parsed.options.force
-    )
+/**
+ * The storage type append and merge give a variable both datasets have: the
+ * smallest that holds the values of both. A float and a long need a double.
+ */
+function combinedType(a, b) {
+  if (a === b) return a;
+  if (isStringType(a))
+    return a === "strL" || b === "strL"
+      ? "strL"
+      : stringWidth(a) >= stringWidth(b)
+        ? a
+        : b;
+  const integers = ["byte", "int", "long"],
+    ia = integers.indexOf(a),
+    ib = integers.indexOf(b);
+  if (ia >= 0 && ib >= 0) return integers[Math.max(ia, ib)];
+  if (a === "double" || b === "double") return "double";
+  return a === "long" || b === "long" ? "double" : "float";
+}
+/** An SMCL {p 4 4 2} paragraph: words wrapped two short of the line. */
+function paragraph(session, text) {
+  const width = (session.settings.linesize ?? 80) - 2,
+    lines = [];
+  let line = "    ";
+  for (const word of text.split(" ")) {
+    if (line.trim() && line.length + 1 + word.length > width) {
+      lines.push(line.trimEnd());
+      line = "    ";
+    }
+    line += (line.trim() ? " " : "") + word;
+  }
+  lines.push(line.trimEnd());
+  return lines.join("\n");
+}
+/**
+ * Settles the variables the master and using data share before append or
+ * merge combines them. A string variable in one and a numeric one in the
+ * other is an error unless force, which treats the using values as empty.
+ * Otherwise the master variable is widened to hold the using values. The
+ * value labels the using variables carry come along, except one the master
+ * data already define. Returns the names whose using values are dropped.
+ */
+function reconcile(session, command, data, other, names, options, ctx) {
+  const shared = data.variables.filter((v) => names.includes(v.name)),
+    ignored = new Set(),
+    widened = [];
+  for (const variable of shared) {
+    const theirs = other.get(variable.name);
+    if (isStringType(theirs.type) === isStringType(variable.type)) continue;
+    if (!options.force) {
+      const text = isStringType(variable.type);
       throw new StataError(
-        `variable ${theirs.name} is ${isStringType(data.get(theirs.name).type) ? "str" : "numeric"} in master but ${isStringType(theirs.type) ? "str" : "numeric"} in using data`,
+        `variable ${variable.name} is ${variable.type} in master but ${theirs.type} in using data\n` +
+          paragraph(
+            session,
+            `You could specify ${command}'s force option to ignore this ${text ? "string/numeric" : "numeric/string"} mismatch.  The using variable would then be treated as if it contained ${text ? '""' : "numeric missing value"}.`,
+          ),
         106,
       );
-  }
-  const extend = (values, text, fill) => {
-    const out = text ? values.slice() : Array.from(values);
-    while (out.length < total) out.push(fill);
-    return out;
-  };
-  for (const variable of data.variables) {
-    const text = isStringType(variable.type),
-      theirs = other.variables.find((v) => v.name === variable.name),
-      values = extend(variable.data, text, text ? "" : MISSING);
-    if (theirs && isStringType(theirs.type) === text) {
-      const type = widerType(variable.type, theirs.type);
-      for (let i = 0; i < other.n; i++) values[n + i] = theirs.data[i];
-      if (type !== variable.type) data.retype(variable, type);
     }
-    variable.data = text ? values : Float64Array.from(values);
+    ignored.add(variable.name);
   }
-  data.n = total;
-  if (parsed.options.generate) {
-    data.generate(
-      parsed.options.generate,
-      Array.from({ length: total }, (_, i) => Number(i >= n)),
-      { type: "byte" },
+  for (const name of ignored)
+    ctx.out(
+      `(note: variable ${name} was ${other.get(name).type} in the using data, but will be ${data.get(name).type} now)`,
     );
-    data.valueLabels.set(
-      "_append",
-      new Map([
-        [0, "Master (0)"],
-        [1, "Using (1)"],
-      ]),
+  for (const variable of shared) {
+    if (ignored.has(variable.name)) continue;
+    const type = combinedType(variable.type, other.get(variable.name).type);
+    if (type === variable.type) continue;
+    ctx.out(
+      `(variable ${variable.name} was ${variable.type}, now ${type} to accommodate using data's values)`,
     );
-    Object.assign(data.get(parsed.options.generate), {
-      format: "%18.0g",
-      valueLabel: "_append",
-      label: "Dataset source",
-    });
+    widened.push([variable, type]);
   }
-  for (const theirs of other.variables) {
-    if (data.has(theirs.name)) continue;
-    const text = isStringType(theirs.type),
-      values = new Array(n)
-        .fill(text ? "" : MISSING)
-        .concat(Array.from(theirs.data));
-    data.generate(theirs.name, values, { type: theirs.type, string: text });
-    Object.assign(data.get(theirs.name), {
-      format: theirs.format,
-      label: theirs.label,
-      valueLabel: theirs.valueLabel,
-    });
+  for (const [variable, type] of widened) data.retype(variable, type);
+  if (!options.label) return ignored;
+  const attached = [
+    ...new Set(names.map((name) => other.get(name).valueLabel).filter(Boolean)),
+  ];
+  for (const name of attached) {
+    if (!other.valueLabels.has(name)) continue;
+    if (data.valueLabels.has(name)) ctx.out(`(label ${name} already defined)`);
+    else data.valueLabels.set(name, new Map(other.valueLabels.get(name)));
   }
   for (const [name, map] of other.valueLabels)
     if (!data.valueLabels.has(name)) data.valueLabels.set(name, new Map(map));
-  data.sortedBy = [];
+  return ignored;
+}
+
+/** The file names after using, each quoted or a single word. */
+function usingFiles(text) {
+  const names = (text.match(/`"[^"]*"'|"[^"]*"|\S+/g) ?? []).map(fileName);
+  if (!names.length) throw invalid("invalid file specification");
+  return names;
+}
+
+function append(session, text, ctx) {
+  // append using takes one or more files.
+  const [head, optionText] = splitAtComma(text),
+    m = /^\s*using\b([\s\S]*)$/.exec(head);
+  if (!m) throw new StataError("using required", 100);
+  const parsed = session.parse(
+      "[, GENerate(name) FORCE KEEP(string) noLabel | noNOTEs]",
+      optionText === null ? "" : "," + optionText,
+    ),
+    names = usingFiles(m[1]),
+    others = names.map((name) => load(session, name)),
+    data = session.data,
+    marker = parsed.options.generate;
+  if (marker && data.has(marker))
+    throw new StataError(`variable ${marker} already defined`, 110);
+  const sorted = data.sortedBy;
+  if (marker) {
+    data.generate(marker, new Array(data.n).fill(0), { type: "byte" });
+    const labelName = data.valueLabels.has("_append") ? "__append" : "_append";
+    data.valueLabels.set(labelName, new Map([[0, "Master"]]));
+    Object.assign(data.get(marker), {
+      label: "Dataset source",
+      valueLabel: labelName,
+    });
+  }
+  others.forEach((other, k) => {
+    const n = data.n,
+      kept = parsed.options.keep
+        ? expand(parsed.options.keep, other.names)
+        : other.names,
+      ignored = reconcile(
+        session,
+        "append",
+        data,
+        other,
+        kept,
+        { force: parsed.options.force, label: parsed.options.label !== false },
+        ctx,
+      ),
+      total = n + other.n;
+    for (const variable of data.variables) {
+      const text = isStringType(variable.type),
+        fill = text ? "" : MISSING,
+        values = text ? variable.data.slice() : Array.from(variable.data);
+      while (values.length < total) values.push(fill);
+      if (kept.includes(variable.name) && !ignored.has(variable.name)) {
+        const theirs = other.get(variable.name);
+        for (let i = 0; i < other.n; i++) values[n + i] = theirs.data[i];
+      }
+      variable.data = text ? values : Float64Array.from(values);
+    }
+    data.n = total;
+    if (marker) {
+      const column = data.get(marker).data;
+      for (let i = n; i < total; i++) column[i] = k + 1;
+      data.valueLabels
+        .get(data.get(marker).valueLabel)
+        .set(k + 1, `Appended dataset ${k + 1}`);
+    }
+    for (const name of kept) {
+      if (data.has(name)) continue;
+      const theirs = other.get(name),
+        text = isStringType(theirs.type),
+        values = new Array(n)
+          .fill(text ? "" : MISSING)
+          .concat(Array.from(theirs.data));
+      data.generate(name, values, { type: theirs.type, string: text });
+      Object.assign(data.get(name), {
+        format: theirs.format,
+        label: theirs.label,
+        valueLabel: theirs.valueLabel,
+      });
+    }
+  });
+  if (marker) {
+    // label values widens the format to the longest label.
+    const longest = greatest(
+      [...data.valueLabels.get(data.get(marker).valueLabel).values()].map(
+        byteLength,
+      ),
+    );
+    data.get(marker).format = `%${Math.max(8, longest)}.0g`;
+  }
+  data.sortedBy = others.some((other) => other.n) ? [] : sorted;
 }
 
 // ----- merge -----
+const MERGE_RESULTS = [
+  [1, /^(1|mas(t(er?)?)?)$/],
+  [2, /^(2|us(i(ng?)?)?)$/],
+  [3, /^(3|mat(c(h(ed?)?)?)?)$/],
+  [4, /^(4|match_up(d(a(te?)?)?)?)$/],
+  [5, /^(5|match_con(f(l(i(ct?)?)?)?)?)$/],
+];
 function merge(session, text, ctx) {
   const m = /^\s*(1:1|m:1|1:m|m:m)\s+([\s\S]*)$/.exec(text);
   if (!m) throw invalid("merge needs 1:1, m:1, 1:m or m:m");
   if (m[1] === "m:m")
     throw invalid("merge m:m is not available; it rarely does what is wanted");
   const parsed = session.parse(
-      "varlist using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort | noLabel UPDATE REPLACE FORCE SORTED noNOTEs]",
+      "varlist using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel | SORTED noNOTEs]",
       m[2],
     ),
     data = session.data,
     keys = parsed.varlist,
+    update = !!parsed.options.update,
     noMarker = /\bnogen/.test(splitAtComma(m[2])[1] ?? ""),
     marker =
       typeof parsed.options.generate === "string"
         ? parsed.options.generate
         : "_merge";
+  if (parsed.options.replace && !update)
+    throw new StataError(
+      "option replace not allowed\n" +
+        paragraph(
+          session,
+          "option replace requires you also specify option update, thus demonstrating your understanding that an update will be performed",
+        ),
+      198,
+    );
   if (!noMarker && data.has(marker))
     throw new StataError(`variable ${marker} already defined`, 110);
   // Stata sorts the master data on the key before it reads the using data.
@@ -234,9 +357,25 @@ function merge(session, text, ctx) {
   if (m[1][0] === "1") unique(master, "master");
   if (m[1][2] === "1") unique(using, "using");
   const wanted = parsed.options.keepusing
-      ? expand(parsed.options.keepusing, other.names)
+      ? [
+          ...new Set([
+            ...keys,
+            ...expand(parsed.options.keepusing, other.names),
+          ]),
+        ]
       : other.names,
-    brought = wanted.filter((name) => !keys.includes(name) && !data.has(name));
+    shared = wanted.filter((name) => data.has(name)),
+    brought = wanted.filter((name) => !data.has(name));
+  // The master variables are widened before the data are combined.
+  const ignored = reconcile(
+    session,
+    "merge",
+    data,
+    other,
+    wanted,
+    { force: parsed.options.force, label: parsed.options.label !== false },
+    ctx,
+  );
   // Each output row is a master row, a using row, or both.
   const rows = [],
     extra = [],
@@ -252,8 +391,35 @@ function merge(session, text, ctx) {
     extra.push({ master: mine ? mine[0] : null, using: j });
   }
   let all = [...rows, ...extra];
-  const code = (row) => (row.master === null ? 2 : row.using === null ? 1 : 3),
-    tally = [0, 0, 0, 0];
+  // With update, a matched row's missing master values take the using
+  // values (_merge 4); one where both have different nonmissing values is
+  // a conflict (_merge 5), which replace settles in favour of the using
+  // data.
+  const updated = update
+      ? shared.filter((name) => !keys.includes(name) && !ignored.has(name))
+      : [],
+    empty = (value) =>
+      typeof value === "string" ? value === "" : isMissing(value);
+  for (const row of all) {
+    row.code = row.master === null ? 2 : row.using === null ? 1 : 3;
+    if (row.code !== 3 || !updated.length) continue;
+    row.take = [];
+    let filled = false,
+      conflict = false;
+    for (const name of updated) {
+      const mine = data.get(name).data[row.master],
+        theirs = other.get(name).data[row.using];
+      if (empty(theirs)) continue;
+      if (empty(mine)) {
+        filled = true;
+        row.take.push(name);
+      } else if (mine !== theirs) {
+        conflict = true;
+        if (parsed.options.replace) row.take.push(name);
+      }
+    }
+    row.code = conflict ? 5 : filled ? 4 : 3;
+  }
   for (const [option, action] of [
     ["assert", "assert"],
     ["keep", "keep"],
@@ -261,46 +427,51 @@ function merge(session, text, ctx) {
     const spec = parsed.options[option];
     if (!spec) continue;
     const allowed = new Set(
-      spec.split(/\s+/).map((word) => {
-        if (/^(1|mas(t(er?)?)?)$/.test(word)) return 1;
-        if (/^(2|us(i(ng?)?)?)$/.test(word)) return 2;
-        if (/^(3|mat(c(h(ed?)?)?)?)$/.test(word)) return 3;
-        throw invalid(`${option}(${spec}) is not understood`);
-      }),
+      spec
+        .trim()
+        .split(/\s+/)
+        .map((word) => {
+          const hit = MERGE_RESULTS.find(([, pattern]) => pattern.test(word));
+          if (!hit) throw invalid(`${option}(${spec}) is not understood`);
+          return hit[0];
+        }),
     );
-    if (action === "assert" && all.some((row) => !allowed.has(code(row))))
+    if (action === "assert" && all.some((row) => !allowed.has(row.code)))
       throw new StataError(
         "merge:  after merge, not all observations matched as asserted",
         9,
       );
-    if (action === "keep") all = all.filter((row) => allowed.has(code(row)));
+    if (action === "keep") all = all.filter((row) => allowed.has(row.code));
   }
   // The report counts what is kept.
-  for (const row of all) tally[code(row)]++;
+  const tally = [0, 0, 0, 0, 0, 0];
+  for (const row of all) tally[row.code]++;
   const result = new Dataset({ defaultType: data.defaultType });
   result.n = all.length;
   result.label = data.label;
   result.valueLabels = data.valueLabels;
   for (const variable of data.variables) {
     const text = isStringType(variable.type),
-      theirs = other.has(variable.name) ? other.get(variable.name) : null,
-      shared = theirs && isStringType(theirs.type) === text,
-      type =
-        shared && keys.includes(variable.name)
-          ? widerType(variable.type, theirs.type)
-          : variable.type,
-      // A row with a master observation keeps the master's values; a
-      // using-only row takes shared variables from the using data.
+      theirs =
+        shared.includes(variable.name) && !ignored.has(variable.name)
+          ? other.get(variable.name)
+          : null,
+      // A row with a master observation keeps the master's values unless
+      // update takes the using value; a using-only row takes shared
+      // variables from the using data.
       values = all.map((row) =>
-        row.master !== null
+        row.master !== null && !row.take?.includes(variable.name)
           ? variable.data[row.master]
-          : shared
+          : theirs && row.using !== null
             ? theirs.data[row.using]
             : text
               ? ""
               : MISSING,
       );
-    result.generate(variable.name, values, { type, string: text });
+    result.generate(variable.name, values, {
+      type: variable.type,
+      string: text,
+    });
     Object.assign(result.get(variable.name), {
       format: variable.format,
       label: variable.label,
@@ -323,19 +494,23 @@ function merge(session, text, ctx) {
       valueLabel: theirs.valueLabel,
     });
   }
-  for (const [name, map] of other.valueLabels)
-    if (!result.valueLabels.has(name))
-      result.valueLabels.set(name, new Map(map));
   if (!noMarker) {
-    result.generate(marker, all.map(code), { type: "byte" });
-    result.valueLabels.set(
-      "_merge",
-      new Map([
-        [1, "Master only (1)"],
-        [2, "Using only (2)"],
-        [3, "Matched (3)"],
-      ]),
+    result.generate(
+      marker,
+      all.map((row) => row.code),
+      { type: "byte" },
     );
+    if (!result.valueLabels.has("_merge"))
+      result.valueLabels.set(
+        "_merge",
+        new Map([
+          [1, "Master only (1)"],
+          [2, "Using only (2)"],
+          [3, "Matched (3)"],
+          [4, "Missing updated (4)"],
+          [5, "Nonmissing conflict (5)"],
+        ]),
+      );
     Object.assign(result.get(marker), {
       format: "%23.0g",
       valueLabel: "_merge",
@@ -350,29 +525,31 @@ function merge(session, text, ctx) {
     : [...keys];
   session.data = result;
   if (!parsed.options.noreport) {
-    const from = (label, n) =>
-      `        ${label.padEnd(24)}${count(n).padStart(13)}`;
+    const line = (label, n, code) =>
+      ctx.out(
+        `${label.padEnd(29)}${count(n).padStart(16)}${noMarker || !code ? "" : `  (${marker}==${code})`}`,
+      );
     ctx.out("");
     ctx.out("    Result                      Number of obs");
     ctx.out("    -----------------------------------------");
-    ctx.out(
-      `    ${"Not matched".padEnd(28)}${count(tally[1] + tally[2]).padStart(13)}`,
-    );
+    line("    Not matched", tally[1] + tally[2]);
     if (tally[1] + tally[2]) {
-      ctx.out(
-        `${from("from master", tally[1])}${noMarker ? "" : `  (${marker}==1)`}`,
-      );
-      ctx.out(
-        `${from("from using", tally[2])}${noMarker ? "" : `  (${marker}==2)`}`,
-      );
+      line("        from master", tally[1], 1);
+      line("        from using", tally[2], 2);
       ctx.out("");
     }
-    ctx.out(
-      `    ${"Matched".padEnd(28)}${count(tally[3]).padStart(13)}${noMarker ? "" : `  (${marker}==3)`}`,
-    );
+    if (!update) line("    Matched", tally[3], 3);
+    else {
+      if (!tally[1] && !tally[2]) ctx.out("");
+      line("    Matched", tally[3] + tally[4] + tally[5]);
+      line("        not updated", tally[3], 3);
+      line("        missing updated", tally[4], 4);
+      line("        nonmissing conflict", tally[5], 5);
+    }
     ctx.out("    -----------------------------------------");
   }
 }
+
 function expand(text, names) {
   return text
     .trim()
@@ -389,9 +566,51 @@ function expand(text, names) {
 }
 
 // ----- reshape -----
-function reshape(session, text) {
-  const m = /^\s*(long|wide)\s+([\s\S]*)$/.exec(text);
+/** reshape's report, as reshape.ado's Report1, ReportL and ReportW print it. */
+function reshapeReport(ctx, direction, before, after, j, levels, pairs) {
+  const rule = "-".repeat(77),
+    from = direction === "wide" ? "Long" : "Wide",
+    to = direction === "wide" ? "Wide" : "Long",
+    // display's _col(#) pads to a column, or adds nothing once past it.
+    col = (line, at) => line.padEnd(at - 1),
+    arrow = (line, right) => `${col(col(line, 43) + "->", 48)}${right}`,
+    counts = (label, a, b) =>
+      ctx.out(arrow(`${col(label, 28)}${count(a).padStart(12)}`, count(b)));
+  ctx.out(`(j = ${levels.join(" ")})`);
+  ctx.out("");
+  ctx.out(arrow(`${col("Data", 36)}${from}`, to));
+  ctx.out(rule);
+  counts("Number of observations", before.n, after.n);
+  counts("Number of variables", before.k, after.k);
+  const head = `j variable (${levels.length} values)`;
+  ctx.out(
+    direction === "wide"
+      ? arrow(`${col(head, 31 + (9 - j.length))}${j}`, "(dropped)")
+      : arrow(head, j),
+  );
+  ctx.out("xij variables:");
+  for (const [left, right] of pairs)
+    ctx.out(
+      arrow(`${" ".repeat(Math.max(0, 39 - left.length))}${left}`, right),
+    );
+  ctx.out(rule);
+}
+/** The wide names of a stub, as reshape lists them: three, or two ... last. */
+const someNames = (names) =>
+  names.length <= 3
+    ? names.join(" ")
+    : `${names[0]} ${names[1]} ... ${names.at(-1)}`;
+
+function reshape(session, text, ctx) {
+  const m = /^\s*(long|wide)\b\s*([\s\S]*)$/.exec(text);
   if (!m) throw invalid("reshape long or reshape wide is required");
+  // reshape long and reshape wide alone repeat the last reshape the other
+  // way.
+  if (!m[2].trim()) {
+    const last = session.reshapeSpec;
+    if (!last) throw invalid("data have not been reshaped yet");
+    m[2] = `${last.stubs.join(" ")}, i(${last.ids.join(" ")}) j(${last.j})${last.string ? " string" : ""}`;
+  }
   const [head, optionText] = splitAtComma(m[2]),
     options = session.parse(
       "[, I(varlist) J(string) String]",
@@ -513,9 +732,32 @@ function reshape(session, text) {
           rows.map(([i]) => variable.data[i]),
         );
     result.sortedBy = [...ids, j];
+    reshapeReport(
+      ctx,
+      "long",
+      { n: data.n, k: data.variables.length },
+      { n: result.n, k: result.variables.length },
+      j,
+      levels.map((level) => (text2 ? level : formatNumber(Number(level)))),
+      stubs.map((stub) => [
+        someNames(
+          levels
+            .map((level) => members.get(`${stub}|${level}`))
+            .filter(Boolean),
+        ),
+        stub,
+      ]),
+    );
   } else {
-    const jVariable = data.get(j),
-      levels = [...new Set(Array.from(jVariable.data))]
+    const jVariable = data.get(j);
+    if (isStringType(jVariable.type) && !text2)
+      throw new StataError(
+        `variable ${j} is string; specify option string`,
+        109,
+      );
+    if (!isStringType(jVariable.type) && text2)
+      throw new StataError(`variable ${j} is numeric`, 109);
+    const levels = [...new Set(Array.from(jVariable.data))]
         .filter((v) => (typeof v === "string" ? v !== "" : !isMissing(v)))
         .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
       suffix = (level) => (typeof level === "string" ? level : String(level));
@@ -532,6 +774,48 @@ function reshape(session, text) {
           `values of variable ${j} not unique within ${ids.join(" ")}`,
           9,
         );
+    // Every other variable must be constant within i to fit in wide data.
+    const varying = data.variables
+      .filter((variable) => ![...ids, j, ...stubs].includes(variable.name))
+      .filter((variable) =>
+        groups.some((group) => {
+          for (let i = group.start + 1; i < group.start + group.count; i++)
+            if (variable.data[i] !== variable.data[group.start]) return true;
+          return false;
+        }),
+      )
+      .map((variable) => variable.name);
+    if (varying.length) {
+      ctx.out(`(j = ${levels.map(suffix).join(" ")})`);
+      const i = ids.join(" ");
+      throw new StataError(
+        [
+          `variable${varying.length > 1 ? "s" : ""} ${varying.join(" ")} not constant within ${i}`,
+          paragraph(
+            session,
+            "Your data are currently long. You are performing a reshape wide. You typed something like",
+          ),
+          "",
+          `        . reshape wide a b, i(${i}) j(${j})`,
+          "",
+          paragraph(
+            session,
+            `There are variables other than a, b, ${ids.join(", ")}, ${j} in your data. They must be constant within ${i} because that is the only way they can fit into wide data without loss of information.`,
+          ),
+          "",
+          paragraph(
+            session,
+            `The variable or variables listed above are not constant within ${i}. Perhaps the values are in error. Type reshape error for a list of the problem observations.`,
+          ),
+          "",
+          paragraph(
+            session,
+            "Either that, or the values vary because they should vary, in which case you must either add the variables to the list of xij variables to be reshaped, or drop them.",
+          ),
+        ].join("\n"),
+        9,
+      );
+    }
     result.n = groups.length;
     for (const id of ids)
       copy(
@@ -570,8 +854,21 @@ function reshape(session, text) {
           groups.map((group) => variable.data[group.start]),
         );
     result.sortedBy = [...ids];
+    reshapeReport(
+      ctx,
+      "wide",
+      { n: data.n, k: data.variables.length },
+      { n: result.n, k: result.variables.length },
+      j,
+      levels.map(suffix),
+      stubs.map((stub) => [
+        stub,
+        someNames(levels.map((level) => stub + suffix(level))),
+      ]),
+    );
   }
   session.data = result;
+  session.reshapeSpec = { stubs, ids, j, string: text2 };
 }
 
 // ----- observations -----
@@ -892,6 +1189,10 @@ function tostring(session, text, ctx) {
       ctx.out(`${name} already string; no ${names ? "generate" : "replace"}`);
       return;
     }
+    if (!names && variable.valueLabel && !parsed.options.force) {
+      ctx.out(`${name} has value label; no replace`);
+      return;
+    }
     const values = Array.from(variable.data, (v) =>
         applyFormat(
           v,
@@ -923,6 +1224,8 @@ function tostring(session, text, ctx) {
       swapVariable(data, name, values, { string: true });
       ctx.out(`${name} was ${was} now ${data.get(name).type}`);
     }
+    if (lossy)
+      ctx.out(`${target} was forced to string; some loss of information`);
   });
 }
 
@@ -1001,95 +1304,368 @@ function decode(session, text) {
   data.get(parsed.options.generate).label = source.label;
 }
 
-function recode(session, text, ctx) {
-  const firstRule = text.indexOf("(");
-  if (firstRule < 0)
-    throw invalid("recode needs at least one rule in parentheses");
-  const rules = [],
-    names = session.varlist(text.slice(0, firstRule));
-  let rest = text.slice(firstRule),
-    r;
-  while ((r = /^\s*\(([^()]*)\)/.exec(rest))) {
-    const [from, to] = r[1].split("=").map((part) => part.trim());
-    if (to === undefined) throw invalid(`rule (${r[1]}) has no =`);
-    rules.push({ from, to: to.split(/\s+/)[0] });
-    rest = rest.slice(r[0].length);
+// ----- recode -----
+/**
+ * Splits recode's text into the variables, the rules, and what follows them
+ * (if, in and options). Rules are in parentheses, or, for one variable,
+ * written after it without them. Quoted value labels may hold anything.
+ */
+function recodeParts(text) {
+  const [head, options] = splitAtComma(text),
+    tokens = [];
+  let i = 0;
+  while (i < head.length) {
+    const c = head[i];
+    if (/\s/.test(c)) {
+      i++;
+      continue;
+    }
+    if (head.startsWith('`"', i)) {
+      const end = head.indexOf("\"'", i + 2);
+      if (end < 0) throw invalid();
+      tokens.push({ text: head.slice(i + 2, end), quoted: true, at: i });
+      i = end + 2;
+    } else if (c === '"') {
+      const end = head.indexOf('"', i + 1);
+      if (end < 0) throw invalid();
+      tokens.push({ text: head.slice(i + 1, end), quoted: true, at: i });
+      i = end + 1;
+    } else if ("()/=".includes(c)) {
+      tokens.push({ text: c, at: i });
+      i++;
+    } else {
+      const m = /^[^\s()/="]+/.exec(head.slice(i));
+      tokens.push({ text: m[0], at: i });
+      i += m[0].length;
+    }
   }
+  let depth = 0,
+    end = tokens.length;
+  for (const [k, token] of tokens.entries()) {
+    if (token.quoted) continue;
+    if (token.text === "(") depth++;
+    else if (token.text === ")") depth--;
+    else if (!depth && (token.text === "if" || token.text === "in")) {
+      end = k;
+      break;
+    }
+  }
+  const tail =
+    (end < tokens.length ? head.slice(tokens[end].at) : "") +
+    (options === null ? "" : "," + options);
+  return { tokens: tokens.slice(0, end), tail };
+}
+const RECODE_KEYWORD = (word) =>
+  word === "*" || word === "else"
+    ? "else"
+    : word.length >= 3 && "missing".startsWith(word)
+      ? "missing"
+      : word.length >= 4 && "nonmissing".startsWith(word)
+        ? "nonmissing"
+        : null;
+
+function recode(session, text, ctx) {
+  const { tokens, tail } = recodeParts(text);
+  if (tokens[0]?.text === "(") throw new StataError("( expected", 102);
+  const parens = tokens.findIndex((t) => t.text === "(" && !t.quoted);
+  let names, rest;
+  if (parens > 0) {
+    names = session.varlist(
+      tokens
+        .slice(0, parens)
+        .map((t) => t.text)
+        .join(" "),
+    );
+    rest = tokens.slice(parens + 1);
+  } else {
+    if (!tokens.length) throw invalid();
+    names = session.varlist(tokens[0].text);
+    if (names.length !== 1)
+      throw new StataError("too many variables specified", 103);
+    rest = tokens.slice(1);
+  }
+  for (const name of names)
+    if (isStringType(session.data.get(name).type))
+      throw new StataError("recode only allows numeric variables", 108);
+  if (!rest.length) throw invalid("rules expected");
   const parsed = session.parse(
-      "[if] [in] [, Generate(string) PREfix(string) Test COPYrest INTO(string)]",
-      rest,
+      "[if] [in] [, COPYrest Generate(string) INto(string) Label(string) PREfix(string) Test]",
+      tail,
     ),
     data = session.data,
-    rows = session.rows(parsed, null),
-    made = parsed.options.generate?.trim().split(/\s+/);
-  if (made && made.length !== names.length)
-    throw invalid("generate() must name one new variable for each variable");
-  const sorted = [...data.sortedBy];
-  names.forEach((name, k) => {
-    const variable = data.get(name);
-    if (isStringType(variable.type))
-      throw new StataError("recode only allows numeric variables", 108);
-    const column = variable.data,
-      nonmissing = Array.from(column).filter((v) => !isMissing(v)),
-      low = least(nonmissing),
-      high = greatest(nonmissing),
-      // A rule's numbers are read at the variable's own precision.
-      point = (word) =>
-        word === "min"
-          ? low
-          : word === "max"
-            ? high
-            : variable.type === "float"
-              ? Math.fround(parseNumber(word))
-              : parseNumber(word),
-      matches = (rule, value) => {
-        if (/^(else|\*)$/.test(rule.from)) return true;
-        if (/^mis(s(i(ng?)?)?)?$/.test(rule.from)) return isMissing(value);
-        if (/^nonm(i(s(s(i(ng?)?)?)?)?)?$/.test(rule.from))
-          return !isMissing(value);
-        return rule.from.split(/\s+/).some((item) => {
-          const range = /^(.+?)\/(.+)$/.exec(item);
-          if (range)
-            return (
-              !isMissing(value) &&
-              value >= point(range[1]) &&
-              value <= point(range[2])
-            );
-          const target = point(item);
-          if (target === undefined)
-            throw invalid(
-              `${item} is not a number in rule (${rule.from} = ${rule.to})`,
-            );
-          return value === target;
-        });
-      },
-      values = Array.from(column);
-    let changes = 0;
-    for (const i of rows) {
-      const rule = rules.find((candidate) => matches(candidate, column[i]));
-      if (!rule) continue;
-      const to = parseNumber(rule.to);
-      if (to === undefined) throw invalid(`${rule.to} is not a number`);
-      if (values[i] !== to) changes++;
-      values[i] = to;
+    options = parsed.options;
+  let made = null;
+  if (options.prefix !== undefined) {
+    if (options.generate !== undefined || options.into !== undefined)
+      throw invalid(
+        "option prefix() may not be combined with generate() or into()",
+      );
+    made = names.map((name) => {
+      const target = options.prefix + name;
+      if (!isName(target)) throw invalid(`${target} invalid variable name`);
+      if (data.has(target))
+        throw new StataError(`variable ${target} already exists`, 110);
+      return target;
+    });
+  } else {
+    if (options.generate !== undefined && options.into !== undefined)
+      throw invalid("options generate() and into() are synonyms");
+    const given = options.generate ?? options.into;
+    if (given !== undefined) {
+      made = given.trim().split(/\s+/).filter(Boolean);
+      for (const target of made) {
+        if (!isName(target)) throw invalid(`${target} invalid name`);
+        if (data.has(target))
+          throw new StataError(`variable ${target} already defined`, 110);
+      }
+      if (made.length !== names.length)
+        throw invalid(
+          "the number of new and transformed varnames should be the same",
+        );
     }
-    if (made || parsed.options.prefix) {
-      const target = made ? made[k] : parsed.options.prefix + name;
-      if (!parsed.options.copyrest && rows.length !== data.n)
-        for (let i = 0; i < data.n; i++)
-          if (!rows.includes(i)) values[i] = MISSING;
-      data.generate(target, values, { type: variable.type });
-      Object.assign(data.get(target), {
-        format: "%9.0g",
-        label: `RECODE of ${name}${variable.label ? ` (${variable.label})` : ""}`,
-      });
-      ctx.out(`(${count(changes)} differences between ${name} and ${target})`);
+  }
+  // Rules that define value labels need a label to put them in: the one
+  // label() names, or one named after the single new variable.
+  let labelName = null,
+    labelRule = 0;
+  if (options.label !== undefined) {
+    if (!made) throw invalid("option label() allowed only with generate()");
+    labelName = options.label.trim();
+    if (!isName(labelName)) throw invalid(`${labelName} invalid name`);
+  } else if (made) {
+    if (names.length === 1) labelName = made[0];
+    else labelRule = 1;
+  } else labelRule = 2;
+
+  // A value is a number, a missing-value code, or min or max.
+  let needsRange = false;
+  const element = (word) => {
+    if (word === "min" || word === "max") {
+      needsRange = true;
+      return word;
+    }
+    const value = word === undefined ? undefined : parseNumber(word);
+    if (value === undefined) throw invalid(`unknown el ${word ?? ""} in rule`);
+    return value;
+  };
+  const labelOk = (value) => {
+    if (labelRule === 1)
+      throw invalid(
+        "Rules defining value labels not allowed\nwith labeled recode of multiple vars, option label() required",
+      );
+    if (labelRule === 2)
+      throw invalid(
+        "Rules defining value labels not allowed when overwriting a variable",
+      );
+    if (value === MISSING)
+      throw invalid("Value label not allowed for missing value code .");
+    if (
+      typeof value === "number" &&
+      !isMissing(value) &&
+      !Number.isInteger(value)
+    )
+      throw invalid(
+        `Value label not allowed for noninteger ${formatNumber(value)}`,
+      );
+  };
+  const usingParens = parens > 0,
+    closeRule = (k) => {
+      // ) then ( or the end
+      const a = rest[k]?.text,
+        b = rest[k + 1];
+      if (a !== ")" || rest[k]?.quoted)
+        throw invalid(`) expected, "${a ?? ""}" found`);
+      if (b && (b.text !== "(" || b.quoted))
+        throw invalid(`( expected, "${b.text}" found`);
+      return k + 2;
+    };
+  const conditions = [],
+    targets = [];
+  let k = 0,
+    noLeft = true;
+  while (k < rest.length && (rest[k].quoted || !RECODE_KEYWORD(rest[k].text))) {
+    if (rest[k].text === "=" && !rest[k].quoted) {
+      if (noLeft) throw invalid('transformation rule without "condition" part');
+      const target = { value: element(rest[k + 1]?.text), label: null };
+      k += 2;
+      if (usingParens) {
+        if (rest[k] && rest[k].text !== ")" && rest[k + 1]?.text === ")") {
+          labelOk(target.value);
+          target.label = rest[k].text;
+          k++;
+        }
+        k = closeRule(k);
+      }
+      targets.push(target);
+      noLeft = true;
     } else {
-      data.replace(name, values, rows);
-      ctx.out(`(${count(changes)} changes made to ${name})`);
+      const low = element(rest[k].text);
+      if (rest[k + 1]?.text === "/") {
+        conditions.push({
+          low,
+          high: element(rest[k + 2]?.text),
+          rule: targets.length,
+        });
+        k += 3;
+      } else {
+        conditions.push({ low, high: null, rule: targets.length });
+        k++;
+      }
+      noLeft = false;
     }
+  }
+  if (!noLeft) throw invalid();
+  // else (or *), missing and nonmissing: the rules for what is left.
+  const otherwise = {};
+  while (k < rest.length) {
+    const key = rest[k].quoted ? null : RECODE_KEYWORD(rest[k].text);
+    if (!key) throw invalid(`unknown keyword ${rest[k].text}`);
+    if (otherwise[key])
+      throw invalid(`multiple specification of keyword ${key}`);
+    if (rest[k + 1]?.text !== "=") throw invalid("= expected");
+    const target = { value: element(rest[k + 2]?.text), label: null };
+    k += 3;
+    if (usingParens) {
+      if (rest[k] && rest[k].text !== ")" && rest[k + 1]?.text === ")") {
+        labelOk(target.value);
+        target.label = rest[k].text;
+        k++;
+      }
+      k = closeRule(k);
+    }
+    otherwise[key] = target;
+  }
+  if (otherwise.else && (otherwise.missing || otherwise.nonmissing))
+    throw invalid("keywords else/* and missing/nonmissing may not be combined");
+
+  const rows = session.rows(parsed, null),
+    touse = new Set(rows),
+    results = [];
+  let overlapped = false,
+    unused = false;
+  for (const name of names) {
+    const variable = data.get(name),
+      column = variable.data,
+      // Except for doubles and longs, rules compare at float precision.
+      flt = !["double", "long"].includes(variable.type),
+      f = (v) => (flt && !isMissing(v) ? Math.fround(v) : v),
+      next = new Float64Array(data.n).fill(MISSING);
+    for (const i of rows) next[i] = column[i];
+    let low = MISSING,
+      high = MISSING;
+    if (needsRange) {
+      const present = rows.map((i) => column[i]).filter((v) => !isMissing(v));
+      if (!present.length) {
+        results.push({ name, values: Array.from(column), changes: 0 });
+        continue;
+      }
+      low = least(present);
+      high = greatest(present);
+    }
+    const value = (v) => (v === "min" ? low : v === "max" ? high : v),
+      open = new Set(rows),
+      used = conditions.map(() => false);
+    conditions.forEach((condition, c) => {
+      const a = f(value(condition.low)),
+        b = condition.high === null ? null : f(value(condition.high)),
+        hit = (i) => {
+          const v = f(column[i]);
+          return b === null ? v === a : v >= a && v <= b;
+        },
+        to = value(targets[condition.rule].value);
+      if (options.test) {
+        if (rows.some((i) => !open.has(i) && hit(i))) {
+          overlapped = true;
+          used[c] = true;
+        } else if (rows.some((i) => open.has(i) && hit(i))) used[c] = true;
+      }
+      for (const i of rows)
+        if (open.has(i) && hit(i)) {
+          next[i] = to;
+          open.delete(i);
+        }
+    });
+    if (options.test && used.some((u) => !u)) unused = true;
+    for (const i of open) {
+      if (otherwise.else) next[i] = value(otherwise.else.value);
+      else if (otherwise.missing && isMissing(column[i]))
+        next[i] = value(otherwise.missing.value);
+      else if (otherwise.nonmissing && !isMissing(column[i]))
+        next[i] = value(otherwise.nonmissing.value);
+    }
+    let changes = 0;
+    for (const i of rows) if (f(column[i]) !== f(next[i])) changes++;
+    if (options.copyrest || !made)
+      for (let i = 0; i < data.n; i++) if (!touse.has(i)) next[i] = column[i];
+    results.push({ name, values: Array.from(next), changes });
+  }
+  results.forEach(({ name, changes }, k) =>
+    ctx.out(
+      made
+        ? `(${count(changes)} differences between ${name} and ${made[k]})`
+        : `(${count(changes)} changes made to ${name})`,
+    ),
+  );
+  if (options.test) {
+    if (overlapped) ctx.out('(transformation rules "overlapped")');
+    if (unused)
+      ctx.out("(one or more transformation rules did not match any values)");
+  }
+
+  // The value labels the rules define.
+  const labelled = [
+    ...targets,
+    ...["else", "missing", "nonmissing"]
+      .map((key) => otherwise[key])
+      .filter(Boolean),
+  ].filter((target) => target.label !== null);
+  if (labelled.length) {
+    const map = data.valueLabels.get(labelName) ?? new Map();
+    for (const target of labelled) map.set(target.value, target.label);
+    data.valueLabels.set(labelName, map);
+  }
+  const sorted = [...data.sortedBy];
+  results.forEach(({ name, values }, k) => {
+    const variable = data.get(name);
+    if (!made) {
+      data.replace(name, values);
+      return;
+    }
+    // generate makes the new variable in the default type, then recasts it
+    // to the old variable's type when that keeps every value.
+    const kind = data.defaultType,
+      stored = values.map((v) =>
+        kind === "float" && !isMissing(v) ? Math.fround(v) : v,
+      ),
+      fits = stored.every(
+        (v) => isMissing(v) || coerce(variable.type, v) === v,
+      ),
+      type = fits ? variable.type : kind;
+    data.generate(made[k], stored, { type });
+    let format = defaultFormat(kind);
+    // Attaching a value label widens a numeric format to its longest label.
+    if (labelled.length) {
+      const longest = greatest(
+        [...data.valueLabels.get(labelName).values()].map(byteLength),
+      );
+      format = format.replace(
+        /^%(\d+)/,
+        (m, w) => `%${Math.max(Number(w), longest)}`,
+      );
+    }
+    Object.assign(data.get(made[k]), {
+      format,
+      label:
+        `RECODE of ${name}${variable.label ? ` (${variable.label})` : ""}`.slice(
+          0,
+          80,
+        ),
+      valueLabel: labelled.length ? labelName : "",
+    });
   });
-  data.sortedBy = sorted.filter((name) => !names.includes(name) || made);
+  data.sortedBy = made
+    ? sorted
+    : sorted.filter((name) => !names.includes(name));
 }
 
 const quiet = () => {};

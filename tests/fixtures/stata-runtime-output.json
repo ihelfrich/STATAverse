@@ -32425,6 +32425,3205 @@
       ]
     },
     {
+      "id": "datacmds-split-parse",
+      "source": "clear\ninput str24 city\n\"  El Paso \"\n\"New York City\"\n\"Austin\"\n\"San  Antonio  \"\n\"a,b c\"\n\"x,,\"\nend\ngenerate tr = trim(city)\nsplit tr, parse(\" \") generate(part)\nlist\nsplit tr, parse(\" \" \",\") generate(w)\nlist w*\nsplit city, parse(\" \") generate(c)\nlist c*\nsplit city, parse(\" \") generate(d) notrim\nlist d*\nsplit city, generate(e)\nlist e*\nsplit tr, parse(,) generate(f)\nlist f*\nsplit tr, parse(\" \") generate(g) limit(2)\nlist g*\ncapture noisily split city, generate(h) notrim\nsplit tr, generate(k)\ndisplay r(nvars) \" \" r(k_new) \" \" r(varlist)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str24 city",
+          "lines": [
+            "                         city",
+            "  1. \"  El Paso \"",
+            "  2. \"New York City\"",
+            "  3. \"Austin\"",
+            "  4. \"San  Antonio  \"",
+            "  5. \"a,b c\"",
+            "  6. \"x,,\"",
+            "  7. end"
+          ]
+        },
+        { "command": "generate tr = trim(city)", "lines": [] },
+        {
+          "command": "split tr, parse(\" \") generate(part)",
+          "lines": ["variables created as string:", "part1  part2  part3"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------+",
+            "     |           city              tr    part1   part2     part3 |",
+            "     |-----------------------------------------------------------|",
+            "  1. |       El Paso          El Paso       El    Paso           |",
+            "  2. |  New York City   New York City      New    York      City |",
+            "  3. |         Austin          Austin   Austin                   |",
+            "  4. | San  Antonio      San  Antonio      San           Antonio |",
+            "  5. |          a,b c           a,b c      a,b       c           |",
+            "     |-----------------------------------------------------------|",
+            "  6. |            x,,             x,,      x,,                   |",
+            "     +-----------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "split tr, parse(\" \" \",\") generate(w)",
+          "lines": ["variables created as string:", "w1  w2  w3"]
+        },
+        {
+          "command": "list w*",
+          "lines": [
+            "     +-------------------------+",
+            "     |     w1     w2        w3 |",
+            "     |-------------------------|",
+            "  1. |     El   Paso           |",
+            "  2. |    New   York      City |",
+            "  3. | Austin                  |",
+            "  4. |    San          Antonio |",
+            "  5. |      a      b         c |",
+            "     |-------------------------|",
+            "  6. |      x                  |",
+            "     +-------------------------+"
+          ]
+        },
+        {
+          "command": "split city, parse(\" \") generate(c)",
+          "lines": ["variables created as string:", "c1  c2  c3"]
+        },
+        {
+          "command": "list c*",
+          "lines": [
+            "     +------------------------------------------+",
+            "     |           city       c1     c2        c3 |",
+            "     |------------------------------------------|",
+            "  1. |       El Paso        El   Paso           |",
+            "  2. |  New York City      New   York      City |",
+            "  3. |         Austin   Austin                  |",
+            "  4. | San  Antonio        San          Antonio |",
+            "  5. |          a,b c      a,b      c           |",
+            "     |------------------------------------------|",
+            "  6. |            x,,      x,,                  |",
+            "     +------------------------------------------+"
+          ]
+        },
+        {
+          "command": "split city, parse(\" \") generate(d) notrim",
+          "lines": ["variables created as string:", "d1  d2  d3  d4"]
+        },
+        {
+          "command": "list d*",
+          "lines": [
+            "     +--------------------------------+",
+            "     |     d1     d2        d3     d4 |",
+            "     |--------------------------------|",
+            "  1. |                      El   Paso |",
+            "  2. |    New   York      City        |",
+            "  3. | Austin                         |",
+            "  4. |    San          Antonio        |",
+            "  5. |    a,b      c                  |",
+            "     |--------------------------------|",
+            "  6. |    x,,                         |",
+            "     +--------------------------------+"
+          ]
+        },
+        {
+          "command": "split city, generate(e)",
+          "lines": ["variables created as string:", "e1  e2  e3"]
+        },
+        {
+          "command": "list e*",
+          "lines": [
+            "     +-------------------------+",
+            "     |     e1        e2     e3 |",
+            "     |-------------------------|",
+            "  1. |     El      Paso        |",
+            "  2. |    New      York   City |",
+            "  3. | Austin                  |",
+            "  4. |    San   Antonio        |",
+            "  5. |    a,b         c        |",
+            "     |-------------------------|",
+            "  6. |    x,,                  |",
+            "     +-------------------------+"
+          ]
+        },
+        {
+          "command": "split tr, parse(,) generate(f)",
+          "lines": ["variables created as string:", "f1  f2"]
+        },
+        {
+          "command": "list f*",
+          "lines": [
+            "     +---------------------+",
+            "     |            f1    f2 |",
+            "     |---------------------|",
+            "  1. |       El Paso       |",
+            "  2. | New York City       |",
+            "  3. |        Austin       |",
+            "  4. |  San  Antonio       |",
+            "  5. |             a   b c |",
+            "     |---------------------|",
+            "  6. |             x       |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "split tr, parse(\" \") generate(g) limit(2)",
+          "lines": ["variables created as string:", "g1  g2"]
+        },
+        {
+          "command": "list g*",
+          "lines": [
+            "     +---------------+",
+            "     |     g1     g2 |",
+            "     |---------------|",
+            "  1. |     El   Paso |",
+            "  2. |    New   York |",
+            "  3. | Austin        |",
+            "  4. |    San        |",
+            "  5. |    a,b      c |",
+            "     |---------------|",
+            "  6. |    x,,        |",
+            "     +---------------+"
+          ]
+        },
+        {
+          "command": "capture noisily split city, generate(h) notrim",
+          "lines": ["parsing on spaces incompatible with notrim"]
+        },
+        {
+          "command": "split tr, generate(k)",
+          "lines": ["variables created as string:", "k1  k2  k3"]
+        },
+        {
+          "command": "display r(nvars) \" \" r(k_new) \" \" r(varlist)",
+          "lines": ["3 3 k1 k2 k3"]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-recode-value-labels",
+      "source": "clear\nset obs 12\ngenerate byte educ = mod(_n,4)+1\nreplace educ = . in 12\nlabel define el 1 \"Less\" 2 \"HS\" 3 \"Some college\" 4 \"BA+\"\nlabel values educ el\nrecode educ (1 2 = 1 \"HS or less\") (3 4 = 2 \"More than HS\"), generate(educ2)\ntabulate educ2\ndescribe educ2\nrecode educ (1=10 \"ten\") (2=20) (else=99 \"other\"), generate(e3) label(mylab)\ntabulate e3\ndescribe e3\ncapture noisily recode educ (1=1 \"one\") (2=2 \"two\")\nrecode educ (1=5 \"five\") (2=6), generate(e4) label(mylab)\ntabulate e4\ngenerate x = _n\nrecode x (1/3 = 1 \"low\") (4/8 = 2 \"mid\") (nonmissing = 3 \"high\") (missing = 9 \"miss\"), generate(xc)\ntabulate xc, missing\nrecode x (1/3 = 1 \"a much longer label than before\") (else = 2), generate(xd)\ndescribe xd\ncapture noisily recode x x (1=1 \"a\"), generate(m1 m2)\ncapture noisily recode x (1=1.5 \"a\"), generate(m3)\ncapture noisily recode x (1=. \"a\"), generate(m4)\ncapture noisily recode x (1=1), generate(m5 m6)\ncapture noisily recode x (1=1), label(q)\ncapture noisily recode x (else=1) (missing=2), generate(m7)\nrecode x (1=2) (2=1)\nrecode x (1=2) (2=1), generate(v1) test\nrecode x (1/5 = 1) (3 = 2), generate(v2) test\nrecode x (100 = 1), generate(v3) test\nrecode x (1=2) if x < 3, generate(r1)\nrecode x (1=2) if x < 3, generate(r2) copyrest\nlist x r1 r2\nrecode x (1=2) in 1/2, prefix(p_)\ndescribe p_x\nrecode x (min/5 = 0) (6/max = 9), generate(mm)\ntabulate mm\nrecode x 1=0 2=0, generate(syn1)\nlist x syn1 in 1/3\ngenerate double d = _n + 0.1\nrecode d (1.1 = 7), generate(d2)\ndescribe d2\ngenerate byte b = _n\nrecode b (1=1000) (2=1.5), generate(b2)\ndescribe b2\nlist b2 in 1/3\nset type double\nrecode b (1=2), generate(b3)\ndescribe b3\nset type float\nset obs 2000\nreplace x = 1 in 13/2000\nrecode x (1=2)\nrecode x (2=1), generate(big)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate byte educ = mod(_n,4)+1", "lines": [] },
+        {
+          "command": "replace educ = . in 12",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "label define el 1 \"Less\" 2 \"HS\" 3 \"Some college\" 4 \"BA+\"",
+          "lines": []
+        },
+        { "command": "label values educ el", "lines": [] },
+        {
+          "command": "recode educ (1 2 = 1 \"HS or less\") (3 4 = 2 \"More than HS\"), generate(educ2)",
+          "lines": ["(9 differences between educ and educ2)"]
+        },
+        {
+          "command": "tabulate educ2",
+          "lines": [
+            "   RECODE of |",
+            "        educ |      Freq.     Percent        Cum.",
+            "-------------+-----------------------------------",
+            "  HS or less |          5       45.45       45.45",
+            "More than HS |          6       54.55      100.00",
+            "-------------+-----------------------------------",
+            "       Total |         11      100.00"
+          ]
+        },
+        {
+          "command": "describe educ2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "educ2           byte    %12.0g     educ2      RECODE of educ"
+          ]
+        },
+        {
+          "command": "recode educ (1=10 \"ten\") (2=20) (else=99 \"other\"), generate(e3) label(mylab)",
+          "lines": ["(12 differences between educ and e3)"]
+        },
+        {
+          "command": "tabulate e3",
+          "lines": [
+            "  RECODE of |",
+            "       educ |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "        ten |          2       16.67       16.67",
+            "         20 |          3       25.00       41.67",
+            "      other |          7       58.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |         12      100.00"
+          ]
+        },
+        {
+          "command": "describe e3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "e3              byte    %9.0g      mylab      RECODE of educ"
+          ]
+        },
+        {
+          "command": "capture noisily recode educ (1=1 \"one\") (2=2 \"two\")",
+          "lines": [
+            "Rules defining value labels not allowed when overwriting a variable"
+          ]
+        },
+        {
+          "command": "recode educ (1=5 \"five\") (2=6), generate(e4) label(mylab)",
+          "lines": ["(5 differences between educ and e4)"]
+        },
+        {
+          "command": "tabulate e4",
+          "lines": [
+            "  RECODE of |",
+            "       educ |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          3 |          3       27.27       27.27",
+            "          4 |          3       27.27       54.55",
+            "       five |          2       18.18       72.73",
+            "          6 |          3       27.27      100.00",
+            "------------+-----------------------------------",
+            "      Total |         11      100.00"
+          ]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "recode x (1/3 = 1 \"low\") (4/8 = 2 \"mid\") (nonmissing = 3 \"high\") (missing = 9 \"miss\"), generate(xc)",
+          "lines": ["(11 differences between x and xc)"]
+        },
+        {
+          "command": "tabulate xc, missing",
+          "lines": [
+            "RECODE of x |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "        low |          3       25.00       25.00",
+            "        mid |          5       41.67       66.67",
+            "       high |          4       33.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |         12      100.00"
+          ]
+        },
+        {
+          "command": "recode x (1/3 = 1 \"a much longer label than before\") (else = 2), generate(xd)",
+          "lines": ["(11 differences between x and xd)"]
+        },
+        {
+          "command": "describe xd",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "xd              float   %31.0g     xd         RECODE of x"
+          ]
+        },
+        {
+          "command": "capture noisily recode x x (1=1 \"a\"), generate(m1 m2)",
+          "lines": [
+            "Rules defining value labels not allowed",
+            "with labeled recode of multiple vars, option label() required"
+          ]
+        },
+        {
+          "command": "capture noisily recode x (1=1.5 \"a\"), generate(m3)",
+          "lines": ["Value label not allowed for noninteger 1.5"]
+        },
+        {
+          "command": "capture noisily recode x (1=. \"a\"), generate(m4)",
+          "lines": ["Value label not allowed for missing value code ."]
+        },
+        {
+          "command": "capture noisily recode x (1=1), generate(m5 m6)",
+          "lines": [
+            "the number of new and transformed varnames should be the same"
+          ]
+        },
+        {
+          "command": "capture noisily recode x (1=1), label(q)",
+          "lines": ["option label() allowed only with generate()"]
+        },
+        {
+          "command": "capture noisily recode x (else=1) (missing=2), generate(m7)",
+          "lines": [
+            "keywords else/* and missing/nonmissing may not be combined"
+          ]
+        },
+        {
+          "command": "recode x (1=2) (2=1)",
+          "lines": ["(2 changes made to x)"]
+        },
+        {
+          "command": "recode x (1=2) (2=1), generate(v1) test",
+          "lines": ["(2 differences between x and v1)"]
+        },
+        {
+          "command": "recode x (1/5 = 1) (3 = 2), generate(v2) test",
+          "lines": [
+            "(4 differences between x and v2)",
+            "(transformation rules \"overlapped\")"
+          ]
+        },
+        {
+          "command": "recode x (100 = 1), generate(v3) test",
+          "lines": [
+            "(0 differences between x and v3)",
+            "(one or more transformation rules did not match any values)"
+          ]
+        },
+        {
+          "command": "recode x (1=2) if x < 3, generate(r1)",
+          "lines": ["(1 differences between x and r1)"]
+        },
+        {
+          "command": "recode x (1=2) if x < 3, generate(r2) copyrest",
+          "lines": ["(1 differences between x and r2)"]
+        },
+        {
+          "command": "list x r1 r2",
+          "lines": [
+            "     +--------------+",
+            "     |  x   r1   r2 |",
+            "     |--------------|",
+            "  1. |  2    2    2 |",
+            "  2. |  1    2    2 |",
+            "  3. |  3    .    3 |",
+            "  4. |  4    .    4 |",
+            "  5. |  5    .    5 |",
+            "     |--------------|",
+            "  6. |  6    .    6 |",
+            "  7. |  7    .    7 |",
+            "  8. |  8    .    8 |",
+            "  9. |  9    .    9 |",
+            " 10. | 10    .   10 |",
+            "     |--------------|",
+            " 11. | 11    .   11 |",
+            " 12. | 12    .   12 |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "recode x (1=2) in 1/2, prefix(p_)",
+          "lines": ["(1 differences between x and p_x)"]
+        },
+        {
+          "command": "describe p_x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "p_x             float   %9.0g                 RECODE of x"
+          ]
+        },
+        {
+          "command": "recode x (min/5 = 0) (6/max = 9), generate(mm)",
+          "lines": ["(11 differences between x and mm)"]
+        },
+        {
+          "command": "tabulate mm",
+          "lines": [
+            "RECODE of x |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          5       41.67       41.67",
+            "          9 |          7       58.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |         12      100.00"
+          ]
+        },
+        {
+          "command": "recode x 1=0 2=0, generate(syn1)",
+          "lines": ["(2 differences between x and syn1)"]
+        },
+        {
+          "command": "list x syn1 in 1/3",
+          "lines": [
+            "     +----------+",
+            "     | x   syn1 |",
+            "     |----------|",
+            "  1. | 2      0 |",
+            "  2. | 1      0 |",
+            "  3. | 3      3 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "generate double d = _n + 0.1", "lines": [] },
+        {
+          "command": "recode d (1.1 = 7), generate(d2)",
+          "lines": ["(1 differences between d and d2)"]
+        },
+        {
+          "command": "describe d2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "d2              double  %9.0g                 RECODE of d"
+          ]
+        },
+        { "command": "generate byte b = _n", "lines": [] },
+        {
+          "command": "recode b (1=1000) (2=1.5), generate(b2)",
+          "lines": ["(2 differences between b and b2)"]
+        },
+        {
+          "command": "describe b2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "b2              float   %9.0g                 RECODE of b"
+          ]
+        },
+        {
+          "command": "list b2 in 1/3",
+          "lines": [
+            "     +------+",
+            "     |   b2 |",
+            "     |------|",
+            "  1. | 1000 |",
+            "  2. |  1.5 |",
+            "  3. |    3 |",
+            "     +------+"
+          ]
+        },
+        { "command": "set type double", "lines": [] },
+        {
+          "command": "recode b (1=2), generate(b3)",
+          "lines": ["(1 differences between b and b3)"]
+        },
+        {
+          "command": "describe b3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "b3              byte    %10.0g                RECODE of b"
+          ]
+        },
+        { "command": "set type float", "lines": [] },
+        {
+          "command": "set obs 2000",
+          "lines": ["Number of observations (_N) was 12, now 2,000."]
+        },
+        {
+          "command": "replace x = 1 in 13/2000",
+          "lines": ["(1,988 real changes made)"]
+        },
+        { "command": "recode x (1=2)", "lines": ["(1,989 changes made to x)"] },
+        {
+          "command": "recode x (2=1), generate(big)",
+          "lines": ["(1,990 differences between x and big)"]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-reshape-report",
+      "source": "clear\nset obs 6\ngenerate id = ceil(_n/3)\ngenerate wave = mod(_n-1,3)+1\ngenerate income = 100*_n\ngenerate hours = _n\ngenerate sex = id\nreshape wide income hours, i(id) j(wave)\ndescribe\nreshape long income hours, i(id) j(wave)\nreshape wide\nreshape long\ncapture noisily reshape wide income hours, i(id) j(wave) string\ngenerate z = _n\ncapture noisily reshape wide income hours, i(id) j(wave)\ndisplay _rc\nclear\nset obs 4\ngenerate int id = _n\ngenerate a_very_long_stub_name_here1 = _n\ngenerate a_very_long_stub_name_here2 = _n\ngenerate a_very_long_stub_name_here3 = _n\ngenerate a_very_long_stub_name_here4 = _n\ngenerate a_very_long_stub_name_here5 = _n\nreshape long a_very_long_stub_name_here, i(id) j(t)\nreshape wide a_very_long_stub_name_here, i(id) j(t)\nclear\nset obs 4\ngenerate id = _n\ngenerate inc2001 = _n\ngenerate inc2005 = 2*_n\ngenerate incx = 3\nreshape long inc, i(id) j(year)\nlist\nclear\nset obs 2\ngenerate id = _n\ngenerate v_a = 1\ngenerate v_bb = 2\nreshape long v_, i(id) j(s) string\nlist\nreshape wide v_, i(id) j(s) string\nclear\nset obs 30000\ngenerate id = _n\ngenerate x1 = 1\ngenerate x2 = 2\nreshape long x, i(id) j(k)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate id = ceil(_n/3)", "lines": [] },
+        { "command": "generate wave = mod(_n-1,3)+1", "lines": [] },
+        { "command": "generate income = 100*_n", "lines": [] },
+        { "command": "generate hours = _n", "lines": [] },
+        { "command": "generate sex = id", "lines": [] },
+        {
+          "command": "reshape wide income hours, i(id) j(wave)",
+          "lines": [
+            "(j = 1 2 3)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                6   ->   2",
+            "Number of variables                   5   ->   8",
+            "j variable (3 values)              wave   ->   (dropped)",
+            "xij variables:",
+            "                                 income   ->   income1 income2 income3",
+            "                                  hours   ->   hours1 hours2 hours3",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             8",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              float   %9.0g",
+            "income1         float   %9.0g                 1 income",
+            "hours1          float   %9.0g                 1 hours",
+            "income2         float   %9.0g                 2 income",
+            "hours2          float   %9.0g                 2 hours",
+            "income3         float   %9.0g                 3 income",
+            "hours3          float   %9.0g                 3 hours",
+            "sex             float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: id",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "reshape long income hours, i(id) j(wave)",
+          "lines": [
+            "(j = 1 2 3)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   6",
+            "Number of variables                   8   ->   5",
+            "j variable (3 values)                     ->   wave",
+            "xij variables:",
+            "                income1 income2 income3   ->   income",
+            "                   hours1 hours2 hours3   ->   hours",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "reshape wide",
+          "lines": [
+            "(j = 1 2 3)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                6   ->   2",
+            "Number of variables                   5   ->   8",
+            "j variable (3 values)              wave   ->   (dropped)",
+            "xij variables:",
+            "                                 income   ->   income1 income2 income3",
+            "                                  hours   ->   hours1 hours2 hours3",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "reshape long",
+          "lines": [
+            "(j = 1 2 3)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   6",
+            "Number of variables                   8   ->   5",
+            "j variable (3 values)                     ->   wave",
+            "xij variables:",
+            "                income1 income2 income3   ->   income",
+            "                   hours1 hours2 hours3   ->   hours",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide income hours, i(id) j(wave) string",
+          "lines": ["variable wave is numeric"]
+        },
+        { "command": "generate z = _n", "lines": [] },
+        {
+          "command": "capture noisily reshape wide income hours, i(id) j(wave)",
+          "lines": [
+            "(j = 1 2 3)",
+            "variable z not constant within id",
+            "    Your data are currently long. You are performing a reshape wide. You typed something like",
+            "",
+            "        . reshape wide a b, i(id) j(wave)",
+            "",
+            "    There are variables other than a, b, id, wave in your data. They must be constant within id because that is the only way they can fit into wide data without loss of information.",
+            "",
+            "    The variable or variables listed above are not constant within id. Perhaps the values are in error. Type reshape error for a list of the problem observations.",
+            "",
+            "    Either that, or the values vary because they should vary, in which case you must either add the variables to the list of xij variables to be reshaped, or drop them."
+          ]
+        },
+        { "command": "display _rc", "lines": ["9"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate int id = _n", "lines": [] },
+        { "command": "generate a_very_long_stub_name_here1 = _n", "lines": [] },
+        { "command": "generate a_very_long_stub_name_here2 = _n", "lines": [] },
+        { "command": "generate a_very_long_stub_name_here3 = _n", "lines": [] },
+        { "command": "generate a_very_long_stub_name_here4 = _n", "lines": [] },
+        { "command": "generate a_very_long_stub_name_here5 = _n", "lines": [] },
+        {
+          "command": "reshape long a_very_long_stub_name_here, i(id) j(t)",
+          "lines": [
+            "(j = 1 2 3 4 5)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   20",
+            "Number of variables                   6   ->   3",
+            "j variable (5 values)                     ->   t",
+            "xij variables:",
+            "a_very_long_stub_name_here1 a_very_long_stub_name_here2 ... a_very_long_stub_name_here5->a_very_long_stub_name_here",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "reshape wide a_very_long_stub_name_here, i(id) j(t)",
+          "lines": [
+            "(j = 1 2 3 4 5)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations               20   ->   4",
+            "Number of variables                   3   ->   6",
+            "j variable (5 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "             a_very_long_stub_name_here   ->   a_very_long_stub_name_here1 a_very_long_stub_name_here2 ... a_very_long_stub_name_here5",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate inc2001 = _n", "lines": [] },
+        { "command": "generate inc2005 = 2*_n", "lines": [] },
+        { "command": "generate incx = 3", "lines": [] },
+        {
+          "command": "reshape long inc, i(id) j(year)",
+          "lines": [
+            "(j = 2001 2005)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   8",
+            "Number of variables                   4   ->   4",
+            "j variable (2 values)                     ->   year",
+            "xij variables:",
+            "                        inc2001 inc2005   ->   inc",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------+",
+            "     | id   year   inc   incx |",
+            "     |------------------------|",
+            "  1. |  1   2001     1      3 |",
+            "  2. |  1   2005     2      3 |",
+            "  3. |  2   2001     2      3 |",
+            "  4. |  2   2005     4      3 |",
+            "  5. |  3   2001     3      3 |",
+            "     |------------------------|",
+            "  6. |  3   2005     6      3 |",
+            "  7. |  4   2001     4      3 |",
+            "  8. |  4   2005     8      3 |",
+            "     +------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate v_a = 1", "lines": [] },
+        { "command": "generate v_bb = 2", "lines": [] },
+        {
+          "command": "reshape long v_, i(id) j(s) string",
+          "lines": [
+            "(j = a bb)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   4",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   s",
+            "xij variables:",
+            "                               v_a v_bb   ->   v_",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------+",
+            "     | id    s   v_ |",
+            "     |--------------|",
+            "  1. |  1    a    1 |",
+            "  2. |  1   bb    2 |",
+            "  3. |  2    a    1 |",
+            "  4. |  2   bb    2 |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "reshape wide v_, i(id) j(s) string",
+          "lines": [
+            "(j = a bb)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 s   ->   (dropped)",
+            "xij variables:",
+            "                                     v_   ->   v_a v_bb",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30000",
+          "lines": ["Number of observations (_N) was 0, now 30,000."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate x1 = 1", "lines": [] },
+        { "command": "generate x2 = 2", "lines": [] },
+        {
+          "command": "reshape long x, i(id) j(k)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations           30,000   ->   60,000",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   k",
+            "xij variables:",
+            "                                  x1 x2   ->   x",
+            "-----------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-mvdecode-mvencode",
+      "source": "clear\nset obs 3000\ngenerate h = mod(_n, 3)\ngenerate k = mod(_n, 7)\ngenerate str2 s = \"a\"\ngenerate byte b = mod(_n, 5)\nmvdecode h k s, mv(0)\nmvdecode h, mv(1 2)\nmvdecode k, mv(1/2 = .a \\ 3 = .b)\ncount if k == .a\ncapture noisily mvencode k b, mv(1)\nmvencode k b, mv(1) override\nmvdecode b, mv(1)\nmvencode b, mv(999)\nmvdecode k, mv(1)\ncapture noisily mvencode k, mv(.a = 5 \\ else = 6)\ngenerate a_long_variable_name = mod(_n, 2)\nmvdecode a_long_variable_name, mv(0)\nmvdecode h if _n > 3000, mv(1)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3000",
+          "lines": ["Number of observations (_N) was 0, now 3,000."]
+        },
+        { "command": "generate h = mod(_n, 3)", "lines": [] },
+        { "command": "generate k = mod(_n, 7)", "lines": [] },
+        { "command": "generate str2 s = \"a\"", "lines": [] },
+        { "command": "generate byte b = mod(_n, 5)", "lines": [] },
+        {
+          "command": "mvdecode h k s, mv(0)",
+          "lines": [
+            "           h: 1000 missing values generated",
+            "           k: 428 missing values generated",
+            "           s: string variable ignored"
+          ]
+        },
+        {
+          "command": "mvdecode h, mv(1 2)",
+          "lines": ["           h: 2000 missing values generated"]
+        },
+        {
+          "command": "mvdecode k, mv(1/2 = .a \\ 3 = .b)",
+          "lines": ["           k: 1287 missing values generated"]
+        },
+        { "command": "count if k == .a", "lines": ["  858"] },
+        {
+          "command": "capture noisily mvencode k b, mv(1)",
+          "lines": [
+            "           b: already 1 in  600 observations",
+            "no action taken"
+          ]
+        },
+        {
+          "command": "mvencode k b, mv(1) override",
+          "lines": ["           k: 1715 missing values recoded"]
+        },
+        {
+          "command": "mvdecode b, mv(1)",
+          "lines": ["           b: 600 missing values generated"]
+        },
+        {
+          "command": "mvencode b, mv(999)",
+          "lines": [
+            "           b: 600 missing values recoded",
+            "              (recast to int)"
+          ]
+        },
+        {
+          "command": "mvdecode k, mv(1)",
+          "lines": ["           k: 1715 missing values generated"]
+        },
+        {
+          "command": "capture noisily mvencode k, mv(.a = 5 \\ else = 6)",
+          "lines": [
+            "           k: already 6 in  428 observations",
+            "           k: already 5 in  428 observations",
+            "no action taken"
+          ]
+        },
+        {
+          "command": "generate a_long_variable_name = mod(_n, 2)",
+          "lines": []
+        },
+        {
+          "command": "mvdecode a_long_variable_name, mv(0)",
+          "lines": ["a_long_var~e: 1500 missing values generated"]
+        },
+        { "command": "mvdecode h if _n > 3000, mv(1)", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-tostring-messages",
+      "source": "clear\nset obs 3000\ngenerate k = mod(_n, 7)\ngenerate double inc = _n + 0.123\ntostring inc, generate(inc_s) format(%9.2f) force\ntostring inc, generate(inc_t) force\ntostring inc, generate(inc_u)\ntostring inc, generate(inc_v) format(%9.2f)\ntostring k, replace\ngenerate byte g = mod(_n, 2)\nlabel define gl 0 \"no\" 1 \"yes\"\nlabel values g gl\ntostring g, replace\ntostring g, replace force\ntostring inc, replace force\ngenerate double f = _n / 3\ntostring f, replace format(%5.1f) force\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3000",
+          "lines": ["Number of observations (_N) was 0, now 3,000."]
+        },
+        { "command": "generate k = mod(_n, 7)", "lines": [] },
+        { "command": "generate double inc = _n + 0.123", "lines": [] },
+        {
+          "command": "tostring inc, generate(inc_s) format(%9.2f) force",
+          "lines": [
+            "inc_s generated as str7",
+            "inc_s was forced to string; some loss of information"
+          ]
+        },
+        {
+          "command": "tostring inc, generate(inc_t) force",
+          "lines": ["inc_t generated as str8"]
+        },
+        {
+          "command": "tostring inc, generate(inc_u)",
+          "lines": ["inc_u generated as str8"]
+        },
+        {
+          "command": "tostring inc, generate(inc_v) format(%9.2f)",
+          "lines": ["inc cannot be converted reversibly; no generate"]
+        },
+        { "command": "tostring k, replace", "lines": ["k was float now str1"] },
+        { "command": "generate byte g = mod(_n, 2)", "lines": [] },
+        { "command": "label define gl 0 \"no\" 1 \"yes\"", "lines": [] },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "tostring g, replace",
+          "lines": ["g has value label; no replace"]
+        },
+        {
+          "command": "tostring g, replace force",
+          "lines": ["g was byte now str1"]
+        },
+        {
+          "command": "tostring inc, replace force",
+          "lines": ["inc was double now str8"]
+        },
+        { "command": "generate double f = _n / 3", "lines": [] },
+        {
+          "command": "tostring f, replace format(%5.1f) force",
+          "lines": [
+            "f was double now str6",
+            "f was forced to string; some loss of information"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-duplicates-tag",
+      "source": "clear\nset obs 3000\ngenerate k = mod(_n, 7)\ngenerate id = ceil(_n/2)\nduplicates tag id, generate(dup)\nduplicates tag id k, generate(dup2)\nduplicates tag, generate(dup3)\ntabulate dup\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3000",
+          "lines": ["Number of observations (_N) was 0, now 3,000."]
+        },
+        { "command": "generate k = mod(_n, 7)", "lines": [] },
+        { "command": "generate id = ceil(_n/2)", "lines": [] },
+        {
+          "command": "duplicates tag id, generate(dup)",
+          "lines": ["Duplicates in terms of id"]
+        },
+        {
+          "command": "duplicates tag id k, generate(dup2)",
+          "lines": ["Duplicates in terms of id k"]
+        },
+        {
+          "command": "duplicates tag, generate(dup3)",
+          "lines": ["Duplicates in terms of all variables"]
+        },
+        {
+          "command": "tabulate dup",
+          "lines": [
+            "        dup |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |      3,000      100.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |      3,000      100.00"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-merge-update-messages",
+      "source": "clear\nset obs 4\ngenerate long id = _n + 1\ngenerate double v = _n * 10\nreplace v = . in 2\ngenerate str3 s = \"u\" + string(_n)\ngenerate float onlyu = _n\ngenerate byte r = _n\nlabel define reglbl 1 \"east\" 2 \"west\" 3 \"north\" 4 \"south\"\nlabel values r reglbl\nlabel define other 1 \"x\"\nsave dc_using, replace\nclear\nset obs 4\ngenerate int id = _n\ngenerate byte v = _n\nreplace v = . in 3\ngenerate str1 s = \"m\"\nreplace s = \"\" in 2\ngenerate byte r = _n\nlabel define reglbl 1 \"E\" 2 \"W\"\nlabel values r reglbl\nsave dc_master, replace\nmerge 1:1 id using dc_using\nlist, nolabel\nuse dc_master, clear\nmerge 1:1 id using dc_using, update\nlist, nolabel\nuse dc_master, clear\nmerge 1:1 id using dc_using, update replace\nlist, nolabel\nuse dc_master, clear\nmerge 1:1 id using dc_using, update keep(match master)\nlist, nolabel\nuse dc_master, clear\ncapture noisily merge 1:1 id using dc_using, replace\nuse dc_master, clear\nmerge 1:1 id using dc_using, update nogenerate\nlist\nuse dc_master, clear\nmerge 1:1 id using dc_using, update replace noreport\ntabulate _merge\nuse dc_master, clear\nmerge 1:1 id using dc_using, update keep(1 4 5)\nuse dc_master, clear\nappend using dc_using\nlist, nolabel\nuse dc_master, clear\nappend using dc_using, nolabel\nuse dc_master, clear\nappend using dc_using, generate(src)\ntabulate src\ndescribe src\nuse dc_master, clear\nappend using dc_using dc_master, generate(src2)\ntabulate src2\nclear\nset obs 3\ngenerate id = _n\ngenerate x = .\nreplace x = 5 in 2\nsave dc_m2, replace\nclear\nset obs 5\ngenerate id = ceil(_n/2)\ngenerate x = _n\nsave dc_u2, replace\nuse dc_m2, clear\nmerge 1:m id using dc_u2, update\nlist\nuse dc_m2, clear\nmerge 1:m id using dc_u2, update replace\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate long id = _n + 1", "lines": [] },
+        { "command": "generate double v = _n * 10", "lines": [] },
+        {
+          "command": "replace v = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate str3 s = \"u\" + string(_n)", "lines": [] },
+        { "command": "generate float onlyu = _n", "lines": [] },
+        { "command": "generate byte r = _n", "lines": [] },
+        {
+          "command": "label define reglbl 1 \"east\" 2 \"west\" 3 \"north\" 4 \"south\"",
+          "lines": []
+        },
+        { "command": "label values r reglbl", "lines": [] },
+        { "command": "label define other 1 \"x\"", "lines": [] },
+        {
+          "command": "save dc_using, replace",
+          "lines": ["(file dc_using.dta not found)", "file dc_using.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate int id = _n", "lines": [] },
+        { "command": "generate byte v = _n", "lines": [] },
+        {
+          "command": "replace v = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate str1 s = \"m\"", "lines": [] },
+        {
+          "command": "replace s = \"\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate byte r = _n", "lines": [] },
+        { "command": "label define reglbl 1 \"E\" 2 \"W\"", "lines": [] },
+        { "command": "label values r reglbl", "lines": [] },
+        {
+          "command": "save dc_master, replace",
+          "lines": [
+            "(file dc_master.dta not found)",
+            "file dc_master.dta saved"
+          ]
+        },
+        {
+          "command": "merge 1:1 id using dc_using",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1  (_merge==1)",
+            "        from using                          1  (_merge==2)",
+            "",
+            "    Matched                                 3  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | id    v    s   r   onlyu   _merge |",
+            "     |-----------------------------------|",
+            "  1. |  1    1    m   1       .        1 |",
+            "  2. |  2    2        2       1        3 |",
+            "  3. |  3    .    m   3       2        3 |",
+            "  4. |  4    4    m   4       3        3 |",
+            "  5. |  5   40   u4   4       4        2 |",
+            "     +-----------------------------------+"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_using, update",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1  (_merge==1)",
+            "        from using                          1  (_merge==2)",
+            "",
+            "    Matched                                 3",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     0  (_merge==4)",
+            "        nonmissing conflict                 3  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | id    v    s   r   onlyu   _merge |",
+            "     |-----------------------------------|",
+            "  1. |  1    1    m   1       .        1 |",
+            "  2. |  2    2   u1   2       1        5 |",
+            "  3. |  3    .    m   3       2        5 |",
+            "  4. |  4    4    m   4       3        5 |",
+            "  5. |  5   40   u4   4       4        2 |",
+            "     +-----------------------------------+"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_using, update replace",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1  (_merge==1)",
+            "        from using                          1  (_merge==2)",
+            "",
+            "    Matched                                 3",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     0  (_merge==4)",
+            "        nonmissing conflict                 3  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | id    v    s   r   onlyu   _merge |",
+            "     |-----------------------------------|",
+            "  1. |  1    1    m   1       .        1 |",
+            "  2. |  2   10   u1   1       1        5 |",
+            "  3. |  3    .   u2   2       2        5 |",
+            "  4. |  4   30   u3   3       3        5 |",
+            "  5. |  5   40   u4   4       4        2 |",
+            "     +-----------------------------------+"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_using, update keep(match master)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             1",
+            "        from master                         1  (_merge==1)",
+            "        from using                          0  (_merge==2)",
+            "",
+            "    Matched                                 0",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     0  (_merge==4)",
+            "        nonmissing conflict                 0  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +---------------------------------+",
+            "     | id   v   s   r   onlyu   _merge |",
+            "     |---------------------------------|",
+            "  1. |  1   1   m   1       .        1 |",
+            "     +---------------------------------+"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dc_using, replace",
+          "lines": [
+            "option replace not allowed",
+            "    option replace requires you also specify option update, thus demonstrating your understanding that an update will be performed"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_using, update nogenerate",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 3",
+            "        not updated                         0",
+            "        missing updated                     0",
+            "        nonmissing conflict                 3",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     | id    v    s   r   onlyu |",
+            "     |--------------------------|",
+            "  1. |  1    1    m   E       . |",
+            "  2. |  2    2   u1   W       1 |",
+            "  3. |  3    .    m   3       2 |",
+            "  4. |  4    4    m   4       3 |",
+            "  5. |  5   40   u4   4       4 |",
+            "     +--------------------------+"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_using, update replace noreport",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)"
+          ]
+        },
+        {
+          "command": "tabulate _merge",
+          "lines": [
+            "   Matching result from |",
+            "                  merge |      Freq.     Percent        Cum.",
+            "------------------------+-----------------------------------",
+            "        Master only (1) |          1       20.00       20.00",
+            "         Using only (2) |          1       20.00       40.00",
+            "Nonmissing conflict (5) |          3       60.00      100.00",
+            "------------------------+-----------------------------------",
+            "                  Total |          5      100.00"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_using, update keep(1 4 5)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             1",
+            "        from master                         1  (_merge==1)",
+            "        from using                          0  (_merge==2)",
+            "",
+            "    Matched                                 3",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     0  (_merge==4)",
+            "        nonmissing conflict                 3  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "append using dc_using",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)"
+          ]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +--------------------------+",
+            "     | id    v    s   r   onlyu |",
+            "     |--------------------------|",
+            "  1. |  1    1    m   1       . |",
+            "  2. |  2    2        2       . |",
+            "  3. |  3    .    m   3       . |",
+            "  4. |  4    4    m   4       . |",
+            "  5. |  2   10   u1   1       1 |",
+            "     |--------------------------|",
+            "  6. |  3    .   u2   2       2 |",
+            "  7. |  4   30   u3   3       3 |",
+            "  8. |  5   40   u4   4       4 |",
+            "     +--------------------------+"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "append using dc_using, nolabel",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "append using dc_using, generate(src)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)"
+          ]
+        },
+        {
+          "command": "tabulate src",
+          "lines": [
+            "    Dataset source |      Freq.     Percent        Cum.",
+            "-------------------+-----------------------------------",
+            "            Master |          4       50.00       50.00",
+            "Appended dataset 1 |          4       50.00      100.00",
+            "-------------------+-----------------------------------",
+            "             Total |          8      100.00"
+          ]
+        },
+        {
+          "command": "describe src",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "src             byte    %18.0g     _append    Dataset source"
+          ]
+        },
+        { "command": "use dc_master, clear", "lines": [] },
+        {
+          "command": "append using dc_using dc_master, generate(src2)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable v was byte, now double to accommodate using data's values)",
+            "(variable s was str1, now str3 to accommodate using data's values)",
+            "(label reglbl already defined)",
+            "(label reglbl already defined)"
+          ]
+        },
+        {
+          "command": "tabulate src2",
+          "lines": [
+            "    Dataset source |      Freq.     Percent        Cum.",
+            "-------------------+-----------------------------------",
+            "            Master |          4       33.33       33.33",
+            "Appended dataset 1 |          4       33.33       66.67",
+            "Appended dataset 2 |          4       33.33      100.00",
+            "-------------------+-----------------------------------",
+            "             Total |         12      100.00"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate x = .",
+          "lines": ["(3 missing values generated)"]
+        },
+        { "command": "replace x = 5 in 2", "lines": ["(1 real change made)"] },
+        {
+          "command": "save dc_m2, replace",
+          "lines": ["(file dc_m2.dta not found)", "file dc_m2.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate id = ceil(_n/2)", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "save dc_u2, replace",
+          "lines": ["(file dc_u2.dta not found)", "file dc_u2.dta saved"]
+        },
+        { "command": "use dc_m2, clear", "lines": [] },
+        {
+          "command": "merge 1:m id using dc_u2, update",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 5",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     3  (_merge==4)",
+            "        nonmissing conflict                 2  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------+",
+            "     | id   x                    _merge |",
+            "     |----------------------------------|",
+            "  1. |  1   1       Missing updated (4) |",
+            "  2. |  2   5   Nonmissing conflict (5) |",
+            "  3. |  3   5       Missing updated (4) |",
+            "  4. |  1   2       Missing updated (4) |",
+            "  5. |  2   5   Nonmissing conflict (5) |",
+            "     +----------------------------------+"
+          ]
+        },
+        { "command": "use dc_m2, clear", "lines": [] },
+        {
+          "command": "merge 1:m id using dc_u2, update replace",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 5",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     3  (_merge==4)",
+            "        nonmissing conflict                 2  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------+",
+            "     | id   x                    _merge |",
+            "     |----------------------------------|",
+            "  1. |  1   1       Missing updated (4) |",
+            "  2. |  2   3   Nonmissing conflict (5) |",
+            "  3. |  3   5       Missing updated (4) |",
+            "  4. |  1   2       Missing updated (4) |",
+            "  5. |  2   4   Nonmissing conflict (5) |",
+            "     +----------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-merge-append-types",
+      "source": "clear\nset obs 2\ngenerate id = _n\ngenerate float a = 1.5\ngenerate int b = 1\ngenerate byte c = 1\ngenerate str4 d = \"x\"\ngenerate long e = 1\ngenerate double f = 1\ngenerate float g = 1\nsave dc_u3, replace\nclear\nset obs 2\ngenerate id = _n\ngenerate long a = 1\ngenerate float b = 1\ngenerate long c = 1\ngenerate e = \"s\"\ngenerate float f = 2\ngenerate int g = 1\nsave dc_m3, replace\ncapture noisily merge 1:1 id using dc_u3\ndisplay _rc\nuse dc_m3, clear\nmerge 1:1 id using dc_u3, force\ndescribe a b c e f g\nlist\nuse dc_m3, clear\ncapture noisily append using dc_u3\ndisplay _rc\nuse dc_m3, clear\nappend using dc_u3, force\nlist\nuse dc_m3, clear\nmerge 1:1 id using dc_u3, update force\nlist\nuse dc_m3, clear\nmerge 1:1 id using dc_u3, keepusing(b) update\nuse dc_m3, clear\nappend using dc_u3, force keep(id a)\nlist\nclear\nset obs 2\ngenerate id = _n\ngenerate e = 1\nsave dc_m4, replace\nuse dc_u3, clear\ncapture noisily merge 1:1 id using dc_m4\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate float a = 1.5", "lines": [] },
+        { "command": "generate int b = 1", "lines": [] },
+        { "command": "generate byte c = 1", "lines": [] },
+        { "command": "generate str4 d = \"x\"", "lines": [] },
+        { "command": "generate long e = 1", "lines": [] },
+        { "command": "generate double f = 1", "lines": [] },
+        { "command": "generate float g = 1", "lines": [] },
+        {
+          "command": "save dc_u3, replace",
+          "lines": ["(file dc_u3.dta not found)", "file dc_u3.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate long a = 1", "lines": [] },
+        { "command": "generate float b = 1", "lines": [] },
+        { "command": "generate long c = 1", "lines": [] },
+        { "command": "generate e = \"s\"", "lines": [] },
+        { "command": "generate float f = 2", "lines": [] },
+        { "command": "generate int g = 1", "lines": [] },
+        {
+          "command": "save dc_m3, replace",
+          "lines": ["(file dc_m3.dta not found)", "file dc_m3.dta saved"]
+        },
+        {
+          "command": "capture noisily merge 1:1 id using dc_u3",
+          "lines": [
+            "variable e is str1 in master but long in using data",
+            "    You could specify merge's force option to ignore this string/numeric mismatch.  The using variable would then be treated as if it contained \"\"."
+          ]
+        },
+        { "command": "display _rc", "lines": ["106"] },
+        { "command": "use dc_m3, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_u3, force",
+          "lines": [
+            "(note: variable e was long in the using data, but will be str1 now)",
+            "(variable a was long, now double to accommodate using data's values)",
+            "(variable f was float, now double to accommodate using data's values)",
+            "(variable g was int, now float to accommodate using data's values)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "describe a b c e f g",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a               double  %12.0g",
+            "b               float   %9.0g",
+            "c               long    %12.0g",
+            "e               str1    %9s",
+            "f               double  %9.0g",
+            "g               float   %8.0g"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------------+",
+            "     | id   a   b   c   e   f   g   d        _merge |",
+            "     |----------------------------------------------|",
+            "  1. |  1   1   1   1   s   2   1   x   Matched (3) |",
+            "  2. |  2   1   1   1   s   2   1   x   Matched (3) |",
+            "     +----------------------------------------------+"
+          ]
+        },
+        { "command": "use dc_m3, clear", "lines": [] },
+        {
+          "command": "capture noisily append using dc_u3",
+          "lines": [
+            "variable e is str1 in master but long in using data",
+            "    You could specify append's force option to ignore this string/numeric mismatch.  The using variable would then be treated as if it contained \"\"."
+          ]
+        },
+        { "command": "display _rc", "lines": ["106"] },
+        { "command": "use dc_m3, clear", "lines": [] },
+        {
+          "command": "append using dc_u3, force",
+          "lines": [
+            "(note: variable e was long in the using data, but will be str1 now)",
+            "(variable a was long, now double to accommodate using data's values)",
+            "(variable f was float, now double to accommodate using data's values)",
+            "(variable g was int, now float to accommodate using data's values)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------+",
+            "     | id     a   b   c   e   f   g   d |",
+            "     |----------------------------------|",
+            "  1. |  1     1   1   1   s   2   1     |",
+            "  2. |  2     1   1   1   s   2   1     |",
+            "  3. |  1   1.5   1   1       1   1   x |",
+            "  4. |  2   1.5   1   1       1   1   x |",
+            "     +----------------------------------+"
+          ]
+        },
+        { "command": "use dc_m3, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_u3, update force",
+          "lines": [
+            "(note: variable e was long in the using data, but will be str1 now)",
+            "(variable a was long, now double to accommodate using data's values)",
+            "(variable f was float, now double to accommodate using data's values)",
+            "(variable g was int, now float to accommodate using data's values)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 2",
+            "        not updated                         0  (_merge==3)",
+            "        missing updated                     0  (_merge==4)",
+            "        nonmissing conflict                 2  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------------------------+",
+            "     | id   a   b   c   e   f   g   d                    _merge |",
+            "     |----------------------------------------------------------|",
+            "  1. |  1   1   1   1   s   2   1   x   Nonmissing conflict (5) |",
+            "  2. |  2   1   1   1   s   2   1   x   Nonmissing conflict (5) |",
+            "     +----------------------------------------------------------+"
+          ]
+        },
+        { "command": "use dc_m3, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dc_u3, keepusing(b) update",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 2",
+            "        not updated                         2  (_merge==3)",
+            "        missing updated                     0  (_merge==4)",
+            "        nonmissing conflict                 0  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "use dc_m3, clear", "lines": [] },
+        {
+          "command": "append using dc_u3, force keep(id a)",
+          "lines": [
+            "(variable a was long, now double to accommodate using data's values)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------+",
+            "     | id     a   b   c   e   f   g |",
+            "     |------------------------------|",
+            "  1. |  1     1   1   1   s   2   1 |",
+            "  2. |  2     1   1   1   s   2   1 |",
+            "  3. |  1   1.5   .   .       .   . |",
+            "  4. |  2   1.5   .   .       .   . |",
+            "     +------------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate e = 1", "lines": [] },
+        {
+          "command": "save dc_m4, replace",
+          "lines": ["(file dc_m4.dta not found)", "file dc_m4.dta saved"]
+        },
+        { "command": "use dc_u3, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dc_m4",
+          "lines": [
+            "(variable e was long, now double to accommodate using data's values)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-collapse-weighted-quantiles",
+      "source": "clear\nset seed 12345\nset obs 200\ngenerate g = mod(_n, 3)\ngenerate y = round(runiform()*100, 0.01)\ngenerate w = 1 + floor(runiform()*5)\ngenerate wf = runiform()*3\nreplace y = . in 5\npreserve\ncollapse (median) med=y (p25) p25=y (p75) p75=y (p10) p10=y (p90) p90=y (iqr) iqr=y (max) mx=y [pw=wf], by(g)\nlist\nrestore\npreserve\ncollapse (median) med=y (p25) p25=y (p75) p75=y (iqr) iqr=y [aw=wf], by(g)\nlist\nrestore\npreserve\ncollapse (median) med=y (p25) p25=y (p75) p75=y (iqr) iqr=y [iw=wf], by(g)\nlist\nrestore\npreserve\ncollapse (median) med=y (p25) p25=y (p50) p50=y [aw=w], by(g)\nlist\nrestore\npreserve\ncollapse (median) med=y (p25) p25=y [fw=w], by(g)\nlist\nrestore\npreserve\ncollapse (count) n=y (sum) s=y (mean) m=y [pw=wf], by(g)\nlist\ndescribe n\nrestore\nclear\nset obs 4\ngenerate y = _n\ngenerate w = 1\npreserve\ncollapse (median) m=y (p25) a=y (p75) b=y [aw=w]\nlist\nrestore\nreplace w = 2 in 1\npreserve\ncollapse (median) m=y (p25) a=y (p75) b=y [pw=w]\nlist\nrestore\npreserve\ncollapse (sd) s=y [iw=w]\nlist\nrestore\npreserve\ncapture noisily collapse (sd) s=y [pw=w]\nrestore\npreserve\ncollapse (count) n=y [pw=w]\nlist\nrestore\npreserve\ncollapse (count) n=y [iw=w]\nlist\nrestore\npreserve\nreplace w = 0 in 2\ncollapse (median) m=y (p50) a=y (count) c=y [aw=w]\nlist\nrestore\npreserve\nreplace w = 0.5 in 1/4\ncollapse (median) m=y (p25) a=y [iw=w]\nlist\nrestore\npreserve\nreplace w = . in 1\ncollapse (median) m=y (p25) a=y [pw=w]\nlist\nrestore\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate y = round(runiform()*100, 0.01)", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*5)", "lines": [] },
+        { "command": "generate wf = runiform()*3", "lines": [] },
+        {
+          "command": "replace y = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) med=y (p25) p25=y (p75) p75=y (p10) p10=y (p90) p90=y (iqr) iqr=y (max) mx=y [pw=wf], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------+",
+            "     | g     med     p25     p75     p10     p90     iqr      mx |",
+            "     |-----------------------------------------------------------|",
+            "  1. | 0   44.45   22.27   74.77   11.13   88.22    52.5   99.67 |",
+            "  2. | 1   41.97   19.42   69.61    4.48   88.41   50.19   99.78 |",
+            "  3. | 2   53.74   41.11   77.54   23.34   89.39   36.43   98.57 |",
+            "     +-----------------------------------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) med=y (p25) p25=y (p75) p75=y (iqr) iqr=y [aw=wf], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | g     med     p25     p75     iqr |",
+            "     |-----------------------------------|",
+            "  1. | 0   44.45   22.27   74.77    52.5 |",
+            "  2. | 1   41.97   19.42   69.61   50.19 |",
+            "  3. | 2   53.74   41.11   77.54   36.43 |",
+            "     +-----------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) med=y (p25) p25=y (p75) p75=y (iqr) iqr=y [iw=wf], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | g     med     p25     p75     iqr |",
+            "     |-----------------------------------|",
+            "  1. | 0   44.45   22.27   74.77    52.5 |",
+            "  2. | 1   41.97   19.42   69.61   50.19 |",
+            "  3. | 2   53.74   41.11   77.54   36.43 |",
+            "     +-----------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) med=y (p25) p25=y (p50) p50=y [aw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------------+",
+            "     | g     med     p25     p50 |",
+            "     |---------------------------|",
+            "  1. | 0   51.06   22.05   51.06 |",
+            "  2. | 1   40.65   11.55   40.65 |",
+            "  3. | 2    63.9   41.19    63.9 |",
+            "     +---------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) med=y (p25) p25=y [fw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | g     med     p25 |",
+            "     |-------------------|",
+            "  1. | 0   51.06   22.05 |",
+            "  2. | 1   40.65   11.55 |",
+            "  3. | 2    63.9   41.19 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (count) n=y (sum) s=y (mean) m=y [pw=wf], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------------+",
+            "     | g          n          s          m |",
+            "     |------------------------------------|",
+            "  1. | 0   94.31786   4586.682   48.63004 |",
+            "  2. | 1     103.43   4651.762   44.97496 |",
+            "  3. | 2   92.85379   5160.863   55.58053 |",
+            "     +------------------------------------+"
+          ]
+        },
+        {
+          "command": "describe n",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "n               double  %9.0g                 (count) y"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "generate w = 1", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) m=y (p25) a=y (p75) b=y [aw=w]",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     |   m     a     b |",
+            "     |-----------------|",
+            "  1. | 2.5   1.5   3.5 |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "replace w = 2 in 1", "lines": ["(1 real change made)"] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) m=y (p25) a=y (p75) b=y [pw=w]",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | m   a   b |",
+            "     |-----------|",
+            "  1. | 2   1   3 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (sd) s=y [iw=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     |        s |",
+            "     |----------|",
+            "  1. | 1.303841 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "capture noisily collapse (sd) s=y [pw=w]",
+          "lines": ["sd not allowed with pweights"]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (count) n=y [pw=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---+",
+            "     | n |",
+            "     |---|",
+            "  1. | 5 |",
+            "     +---+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (count) n=y [iw=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---+",
+            "     | n |",
+            "     |---|",
+            "  1. | 5 |",
+            "     +---+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "replace w = 0 in 2", "lines": ["(1 real change made)"] },
+        {
+          "command": "collapse (median) m=y (p50) a=y (count) c=y [aw=w]",
+          "lines": ["(note: aweights not used to compute counts)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | m   a   c |",
+            "     |-----------|",
+            "  1. | 2   2   3 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "replace w = 0.5 in 1/4",
+          "lines": ["(4 real changes made)"]
+        },
+        { "command": "collapse (median) m=y (p25) a=y [iw=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |   m     a |",
+            "     |-----------|",
+            "  1. | 2.5   1.5 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "replace w = . in 1",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "collapse (median) m=y (p25) a=y [pw=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | m   a |",
+            "     |-------|",
+            "  1. | 3   2 |",
+            "     +-------+"
+          ]
+        },
+        { "command": "restore", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-inspect",
+      "source": "clear\nset seed 4242\nset obs 300\ngenerate id = ceil(_n/3)\ngenerate wave = mod(_n-1,3)+1\ngenerate age = 18 + floor(runiform()*47)\ngenerate income = round(20000 + runiform()*60000, .01)\nreplace income = . if runiform() < .1\nreplace income = .a if runiform() < .03\ngenerate hours = floor(runiform()*50)\nreplace hours = . if runiform() < .05\ngenerate neg = -age\ngenerate frac = runiform()\ninspect age\ninspect income\ninspect hours\ninspect\ninspect age if wave == 1\ngenerate region = mod(_n, 4) + 1\nlabel variable region \"Census region of the respondent\"\nlabel define rl 1 \"NE\" 2 \"MW\" 3 \"South\" 4 \"West\"\nlabel values region rl\ninspect region\nreturn list\ngenerate r2 = mod(_n, 5)\nlabel define r2l 1 \"one\" 2 \"two\"\nlabel values r2 r2l\ninspect r2\ngenerate x = (_n - 60) / 4\nreplace x = . in 1/3\nreplace x = .b in 4\ninspect x\nreturn list\ngenerate u99 = mod(_n, 99)\ninspect u99\ngenerate u100 = mod(_n, 100)\ninspect u100\ngenerate a_really_long_variable_name_x = _n\nlabel variable a_really_long_variable_name_x \"A label that is quite long indeed for this variable here\"\ninspect a_really_long_variable_name_x\ngenerate big = _n * 1e7\ninspect big\ngenerate tiny = _n * 1e-7\ninspect tiny\ngenerate z = 0\ninspect z\ngenerate l = cond(_n<=295, 1, _n)\ninspect l\ngenerate q = cond(_n<=150, 1, cond(_n < 300, 2, 100))\ninspect q\ngenerate r = cond(_n<=20, 1, 2 + mod(_n, 7))\ninspect r\ngenerate y = cond(_n == 1, 3, 1)\nlabel define yl 1 \"one\"\nlabel values y yl\ninspect y\nby wave, sort: inspect age\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/3)", "lines": [] },
+        { "command": "generate wave = mod(_n-1,3)+1", "lines": [] },
+        { "command": "generate age = 18 + floor(runiform()*47)", "lines": [] },
+        {
+          "command": "generate income = round(20000 + runiform()*60000, .01)",
+          "lines": []
+        },
+        {
+          "command": "replace income = . if runiform() < .1",
+          "lines": ["(34 real changes made, 34 to missing)"]
+        },
+        {
+          "command": "replace income = .a if runiform() < .03",
+          "lines": ["(6 real changes made, 6 to missing)"]
+        },
+        { "command": "generate hours = floor(runiform()*50)", "lines": [] },
+        {
+          "command": "replace hours = . if runiform() < .05",
+          "lines": ["(15 real changes made, 15 to missing)"]
+        },
+        { "command": "generate neg = -age", "lines": [] },
+        { "command": "generate frac = runiform()", "lines": [] },
+        {
+          "command": "inspect age",
+          "lines": [
+            "age:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          300           300             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "18                   64                        300",
+            "  (47 unique values)"
+          ]
+        },
+        {
+          "command": "inspect income",
+          "lines": [
+            "income:                                         Number of observations",
+            "---------                              ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|                  #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          260             1           259",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             260             1           259",
+            "|  #   #   #   #   #         Missing            40",
+            "+----------------------                -----------",
+            "20205.61       79633.32                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        {
+          "command": "inspect hours",
+          "lines": [
+            "hours:                                          Number of observations",
+            "--------                               ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|      #                     Negative            -             -             -",
+            "|      #                     Zero                7             7             -",
+            "|      #       #   #         Positive          278           278             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             285           285             -",
+            "|  #   #   #   #   #         Missing            15",
+            "+----------------------                -----------",
+            "0                    49                        300",
+            "  (50 unique values)"
+          ]
+        },
+        {
+          "command": "inspect",
+          "lines": [
+            "id:                                             Number of observations",
+            "-----                                  ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          300           300             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                   100                        300",
+            "(More than 99 unique values)",
+            "",
+            "wave:                                           Number of observations",
+            "-------                                ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #                 Negative            -             -             -",
+            "|  #   #   #                 Zero                -             -             -",
+            "|  #   #   #                 Positive          300           300             -",
+            "|  #   #   #                           -----------   -----------   -----------",
+            "|  #   #   #                 Total             300           300             -",
+            "|  #   #   #                 Missing             -",
+            "+----------------------                -----------",
+            "1                     3                        300",
+            "   (3 unique values)",
+            "",
+            "age:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          300           300             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "18                   64                        300",
+            "  (47 unique values)",
+            "",
+            "income:                                         Number of observations",
+            "---------                              ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|                  #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          260             1           259",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             260             1           259",
+            "|  #   #   #   #   #         Missing            40",
+            "+----------------------                -----------",
+            "20205.61       79633.32                        300",
+            "(More than 99 unique values)",
+            "",
+            "hours:                                          Number of observations",
+            "--------                               ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|      #                     Negative            -             -             -",
+            "|      #                     Zero                7             7             -",
+            "|      #       #   #         Positive          278           278             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             285           285             -",
+            "|  #   #   #   #   #         Missing            15",
+            "+----------------------                -----------",
+            "0                    49                        300",
+            "  (50 unique values)",
+            "",
+            "neg:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|                  #         Negative          300           300             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive            -             -             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "-64                 -18                        300",
+            "  (47 unique values)",
+            "",
+            "frac:                                           Number of observations",
+            "-------                                ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #   #   #                 Zero                -             -             -",
+            "|  #   #   #   #             Positive          300             -           300",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300             -           300",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            ".0010492       .9990107                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        {
+          "command": "inspect age if wave == 1",
+          "lines": [
+            "age:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|              #             Negative            -             -             -",
+            "|              #             Zero                -             -             -",
+            "|  #   #   #   #             Positive          100           100             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             100           100             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "19                   62                        100",
+            "  (42 unique values)"
+          ]
+        },
+        { "command": "generate region = mod(_n, 4) + 1", "lines": [] },
+        {
+          "command": "label variable region \"Census region of the respondent\"",
+          "lines": []
+        },
+        {
+          "command": "label define rl 1 \"NE\" 2 \"MW\" 3 \"South\" 4 \"West\"",
+          "lines": []
+        },
+        { "command": "label values region rl", "lines": [] },
+        {
+          "command": "inspect region",
+          "lines": [
+            "region:  Census region of the respondent        Number of observations",
+            "-------------------------------------------------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #             Negative            -             -             -",
+            "|  #   #   #   #             Zero                -             -             -",
+            "|  #   #   #   #             Positive          300           300             -",
+            "|  #   #   #   #                       -----------   -----------   -----------",
+            "|  #   #   #   #             Total             300           300             -",
+            "|  #   #   #   #             Missing             -",
+            "+----------------------                -----------",
+            "1                     4                        300",
+            "   (4 unique values)",
+            "",
+            "      region is labeled and all values are documented in the label."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "              r(N_neg) =  0",
+            "           r(N_negint) =  0",
+            "                r(N_0) =  0",
+            "              r(N_pos) =  300",
+            "           r(N_posint) =  300",
+            "                  r(N) =  300",
+            "           r(N_unique) =  4",
+            "            r(N_undoc) =  0"
+          ]
+        },
+        { "command": "generate r2 = mod(_n, 5)", "lines": [] },
+        { "command": "label define r2l 1 \"one\" 2 \"two\"", "lines": [] },
+        { "command": "label values r2 r2l", "lines": [] },
+        {
+          "command": "inspect r2",
+          "lines": [
+            "r2:                                             Number of observations",
+            "-----                                  ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero               60            60             -",
+            "|  #   #   #   #   #         Positive          240           240             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "0                     4                        300",
+            "   (5 unique values)",
+            "",
+            "      r2 is labeled but 180 values are NOT documented in the label."
+          ]
+        },
+        { "command": "generate x = (_n - 60) / 4", "lines": [] },
+        {
+          "command": "replace x = . in 1/3",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        {
+          "command": "replace x = .b in 4",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "inspect x",
+          "lines": [
+            "x:                                              Number of observations",
+            "----                                   ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|                  #         Negative           55            13            42",
+            "|  #   #   #   #   #         Zero                1             1             -",
+            "|  #   #   #   #   #         Positive          240            60           180",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             296            74           222",
+            "|  #   #   #   #   #         Missing             4",
+            "+----------------------                -----------",
+            "-13.75               60                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "              r(N_neg) =  55",
+            "           r(N_negint) =  13",
+            "                r(N_0) =  1",
+            "              r(N_pos) =  240",
+            "           r(N_posint) =  60",
+            "                  r(N) =  296",
+            "           r(N_unique) =  .",
+            "            r(N_undoc) =  ."
+          ]
+        },
+        { "command": "generate u99 = mod(_n, 99)", "lines": [] },
+        {
+          "command": "inspect u99",
+          "lines": [
+            "u99:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                3             3             -",
+            "|  #   #   #   #   #         Positive          297           297             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "0                    98                        300",
+            "  (99 unique values)"
+          ]
+        },
+        { "command": "generate u100 = mod(_n, 100)", "lines": [] },
+        {
+          "command": "inspect u100",
+          "lines": [
+            "u100:                                           Number of observations",
+            "-------                                ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                3             3             -",
+            "|  #   #   #   #   #         Positive          297           297             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "0                    99                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        {
+          "command": "generate a_really_long_variable_name_x = _n",
+          "lines": []
+        },
+        {
+          "command": "label variable a_really_long_variable_name_x \"A label that is quite long indeed for this variable here\"",
+          "lines": []
+        },
+        {
+          "command": "inspect a_really_long_variable_name_x",
+          "lines": [
+            "a_really_long_variable_name_x:  A label         Number of observations",
+            "-------------------------------------------------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          300           300             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                   300                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        { "command": "generate big = _n * 1e7", "lines": [] },
+        {
+          "command": "inspect big",
+          "lines": [
+            "big:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          300           214            86",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           214            86",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1.00e+07       3.00e+09                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        { "command": "generate tiny = _n * 1e-7", "lines": [] },
+        {
+          "command": "inspect tiny",
+          "lines": [
+            "tiny:                                           Number of observations",
+            "-------                                ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive          300             -           300",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300             -           300",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1.00e-07         .00003                        300",
+            "(More than 99 unique values)"
+          ]
+        },
+        { "command": "generate z = 0", "lines": [] },
+        {
+          "command": "inspect z",
+          "lines": [
+            "z:                                              Number of observations",
+            "----                                   ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #                         Zero              300           300             -",
+            "|  #                         Positive            -             -             -",
+            "|  #                                   -----------   -----------   -----------",
+            "|  #                         Total             300           300             -",
+            "|  #                         Missing             -",
+            "+----------------------                -----------",
+            "0                                              300",
+            "   (1 unique value)"
+          ]
+        },
+        { "command": "generate l = cond(_n<=295, 1, _n)", "lines": [] },
+        {
+          "command": "inspect l",
+          "lines": [
+            "l:                                              Number of observations",
+            "----                                   ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #                         Zero                -             -             -",
+            "|  #                         Positive          300           300             -",
+            "|  #                                   -----------   -----------   -----------",
+            "|  #                         Total             300           300             -",
+            "|  #   .   .   .   .         Missing             -",
+            "+----------------------                -----------",
+            "1                   300                        300",
+            "   (6 unique values)"
+          ]
+        },
+        {
+          "command": "generate q = cond(_n<=150, 1, cond(_n < 300, 2, 100))",
+          "lines": []
+        },
+        {
+          "command": "inspect q",
+          "lines": [
+            "q:                                              Number of observations",
+            "----                                   ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #                         Zero                -             -             -",
+            "|  #                         Positive          300           300             -",
+            "|  #                                   -----------   -----------   -----------",
+            "|  #                         Total             300           300             -",
+            "|  #   .   .                 Missing             -",
+            "+----------------------                -----------",
+            "1                   100                        300",
+            "   (3 unique values)"
+          ]
+        },
+        {
+          "command": "generate r = cond(_n<=20, 1, 2 + mod(_n, 7))",
+          "lines": []
+        },
+        {
+          "command": "inspect r",
+          "lines": [
+            "r:                                              Number of observations",
+            "----                                   ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|          #       #         Negative            -             -             -",
+            "|          #       #         Zero                -             -             -",
+            "|  #       #       #         Positive          300           300             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             300           300             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                     8                        300",
+            "   (8 unique values)"
+          ]
+        },
+        { "command": "generate y = cond(_n == 1, 3, 1)", "lines": [] },
+        { "command": "label define yl 1 \"one\"", "lines": [] },
+        { "command": "label values y yl", "lines": [] },
+        {
+          "command": "inspect y",
+          "lines": [
+            "y:                                              Number of observations",
+            "----                                   ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #                         Zero                -             -             -",
+            "|  #                         Positive          300           300             -",
+            "|  #                                   -----------   -----------   -----------",
+            "|  #                         Total             300           300             -",
+            "|  #   .                     Missing             -",
+            "+----------------------                -----------",
+            "1                     3                        300",
+            "   (2 unique values)",
+            "",
+            "      y is labeled but 1 value is NOT documented in the label."
+          ]
+        },
+        {
+          "command": "by wave, sort: inspect age",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> wave = 1",
+            "",
+            "age:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|              #             Negative            -             -             -",
+            "|              #             Zero                -             -             -",
+            "|  #   #   #   #             Positive          100           100             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             100           100             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "19                   62                        100",
+            "  (42 unique values)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> wave = 2",
+            "",
+            "age:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|                  #         Negative            -             -             -",
+            "|                  #         Zero                -             -             -",
+            "|              #   #         Positive          100           100             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             100           100             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "18                   64                        100",
+            "  (40 unique values)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> wave = 3",
+            "",
+            "age:                                            Number of observations",
+            "------                                 ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #                         Negative            -             -             -",
+            "|  #                         Zero                -             -             -",
+            "|  #   #   #                 Positive          100           100             -",
+            "|  #   #   #   #                       -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total             100           100             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "18                   64                        100",
+            "  (40 unique values)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-misstable",
+      "source": "clear\nset seed 4242\nset obs 300\ngenerate id = ceil(_n/3)\ngenerate wave = mod(_n-1,3)+1\ngenerate age = 18 + floor(runiform()*47)\ngenerate income = round(20000 + runiform()*60000, .01)\nreplace income = . if runiform() < .1\nreplace income = .a if runiform() < .03\ngenerate hours = floor(runiform()*50)\nreplace hours = . if runiform() < .05\ngenerate str5 s = \"a\"\ngenerate frac = runiform()\ngenerate a = cond(runiform() < .2, ., 1)\ngenerate b = cond(runiform() < .2, ., 1)\ngenerate c = cond(a == ., ., cond(runiform() < .3, ., 1))\nmisstable summarize\nreturn list\nmisstable summarize, all\nmisstable summarize age income\nmisstable summarize income, showzeros\nmisstable summarize age\nmisstable summarize hours if wave == 1, generate(m_)\ndescribe m_hours\nmisstable patterns income hours\nreturn list\nmisstable patterns\nmisstable patterns income hours, frequency\nmisstable patterns a b c\nmisstable patterns c b a, asis\nmisstable patterns income, exok\nmisstable patterns age\nmisstable patterns s\ncapture noisily misstable\ncapture noisily misstable foo\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/3)", "lines": [] },
+        { "command": "generate wave = mod(_n-1,3)+1", "lines": [] },
+        { "command": "generate age = 18 + floor(runiform()*47)", "lines": [] },
+        {
+          "command": "generate income = round(20000 + runiform()*60000, .01)",
+          "lines": []
+        },
+        {
+          "command": "replace income = . if runiform() < .1",
+          "lines": ["(34 real changes made, 34 to missing)"]
+        },
+        {
+          "command": "replace income = .a if runiform() < .03",
+          "lines": ["(6 real changes made, 6 to missing)"]
+        },
+        { "command": "generate hours = floor(runiform()*50)", "lines": [] },
+        {
+          "command": "replace hours = . if runiform() < .05",
+          "lines": ["(15 real changes made, 15 to missing)"]
+        },
+        { "command": "generate str5 s = \"a\"", "lines": [] },
+        { "command": "generate frac = runiform()", "lines": [] },
+        {
+          "command": "generate a = cond(runiform() < .2, ., 1)",
+          "lines": ["(71 missing values generated)"]
+        },
+        {
+          "command": "generate b = cond(runiform() < .2, ., 1)",
+          "lines": ["(48 missing values generated)"]
+        },
+        {
+          "command": "generate c = cond(a == ., ., cond(runiform() < .3, ., 1))",
+          "lines": ["(141 missing values generated)"]
+        },
+        {
+          "command": "misstable summarize",
+          "lines": [
+            "                                                               Obs<.",
+            "                                                +------------------------------",
+            "               |                                | Unique",
+            "      Variable |     Obs=.     Obs>.     Obs<.  | values        Min         Max",
+            "  -------------+--------------------------------+------------------------------",
+            "        income |        34         6       260  |    260   20205.61    79633.32",
+            "         hours |        15                 285  |     50          0          49",
+            "             a |        71                 229  |      1          1           1",
+            "             b |        48                 252  |      1          1           1",
+            "             c |       141                 159  |      1          1           1",
+            "  -----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "             r(K_uniq) =  1",
+            "           r(N_gt_dot) =  0",
+            "           r(N_eq_dot) =  141",
+            "                r(max) =  1",
+            "                r(min) =  1",
+            "           r(N_lt_dot) =  159",
+            "",
+            "macros:",
+            "            r(vartype) : \"numeric\""
+          ]
+        },
+        {
+          "command": "misstable summarize, all",
+          "lines": [
+            "                                                               Obs<.",
+            "                                                +------------------------------",
+            "               |                                | Unique",
+            "      Variable |     Obs=.     Obs>.     Obs<.  | values        Min         Max",
+            "  -------------+--------------------------------+------------------------------",
+            "            id |                           300  |    100          1         100",
+            "          wave |                           300  |      3          1           3",
+            "           age |                           300  |     47         18          64",
+            "        income |        34         6       260  |    260   20205.61    79633.32",
+            "         hours |        15                 285  |     50          0          49",
+            "             s | (string variable)              |",
+            "          frac |                           300  |    300   .0010492    .9990107",
+            "             a |        71                 229  |      1          1           1",
+            "             b |        48                 252  |      1          1           1",
+            "             c |       141                 159  |      1          1           1",
+            "  -----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "misstable summarize age income",
+          "lines": [
+            "                                                               Obs<.",
+            "                                                +------------------------------",
+            "               |                                | Unique",
+            "      Variable |     Obs=.     Obs>.     Obs<.  | values        Min         Max",
+            "  -------------+--------------------------------+------------------------------",
+            "        income |        34         6       260  |    260   20205.61    79633.32",
+            "  -----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "misstable summarize income, showzeros",
+          "lines": [
+            "                                                               Obs<.",
+            "                                                +------------------------------",
+            "               |                                | Unique",
+            "      Variable |     Obs=.     Obs>.     Obs<.  | values        Min         Max",
+            "  -------------+--------------------------------+------------------------------",
+            "        income |        34         6       260  |    260   20205.61    79633.32",
+            "  -----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "misstable summarize age",
+          "lines": ["(variables nonmissing or string)"]
+        },
+        {
+          "command": "misstable summarize hours if wave == 1, generate(m_)",
+          "lines": [
+            "                                                               Obs<.",
+            "                                                +------------------------------",
+            "               |                                | Unique",
+            "      Variable |     Obs=.     Obs>.     Obs<.  | values        Min         Max",
+            "  -------------+--------------------------------+------------------------------",
+            "         hours |         1                  99  |     44          0          48",
+            "  -----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe m_hours",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "m_hours         byte    %8.0g                 (hours>=.)"
+          ]
+        },
+        {
+          "command": "misstable patterns income hours",
+          "lines": [
+            "   Missing-value patterns",
+            "     (1 means complete)",
+            "",
+            "              |   Pattern",
+            "    Percent   |  1  2",
+            "  ------------+-------------",
+            "       82%    |  1  1",
+            "              |",
+            "       13     |  1  0",
+            "        5     |  0  1",
+            "       <1     |  0  0",
+            "  ------------+-------------",
+            "      100%    |",
+            "",
+            "  Variables are  (1) hours  (2) income"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "         r(N_complete) =  246",
+            "       r(N_incomplete) =  54",
+            "                  r(K) =  3",
+            "",
+            "macros:",
+            "               r(vars) : \"hours income\""
+          ]
+        },
+        {
+          "command": "misstable patterns",
+          "lines": [
+            "       Missing-value patterns",
+            "         (1 means complete)",
+            "",
+            "              |   Pattern",
+            "    Percent   |  1  2  3  4    5  6",
+            "  ------------+---------------------",
+            "       16%    |  1  1  1  1    1  1",
+            "              |",
+            "       23     |  1  1  1  1    1  0",
+            "       10     |  1  1  1  1    0  0",
+            "        9     |  1  1  1  0    0  0",
+            "        6     |  1  1  1  0    0  1",
+            "        5     |  1  1  0  1    1  0",
+            "        5     |  1  1  1  1    0  1",
+            "        4     |  1  0  1  1    1  0",
+            "        3     |  1  0  1  0    0  0",
+            "        3     |  1  1  0  1    0  0",
+            "        2     |  0  1  1  1    0  0",
+            "        2     |  1  0  1  1    0  0",
+            "        2     |  1  0  1  1    1  1",
+            "        2     |  1  1  0  0    0  0",
+            "        1     |  1  1  0  0    0  1",
+            "        1     |  0  1  1  1    1  0",
+            "        1     |  1  0  0  1    1  0",
+            "        1     |  1  1  0  1    1  1",
+            "       <1     |  0  1  1  0    0  0",
+            "       <1     |  1  1  0  1    0  1",
+            "       <1     |  0  0  0  1    1  0",
+            "       <1     |  0  1  0  1    0  0",
+            "       <1     |  0  1  0  1    1  0",
+            "       <1     |  0  1  1  1    1  1",
+            "       <1     |  1  0  0  0    0  0",
+            "       <1     |  1  0  0  0    0  1",
+            "       <1     |  1  0  0  1    0  0",
+            "       <1     |  1  0  1  0    0  1",
+            "       <1     |  1  0  1  1    0  1",
+            "  ------------+---------------------",
+            "      100%    |",
+            "",
+            "  Variables are  (1) hours  (2) income  (3) b  (4) a  (5) c  (6) m_hours"
+          ]
+        },
+        {
+          "command": "misstable patterns income hours, frequency",
+          "lines": [
+            "   Missing-value patterns",
+            "     (1 means complete)",
+            "",
+            "              |   Pattern",
+            "    Frequency |  1  2",
+            "  ------------+-------------",
+            "          246 |  1  1",
+            "              |",
+            "           39 |  1  0",
+            "           14 |  0  1",
+            "            1 |  0  0",
+            "  ------------+-------------",
+            "          300 |",
+            "",
+            "  Variables are  (1) hours  (2) income"
+          ]
+        },
+        {
+          "command": "misstable patterns a b c",
+          "lines": [
+            "   Missing-value patterns",
+            "     (1 means complete)",
+            "",
+            "              |   Pattern",
+            "    Percent   |  1  2  3",
+            "  ------------+-------------",
+            "       45%    |  1  1  1",
+            "              |",
+            "       20     |  1  0  0",
+            "       19     |  1  1  0",
+            "        8     |  0  1  1",
+            "        4     |  0  1  0",
+            "        4     |  0  0  0",
+            "  ------------+-------------",
+            "      100%    |",
+            "",
+            "  Variables are  (1) b  (2) a  (3) c"
+          ]
+        },
+        {
+          "command": "misstable patterns c b a, asis",
+          "lines": [
+            "   Missing-value patterns",
+            "     (1 means complete)",
+            "",
+            "              |   Pattern",
+            "    Percent   |  1  2  3",
+            "  ------------+-------------",
+            "       45%    |  1  1  1",
+            "              |",
+            "       20     |  0  1  0",
+            "       19     |  0  1  1",
+            "        8     |  1  0  1",
+            "        4     |  0  0  1",
+            "        4     |  0  0  0",
+            "  ------------+-------------",
+            "      100%    |",
+            "",
+            "  Variables are  (1) c  (2) b  (3) a"
+          ]
+        },
+        {
+          "command": "misstable patterns income, exok",
+          "lines": [
+            "   Missing-value patterns",
+            "     (1 means complete)",
+            "",
+            "              |   Pattern",
+            "    Percent   |  1",
+            "  ------------+-------------",
+            "       89%    |  1",
+            "              |",
+            "       11     |  0",
+            "  ------------+-------------",
+            "      100%    |",
+            "",
+            "  Variables are  (1) income"
+          ]
+        },
+        {
+          "command": "misstable patterns age",
+          "lines": ["(no missing values)"]
+        },
+        {
+          "command": "misstable patterns s",
+          "lines": ["(no numeric variables)"]
+        },
+        {
+          "command": "capture noisily misstable",
+          "lines": [
+            "misstable subcommand not specified",
+            "    valid misstable subcommands are summarize, patterns, tree, and nested"
+          ]
+        },
+        {
+          "command": "capture noisily misstable foo",
+          "lines": [
+            "misstable foo unrecognized",
+            "    valid misstable subcommands are summarize, patterns, tree, and nested"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-xtdescribe",
+      "source": "clear\nset seed 4242\nset obs 300\ngenerate id = ceil(_n/3)\ngenerate wave = mod(_n-1,3)+1\ncapture noisily xtdescribe\nxtset id wave\nxtdescribe\ndrop if id == 3 & wave == 2\ndrop if id == 7 & wave != 1\ndrop if id == 9 & wave == 1\nxtdescribe\nxtdescribe, patterns(2)\nxtdescribe, patterns(0)\nxtdescribe if id > 50\nreplace wave = wave * 2\nxtset id wave\nxtdescribe\nclear\nset obs 400\ngenerate id = ceil(_n/4)\ngenerate year = 1990 + mod(_n-1, 4) * 3\nxtset id year\nxtdescribe\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/3)", "lines": [] },
+        { "command": "generate wave = mod(_n-1,3)+1", "lines": [] },
+        {
+          "command": "capture noisily xtdescribe",
+          "lines": ["must specify panelvar and timevar; use xtset"]
+        },
+        {
+          "command": "xtset id wave",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: wave, 1 to 3",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 100                                    n =        100",
+            "    wave:  1, 2, ..., 3                                      T =          3",
+            "           Delta(wave) = 1 unit",
+            "           Span(wave)  = 3 periods",
+            "           (id*wave uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         3       3       3         3         3       3       3",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+---------",
+            "      100    100.00  100.00 |  111",
+            " ---------------------------+---------",
+            "      100    100.00         |  XXX"
+          ]
+        },
+        {
+          "command": "drop if id == 3 & wave == 2",
+          "lines": ["(1 observation deleted)"]
+        },
+        {
+          "command": "drop if id == 7 & wave != 1",
+          "lines": ["(2 observations deleted)"]
+        },
+        {
+          "command": "drop if id == 9 & wave == 1",
+          "lines": ["(1 observation deleted)"]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 100                                    n =        100",
+            "    wave:  1, 2, ..., 3                                      T =          3",
+            "           Delta(wave) = 1 unit",
+            "           Span(wave)  = 3 periods",
+            "           (id*wave uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         1       3       3         3         3       3       3",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+---------",
+            "       97     97.00   97.00 |  111",
+            "        1      1.00   98.00 |  .11",
+            "        1      1.00   99.00 |  1..",
+            "        1      1.00  100.00 |  1.1",
+            " ---------------------------+---------",
+            "      100    100.00         |  XXX"
+          ]
+        },
+        {
+          "command": "xtdescribe, patterns(2)",
+          "lines": [
+            "      id:  1, 2, ..., 100                                    n =        100",
+            "    wave:  1, 2, ..., 3                                      T =          3",
+            "           Delta(wave) = 1 unit",
+            "           Span(wave)  = 3 periods",
+            "           (id*wave uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         1       3       3         3         3       3       3",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+---------",
+            "       97     97.00   97.00 |  111",
+            "        1      1.00   98.00 |  .11",
+            "        2      2.00  100.00 | (other patterns)",
+            " ---------------------------+---------",
+            "      100    100.00         |  XXX"
+          ]
+        },
+        {
+          "command": "xtdescribe, patterns(0)",
+          "lines": [
+            "      id:  1, 2, ..., 100                                    n =        100",
+            "    wave:  1, 2, ..., 3                                      T =          3",
+            "           Delta(wave) = 1 unit",
+            "           Span(wave)  = 3 periods",
+            "           (id*wave uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         1       3       3         3         3       3       3"
+          ]
+        },
+        {
+          "command": "xtdescribe if id > 50",
+          "lines": [
+            "      id:  51, 52, ..., 100                                  n =         50",
+            "    wave:  1, 2, ..., 3                                      T =          3",
+            "           Delta(wave) = 1 unit",
+            "           Span(wave)  = 3 periods",
+            "           (id*wave uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         3       3       3         3         3       3       3",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+---------",
+            "       50    100.00  100.00 |  111",
+            " ---------------------------+---------",
+            "       50    100.00         |  XXX"
+          ]
+        },
+        {
+          "command": "replace wave = wave * 2",
+          "lines": ["(296 real changes made)"]
+        },
+        {
+          "command": "xtset id wave",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: wave, 2 to 6, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 100                                    n =        100",
+            "    wave:  2, 4, ..., 6                                      T =          3",
+            "           Delta(wave) = 1 unit",
+            "           Span(wave)  = 5 periods",
+            "           (id*wave uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         1       3       3         3         3       3       3",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern*",
+            " ---------------------------+----------",
+            "       97     97.00   97.00 |  111",
+            "        1      1.00   98.00 |  .11",
+            "        1      1.00   99.00 |  1..",
+            "        1      1.00  100.00 |  1.1",
+            " ---------------------------+----------",
+            "      100    100.00         |  XXX",
+            " --------------------------------------",
+            " *Each column represents 2 periods."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate year = 1990 + mod(_n-1, 4) * 3", "lines": [] },
+        {
+          "command": "xtset id year",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: year, 1990 to 1999, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 100                                    n =        100",
+            "    year:  1990, 1993, ..., 1999                             T =          4",
+            "           Delta(year) = 1 unit",
+            "           Span(year)  = 10 periods",
+            "           (id*year uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         4       4       4         4         4       4       4",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern*",
+            " ---------------------------+----------",
+            "      100    100.00  100.00 |  1111",
+            " ---------------------------+----------",
+            "      100    100.00         |  XXXX",
+            " --------------------------------------",
+            " *Each column represents 3 periods."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-outsheet",
+      "source": "clear\nset obs 4\ngenerate id = _n\ngenerate double big = 123456789.123 * _n\ngenerate float f = 1/_n\nreplace f = . in 2\nreplace f = .a in 3\ngenerate str12 s = \"a b\"\ngenerate int d = 21000 + _n\nformat d %td\ngenerate byte g = mod(_n,2)\nlabel define gl 0 \"zero\" 1 \"one\"\nlabel values g gl\nformat f %6.2f\noutsheet using dc_o1.csv, comma replace\ncapture noisily outsheet using dc_o1.csv, comma\noutsheet using dc_o1.csv, comma replace\noutsheet using dc_o2, replace\noutsheet id s g using dc_o3.csv, comma nolabel noquote replace\noutsheet id s if id > 2 using dc_o4.csv, nonames replace delimiter(\";\")\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate double big = 123456789.123 * _n", "lines": [] },
+        { "command": "generate float f = 1/_n", "lines": [] },
+        {
+          "command": "replace f = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace f = .a in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate str12 s = \"a b\"", "lines": [] },
+        { "command": "generate int d = 21000 + _n", "lines": [] },
+        { "command": "format d %td", "lines": [] },
+        { "command": "generate byte g = mod(_n,2)", "lines": [] },
+        { "command": "label define gl 0 \"zero\" 1 \"one\"", "lines": [] },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "format f %6.2f", "lines": [] },
+        {
+          "command": "outsheet using dc_o1.csv, comma replace",
+          "lines": ["(file dc_o1.csv not found)"]
+        },
+        {
+          "command": "capture noisily outsheet using dc_o1.csv, comma",
+          "lines": ["file dc_o1.csv already exists"]
+        },
+        { "command": "outsheet using dc_o1.csv, comma replace", "lines": [] },
+        {
+          "command": "outsheet using dc_o2, replace",
+          "lines": ["(file dc_o2.out not found)"]
+        },
+        {
+          "command": "outsheet id s g using dc_o3.csv, comma nolabel noquote replace",
+          "lines": ["(file dc_o3.csv not found)"]
+        },
+        {
+          "command": "outsheet id s if id > 2 using dc_o4.csv, nonames replace delimiter(\";\")",
+          "lines": ["(file dc_o4.csv not found)"]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-collapse-more-statistics",
+      "source": "clear\nset seed 99\nset obs 40\ngenerate g = mod(_n, 3)\ngenerate y = round(runiform()*10, .1)\ngenerate b = runiform() < .4\ngenerate c = floor(runiform()*5)\nreplace y = . in 3\ngenerate w = 1 + floor(runiform()*3)\npreserve\ncollapse (semean) se=y (sebinomial) sb=b (sepoisson) sp=c (rawsum) rs=y (percent) pc=y (sd) sd=y (count) n=y, by(g)\nlist\ndescribe\nrestore\npreserve\ncollapse (semean) se=y (sebinomial) sb=b (sepoisson) sp=c (rawsum) rs=y (percent) pc=y [fw=w], by(g)\nlist\nrestore\npreserve\ncollapse (semean) se=y (rawsum) rs=y (percent) pc=y [aw=w], by(g)\nlist\nrestore\npreserve\ncollapse (rawsum) rs=y (percent) pc=y [pw=w], by(g)\nlist\nrestore\npreserve\ncollapse (rawsum) rs=y (percent) pc=y [iw=w], by(g)\nlist\nrestore\npreserve\ncollapse (sebinomial) sb=y (sepoisson) sp=c\nlist\nrestore\npreserve\ncollapse (percent) y b if g > 0, by(g)\nlist\nrestore\npreserve\ncollapse (percent) y\nlist\nrestore\ncapture noisily collapse (sebinomial) sb=b [aw=w]\ncapture noisily collapse (semean) sb=b [iw=w]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate y = round(runiform()*10, .1)", "lines": [] },
+        { "command": "generate b = runiform() < .4", "lines": [] },
+        { "command": "generate c = floor(runiform()*5)", "lines": [] },
+        {
+          "command": "replace y = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate w = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (semean) se=y (sebinomial) sb=b (sepoisson) sp=c (rawsum) rs=y (percent) pc=y (sd) sd=y (count) n=y, by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------------------------------------+",
+            "     | g         se         sb         sp     rs         pc         sd    n |",
+            "     |----------------------------------------------------------------------|",
+            "  1. | 0   .8356483    .134932   .3352999   67.4   30.76923   2.894771   12 |",
+            "  2. | 1   .5439982   .1207363   .3711537   57.4   35.89744   2.035455   14 |",
+            "  3. | 2   .8617216   .1382642   .4679048   67.6   33.33333   3.106982   13 |",
+            "     +----------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             8",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "g               float   %9.0g",
+            "se              float   %9.0g                 (semean) y",
+            "sb              float   %9.0g                 (sebinomial) b",
+            "sp              float   %9.0g                 (sepoisson) c",
+            "rs              double  %9.0g                 (rawsum) y",
+            "pc              double  %9.0g                 (percent) y",
+            "sd              float   %9.0g                 (sd) y",
+            "n               long    %9.0g                 (count) y",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: g",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (semean) se=y (sebinomial) sb=b (sepoisson) sp=c (rawsum) rs=y (percent) pc=y [fw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------------------------------------+",
+            "     | g         se         sb         sp     rs      pc |",
+            "     |---------------------------------------------------|",
+            "  1. | 0   .5280936   .0859091   .2313174   67.4    32.5 |",
+            "  2. | 1   .3786434   .0815249   .2540002   57.4   38.75 |",
+            "  3. | 2   .5712463   .1033665   .3505329   67.6   28.75 |",
+            "     +---------------------------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (semean) se=y (rawsum) rs=y (percent) pc=y [aw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------+",
+            "     | g         se     rs      pc |",
+            "     |-----------------------------|",
+            "  1. | 0   .7961311   67.4    32.5 |",
+            "  2. | 1   .5752006   57.4   38.75 |",
+            "  3. | 2   .7734712   67.6   28.75 |",
+            "     +-----------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (rawsum) rs=y (percent) pc=y [pw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     | g     rs      pc |",
+            "     |------------------|",
+            "  1. | 0   67.4    32.5 |",
+            "  2. | 1   57.4   38.75 |",
+            "  3. | 2   67.6   28.75 |",
+            "     +------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (rawsum) rs=y (percent) pc=y [iw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     | g     rs      pc |",
+            "     |------------------|",
+            "  1. | 0   67.4    32.5 |",
+            "  2. | 1   57.4   38.75 |",
+            "  3. | 2   67.6   28.75 |",
+            "     +------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (sebinomial) sb=y (sepoisson) sp=c",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------+",
+            "     | sb         sp |",
+            "     |---------------|",
+            "  1. |  .   .2277608 |",
+            "     +---------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (percent) y b if g > 0, by(g)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------+",
+            "     | g          y          b |",
+            "     |-------------------------|",
+            "  1. | 1   51.85185   51.85185 |",
+            "  2. | 2   48.14815   48.14815 |",
+            "     +-------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (percent) y", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----+",
+            "     |   y |",
+            "     |-----|",
+            "  1. | 100 |",
+            "     +-----+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "capture noisily collapse (sebinomial) sb=b [aw=w]",
+          "lines": ["sebinomial not allowed with aweights"]
+        },
+        {
+          "command": "capture noisily collapse (semean) sb=b [iw=w]",
+          "lines": ["semean not allowed with iweights"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
