@@ -322,6 +322,23 @@ export function splitAtComma(text) {
     : [text.slice(0, comma), text.slice(comma + 1)];
 }
 
+/**
+ * True when the weight was written [weight=exp] or [w=exp] and so left
+ * its kind to the command.
+ */
+export function genericWeight(text) {
+  return /\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0]);
+}
+const WEIGHT_NAMES = {
+  aweight: "analytic",
+  fweight: "frequency",
+  pweight: "sampling",
+  iweight: "importance",
+};
+/** What Stata says when it takes [weight=exp] as the kind given. */
+export const assumedWeights = (type) =>
+  `(${WEIGHT_NAMES[type]} weights assumed)`;
+
 function range(text, n) {
   const m = /^(-?\d+|[fFlL])(?:\/(-?\d+|[fFlL]))?$/.exec(
     text.replace(/\s+/g, ""),

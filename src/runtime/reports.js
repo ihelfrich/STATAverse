@@ -7,7 +7,13 @@ import { StataError } from "./errors.js";
 import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
-import { clauses, optionItems, splitAtComma } from "./syntax.js";
+import {
+  assumedWeights,
+  clauses,
+  genericWeight,
+  optionItems,
+  splitAtComma,
+} from "./syntax.js";
 import {
   MISSING,
   byteLength,
@@ -250,6 +256,18 @@ const statistic = (value, format, width) => {
     (parseFormat(format)?.kind === "date" ? shown : shown.trim()).padStart(9)
   );
 };
+/**
+ * [w=exp] leaves the kind of weight to the command, and Stata says which
+ * it took: once, before the first by-group.
+ */
+function noteWeights(text, parsed, ctx) {
+  if (
+    parsed.weight &&
+    genericWeight(text) &&
+    (!ctx.group || ctx.group === ctx.by.groups[0])
+  )
+    ctx.out(assumedWeights(parsed.weight.type));
+}
 export function summarize(session, text, ctx) {
   const parsed = session.parse(
     "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
@@ -263,6 +281,7 @@ export function summarize(session, text, ctx) {
   // Stata refuses importance weights with detail.
   if (parsed.weight?.type === "iweight" && parsed.options.detail)
     throw new StataError("iweights not allowed", 101);
+  noteWeights(text, parsed, ctx);
   const weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
     rows = weighted.rows,
     analytic = weighted.weights && !parsed.options.detail;
@@ -873,6 +892,10 @@ export function tabulate(session, text, ctx) {
   // key asks for the key box, which Stata draws over frequencies alone as
   // well.
   if (twoWay && !summarizing && keyTyped("key")) options.key = true;
+  // [w=exp] is a frequency weight, or with summarize() an analytic one.
+  if (parsed.weight && options.summarize && genericWeight(text))
+    parsed.weight = { ...parsed.weight, type: "aweight" };
+  noteWeights(text, parsed, ctx);
   // With summarize(), an iweight is taken as a frequency weight. Analytic
   // weights rule out the tests; importance weights rule them out as
   // options. Recorded from Stata 19.

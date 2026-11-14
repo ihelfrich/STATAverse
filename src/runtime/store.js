@@ -61,6 +61,64 @@ export function defineCharacteristic(data, owner, name, text) {
   else chars.delete(owner);
 }
 
+/**
+ * Where a strL's texts are stored. Stata stores a strL text once and lets
+ * observations point to it: generate and replace reuse the text they stored
+ * last when the next value they store is the same (an empty value between
+ * them stores nothing), and a replaced value gets storage of its own. ids[i]
+ * names the stored text observation i points to, -1 for an empty value.
+ */
+function storeStrL(variable, rows, held) {
+  const data = variable.data,
+    ids = held ? Int32Array.from(held) : new Int32Array(data.length).fill(-1);
+  let next = held ? Math.max(variable.strl?.next ?? 0, greatest(held) + 1) : 0,
+    last = null,
+    lastId = -1;
+  for (const i of rows) {
+    const value = data[i];
+    if (value === "") {
+      ids[i] = -1;
+      continue;
+    }
+    if (value !== last) {
+      last = value;
+      lastId = next++;
+    }
+    ids[i] = lastId;
+  }
+  variable.strl = { ids, next };
+}
+/**
+ * The storage ids of a strL's observations: those generate and replace
+ * recorded, while they still describe the values, or else a guess in which
+ * a value shares the storage of an equal value just before it.
+ */
+export function strLIds(variable) {
+  const data = variable.data,
+    ids = variable.strl?.ids;
+  if (ids instanceof Int32Array && ids.length === data.length) {
+    const texts = new Map();
+    let valid = true;
+    for (let i = 0; i < data.length && valid; i++) {
+      if (data[i] === "") valid = ids[i] < 0;
+      else if (ids[i] < 0) valid = false;
+      else if (texts.has(ids[i])) valid = texts.get(ids[i]) === data[i];
+      else texts.set(ids[i], data[i]);
+    }
+    if (valid) return ids;
+  }
+  const guess = new Int32Array(data.length);
+  let next = 0;
+  for (let i = 0; i < data.length; i++)
+    guess[i] =
+      data[i] === ""
+        ? -1
+        : i > 0 && data[i - 1] === data[i]
+          ? guess[i - 1]
+          : next++;
+  return guess;
+}
+
 const copyChars = (from) => ({
   chars: new Map(
     [...(from.chars ?? [])].map(([name, map]) => [name, new Map(map)]),
@@ -106,9 +164,14 @@ export class Dataset {
         198,
       );
     for (const v of this.variables) {
-      if (isStringType(v.type))
+      if (isStringType(v.type)) {
+        if (v.type === "strL" && v.strl?.ids.length === v.data.length) {
+          const ids = new Int32Array(n).fill(-1);
+          ids.set(v.strl.ids);
+          v.strl = { ids, next: v.strl.next };
+        }
         v.data = v.data.concat(Array(n - this.n).fill(""));
-      else {
+      } else {
         const data = new Float64Array(n).fill(MISSING);
         data.set(v.data);
         v.data = data;
@@ -149,6 +212,11 @@ export class Dataset {
       valueLabel: "",
       data,
     });
+    if (stored === "strL")
+      storeStrL(
+        this.variables.at(-1),
+        data.map((_, i) => i),
+      );
     return {
       type: stored,
       missing: text
@@ -172,14 +240,19 @@ export class Dataset {
       assigned = rows.map((i) => values[i]);
     let changed = 0;
     if (text) {
-      const needed = widthType(assigned);
+      const needed = widthType(assigned),
+        stored = [];
       if (stringWidth(needed) > stringWidth(from))
         this.retype(variable, needed);
+      // Where the strL's texts were stored before these changes.
+      const held = variable.type === "strL" ? strLIds(variable) : null;
       for (const i of rows)
         if (variable.data[i] !== values[i]) {
           variable.data[i] = values[i];
+          stored.push(i);
           changed++;
         }
+      if (held) storeStrL(variable, stored, held);
     } else {
       variable.type = promote(from, assigned);
       for (const i of rows) {
@@ -257,10 +330,17 @@ export class Dataset {
 
   /** Keeps the listed zero-based observations, in the order given. */
   reorder(index) {
-    for (const v of this.variables)
+    for (const v of this.variables) {
+      // A strL's observations keep pointing to the texts they pointed to.
+      if (v.type === "strL" && v.strl?.ids.length === v.data.length)
+        v.strl = {
+          ids: Int32Array.from(index, (i) => v.strl.ids[i]),
+          next: v.strl.next,
+        };
       v.data = isStringType(v.type)
         ? index.map((i) => v.data[i])
         : Float64Array.from(index, (i) => v.data[i]);
+    }
     this.n = index.length;
   }
   /** drop in first/last, with one-based inclusive bounds as Stata counts. */

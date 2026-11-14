@@ -140,7 +140,10 @@ function xtset(session, text, ctx) {
       else session.panel = { id: null, time: names[0] };
     } else session.panel = { id: names[0], time: names[1] ?? null };
     session.panel.delta = options.delta;
-    data.sort([session.panel.id, session.panel.time].filter(Boolean));
+    // With a time variable the data are sorted on the panel and time; a
+    // panel variable alone leaves the order and the sort flag as they are.
+    if (session.panel.time)
+      data.sort([session.panel.id, session.panel.time].filter(Boolean));
     if (session.panel.time) {
       const id = session.panel.id ? data.get(session.panel.id).data : null,
         time = data.get(session.panel.time).data;
