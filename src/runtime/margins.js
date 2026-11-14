@@ -124,8 +124,11 @@ export function estimability(model, rows) {
             c.omittedCell ||
             (!c.base && model.estimable?.[j] === false)),
       ) ||
-      // Without a constant, a factor's base level is a restriction.
-      (!model.names.includes("_cons") && model.columns.some((c) => c?.base)),
+      // Without a constant, a factor's base level is a restriction, unless
+      // the model absorbs one, as clogit's groups do (Stata's addcons).
+      (!model.names.includes("_cons") &&
+        !model.addcons &&
+        model.columns.some((c) => c?.base)),
     nulls = restricted ? nullSpace(model, rows) : [],
     lone = model.columns
       .map((c, j) =>
@@ -420,7 +423,15 @@ function margins(session, text, ctx) {
   const model = estimates(session);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomeMargins(session, model, text, ctx);
-  const link = linkOf(model);
+  // A model may name its own predictions, as xtlogit's pr and pu0 are,
+  // taking predict() out of the options. One that depends on an ancillary
+  // parameter (pr, through sigma_u) brings that parameter's derivative,
+  // and the variance that includes it.
+  const chosen = model.margins?.choose(text);
+  if (chosen) text = chosen.text;
+  const link = chosen?.link ?? linkOf(model),
+    aux = chosen?.aux ?? null,
+    V = chosen?.V ?? model.V;
   if (!link || !model.sample)
     throw new StataError(
       `margins is not available after ${model.command} yet`,
@@ -446,7 +457,7 @@ function margins(session, text, ctx) {
     total = model.weights ? model.weights.reduce((t, v) => t + v, 0) : n,
     // Each observation's place in the sample, for its weight.
     position = new Map(rows.map((i, r) => [i, r])),
-    k = model.names.length,
+    k = model.names.length + (aux ? 1 : 0),
     // Every variable that enters the model, in order of first appearance.
     variables = [
       ...new Set(
@@ -575,7 +586,14 @@ function margins(session, text, ctx) {
       : { value: 0, gradient: new Array(k).fill(0), estimable: false };
   };
   const prediction = (fixed, subset) =>
-    average(fixed, (r, e) => [mean(e), r.map((v) => slope(e) * v)], subset);
+    average(
+      fixed,
+      (r, e) => [
+        mean(e),
+        [...r.map((v) => slope(e) * v), ...(aux ? [aux.mean(e)] : [])],
+      ],
+      subset,
+    );
   // The effect of a continuous variable: f'(x'b) times the derivative of
   // x'b, which involves other variables when there are interactions.
   const effect = (fixed, variable) =>
@@ -584,7 +602,10 @@ function margins(session, text, ctx) {
         total = d.reduce((t, v, j) => t + v * model.b[j], 0);
       return [
         slope(e) * total,
-        r.map((v, c) => curve(e) * v * total + slope(e) * d[c]),
+        [
+          ...r.map((v, c) => curve(e) * v * total + slope(e) * d[c]),
+          ...(aux ? [aux.slope(e) * total] : []),
+        ],
       ];
     });
   const difference = (a, b) =>
@@ -1039,8 +1060,9 @@ function margins(session, text, ctx) {
       : fixedAll
         ? "Adjusted predictions"
         : "Predictive margins",
-    expression =
-      model.kind === "poisson" || model.kind === "nbreg"
+    expression = chosen
+      ? chosen.expression
+      : model.kind === "poisson" || model.kind === "nbreg"
         ? "Predicted number of events"
         : ["logit", "probit", "cloglog"].includes(model.kind)
           ? `Pr(${model.depvar})`
@@ -1136,7 +1158,7 @@ function margins(session, text, ctx) {
       ctx.out(`Model VCE: ${vce}`);
     }
     ctx.out("");
-    ctx.out(`Expression: ${expression}, predict()`);
+    ctx.out(`Expression: ${expression}, ${chosen?.predict ?? "predict()"}`);
     if (overNames.length) ctx.out(`Over:       ${overNames.join(" ")}`);
     if (dydx)
       ctx.out(
@@ -1161,6 +1183,12 @@ function margins(session, text, ctx) {
         .filter((e) => !e.hidden)
         .forEach((e, j) => ctx.out(`${j ? "    " : "At: "}${describe(e)}`));
   };
+  // Contrasts take their variance from the coefficients alone.
+  if (contrastSpec && aux)
+    throw new StataError(
+      `contrasts of margins of ${expression} are not available after ${model.command} yet; predict(pu0) or predict(xb) has them`,
+      198,
+    );
   if (contrastSpec)
     return contrastTables(
       session,
@@ -1201,7 +1229,7 @@ function margins(session, text, ctx) {
       level,
       critical,
       tail,
-      variance: (gradient) => quadratic(gradient, model.V),
+      variance: (gradient) => quadratic(gradient, V),
     },
     ctx,
   );
@@ -1218,8 +1246,7 @@ function margins(session, text, ctx) {
       stored.map((b2) =>
         a.gradient.reduce(
           (t, ga, i) =>
-            t +
-            ga * b2.gradient.reduce((u, gb, j) => u + model.V[i][j] * gb, 0),
+            t + ga * b2.gradient.reduce((u, gb, j) => u + V[i][j] * gb, 0),
           0,
         ),
       ),

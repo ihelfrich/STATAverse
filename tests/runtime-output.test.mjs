@@ -149,6 +149,24 @@ for (const c of fixture.cases)
             // sums; and bootstrap and jackknife refit logit by ml.
             "normality-results",
             "resampling-cluster-likelihood",
+            // The nonlinear panel models integrate by quadrature or
+            // iterate GEE steps; their last digits follow the last step.
+            "xt-random-effects-binary",
+            "xt-random-effects-strong-panels",
+            "xt-random-effects-unbalanced-factors",
+            "xt-conditional-logit",
+            "xt-poisson-models",
+            "xt-population-averaged",
+            "xt-robust-variances",
+            "xt-replay-and-factor-margins",
+            "xt-perfect-prediction-and-noconstant",
+            "xt-conditional-logit-separated-start",
+            "xt-noninteger-counts",
+            "xt-weights-pa-and-conditional",
+            "xt-collinear-columns",
+            "xt-pa-notes-tests-and-replay",
+            "xt-group-counts-and-clusters",
+            "xt-exposure-and-diverging-pa",
           ].includes(c.id),
         )
       )
