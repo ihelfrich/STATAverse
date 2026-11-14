@@ -3,6 +3,7 @@
 import { Session } from "./runtime/session.js";
 import { Dataset } from "./runtime/store.js";
 import { addTextFile } from "./runtime/delimited.js";
+import { StataError } from "./runtime/errors.js";
 import { toCSV } from "./datasets.js";
 import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
@@ -10,6 +11,24 @@ import { readDta, writeDta } from "./console-dta.js";
 const library = Object.fromEntries(
   Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
 );
+
+/**
+ * Whether added bytes are text: no NUL in the text they decode to, and no
+ * zero byte at all unless the scan chose UTF-16 or UTF-32, whose files are
+ * whole numbers of their code units. A .dta, .xlsx or .zip file fails.
+ */
+function looksLikeText(bytes, stored) {
+  const unit = /^UTF-32/.test(stored.encoding)
+    ? 4
+    : /^UTF-16/.test(stored.encoding)
+      ? 2
+      : 1;
+  return (
+    !stored.text.includes("\0") &&
+    bytes.length % unit === 0 &&
+    (unit > 1 || !bytes.includes(0))
+  );
+}
 
 export function createConsoleSession() {
   let session;
@@ -58,10 +77,13 @@ export function createConsoleSession() {
         content instanceof ArrayBuffer ? new Uint8Array(content) : content;
       const before = session.files?.get(name),
         stored = addTextFile(session, name, file);
-      if (file instanceof Uint8Array && stored.text.includes("\0")) {
+      if (file instanceof Uint8Array && !looksLikeText(file, stored)) {
         if (before) session.files.set(name, before);
         else session.files.delete(name);
-        throw new Error(`${name} is not a text file`);
+        throw new StataError(
+          `${name} is not a text file; open a Stata dataset with use, and save a spreadsheet as .csv before adding it`,
+          610,
+        );
       }
       added.set(name, file);
       return { memory: memory() };

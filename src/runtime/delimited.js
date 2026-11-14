@@ -9,12 +9,7 @@ import { applyFormat } from "./format.js";
 import { parseNumlist } from "./numlist.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
-import {
-  bytesOf,
-  decodeAs,
-  decodeAuto,
-  detectTextEncoding,
-} from "./encodings.js";
+import { bytesOf, decodeAs, decodeAuto, decodeText } from "./encodings.js";
 import {
   FLOAT_MAX,
   MISSING,
@@ -38,9 +33,9 @@ const blank = (text) => text.replace(/^[ \t]+|[ \t]+$/g, "");
  * Splits text into records of fields. Quotes bind the delimiter inside them;
  * under bindquotes(loose), Stata's default, a quote left open at the end of
  * a line ends there (and is reported), under strict it carries the field on
- * to the next line, and under nobind quotes are ordinary characters. insheet
- * binds like strict but joins the lines with a space. Returns the records,
- * each { fields, line }, and the lines on which a quote was left open.
+ * to the next line, and under nobind quotes are ordinary characters.
+ * Returns the records, each { fields, line }, and the lines on which a
+ * quote was left open.
  */
 function splitRecords(text, cfg) {
   const {
@@ -49,7 +44,6 @@ function splitRecords(text, cfg) {
       collapse = false,
       bind = "loose",
       strip = "default",
-      trim = false,
       emptyLines = "skip",
       maxQuoted = 20,
     } = cfg,
@@ -82,9 +76,7 @@ function splitRecords(text, cfg) {
     parts = [];
     if (strip === "no") return raw;
     if (strip === "yes") return raw.replace(/"/g, "");
-    if (!binds || raw.charCodeAt(0) !== QUOTE) return trim ? blank(raw) : raw;
-    // insheet keeps the last quoted stretch of a field.
-    if (bind === "join") return raw.split('"').at(-2) ?? "";
+    if (!binds || raw.charCodeAt(0) !== QUOTE) return raw;
     raw = raw.slice(1);
     if (raw.endsWith('"')) raw = raw.slice(0, -1);
     return raw.replace(/""/g, '"');
@@ -103,9 +95,8 @@ function splitRecords(text, cfg) {
     if (c === 13 || c === 10) {
       const pair = c === 13 && text.charCodeAt(i + 1) === 10;
       if (quoted && bind !== "loose") {
-        // The field goes on: strict keeps the first character of the line
-        // ending, insheet a space.
-        parts.push(text.slice(start, i), bind === "join" ? " " : text[i]);
+        // The field goes on, keeping the first character of the line ending.
+        parts.push(text.slice(start, i), text[i]);
         if (pair) i++;
         start = i + 1;
         line++;
@@ -223,7 +214,8 @@ function numberOf(cell, cfg) {
   }
   if (!NUMBER.test(t)) return undefined;
   const value = Number(t.replace(/[dD]/, "e"));
-  if (!Number.isFinite(value)) return undefined;
+  // A number beyond the range of a double is a missing value, as in Stata.
+  if (!Number.isFinite(value)) return MISSING;
   return value === 0 ? 0 : value;
 }
 
@@ -265,10 +257,23 @@ function nameFrom(raw, letterCase) {
   else if (letterCase === "upper") name = name.toUpperCase();
   return [...name].slice(0, 32).join("");
 }
-const nameAllowed = (name) =>
-  name !== "" &&
-  (name === "_all" || !isReserved(name)) &&
-  !/^\p{Nd}/u.test(name);
+// The words a header cannot become, so that its column is named v#. Stata
+// tests them on the name both before and after case() changes it, so strL
+// and Byte both give v1. _all and _skip are allowed; _cons and _se are not
+// tested here but cannot be created (see uncreatable).
+const HEADER_RESERVED = new Set(
+  "_b byte _coef double float if in int long _n _N _pi _pred _rc strL using with".split(
+    " ",
+  ),
+);
+const headerReserved = (name) =>
+  HEADER_RESERVED.has(name) || /^str\d+$/.test(name);
+const uncreatable = (name) => name === "_cons" || name === "_se";
+/** A name in a variable list: letters, digits and _, not first a digit. */
+const validName = (name) =>
+  /^[\p{L}_][\p{L}\p{M}\p{Nd}_]*$/u.test(name) &&
+  [...name].length <= 32 &&
+  !isReserved(name);
 
 function fileName(text) {
   let name = text.trim();
@@ -277,14 +282,31 @@ function fileName(text) {
   if (!name) throw new StataError("invalid file specification", 198);
   return name;
 }
+/**
+ * Stata reads one file name after using, quoted or not; anything more
+ * before the options is refused by its first word.
+ */
+function checkUsing(text) {
+  let quoted = false,
+    head = text;
+  for (let i = 0; i < text.length; i++)
+    if (text[i] === '"') quoted = !quoted;
+    else if (text[i] === "," && !quoted) {
+      head = text.slice(0, i);
+      break;
+    }
+  const m = /(?:^|\s)using\s+([\s\S]*)$/.exec(head);
+  if (!m) return;
+  const rest = m[1].trim(),
+    file = /^`"[\s\S]*?"'|^"[^"]*"|^\S+/.exec(rest)?.[0] ?? "",
+    after = rest.slice(file.length).trim();
+  if (after) throw new StataError(`invalid '${after.split(/\s+/)[0]}' `, 198);
+}
 const hasExtension = (name) => /\.[^./\\]*$/.test(name);
+/** The file, with the extension appended when the name has none. */
 function storedFile(session, typed, extension) {
   const files = (session.files ??= new Map()),
-    name = files.has(typed)
-      ? typed
-      : hasExtension(typed)
-        ? typed
-        : typed + extension,
+    name = hasExtension(typed) ? typed : typed + extension,
     stored = files.get(name);
   if (!stored) throw new StataError(`file ${name} not found`, 601);
   if (typeof stored.text !== "string")
@@ -352,11 +374,51 @@ function delimiterOption(text) {
     : { chars: [...new Set(chars)], collapse };
 }
 
+/**
+ * rowrange([start][:end]) and colrange(): a missing start is 1 and a
+ * missing end the last; each message is Stata's own.
+ */
 function rangeOption(text, option) {
-  const m = /^\s*(\d*)\s*(?::\s*(\d*))?\s*$/.exec(text);
-  if (!m || (!m[1] && !m[2]) || m[1] === "0" || m[2] === "0")
-    throw new StataError(`${option}() invalid`, 198);
-  return [m[1] ? Number(m[1]) : 1, m[2] ? Number(m[2]) : Infinity];
+  const row = option === "rowrange",
+    unit = row ? "row" : "column",
+    spec = text.trim(),
+    colon = spec.indexOf(":"),
+    start = colon < 0 ? spec : spec.slice(0, colon).trim(),
+    end = colon < 0 ? "" : spec.slice(colon + 1).trim(),
+    fail = (message) => {
+      throw new StataError(message, 198);
+    };
+  if (start !== "" && (!/^\d+$/.test(start) || Number(start) < 1))
+    fail(`${start} is an invalid start ${unit} in ${option}() option`);
+  if (start === "" && end === "")
+    fail(
+      row
+        ? `${end}: invalid end row in rowrange() option`
+        : `${end} is an invalid end column in colrange() option`,
+    );
+  if (end !== "" && !/^\d+$/.test(end))
+    fail(`${end}: invalid end ${row ? "row" : "col"} in ${option}() option`);
+  const first = start === "" ? 1 : Number(start),
+    last = end === "" ? Infinity : Number(end);
+  if (first > last)
+    fail(
+      `${spec} is an invalid ${unit} range in ${option}() option\nstart ${unit} is greater than end ${unit}`,
+    );
+  return [first, last];
+}
+/** case(): lower, upper or preserve, which may be shortened to l, u and pre. */
+function caseOption(text) {
+  const arg = text.trim();
+  for (const [word, shortest] of [
+    ["lower", 1],
+    ["upper", 1],
+    ["preserve", 3],
+  ])
+    if (arg.length >= shortest && word.startsWith(arg)) return word;
+  throw new StataError(
+    `${arg}: invalid argument in option case();\n   use upper, lower, or preserve`,
+    198,
+  );
 }
 function columnsOption(text, option) {
   if (text === undefined) return null;
@@ -402,20 +464,24 @@ const IMPORT =
   "[anything] [using/] [, clear DELIMiters(string asis) VARNames(string) CASE(string) ASDOUBle ASFLoat STRINGcols(string) NUMERICcols(string) ENCoding(string) CHARset(string) ROWRange(string) COLRange(string) BINDQuotes(string) STRIPQuotes(string) MAXQUOTEDrows(string) EMPTYlines(string) FAVORSTRfixed DECIMALSeparator(string asis) GROUPSeparator(string asis) PARSELocale(string)]";
 
 function importDelimited(session, text, ctx) {
+  checkUsing(text);
   const parsed = session.parse(IMPORT, text),
     o = parsed.options,
-    typedNames = parsed.using ? (parsed.anything ?? "").trim() : "";
+    typedNames = parsed.using ? (parsed.anything ?? "").trim() : "",
+    given = typedNames ? typedNames.split(/\s+/) : [];
+  // Without using, the one word is the file; more words are a variable list.
+  const typedFile = parsed.using ?? (parsed.anything ?? "").trim();
+  if (!typedFile || (!parsed.using && /^[^"`][\s\S]*\s/.test(typedFile)))
+    throw new StataError("using required", 100);
+  for (const name of given)
+    if (!validName(name))
+      throw new StataError(`${name}: invalid variable name`, 198);
   if (o.asdouble && o.asfloat)
     throw new StataError(
       "asfloat() and asdouble() are mutually exclusive options",
       198,
     );
-  const letterCase = (o.case ?? "lower").trim();
-  if (!["lower", "upper", "preserve"].includes(letterCase))
-    throw new StataError(
-      `${letterCase}: invalid argument in option case();\n   use upper, lower, or preserve`,
-      198,
-    );
+  const letterCase = o.case === undefined ? "lower" : caseOption(o.case);
   const bind = (o.bindquotes ?? "loose").trim();
   if (!["loose", "strict", "nobind"].includes(bind))
     throw new StataError(
@@ -436,10 +502,16 @@ function importDelimited(session, text, ctx) {
     );
   let maxQuoted = 20;
   if (o.maxquotedrows !== undefined) {
+    // Stata 19 accepts zero and negative numbers too; here they set no limit.
     const value = o.maxquotedrows.trim();
-    if (value === "unlimited" || value === "0") maxQuoted = Infinity;
-    else if (/^\d+$/.test(value)) maxQuoted = Number(value);
-    else throw new StataError("maxquotedrows() invalid", 198);
+    if (value === "unlimited") maxQuoted = Infinity;
+    else if (/^-?\d+$/.test(value))
+      maxQuoted = Number(value) > 0 ? Number(value) : Infinity;
+    else
+      throw new StataError(
+        "option maxquotedrows() incorrectly specified.",
+        198,
+      );
   }
   const varnames = o.varnames?.trim();
   if (
@@ -476,11 +548,7 @@ function importDelimited(session, text, ctx) {
     },
     delimiters =
       o.delimiters !== undefined ? delimiterOption(o.delimiters) : null,
-    { stored } = storedFile(
-      session,
-      fileName(parsed.using ?? parsed.anything ?? ""),
-      ".csv",
-    );
+    { stored } = storedFile(session, fileName(typedFile), ".csv");
   if (!o.clear && (session.data.variables.length || session.data.n))
     throw new StataError("no; data in memory would be lost", 4);
 
@@ -496,10 +564,8 @@ function importDelimited(session, text, ctx) {
       source = stored.text;
       if (!chosenEncoding)
         ({ encoding: chosenEncoding, text: source } = decodeAuto(stored.bytes));
-    } else {
-      source = stored.text.replace(/^\ufeff/, "");
-      chosenEncoding = detectTextEncoding(source);
-    }
+    } else
+      ({ encoding: chosenEncoding, text: source } = decodeText(stored.text));
     ctx.out(`(encoding automatically selected: ${chosenEncoding})`);
   }
 
@@ -521,24 +587,37 @@ function importDelimited(session, text, ctx) {
   const fields = records.map((r) => r.fields),
     last = Math.min(rows[1], fields.length),
     body = (from) => fields.slice(from - 1, last);
+  const widest = (rowsOf) => {
+    let width = 0;
+    for (const row of rowsOf) if (row.length > width) width = row.length;
+    return width;
+  };
   let header = null,
     data,
-    typed = null;
+    typed = null,
+    namesRow = false;
   if (varnames === "nonames") data = body(rows[0]);
   else if (varnames) {
     // With a names row given, every row below it sets the types, even rows
-    // that rowrange() leaves out.
+    // that rowrange() leaves out. So does the names row itself when it is
+    // not the first row and holds only numbers (Stata 19 types 1,2.5 over
+    // 3,4 as byte and float, but 1,smithj,71.5 over 2,doe,80 as byte).
     const at = Number(varnames);
     header = fields[at - 1] ?? null;
     data = header ? body(Math.max(rows[0], at + 1)) : [];
     typed = header ? body(at + 1) : [];
+    namesRow =
+      at > 1 && !!header?.every((text) => numberOf(text, cell) !== undefined);
   } else {
-    // The first row names the variables when some column has text there
-    // and numbers (or nothing) below it.
+    // The first row names the variables when some column that colrange()
+    // keeps has text there and numbers (or nothing) below it.
     const below = body(Math.max(rows[0], 2)),
       first = fields[0] ?? [],
+      kept = Math.min(cols[1], Math.max(first.length, widest(below))),
       names = first.some(
         (text, k) =>
+          k >= cols[0] - 1 &&
+          k < kept &&
           blank(text) !== "" &&
           numberOf(text, cell) === undefined &&
           below.every((row) => numberOf(row[k] ?? "", cell) !== undefined),
@@ -548,42 +627,60 @@ function importDelimited(session, text, ctx) {
       data = below;
     } else data = body(rows[0]);
   }
-  let width = 0;
-  for (const row of data) if (row.length > width) width = row.length;
-  if (header && header.length > width) width = header.length;
-  const from = cols[0] - 1,
+  const width = Math.max(widest(data), header?.length ?? 0),
+    from = cols[0] - 1,
     to = Math.min(cols[1], width),
     columns = [];
   for (let k = from; k < to; k++) columns.push(k);
-  const given = typedNames ? typedNames.split(/\s+/) : [];
   if (given.length > columns.length)
     throw new StataError("too many variables specified", 103);
 
-  const dataset = new Dataset({ defaultType: session.data.defaultType });
-  dataset.n = columns.length ? data.length : 0;
-  const taken = new Set();
-  columns.forEach((k, j) => {
-    const raw = header?.[k] ?? "";
-    let name;
-    if (j < given.length) name = given[j];
-    else {
-      name = nameFrom(raw, letterCase);
-      if (!nameAllowed(name) || taken.has(name)) {
+  // The names the header gives: its text made a name, or v# for a blank,
+  // a reserved word or a name already taken.
+  const taken = new Set(),
+    headerNames = columns.map((k, j) => {
+      const raw = header?.[k] ?? "",
+        base = nameFrom(raw, "preserve");
+      let name = nameFrom(raw, letterCase);
+      if (
+        name === "" ||
+        /^\p{Nd}/u.test(name) ||
+        headerReserved(base) ||
+        headerReserved(name) ||
+        taken.has(name)
+      ) {
         name = `${letterCase === "upper" ? "V" : "v"}${j + 1}`;
         if (taken.has(name))
           throw new StataError("Error creating variables", 198);
       }
-    }
-    taken.add(name);
-    const label =
-      j < given.length || raw === name ? "" : [...raw].slice(0, 80).join("");
+      if (uncreatable(name))
+        throw new StataError("Error creating variables", 198);
+      taken.add(name);
+      return name;
+    });
+  // A variable list renames them in turn; a name that another variable
+  // still holds cannot be given.
+  const names = [...headerNames];
+  given.forEach((name, j) => {
+    if (names[j] !== name && names.includes(name))
+      throw new StataError("could not name variables specified", 198);
+    names[j] = name;
+  });
+
+  const dataset = new Dataset({ defaultType: session.data.defaultType });
+  dataset.n = columns.length ? data.length : 0;
+  columns.forEach((k, j) => {
+    const raw = header?.[k] ?? "",
+      // The label is the header text when it is not the name it gave.
+      label = raw === headerNames[j] ? "" : [...raw].slice(0, 80).join(""),
+      numbered = namesRow ? [header] : [];
     addColumn(
       dataset,
-      name,
+      names[j],
       label,
       data.map((row) => row[k] ?? ""),
       {
-        typed: typed?.map((row) => row[k] ?? ""),
+        typed: typed && [...numbered, ...typed].map((row) => row[k] ?? ""),
         cell,
         string: chosen(strings, k + 1),
         numeric: chosen(numbers, k + 1),
@@ -602,8 +699,12 @@ function importDelimited(session, text, ctx) {
 
 /** Stores one column, numeric when every cell is a number or empty. */
 function addColumn(dataset, name, label, cells, how) {
+  // numericcols() wins over stringcols() for a column named in both.
   const typed = how.typed ?? cells,
-    values = how.string ? null : typed.map((text) => numberOf(text, how.cell));
+    values =
+      how.string && !how.numeric
+        ? null
+        : typed.map((text) => numberOf(text, how.cell));
   let type, data;
   if (values && (how.numeric || values.every((v) => v !== undefined))) {
     type = numericType(
@@ -636,12 +737,124 @@ function addColumn(dataset, name, label, cells, how) {
 }
 
 const INSHEET =
-  "[anything] using/ [, clear DOUBle NONAMes NAMes COMma TAB DELIMiter(string asis) CASE]";
+  "[anything] [using/] [, clear DOUBle NONAMes NAMes COMma TAB DELIMiter(string asis) CASE]";
+
+/**
+ * One insheet cell: the value stored, the number it holds (a missing value
+ * when it is empty, undefined when it is text) and the bytes it takes in a
+ * string column. An unquoted cell is stored without its surrounding spaces
+ * but counted with them, and spaces alone are text; a quoted cell keeps
+ * what follows its closing quote, so "2" followed by a space is text.
+ */
+function insheetCell(text, quoted, cell) {
+  if (text === "") return { value: "", number: MISSING, bytes: 0 };
+  const value = quoted ? text : text.replace(/^ +| +$/g, "");
+  return {
+    value,
+    number:
+      value === "" || (quoted && blank(value) !== value)
+        ? undefined
+        : numberOf(value, cell),
+    bytes: byteLength(text),
+  };
+}
+const EMPTY_CELL = { value: "", number: MISSING, bytes: 0 };
+
+/**
+ * insheet's records, by the rules recorded from Stata 19: every line loses
+ * its leading spaces and is skipped when nothing is left, inside quotes as
+ * well; lines before the first holding more than delimiters are skipped; a
+ * quote starts its field afresh (dropping what came before it in the field)
+ * and binds delimiters until it closes; a field still quoted at the end of
+ * a line goes on with the next line after a space.
+ */
+function insheetRecords(source, delimiter, cell) {
+  const lines = source.split(/\r\n|\r|\n/),
+    records = [];
+  let at = 0;
+  const nextLine = () => {
+    while (at < lines.length) {
+      const line = lines[at++].replace(/^ +/, "");
+      if (line !== "") return line;
+    }
+    return null;
+  };
+  for (let line = nextLine(); line !== null; line = nextLine()) {
+    const fields = [];
+    let text = "",
+      quoted = false,
+      open = false;
+    for (let i = 0; ;) {
+      if (i >= line.length) {
+        const more = open ? nextLine() : null;
+        if (more === null) break;
+        text += " ";
+        line = more;
+        i = 0;
+        continue;
+      }
+      const c = line[i++];
+      if (c === '"') {
+        if (!open) {
+          text = "";
+          quoted = true;
+        }
+        open = !open;
+      } else if (c === delimiter && !open) {
+        fields.push(insheetCell(text, quoted, cell));
+        text = "";
+        quoted = false;
+      } else text += c;
+    }
+    fields.push(insheetCell(text, quoted, cell));
+    if (records.length || fields.some((f) => f.bytes > 0)) records.push(fields);
+  }
+  return records;
+}
+
+/** The name insheet makes of header text or of a word in a variable list. */
+const insheetName = (raw, preserve) =>
+  nameFrom(raw, preserve || /[^\x00-\x7f]/.test(raw) ? "preserve" : "lower");
 
 function insheet(session, text, ctx) {
+  checkUsing(text);
   const parsed = session.parse(INSHEET, text),
     o = parsed.options,
-    { stored } = storedFile(session, fileName(parsed.using), ".raw");
+    given = (parsed.anything ?? "").trim()
+      ? parsed.anything.trim().split(/\s+/)
+      : [];
+  given.forEach((name, j) => {
+    if (name.includes("-")) throw new StataError("invalid syntax", 198);
+    if (!/^[\p{L}_][\p{L}\p{M}\p{Nd}_]*$/u.test(name))
+      throw new StataError(`${name} invalid name`, 198);
+    if (
+      [...name].length > 32 ||
+      isReserved(name) ||
+      headerReserved(name) ||
+      uncreatable(name)
+    )
+      throw new StataError(`${name} invalid varname`, 198);
+    if (given.indexOf(name) < j)
+      throw new StataError(`variable ${name} already defined`, 110);
+  });
+  if (!parsed.using) throw new StataError("using required", 100);
+  if (o.comma && o.tab)
+    throw new StataError("both tab and comma not allowed", 198);
+  let delimiter = o.comma ? "," : o.tab ? "\t" : null;
+  if (o.delimiter !== undefined) {
+    // delimiter("") is no delimiter() at all.
+    const char = unquote(o.delimiter.trim());
+    if (char !== "") {
+      if (o.comma)
+        throw new StataError("both comma and delimiter() not allowed", 198);
+      if (o.tab)
+        throw new StataError("both tab and delimiter() not allowed", 198);
+      if ([...char].length !== 1)
+        throw new StataError("option delimiter() incorrectly specified", 198);
+      delimiter = char;
+    }
+  }
+  const { stored } = storedFile(session, fileName(parsed.using), ".raw");
   if (o.names && o.nonames)
     throw new StataError("options names and nonames may not be combined", 198);
   if (!o.clear && (session.data.variables.length || session.data.n))
@@ -650,82 +863,75 @@ function insheet(session, text, ctx) {
   const source = stored.bytes
     ? new TextDecoder("utf-8", { ignoreBOM: true }).decode(stored.bytes)
     : stored.text;
-  if (source === "") throw new StataError("unexpected end of file", 612);
-  let delimiter = o.comma ? "," : o.tab ? "\t" : null;
-  if (o.delimiter !== undefined) {
-    delimiter = escapes(unquote(o.delimiter.trim()));
-    if ([...delimiter].length !== 1)
-      throw new StataError("delimiter() must be a single character", 198);
-  }
   // Without one, a tab on the first line means tab, a comma comma, and
   // otherwise each line is one field.
   if (delimiter === null) {
     const [tabs, commas] = tally(source.split(/\r\n|\r|\n/, 1)[0], ["\t", ","]);
     delimiter = tabs ? "\t" : commas ? "," : null;
   }
-  const { records } = splitRecords(source, {
-      chars: delimiter === null ? [] : [delimiter],
-      bind: "join",
-      trim: true,
-      maxQuoted: Infinity,
-    }),
-    fields = records.map((r) => r.fields),
-    cell = { nan: false, decimal: ".", group: "" },
-    first = fields[0] ?? [],
+  const cell = { nan: false, decimal: ".", group: "" },
+    records = insheetRecords(source, delimiter, cell);
+  if (!records.length) throw new StataError("unexpected end of file", 612);
+  const first = records[0],
     header =
       !o.nonames &&
-      fields.length > 0 &&
       (o.names ||
         first.some(
-          (text, k) =>
-            text.trim() !== "" &&
-            numberOf(text, cell) === undefined &&
-            fields
+          (c, k) =>
+            c.value !== "" &&
+            c.number === undefined &&
+            records
               .slice(1)
-              .every((row) => numberOf(row[k] ?? "", cell) !== undefined),
+              .every((row) => (row[k] ?? EMPTY_CELL).number !== undefined),
         )),
-    data = header ? fields.slice(1) : fields;
+    data = header ? records.slice(1) : records;
   let width = 0;
-  for (const row of fields) if (row.length > width) width = row.length;
-  const given = (parsed.anything ?? "").trim()
-    ? parsed.anything.trim().split(/\s+/)
-    : [];
+  for (const row of records) if (row.length > width) width = row.length;
   if (given.length && given.length !== width)
     throw new StataError(
-      `too ${given.length < width ? "few" : "many"} variables specified\nerror in line ${fields.length + 1} of file`,
+      `too ${given.length < width ? "few" : "many"} variables specified\nerror in line ${records.length + 1} of file`,
       given.length < width ? 102 : 103,
     );
   if (given.length && header) ctx.out("(note: variable names in file ignored)");
   const dataset = new Dataset({ defaultType: session.data.defaultType }),
-    taken = new Set();
+    taken = new Set(),
+    double = o.double || session.data.defaultType === "double";
   dataset.n = data.length;
   for (let k = 0; k < width; k++) {
-    const raw = header ? (first[k] ?? "") : "";
-    let name = given[k];
-    if (!name) {
-      name = nameFrom(
-        raw,
-        o.case || /[^\x00-\x7f]/.test(raw) ? "preserve" : "lower",
+    // A variable list is named as header text would be, so that A becomes
+    // a, labelled A.
+    const raw = given.length ? given[k] : header ? (first[k]?.value ?? "") : "";
+    let name = insheetName(raw, o.case);
+    if (name && (headerReserved(name) || uncreatable(name)))
+      throw new StataError(
+        `${name} invalid varname\nerror in line 1 of file`,
+        198,
       );
-      if (name && isReserved(name))
-        throw new StataError(
-          `${name} invalid varname\nerror in line 1 of file`,
-          198,
-        );
-      if (!name || taken.has(name)) name = `v${k + 1}`;
-    }
+    if (!name || taken.has(name)) name = `v${k + 1}`;
     taken.add(name);
-    addColumn(
-      dataset,
+    const cells = data.map((row) => row[k] ?? EMPTY_CELL);
+    let type, values;
+    if (cells.every((c) => c.number !== undefined)) {
+      type = numericType(
+        cells.map((c) => c.number),
+        double,
+      );
+      values = Float64Array.from(cells, (c) => coerce(type, c.number));
+    } else {
+      // insheet has no strL; it keeps at most 2045 bytes.
+      let widest = 1;
+      for (const c of cells) if (c.bytes > widest) widest = c.bytes;
+      type = `str${Math.min(widest, 2045)}`;
+      values = cells.map((c) => truncateBytes(c.value, 2045));
+    }
+    dataset.variables.push({
       name,
-      given.length || raw === name ? "" : [...raw].slice(0, 80).join(""),
-      data.map((row) => row[k] ?? ""),
-      {
-        cell,
-        double: o.double || session.data.defaultType === "double",
-        long: 0,
-      },
-    );
+      type,
+      format: defaultFormat(type),
+      label: raw === name ? "" : [...raw].slice(0, 80).join(""),
+      valueLabel: "",
+      data: values,
+    });
   }
   session.data = dataset;
   session.cleanFingerprint = null;
@@ -789,6 +995,8 @@ function exportDelimited(session, text, ctx) {
         ? '"' + cell.replace(/"/g, '""') + '"'
         : cell,
     lines = [];
+  if (!variables.length)
+    throw new StataError("too few variables specified", 102);
   if (!o.novarnames) lines.push(variables.map((v) => v.name).join(delimiter));
   const writers = variables.map((v) => {
     if (isStringType(v.type)) return (i) => quote(v.data[i]);

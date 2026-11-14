@@ -944,3 +944,539 @@ test("U58: export delimited writes dates and labels as shown and numbers in full
   );
   assert.equal(s.data.get("d").data[0], "13mar2020");
 });
+
+// The second round: what a tester found after the first fixes. Each result
+// was again recorded from Stata 19 MP (batch, version 17) on these files.
+
+test("A variable list is checked: invalid names, duplicates, names the header holds", () => {
+  const files = {
+    "g18.csv": "a,b\n1,2\n",
+    "basic.csv": BASIC,
+    "messy.csv": "First Name,Income ($),age\nAnn,10,3\n",
+  };
+  // The error, after the encoding line when the file was read.
+  const error = (source) =>
+    run(files, source).out[0].replace(/^\(encoding [^\n]*\n/, "");
+  assert.equal(
+    error("import delimited 1a b using g18.csv, clear"),
+    "1a: invalid variable name\nr(198);",
+  );
+  for (const name of ["a-b", "_cons", "strL", "int", "x".repeat(45)])
+    assert.equal(
+      error(`import delimited ${name} b using g18.csv, clear`),
+      `${name}: invalid variable name\nr(198);`,
+    );
+  // Each given name renames a variable in turn and cannot take a name that
+  // another variable still holds.
+  for (const source of [
+    "import delimited a a using g18.csv, clear",
+    "import delimited b using g18.csv, clear",
+    "import delimited score using basic.csv, clear",
+    "import delimited name x using basic.csv, clear",
+    "import delimited name id using basic.csv, clear",
+    "import delimited v2 using basic.csv, clear varnames(nonames)",
+  ])
+    assert.equal(error(source), "could not name variables specified\nr(198);");
+  assert.deepEqual(
+    names(run(files, "import delimited x id using basic.csv, clear")),
+    ["x", "id", "score"],
+  );
+  assert.deepEqual(
+    names(run(files, "import delimited x y id using basic.csv, clear")),
+    ["x", "y", "id"],
+  );
+  assert.deepEqual(
+    names(run(files, "import delimited A a using g18.csv, clear")),
+    ["A", "a"],
+  );
+  // The header text is the label whenever it is not the name it gives.
+  assert.deepEqual(
+    run(files, "import delimited fn inc using messy.csv, clear").vars,
+    [
+      "fn str3 %9s [First Name]",
+      "inc byte %8.0g [Income ($)]",
+      "age byte %8.0g",
+    ],
+  );
+  assert.deepEqual(
+    run(files, "import delimited a B using g18.csv, clear case(upper)").vars,
+    ["a byte %8.0g [a]", "B byte %8.0g [b]"],
+  );
+  // insheet has its own messages, and names a variable list as it would
+  // header text.
+  assert.equal(
+    error("insheet 1a b using g18.csv, clear"),
+    "1a invalid name\nr(198);",
+  );
+  assert.equal(
+    error("insheet a a using g18.csv, clear"),
+    "variable a already defined\nr(110);",
+  );
+  assert.equal(
+    error("insheet _n b using g18.csv, clear"),
+    "_n invalid varname\nr(198);",
+  );
+  assert.equal(
+    error("insheet a-b c using g18.csv, clear"),
+    "invalid syntax\nr(198);",
+  );
+  assert.deepEqual(run(files, "insheet A a using g18.csv, clear").vars, [
+    "a byte %8.0g [A]",
+    "v2 byte %8.0g [a]",
+  ]);
+});
+
+test("colrange() looks for the names row only in the columns it keeps", () => {
+  const files = {
+    "c.csv": "id,name,city\n1,Ann,Boston\n2,Bob,NYC\n",
+    "g17.csv": "ID,Name\n1,a\n",
+  };
+  let r = run(files, "import delimited using c.csv, clear colrange(2:3)");
+  assert.equal(r.n, 3);
+  assert.deepEqual(r.vars, ["v1 str4 %9s", "v2 str6 %9s"]);
+  r = run(
+    files,
+    "import delimited using g17.csv, clear colrange(2) case(upper)",
+  );
+  assert.deepEqual([r.n, r.vars], [2, ["V1 str4 %9s"]]);
+  r = run(
+    files,
+    "import delimited using g17.csv, clear colrange(2:2) varnames(1)",
+  );
+  assert.deepEqual([r.n, r.vars], [1, ["name str1 %9s [Name]"]]);
+});
+
+test("A number beyond a double's range is a missing value", () => {
+  const files = {
+    "o.csv": "id,x\n1,1e400\n2,3\n",
+    "f08.csv": "x,y\n1D3,1e39\n2.5d-1,1e400\n",
+  };
+  for (const command of ["import delimited", "insheet"]) {
+    const r = run(files, `${command} using o.csv, clear\ndisplay x[1]`);
+    assert.deepEqual(r.vars, ["id byte %8.0g", "x byte %8.0g"]);
+    assert.equal(r.out[1], ".");
+  }
+  assert.deepEqual(run(files, "import delimited using f08.csv, clear").vars, [
+    "x float %9.0g",
+    "y double %10.0g",
+  ]);
+});
+
+test("Reserved words in a header, tested before and after case()", () => {
+  const header = (text, options = "") =>
+    run(
+      { "r.csv": `${text}\n1,2\n` },
+      `import delimited using r.csv, clear${options}`,
+    );
+  assert.equal(
+    header("_cons,zz").out[0].split("\n").at(-2),
+    "Error creating variables",
+  );
+  assert.equal(
+    header("_se,zz").out[0].split("\n").at(-2),
+    "Error creating variables",
+  );
+  assert.deepEqual(header("_skip,zz").vars, [
+    "_skip byte %8.0g",
+    "zz byte %8.0g",
+  ]);
+  assert.deepEqual(header("_all,zz").vars, [
+    "_all byte %8.0g",
+    "zz byte %8.0g",
+  ]);
+  assert.deepEqual(header("strL,zz").vars, [
+    "v1 byte %8.0g [strL]",
+    "zz byte %8.0g",
+  ]);
+  assert.deepEqual(header("strL,strl").vars, [
+    "v1 byte %8.0g [strL]",
+    "strl byte %8.0g",
+  ]);
+  assert.deepEqual(header("Byte,zz").vars, [
+    "v1 byte %8.0g [Byte]",
+    "zz byte %8.0g",
+  ]);
+  assert.deepEqual(header("Byte,zz", " case(preserve)").vars, [
+    "Byte byte %8.0g",
+    "zz byte %8.0g",
+  ]);
+  assert.deepEqual(header("_Cons,zz", " case(upper)").vars, [
+    "_CONS byte %8.0g [_Cons]",
+    "ZZ byte %8.0g [zz]",
+  ]);
+  const insheet = (text) =>
+    run({ "r.csv": `${text}\n1,2\n` }, "insheet using r.csv, clear");
+  assert.equal(
+    insheet("_cons,zz").out[0],
+    "_cons invalid varname\nerror in line 1 of file\nr(198);",
+  );
+  assert.equal(
+    insheet("_se,zz").out[0],
+    "_se invalid varname\nerror in line 1 of file\nr(198);",
+  );
+  assert.deepEqual(insheet("_skip,zz").vars, [
+    "_skip byte %8.0g",
+    "zz byte %8.0g",
+  ]);
+  assert.deepEqual(insheet("strL,zz").vars, [
+    "strl byte %8.0g [strL]",
+    "zz byte %8.0g",
+  ]);
+});
+
+test("varnames(#) after the first row: a names row of numbers sets types too", () => {
+  const typed = (text) =>
+    run({ "p.csv": text }, "import delimited using p.csv, clear varnames(2)")
+      .vars;
+  assert.deepEqual(typed("id,v\n1,2.5\n3,4\n"), [
+    "v1 byte %8.0g [1]",
+    "v2 float %9.0g [2.5]",
+  ]);
+  assert.deepEqual(typed("top\n12345\nab\n"), ["v1 str5 %9s [12345]"]);
+  // A names row holding text does not.
+  assert.deepEqual(typed("top,row\nid,v\n1,abc\n3,4\n"), [
+    "id byte %8.0g",
+    "v str3 %9s",
+  ]);
+  assert.deepEqual(typed(BASIC), [
+    "v1 byte %8.0g [1]",
+    "smithj str3 %9s",
+    "v3 byte %8.0g [71.5]",
+  ]);
+});
+
+test("numericcols() wins over stringcols(); case() and ranges as Stata reads them", () => {
+  const files = {
+    "m01.csv": "id,zip,amt,name\n1,02134,1.5,ab\n2,10001,2,cd\n",
+    "g05.csv": "a,b\n1,2\n3,4\n5,6\n7,8\n",
+  };
+  let r = run(
+    files,
+    "import delimited using m01.csv, clear stringcols(2) numericcols(2)\ndisplay zip[1]",
+  );
+  assert.equal(r.vars[1], "zip int %8.0g");
+  assert.equal(r.out[1], "2134");
+  for (const arg of ["l", "lowe", "u", "upp", "pre", "pres", "preserve"])
+    assert.equal(
+      run(files, `import delimited using g05.csv, clear case(${arg})`).rc,
+      0,
+      arg,
+    );
+  for (const arg of ["p", "pr", "L", "LOWER", "lowerx"])
+    assert.equal(
+      run(files, `import delimited using g05.csv, clear case(${arg})`).out[0],
+      `${arg}: invalid argument in option case();\n   use upper, lower, or preserve\nr(198);`,
+    );
+  const message = (option) =>
+    run(
+      files,
+      `import delimited using g05.csv, clear ${option}`,
+    ).out[0].replace(/\nr\(198\);$/, "");
+  assert.equal(
+    message("rowrange(3:2)"),
+    "3:2 is an invalid row range in rowrange() option\nstart row is greater than end row",
+  );
+  assert.equal(
+    message("colrange(5:3)"),
+    "5:3 is an invalid column range in colrange() option\nstart column is greater than end column",
+  );
+  assert.equal(
+    message("rowrange(abc)"),
+    "abc is an invalid start row in rowrange() option",
+  );
+  assert.equal(
+    message("colrange(1.5)"),
+    "1.5 is an invalid start column in colrange() option",
+  );
+  assert.equal(
+    message("rowrange(0:2)"),
+    "0 is an invalid start row in rowrange() option",
+  );
+  assert.equal(
+    message("rowrange(2:abc)"),
+    "abc: invalid end row in rowrange() option",
+  );
+  assert.equal(
+    message("colrange(2:3:4)"),
+    "3:4: invalid end col in colrange() option",
+  );
+  assert.equal(
+    message("rowrange(:)"),
+    ": invalid end row in rowrange() option",
+  );
+  assert.equal(
+    message("colrange(:)"),
+    " is an invalid end column in colrange() option",
+  );
+  assert.equal(
+    message("maxquotedrows(1.5)"),
+    "option maxquotedrows() incorrectly specified.",
+  );
+  assert.equal(
+    run(files, "import delimited using g05.csv, clear maxquotedrows(-1)").rc,
+    0,
+  );
+  assert.equal(
+    run(files, "import delimited using g05.csv, clear rowrange(10)").n,
+    0,
+  );
+});
+
+test("insheet's blanks, quotes and option checks", () => {
+  const sheet = (text, extra = "") => {
+    const r = run({ "f.csv": text }, `insheet using f.csv, clear${extra}`);
+    const values = r.rc
+      ? []
+      : r.session
+          .run(
+            r.vars
+              .map((v) => {
+                const name = v.split(" ")[0];
+                return `display ${v.includes(" str") ? `"[" ${name}[1] "]"` : `${name}[1]`}`;
+              })
+              .join("\n"),
+          )
+          .output.map((o) => o.lines.join(""));
+    return { ...r, values };
+  };
+  let r = sheet('id,c\n1, "a,b"\n');
+  assert.deepEqual(
+    [r.vars, r.values],
+    [
+      ["id byte %8.0g", "c str3 %9s"],
+      ["1", "[a,b]"],
+    ],
+  );
+  r = sheet('id,c\n1,"a ""q"" b"\n2,"x"y\n');
+  assert.deepEqual([r.vars[1], r.values[1]], ["c str2 %9s", "[ b]"]);
+  assert.equal(r.session.run("display c[2]").output[0].lines[0], "xy");
+  r = sheet('id,c\n1,"a\n\nb"\n2,z\n');
+  assert.deepEqual([r.vars[1], r.values[1]], ["c str3 %9s", "[a b]"]);
+  r = sheet('id,c\n1,"x \n y"\n');
+  assert.deepEqual([r.vars[1], r.values[1]], ["c str4 %9s", "[x  y]"]);
+  // A space after a closing quote is kept, so "1" followed by a space is text.
+  r = sheet('id,x\n"1" ,2\n2,"3" \n');
+  assert.deepEqual([r.n, r.vars], [3, ["v1 str2 %9s", "v2 str2 %9s"]]);
+  // Unquoted spaces are dropped from the value but counted in the width, and
+  // spaces alone are text; a line's leading spaces go first.
+  r = sheet("a,b\n1, \n2,3\n");
+  assert.deepEqual(
+    [r.vars, r.values],
+    [
+      ["a byte %8.0g", "b str1 %9s"],
+      ["1", "[]"],
+    ],
+  );
+  r = sheet("a,b,c\n1,  ,3\n4,5,6\n");
+  assert.deepEqual(r.vars, ["a byte %8.0g", "b str2 %9s", "c byte %8.0g"]);
+  r = sheet("a,b\n , \n1,2\n");
+  assert.deepEqual(r.vars, ["a byte %8.0g", "b str1 %9s"]);
+  r = sheet("a,b\n1, 2 \n");
+  assert.deepEqual(r.vars, ["a byte %8.0g", "b byte %8.0g"]);
+  for (const text of ["\n\n", ",,\n,,\n", "   \n"])
+    assert.equal(sheet(text).out[0], "unexpected end of file\nr(612);");
+  r = sheet(",,\n,,\n1,2,3\n");
+  assert.deepEqual(
+    [r.n, r.vars],
+    [1, ["v1 byte %8.0g", "v2 byte %8.0g", "v3 byte %8.0g"]],
+  );
+  r = run(
+    { "bom.csv": bytes(0xef, 0xbb, 0xbf) },
+    "insheet using bom.csv, clear",
+  );
+  assert.deepEqual([r.n, r.vars], [0, ["v1 byte %8.0g [﻿]"]]);
+  const option = (extra) => sheet("a,b\n1,2\n", extra).out[0];
+  assert.equal(
+    option(" names comma tab"),
+    "both tab and comma not allowed\nr(198);",
+  );
+  assert.equal(
+    option(' delimiter(";") comma'),
+    "both comma and delimiter() not allowed\nr(198);",
+  );
+  assert.equal(
+    option(' delimiter(";") tab'),
+    "both tab and delimiter() not allowed\nr(198);",
+  );
+  for (const spec of ['";;"', "tab", '"\\t"'])
+    assert.equal(
+      option(` delimiter(${spec})`),
+      "option delimiter() incorrectly specified\nr(198);",
+    );
+  assert.equal(sheet("a,b\n1,2\n", ' delimiter("")').rc, 0);
+});
+
+test("export delimited needs a variable; syntax and file names as Stata reads them", () => {
+  const s = createConsoleSession();
+  assert.deepEqual(
+    s.run("export delimited using x.csv, replace").output[0].lines,
+    ["too few variables specified", "r(102);"],
+  );
+  s.addFile("noext", "a,b\n1,2\n");
+  s.addFile("my data.csv", "a,b\n1,2\n");
+  const say = (source) => s.run(source).output[0].lines.join("\n");
+  assert.equal(say("import delimited, clear"), "using required\nr(100);");
+  assert.equal(
+    say("import delimited my data.csv, clear"),
+    "using required\nr(100);",
+  );
+  assert.equal(say("insheet, clear"), "using required\nr(100);");
+  assert.equal(
+    say("insheet plain.txt, clear"),
+    "plain.txt invalid name\nr(198);",
+  );
+  assert.equal(
+    say("import delimited using my data.csv, clear"),
+    "invalid 'data.csv' \nr(198);",
+  );
+  assert.equal(
+    say("insheet using my data.csv, clear"),
+    "invalid 'data.csv' \nr(198);",
+  );
+  assert.equal(
+    say('import delimited "my data.csv", clear'),
+    "(encoding automatically selected: ISO-8859-9)\n(2 vars, 1 obs)",
+  );
+  // The extension is added to a name without one, even when a file has
+  // that name.
+  assert.equal(
+    say("import delimited using noext, clear"),
+    "file noext.csv not found\nr(601);",
+  );
+  assert.equal(
+    say("insheet using noext, clear"),
+    "file noext.raw not found\nr(601);",
+  );
+});
+
+test("encoding() takes Java's names for character sets", () => {
+  const files = { "l.csv": bytes("id,name\n1,Jos", 0xe9, "\n") };
+  for (const name of [
+    "windows-1252",
+    "WINDOWS-1252",
+    "cp1252",
+    "latin1",
+    "LATIN1",
+    "ISO-8859-15",
+    "ISO_8859-1",
+    "macroman",
+    "MacRoman",
+    "utf8",
+    "sjis",
+    "koi8-r",
+    "US-ASCII",
+  ])
+    assert.equal(
+      run(files, `import delimited using l.csv, clear encoding("${name}")`).rc,
+      0,
+      name,
+    );
+  for (const name of [
+    "windows1252",
+    "latin-1",
+    "iso885915",
+    "x-mac-roman",
+    "macintosh",
+    "ISO-8859-8-I",
+    "x",
+  ])
+    assert.equal(
+      run(files, `import delimited using l.csv, clear encoding("${name}")`)
+        .out[0],
+      "encoding not supported\nr(198);",
+      name,
+    );
+  // Java names whose decoder the browser lacks are refused with a hint.
+  assert.match(
+    run(files, "import delimited using l.csv, clear encoding(ibm-1047)").out[0],
+    /^encoding ibm-1047 is not available here;[\s\S]*r\(198\);$/,
+  );
+});
+
+test("The encoding scan is ICU's on the first 8,000 bytes, naming the last of tied leaders", () => {
+  const line = (bytesIn, name) =>
+    run(
+      { [name]: bytesIn },
+      `import delimited using ${name}, clear`,
+    ).out[0].split("\n")[0];
+  // Plain ASCII: the language statistics of ISO-8859-1, -2 and -9 decide,
+  // and a tie goes to the later in ICU's order.
+  assert.equal(
+    line(bytes('id,name\n1,"Smith, J"\n2,"Doe"\n'), "f02.csv"),
+    "(encoding automatically selected: ISO-8859-2)",
+  );
+  assert.equal(
+    line(bytes("id,big\n1,2147483621\n2,3\n"), "f06.csv"),
+    "(encoding automatically selected: ISO-8859-9)",
+  );
+  const head = [],
+    row = [];
+  for (let i = 1; i <= 3000; i++) {
+    head.push(`c${i}`);
+    row.push(((i * 7919) % 1000) / 10);
+  }
+  assert.equal(
+    line(bytes(`${head.join(",")}\n${row.join(",")}\n`), "wide.csv"),
+    "(encoding automatically selected: UTF-8)",
+  );
+  assert.equal(
+    line(bytes("id,price\n1,5 ", 0x80, "\n"), "h03.csv"),
+    "(encoding automatically selected: windows-1250)",
+  );
+  // An invalid byte counts at offset 7,999 but not at 8,000.
+  const late = (offset) =>
+    bytes("1,2\n".repeat(2001).slice(0, offset - 2), "1,", 0xe9, "\n");
+  assert.equal(
+    line(late(7999), "l1.csv"),
+    "(encoding automatically selected: KOI8-R)",
+  );
+  assert.equal(
+    line(late(8000), "l2.csv"),
+    "(encoding automatically selected: UTF-8)",
+  );
+  // UTF-8 that only turns non-ASCII past the sample is read as ISO-8859-1.
+  const rows = ["id,city"];
+  for (let i = 1; i <= 6000; i++) rows.push(`${i},Paris`);
+  const text = `${rows.join("\n")}\n6001,Montréal\n`;
+  for (const content of [new Uint8Array(Buffer.from(text)), text]) {
+    const r = run(
+      { "h02.csv": content },
+      "import delimited using h02.csv, clear\ndisplay city[6001]",
+    );
+    assert.equal(
+      r.out[0].split("\n")[0],
+      "(encoding automatically selected: ISO-8859-1)",
+    );
+    assert.equal(r.vars[1], "city str11 %11s");
+    assert.equal(r.out[1], "MontrÃ©al");
+  }
+  // One invalid byte in UTF-8 text.
+  const r = run(
+    { "h04.csv": bytes("id,name\n1,Zo", 0xc3, 0xab, "\n2,Jos", 0xe9, "\n") },
+    'import delimited using h04.csv, clear\ndisplay name[1] "|" name[2]',
+  );
+  assert.equal(
+    r.out[0].split("\n")[0],
+    "(encoding automatically selected: ISO-8859-2)",
+  );
+  assert.equal(r.out[1], "ZoĂŤ|José");
+});
+
+test("Bytes that are not text are refused with a Stata error", async () => {
+  const { StataError } = await import("../src/runtime/errors.js");
+  const s = createConsoleSession();
+  s.run("clear\nset obs 2\ngenerate x = _n");
+  const dta = s.exportData().bytes;
+  for (const content of [
+    bytes("a,b\n1,", 0, "\n"),
+    dta,
+    bytes("PK", 3, 4, 20, 0, 0, 0, 8, 0),
+  ]) {
+    assert.throws(
+      () => s.addFile("x.csv", content),
+      (e) =>
+        e instanceof StataError && /x\.csv is not a text file/.test(e.message),
+    );
+    assert.equal(s.run("import delimited using x.csv, clear").rc, 601);
+  }
+});

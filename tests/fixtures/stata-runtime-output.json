@@ -32627,6 +32627,1744 @@
       ]
     },
     {
+      "id": "delimited-varlist-names",
+      "source": "clear\nset obs 2\ngenerate str20 s = \"a,b\" in 1\nreplace s = \"1,2\" in 2\noutsheet s using dlm_g18.csv, noquote nonames replace\nclear\nset obs 4\ngenerate str30 s = \"id,name,score\" in 1\nreplace s = \"1,smithj,71.5\" in 2\nreplace s = \"2,doe,80\" in 3\nreplace s = \"3,roe,\" in 4\noutsheet s using dlm_basic.csv, noquote nonames replace\nclear\nset obs 2\ngenerate str40 s = \"First Name,Income ($),age\" in 1\nreplace s = \"Ann,10,3\" in 2\noutsheet s using dlm_messy.csv, noquote nonames replace\ncapture noisily import delimited 1a b using dlm_g18.csv, clear\ncapture noisily import delimited a-b c using dlm_g18.csv, clear\ncapture noisily import delimited _cons b using dlm_g18.csv, clear\ncapture noisily import delimited a a using dlm_g18.csv, clear\ncapture noisily import delimited score using dlm_basic.csv, clear\ncapture noisily import delimited name x using dlm_basic.csv, clear\ncapture noisily import delimited name id using dlm_basic.csv, clear\ncapture noisily import delimited b using dlm_g18.csv, clear\nimport delimited x id using dlm_basic.csv, clear\ndescribe, fullnames\nimport delimited x y id using dlm_basic.csv, clear\nlist\nimport delimited A a using dlm_g18.csv, clear\nlist\nimport delimited fn inc using dlm_messy.csv, clear\ndescribe, fullnames\nimport delimited a B using dlm_g18.csv, clear case(upper)\ndescribe, fullnames\nimport delimited id nm sc using dlm_basic.csv, clear\ndescribe, fullnames\ncapture noisily insheet 1a b using dlm_g18.csv, clear\ncapture noisily insheet a a using dlm_g18.csv, clear\ncapture noisily insheet _n b using dlm_g18.csv, clear\ninsheet A a using dlm_g18.csv, clear\ndescribe, fullnames\ninsheet fn inc age using dlm_messy.csv, clear\ndescribe, fullnames\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str20 s = \"a,b\" in 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace s = \"1,2\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_g18.csv, noquote nonames replace",
+          "lines": ["(file dlm_g18.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate str30 s = \"id,name,score\" in 1",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,smithj,71.5\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,doe,80\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"3,roe,\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_basic.csv, noquote nonames replace",
+          "lines": ["(file dlm_basic.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str40 s = \"First Name,Income ($),age\" in 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace s = \"Ann,10,3\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_messy.csv, noquote nonames replace",
+          "lines": ["(file dlm_messy.csv not found)"]
+        },
+        {
+          "command": "capture noisily import delimited 1a b using dlm_g18.csv, clear",
+          "lines": ["1a: invalid variable name"]
+        },
+        {
+          "command": "capture noisily import delimited a-b c using dlm_g18.csv, clear",
+          "lines": ["a-b: invalid variable name"]
+        },
+        {
+          "command": "capture noisily import delimited _cons b using dlm_g18.csv, clear",
+          "lines": ["_cons: invalid variable name"]
+        },
+        {
+          "command": "capture noisily import delimited a a using dlm_g18.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "could not name variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited score using dlm_basic.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "could not name variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited name x using dlm_basic.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "could not name variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited name id using dlm_basic.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "could not name variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited b using dlm_g18.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "could not name variables specified"
+          ]
+        },
+        {
+          "command": "import delimited x id using dlm_basic.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               byte    %8.0g",
+            "id              str6    %9s",
+            "score           float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited x y id using dlm_basic.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | x        y     id |",
+            "     |-------------------|",
+            "  1. | 1   smithj   71.5 |",
+            "  2. | 2      doe     80 |",
+            "  3. | 3      roe      . |",
+            "     +-------------------+"
+          ]
+        },
+        {
+          "command": "import delimited A a using dlm_g18.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | A   a |",
+            "     |-------|",
+            "  1. | 1   2 |",
+            "     +-------+"
+          ]
+        },
+        {
+          "command": "import delimited fn inc using dlm_messy.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "fn              str3    %9s                   First Name",
+            "inc             byte    %8.0g                 Income ($)",
+            "age             byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited a B using dlm_g18.csv, clear case(upper)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a               byte    %8.0g                 a",
+            "B               byte    %8.0g                 b",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited id nm sc using dlm_basic.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "nm              str6    %9s",
+            "sc              float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "capture noisily insheet 1a b using dlm_g18.csv, clear",
+          "lines": ["1a invalid name"]
+        },
+        {
+          "command": "capture noisily insheet a a using dlm_g18.csv, clear",
+          "lines": ["variable a already defined"]
+        },
+        {
+          "command": "capture noisily insheet _n b using dlm_g18.csv, clear",
+          "lines": ["_n invalid varname"]
+        },
+        {
+          "command": "insheet A a using dlm_g18.csv, clear",
+          "lines": ["(note: variable names in file ignored)", "(2 vars, 1 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a               byte    %8.0g                 A",
+            "v2              byte    %8.0g                 a",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "insheet fn inc age using dlm_messy.csv, clear",
+          "lines": ["(note: variable names in file ignored)", "(3 vars, 1 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "fn              str3    %9s",
+            "inc             byte    %8.0g",
+            "age             byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delimited-header-columns",
+      "source": "clear\nset obs 3\ngenerate str30 s = \"id,name,city\" in 1\nreplace s = \"1,Ann,Boston\" in 2\nreplace s = \"2,Bob,NYC\" in 3\noutsheet s using dlm_c.csv, noquote nonames replace\nclear\nset obs 2\ngenerate str30 s = \"ID,Name\" in 1\nreplace s = \"1,a\" in 2\noutsheet s using dlm_g17.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"id,v\" in 1\nreplace s = \"1,2.5\" in 2\nreplace s = \"3,4\" in 3\noutsheet s using dlm_p2.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"id,zip,amt,name\" in 1\nreplace s = \"1,02134,1.5,ab\" in 2\nreplace s = \"2,10001,2,cd\" in 3\noutsheet s using dlm_m01.csv, noquote nonames replace\nimport delimited using dlm_c.csv, clear colrange(2:3)\nlist\nimport delimited using dlm_g17.csv, clear colrange(2)\nlist\nimport delimited using dlm_g17.csv, clear colrange(2) case(upper)\ndescribe, fullnames\nimport delimited using dlm_g17.csv, clear colrange(2:2) varnames(1)\ndescribe, fullnames\nimport delimited using dlm_p2.csv, clear varnames(2)\ndescribe, fullnames\nimport delimited using dlm_m01.csv, clear stringcols(2) numericcols(2)\ndescribe, fullnames\nlist\nimport delimited using dlm_c.csv, clear stringcols(1) numericcols(1)\ndescribe, fullnames\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,name,city\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,Ann,Boston\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,Bob,NYC\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_c.csv, noquote nonames replace",
+          "lines": ["(file dlm_c.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str30 s = \"ID,Name\" in 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace s = \"1,a\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_g17.csv, noquote nonames replace",
+          "lines": ["(file dlm_g17.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,v\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,2.5\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"3,4\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_p2.csv, noquote nonames replace",
+          "lines": ["(file dlm_p2.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,zip,amt,name\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,02134,1.5,ab\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,10001,2,cd\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_m01.csv, noquote nonames replace",
+          "lines": ["(file dlm_m01.csv not found)"]
+        },
+        {
+          "command": "import delimited using dlm_c.csv, clear colrange(2:3)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------+",
+            "     |   v1       v2 |",
+            "     |---------------|",
+            "  1. | name     city |",
+            "  2. |  Ann   Boston |",
+            "  3. |  Bob      NYC |",
+            "     +---------------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_g17.csv, clear colrange(2)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(1 var, 2 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------+",
+            "     |   v1 |",
+            "     |------|",
+            "  1. | Name |",
+            "  2. |    a |",
+            "     +------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_g17.csv, clear colrange(2) case(upper)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(1 var, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "V1              str4    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_g17.csv, clear colrange(2:2) varnames(1)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(1 var, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "name            str1    %9s                   Name",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_p2.csv, clear varnames(2)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g                 1",
+            "v2              float   %9.0g                 2.5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_m01.csv, clear stringcols(2) numericcols(2)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(4 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "zip             int     %8.0g",
+            "amt             float   %9.0g",
+            "name            str2    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------+",
+            "     | id     zip   amt   name |",
+            "     |-------------------------|",
+            "  1. |  1    2134   1.5     ab |",
+            "  2. |  2   10001     2     cd |",
+            "     +-------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_c.csv, clear stringcols(1) numericcols(1)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "name            str3    %9s",
+            "city            str6    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delimited-overflow-reserved",
+      "source": "clear\nset obs 3\ngenerate str30 s = \"id,x\" in 1\nreplace s = \"1,1e400\" in 2\nreplace s = \"2,3\" in 3\noutsheet s using dlm_o.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"x,y\" in 1\nreplace s = \"1D3,1e39\" in 2\nreplace s = \"2.5d-1,1e400\" in 3\noutsheet s using dlm_f08.csv, noquote nonames replace\nimport delimited using dlm_o.csv, clear\ndescribe, fullnames\nlist\nimport delimited using dlm_f08.csv, clear\ndescribe, fullnames\nlist\ninsheet using dlm_o.csv, clear\nlist\nclear\nset obs 2\ngenerate str30 s = \"_cons,zz\" in 1\nreplace s = \"1,2\" in 2\noutsheet s using dlm_r1.csv, noquote nonames replace\nreplace s = \"_skip,zz\" in 1\noutsheet s using dlm_r2.csv, noquote nonames replace\nreplace s = \"strL,zz\" in 1\noutsheet s using dlm_r3.csv, noquote nonames replace\nreplace s = \"strL,strl\" in 1\noutsheet s using dlm_r4.csv, noquote nonames replace\nreplace s = \"Byte,_all\" in 1\noutsheet s using dlm_r5.csv, noquote nonames replace\ncapture noisily import delimited using dlm_r1.csv, clear\nimport delimited using dlm_r1.csv, clear case(upper)\ndescribe, fullnames\nimport delimited using dlm_r2.csv, clear\ndescribe, fullnames\nimport delimited using dlm_r3.csv, clear\ndescribe, fullnames\nimport delimited using dlm_r4.csv, clear\ndescribe, fullnames\nimport delimited using dlm_r4.csv, clear case(upper)\ndescribe, fullnames\nimport delimited using dlm_r5.csv, clear\ndescribe, fullnames\nimport delimited using dlm_r5.csv, clear case(preserve)\ndescribe, fullnames\ncapture noisily insheet using dlm_r1.csv, clear\ninsheet using dlm_r2.csv, clear\ndescribe, fullnames\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,x\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,1e400\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,3\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_o.csv, noquote nonames replace",
+          "lines": ["(file dlm_o.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"x,y\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1D3,1e39\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2.5d-1,1e400\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_f08.csv, noquote nonames replace",
+          "lines": ["(file dlm_f08.csv not found)"]
+        },
+        {
+          "command": "import delimited using dlm_o.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "x               byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------+",
+            "     | id   x |",
+            "     |--------|",
+            "  1. |  1   . |",
+            "  2. |  2   3 |",
+            "     +--------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_f08.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %9.0g",
+            "y               double  %10.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     |    x           y |",
+            "     |------------------|",
+            "  1. | 1000   1.000e+39 |",
+            "  2. |  .25           . |",
+            "     +------------------+"
+          ]
+        },
+        {
+          "command": "insheet using dlm_o.csv, clear",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------+",
+            "     | id   x |",
+            "     |--------|",
+            "  1. |  1   . |",
+            "  2. |  2   3 |",
+            "     +--------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str30 s = \"_cons,zz\" in 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace s = \"1,2\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_r1.csv, noquote nonames replace",
+          "lines": ["(file dlm_r1.csv not found)"]
+        },
+        {
+          "command": "replace s = \"_skip,zz\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_r2.csv, noquote nonames replace",
+          "lines": ["(file dlm_r2.csv not found)"]
+        },
+        {
+          "command": "replace s = \"strL,zz\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_r3.csv, noquote nonames replace",
+          "lines": ["(file dlm_r3.csv not found)"]
+        },
+        {
+          "command": "replace s = \"strL,strl\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_r4.csv, noquote nonames replace",
+          "lines": ["(file dlm_r4.csv not found)"]
+        },
+        {
+          "command": "replace s = \"Byte,_all\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_r5.csv, noquote nonames replace",
+          "lines": ["(file dlm_r5.csv not found)"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_r1.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "Error creating variables"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r1.csv, clear case(upper)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "_CONS           byte    %8.0g                 _cons",
+            "ZZ              byte    %8.0g                 zz",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r2.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "_skip           byte    %8.0g",
+            "zz              byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r3.csv, clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g                 strL",
+            "zz              byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r4.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g                 strL",
+            "strl            byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r4.csv, clear case(upper)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "V1              byte    %8.0g                 strL",
+            "STRL            byte    %8.0g                 strl",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r5.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g                 Byte",
+            "_all            byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using dlm_r5.csv, clear case(preserve)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Byte            byte    %8.0g",
+            "_all            byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "capture noisily insheet using dlm_r1.csv, clear",
+          "lines": ["_cons invalid varname", "error in line 1 of file"]
+        },
+        {
+          "command": "insheet using dlm_r2.csv, clear",
+          "lines": ["(2 vars, 1 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "_skip           byte    %8.0g",
+            "zz              byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delimited-option-checks",
+      "source": "clear\nset obs 5\ngenerate str30 s = \"a,b\" in 1\nreplace s = \"1,2\" in 2\nreplace s = \"3,4\" in 3\nreplace s = \"5,6\" in 4\nreplace s = \"7,8\" in 5\noutsheet s using dlm_g05.csv, noquote nonames replace\nimport delimited using dlm_g05.csv, clear case(l)\nimport delimited using dlm_g05.csv, clear case(u)\ndescribe, fullnames\nimport delim using dlm_g05.csv, clear varn(1) delim(\",\") case(pres) stringc(1)\ndescribe, fullnames\ncapture noisily import delimited using dlm_g05.csv, clear case(p)\ncapture noisily import delimited using dlm_g05.csv, clear rowrange(3:2)\ncapture noisily import delimited using dlm_g05.csv, clear colrange(3:2)\ncapture noisily import delimited using dlm_g05.csv, clear rowrange(abc)\ncapture noisily import delimited using dlm_g05.csv, clear colrange(0)\ncapture noisily import delimited using dlm_g05.csv, clear rowrange(2:abc)\ncapture noisily import delimited using dlm_g05.csv, clear colrange(2:3:4)\ncapture noisily import delimited using dlm_g05.csv, clear rowrange(:)\ncapture noisily import delimited using dlm_g05.csv, clear colrange(:)\nimport delimited using dlm_g05.csv, clear rowrange(10)\nimport delimited using dlm_g05.csv, clear colrange(3)\nimport delimited using dlm_g05.csv, clear maxquotedrows(-1)\ncapture noisily import delimited using dlm_g05.csv, clear maxquotedrows(abc)\ncapture noisily import delimited, clear\ncapture noisily import delimited my dlm_g05.csv, clear\ncapture noisily import delimited using my dlm_data.csv, clear\ncapture noisily import delimited using dlm_g05.csv more, clear\ncapture noisily insheet dlm_g05.csv, clear\ncapture noisily insheet, clear\ncapture noisily insheet using my dlm_data.csv, clear\ncapture noisily import delimited using dlm_g05.csv, clear encoding(windows1252)\ncapture noisily import delimited using dlm_g05.csv, clear encoding(latin-1)\ncapture noisily import delimited using dlm_g05.csv, clear encoding(macintosh)\nimport delimited using dlm_g05.csv, clear encoding(cp1252)\nimport delimited using dlm_g05.csv, clear encoding(ISO_8859-1)\nimport delimited using dlm_g05.csv, clear encoding(MacRoman)\ncapture noisily insheet using dlm_g05.csv, clear names comma tab\ncapture noisily insheet using dlm_g05.csv, clear delimiter(\";\") comma\ncapture noisily insheet using dlm_g05.csv, clear delimiter(\";;\")\ncapture noisily insheet using dlm_g05.csv, clear delimiter(tab)\ninsheet using dlm_g05.csv, clear delimiter(\"\")\nclear\ncapture noisily export delimited using dlm_x4.csv, replace\nset obs 3\ncapture noisily export delimited using dlm_x4.csv, replace\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        {
+          "command": "generate str30 s = \"a,b\" in 1",
+          "lines": ["(4 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,2\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"3,4\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"5,6\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"7,8\" in 5",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_g05.csv, noquote nonames replace",
+          "lines": ["(file dlm_g05.csv not found)"]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear case(l)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 4 obs)"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear case(u)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "A               byte    %8.0g                 a",
+            "B               byte    %8.0g                 b",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delim using dlm_g05.csv, clear varn(1) delim(\",\") case(pres) stringc(1)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a               str1    %9s",
+            "b               byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear case(p)",
+          "lines": [
+            "p: invalid argument in option case();",
+            "   use upper, lower, or preserve"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear rowrange(3:2)",
+          "lines": [
+            "3:2 is an invalid row range in rowrange() option",
+            "start row is greater than end row"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear colrange(3:2)",
+          "lines": [
+            "3:2 is an invalid column range in colrange() option",
+            "start column is greater than end column"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear rowrange(abc)",
+          "lines": ["abc is an invalid start row in rowrange() option"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear colrange(0)",
+          "lines": ["0 is an invalid start column in colrange() option"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear rowrange(2:abc)",
+          "lines": ["abc: invalid end row in rowrange() option"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear colrange(2:3:4)",
+          "lines": ["3:4: invalid end col in colrange() option"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear rowrange(:)",
+          "lines": [": invalid end row in rowrange() option"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear colrange(:)",
+          "lines": [" is an invalid end column in colrange() option"]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear rowrange(10)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 0 obs)"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear colrange(3)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(0 vars, 0 obs)"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear maxquotedrows(-1)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 4 obs)"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear maxquotedrows(abc)",
+          "lines": ["option maxquotedrows() incorrectly specified."]
+        },
+        {
+          "command": "capture noisily import delimited, clear",
+          "lines": ["using required"]
+        },
+        {
+          "command": "capture noisily import delimited my dlm_g05.csv, clear",
+          "lines": ["using required"]
+        },
+        {
+          "command": "capture noisily import delimited using my dlm_data.csv, clear",
+          "lines": ["invalid 'dlm_data.csv'"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv more, clear",
+          "lines": ["invalid 'more'"]
+        },
+        {
+          "command": "capture noisily insheet dlm_g05.csv, clear",
+          "lines": ["dlm_g05.csv invalid name"]
+        },
+        {
+          "command": "capture noisily insheet, clear",
+          "lines": ["using required"]
+        },
+        {
+          "command": "capture noisily insheet using my dlm_data.csv, clear",
+          "lines": ["invalid 'dlm_data.csv'"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear encoding(windows1252)",
+          "lines": ["encoding not supported"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear encoding(latin-1)",
+          "lines": ["encoding not supported"]
+        },
+        {
+          "command": "capture noisily import delimited using dlm_g05.csv, clear encoding(macintosh)",
+          "lines": ["encoding not supported"]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear encoding(cp1252)",
+          "lines": ["(2 vars, 4 obs)"]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear encoding(ISO_8859-1)",
+          "lines": ["(2 vars, 4 obs)"]
+        },
+        {
+          "command": "import delimited using dlm_g05.csv, clear encoding(MacRoman)",
+          "lines": ["(2 vars, 4 obs)"]
+        },
+        {
+          "command": "capture noisily insheet using dlm_g05.csv, clear names comma tab",
+          "lines": ["both tab and comma not allowed"]
+        },
+        {
+          "command": "capture noisily insheet using dlm_g05.csv, clear delimiter(\";\") comma",
+          "lines": ["both comma and delimiter() not allowed"]
+        },
+        {
+          "command": "capture noisily insheet using dlm_g05.csv, clear delimiter(\";;\")",
+          "lines": ["option delimiter() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily insheet using dlm_g05.csv, clear delimiter(tab)",
+          "lines": ["option delimiter() incorrectly specified"]
+        },
+        {
+          "command": "insheet using dlm_g05.csv, clear delimiter(\"\")",
+          "lines": ["(2 vars, 4 obs)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "capture noisily export delimited using dlm_x4.csv, replace",
+          "lines": ["too few variables specified"]
+        },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "capture noisily export delimited using dlm_x4.csv, replace",
+          "lines": ["too few variables specified"]
+        }
+      ]
+    },
+    {
+      "id": "insheet-hand-typed",
+      "source": "clear\nset obs 2\ngenerate str30 s = \"id,c\" in 1\nreplace s = `\"1, \"a,b\"\"' in 2\noutsheet s using dlm_q04.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"id,c\" in 1\nreplace s = `\"1,\"a \"\"q\"\" b\"\"' in 2\nreplace s = `\"2,\"x\"y\"' in 3\noutsheet s using dlm_q07.csv, noquote nonames replace\nclear\nset obs 5\ngenerate str30 s = \"id,c\" in 1\nreplace s = `\"1,\"a\"' in 2\nreplace s = `\"b\"\"' in 4\nreplace s = \"2,z\" in 5\noutsheet s using dlm_q08.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"id,x\" in 1\nreplace s = `\"\"1\" ,2\"' in 2\nreplace s = `\"2,\"3\" \"' in 3\noutsheet s using dlm_q10.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"a,b\" in 1\nreplace s = \"1, \" in 2\nreplace s = \"2,3\" in 3\noutsheet s using dlm_r13.csv, noquote nonames replace\nclear\nset obs 4\ngenerate str30 s = \"a,b,c\" in 1\nreplace s = \"1,x ,3\" in 2\nreplace s = \"4,5,6\" in 3\nreplace s = \"7,  ,9\" in 4\noutsheet s using dlm_t3.csv, noquote nonames replace\nclear\nset obs 2\ngenerate str30 s = \"\"\noutsheet s using dlm_z2.csv, noquote nonames replace\nreplace s = \",,\"\noutsheet s using dlm_z4.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \",,\" in 1\nreplace s = \"1,2,3\" in 3\noutsheet s using dlm_t23.csv, noquote nonames replace\ninsheet using dlm_q04.csv, clear\nlist\nimport delimited using dlm_q04.csv, clear\nlist\ninsheet using dlm_q07.csv, clear\ndescribe, fullnames\nlist\ninsheet using dlm_q08.csv, clear\ndescribe, fullnames\nlist\ninsheet using dlm_q10.csv, clear\ndescribe, fullnames\nlist\ninsheet using dlm_r13.csv, clear\ndescribe, fullnames\ncount if b == \"\"\ninsheet using dlm_t3.csv, clear\ndescribe, fullnames\ncount if b == \"x\"\ncapture noisily insheet using dlm_z2.csv, clear\ncapture noisily insheet using dlm_z4.csv, clear\nimport delimited using dlm_z4.csv, clear\ninsheet using dlm_t23.csv, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str30 s = \"id,c\" in 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace s = `\"1, \"a,b\"\"' in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_q04.csv, noquote nonames replace",
+          "lines": ["(file dlm_q04.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,c\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = `\"1,\"a \"\"q\"\" b\"\"' in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = `\"2,\"x\"y\"' in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_q07.csv, noquote nonames replace",
+          "lines": ["(file dlm_q07.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        {
+          "command": "generate str30 s = \"id,c\" in 1",
+          "lines": ["(4 missing values generated)"]
+        },
+        {
+          "command": "replace s = `\"1,\"a\"' in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = `\"b\"\"' in 4",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,z\" in 5",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_q08.csv, noquote nonames replace",
+          "lines": ["(file dlm_q08.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,x\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = `\"\"1\" ,2\"' in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = `\"2,\"3\" \"' in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_q10.csv, noquote nonames replace",
+          "lines": ["(file dlm_q10.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"a,b\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1, \" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,3\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_r13.csv, noquote nonames replace",
+          "lines": ["(file dlm_r13.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate str30 s = \"a,b,c\" in 1",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,x ,3\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"4,5,6\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"7,  ,9\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_t3.csv, noquote nonames replace",
+          "lines": ["(file dlm_t3.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "generate str30 s = \"\"",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "outsheet s using dlm_z2.csv, noquote nonames replace",
+          "lines": ["(file dlm_z2.csv not found)"]
+        },
+        { "command": "replace s = \",,\"", "lines": ["(2 real changes made)"] },
+        {
+          "command": "outsheet s using dlm_z4.csv, noquote nonames replace",
+          "lines": ["(file dlm_z4.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \",,\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,2,3\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_t23.csv, noquote nonames replace",
+          "lines": ["(file dlm_t23.csv not found)"]
+        },
+        {
+          "command": "insheet using dlm_q04.csv, clear",
+          "lines": ["(2 vars, 1 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id     c |",
+            "     |----------|",
+            "  1. |  1   a,b |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_q04.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | id        c |",
+            "     |-------------|",
+            "  1. |  1    \"a,b\" |",
+            "     +-------------+"
+          ]
+        },
+        {
+          "command": "insheet using dlm_q07.csv, clear",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "c               str2    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     | id    c |",
+            "     |---------|",
+            "  1. |  1    b |",
+            "  2. |  2   xy |",
+            "     +---------+"
+          ]
+        },
+        {
+          "command": "insheet using dlm_q08.csv, clear",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              byte    %8.0g",
+            "c               str3    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id     c |",
+            "     |----------|",
+            "  1. |  1   a b |",
+            "  2. |  2     z |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "insheet using dlm_q10.csv, clear",
+          "lines": ["(2 vars, 3 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              str2    %9s",
+            "v2              str2    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     | v1   v2 |",
+            "     |---------|",
+            "  1. | id    x |",
+            "  2. | 1     2 |",
+            "  3. |  2   3  |",
+            "     +---------+"
+          ]
+        },
+        {
+          "command": "insheet using dlm_r13.csv, clear",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a               byte    %8.0g",
+            "b               str1    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "count if b == \"\"", "lines": ["  1"] },
+        {
+          "command": "insheet using dlm_t3.csv, clear",
+          "lines": ["(3 vars, 3 obs)"]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a               byte    %8.0g",
+            "b               str2    %9s",
+            "c               byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "count if b == \"x\"", "lines": ["  1"] },
+        {
+          "command": "capture noisily insheet using dlm_z2.csv, clear",
+          "lines": ["unexpected end of file"]
+        },
+        {
+          "command": "capture noisily insheet using dlm_z4.csv, clear",
+          "lines": ["unexpected end of file"]
+        },
+        {
+          "command": "import delimited using dlm_z4.csv, clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(3 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "insheet using dlm_t23.csv, clear",
+          "lines": ["(3 vars, 1 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------+",
+            "     | v1   v2   v3 |",
+            "     |--------------|",
+            "  1. |  1    2    3 |",
+            "     +--------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delimited-encoding-scan",
+      "source": "clear\nset obs 3\ngenerate str30 s = \"id,name\" in 1\nreplace s = `\"1,\"Smith, J\"\"' in 2\nreplace s = `\"2,\"Doe\"\"' in 3\noutsheet s using dlm_f02.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"id,big\" in 1\nreplace s = \"1,2147483621\" in 2\nreplace s = \"2,3\" in 3\noutsheet s using dlm_f06.csv, noquote nonames replace\nclear\nset obs 6002\ngenerate str30 s = string(_n - 1) + \",Paris\"\nreplace s = \"id,city\" in 1\nreplace s = \"6001,Montréal\" in 6002\noutsheet s using dlm_h02.csv, noquote nonames replace\nclear\nset obs 3\ngenerate str30 s = \"id,name\" in 1\nreplace s = \"1,Zoë\" in 2\nreplace s = \"2,José\" in 3\noutsheet s using dlm_u8.csv, noquote nonames replace\nclear\nset obs 200\ngenerate a = _n\ngenerate b = _n * 3\nexport delimited using dlm_nums.csv, replace\nimport delimited using dlm_f02.csv, clear\nimport delimited using dlm_f06.csv, clear\nimport delimited using dlm_h02.csv, clear\ndescribe city\nlist in -2/l, noobs\nimport delimited using dlm_h02.csv, clear encoding(utf-8)\nlist in -1, noobs\nimport delimited using dlm_u8.csv, clear\nlist\nimport delimited using dlm_nums.csv, clear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,name\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = `\"1,\"Smith, J\"\"' in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = `\"2,\"Doe\"\"' in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_f02.csv, noquote nonames replace",
+          "lines": ["(file dlm_f02.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,big\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,2147483621\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,3\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_f06.csv, noquote nonames replace",
+          "lines": ["(file dlm_f06.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6002",
+          "lines": ["Number of observations (_N) was 0, now 6,002."]
+        },
+        {
+          "command": "generate str30 s = string(_n - 1) + \",Paris\"",
+          "lines": []
+        },
+        {
+          "command": "replace s = \"id,city\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"6001,Montréal\" in 6002",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_h02.csv, noquote nonames replace",
+          "lines": ["(file dlm_h02.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str30 s = \"id,name\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"1,Zoë\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"2,José\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "outsheet s using dlm_u8.csv, noquote nonames replace",
+          "lines": ["(file dlm_u8.csv not found)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate a = _n", "lines": [] },
+        { "command": "generate b = _n * 3", "lines": [] },
+        {
+          "command": "export delimited using dlm_nums.csv, replace",
+          "lines": ["(file dlm_nums.csv not found)", "file dlm_nums.csv saved"]
+        },
+        {
+          "command": "import delimited using dlm_f02.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(2 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_f06.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_h02.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 6,001 obs)"
+          ]
+        },
+        {
+          "command": "describe city",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "city            str11   %11s"
+          ]
+        },
+        {
+          "command": "list in -2/l, noobs",
+          "lines": [
+            "  +------------------+",
+            "  |   id        city |",
+            "  |------------------|",
+            "  | 6000       Paris |",
+            "  | 6001   MontrÃ©al |",
+            "  +------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_h02.csv, clear encoding(utf-8)",
+          "lines": ["(2 vars, 6,001 obs)"]
+        },
+        {
+          "command": "list in -1, noobs",
+          "lines": [
+            "  +-----------------+",
+            "  |   id       city |",
+            "  |-----------------|",
+            "  | 6001   Montréal |",
+            "  +-----------------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_u8.csv, clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(2 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | id   name |",
+            "     |-----------|",
+            "  1. |  1    Zoë |",
+            "  2. |  2   José |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "import delimited using dlm_nums.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 200 obs)"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
