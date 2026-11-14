@@ -128,6 +128,10 @@ function margins(session, text, ctx) {
     level = options.level,
     rows = model.sample,
     n = rows.length,
+    // Sampling and importance weights, one per row of the sample, weight
+    // every average; frequency weights repeat the rows instead.
+    weightOf = model.weights ? (r) => model.weights[r] : () => 1,
+    total = model.weights ? model.weights.reduce((t, v) => t + v, 0) : n,
     k = model.names.length,
     // Every variable that enters the model, in order of first appearance.
     variables = [
@@ -157,12 +161,15 @@ function margins(session, text, ctx) {
     columnMeans = model.names.map((name, j) =>
       name === "_cons"
         ? 1
-        : rows.reduce((t, i) => t + model.columns[j].value(i), 0) / n,
+        : rows.reduce(
+            (t, i, r) => t + weightOf(r) * model.columns[j].value(i),
+            0,
+          ) / total,
     ),
     variableMeans = new Map(
       variables.map((v) => [
         v.name,
-        rows.reduce((t, i) => t + v.data[i], 0) / n,
+        rows.reduce((t, i, r) => t + weightOf(r) * v.data[i], 0) / total,
       ]),
     );
   // When the fit omitted a coefficient or left a level with no
@@ -208,11 +215,12 @@ function margins(session, text, ctx) {
     let value = 0,
       estimable = true;
     const gradient = new Array(k).fill(0);
-    for (const i of rows) {
+    for (const [at, i] of rows.entries()) {
       const r = row(i, fixed),
-        [v, dv] = each(r, xb(r), i);
-      value += v / n;
-      dv.forEach((d, j) => (gradient[j] += d / n));
+        [v, dv] = each(r, xb(r), i),
+        share = weightOf(at) / total;
+      value += v * share;
+      dv.forEach((d, j) => (gradient[j] += d * share));
       if (estimable && nulls.length) estimable = inRowSpace(r, nulls);
     }
     return estimable

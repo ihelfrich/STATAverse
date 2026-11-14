@@ -17,6 +17,7 @@ import {
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
+import { clauses, splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -251,16 +252,20 @@ function modelHeader(ctx, model, reps, test) {
           ]
         : []),
     ];
+  // The models fitted by likelihood report it, and their pseudo R2. With
+  // sampling weights it is a pseudolikelihood, and poisson then has no
+  // pseudo R2: the line takes the place of the p-value's.
+  const likelihood = model.r2_p !== undefined && model.ll !== undefined,
+    last = likelihood && isMissing(model.r2_p) ? lines.pop() : null,
+    log = `${model.wtype === "pweight" ? "Log pseudolikelihood" : "Log likelihood"} = ${g(model.ll, "%10.0g")}`;
   lines.forEach((line, k) =>
     ctx.out(
       `${(k ? "" : (model.title ?? "Linear regression")).padEnd(56)}${line}`,
     ),
   );
-  // The models fitted by likelihood report it, and their pseudo R2.
-  if (model.r2_p !== undefined && model.ll !== undefined)
-    ctx.out(
-      `${`Log likelihood = ${g(model.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", four(model.r2_p))}`,
-    );
+  if (last) ctx.out(`${log.padEnd(56)}${last}`);
+  else if (likelihood)
+    ctx.out(`${log.padEnd(56)}${side("Pseudo R2", four(model.r2_p))}`);
   ctx.out("");
 }
 
@@ -339,6 +344,9 @@ function bootstrap(session, text, ctx) {
     name = commandName(parts.command),
     before = session.estimates;
   if (reps < 2) throw new StataError("reps() must be at least 2", 198);
+  // Stata resamples observations, which a weight would stand in for.
+  if (clauses(splitAtComma(parts.command)[0]).some((c) => c.kind === "weight"))
+    throw new StataError("weights not allowed with bootstrap estimation", 101);
   const observed = evaluate(session, ctx, parts);
   if (!observed)
     throw new StataError(
@@ -486,6 +494,13 @@ function jackknife(session, text, ctx) {
     snapshot = data.snapshot();
   if (parts.coefficients && !model)
     throw new StataError("expression list required", 198);
+  // Stata leaves out a frequency-weighted observation one unit at a time
+  // and scales importance-weighted replicates; neither is done here.
+  if (model?.wtype === "fweight" || model?.wtype === "iweight")
+    throw new StataError(
+      `jackknife with ${model.wtype}s is not available yet; pweights are`,
+      198,
+    );
   if (model?.sample)
     takeRows(
       data,

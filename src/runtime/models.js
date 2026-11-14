@@ -34,6 +34,7 @@ import {
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
+import { evaluateAll } from "./expression.js";
 import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -283,11 +284,20 @@ function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        `anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels${family.binary ? " | ASIS" : ""}]`,
+        `anything [if] [in] [fweight pweight iweight] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels${family.binary ? " | ASIS" : ""}]`,
         text,
       ),
-      options = parsed.options,
-      rows = session.rows(parsed, null),
+      options = parsed.options;
+    // Stata resamples observations, which a weight would stand in for.
+    if (
+      parsed.weight &&
+      /^\s*(b(o(o(t(s(t(r(ap?)?)?)?)?)?)?)?|bs)\s*(,|$)/.test(options.vce ?? "")
+    )
+      throw new StataError(
+        "weights not allowed with bootstrap estimation",
+        101,
+      );
+    const rows = session.rows(parsed, null),
       constant = options.constant !== false,
       { robust, cluster } = readVce(session, options, /^oim$/, {
         multiway: false,
@@ -297,12 +307,40 @@ function maximumLikelihood(kind) {
         columns,
         sample: complete,
       } = design(session, parsed.anything, rows, constant),
-      logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? "");
-    let sample = cluster
-        ? complete.filter((i) => !noCluster(cluster, i))
-        : complete,
+      logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? ""),
+      wtype = parsed.weight?.type ?? null,
+      // Each observation's weight. Observations whose weight is missing or
+      // zero are left out, as are those with no cluster.
+      weightOf = wtype
+        ? evaluateAll(session.compile(parsed.weight.exp), session.data.n)
+        : null;
+    // [w=exp] is a frequency weight, and Stata says so.
+    if (
+      wtype === "fweight" &&
+      /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0])
+    )
+      ctx.out("(frequency weights assumed)");
+    const clustered = cluster
+      ? complete.filter((i) => !noCluster(cluster, i))
+      : complete;
+    let sample = weightOf
+        ? clustered.filter((i) => !isMissing(weightOf[i]) && weightOf[i] !== 0)
+        : clustered,
       n = sample.length,
       perfect = { rules: [], notes: [] };
+    if (weightOf) {
+      if (
+        wtype === "fweight" &&
+        sample.some((i) => !Number.isInteger(weightOf[i]))
+      )
+        throw new StataError("may not use noninteger frequency weights", 401);
+      // Importance weights may be negative; the others may not.
+      if (wtype !== "iweight" && sample.some((i) => weightOf[i] < 0))
+        throw new StataError("negative weights encountered", 402);
+      // Collinearity is judged over the observations the weights leave.
+      if (n && n < clustered.length)
+        recheckCollinearity(columns, sample, constant);
+    }
     if (!n) throw new StataError("no observations", 2000);
     let y = sample.map((i) => dependent.data[i]);
     if (family.binary) {
@@ -333,6 +371,23 @@ function maximumLikelihood(kind) {
         `${dependent.name} must be a nonnegative count`,
         459,
       );
+    // A frequency weight stands for that many identical observations, so
+    // the sample repeats each observation that many times (after perfect
+    // predictors, whose notes count observations, not frequencies).
+    // Sampling and importance weights multiply each observation's
+    // contribution to the likelihood, its score and its information.
+    let w = null;
+    if (wtype === "fweight") {
+      y = sample.flatMap((i, j) => new Array(weightOf[i]).fill(y[j]));
+      sample = sample.flatMap((i) => new Array(weightOf[i]).fill(i));
+      n = sample.length;
+    } else if (wtype) {
+      w = sample.map((i) => weightOf[i]);
+      // Importance weights that sum to nothing leave nothing to fit.
+      if (!(w.reduce((t, v) => t + v, 0) > 0))
+        throw new StataError("insufficient observations", 2001);
+    }
+    const weightAt = w ? (i) => w[i] : () => 1;
     // A variable collinear with those before it is omitted, as Stata's
     // _rmcoll omits it, and stays in the table as (omitted); so does a
     // perfect predictor.
@@ -343,7 +398,9 @@ function maximumLikelihood(kind) {
         ...(constant ? [1] : []),
       ]),
       size = active.length + (constant ? 1 : 0),
-      mean = y.reduce((a, b) => a + b, 0) / n,
+      mean = w
+        ? y.reduce((a, b, i) => a + w[i] * b, 0) / w.reduce((a, b) => a + b, 0)
+        : y.reduce((a, b) => a + b, 0) / n,
       // Start at the constant-only model.
       start = family.binary
         ? kind === "logit"
@@ -354,16 +411,23 @@ function maximumLikelihood(kind) {
         x.reduce(
           (total, row, i) =>
             total +
-            family.ll(
-              y[i],
-              row.reduce((t, v, k) => t + v * b[k], 0),
-            ),
+            weightAt(i) *
+              family.ll(
+                y[i],
+                row.reduce((t, v, k) => t + v * b[k], 0),
+              ),
           0,
         );
     let b = new Array(size).fill(0);
     if (constant) b[size - 1] = start;
-    const ll0 = constant ? logLikelihood(b) : MISSING,
-      word = robust ? "Log pseudolikelihood" : "Log likelihood",
+    // Sampling weights make the variance robust. poisson then reports no
+    // constant-only model, and so no pseudo R2.
+    const sandwich = robust || wtype === "pweight",
+      ll0 =
+        constant && !(kind === "poisson" && wtype === "pweight")
+          ? logLikelihood(b)
+          : MISSING,
+      word = sandwich ? "Log pseudolikelihood" : "Log likelihood",
       log = [];
     let ll = logLikelihood(b),
       information;
@@ -372,11 +436,11 @@ function maximumLikelihood(kind) {
         hessian = Array.from({ length: size }, () => new Array(size).fill(0));
       x.forEach((row, i) => {
         const xb = row.reduce((t, v, k) => t + v * b[k], 0),
-          s = family.score(y[i], xb),
-          w = family.weight(y[i], xb);
+          s = weightAt(i) * family.score(y[i], xb),
+          h = weightAt(i) * family.weight(y[i], xb);
         for (let a = 0; a < size; a++) {
           gradient[a] += s * row[a];
-          for (let c = 0; c <= a; c++) hessian[a][c] += w * row[a] * row[c];
+          for (let c = 0; c <= a; c++) hessian[a][c] += h * row[a] * row[c];
         }
       });
       for (let a = 0; a < size; a++)
@@ -435,14 +499,19 @@ function maximumLikelihood(kind) {
       );
     let V = information,
       clusters = null;
-    if (robust) {
+    if (sandwich) {
       // Each observation is its own cluster unless one was named; the
-      // correction is G / (G - 1) with G the number of clusters.
+      // correction is G / (G - 1) with G the number of clusters. A
+      // frequency-weighted observation counts as that many observations;
+      // the score of a sampling or importance weighted one is multiplied
+      // by its weight.
       const scoreOf = (i) => {
-          const s = family.score(
-            y[i],
-            x[i].reduce((t, v, k) => t + v * b[k], 0),
-          );
+          const s =
+            weightAt(i) *
+            family.score(
+              y[i],
+              x[i].reduce((t, v, k) => t + v * b[k], 0),
+            );
           return x[i].map((v) => v * s);
         },
         own = { data: sample.map((_, i) => i) },
@@ -490,12 +559,17 @@ function maximumLikelihood(kind) {
       rank: size,
       ll,
       ll_0: ll0,
-      vce: cluster ? "cluster" : robust ? "robust" : "oim",
+      vce: cluster ? "cluster" : sandwich ? "robust" : "oim",
       clusters,
       clusterName: cluster?.name,
       family,
       kind,
       sample,
+      // The weight type and expression; for sampling and importance
+      // weights, each observation's weight, in the order of sample.
+      wtype,
+      wexp: wtype ? `= ${parsed.weight.exp}` : undefined,
+      weights: w,
       // The perfect-prediction rules; predict leaves the observations they
       // set aside missing.
       rules: perfect.rules,
@@ -503,7 +577,7 @@ function maximumLikelihood(kind) {
     };
     // A model without a constant has no constant-only model to compare
     // with, so its test is a Wald test, as with a robust variance.
-    const wald = robust || !constant,
+    const wald = sandwich || isMissing(ll0),
       chi2 = wald ? waldChi2(model) : 2 * (ll - ll0),
       p = isMissing(chi2) ? MISSING : chi2tail(model.df_m, chi2),
       r2 = isMissing(ll0) ? MISSING : 1 - ll / ll0,
@@ -529,7 +603,8 @@ function maximumLikelihood(kind) {
       N: n,
       df_m: model.df_m,
       ll,
-      ll_0: ll0,
+      // poisson with sampling weights leaves no e(ll_0).
+      ...(kind === "poisson" && wtype === "pweight" ? {} : { ll_0: ll0 }),
       chi2,
       chi2type: wald ? "Wald" : "LR",
       p,
@@ -541,8 +616,9 @@ function maximumLikelihood(kind) {
       cmd: kind,
       depvar: model.depvar,
       vce: model.vce,
-      ...(robust ? { vcetype: "Robust" } : {}),
+      ...(sandwich ? { vcetype: "Robust" } : {}),
       ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
+      ...(wtype ? { wtype, wexp: model.wexp } : {}),
     };
     // Stata's built-in logit and probit print, with the log, a blank line,
     // the notes of perfect predictors (each followed by a blank line) and
@@ -575,9 +651,9 @@ function maximumLikelihood(kind) {
     ctx.out(
       `${"".padEnd(left)}${side(`${wald ? "Wald" : "LR"} chi2(${model.df_m})`, shown[1])}`,
     );
-    // Without a constant there is no pseudo R2, and the log likelihood
-    // shares the line of the p-value.
-    if (constant) {
+    // Without a constant-only model there is no pseudo R2, and the log
+    // likelihood shares the line of the p-value.
+    if (!isMissing(ll0)) {
       ctx.out(`${"".padEnd(left)}${side("Prob > chi2", shown[2])}`);
       ctx.out(
         `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Pseudo R2", shown[3])}`,
@@ -1232,6 +1308,10 @@ function predict(session, text, ctx) {
         .map((name, k) => (name === "_cons" ? 1 : model.columns[k].value(i)))
         .join(" ");
   if (parsed.options.residuals) {
+    // Covariate patterns count observations, which sampling and
+    // importance weights do not stand for.
+    if (model.wtype === "pweight" || model.wtype === "iweight")
+      throw new StataError(`not possible with ${model.wtype}s`, 135);
     const outcome = data.get(model.depvar).data;
     for (const i of model.sample ?? []) {
       const key2 = patternOf(i),
@@ -1366,7 +1446,9 @@ function estat(session, text, ctx) {
     const outcome = session.data.get(model.depvar).data;
     let deviance = 0,
       pearson = 0;
-    for (const i of model.sample) {
+    // Sampling and importance weights weight each observation's part.
+    for (const [r, i] of model.sample.entries()) {
+      const weight = model.weights?.[r] ?? 1;
       const mu = Math.exp(
           model.names.reduce(
             (t, name, k) =>
@@ -1376,8 +1458,8 @@ function estat(session, text, ctx) {
           ),
         ),
         y = outcome[i];
-      deviance += 2 * ((y > 0 ? y * Math.log(y / mu) : 0) - (y - mu));
-      pearson += (y - mu) ** 2 / mu;
+      deviance += weight * 2 * ((y > 0 ? y * Math.log(y / mu) : 0) - (y - mu));
+      pearson += (weight * (y - mu) ** 2) / mu;
     }
     const df = model.N - model.rank,
       line = (label, value) =>
@@ -1402,6 +1484,14 @@ function estat(session, text, ctx) {
         `estat ${what} is only available after logit and probit`,
         321,
       );
+    // Stata refuses the classification table after sampling and
+    // importance weights, and the goodness-of-fit test after sampling
+    // weights; after importance weights each observation counts as its
+    // weight in its covariate pattern.
+    if (model.wtype === "pweight")
+      throw new StataError("pweights not allowed", 101);
+    if (model.wtype === "iweight" && what !== "gof")
+      throw new StataError("iweight not allowed", 101);
     const outcome = session.data.get(model.depvar).data,
       rows = model.sample,
       index = (i) =>
@@ -1419,9 +1509,10 @@ function estat(session, text, ctx) {
       const patterns = new Map();
       rows.forEach((i, r) => {
         const key = JSON.stringify(model.columns.map((c) => c.value(i))),
-          cell = patterns.get(key) ?? { n: 0, y: 0, p: p[r] };
-        cell.n++;
-        cell.y += y[r];
+          cell = patterns.get(key) ?? { n: 0, y: 0, p: p[r] },
+          weight = model.weights?.[r] ?? 1;
+        cell.n += weight;
+        cell.y += weight * y[r];
         patterns.set(key, cell);
       });
       let chi2 = 0;

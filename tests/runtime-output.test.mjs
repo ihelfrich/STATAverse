@@ -124,6 +124,9 @@ for (const c of fixture.cases)
             "table-unlabelled-levels-and-one-level-factors",
             "constraint-lines-wrapped",
             "table-width-xtreg-and-resampling",
+            "weighted-binary-count-models",
+            "weighted-models-postestimation",
+            "weighted-models-samples-and-refusals",
           ].includes(c.id),
         )
       )

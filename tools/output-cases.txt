@@ -6940,3 +6940,139 @@ generate byte y = 1 + (lat > -3) + (lat > 4)
 ologit y x
 oprobit y x, nolog
 ologit y x, or nolog
+=== weighted-binary-count-models
+clear
+set seed 4207
+set obs 300
+generate x1 = runiform() * 4
+generate x2 = invnormal(runiform())
+generate g = 1 + floor(runiform() * 4)
+generate d = runiform() < invlogit(-1 + .5 * x1 - .4 * x2)
+generate n = floor(-ln(runiform()) * exp(.2 + .3 * x1))
+generate fw = 1 + floor(runiform() * 3)
+generate pw = .5 + runiform() * 2
+generate cl = 1 + floor(runiform() * 25)
+logit d x1 x2 [fweight=fw]
+logit d x1 x2 [pweight=pw]
+logit d x1 x2 [iweight=pw]
+capture noisily logit d x1 x2 [aweight=pw]
+logit d x1 x2 [pweight=pw], vce(cluster cl)
+logit d x1 x2 [fw=fw], robust nolog
+logit d x1 x2 [fw=fw], vce(cluster cl) nolog
+logit d x1 x2 [iw=pw], robust nolog
+logit d x1 x2 [iw=pw], vce(cluster cl) nolog
+logit d x1 x2 [pweight=pw], or nolog
+logistic d x1 x2 [pweight=pw]
+logit d x1 x2 [w=fw], nolog
+logit d x1 x2 [pweight=pw], noconstant nolog
+probit d x1 i.g [fweight=fw]
+probit d x1 i.g [pweight=pw]
+probit d x1 i.g [iweight=pw]
+probit d x1 i.g [pw=pw], vce(cluster cl)
+probit d x1 x2 [pweight=pw] if g < 3, nolog
+capture noisily probit d x1 [aw=pw]
+poisson n x1 x2 [fweight=fw]
+poisson n x1 x2 [pweight=pw], irr
+poisson n x1 x2 [iweight=pw]
+poisson n x1 x2 [pweight=pw], vce(cluster cl)
+poisson n x1 x2 [fweight=fw], vce(robust) nolog
+poisson n x1 x2 [iweight=pw], noconstant nolog
+poisson n x1 x2 [pweight=pw], noconstant nolog
+capture noisily poisson n x1 [aw=pw]
+=== weighted-models-postestimation
+clear
+set seed 4207
+set obs 300
+generate x1 = runiform() * 4
+generate x2 = invnormal(runiform())
+generate g = 1 + floor(runiform() * 4)
+generate d = runiform() < invlogit(-1 + .5 * x1 - .4 * x2)
+generate n = floor(-ln(runiform()) * exp(.2 + .3 * x1))
+generate fw = 1 + floor(runiform() * 3)
+generate pw = .5 + runiform() * 2
+generate cl = 1 + floor(runiform() * 25)
+quietly logit d x1 x2 [pweight=pw]
+estat ic
+capture noisily estat classification
+capture noisily estat gof
+margins
+margins, dydx(x1)
+capture noisily predict r, residuals
+estimates store a
+quietly logit d x1 [pweight=pw]
+capture noisily lrtest a
+quietly logit d x1 x2 [iweight=pw]
+estat ic
+capture noisily estat classification
+estat gof
+margins
+capture noisily predict r2, residuals
+estimates store b
+quietly logit d x1 [iweight=pw]
+lrtest b
+quietly logit d x1 x2 [fweight=fw]
+estat ic
+estat classification
+estat gof
+margins
+predict r, residuals
+summarize r
+quietly poisson n x1 x2 [pweight=pw]
+estat gof
+estat ic
+margins
+quietly poisson n x1 x2 [iweight=pw]
+estat gof
+quietly poisson n x1 x2 [fweight=fw]
+estat gof
+logit d x1 i.g [pw=pw], nolog
+margins g
+margins, dydx(*)
+margins, atmeans
+logit d x1 i.g [iw=pw], nolog
+margins g
+logit d i.g [iw=pw], nolog
+estat gof
+probit d x1 x2 [pw=pw], vce(cluster cl) nolog
+margins, dydx(*)
+=== weighted-models-samples-and-refusals
+clear
+set seed 4207
+set obs 300
+generate x1 = runiform() * 4
+generate x2 = invnormal(runiform())
+generate g = 1 + floor(runiform() * 4)
+generate d = runiform() < invlogit(-1 + .5 * x1 - .4 * x2)
+generate n = floor(-ln(runiform()) * exp(.2 + .3 * x1))
+generate fw = 1 + floor(runiform() * 3)
+generate pw = .5 + runiform() * 2
+generate iw = pw - 1
+capture noisily bootstrap, reps(5) nodots: logit d x1 [pw=pw]
+capture noisily bootstrap, reps(5) nodots: poisson n x1 [fw=fw]
+capture noisily logit d x1 [pw=pw], vce(bootstrap)
+jackknife, nodots: logit d x1 [pw=pw]
+jackknife, nodots: poisson n x1 [pw=pw]
+logit d x1 [iw=iw], nolog
+poisson n x1 [iw=iw], nolog
+capture noisily logit d x1 [iw=-pw]
+replace pw = 0 in 1/5
+replace fw = 0 in 6/8
+replace pw = . in 9
+logit d x1 x2 [pweight=pw], nolog
+logit d x1 x2 [fweight=fw], nolog
+generate z = 0
+replace z = 1 in 1/3
+logit d x1 z [pw=pw*(1-z)], nolog
+replace pw = -1 in 10
+capture noisily logit d x1 x2 [pweight=pw]
+logit d x1 x2 [iweight=pw], nolog
+replace fw = 1.5 in 11
+capture noisily logit d x1 x2 [fweight=fw]
+capture noisily logit d x1 x2 [w=fw]
+capture noisily logit d x1 x2 [fweight=pw*0]
+capture noisily logit d x1 x2 [pweight=pw*0]
+replace fw = 2 in 11
+generate byte hi = x1 > 3.9
+replace d = 1 if hi
+logit d x1 hi [fw=fw]
+logit d x1 hi [pw=abs(pw)]
