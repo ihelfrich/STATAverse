@@ -56,9 +56,12 @@ function tokenize(source) {
       if (end < 0) throw new StataError("too few quotes", 132);
       push("string", source.slice(i + 1, end), i);
       i = end + 1;
-    } else if ((m = /^(t[dmqwh])\(([^()]*)\)/.exec(rest))) {
+    } else if ((m = /^(t[dmqwhcC])\(([^()]*)\)/.exec(rest))) {
+      // td(), tc(), tC(), tw(), tm(), tq() and th(), read with their
+      // blanks removed, as Stata's message shows them.
       const value = dateLiteral(m[1], m[2]);
-      if (value === undefined) throw invalid(`${m[0]} invalid date literal`);
+      if (value === undefined)
+        throw invalid(`${m[1]}(${m[2].replace(/\s+/g, "")}) invalid`);
       push("number", value, i);
       i += m[0].length;
     } else if ((m = /^[01]\.[0-9a-fA-F]+[xX][+-][0-9a-fA-F]+/.exec(rest))) {

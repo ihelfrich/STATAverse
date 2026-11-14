@@ -330,8 +330,8 @@ export function displayText(session, text, asMacro = false) {
     else if ((m = /^"([^"]*)""$/.exec(word))) out += smcl(m[1]) + '"';
     else if (word === '"') out += '"';
     else if (/^%/.test(word)) {
-      if (!parseFormat(word))
-        throw new StataError(`invalid format ${word}`, 120);
+      // Stata names no format in this message.
+      if (!parseFormat(word)) throw new StataError("invalid %format", 120);
       format = word;
     } else {
       // An expression may be written with blanks around its operators.
@@ -771,6 +771,12 @@ function format(session, text) {
   if (!spec) throw invalid();
   const parsed = parseFormat(spec);
   if (!parsed) throw new StataError(`invalid format ${spec}`, 120);
+  if (parsed.kind === "business")
+    throw new StataError(
+      `business calendar formats (${spec}) are not available in the browser`,
+      198,
+      "A %tb format needs a business calendar (.stbcal) file, which the browser runtime cannot read; use a %td format instead.",
+    );
   for (const name of names) {
     const variable = session.data.get(name);
     if ((parsed.kind === "string") !== isStringType(variable.type))

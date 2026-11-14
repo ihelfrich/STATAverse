@@ -4681,3 +4681,183 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== list-wide-display-layout
+clear
+set obs 3
+generate long id = _n * 1001
+generate wave = _n
+generate str20 region = "Northeast region"
+generate double income = 12345.678 * _n
+generate str60 comment = "This is a fairly long comment that goes to the end"
+generate hours = 40
+generate double intdate = 21000 + _n
+format intdate %td
+generate wt = 1.5
+generate fw = 2
+generate satisf = 3
+generate kids = 1
+generate code = 77
+set linesize 79
+list
+list in 1/2, noobs
+list id wave region income, display
+list id wave, display noobs
+list, string(10)
+list, noheader
+list, abbreviate(4)
+list id wave hours, noheader
+list id wave hours, divider separator(2)
+list id wave hours, divider noheader
+list id region, string(5) clean
+set linesize 200
+=== list-long-strings
+clear
+set obs 3
+generate id = _n
+generate str100 s = "x" * 100 in 1
+replace s = "short" in 2
+replace s = "medium length text here" in 3
+generate str5 t = "ab"
+generate str20 u = "Northeast region"
+generate v = 2
+label define vl 2 "Domestic car"
+label values v vl
+generate m = 1
+set linesize 80
+list
+list id s u, noheader
+list m s in 1
+list s in 1
+list s in 1, noobs
+list id t u v, string(3)
+list id t u v s, string(10)
+list id t u v, divider noobs
+list id t u v, separator(1)
+set linesize 200
+=== list-justification-and-wide-characters
+clear
+set obs 4
+generate id = _n
+generate str21 name = "日本語テキスト" in 1
+replace name = "Zoë Ñúñez" in 2
+replace name = "abc" in 3
+replace name = "한국어" in 4
+generate str18 make = "AMC Concord"
+format make %-18s
+generate str5 lft = "ab"
+format lft %-5s
+generate ctr = "xy"
+format ctr %~9s
+list
+list, clean
+list, noobs
+list id name, string(5)
+list id make lft, display
+=== list-datetime-formats
+clear
+set obs 3
+generate double t = clock("2024-03-15 13:45:07.123", "YMDhms") + _n * 3600000
+format t %tc
+generate double t2 = t
+format t2 %tcDayname_dd_Month_CCYY_HH:MM:SS.sss
+generate double tC = Cofc(t)
+format tC %tC
+generate d = td(05mar2024) + _n
+format d %tdDAYNAME
+generate w = 3476 + _n
+format w %tw
+generate x = 1.5 * _n
+format x %21x
+generate y = 1.5 * _n
+format y %16H
+list
+list t t2 tC, noobs
+display %tc t[1]
+display %tcHH:MM:SS.sss t[2]
+display %tC tC[3]
+display %21x x[1]
+display %16L x[1]
+display %8H x[1]
+display %8L x[2]
+display hh(t[1]) " " mm(t[1]) " " ss(t[1])
+generate tt = string(t, "%tcCCYY-NN-DD!THH:MM:SS")
+list tt
+=== datetime-functions-from-strings
+clear
+set obs 4
+generate str30 ts = "2024-03-15 13:45:00" in 1
+replace ts = "2023-12-01 08:00:00" in 2
+replace ts = "15mar2024 1:45:07.5 pm" in 3
+replace ts = "2024-02-30 10:00:00" in 4
+generate double tt = clock(ts, "YMDhms")
+replace tt = clock(ts, "DMYhms") in 3
+format tt %tc
+generate double tC = Clock(ts, "YMDhms")
+format tC %tC
+generate d = dofc(tt)
+format d %td
+generate h = hh(tt)
+generate m = mm(tt)
+generate double s = ss(tt)
+list
+display %tc dhms(td(15mar2024), 13, 45, 7.123)
+display %tc mdyhms(3, 15, 2024, 13, 45, 7)
+display %15.0f msofhours(1.5) " " hours(5400000)
+display %tm monthly("2024m3", "YM") " " %tq quarterly("2024q3", "YQ")
+display datediff(td(15mar2000), td(14mar2024), "y") " " age(td(29feb2000), td(28feb2023))
+display %td lastdayofmonth(td(15feb2024)) " " %td nextweekday(td(15mar2024), "fr")
+display clockdiff(tt[2], tt[1], "h") " " clockdiff_frac(tt[2], tt[1], "d")
+=== codebook-dates
+clear
+set obs 40
+generate int bday = 11000 + _n * 97 + mod(_n * 13, 7)
+format bday %td
+generate int bday3 = 11000 + mod(_n, 3) * 400
+format bday3 %td
+generate w = 1500 + _n * 3
+format w %tw
+generate m = 600 + _n
+format m %tm
+generate q = 200 + _n
+format q %tq
+generate h = 60 + _n
+format h %th
+generate y = 1950 + _n
+format y %ty
+generate d2 = td(01jan2000) + _n
+format d2 %tdCCYY-NN-DD
+generate neg = -100 - _n * 3
+format neg %td
+generate double tc = clock("2020-01-01 08:30:00", "YMDhms") + _n * 3700000
+format tc %tc
+codebook bday bday3 w m q h y d2 neg tc
+replace bday = . in 1/3
+codebook bday
+=== summarize-format
+clear
+set obs 40
+generate double money = 1000.5 * _n + mod(_n * 37, 11) * 13.7
+generate pct = _n / 7 + mod(_n, 3) / 11
+generate int bday = 11000 + _n * 97 + mod(_n * 13, 7)
+generate w = 1500 + _n * 3 + mod(_n, 4)
+generate double tc = clock("2020-01-01 08:30:00", "YMDhms") + _n * 370000
+generate double a = money
+generate double b = money
+generate double c = money
+generate double e = money
+format money %9.2fc
+format pct %6.3f
+format bday %td
+format w %tw
+format tc %tcHH:MM
+format a %12.0gc
+format b %9.2e
+format c %-9.2f
+format e %3.0f
+summarize money pct bday w tc a b c e, format
+summarize money pct bday w tc a b c e
+summarize money, format detail
+summarize bday, format detail
+summarize e, format detail
+summarize money [aweight = pct], format
+summarize money [aweight = pct]

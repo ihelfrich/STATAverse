@@ -32425,6 +32425,1115 @@
       ]
     },
     {
+      "id": "list-wide-display-layout",
+      "source": "clear\nset obs 3\ngenerate long id = _n * 1001\ngenerate wave = _n\ngenerate str20 region = \"Northeast region\"\ngenerate double income = 12345.678 * _n\ngenerate str60 comment = \"This is a fairly long comment that goes to the end\"\ngenerate hours = 40\ngenerate double intdate = 21000 + _n\nformat intdate %td\ngenerate wt = 1.5\ngenerate fw = 2\ngenerate satisf = 3\ngenerate kids = 1\ngenerate code = 77\nset linesize 79\nlist\nlist in 1/2, noobs\nlist id wave region income, display\nlist id wave, display noobs\nlist, string(10)\nlist, noheader\nlist, abbreviate(4)\nlist id wave hours, noheader\nlist id wave hours, divider separator(2)\nlist id wave hours, divider noheader\nlist id region, string(5) clean\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate long id = _n * 1001", "lines": [] },
+        { "command": "generate wave = _n", "lines": [] },
+        {
+          "command": "generate str20 region = \"Northeast region\"",
+          "lines": []
+        },
+        { "command": "generate double income = 12345.678 * _n", "lines": [] },
+        {
+          "command": "generate str60 comment = \"This is a fairly long comment that goes to the end\"",
+          "lines": []
+        },
+        { "command": "generate hours = 40", "lines": [] },
+        { "command": "generate double intdate = 21000 + _n", "lines": [] },
+        { "command": "format intdate %td", "lines": [] },
+        { "command": "generate wt = 1.5", "lines": [] },
+        { "command": "generate fw = 2", "lines": [] },
+        { "command": "generate satisf = 3", "lines": [] },
+        { "command": "generate kids = 1", "lines": [] },
+        { "command": "generate code = 77", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------------------------------------------------+",
+            "  1. |      id     |    wave     |              region     |       income     |",
+            "     |    1001     |       1     |    Northeast region     |    12345.678     |",
+            "     |------------------------------------------------------------------------|",
+            "     |                                            comment | hours |   intdate |",
+            "     | This is a fairly long comment that goes to the end |    40 | 01jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |     wt     |     fw     |     satisf     |     kids     |     code     |",
+            "     |    1.5     |      2     |          3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+",
+            "",
+            "     +------------------------------------------------------------------------+",
+            "  2. |      id     |    wave     |              region     |       income     |",
+            "     |    2002     |       2     |    Northeast region     |    24691.356     |",
+            "     |------------------------------------------------------------------------|",
+            "     |                                            comment | hours |   intdate |",
+            "     | This is a fairly long comment that goes to the end |    40 | 02jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |     wt     |     fw     |     satisf     |     kids     |     code     |",
+            "     |    1.5     |      2     |          3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+",
+            "",
+            "     +------------------------------------------------------------------------+",
+            "  3. |      id     |    wave     |              region     |       income     |",
+            "     |    3003     |       3     |    Northeast region     |    37037.034     |",
+            "     |------------------------------------------------------------------------|",
+            "     |                                            comment | hours |   intdate |",
+            "     | This is a fairly long comment that goes to the end |    40 | 03jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |     wt     |     fw     |     satisf     |     kids     |     code     |",
+            "     |    1.5     |      2     |          3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list in 1/2, noobs",
+          "lines": [
+            "  +------------------------------------------------------------------------+",
+            "  |      id     |    wave     |              region     |       income     |",
+            "  |    1001     |       1     |    Northeast region     |    12345.678     |",
+            "  |------------------------------------------------------------------------|",
+            "  |                                            comment | hours |   intdate |",
+            "  | This is a fairly long comment that goes to the end |    40 | 01jul2017 |",
+            "  |------------------------------------------------------------------------|",
+            "  |     wt     |     fw     |     satisf     |     kids     |     code     |",
+            "  |    1.5     |      2     |          3     |        1     |       77     |",
+            "  +------------------------------------------------------------------------+",
+            "",
+            "  +------------------------------------------------------------------------+",
+            "  |      id     |    wave     |              region     |       income     |",
+            "  |    2002     |       2     |    Northeast region     |    24691.356     |",
+            "  |------------------------------------------------------------------------|",
+            "  |                                            comment | hours |   intdate |",
+            "  | This is a fairly long comment that goes to the end |    40 | 02jul2017 |",
+            "  |------------------------------------------------------------------------|",
+            "  |     wt     |     fw     |     satisf     |     kids     |     code     |",
+            "  |    1.5     |      2     |          3     |        1     |       77     |",
+            "  +------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id wave region income, display",
+          "lines": [
+            "     +--------------------------------------------+",
+            "  1. |   id | wave |           region |    income |",
+            "     | 1001 |    1 | Northeast region | 12345.678 |",
+            "     +--------------------------------------------+",
+            "",
+            "     +--------------------------------------------+",
+            "  2. |   id | wave |           region |    income |",
+            "     | 2002 |    2 | Northeast region | 24691.356 |",
+            "     +--------------------------------------------+",
+            "",
+            "     +--------------------------------------------+",
+            "  3. |   id | wave |           region |    income |",
+            "     | 3003 |    3 | Northeast region | 37037.034 |",
+            "     +--------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id wave, display noobs",
+          "lines": [
+            "  +-------------+",
+            "  |   id | wave |",
+            "  | 1001 |    1 |",
+            "  +-------------+",
+            "",
+            "  +-------------+",
+            "  |   id | wave |",
+            "  | 2002 |    2 |",
+            "  +-------------+",
+            "",
+            "  +-------------+",
+            "  |   id | wave |",
+            "  | 3003 |    3 |",
+            "  +-------------+"
+          ]
+        },
+        {
+          "command": "list, string(10)",
+          "lines": [
+            "     +---------------------------------------------------------------+",
+            "  1. |   id | wave | region       |    income | comment      | hours |",
+            "     | 1001 |    1 | Northeast .. | 12345.678 | This is a .. |    40 |",
+            "     |---------------------------------------------------------------|",
+            "     |    intdate   |   wt   |  fw   |  satisf   |  kids   |  code   |",
+            "     |  01jul2017   |  1.5   |   2   |       3   |     1   |    77   |",
+            "     +---------------------------------------------------------------+",
+            "",
+            "     +---------------------------------------------------------------+",
+            "  2. |   id | wave | region       |    income | comment      | hours |",
+            "     | 2002 |    2 | Northeast .. | 24691.356 | This is a .. |    40 |",
+            "     |---------------------------------------------------------------|",
+            "     |    intdate   |   wt   |  fw   |  satisf   |  kids   |  code   |",
+            "     |  02jul2017   |  1.5   |   2   |       3   |     1   |    77   |",
+            "     +---------------------------------------------------------------+",
+            "",
+            "     +---------------------------------------------------------------+",
+            "  3. |   id | wave | region       |    income | comment      | hours |",
+            "     | 3003 |    3 | Northeast .. | 37037.034 | This is a .. |    40 |",
+            "     |---------------------------------------------------------------|",
+            "     |    intdate   |   wt   |  fw   |  satisf   |  kids   |  code   |",
+            "     |  03jul2017   |  1.5   |   2   |       3   |     1   |    77   |",
+            "     +---------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, noheader",
+          "lines": [
+            "     +------------------------------------------------------------------------+",
+            "  1. |    1001     |       1     |    Northeast region     |    12345.678     |",
+            "     |------------------------------------------------------------------------|",
+            "     | This is a fairly long comment that goes to the end |    40 | 01jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |    1.5     |      2     |          3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+",
+            "",
+            "     +------------------------------------------------------------------------+",
+            "  2. |    2002     |       2     |    Northeast region     |    24691.356     |",
+            "     |------------------------------------------------------------------------|",
+            "     | This is a fairly long comment that goes to the end |    40 | 02jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |    1.5     |      2     |          3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+",
+            "",
+            "     +------------------------------------------------------------------------+",
+            "  3. |    3003     |       3     |    Northeast region     |    37037.034     |",
+            "     |------------------------------------------------------------------------|",
+            "     | This is a fairly long comment that goes to the end |    40 | 03jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |    1.5     |      2     |          3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, abbreviate(4)",
+          "lines": [
+            "     +------------------------------------------------------------------------+",
+            "  1. |      id     |    wave     |              region     |       income     |",
+            "     |    1001     |       1     |    Northeast region     |    12345.678     |",
+            "     |------------------------------------------------------------------------|",
+            "     |                                            comment | hours |   intdate |",
+            "     | This is a fairly long comment that goes to the end |    40 | 01jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |      wt     |     fw     |     sat~f     |     kids     |     code     |",
+            "     |     1.5     |      2     |         3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+",
+            "",
+            "     +------------------------------------------------------------------------+",
+            "  2. |      id     |    wave     |              region     |       income     |",
+            "     |    2002     |       2     |    Northeast region     |    24691.356     |",
+            "     |------------------------------------------------------------------------|",
+            "     |                                            comment | hours |   intdate |",
+            "     | This is a fairly long comment that goes to the end |    40 | 02jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |      wt     |     fw     |     sat~f     |     kids     |     code     |",
+            "     |     1.5     |      2     |         3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+",
+            "",
+            "     +------------------------------------------------------------------------+",
+            "  3. |      id     |    wave     |              region     |       income     |",
+            "     |    3003     |       3     |    Northeast region     |    37037.034     |",
+            "     |------------------------------------------------------------------------|",
+            "     |                                            comment | hours |   intdate |",
+            "     | This is a fairly long comment that goes to the end |    40 | 03jul2017 |",
+            "     |------------------------------------------------------------------------|",
+            "     |      wt     |     fw     |     sat~f     |     kids     |     code     |",
+            "     |     1.5     |      2     |         3     |        1     |       77     |",
+            "     +------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id wave hours, noheader",
+          "lines": [
+            "     +---------------------+",
+            "  1. | 1001      1      40 |",
+            "  2. | 2002      2      40 |",
+            "  3. | 3003      3      40 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "list id wave hours, divider separator(2)",
+          "lines": [
+            "     +---------------------+",
+            "     |   id | wave | hours |",
+            "     |------+------+-------|",
+            "  1. | 1001 |    1 |    40 |",
+            "  2. | 2002 |    2 |    40 |",
+            "     |------+------+-------|",
+            "  3. | 3003 |    3 |    40 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "list id wave hours, divider noheader",
+          "lines": [
+            "     +---------------------+",
+            "  1. | 1001 |    1 |    40 |",
+            "  2. | 2002 |    2 |    40 |",
+            "  3. | 3003 |    3 |    40 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "list id region, string(5) clean",
+          "lines": [
+            "         id   region",
+            "  1.   1001   North..",
+            "  2.   2002   North..",
+            "  3.   3003   North.."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "list-long-strings",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate str100 s = \"x\" * 100 in 1\nreplace s = \"short\" in 2\nreplace s = \"medium length text here\" in 3\ngenerate str5 t = \"ab\"\ngenerate str20 u = \"Northeast region\"\ngenerate v = 2\nlabel define vl 2 \"Domestic car\"\nlabel values v vl\ngenerate m = 1\nset linesize 80\nlist\nlist id s u, noheader\nlist m s in 1\nlist s in 1\nlist s in 1, noobs\nlist id t u v, string(3)\nlist id t u v s, string(10)\nlist id t u v, divider noobs\nlist id t u v, separator(1)\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate str100 s = \"x\" * 100 in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"short\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"medium length text here\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate str5 t = \"ab\"", "lines": [] },
+        { "command": "generate str20 u = \"Northeast region\"", "lines": [] },
+        { "command": "generate v = 2", "lines": [] },
+        { "command": "label define vl 2 \"Domestic car\"", "lines": [] },
+        { "command": "label values v vl", "lines": [] },
+        { "command": "generate m = 1", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------------------------------------------------+",
+            "  1. |                                   id                                    |",
+            "     |                                    1                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | s                                                                       |",
+            "     | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.. |",
+            "     |-------------------------------------------------------------------------|",
+            "     |     t     |                    u     |                v     |     m     |",
+            "     |    ab     |     Northeast region     |     Domestic car     |     1     |",
+            "     +-------------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------------+",
+            "  2. |                                   id                                    |",
+            "     |                                    2                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | s                                                                       |",
+            "     | short                                                                   |",
+            "     |-------------------------------------------------------------------------|",
+            "     |     t     |                    u     |                v     |     m     |",
+            "     |    ab     |     Northeast region     |     Domestic car     |     1     |",
+            "     +-------------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------------+",
+            "  3. |                                   id                                    |",
+            "     |                                    3                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | s                                                                       |",
+            "     | medium length text here                                                 |",
+            "     |-------------------------------------------------------------------------|",
+            "     |     t     |                    u     |                v     |     m     |",
+            "     |    ab     |     Northeast region     |     Domestic car     |     1     |",
+            "     +-------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id s u, noheader",
+          "lines": [
+            "     +-------------------------------------------------------------------------+",
+            "  1. |                                    1                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.. |",
+            "     |-------------------------------------------------------------------------|",
+            "     |                            Northeast region                             |",
+            "     +-------------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------------+",
+            "  2. |                                    2                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | short                                                                   |",
+            "     |-------------------------------------------------------------------------|",
+            "     |                            Northeast region                             |",
+            "     +-------------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------------+",
+            "  3. |                                    3                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | medium length text here                                                 |",
+            "     |-------------------------------------------------------------------------|",
+            "     |                            Northeast region                             |",
+            "     +-------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list m s in 1",
+          "lines": [
+            "     +-------------------------------------------------------------------------+",
+            "  1. |                                    m                                    |",
+            "     |                                    1                                    |",
+            "     |-------------------------------------------------------------------------|",
+            "     | s                                                                       |",
+            "     | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.. |",
+            "     +-------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list s in 1",
+          "lines": [
+            "     +-------------------------------------------------------------------------+",
+            "     | s                                                                       |",
+            "     |-------------------------------------------------------------------------|",
+            "  1. | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.. |",
+            "     +-------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list s in 1, noobs",
+          "lines": [
+            "  +----------------------------------------------------------------------------+",
+            "  | s                                                                          |",
+            "  |----------------------------------------------------------------------------|",
+            "  | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.. |",
+            "  +----------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id t u v, string(3)",
+          "lines": [
+            "     +-------------------------+",
+            "     | id    t   u       v     |",
+            "     |-------------------------|",
+            "  1. |  1   ab   Nor..   Dom.. |",
+            "  2. |  2   ab   Nor..   Dom.. |",
+            "  3. |  3   ab   Nor..   Dom.. |",
+            "     +-------------------------+"
+          ]
+        },
+        {
+          "command": "list id t u v s, string(10)",
+          "lines": [
+            "     +------------------------------------------------------+",
+            "     | id    t   u                         v   s            |",
+            "     |------------------------------------------------------|",
+            "  1. |  1   ab   Northeast ..   Domestic car   xxxxxxxxxx.. |",
+            "  2. |  2   ab   Northeast ..   Domestic car   short        |",
+            "  3. |  3   ab   Northeast ..   Domestic car   medium len.. |",
+            "     +------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id t u v, divider noobs",
+          "lines": [
+            "  +-------------------------------------------+",
+            "  | id |  t |                u |            v |",
+            "  |----+----+------------------+--------------|",
+            "  |  1 | ab | Northeast region | Domestic car |",
+            "  |  2 | ab | Northeast region | Domestic car |",
+            "  |  3 | ab | Northeast region | Domestic car |",
+            "  +-------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id t u v, separator(1)",
+          "lines": [
+            "     +-------------------------------------------+",
+            "     | id    t                  u              v |",
+            "     |-------------------------------------------|",
+            "  1. |  1   ab   Northeast region   Domestic car |",
+            "     |-------------------------------------------|",
+            "  2. |  2   ab   Northeast region   Domestic car |",
+            "     |-------------------------------------------|",
+            "  3. |  3   ab   Northeast region   Domestic car |",
+            "     +-------------------------------------------+"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "list-justification-and-wide-characters",
+      "source": "clear\nset obs 4\ngenerate id = _n\ngenerate str21 name = \"日本語テキスト\" in 1\nreplace name = \"Zoë Ñúñez\" in 2\nreplace name = \"abc\" in 3\nreplace name = \"한국어\" in 4\ngenerate str18 make = \"AMC Concord\"\nformat make %-18s\ngenerate str5 lft = \"ab\"\nformat lft %-5s\ngenerate ctr = \"xy\"\nformat ctr %~9s\nlist\nlist, clean\nlist, noobs\nlist id name, string(5)\nlist id make lft, display\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate str21 name = \"日本語テキスト\" in 1",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace name = \"Zoë Ñúñez\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"abc\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"한국어\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate str18 make = \"AMC Concord\"", "lines": [] },
+        { "command": "format make %-18s", "lines": [] },
+        { "command": "generate str5 lft = \"ab\"", "lines": [] },
+        { "command": "format lft %-5s", "lines": [] },
+        { "command": "generate ctr = \"xy\"", "lines": [] },
+        { "command": "format ctr %~9s", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------+",
+            "     | id             name   make          lft   ctr |",
+            "     |-----------------------------------------------|",
+            "  1. |  1   日本語テキスト   AMC Concord   ab     xy |",
+            "  2. |  2        Zoë Ñúñez   AMC Concord   ab     xy |",
+            "  3. |  3              abc   AMC Concord   ab     xy |",
+            "  4. |  4           한국어   AMC Concord   ab     xy |",
+            "     +-----------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       id             name   make          lft   ctr",
+            "  1.    1   日本語テキスト   AMC Concord   ab     xy",
+            "  2.    2        Zoë Ñúñez   AMC Concord   ab     xy",
+            "  3.    3              abc   AMC Concord   ab     xy",
+            "  4.    4           한국어   AMC Concord   ab     xy"
+          ]
+        },
+        {
+          "command": "list, noobs",
+          "lines": [
+            "  +-----------------------------------------------+",
+            "  | id             name   make          lft   ctr |",
+            "  |-----------------------------------------------|",
+            "  |  1   日本語テキスト   AMC Concord   ab     xy |",
+            "  |  2        Zoë Ñúñez   AMC Concord   ab     xy |",
+            "  |  3              abc   AMC Concord   ab     xy |",
+            "  |  4           한국어   AMC Concord   ab     xy |",
+            "  +-----------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id name, string(5)",
+          "lines": [
+            "     +--------------+",
+            "     | id   name    |",
+            "     |--------------|",
+            "  1. |  1   日本..  |",
+            "  2. |  2   Zoë Ñ.. |",
+            "  3. |  3   abc     |",
+            "  4. |  4   한국어  |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "list id make lft, display",
+          "lines": [
+            "     +------------------------+",
+            "  1. | id | make        | lft |",
+            "     |  1 | AMC Concord | ab  |",
+            "     +------------------------+",
+            "",
+            "     +------------------------+",
+            "  2. | id | make        | lft |",
+            "     |  2 | AMC Concord | ab  |",
+            "     +------------------------+",
+            "",
+            "     +------------------------+",
+            "  3. | id | make        | lft |",
+            "     |  3 | AMC Concord | ab  |",
+            "     +------------------------+",
+            "",
+            "     +------------------------+",
+            "  4. | id | make        | lft |",
+            "     |  4 | AMC Concord | ab  |",
+            "     +------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "list-datetime-formats",
+      "source": "clear\nset obs 3\ngenerate double t = clock(\"2024-03-15 13:45:07.123\", \"YMDhms\") + _n * 3600000\nformat t %tc\ngenerate double t2 = t\nformat t2 %tcDayname_dd_Month_CCYY_HH:MM:SS.sss\ngenerate double tC = Cofc(t)\nformat tC %tC\ngenerate d = td(05mar2024) + _n\nformat d %tdDAYNAME\ngenerate w = 3476 + _n\nformat w %tw\ngenerate x = 1.5 * _n\nformat x %21x\ngenerate y = 1.5 * _n\nformat y %16H\nlist\nlist t t2 tC, noobs\ndisplay %tc t[1]\ndisplay %tcHH:MM:SS.sss t[2]\ndisplay %tC tC[3]\ndisplay %21x x[1]\ndisplay %16L x[1]\ndisplay %8H x[1]\ndisplay %8L x[2]\ndisplay hh(t[1]) \" \" mm(t[1]) \" \" ss(t[1])\ngenerate tt = string(t, \"%tcCCYY-NN-DD!THH:MM:SS\")\nlist tt\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate double t = clock(\"2024-03-15 13:45:07.123\", \"YMDhms\") + _n * 3600000",
+          "lines": []
+        },
+        { "command": "format t %tc", "lines": [] },
+        { "command": "generate double t2 = t", "lines": [] },
+        {
+          "command": "format t2 %tcDayname_dd_Month_CCYY_HH:MM:SS.sss",
+          "lines": []
+        },
+        { "command": "generate double tC = Cofc(t)", "lines": [] },
+        { "command": "format tC %tC", "lines": [] },
+        { "command": "generate d = td(05mar2024) + _n", "lines": [] },
+        { "command": "format d %tdDAYNAME", "lines": [] },
+        { "command": "generate w = 3476 + _n", "lines": [] },
+        { "command": "format w %tw", "lines": [] },
+        { "command": "generate x = 1.5 * _n", "lines": [] },
+        { "command": "format x %21x", "lines": [] },
+        { "command": "generate y = 1.5 * _n", "lines": [] },
+        { "command": "format y %16H", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------------------------------------------------------------------------------------------------------------+",
+            "     |                  t                                  t2                   tC           d         w                       x                  y |",
+            "     |----------------------------------------------------------------------------------------------------------------------------------------------|",
+            "  1. | 15mar2024 14:45:07   Friday 15 March 2024 14:45:07.123   15mar2024 14:45:07   Wednesday   2026w46   +1.8000000000000X+000   3ff8000000000000 |",
+            "  2. | 15mar2024 15:45:07   Friday 15 March 2024 15:45:07.123   15mar2024 15:45:07    Thursday   2026w47   +1.8000000000000X+001   4008000000000000 |",
+            "  3. | 15mar2024 16:45:07   Friday 15 March 2024 16:45:07.123   15mar2024 16:45:07      Friday   2026w48   +1.2000000000000X+002   4012000000000000 |",
+            "     +----------------------------------------------------------------------------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list t t2 tC, noobs",
+          "lines": [
+            "  +-----------------------------------------------------------------------------+",
+            "  |                  t                                  t2                   tC |",
+            "  |-----------------------------------------------------------------------------|",
+            "  | 15mar2024 14:45:07   Friday 15 March 2024 14:45:07.123   15mar2024 14:45:07 |",
+            "  | 15mar2024 15:45:07   Friday 15 March 2024 15:45:07.123   15mar2024 15:45:07 |",
+            "  | 15mar2024 16:45:07   Friday 15 March 2024 16:45:07.123   15mar2024 16:45:07 |",
+            "  +-----------------------------------------------------------------------------+"
+          ]
+        },
+        { "command": "display %tc t[1]", "lines": ["15mar2024 14:45:07"] },
+        {
+          "command": "display %tcHH:MM:SS.sss t[2]",
+          "lines": ["15:45:07.123"]
+        },
+        { "command": "display %tC tC[3]", "lines": ["15mar2024 16:45:07"] },
+        { "command": "display %21x x[1]", "lines": ["+1.8000000000000X+000"] },
+        { "command": "display %16L x[1]", "lines": ["000000000000f83f"] },
+        { "command": "display %8H x[1]", "lines": ["3fc00000"] },
+        { "command": "display %8L x[2]", "lines": ["00004040"] },
+        {
+          "command": "display hh(t[1]) \" \" mm(t[1]) \" \" ss(t[1])",
+          "lines": ["14 45 7.123"]
+        },
+        {
+          "command": "generate tt = string(t, \"%tcCCYY-NN-DD!THH:MM:SS\")",
+          "lines": []
+        },
+        {
+          "command": "list tt",
+          "lines": [
+            "     +---------------------+",
+            "     |                  tt |",
+            "     |---------------------|",
+            "  1. | 2024-03-15T14:45:07 |",
+            "  2. | 2024-03-15T15:45:07 |",
+            "  3. | 2024-03-15T16:45:07 |",
+            "     +---------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datetime-functions-from-strings",
+      "source": "clear\nset obs 4\ngenerate str30 ts = \"2024-03-15 13:45:00\" in 1\nreplace ts = \"2023-12-01 08:00:00\" in 2\nreplace ts = \"15mar2024 1:45:07.5 pm\" in 3\nreplace ts = \"2024-02-30 10:00:00\" in 4\ngenerate double tt = clock(ts, \"YMDhms\")\nreplace tt = clock(ts, \"DMYhms\") in 3\nformat tt %tc\ngenerate double tC = Clock(ts, \"YMDhms\")\nformat tC %tC\ngenerate d = dofc(tt)\nformat d %td\ngenerate h = hh(tt)\ngenerate m = mm(tt)\ngenerate double s = ss(tt)\nlist\ndisplay %tc dhms(td(15mar2024), 13, 45, 7.123)\ndisplay %tc mdyhms(3, 15, 2024, 13, 45, 7)\ndisplay %15.0f msofhours(1.5) \" \" hours(5400000)\ndisplay %tm monthly(\"2024m3\", \"YM\") \" \" %tq quarterly(\"2024q3\", \"YQ\")\ndisplay datediff(td(15mar2000), td(14mar2024), \"y\") \" \" age(td(29feb2000), td(28feb2023))\ndisplay %td lastdayofmonth(td(15feb2024)) \" \" %td nextweekday(td(15mar2024), \"fr\")\ndisplay clockdiff(tt[2], tt[1], \"h\") \" \" clockdiff_frac(tt[2], tt[1], \"d\")\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate str30 ts = \"2024-03-15 13:45:00\" in 1",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace ts = \"2023-12-01 08:00:00\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace ts = \"15mar2024 1:45:07.5 pm\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace ts = \"2024-02-30 10:00:00\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "generate double tt = clock(ts, \"YMDhms\")",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "replace tt = clock(ts, \"DMYhms\") in 3",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "format tt %tc", "lines": [] },
+        {
+          "command": "generate double tC = Clock(ts, \"YMDhms\")",
+          "lines": ["(2 missing values generated)"]
+        },
+        { "command": "format tC %tC", "lines": [] },
+        {
+          "command": "generate d = dofc(tt)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "format d %td", "lines": [] },
+        {
+          "command": "generate h = hh(tt)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "generate m = mm(tt)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "generate double s = ss(tt)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------------------------------------------------------------+",
+            "     |                     ts                   tt                   tC           d    h    m     s |",
+            "     |----------------------------------------------------------------------------------------------|",
+            "  1. |    2024-03-15 13:45:00   15mar2024 13:45:00   15mar2024 13:45:00   15mar2024   13   45     0 |",
+            "  2. |    2023-12-01 08:00:00   01dec2023 08:00:00   01dec2023 08:00:00   01dec2023    8    0     0 |",
+            "  3. | 15mar2024 1:45:07.5 pm   15mar2024 13:45:07                    .   15mar2024   13   45   7.5 |",
+            "  4. |    2024-02-30 10:00:00                    .                    .           .    .    .     . |",
+            "     +----------------------------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "display %tc dhms(td(15mar2024), 13, 45, 7.123)",
+          "lines": ["15mar2024 13:45:07"]
+        },
+        {
+          "command": "display %tc mdyhms(3, 15, 2024, 13, 45, 7)",
+          "lines": ["15mar2024 13:45:07"]
+        },
+        {
+          "command": "display %15.0f msofhours(1.5) \" \" hours(5400000)",
+          "lines": ["        5400000 1.5"]
+        },
+        {
+          "command": "display %tm monthly(\"2024m3\", \"YM\") \" \" %tq quarterly(\"2024q3\", \"YQ\")",
+          "lines": [" 2024m3 2024q3"]
+        },
+        {
+          "command": "display datediff(td(15mar2000), td(14mar2024), \"y\") \" \" age(td(29feb2000), td(28feb2023))",
+          "lines": ["23 22"]
+        },
+        {
+          "command": "display %td lastdayofmonth(td(15feb2024)) \" \" %td nextweekday(td(15mar2024), \"fr\")",
+          "lines": ["29feb2024 22mar2024"]
+        },
+        {
+          "command": "display clockdiff(tt[2], tt[1], \"h\") \" \" clockdiff_frac(tt[2], tt[1], \"d\")",
+          "lines": ["2525 105.23958"]
+        }
+      ]
+    },
+    {
+      "id": "codebook-dates",
+      "source": "clear\nset obs 40\ngenerate int bday = 11000 + _n * 97 + mod(_n * 13, 7)\nformat bday %td\ngenerate int bday3 = 11000 + mod(_n, 3) * 400\nformat bday3 %td\ngenerate w = 1500 + _n * 3\nformat w %tw\ngenerate m = 600 + _n\nformat m %tm\ngenerate q = 200 + _n\nformat q %tq\ngenerate h = 60 + _n\nformat h %th\ngenerate y = 1950 + _n\nformat y %ty\ngenerate d2 = td(01jan2000) + _n\nformat d2 %tdCCYY-NN-DD\ngenerate neg = -100 - _n * 3\nformat neg %td\ngenerate double tc = clock(\"2020-01-01 08:30:00\", \"YMDhms\") + _n * 3700000\nformat tc %tc\ncodebook bday bday3 w m q h y d2 neg tc\nreplace bday = . in 1/3\ncodebook bday\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        {
+          "command": "generate int bday = 11000 + _n * 97 + mod(_n * 13, 7)",
+          "lines": []
+        },
+        { "command": "format bday %td", "lines": [] },
+        {
+          "command": "generate int bday3 = 11000 + mod(_n, 3) * 400",
+          "lines": []
+        },
+        { "command": "format bday3 %td", "lines": [] },
+        { "command": "generate w = 1500 + _n * 3", "lines": [] },
+        { "command": "format w %tw", "lines": [] },
+        { "command": "generate m = 600 + _n", "lines": [] },
+        { "command": "format m %tm", "lines": [] },
+        { "command": "generate q = 200 + _n", "lines": [] },
+        { "command": "format q %tq", "lines": [] },
+        { "command": "generate h = 60 + _n", "lines": [] },
+        { "command": "format h %th", "lines": [] },
+        { "command": "generate y = 1950 + _n", "lines": [] },
+        { "command": "format y %ty", "lines": [] },
+        { "command": "generate d2 = td(01jan2000) + _n", "lines": [] },
+        { "command": "format d2 %tdCCYY-NN-DD", "lines": [] },
+        { "command": "generate neg = -100 - _n * 3", "lines": [] },
+        { "command": "format neg %td", "lines": [] },
+        {
+          "command": "generate double tc = clock(\"2020-01-01 08:30:00\", \"YMDhms\") + _n * 3700000",
+          "lines": []
+        },
+        { "command": "format tc %tc", "lines": [] },
+        {
+          "command": "codebook bday bday3 w m q h y d2 neg tc",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "bday                                                                                                                                                                                         (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric daily date (int)",
+            "",
+            "                 Range: [11103,14882]                 Units: 1",
+            "       Or equivalently: [26may1990,29sep2000]         Units: days",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean: 12991.6 = 27jul1995(+ 15 hours)",
+            "             Std. dev.: 1133.84",
+            "           Percentiles:       10%        25%        50%        75%        90%",
+            "                            11439      12022      12989      13963      14546",
+            "                        27apr1991  30nov1992  25jul1995  25mar1998  29oct1999",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "bday3                                                                                                                                                                                        (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric daily date (int)",
+            "",
+            "                 Range: [11000,11800]                 Units: 100",
+            "       Or equivalently: [12feb1990,22apr1992]         Units: days",
+            "         Unique values: 3                         Missing .: 0/40",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                           13  11000  12feb1990",
+            "                           14  11400  19mar1991",
+            "                           13  11800  22apr1992",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "w                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric weekly date (float)",
+            "",
+            "                 Range: [1503,1620]                   Units: 1",
+            "       Or equivalently: [1988w48,1991w9]              Units: weeks",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean:  1561.5 = 1990w2(+ 3.5 days)",
+            "             Std. dev.: 35.0714",
+            "           Percentiles:    10%        25%        50%        75%        90%",
+            "                        1513.5     1531.5     1561.5     1591.5     1609.5",
+            "                        1989w6    1989w24     1990w2    1990w32    1990w50",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "m                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric monthly date (float)",
+            "",
+            "                 Range: [601,640]                     Units: 1",
+            "       Or equivalently: [2010m2,2013m5]               Units: months",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean:   620.5 = 2011m9(+ 15 days)",
+            "             Std. dev.: 11.6905",
+            "           Percentiles:    10%        25%        50%        75%        90%",
+            "                         604.5      610.5      620.5      630.5      636.5",
+            "                        2010m5    2010m11     2011m9     2012m7     2013m1",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "q                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric quarterly date (float)",
+            "",
+            "                 Range: [201,240]                     Units: 1",
+            "       Or equivalently: [2010q2,2020q1]               Units: quarters",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean:   220.5 = 2015q1(+ 1.5 months)",
+            "             Std. dev.: 11.6905",
+            "           Percentiles:    10%        25%        50%        75%        90%",
+            "                         204.5      210.5      220.5      230.5      236.5",
+            "                        2011q1     2012q3     2015q1     2017q3     2019q1",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "h                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric halfyearly date (float)",
+            "",
+            "                 Range: [61,100]                      Units: 1",
+            "       Or equivalently: [1990h2,2010h1]               Units: half years",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean:    80.5 = 2000h1(+ 3 months)",
+            "             Std. dev.: 11.6905",
+            "           Percentiles:    10%        25%        50%        75%        90%",
+            "                          64.5       70.5       80.5       90.5       96.5",
+            "                        1992h1     1995h1     2000h1     2005h1     2008h1",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "y                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric yearly date (float)",
+            "",
+            "                 Range: [1951,1990]                   Units: 1",
+            "       Or equivalently: [1951,1990]                   Units: years",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean:  1970.5 = 1970(+ 3 months)",
+            "             Std. dev.: 11.6905",
+            "           Percentiles:    10%        25%        50%        75%        90%",
+            "                        1954.5     1960.5     1970.5     1980.5     1986.5",
+            "                          1954       1960       1970       1980       1986",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "d2                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric daily date (float)",
+            "",
+            "                 Range: [14611,14650]                 Units: 1",
+            "       Or equivalently: [02jan2000,10feb2000]         Units: days",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean: 14630.5 = 21jan2000(+ 12 hours)",
+            "             Std. dev.: 11.6905",
+            "           Percentiles:       10%        25%        50%        75%        90%",
+            "                          14614.5    14620.5    14630.5    14640.5    14646.5",
+            "                        05jan2000  11jan2000  21jan2000  31jan2000  06feb2000",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "neg                                                                                                                                                                                          (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric daily date (float)",
+            "",
+            "                 Range: [-220,-103]                   Units: 1",
+            "       Or equivalently: [26may1959,20sep1959]         Units: days",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean:  -161.5 = 23jul1959(+ -12 hours)",
+            "             Std. dev.: 35.0714",
+            "           Percentiles:       10%        25%        50%        75%        90%",
+            "                           -209.5     -191.5     -161.5     -131.5     -113.5",
+            "                        05jun1959  23jun1959  23jul1959  22aug1959  09sep1959",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "tc                                                                                                                                                                                           (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (double)",
+            "",
+            "                 Range: [1.893e+12,1.894e+12]         Units: 100000",
+            "         Unique values: 40                        Missing .: 0/40",
+            "",
+            "                  Mean: 1.9e+12",
+            "             Std. dev.: 4.3e+07",
+            "",
+            "           Percentiles:     10%       25%       50%       75%       90%",
+            "                        1.9e+12   1.9e+12   1.9e+12   1.9e+12   1.9e+12"
+          ]
+        },
+        {
+          "command": "replace bday = . in 1/3",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        {
+          "command": "codebook bday",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "bday                                                                                                                                                                                         (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric daily date (int)",
+            "",
+            "                 Range: [11391,14882]                 Units: 1",
+            "       Or equivalently: [10mar1991,29sep2000]         Units: days",
+            "         Unique values: 37                        Missing .: 3/40",
+            "",
+            "                  Mean:  13137 = 19dec1995(+ 23 hours)",
+            "             Std. dev.: 1050.1",
+            "           Percentiles:       10%        25%        50%        75%        90%",
+            "                            11679      12262      13140      14011      14594",
+            "                        23dec1991  28jul1993  23dec1995  12may1998  16dec1999"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summarize-format",
+      "source": "clear\nset obs 40\ngenerate double money = 1000.5 * _n + mod(_n * 37, 11) * 13.7\ngenerate pct = _n / 7 + mod(_n, 3) / 11\ngenerate int bday = 11000 + _n * 97 + mod(_n * 13, 7)\ngenerate w = 1500 + _n * 3 + mod(_n, 4)\ngenerate double tc = clock(\"2020-01-01 08:30:00\", \"YMDhms\") + _n * 370000\ngenerate double a = money\ngenerate double b = money\ngenerate double c = money\ngenerate double e = money\nformat money %9.2fc\nformat pct %6.3f\nformat bday %td\nformat w %tw\nformat tc %tcHH:MM\nformat a %12.0gc\nformat b %9.2e\nformat c %-9.2f\nformat e %3.0f\nsummarize money pct bday w tc a b c e, format\nsummarize money pct bday w tc a b c e\nsummarize money, format detail\nsummarize bday, format detail\nsummarize e, format detail\nsummarize money [aweight = pct], format\nsummarize money [aweight = pct]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        {
+          "command": "generate double money = 1000.5 * _n + mod(_n * 37, 11) * 13.7",
+          "lines": []
+        },
+        { "command": "generate pct = _n / 7 + mod(_n, 3) / 11", "lines": [] },
+        {
+          "command": "generate int bday = 11000 + _n * 97 + mod(_n * 13, 7)",
+          "lines": []
+        },
+        { "command": "generate w = 1500 + _n * 3 + mod(_n, 4)", "lines": [] },
+        {
+          "command": "generate double tc = clock(\"2020-01-01 08:30:00\", \"YMDhms\") + _n * 370000",
+          "lines": []
+        },
+        { "command": "generate double a = money", "lines": [] },
+        { "command": "generate double b = money", "lines": [] },
+        { "command": "generate double c = money", "lines": [] },
+        { "command": "generate double e = money", "lines": [] },
+        { "command": "format money %9.2fc", "lines": [] },
+        { "command": "format pct %6.3f", "lines": [] },
+        { "command": "format bday %td", "lines": [] },
+        { "command": "format w %tw", "lines": [] },
+        { "command": "format tc %tcHH:MM", "lines": [] },
+        { "command": "format a %12.0gc", "lines": [] },
+        { "command": "format b %9.2e", "lines": [] },
+        { "command": "format c %-9.2f", "lines": [] },
+        { "command": "format e %3.0f", "lines": [] },
+        {
+          "command": "summarize money pct bday w tc a b c e, format",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "       money |         40   20,578.75   11,695.44   1,055.30  40,102.20",
+            "         pct |         40       3.019       1.669      0.234      5.805",
+            "        bday |         40   27jul1995    1133.838  26may1990  29sep2000",
+            "           w |         40      1990w4     35.0677    1988w49     1991w9",
+            "          tc |         40       10:36     4325467      08:36      12:36",
+            "-------------+---------------------------------------------------------",
+            "           a |         40    20,578.8    11,695.4    1,055.3   40,102.2",
+            "           b |         40    20578.75    11695.44     1055.3    40102.2",
+            "           c |         40    20578.75    11695.44    1055.30   40102.20",
+            "           e |         40       20579       11695       1055      40102"
+          ]
+        },
+        {
+          "command": "summarize money pct bday w tc a b c e",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "       money |         40    20578.75    11695.44     1055.3    40102.2",
+            "         pct |         40    3.019481    1.669122   .2337662   5.805195",
+            "        bday |         40    12991.63    1133.838      11103      14882",
+            "           w |         40        1563     35.0677       1504       1620",
+            "          tc |         40    1.89e+12     4325467   1.89e+12   1.89e+12",
+            "-------------+---------------------------------------------------------",
+            "           a |         40    20578.75    11695.44     1055.3    40102.2",
+            "           b |         40    20578.75    11695.44     1055.3    40102.2",
+            "           c |         40    20578.75    11695.44     1055.3    40102.2",
+            "           e |         40    20578.75    11695.44     1055.3    40102.2"
+          ]
+        },
+        {
+          "command": "summarize money, format detail",
+          "lines": [
+            "                            money",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%     1,055.30       1,055.30",
+            " 5%     2,562.90       2,110.60",
+            "10%     4,598.15       3,015.20       Obs                  40",
+            "25%    10,553.20       4,070.50       Sum of wgt.          40",
+            "",
+            "50%    20,578.75                      Mean          20,578.75",
+            "                        Largest       Std. dev.     11,695.44",
+            "75%    30,604.30      37,087.00",
+            "90%    36,559.35      38,142.30       Variance       1.37e+08",
+            "95%    38,594.60      39,046.90       Skewness           0.00",
+            "99%    40,102.20      40,102.20       Kurtosis           1.80"
+          ]
+        },
+        {
+          "command": "summarize bday, format detail",
+          "lines": [
+            "                            bday",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    26may1990      26may1990",
+            " 5%    17oct1990      30aug1990",
+            "10%    27apr1991      04dec1990       Obs                  40",
+            "25%    30nov1992      10mar1991       Sum of wgt.          40",
+            "",
+            "50%    25jul1995                      Mean          27jul1995",
+            "                        Largest       Std. dev.      1133.838",
+            "75%    25mar1998      16dec1999",
+            "90%    29oct1999      21mar2000       Variance        1285590",
+            "95%    08may2000      25jun2000       Skewness       .0006155",
+            "99%    29sep2000      29sep2000       Kurtosis       1.797826"
+          ]
+        },
+        {
+          "command": "summarize e, format detail",
+          "lines": [
+            "                              e",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%         1055           1055",
+            " 5%         2563           2111",
+            "10%         4598           3015       Obs                  40",
+            "25%        10553           4070       Sum of wgt.          40",
+            "",
+            "50%        20579                      Mean              20579",
+            "                        Largest       Std. dev.         11695",
+            "75%        30604          37087",
+            "90%        36559          38142       Variance      136783416",
+            "95%        38595          39047       Skewness              0",
+            "99%        40102          40102       Kurtosis              2"
+          ]
+        },
+        {
+          "command": "summarize money [aweight = pct], format",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "       money |      40  120.779221   26,876.06   9,803.60   1,055.30  40,102.20"
+          ]
+        },
+        {
+          "command": "summarize money [aweight = pct]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "       money |      40  120.779221    26876.06   9803.598     1055.3    40102.2"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

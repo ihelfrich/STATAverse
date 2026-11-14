@@ -1,7 +1,7 @@
 // Smaller commands: levelsof, ds, unab and ttest.
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
-import { applyFormat } from "./format.js";
+import { applyFormat, displayWidth } from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
 import { count, labelled, moments, percentile } from "./reports.js";
@@ -507,22 +507,23 @@ function ttesti(session, text, ctx) {
   );
 }
 
-// The largest power of ten that divides every value, as codebook's Units.
-function units(values, single) {
-  const whole = (v, unit) => {
-    const ratio = v / unit;
-    // A value smaller than the unit is not a multiple of it.
-    if (v !== 0 && Math.round(ratio) === 0) return false;
-    return (
-      Math.abs(ratio - Math.round(ratio)) <
-      (single ? 1e-5 : 1e-9) * Math.max(1, Math.abs(ratio))
-    );
-  };
-  for (let k = 15; k >= -10; k--) {
-    const unit = Number(`1e${k}`);
-    if (values.every((v) => whole(v, unit))) return unit;
+// codebook.ado's Units: the largest power of ten to which rounding leaves
+// every value unchanged at float precision, so that a datetime in
+// milliseconds has units of 100,000. A constant variable has units of 1.
+function units(values) {
+  const n = values.length,
+    mean = values.reduce((t, v) => t + v, 0) / n;
+  if (values.every((v) => v === mean)) return 1;
+  const round = (x, p) => Math.floor(x / p + 0.5) * p,
+    holds = (p) =>
+      values.every((v) => Math.fround(v) === Math.fround(round(v, p)));
+  let p = 1;
+  if (holds(1)) {
+    for (let k = 0; k < 400 && holds(p * 10); k++) p *= 10;
+    return p;
   }
-  return 1e-10;
+  for (let k = 0; k < 400 && !holds(p); k++) p /= 10;
+  return p;
 }
 // Six significant digits, turning to scientific notation from a million up,
 // which is how codebook prints means and percentiles.
@@ -555,6 +556,50 @@ function pieces(text, len) {
     rest = rest.replace(/^ +/, "");
   }
   return out;
+}
+
+// codebook.ado's DoDate: a variable whose format starts %d or %t followed
+// by d, w, m, q, h or y is described in that unit; %tc and %tC are not.
+const DATE_UNITS = {
+  d: ["daily", "days"],
+  w: ["weekly", "weeks"],
+  m: ["monthly", "months"],
+  q: ["quarterly", "quarters"],
+  h: ["halfyearly", "half years"],
+  y: ["yearly", "years"],
+};
+function dateUnit(format) {
+  const first = format?.[1],
+    unit = first === "d" ? "d" : first === "t" ? format[2] : null;
+  return unit && DATE_UNITS[unit] ? unit : null;
+}
+/**
+ * What DoDate adds to a mean that is not a whole period: the hours, days or
+ * months past the date shown, as "(+ 15 hours)". Its yearly case counts
+ * six months to the year, as codebook.ado does.
+ */
+function pastDate(mean, unit) {
+  let diff = mean - Math.trunc(mean),
+    note;
+  if (diff === 0) return "";
+  const tenths = (x) => Number(applyFormat(x, "%9.1f").trim());
+  if (unit === "d") {
+    diff = Math.floor(24 * diff + 0.5);
+    note = "hour";
+  } else if (unit === "w") {
+    diff = tenths(7 * diff);
+    note = "day";
+  } else if (unit === "m") {
+    diff = Math.floor((365.25 / 12) * diff + 0.5);
+    note = "day";
+  } else {
+    diff = tenths((unit === "q" ? 3 : 6) * diff);
+    note = "month";
+  }
+  const shown = Number.isInteger(diff)
+    ? String(diff)
+    : applyFormat(diff, "%9.1f").trim();
+  return `(+ ${shown} ${note}${shown === "1" ? "" : "s"})`;
 }
 
 function codebook(session, text, ctx) {
@@ -707,13 +752,22 @@ function codebook(session, text, ctx) {
       system = all.filter((x) => isMissing(x) && missingName(x) === ".").length,
       extended = all.filter((x) => isMissing(x) && missingName(x) !== "."),
       unique = [...new Set(present)].sort((a, b) => a - b),
-      map = data.valueLabels.get(v.valueLabel);
-    ctx.out(`${field("Type")}Numeric (${v.type})`);
+      map = data.valueLabels.get(v.valueLabel),
+      unit = dateUnit(v.format),
+      dateFormat = unit && `%t${unit}`,
+      asDate = (x) => applyFormat(x, dateFormat).trim();
+    ctx.out(
+      `${field("Type")}Numeric ${unit ? `${DATE_UNITS[unit][0]} date ` : ""}(${v.type})`,
+    );
     if (v.valueLabel) ctx.out(`${field("Label")}${v.valueLabel}`);
     ctx.out("");
     if (present.length)
       ctx.out(
-        `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present, v.type === "float"))}`,
+        `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present))}`,
+      );
+    if (unit)
+      ctx.out(
+        `${field("Or equivalently")}${`[${present.length ? asDate(unique[0]) : "."},${present.length ? asDate(unique.at(-1)) : "."}]`.padEnd(30)}Units: ${DATE_UNITS[unit][1]}`,
       );
     ctx.out(
       `${field("Unique values")}${count(unique.length).padEnd(26)}Missing .: ${count(system)}/${count(all.length)}`,
@@ -730,6 +784,17 @@ function codebook(session, text, ctx) {
           ...[...new Set(all.filter(isMissing))].sort((a, b) => a - b),
         ],
         show = (x) => (isMissing(x) ? missingName(x) : ten(x));
+      if (unit) {
+        // FullTab's date form: the value, then the date from column 39.
+        ctx.out(`${field("Tabulation")}Freq.  Value`);
+        for (const level of levels)
+          ctx.out(
+            `${count(all.filter((x) => x === level).length).padStart(29)}  ${show(level)}`.padEnd(
+              38,
+            ) + applyFormat(level, dateFormat),
+          );
+        continue;
+      }
       ctx.out(
         `${field("Tabulation")}Freq.  ${map ? " Numeric  Label" : "Value"}`,
       );
@@ -755,6 +820,28 @@ function codebook(session, text, ctx) {
       ),
       quantiles = [10, 25, 50, 75, 90],
       cell = (text, k) => text.padStart(k ? 10 : width);
+    if (unit && !map) {
+      // DoDate: the mean as a date, and a second row of percentiles.
+      const most = Math.max(mean.length, sd.length),
+        p10 = six(percentile(sorted, 10)),
+        p10date = asDate(percentile(sorted, 10)),
+        first = Math.max(p10.length, displayWidth(p10date)),
+        place = (text, k) => text.padStart(k ? 11 : first);
+      ctx.out(
+        `${field("Mean")}${mean.padStart(most)} = ${asDate(m.mean)}${pastDate(m.mean, unit)}`,
+      );
+      ctx.out(`${field("Std. dev.")}${sd.padStart(most)}`);
+      ctx.out(
+        `${field("Percentiles")}${quantiles.map((q, k) => place(q + "%", k)).join("")}`,
+      );
+      ctx.out(
+        `${" ".repeat(24)}${quantiles.map((q, k) => place(k ? applyFormat(percentile(sorted, q), "%8.0g") : p10, k)).join("")}`,
+      );
+      ctx.out(
+        `${" ".repeat(24)}${quantiles.map((q, k) => place(asDate(percentile(sorted, q)), k)).join("")}`,
+      );
+      continue;
+    }
     ctx.out(`${field("Mean")}${mean.padStart(width)}`);
     ctx.out(`${field("Std. dev.")}${sd.padStart(width)}`);
     ctx.out("");
