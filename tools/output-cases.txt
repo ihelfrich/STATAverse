@@ -7019,3 +7019,63 @@ line y z, lcolor(blue*1.5%40)
 generate double w = -y
 capture noisily graph pie w, over(g)
 display _rc
+=== graph-negative-nofill-weights-colours
+clear
+input byte g byte h double y byte w str2 s
+1 1 -2 2 "a"
+1 2 3 1 "a"
+2 1 -4 3 "b"
+2 2 5 1 "b"
+3 1 7 1 ""
+3 2 . 2 "c"
+. 1 5 1 "a"
+end
+label define gl 1 "One" 2 "Two" 3 "Three"
+label values g gl
+label variable y "Hours worked per week last year"
+graph bar y, over(g) over(h)
+graph bar y, over(g) asyvars blabel(bar)
+graph bar y, over(g) over(h) nofill
+graph bar y, over(g, sort(1)) over(h) nofill
+graph box y, over(g) over(h) nofill
+graph bar y, over(g) missing
+graph bar y, over(g) over(h) missing nofill
+graph box y, over(g) missing
+graph bar y, over(s) missing
+graph bar y [fw=w], over(g)
+graph hbar (sum) y [fw=w], over(g) over(h)
+graph box y [fweight=w], over(g)
+graph pie w [fw=w], over(g)
+graph pie w [aw=w], over(g) plabel(_all sum)
+graph pie w [pw=w], over(g h)
+graph pie [fw=w], over(g) missing
+graph pie w, over()
+graph pie w, over(g s)
+capture noisily graph pie, over()
+display _rc
+capture noisily graph pie w, over(g, sort(1))
+display _rc
+capture noisily graph pie w, over(g,)
+display _rc
+capture noisily graph pie w [iw=w], over(g)
+display _rc
+capture noisily graph bar y [iw=w], over(g)
+display _rc
+capture noisily graph bar y, over(g h) over(h)
+display _rc
+capture noisily graph bar y, over(s) over(s)
+display _rc
+capture noisily graph box y, over(g) over(h) over(g)
+display _rc
+graph matrix y w if y > 100
+graph matrix y w h, half
+scatter y w, mcolor(Red)
+scatter y w, mcolor(gs20)
+scatter y w, mcolor(red%) mfcolor(blue%30)
+scatter y w, mcolor(red%50.9)
+graph matrix y w, mcolor("1 2")
+line y w, lcolor(RED%50)
+histogram w, color(red%40)
+twoway lfitci y w, color(red%20)
+twoway bar y w, color(red) lcolor(blue)
+kdensity w, lcolor(red%50)

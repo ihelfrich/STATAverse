@@ -50361,6 +50361,150 @@
       ]
     },
     {
+      "id": "graph-negative-nofill-weights-colours",
+      "source": "clear\ninput byte g byte h double y byte w str2 s\n1 1 -2 2 \"a\"\n1 2 3 1 \"a\"\n2 1 -4 3 \"b\"\n2 2 5 1 \"b\"\n3 1 7 1 \"\"\n3 2 . 2 \"c\"\n. 1 5 1 \"a\"\nend\nlabel define gl 1 \"One\" 2 \"Two\" 3 \"Three\"\nlabel values g gl\nlabel variable y \"Hours worked per week last year\"\ngraph bar y, over(g) over(h)\ngraph bar y, over(g) asyvars blabel(bar)\ngraph bar y, over(g) over(h) nofill\ngraph bar y, over(g, sort(1)) over(h) nofill\ngraph box y, over(g) over(h) nofill\ngraph bar y, over(g) missing\ngraph bar y, over(g) over(h) missing nofill\ngraph box y, over(g) missing\ngraph bar y, over(s) missing\ngraph bar y [fw=w], over(g)\ngraph hbar (sum) y [fw=w], over(g) over(h)\ngraph box y [fweight=w], over(g)\ngraph pie w [fw=w], over(g)\ngraph pie w [aw=w], over(g) plabel(_all sum)\ngraph pie w [pw=w], over(g h)\ngraph pie [fw=w], over(g) missing\ngraph pie w, over()\ngraph pie w, over(g s)\ncapture noisily graph pie, over()\ndisplay _rc\ncapture noisily graph pie w, over(g, sort(1))\ndisplay _rc\ncapture noisily graph pie w, over(g,)\ndisplay _rc\ncapture noisily graph pie w [iw=w], over(g)\ndisplay _rc\ncapture noisily graph bar y [iw=w], over(g)\ndisplay _rc\ncapture noisily graph bar y, over(g h) over(h)\ndisplay _rc\ncapture noisily graph bar y, over(s) over(s)\ndisplay _rc\ncapture noisily graph box y, over(g) over(h) over(g)\ndisplay _rc\ngraph matrix y w if y > 100\ngraph matrix y w h, half\nscatter y w, mcolor(Red)\nscatter y w, mcolor(gs20)\nscatter y w, mcolor(red%) mfcolor(blue%30)\nscatter y w, mcolor(red%50.9)\ngraph matrix y w, mcolor(\"1 2\")\nline y w, lcolor(RED%50)\nhistogram w, color(red%40)\ntwoway lfitci y w, color(red%20)\ntwoway bar y w, color(red) lcolor(blue)\nkdensity w, lcolor(red%50)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte g byte h double y byte w str2 s",
+          "lines": [
+            "            g         h           y         w          s",
+            "  1. 1 1 -2 2 \"a\"",
+            "  2. 1 2 3 1 \"a\"",
+            "  3. 2 1 -4 3 \"b\"",
+            "  4. 2 2 5 1 \"b\"",
+            "  5. 3 1 7 1 \"\"",
+            "  6. 3 2 . 2 \"c\"",
+            "  7. . 1 5 1 \"a\"",
+            "  8. end"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"One\" 2 \"Two\" 3 \"Three\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "label variable y \"Hours worked per week last year\"",
+          "lines": []
+        },
+        { "command": "graph bar y, over(g) over(h)", "lines": [] },
+        { "command": "graph bar y, over(g) asyvars blabel(bar)", "lines": [] },
+        { "command": "graph bar y, over(g) over(h) nofill", "lines": [] },
+        {
+          "command": "graph bar y, over(g, sort(1)) over(h) nofill",
+          "lines": []
+        },
+        { "command": "graph box y, over(g) over(h) nofill", "lines": [] },
+        { "command": "graph bar y, over(g) missing", "lines": [] },
+        {
+          "command": "graph bar y, over(g) over(h) missing nofill",
+          "lines": []
+        },
+        { "command": "graph box y, over(g) missing", "lines": [] },
+        { "command": "graph bar y, over(s) missing", "lines": [] },
+        { "command": "graph bar y [fw=w], over(g)", "lines": [] },
+        {
+          "command": "graph hbar (sum) y [fw=w], over(g) over(h)",
+          "lines": []
+        },
+        { "command": "graph box y [fweight=w], over(g)", "lines": [] },
+        { "command": "graph pie w [fw=w], over(g)", "lines": [] },
+        {
+          "command": "graph pie w [aw=w], over(g) plabel(_all sum)",
+          "lines": []
+        },
+        { "command": "graph pie w [pw=w], over(g h)", "lines": [] },
+        { "command": "graph pie [fw=w], over(g) missing", "lines": [] },
+        { "command": "graph pie w, over()", "lines": [] },
+        { "command": "graph pie w, over(g s)", "lines": [] },
+        {
+          "command": "capture noisily graph pie, over()",
+          "lines": ["sum of pie wedges is not positive"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily graph pie w, over(g, sort(1))",
+          "lines": ["over() does not contain a valid varlist"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie w, over(g,)",
+          "lines": ["over() does not contain a valid varlist"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie w [iw=w], over(g)",
+          "lines": ["iweights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily graph bar y [iw=w], over(g)",
+          "lines": ["iweights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily graph bar y, over(g h) over(h)",
+          "lines": ["too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily graph bar y, over(s) over(s)",
+          "lines": ["using data not sorted"]
+        },
+        { "command": "display _rc", "lines": ["5"] },
+        {
+          "command": "capture noisily graph box y, over(g) over(h) over(g)",
+          "lines": ["using data not sorted"]
+        },
+        { "command": "display _rc", "lines": ["5"] },
+        { "command": "graph matrix y w if y > 100", "lines": [] },
+        { "command": "graph matrix y w h, half", "lines": [] },
+        {
+          "command": "scatter y w, mcolor(Red)",
+          "lines": [
+            "(note:  named style Red not found in class color, default attributes used)",
+            "(note:  named style Red not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "scatter y w, mcolor(gs20)",
+          "lines": [
+            "(note:  named style gs20 not found in class color, default attributes used)",
+            "(note:  named style gs20 not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "scatter y w, mcolor(red%) mfcolor(blue%30)",
+          "lines": []
+        },
+        { "command": "scatter y w, mcolor(red%50.9)", "lines": [] },
+        {
+          "command": "graph matrix y w, mcolor(\"1 2\")",
+          "lines": [
+            "(note:  named style 1 2 not found in class color, default attributes used)",
+            "(note:  named style 1 2 not found in class color, default attributes used)",
+            "(note:  named style 1 2 not found in class color, default attributes used)",
+            "(note:  named style 1 2 not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "line y w, lcolor(RED%50)",
+          "lines": [
+            "(note:  named style RED not found in class color, default attributes used)",
+            "(note:  named style RED not found in class color, default attributes used)"
+          ]
+        },
+        {
+          "command": "histogram w, color(red%40)",
+          "lines": ["(bin=2, start=1, width=1)"]
+        },
+        { "command": "twoway lfitci y w, color(red%20)", "lines": [] },
+        { "command": "twoway bar y w, color(red) lcolor(blue)", "lines": [] },
+        { "command": "kdensity w, lcolor(red%50)", "lines": ["(n() set to 7)"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

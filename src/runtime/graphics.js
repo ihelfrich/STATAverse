@@ -12,6 +12,7 @@ import { isMissing, isStringType } from "./values.js";
 import {
   LOOKS,
   PLOT_LOOKS,
+  barColours,
   colourOf,
   paint,
   fixedLabels,
@@ -749,19 +750,31 @@ export function draw({
     // which then replaces the drawing's own.
     const color = layer.color?.rgb ?? COLORS[k % COLORS.length],
       opacity = (own) => layer.color?.opacity ?? own,
+      // The outline of bars and areas that color() or lcolor() gave.
+      edge = layer.edge
+        ? paint(layer.edge, color, "stroke")
+        : layer.bars
+          ? ' stroke="#ffffff"'
+          : ` stroke="${color}"${
+              layer.color?.opacity === undefined
+                ? ""
+                : ` stroke-opacity="${layer.color.opacity}"`
+            }`,
       strokeOpacity =
         layer.color?.opacity === undefined
           ? ""
           : ` stroke-opacity="${layer.color.opacity}"`;
     if (layer.bars)
       for (const bar of layer.bars) {
+        // A bar rises from 0, or below 0 hangs down from it.
         parts.push(
-          `<rect x="${n(px(bar.x0))}" y="${n(py(bar.height))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(py(0) - py(bar.height))}" fill="${color}" fill-opacity="${opacity(0.75)}" stroke="#ffffff"/>`,
+          `<rect x="${n(px(bar.x0))}" y="${n(Math.min(py(bar.height), py(0)))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(Math.abs(py(0) - py(bar.height)))}" fill="${color}" fill-opacity="${opacity(0.75)}"${edge}/>`,
         );
-        // blabel(bar): the bar's height written above it.
+        // blabel(bar): the bar's height written past its end, above a bar
+        // that rises and below one that hangs down.
         if (layer.barLabels)
           parts.push(
-            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) - 4)}" text-anchor="middle" font-size="10">${escape(barLabel(bar.height))}</text>`,
+            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) + (bar.height < 0 ? 12 : -4))}" text-anchor="middle" font-size="10">${escape(barLabel(bar.height))}</text>`,
           );
       }
     else if (layer.boxes)
@@ -796,7 +809,7 @@ export function draw({
     else if (layer.kind === "area") {
       if (layer.points.length)
         parts.push(
-          `<polygon fill="${color}" fill-opacity="${opacity(0.5)}" stroke="${color}"${strokeOpacity} points="${[
+          `<polygon fill="${color}" fill-opacity="${opacity(0.5)}"${edge} points="${[
             `${n(px(layer.points[0][0]))},${n(py(0))}`,
             ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
             `${n(px(layer.points.at(-1)[0]))},${n(py(0))}`,
@@ -819,12 +832,16 @@ export function draw({
       if (layer.kind === "connected")
         for (const p of layer.points)
           parts.push(
-            `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5" fill="${color}"${opacity(undefined) === undefined ? "" : ` fill-opacity="${opacity()}"`}/>`,
+            layer.fill
+              ? `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5"${paint(layer.fill, color, "fill", 1)} stroke="${color}"${strokeOpacity}/>`
+              : `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5" fill="${color}"${opacity(undefined) === undefined ? "" : ` fill-opacity="${opacity()}"`}/>`,
           );
     } else
       layer.points.forEach((p, i) => {
         parts.push(
-          `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}" fill="${color}" fill-opacity="${opacity(0.85)}"/>`,
+          layer.fill
+            ? `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}"${paint(layer.fill, color, "fill", 1)} stroke="${color}"${strokeOpacity}/>`
+            : `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}" fill="${color}" fill-opacity="${opacity(0.85)}"/>`,
         );
         // mlabel(): the label to the right of its marker, as Stata puts it.
         if (layer.labels?.[i])
@@ -1030,7 +1047,9 @@ function functionPlot(session, text) {
   return [
     {
       kind: "line",
-      color: colourOf(options.lcolor, "lcolor", 2),
+      color:
+        colourOf(options.lcolor, "lcolor", 2) ??
+        colourOf(options.color, "color", 2),
       stroke: widthOf(options.lwidth),
       dashes: patternOf(options.lpattern),
       points,
@@ -1162,15 +1181,51 @@ export function histogramBars(values, options, text, note, float = true) {
   return { bars, bins, width, start, yTitle, curveScale, n };
 }
 
+/**
+ * The colours of a twoway plot's layers: color() for the whole plot, its
+ * bars and areas filled at Stata's intensity with the colour as their
+ * outline; mcolor() for markers and mfcolor() for their fill; lcolor()
+ * for lines and the outlines of bars and areas. A confidence band takes
+ * only color(). markers and linesColour are mcolor() and lcolor() read.
+ */
+function paintPlot(layers, options, { markers, linesColour } = {}) {
+  const general = colourOf(options.color, "color", 2),
+    fills = colourOf(options.mfcolor, "mfcolor", 2);
+  markers ??= colourOf(options.mcolor, "mcolor", 2);
+  linesColour ??= colourOf(options.lcolor, "lcolor", 2);
+  for (const layer of layers) {
+    if (layer.bars || layer.kind === "area") {
+      Object.assign(
+        layer,
+        barColours(general, layer.bars && layer.histogram ? 0.9 : 0.8),
+      );
+      if (linesColour) layer.edge = linesColour;
+    } else if (layer.kind === "band") {
+      if (general?.rgb)
+        layer.color = { ...general, opacity: general.opacity ?? 1 };
+    } else if (layer.kind === "scatter" || layer.kind === "connected") {
+      if (markers ?? general) layer.color = markers ?? general;
+      if (fills) layer.fill = fills;
+    } else if (linesColour ?? general) layer.color = linesColour ?? general;
+  }
+  return layers;
+}
+
 const DENSITY = { name: "Density", label: "Density" };
 // A plot of one variable: twoway histogram and twoway kdensity.
 function univariatePlot(session, kind, text) {
   const parsed = parseGraph(
-      session,
-      `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
-      text,
-    ),
-    variable = numeric(session, parsed.varlist[0]),
+    session,
+    `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
+    text,
+  );
+  return paintPlot(
+    univariateLayers(session, kind, text, parsed),
+    parsed.options,
+  );
+}
+function univariateLayers(session, kind, text, parsed) {
+  const variable = numeric(session, parsed.varlist[0]),
     values = session
       .rows(parsed, null)
       .map((i) => variable.data[i])
@@ -1229,6 +1284,7 @@ function univariatePlot(session, kind, text) {
     return [
       {
         bars: made.bars,
+        histogram: true,
         points: [],
         label: made.yTitle,
         y: { name: made.yTitle, label: made.yTitle },
@@ -1450,17 +1506,17 @@ function plot(session, kind, text, note = () => {}) {
       yFormat: y.format,
     });
   }
-  // mcolor() and msize() are for markers, lcolor() for lines.
+  // mcolor(), mfcolor() and msize() are for markers, lcolor() for lines
+  // and outlines, and color() for all of a plot, as Stata draws them.
   const markers = colourOf(parsed.options.mcolor, "mcolor", 2),
     linesColour = colourOf(parsed.options.lcolor, "lcolor", 2),
     radius = sizeOf(parsed.options.msize),
     stroke = widthOf(parsed.options.lwidth),
     dashes = patternOf(parsed.options.lpattern);
+  paintPlot(layers, parsed.options, { markers, linesColour });
   for (const layer of layers) {
     const marked = layer.kind === "scatter" || layer.kind === "connected";
-    if (marked && markers) layer.color = markers;
     if (marked && radius) layer.radius = radius;
-    if (!marked && linesColour) layer.color = linesColour;
     if (stroke !== undefined && layer.kind !== "scatter") layer.stroke = stroke;
     if (dashes && layer.kind !== "scatter") layer.dashes = dashes;
   }
@@ -1826,7 +1882,7 @@ function twoway(session, text, ctx, single) {
 function histogram(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varname [if] [in] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
+      `varname [if] [in] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity COLor(string) ${LOOKS} | ADDLabels]`,
       text,
     ),
     options = parsed.options,
@@ -1854,6 +1910,9 @@ function histogram(session, text, ctx) {
     layers = [
       {
         bars,
+        // color() fills the bars at nine tenths of the colour, outlined
+        // in it.
+        ...barColours(colourOf(options.color, "color", 2), 0.9),
         points: [],
         label: yTitle,
         tickSpan: histogramSpan(bars, true),
@@ -2021,6 +2080,7 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
       return [
         {
           bars,
+          ...barColours(colourOf(options.color, "color", 2), 0.9),
           points: [],
           label: yTitle,
           // The panels' axis is labelled over the bars' edges, which

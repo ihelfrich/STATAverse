@@ -15,7 +15,7 @@ export const LOOKS =
   "TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) XTItle(string asis) YTItle(string asis) LEGend(string) XLAbel(string asis) YLAbel(string asis) XLIne(string asis) YLIne(string asis) NAME(string) NODRAW BY(string)";
 /** Options of one plot in a twoway graph that are drawn. */
 export const PLOT_LOOKS =
-  "MColor(string) LColor(string) MSize(string) LWidth(string) LPattern(string) MLABel(varname)";
+  "MColor(string) LColor(string) COLor(string) MFColor(string) MSize(string) LWidth(string) LPattern(string) MLABel(varname)";
 
 // Options Stata has that change only how a graph looks, and which this page
 // does not draw. Each is refused with this hint rather than ignored.
@@ -380,45 +380,59 @@ const NUMBER = String.raw`(?:\d+\.?\d*|\.\d+)`;
  *
  *   red, "255 0 0"     a named colour or red, green and blue from 0 to 255;
  *   red*0.5            its intensity: below 1 mixed toward white, each part
- *                      255 − (255 − c) × 0.5, and above 1 darkened, c / #,
- *                      rounded as Stata rounds them (red*0.5 is #ff8080,
- *                      red*1.5 #aa0000);
- *   red%30             its opacity, as a percentage (%30 alone is the
- *                      graph's own colour at 30 percent);
- *   red*0.5%30         both, intensity first; "255 0 0%50" in the quotes.
+ *                      c × 0.5 + 255 × (1 − 0.5), and above 1 darkened,
+ *                      c / #, rounded as Stata rounds them (red*0.5 is
+ *                      #ff8080, red*0.9 #ff1919, red*1.5 #aa0000);
+ *   red%30             its opacity, as a whole percentage (red%50.9 is 50
+ *                      percent, and red% opaque); %30 alone is the graph's
+ *                      own colour at 30 percent;
+ *   red*0.5%30         both, intensity first; "255 0 0 % 50" in the quotes.
  *
- * An opacity above 100 or a negative intensity leaves the colour Stata's
- * default, as Stata does, without a note. A name Stata does not know gets
- * Stata's note and the default colour (undefined), as in Stata; the note is
- * printed times times, as often as Stata prints it for that option. Comes
- * back undefined when nothing was given.
+ * An opacity above 100, a negative intensity, or a second * or % leaves the
+ * colour Stata's default, as Stata does, without a note. Names are read as
+ * Stata reads them, in lower case only: a name Stata does not know, as Red,
+ * gs20 or "1 2", gets Stata's note and is drawn black, Stata's default
+ * attributes; the note is printed times times, as often as Stata prints it
+ * for that option. Comes back undefined when nothing was given.
  */
 export function colourOf(text, option, times = 1) {
-  let t = (text ?? "").trim().toLowerCase();
+  let t = (text ?? "").trim();
   if (!t) return undefined;
   const quoted = /^"([^"]*)"$/.exec(t);
   if (quoted) t = quoted[1].trim();
-  const m = new RegExp(
-    String.raw`^(.*?)(?:\*(-?${NUMBER}))?(?:%(-?${NUMBER}))?$`,
-  ).exec(t);
-  const [, base, intensityText, opacityText] = m,
-    intensity = intensityText === undefined ? undefined : Number(intensityText),
-    opacity = opacityText === undefined ? undefined : Number(opacityText);
+  const at = t.search(/[*%]/),
+    base = (at < 0 ? t : t.slice(0, at)).trim(),
+    modifiers = new RegExp(
+      String.raw`^(?:\*\s*(-?${NUMBER}))?\s*(?:%\s*(-?${NUMBER})?)?$`,
+    ).exec(at < 0 ? "" : t.slice(at));
+  // A colour, the default when there is none, or Stata's note and black for
+  // a name it does not know.
   let rgb;
-  const rgbParts = /^(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})$/.exec(base.trim());
+  const rgbParts = /^(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})$/.exec(base);
   if (rgbParts) rgb = rgbParts.slice(1).map((v) => Math.min(255, Number(v)));
   else if (COLOURS[base]) rgb = hexParts(COLOURS[base]);
-  else if (base === "" && opacity !== undefined && intensity === undefined)
+  else if (base === "" && modifiers?.[2] !== undefined && !modifiers[1])
     rgb = undefined;
-  // none draws nothing, which this page does not do.
-  else if (base !== "none" && /^[a-z_][a-z0-9_]*$/.test(base)) {
-    unknownStyle(base, "color", times);
-    return undefined;
-  } else
+  // none draws nothing, and C M Y K and hsv colours are not read here.
+  else if (
+    base === "none" ||
+    base === "" ||
+    /^(hsv|cmyk)\b/i.test(base) ||
+    (/^[\d.\s]+$/.test(base) && base.split(/\s+/).length === 4)
+  )
     throw new StataError(
-      `${option}(${text}): colour ${t} is not known here; colours here are named, as red, or given as "R G B", with *# for intensity and %# for opacity, as red*0.5%30`,
+      `${option}(${text}): colour ${t} is not drawn here; colours here are named, as red, or given as "R G B", with *# for intensity and %# for opacity, as red*0.5%30`,
       198,
     );
+  else {
+    unknownStyle(base, "color", times);
+    rgb = [0, 0, 0];
+  }
+  if (!modifiers) return undefined;
+  const intensity =
+      modifiers[1] === undefined ? undefined : Number(modifiers[1]),
+    opacity =
+      modifiers[2] === undefined ? undefined : Math.floor(Number(modifiers[2]));
   if (
     (intensity !== undefined && intensity < 0) ||
     opacity > 100 ||
@@ -427,20 +441,41 @@ export function colourOf(text, option, times = 1) {
     return undefined;
   if (rgb && intensity !== undefined)
     rgb = rgb.map((c) =>
-      Math.round(intensity <= 1 ? 255 - (255 - c) * intensity : c / intensity),
+      Math.round(
+        intensity <= 1 ? c * intensity + 255 * (1 - intensity) : c / intensity,
+      ),
     );
   return {
     rgb: rgb
       ? `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`
       : undefined,
     opacity:
-      opacity === undefined || opacity === 100
-        ? undefined
-        : Number((opacity / 100).toFixed(4)),
+      opacity === undefined || opacity === 100 ? undefined : opacity / 100,
   };
 }
 const hexParts = (hex) =>
   [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
+/**
+ * The colours Stata gives bars and areas for color(): the fill at an
+ * intensity of the colour (0.8 for twoway bar and area, 0.9 for a
+ * histogram) and the outline in the colour itself, both opaque unless an
+ * opacity was given. The fill and edge of a layer, or nothing when the
+ * colour is the graph's own.
+ */
+export function barColours(colour, intensity) {
+  if (!colour?.rgb) return {};
+  const opacity = colour.opacity ?? 1,
+    fill = hexParts(colour.rgb).map((c) =>
+      Math.round(c * intensity + 255 * (1 - intensity)),
+    );
+  return {
+    color: {
+      rgb: `#${fill.map((v) => v.toString(16).padStart(2, "0")).join("")}`,
+      opacity,
+    },
+    edge: { rgb: colour.rgb, opacity },
+  };
+}
 /**
  * The SVG attributes that paint with a colour that colourOf read: fill (or
  * stroke) in its colour, or in fallback when it gives none, and its opacity,

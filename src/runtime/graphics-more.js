@@ -34,7 +34,7 @@ import {
   ticks,
   titleOf,
 } from "./graphics.js";
-import { labelled, moments, percentile } from "./reports.js";
+import { labelled, moments, percentile, weightedRows } from "./reports.js";
 import {
   boxStatistics,
   defaultBandwidth,
@@ -79,7 +79,7 @@ function store(session, name, values, label) {
 function kdensity(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varname [if] [in] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal ${LOOKS}]`,
+      `varname [if] [in] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal LColor(string) COLor(string) ${LOOKS}]`,
       text,
     ),
     options = parsed.options,
@@ -143,6 +143,10 @@ function kdensity(session, text, ctx) {
         kind: "line",
         points,
         label: "Kernel density estimate",
+        // lcolor() or color() colours the density's line.
+        color:
+          colourOf(options.lcolor, "lcolor", 2) ??
+          colourOf(options.color, "color", 2),
         xFormat: "%10.0g",
         yFormat: "%10.0g",
       },
@@ -472,22 +476,62 @@ function overSort(session, text) {
 const present = (value) =>
   typeof value === "string" ? value !== "" : !isMissing(value);
 /**
- * Splits a graph bar or box command into its yvars, its if/in, its options
- * and its over() groups. The sample is the rows with every over()
- * variable present; each group has its levels in order and their labels.
+ * The order of the levels of an over() group: ascending, with the missing
+ * ones last, as Stata draws them under missing.
  */
-function graphParts(session, text, declaration) {
+const levelOrder = (a, b) =>
+  present(a) !== present(b)
+    ? present(a)
+      ? -1
+      : 1
+    : a < b
+      ? -1
+      : a > b
+        ? 1
+        : 0;
+/**
+ * The text before the if, in and options of a graph command, split into
+ * its variables and its weight, as "y [fw=w]".
+ */
+function weightOf(head) {
+  const m = /(^|\s)(\[[^[\]]*\])\s*$/.exec(head);
+  return m
+    ? { head: head.slice(0, m.index + m[1].length), weight: m[2] }
+    : { head, weight: "" };
+}
+/**
+ * The rows of a graph command with a weight: fweights repeat each row as
+ * often as its weight says, which draws what Stata draws for every
+ * statistic. what names the command for the refusal of the other weights,
+ * whose statistics this page does not compute.
+ */
+function frequencyRows(session, parsed, rows, what) {
+  if (parsed.weight && parsed.weight.type !== "fweight")
+    throw new StataError(
+      `${what} with [${parsed.weight.type}] is not drawn on this page; frequency weights [fweight] are`,
+      198,
+    );
+  return weightedRows(session, parsed, rows).rows;
+}
+/**
+ * Splits a graph bar or box command into its yvars, its if/in, its weight,
+ * its options and its over() groups. The sample is the rows with every
+ * over() variable present, or with missing all of them; each group has
+ * its levels in order and their labels, a missing one labelled ".".
+ */
+function graphParts(session, text, declaration, what) {
   // The if or in may open the text, as in graph bar if x > 0, over(g), and
   // an if may run straight into its parenthesis, as in if(x > 0).
   const m =
       /^([\s\S]*?)((?:^|\s+)(?:if(?=[\s(])|in\s)[\s\S]*?)?(,[\s\S]*)?$/.exec(
         text,
       ),
+    { head, weight } = weightOf(m[1]),
     split = overTexts(m[3] ?? ""),
     parsed = parseGraph(
       session,
-      `[if] [in] [, OVer(string) ASYVARS NOFILL ${declaration} ${LOOKS}]`,
-      `${m[2] ?? ""}${split.rest}`,
+      `[if] [in] [aweight fweight pweight] [, OVer(string) ASYVARS NOFILL MISSing ${declaration} ${LOOKS}]`,
+      `${weight} ${m[2] ?? ""}${split.rest}`,
       // Bars and boxes stand on a categorical axis, not an x axis, so
       // Stata refuses xtitle() here and draws no title under the groups.
       { xAxis: false },
@@ -498,21 +542,36 @@ function graphParts(session, text, declaration) {
   for (const over of split.overs) {
     const [name, suboptions] = splitAtComma(over);
     if (!name.trim()) continue;
-    const variable = session.data.get(session.varlist(name.trim())[0]);
+    const names = session.varlist(name.trim());
+    if (names.length > 1)
+      throw new StataError("too many variables specified", 103);
+    const variable = session.data.get(names[0]);
     overs.push({ variable, sort: overSort(session, suboptions) });
   }
-  const rows = session
-    .rows(parsed, null)
-    .filter((i) => overs.every(({ variable }) => present(variable.data[i])));
+  // The same variable in two over() makes Stata's merge of the groups fail.
+  if (new Set(overs.map((over) => over.variable)).size < overs.length)
+    throw new StataError("using data not sorted", 5);
+  const missing = !!parsed.options.missing,
+    rows = frequencyRows(
+      session,
+      parsed,
+      session
+        .rows(parsed, null)
+        .filter(
+          (i) =>
+            missing || overs.every(({ variable }) => present(variable.data[i])),
+        ),
+      what,
+    );
   for (const over of overs) {
     over.levels = [...new Set(rows.map((i) => over.variable.data[i]))].sort(
-      (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+      levelOrder,
     );
     over.labels = over.levels.map((level) =>
-      labelled(session, over.variable, level),
+      level === "" ? "." : labelled(session, over.variable, level),
     );
   }
-  return { head: m[1].trim(), parsed, overs, rows };
+  return { head: head.trim(), parsed, overs, rows };
 }
 /**
  * The roles of the over() groups of a bar or box chart. With three, or
@@ -563,7 +622,45 @@ function chartGroups(parts, { many }) {
       cells: options.nofill ? cells.filter((cell) => cell.rows.length) : cells,
     };
   });
-  return { coloured, inner, outer, groups };
+  return { coloured, inner, outer, groups, nofill: !!options.nofill };
+}
+/**
+ * The chart without the cells whose every bar or box is missing, under
+ * nofill: Stata leaves out a pair of groups whose observations all have
+ * the variable missing, as it leaves out a pair with no observations,
+ * though a pair whose count or sum is 0 keeps its place. values holds,
+ * for each colour, one statistic per cell (numbered across the groups),
+ * null where it is missing. The chart itself when nothing is dropped.
+ */
+function withoutEmpty(chart, values) {
+  if (!chart.nofill) return chart;
+  let number = 0,
+    dropped = false;
+  const groups = chart.groups.map((group) => {
+    const cells = group.cells.filter(() => {
+      const k = number++,
+        kept = values.some((row) => row[k] !== null);
+      if (!kept) dropped = true;
+      return kept;
+    });
+    return { ...group, cells };
+  });
+  if (!dropped) return chart;
+  // An outer group left with no cells goes too.
+  return {
+    ...chart,
+    groups: chart.outer ? groups.filter((group) => group.cells.length) : groups,
+  };
+}
+/**
+ * Under nofill with an over() drawn as colours, which colours each cell
+ * has a bar or box of: Stata leaves out a colour whose statistic is
+ * missing and packs the rest. Otherwise undefined, every colour keeping its
+ * slot.
+ */
+function packed(chart, values) {
+  if (!chart.nofill || !chart.coloured) return undefined;
+  return (s, number) => values[s][number] !== null;
 }
 /**
  * The rows of each bar of a chart: for each colour (the yvars, or the
@@ -623,27 +720,33 @@ const CATEGORY_EDGE = 0.035 * 460,
  * side by side, seriesGap apart (none between bars, a third of a box
  * between boxes); categories innerGap apart (two thirds of a bar, one
  * box); and the groups of an outer over() two widths apart. span is the
- * axis's length in pixels, which sets the margins at its ends. Comes back
- * with each cell's slots and middle, each group's middle, and the range
- * of the axis.
+ * axis's length in pixels, which sets the margins at its ends. drawn, when
+ * given, says which colours a cell has a bar of; the others take no room,
+ * as under nofill with a group drawn as colours Stata packs a category's
+ * bars. Comes back with each cell's slots (by colour) and middle, each
+ * group's middle, and the range of the axis.
  */
-function categoryLayout(order, colours, { seriesGap, innerGap }, span) {
+function categoryLayout(order, colours, { seriesGap, innerGap }, span, drawn) {
   let at = 0;
   const cells = [],
-    groups = [],
-    width = colours + (colours - 1) * seriesGap;
+    groups = [];
   order.forEach((group, g) => {
     if (g) at += 2;
     const start = at;
     group.cells.forEach((number, k) => {
       if (k) at += innerGap;
+      const shown = Array.from({ length: colours }, (_, s) => s).filter(
+          (s) => !drawn || drawn(s, number),
+        ),
+        width = shown.length + (shown.length - 1) * seriesGap,
+        slots = [];
+      shown.forEach((s, place) => {
+        slots[s] = at + place * (1 + seriesGap);
+      });
       cells.push({
         number,
         label: group.group.cells[group.numbers.indexOf(number)].label,
-        slots: Array.from(
-          { length: colours },
-          (_, s) => at + s * (1 + seriesGap),
-        ),
+        slots,
         middle: at + width / 2,
       });
       at += width;
@@ -675,7 +778,12 @@ function categoryLabels(chart, layout) {
 
 function graphBar(horizontal) {
   return (session, text, ctx) => {
-    const parts = graphParts(session, text, "BLABel(string)"),
+    const parts = graphParts(
+        session,
+        text,
+        "BLABel(string)",
+        horizontal ? "graph hbar" : "graph bar",
+      ),
       { series, frequency } = statisticList(session, parts.head),
       options = parts.parsed.options;
     // With no yvars, graph bar, over(g) shows the percentage of observations
@@ -734,10 +842,10 @@ function graphBar(horizontal) {
           198,
         );
     }
-    const chart = chartGroups(parts, { many: series.length > 1 }),
-      // The bars' colours: the yvars, or the levels of the over() drawn as
-      // colours, of the one statistic.
-      colours = chart.coloured
+    let chart = chartGroups(parts, { many: series.length > 1 });
+    // The bars' colours: the yvars, or the levels of the over() drawn as
+    // colours, of the one statistic.
+    const colours = chart.coloured
         ? chart.coloured.levels
         : frequencies
           ? [null]
@@ -752,7 +860,6 @@ function graphBar(horizontal) {
         : frequencies
           ? [statName]
           : series.map(({ title, variable }) => `${title} of ${variable.name}`),
-      leaves = leafRows(chart, colours),
       // A bar with no rows at all, a pair of groups with no observations,
       // is missing, as collapse leaves it; one whose rows have no values
       // is as collapse makes it, 0 for count and sum.
@@ -760,8 +867,10 @@ function graphBar(horizontal) {
         barHeights(statistic, variable, cells).map((height, k) =>
           cells[k].length ? height : null,
         ),
-      heights = frequencies
-        ? leaves.map((cells) =>
+      measure = (chart) => {
+        const leaves = leafRows(chart, colours);
+        if (frequencies)
+          return leaves.map((cells) =>
             cells.map((rows) =>
               rows.length
                 ? counted
@@ -769,21 +878,20 @@ function graphBar(horizontal) {
                   : (100 * rows.length) / parts.rows.length
                 : null,
             ),
-          )
-        : chart.coloured
-          ? (() => {
-              const all = heightsOf(
-                  series[0],
-                  series[0].variable,
-                  leaves.flat(),
-                ),
-                count = leaves[0].length;
-              return leaves.map((_, s) =>
-                all.slice(s * count, (s + 1) * count),
-              );
-            })()
-          : series.map((s, k) => heightsOf(s, s.variable, leaves[k])),
-      cellRows = chart.groups.flatMap((group) =>
+          );
+        if (!chart.coloured)
+          return series.map((s, k) => heightsOf(s, s.variable, leaves[k]));
+        const all = heightsOf(series[0], series[0].variable, leaves.flat()),
+          count = leaves[0].length;
+        return leaves.map((_, s) => all.slice(s * count, (s + 1) * count));
+      };
+    let heights = measure(chart);
+    const filled = withoutEmpty(chart, heights);
+    if (filled !== chart) {
+      chart = filled;
+      heights = measure(chart);
+    }
+    const cellRows = chart.groups.flatMap((group) =>
         group.cells.map((cell) => cell.rows),
       ),
       // The key of a cell for sort(): its #th statistic, a missing one
@@ -811,6 +919,7 @@ function graphBar(horizontal) {
         colours.length,
         { seriesGap: 0, innerGap: 0.67 },
         horizontal ? HORIZONTAL_SPAN : VERTICAL_SPAN,
+        packed(chart, heights),
       ),
       // A missing statistic leaves its slot empty, with no bar and no bar
       // label, though its category keeps its place and label on the axis.
@@ -907,7 +1016,7 @@ function graphBar(horizontal) {
 }
 
 function graphBox(session, text, ctx) {
-  const parts = graphParts(session, text, "NOOUTsides");
+  const parts = graphParts(session, text, "NOOUTsides", "graph box");
   // Stata's box plot sorts on one observation of a sort(varname) variable
   // in each group, and which one depends on how Stata's sort breaks ties.
   for (const over of parts.overs)
@@ -924,21 +1033,29 @@ function graphBox(session, text, ctx) {
       .map((name) => numeric(session, name)),
     options = parts.parsed.options;
   if (!variables.length) throw new StataError("varlist required", 100);
-  const chart = chartGroups(parts, { many: variables.length > 1 }),
-    colours = chart.coloured ? chart.coloured.levels : variables,
+  let chart = chartGroups(parts, { many: variables.length > 1 });
+  const colours = chart.coloured ? chart.coloured.levels : variables,
     names = chart.coloured
       ? chart.coloured.labels
       : variables.map((variable) => titleOf(variable)),
-    leaves = leafRows(chart, colours),
-    statistics = colours.map((_, s) => {
-      const variable = chart.coloured ? variables[0] : variables[s];
-      return leaves[s].map((rows) => {
-        const v = rows
-          .map((i) => variable.data[i])
-          .filter((value) => !isMissing(value));
-        return v.length ? boxStatistics(v) : null;
+    measure = (chart) => {
+      const leaves = leafRows(chart, colours);
+      return colours.map((_, s) => {
+        const variable = chart.coloured ? variables[0] : variables[s];
+        return leaves[s].map((rows) => {
+          const v = rows
+            .map((i) => variable.data[i])
+            .filter((value) => !isMissing(value));
+          return v.length ? boxStatistics(v) : null;
+        });
       });
-    });
+    };
+  let statistics = measure(chart);
+  const filled = withoutEmpty(chart, statistics);
+  if (filled !== chart) {
+    chart = filled;
+    statistics = measure(chart);
+  }
   // over(g, sort(#)) orders the groups by the median of the #th variable,
   // a group with no values counting as 0.
   for (const over of parts.overs)
@@ -956,6 +1073,7 @@ function graphBox(session, text, ctx) {
       colours.length,
       { seriesGap: 1 / 3, innerGap: 1 },
       VERTICAL_SPAN,
+      packed(chart, statistics),
     ),
     described = [],
     layers = colours.map((_, s) => ({
@@ -1287,10 +1405,11 @@ function graphPie(session, text, ctx) {
         text,
       ),
     own = pieOptions(m[3] ?? ""),
+    { head: before, weight } = weightOf(m[1]),
     parsed = parseGraph(
       session,
-      `[if] [in] [, OVER(varname) MISSing CW NOCLOCKwise ANGle0(real 90) DEScending ${PIE_NOT_DRAWN} ${LOOKS}]`,
-      `${m[2] ?? ""}${own.rest}`,
+      `[if] [in] [aweight fweight pweight] [, OVER(string) MISSing CW NOCLOCKwise ANGle0(real 90) DEScending ${PIE_NOT_DRAWN} ${LOOKS}]`,
+      `${weight} ${m[2] ?? ""}${own.rest}`,
       { xAxis: false },
     ),
     options = parsed.options;
@@ -1304,17 +1423,26 @@ function graphPie(session, text, ctx) {
         `option ${name}${name === "allcategories" ? "" : "()"} is not drawn on this page; graph pie draws over(), sort, descending, noclockwise, angle0(), plabel(), legend() and the titles`,
         198,
       );
-  const head = m[1].trim();
+  const head = before.trim();
   if (/^\(/.test(head))
     throw new StataError(
       `variable ${/^\(\s*(\w*)/.exec(head)[1]} not found`,
       111,
     );
   const names = head ? session.varlist(head) : [],
-    variables = names.map((name) => numeric(session, name));
-  if (!variables.length && !options.over)
+    variables = names.map((name) => numeric(session, name)),
+    // over() takes a varlist, with no suboptions; an empty over() is as
+    // none, though without variables Stata then finds no wedges.
+    overText = options.over?.trim() ?? "";
+  if (overText.includes(","))
+    throw new StataError("over() does not contain a valid varlist", 198);
+  if (!variables.length && options.over === undefined)
     throw new StataError("graph specification required", 198);
-  if (variables.length > 1 && options.over)
+  if (!variables.length && !overText) {
+    ctx.out("sum of pie wedges is not positive");
+    return;
+  }
+  if (variables.length > 1 && overText)
     throw new StataError(
       "option over() invalid with more than one variable",
       198,
@@ -1339,10 +1467,13 @@ function graphPie(session, text, ctx) {
       "graph pie has no axes: xline(), yline(), xlabel(), ylabel() and ytitle() are not drawn",
       198,
     );
-  const over = options.over
-    ? session.data.get(session.varlist(options.over)[0])
-    : null;
-  if (over && options.missing && isStringType(over.type))
+  // Several over() variables make a wedge of each combination of their
+  // values, named by their values in order.
+  const overs = overText
+      ? session.varlist(overText).map((name) => session.data.get(name))
+      : [],
+    over = overs.length ? overs : null;
+  if (options.missing && overs.some((v) => isStringType(v.type)))
     throw new StataError(
       "graph pie, over(string variable) missing is not drawn on this page; leave out missing",
       198,
@@ -1350,35 +1481,64 @@ function graphPie(session, text, ctx) {
   let rows = session.rows(parsed, null);
   if (options.cw)
     rows = rows.filter((i) => variables.every((v) => !isMissing(v.data[i])));
+  // A wedge sums the variable times the weight: fweights repeat the rows,
+  // pweights are taken as they are, and aweights are scaled to sum to the
+  // number of rows that make the wedges.
+  const weighted = weightedRows(session, parsed, rows),
+    raw = weighted.weights,
+    weightOver = (used) => {
+      if (!raw) return () => 1;
+      const scale =
+        parsed.weight.type === "aweight"
+          ? used.length / used.reduce((t, i) => t + raw[i], 0)
+          : 1;
+      return (i) => raw[i] * scale;
+    };
+  rows = weighted.rows;
   // The slices: each level of over() with the sum of the variable over its
   // rows (or the number of rows), or each variable's sum.
   let slices;
   if (over) {
     const usable = rows.filter(
         (i) =>
-          (options.missing || present(over.data[i])) &&
+          (options.missing || overs.every((v) => present(v.data[i]))) &&
           (!variables.length || !isMissing(variables[0].data[i])),
       ),
-      levels = [...new Set(usable.map((i) => over.data[i]))].sort((a, b) =>
-        a < b ? -1 : a > b ? 1 : 0,
-      );
-    slices = levels.map((level) => {
-      const inside = usable.filter((i) => over.data[i] === level);
+      weightOf = weightOver(usable),
+      keyOf = (i) => JSON.stringify(overs.map((v) => v.data[i])),
+      firsts = new Map();
+    for (const i of usable) if (!firsts.has(keyOf(i))) firsts.set(keyOf(i), i);
+    const levels = [...firsts.values()].sort((a, b) => {
+      for (const v of overs) {
+        const c = levelOrder(v.data[a], v.data[b]);
+        if (c) return c;
+      }
+      return 0;
+    });
+    slices = levels.map((first) => {
+      const key = keyOf(first),
+        inside = usable.filter((i) => keyOf(i) === key);
       return {
-        label: labelled(session, over, level),
-        value: variables.length
-          ? inside.reduce((t, i) => t + variables[0].data[i], 0)
-          : inside.length,
+        label: overs.map((v) => labelled(session, v, v.data[first])).join(" "),
+        value: inside.reduce(
+          (t, i) =>
+            t + weightOf(i) * (variables.length ? variables[0].data[i] : 1),
+          0,
+        ),
       };
     });
-  } else
+  } else {
+    const weightOf = weightOver(rows);
     slices = variables.map((variable) => ({
       label: titleOf(variable),
       value: rows.reduce(
-        (t, i) => t + (isMissing(variable.data[i]) ? 0 : variable.data[i]),
+        (t, i) =>
+          t +
+          (isMissing(variable.data[i]) ? 0 : weightOf(i) * variable.data[i]),
         0,
       ),
     }));
+  }
   if (slices.some((slice) => slice.value < 0))
     throw new StataError("sum for a pie wedge is negative", 459);
   const total = slices.reduce((t, slice) => t + slice.value, 0);
@@ -1407,7 +1567,7 @@ function graphPie(session, text, ctx) {
       looks,
       styles: options.styles,
     }),
-    description: `Pie chart of ${variables.length === 1 ? `the sum of ${variables[0].name}` : variables.length ? "the sums of " + variables.map((v) => v.name).join(", ") : "the number of observations"}${over ? ` by ${over.name}` : ""}: ${drawn
+    description: `Pie chart of ${variables.length === 1 ? `the sum of ${variables[0].name}` : variables.length ? "the sums of " + variables.map((v) => v.name).join(", ") : "the number of observations"}${over ? ` by ${overs.map((v) => v.name).join(" and ")}` : ""}: ${drawn
       .map(
         (slice) =>
           `${slice.label} ${g(slice.value)} (${applyFormat((100 * slice.value) / total, "%6.4g").trim()}%)`,
@@ -1418,18 +1578,20 @@ function graphPie(session, text, ctx) {
 /**
  * The pie: slices in order from angle start (degrees counterclockwise from
  * three o'clock), clockwise unless clockwise is false, in Stata's order of
- * colours; plabel() texts centred two thirds of the way out along each
+ * colours, each between whole degrees as Stata draws them; plabel() texts centred two thirds of the way out along each
  * slice's middle; the legend in one column at the right, as Stata draws
  * it, and the pie centred in the room left.
  */
 function drawPie(slices, total, { clockwise, start, labels, looks, styles }) {
   const { width: W, height: H, colors } = CANVAS,
     legend = looks.legend,
-    numbers = legend.off
-      ? []
-      : (legend.order ?? slices.map((_, k) => k + 1)).filter(
-          (k) => slices[k - 1],
-        ),
+    // A pie of one wedge has no legend.
+    numbers =
+      legend.off || slices.length < 2
+        ? []
+        : (legend.order ?? slices.map((_, k) => k + 1)).filter(
+            (k) => slices[k - 1],
+          ),
     entries = numbers.map((k) => ({
       k,
       text: legend.labels?.get(k) ?? slices[k - 1].label,
@@ -1449,21 +1611,27 @@ function drawPie(slices, total, { clockwise, start, labels, looks, styles }) {
     ],
     sign = clockwise ? -1 : 1,
     parts = [`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`];
-  let at = start;
+  // Stata draws each wedge between whole degrees: the angle where it
+  // ends, from angle0() and the running sum, rounded half up. The labels
+  // stand at the middles of the wedges as they are before rounding.
+  const whole = (angle) => Math.floor(angle + 0.5);
+  let sum = 0;
   const middles = slices.map((slice, k) => {
-    const sweep = (360 * slice.value) / total,
-      from = at,
-      to = at + sign * sweep;
-    at = to;
-    if (slice.value > 0) {
+    const from = start + (sign * 360 * sum) / total;
+    sum += slice.value;
+    const to = start + (sign * 360 * sum) / total,
+      drawnFrom = whole(from),
+      drawnTo = whole(to),
+      sweep = Math.abs(drawnTo - drawnFrom);
+    if (sweep > 0) {
       const colour = colors[k % colors.length];
-      if (sweep >= 360 - 1e-9)
+      if (sweep >= 360)
         parts.push(
           `<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(radius)}" fill="${colour}" stroke="#ffffff"/>`,
         );
       else {
-        const [x0, y0] = point(from),
-          [x1, y1] = point(to);
+        const [x0, y0] = point(drawnFrom),
+          [x1, y1] = point(drawnTo);
         parts.push(
           `<path d="M${n2(cx)} ${n2(cy)} L${n2(x0)} ${n2(y0)} A${n2(radius)} ${n2(radius)} 0 ${sweep > 180 ? 1 : 0} ${clockwise ? 1 : 0} ${n2(x1)} ${n2(y1)} Z" fill="${colour}" stroke="#ffffff"/>`,
         );
@@ -1638,7 +1806,7 @@ const MATRIX_NOT_DRAWN =
 function graphMatrix(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varlist(min=1) [if] [in] [, HALF MSymbol(string) MSIZe(string) MColor(string) ${MATRIX_NOT_DRAWN} TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) NAME(string) NODRAW]`,
+      `varlist(min=1) [if] [in] [aweight fweight pweight] [, HALF MSymbol(string) MSIZe(string) MColor(string) ${MATRIX_NOT_DRAWN} TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) NAME(string) NODRAW]`,
       text,
     ),
     options = parsed.options;
@@ -1650,15 +1818,21 @@ function graphMatrix(session, text, ctx) {
         198,
       );
   }
+  // Stata sizes each marker by its weight.
+  if (parsed.weight)
+    throw new StataError(
+      `graph matrix [${parsed.weight.type}] is not drawn on this page: Stata draws each marker in proportion to its weight; leave out the weight`,
+      198,
+    );
   const variables = parsed.varlist.map((name) => numeric(session, name));
   if (variables.length < 2)
     throw new StataError("too few variables specified", 102);
   const symbol = symbolOf(options.msymbol),
     radius = sizeOf(options.msize) ?? 4,
-    colour = colourOf(options.mcolor, "mcolor", 2),
+    colour = colourOf(options.mcolor, "mcolor", 4),
+    // With no observations Stata still draws the matrix, its labels on the
+    // diagonal and no axes.
     rows = session.rows(parsed, null);
-  if (!rows.some((i) => variables.some((v) => !isMissing(v.data[i]))))
-    throw new StataError("no observations", 2000);
   ctx.graph({
     svg: drawMatrix(variables, rows, {
       half: !!options.half,
@@ -1680,10 +1854,49 @@ function graphMatrix(session, text, ctx) {
       .join("; ")}.`,
   });
 }
+// The widths of the printable ASCII characters, from space to tilde, in
+// hundredths of the unit of Stata's _length, before its factor of 1.05.
+const GLYPH_WIDTHS = [
+  29, 33, 35, 54, 54, 87, 65, 29, 33, 33, 38, 57, 29, 33, 29, 29, 54, 54, 54,
+  54, 54, 54, 54, 54, 54, 54, 29, 29, 57, 57, 57, 54, 95, 65, 65, 71, 71, 65,
+  61, 77, 71, 23, 50, 65, 54, 80, 69, 77, 65, 77, 69, 65, 63, 69, 65, 95, 65,
+  65, 61, 28, 29, 28, 49, 54, 93, 53, 53, 49, 53, 53, 29, 53, 53, 23, 24, 48,
+  24, 80, 53, 54, 54, 54, 33, 50, 28, 54, 49, 71, 47, 50, 48, 33, 31, 33, 57,
+];
+/**
+ * The lines of a variable's label on the diagonal of graph matrix, broken
+ * as Stata's textbox rebreak_aspect breaks them: lines of at most width
+ * characters, without breaking a word, where width is the square root of
+ * the label's length squared times the graph's aspect (159.67 by 93)
+ * over its printed length, rounded, and at least 2.
+ */
+function diagonalLines(text) {
+  const full = text.trim().split(/\s+/).join(" ");
+  if (!full) return [];
+  const printed = [...full].reduce(
+      (total, ch) =>
+        total + 1.05 * ((GLYPH_WIDTHS[ch.codePointAt(0) - 32] ?? 54) / 100),
+      0,
+    ),
+    length = new TextEncoder().encode(full).length,
+    width = Math.max(
+      2,
+      Math.round(Math.sqrt((length * length * (159.6667 / 93)) / printed)),
+    ),
+    lines = [];
+  for (const word of full.split(" ")) {
+    const last = lines.at(-1);
+    if (last !== undefined && last.length + 1 + word.length <= width)
+      lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  return lines;
+}
 /**
  * The scatterplot matrix: one cell for each pair of variables, the row's
  * variable up and the column's across, over the rows where both are
- * present; each variable's name (its label, a word to a line) in its cell
+ * present; each variable's name (its label, broken into lines as Stata
+ * breaks it) in its cell
  * on the diagonal. Each variable has one scale, about three labels as
  * Stata picks them over its values, and its axes are drawn as Stata draws
  * them: the first, third, ... variable's up the right edge of its row and
@@ -1711,9 +1924,10 @@ function drawMatrix(
           .filter((v) => !isMissing(v)),
         lo = values.length ? least(values) : 0,
         hi = values.length ? greatest(values) : 1,
-        labels = ticks(lo, hi, 3),
-        from = Math.min(lo, labels[0]),
-        to = Math.max(hi, labels.at(-1));
+        // A variable with no values has no axis labels.
+        labels = values.length ? ticks(lo, hi, 3) : [],
+        from = Math.min(lo, labels[0] ?? lo),
+        to = Math.max(hi, labels.at(-1) ?? hi);
       return {
         labels,
         at: (v, start, length, up) => {
@@ -1736,7 +1950,7 @@ function drawMatrix(
         `<rect x="${n2(cellX(c))}" y="${n2(cellY(r))}" width="${n2(cellW)}" height="${n2(cellH)}" fill="#ffffff" stroke="#333333" stroke-width="0.8"/>`,
       );
       if (r === c) {
-        const words = titleOf(variables[r]).split(/\s+/).filter(Boolean),
+        const words = diagonalLines(titleOf(variables[r])),
           size = 12;
         words.forEach((word, k) =>
           parts.push(

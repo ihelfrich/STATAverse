@@ -544,8 +544,8 @@ test("named colours are drawn in Stata's colours, and a name Stata does not know
   ])
     assert.equal(attributes(graph(s, command).svg, "T").fill, "#008000");
   // grey and dkorange2 are not Stata colours: Stata prints this note once,
-  // wrapped at the line size of 80, and draws the title in its default
-  // colour.
+  // wrapped at the line size of 80, and draws the title in black, the
+  // default attributes it names (Stata 19: fill:#000000).
   for (const [name, note] of [
     [
       "grey",
@@ -568,7 +568,7 @@ test("named colours are drawn in Stata's colours, and a name Stata does not know
     ],
   ]) {
     const drawn = graph(s, `scatter wage educ, title(T, color(${name}))`);
-    assert.equal(attributes(drawn.svg, "T").fill, undefined, name);
+    assert.equal(attributes(drawn.svg, "T").fill, "#000000", name);
     assert.deepEqual(drawn.lines, note, name);
   }
 });
