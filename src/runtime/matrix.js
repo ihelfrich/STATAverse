@@ -110,7 +110,17 @@ function columnParts(name) {
     rest = colon >= 0 ? name.slice(colon + 1) : name,
     hash = rest.lastIndexOf("#"),
     operator = /^[0-9]*[A-Za-z]*\./.exec(rest),
-    cut = hash >= 0 ? hash + 1 : operator ? operator[0].length : 0;
+    // A pair's name in r(table) after mixed, as cov(x,_cons), is broken
+    // after its comma, the first part placed as an operator.
+    pair = /^\w+\([^(),]+,[^(),]+\)$/.test(rest) ? rest.indexOf(",") : -1,
+    cut =
+      hash >= 0
+        ? hash + 1
+        : operator
+          ? operator[0].length
+          : pair >= 0
+            ? pair + 1
+            : 0;
   return {
     equation,
     operator: rest.slice(0, cut),
@@ -133,7 +143,11 @@ const rowLabel = (name) => {
         before: rest.slice(0, hash + 1),
         label: abbreviated(rest.slice(hash + 1)),
       }
-    : { before: "", label: `${equation}${abbreviated(rest)}` };
+    : {
+        before: "",
+        // A pair's name, as corr(x,_cons) after mixed, is not cut.
+        label: `${equation}${/^\w+\([^(),]+,[^(),]+\)$/.test(rest) ? rest : abbreviated(rest)}`,
+      };
 };
 
 /**
@@ -194,15 +208,19 @@ function list(session, text, ctx) {
     const last = Math.min(colNames.length, first + perPanel);
     if (first) ctx.out("");
     // The equation and operator parts end one column right of the name.
-    for (const head of heads)
-      ctx.out(
-        " ".repeat(stub + (head === "name" ? 0 : 1)) +
-          parts
-            .slice(first, last)
-            .map((p) => p[head].padStart(width))
-            .join("")
-            .trimEnd(),
-      );
+    // A name with parentheses, as var(_cons), ends one column right too.
+    for (const head of heads) {
+      let line = "";
+      parts.slice(first, last).forEach((p, k) => {
+        const text = p[head],
+          end =
+            stub +
+            (k + 1) * width +
+            (head !== "name" || /[()]/.test(text) ? 1 : 0);
+        if (text) line = line.padEnd(end - text.length) + text;
+      });
+      ctx.out(line.trimEnd());
+    }
     cells.forEach((row, i) => {
       if (symmetric && i < first) return;
       if (rows[i].before) ctx.out(rows[i].before);

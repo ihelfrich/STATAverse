@@ -17645,3 +17645,194 @@ format r1 r2 r3 s1 s2 s3 %9.4f
 list school class r1 r2 r3 s1 s2 s3 in 1/3
 mixed, stddev
 mixed, level(90) noretable
+=== mixed-pass7-notes-and-tests
+clear
+set seed 202
+set obs 300
+generate id = ceil(_n/15)
+generate x = runiform()*2
+generate z = runiform()
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+generate double y = 1 + x - z + u0 + invnormal(runiform())
+mixed y x || id:, cov(un)
+mixed y x || id:, cov(exchangeable) nolog
+mixed y x || id: x, nocons cov(unstructured)
+mixed y x z || id:, vce(oim)
+display "[" e(chi2_c) "][" e(ll_c) "]"
+mixed y x z || id:, nolog
+=== mixed-pass7-long-level-names
+clear
+set seed 302
+set obs 600
+generate school_identifier = ceil(_n/20)
+generate classroom_number = ceil(_n/5)
+generate hours_studied = runiform()*10
+generate double e0 = invnormal(runiform())
+generate double e1 = invnormal(runiform())
+by school_identifier, sort: generate double s = e0[1]
+by classroom_number, sort: generate double c = e1[1]
+generate double score = 50 + 2*hours_studied + 5*s + 2*c + 3*invnormal(runiform())
+mixed score hours_studied || school_identifier:
+mixed score hours_studied || school_identifier: || classroom_number:, nolog
+estat icc
+estat group
+generate school_number = school_identifier
+mixed score || school_number:, nolog stddev
+estat icc
+=== mixed-pass7-degenerate-models
+clear
+set seed 308
+set obs 30
+generate single = _n
+generate id = ceil(_n/5)
+generate x = runiform()
+generate double y = x + invnormal(runiform())
+capture noisily mixed y x || single:
+display _rc
+capture noisily mixed y x || single:, nolog
+display _rc
+capture noisily mixed y x || single: x
+display _rc
+capture noisily mixed y x || id: || single:
+display _rc
+generate double y2 = 3
+capture noisily mixed y2 x || single:
+display _rc
+capture noisily mixed y2 x || id:
+display _rc
+capture noisily mixed y x in 1/2 || id:
+display _rc
+=== mixed-pass7-lrtest-notes
+clear
+set seed 405
+set obs 300
+generate id = ceil(_n/15)
+generate x = runiform()*2
+generate z = runiform()
+generate double e0 = invnormal(runiform())
+generate double e1 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+by id: generate double u1 = e1[1]
+generate double y = 1 + x + z + u0 + .7*u1*x + invnormal(runiform())
+quietly mixed y x z || id:
+estimates store a
+quietly mixed y x || id:
+estimates store b
+lrtest a b
+quietly mixed y x z || id:, reml
+estimates store d
+quietly mixed y x z || id: x, reml
+estimates store e
+lrtest d e
+capture noisily lrtest a d
+display _rc
+quietly mixed y x || id: x, cov(un)
+estimates store f
+capture noisily lrtest f a
+display _rc
+estimates clear
+=== mixed-pass7-predict-checks
+clear
+set seed 401
+set obs 60
+generate id = ceil(_n/10)
+generate x = _n/10
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u = e0[1]
+generate double y = x + u + invnormal(runiform())
+quietly mixed y x || id:
+predict double u0, reffects
+sort x
+predict double u0s, reffects
+gsort -y
+predict double fs, fitted
+replace y = y + 1 if id == 2
+capture noisily predict double u1, reffects
+display _rc
+capture noisily predict double f1, fitted
+display _rc
+capture noisily predict double r1, residuals
+display _rc
+predict double xb1, xb
+replace y = y - 1 if id == 2
+predict double u2, reffects
+drop in 1/40
+capture noisily predict double u3, reffects
+display _rc
+clear
+set seed 4202
+set obs 600
+generate school = ceil(_n/20)
+generate class = ceil(_n/5)
+generate x = runiform()*4
+generate double e0 = invnormal(runiform())
+generate double e1 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+generate double e3 = invnormal(runiform())
+bysort school: generate double s = 1.2*e0[1]
+bysort school: generate double sx = 0.5*e3[1]
+bysort class: generate double c = 0.8*e1[1]
+generate double y = 1 + 0.6*x + s + sx*x + c + e2
+quietly mixed y x || school: x, cov(un) || class:
+predict re*, reffects
+predict se*, reses
+predict double b*, reffects reses(s*)
+describe re1-re3 se1-se3 b1-b3 s1-s3
+capture noisily predict q*, xb
+display _rc
+=== mixed-pass7-estat-results
+clear
+set seed 4202
+set obs 600
+generate school = ceil(_n/20)
+generate x = runiform()*4
+generate double e0 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+generate double e3 = invnormal(runiform())
+bysort school: generate double s = 1.2*e0[1]
+bysort school: generate double sx = 0.5*e3[1]
+generate double y = 1 + 0.6*x + s + sx*x + e2
+quietly mixed y x || school: x, cov(un)
+matrix list r(table)
+estat sd
+matrix list r(table)
+return list
+estat sd, variance
+matrix list r(table)
+estat sd, verbose level(90)
+estat recovariance
+return list
+matrix C = r(cov)
+matrix list C
+estat recovariance, correlation
+matrix C = r(corr)
+matrix list C
+estat recovariance, relevel(school)
+return list
+estat vce
+estat summarize
+quietly mixed y x || school: x, cov(exchangeable)
+matrix list r(table)
+estat sd
+matrix list r(table)
+=== mixed-pass7-margins-xtmixed-by
+clear
+set seed 203
+set obs 300
+generate id = ceil(_n/15)
+generate x = runiform()*2
+generate k = mod(_n, 3) + 1
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+generate double y = 1 + x + .5*k + u0 + invnormal(runiform())
+generate g = ceil(_n/100)
+quietly mixed y x i.k || id:
+margins
+margins k
+margins, dydx(x)
+margins, at(x=(0 1))
+xtmixed y x || id:, nolog
+display e(cmd)
+xtmixed, variance
+by g, sort: mixed y x || id:, nolog

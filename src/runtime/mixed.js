@@ -1,6 +1,7 @@
-// Linear mixed-effects models: mixed, with predict (xb, fitted, residuals,
-// reffects, reses, stdp) and estat icc, sd, recovariance, group and ic after
-// it; melogit and mepoisson are refused.
+// Linear mixed-effects models: mixed (and xtmixed, its old name), with
+// predict (xb, fitted, residuals, reffects, reses, stdp) and estat icc, sd,
+// recovariance, group, ic, vce and summarize after it; margins reaches the
+// fixed portion of the prediction; melogit and mepoisson are refused.
 //
 // The model is y = Xb + Z1 u1 + ... + ZL uL + e, the levels nested from the
 // outermost (level 1) in. Each level's effects u have a covariance G of one
@@ -11,8 +12,10 @@
 // level by level, each group's own effects eliminated by a small Cholesky
 // step, so that the work grows with the number of groups and not with the
 // square of the number of observations. Maximum likelihood (the default, as
-// in Stata) or restricted maximum likelihood (reml) is maximized by Newton's
-// method in the variance parameters, the fixed effects profiled out.
+// in Stata) or restricted maximum likelihood (reml) is maximized as Stata
+// maximizes it: EM steps from Stata's start, then Newton's method in the
+// variance parameters (in Stata's matsqrt metric, the fixed effects and the
+// residual variance profiled out) until Stata's convergence rule is met.
 //
 // Standard errors follow Stata: the fixed effects' variance is
 // (X'V^-1 X)^-1, and the variance parameters' is the inverse of minus the
@@ -43,7 +46,8 @@ import {
   tableModel,
 } from "./likelihood.js";
 import { MODEL_COMMANDS } from "./models.js";
-import { count } from "./reports.js";
+import { count, perGroup } from "./reports.js";
+import { renderSmcl } from "./smcl.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType, missingValue } from "./values.js";
 
@@ -114,6 +118,58 @@ function solve(a, n, b, m) {
   }
   return x;
 }
+/**
+ * The eigenvalues and eigenvectors (columns of a flat n x n array) of the
+ * symmetric n x n matrix a, by Jacobi rotations.
+ */
+function symmetricEigen(a, n) {
+  const m = Float64Array.from(a),
+    v = new Float64Array(n * n);
+  for (let i = 0; i < n; i++) v[i * n + i] = 1;
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0,
+      total = 0;
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++) {
+        total += m[i * n + j] ** 2;
+        if (i !== j) off += m[i * n + j] ** 2;
+      }
+    if (!(off > 1e-30 * total)) break;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) {
+        const apq = m[p * n + q];
+        if (apq === 0) continue;
+        const theta = (m[q * n + q] - m[p * n + p]) / (2 * apq),
+          t =
+            Math.sign(theta || 1) /
+            (Math.abs(theta) + Math.sqrt(theta * theta + 1)),
+          c = 1 / Math.sqrt(t * t + 1),
+          s = t * c;
+        for (let k = 0; k < n; k++) {
+          const mkp = m[k * n + p],
+            mkq = m[k * n + q];
+          m[k * n + p] = c * mkp - s * mkq;
+          m[k * n + q] = s * mkp + c * mkq;
+        }
+        for (let k = 0; k < n; k++) {
+          const mpk = m[p * n + k],
+            mqk = m[q * n + k];
+          m[p * n + k] = c * mpk - s * mqk;
+          m[q * n + k] = s * mpk + c * mqk;
+        }
+        for (let k = 0; k < n; k++) {
+          const vkp = v[k * n + p],
+            vkq = v[k * n + q];
+          v[k * n + p] = c * vkp - s * vkq;
+          v[k * n + q] = s * vkp + c * vkq;
+        }
+      }
+  }
+  return {
+    values: Array.from({ length: n }, (_, i) => m[i * n + i]),
+    vectors: v,
+  };
+}
 const toRows = (a, n) =>
   Array.from({ length: n }, (_, i) => Array.from(a.subarray(i * n, i * n + n)));
 
@@ -182,6 +238,7 @@ function reduceAll(problem, lambdas, keep = false) {
     // children are reduced into its level's matrix before it is.
     scratch = (problem.scratch ??= dims.map((d) => new Float64Array(d * d)));
   let logdet = 0;
+  const row = new Float64Array(Math.max(1, ...levels.map((l) => l.q)));
   const reduceNode = (node, l, target) => {
     const d = dims[l],
       q = levels[l].q,
@@ -193,23 +250,27 @@ function reduceAll(problem, lambdas, keep = false) {
       for (let m = L - 1; m >= 0; m--) {
         const qm = levels[m].q,
           lam = lambdas[m];
-        // Columns: B[:, o+j] = sum_{k>=j} A[:, o+k] lam[k][j].
+        // Columns: B[:, o+j] = sum_k A[:, o+k] lam[k][j] (the factor
+        // lower triangular or, for an unstructured level, symmetric).
         for (let r = 0; r < d; r++) {
           const base = r * d + offset;
           for (let j = 0; j < qm; j++) {
             let s = 0;
-            for (let k = j; k < qm; k++) s += M[base + k] * lam[k * qm + j];
-            M[base + j] = s;
+            for (let k = 0; k < qm; k++) s += M[base + k] * lam[k * qm + j];
+            row[j] = s;
           }
+          for (let j = 0; j < qm; j++) M[base + j] = row[j];
         }
         // Rows likewise.
-        for (let c = 0; c < d; c++)
+        for (let c = 0; c < d; c++) {
           for (let j = 0; j < qm; j++) {
             let s = 0;
-            for (let k = j; k < qm; k++)
+            for (let k = 0; k < qm; k++)
               s += lam[k * qm + j] * M[(offset + k) * d + c];
-            M[(offset + j) * d + c] = s;
+            row[j] = s;
           }
+          for (let j = 0; j < qm; j++) M[(offset + j) * d + c] = row[j];
+        }
         offset += qm;
       }
     } else {
@@ -297,12 +358,93 @@ function factors(problem, theta, shift = 0) {
 }
 
 /**
+ * Each level's relative factor from the parameters the search moves, as
+ * Stata's matsqrt metric has them: the entries of the factor itself (a
+ * single relative standard deviation for identity, one per effect for
+ * independent, the lower triangle row by row for unstructured), so that a
+ * variance or a whole direction of the covariance can reach zero inside
+ * the space; exchangeable keeps its log standard deviation and atanh
+ * correlation.
+ */
+function searchFactors(problem, theta) {
+  const lambdas = [];
+  let at = 0;
+  for (const level of problem.levels) {
+    const q = level.q,
+      k = parameterCount(level.type, q),
+      p = theta.slice(at, at + k);
+    at += k;
+    if (level.type === "exchangeable") {
+      const lam = cholesky(covarianceOf(level.type, q, p), q);
+      if (!lam) return null;
+      lambdas.push(lam);
+      continue;
+    }
+    const lam = new Float64Array(q * q);
+    if (level.type === "identity")
+      for (let j = 0; j < q; j++) lam[j * q + j] = p[0];
+    else if (level.type === "independent")
+      for (let j = 0; j < q; j++) lam[j * q + j] = p[j];
+    else {
+      let r = 0;
+      for (let i = 0; i < q; i++)
+        for (let j = i; j < q; j++) lam[i * q + j] = lam[j * q + i] = p[r++];
+    }
+    lambdas.push(lam);
+  }
+  return lambdas;
+}
+
+/**
+ * Stata's parameters (log standard deviations, atanh correlations, then
+ * the log residual standard deviation) from the search's, with the
+ * residual's log standard deviation lnsig.
+ */
+function toStataMetric(problem, theta, lnsig) {
+  const lambdas = searchFactors(problem, theta),
+    gamma = [],
+    // A variance of exactly zero has no finite parameter; the nearest
+    // representable stands for it. A correlation at one, where the
+    // likelihood is flat, is held at atanh 9 (a correlation of 1 to seven
+    // digits), about where Stata's search stops on such a surface.
+    logsd = (v) => 0.5 * Math.log(Math.max(v, 1e-300)) + lnsig,
+    atanh = (r) => Math.max(-9, Math.min(9, Math.atanh(Number(r) || 0)));
+  let at = 0;
+  problem.levels.forEach((level, l) => {
+    const q = level.q,
+      k = parameterCount(level.type, q);
+    if (level.type === "exchangeable") {
+      gamma.push(theta[at] + lnsig, theta[at + 1]);
+      at += k;
+      return;
+    }
+    at += k;
+    const lam = lambdas[l],
+      G = new Float64Array(q * q);
+    for (let i = 0; i < q; i++)
+      for (let j = 0; j <= i; j++) {
+        let s = 0;
+        for (let m = 0; m < q; m++) s += lam[i * q + m] * lam[j * q + m];
+        G[i * q + j] = G[j * q + i] = s;
+      }
+    if (level.type === "identity") return void gamma.push(logsd(G[0]));
+    for (let j = 0; j < q; j++) gamma.push(logsd(G[j * q + j]));
+    if (level.type === "unstructured")
+      for (let i = 0; i < q; i++)
+        for (let j = i + 1; j < q; j++)
+          gamma.push(
+            atanh(G[i * q + j] / Math.sqrt(G[i * q + i] * G[j * q + j])),
+          );
+  });
+  return [...gamma, lnsig];
+}
+
+/**
  * The log likelihood (or restricted log likelihood) with s^2 profiled out,
- * at relative parameters theta (log standard deviations relative to s,
- * then correlations' atanh).
+ * at the search's relative parameters theta.
  */
 function profiled(problem, theta) {
-  const lambdas = factors(problem, theta);
+  const lambdas = searchFactors(problem, theta);
   if (!lambdas) return -Infinity;
   let r;
   try {
@@ -367,6 +509,9 @@ function derivatives(f, x, fx, h = 1e-4) {
     gradient[j] = (plus[j] - minus[j]) / (2 * h);
     hessian[j][j] = (plus[j] - 2 * fx + minus[j]) / (h * h);
   }
+  // The cross terms by forward differences, one evaluation each: accurate
+  // enough to steer Newton's steps, which need no more (the standard
+  // errors take a finer Hessian, from curvature()).
   for (let i = 0; i < k; i++)
     for (let j = 0; j < i; j++) {
       const v =
@@ -374,55 +519,60 @@ function derivatives(f, x, fx, h = 1e-4) {
           [i, h],
           [j, h],
         ]) -
-          at([
-            [i, h],
-            [j, -h],
-          ]) -
-          at([
-            [i, -h],
-            [j, h],
-          ]) +
-          at([
-            [i, -h],
-            [j, -h],
-          ])) /
-        (4 * h * h);
+          plus[i] -
+          plus[j] +
+          fx) /
+        (h * h);
       hessian[i][j] = hessian[j][i] = v;
     }
   return { gradient, hessian };
 }
 
 /**
- * Newton's method with a line search on f from start. Returns the
- * maximizer, its value, the log of values and whether it converged.
+ * Newton's method with a line search on f from start, as Stata's ml runs
+ * it. Returns the maximizer, its value, the log of values and whether it
+ * converged. As ml, it stops at an iterate when the scaled gradient
+ * g'(-H)^-1 g is below 1e-5 and either the likelihood changed by less
+ * than a part in 10^7 or the parameters by less than a part in 10^6 since
+ * the last; where the surface is flat toward a singular covariance matrix
+ * the search stops there, as Stata's does.
  */
-function maximize(f, start, limit = 200) {
+function maximize(f, start, limit = 300) {
   let x = start.slice(),
     fx = f(x);
   const log = [fx];
   if (!Number.isFinite(fx)) return { x, value: fx, log, converged: false };
   const k = x.length;
   if (!k) return { x, value: fx, log, converged: true };
+  let lastChange = Infinity,
+    lastMove = Infinity;
   for (let iteration = 0; iteration < limit; iteration++) {
     const { gradient, hessian } = derivatives(f, x, fx),
       negative = new Float64Array(k * k);
     for (let i = 0; i < k; i++)
       for (let j = 0; j < k; j++) negative[i * k + j] = -hessian[i][j];
-    // Minus the Hessian, made positive definite if need be.
-    let ridge = 0,
-      step = null;
-    const scale = Math.max(1e-8, ...negative.map(Math.abs));
-    for (let tries = 0; tries < 60 && !step; tries++) {
-      const a = Float64Array.from(negative);
-      for (let j = 0; j < k; j++) a[j * k + j] += ridge;
-      step = solve(a, k, Float64Array.from(gradient), 1);
-      ridge = ridge ? ridge * 4 : scale * 1e-6;
+    // Minus the Hessian, its eigenvalues made positive where f is not
+    // concave (each replaced by its size, with a floor), so that the step
+    // still climbs in every direction.
+    const { values, vectors } = symmetricEigen(negative, k),
+      top = Math.max(1e-12, ...values.map(Math.abs)),
+      concave = values.every((v) => v > 1e-12 * top),
+      step = new Float64Array(k);
+    for (let e = 0; e < k; e++) {
+      let along = 0;
+      for (let i = 0; i < k; i++) along += vectors[i * k + e] * gradient[i];
+      along /= Math.max(Math.abs(values[e]), 1e-9 * top);
+      for (let i = 0; i < k; i++) step[i] += vectors[i * k + e] * along;
     }
-    if (!step) step = Float64Array.from(gradient);
     const decrement = gradient.reduce((t, v, j) => t + v * step[j], 0);
-    // Keep steps in the log metric to a sensible size.
-    const longest = Math.max(...step.map(Math.abs));
-    let t = longest > 5 ? 5 / longest : 1,
+    if (
+      concave &&
+      decrement < 1e-5 &&
+      (lastChange < 1e-7 * (Math.abs(fx) + 1e-10) || lastMove < 1e-6)
+    )
+      return refine(f, x, fx, step, decrement, log);
+    // The step halved until it does not lower f.
+    let t = 1,
       next = null,
       value = -Infinity;
     for (let tries = 0; tries < 60; tries++) {
@@ -433,32 +583,179 @@ function maximize(f, start, limit = 200) {
     }
     if (!(value >= fx - 1e-12 * Math.abs(fx)))
       return { x, value: fx, log, converged: Math.abs(decrement) < 1e-6 };
-    // A full step that helped is stretched while it keeps helping: where a
-    // variance heads for zero, Newton's step in its log is a constant half,
-    // and stretching it reaches the boundary in a few steps, not dozens.
-    if (t === 1 && value > fx)
-      for (let stretch = 2; longest * stretch <= 8; stretch *= 2) {
-        const further = x.map((v, j) => v + stretch * step[j]),
-          better = f(further);
-        if (!(better > value)) break;
-        next = further;
-        value = better;
-      }
     const change = value - fx;
+    lastChange = Math.abs(change);
+    lastMove = Math.max(
+      ...next.map((v, j) => Math.abs(v - x[j]) / (Math.abs(x[j]) + 1)),
+    );
     x = next;
     fx = value;
     log.push(fx);
-    if (Math.abs(decrement) < 1e-10 && Math.abs(change) < 1e-9)
-      return { x, value: fx, log, converged: true };
-    // A step that changes the likelihood by less than a part in 10^11 ends
-    // the search: inside the parameter space Newton's steps have then
-    // converged far past what is printed, and a variance shrinking toward
-    // zero would otherwise creep on for ever, as it does in Stata, which
-    // stops by a looser rule (ltolerance 1e-7).
-    if (Math.abs(change) <= 1e-11 * (1 + Math.abs(fx)))
+    // A step that changes nothing at all ends the search: f is flat to
+    // working precision.
+    if (Math.abs(change) <= 1e-13 * (1 + Math.abs(fx)) && lastMove < 1e-10)
       return { x, value: fx, log, converged: true };
   }
   return { x, value: fx, log, converged: false };
+}
+
+/**
+ * Where the search stops, Stata's own last Newton step leaves its
+ * estimates within about a part in 10^6 of the maximum, by a step that
+ * depends on its numerical derivatives. A few more Newton steps, not
+ * counted as iterations, bring these to the maximum itself, which Stata's
+ * estimates are then nearest on average.
+ */
+function refine(f, x, fx, step, decrement, log) {
+  for (let extra = 0; extra < 3 && decrement > 1e-14; extra++) {
+    const next = x.map((v, j) => v + step[j]),
+      value = f(next);
+    if (!(value > fx)) break;
+    x = next;
+    fx = value;
+    const k = x.length,
+      { gradient, hessian } = derivatives(f, x, fx),
+      negative = new Float64Array(k * k);
+    for (let i = 0; i < k; i++)
+      for (let j = 0; j < k; j++) negative[i * k + j] = -hessian[i][j];
+    const solved = solve(negative, k, Float64Array.from(gradient), 1);
+    if (!solved) break;
+    step = solved;
+    decrement = gradient.reduce((t, v, j) => t + v * step[j], 0);
+  }
+  return { x, value: fx, log, converged: true };
+}
+
+/**
+ * Stata's EM iterations before Newton's: from each level's relative
+ * covariance diag(1/(0.375^2 mean_g sum z^2)), where the mean is over the
+ * level's groups, each step replaces a level's relative covariance by the
+ * mean over its groups of E(u u' | y) / s^2 (with REML, the fixed effects'
+ * uncertainty counted), s^2 the residual variance profiled at the current
+ * step, and the level's structure imposed. Up to 20 steps, stopping when
+ * the likelihood changes by less than a part in 10^10. Returns the
+ * search's parameters.
+ */
+function emStart(problem, limit = 20, tolerance = 1e-10) {
+  const { levels, frame: f, p, n, reml, maps } = problem;
+  // The sums of squares of each level's effects within its groups.
+  let G = levels.map((level, l) => {
+    const q = level.q,
+      groups = [...maps[l].values()],
+      ss = new Array(q).fill(0);
+    for (const node of groups)
+      for (const r of node.rows) {
+        const z = problem.zRow(level, f.sample[r]);
+        for (let j = 0; j < q; j++) ss[j] += z[j] * z[j];
+      }
+    const g = ss.map((v) => 1 / (0.375 * 0.375 * (v / groups.length)));
+    const out = new Float64Array(q * q);
+    if (level.type === "identity") {
+      const mean = g.reduce((a, b) => a + b, 0) / q;
+      for (let j = 0; j < q; j++) out[j * q + j] = mean;
+    } else for (let j = 0; j < q; j++) out[j * q + j] = g[j];
+    return out;
+  });
+  let theta = searchOf(problem, G),
+    value = profiled(problem, theta);
+  if (!Number.isFinite(value)) return startingValues(problem);
+  for (let iteration = 0; iteration < limit; iteration++) {
+    const lambdas = searchFactors(problem, theta);
+    let kept;
+    try {
+      kept = reduceAll(problem, lambdas, true);
+    } catch (error) {
+      if (error instanceof Failure) break;
+      throw error;
+    }
+    const s2 = kept.r2 / (reml ? n - p : n),
+      Sbeta = Array.from({ length: p }, (_, i) =>
+        Array.from({ length: p }, (_, j) =>
+          reml ? kept.Txxinv[i * p + j] : 0,
+        ),
+      ),
+      sums = levels.map((level) => new Float64Array(level.q * level.q));
+    walkEffects(problem, kept.beta, Sbeta, (l, node, x, S) => {
+      // E(x x')/s^2 in the spherical scale, then u = L x.
+      const q = levels[l].q,
+        lam = lambdas[l],
+        E = S.map((row, i) => row.map((v, j) => v + (x[i] * x[j]) / s2)),
+        sum = sums[l];
+      for (let i = 0; i < q; i++)
+        for (let j = 0; j < q; j++) {
+          let t = 0;
+          for (let a = 0; a < q; a++)
+            for (let b = 0; b < q; b++)
+              t += lam[i * q + a] * E[a][b] * lam[j * q + b];
+          sum[i * q + j] += t;
+        }
+    });
+    G = sums.map((sum, l) => {
+      const level = levels[l],
+        q = level.q,
+        count = maps[l].size,
+        mean = sum.map((v) => v / count),
+        out = new Float64Array(q * q);
+      if (level.type === "unstructured") return mean;
+      const diagonal = Array.from({ length: q }, (_, j) => mean[j * q + j]);
+      if (level.type === "independent")
+        diagonal.forEach((v, j) => (out[j * q + j] = v));
+      else {
+        const v = diagonal.reduce((a, b) => a + b, 0) / q;
+        let c = 0;
+        if (level.type === "exchangeable" && q > 1) {
+          for (let i = 0; i < q; i++)
+            for (let j = 0; j < q; j++) if (i !== j) c += mean[i * q + j];
+          c /= q * (q - 1);
+        }
+        for (let i = 0; i < q; i++)
+          for (let j = 0; j < q; j++) out[i * q + j] = i === j ? v : c;
+      }
+      return out;
+    });
+    const nextTheta = searchOf(problem, G),
+      next = profiled(problem, nextTheta);
+    if (!Number.isFinite(next)) break;
+    const change = Math.abs(next - value) / (Math.abs(value) + 1e-10);
+    theta = nextTheta;
+    value = next;
+    if (change < tolerance) break;
+  }
+  return theta;
+}
+
+/** The search's parameters from each level's relative covariance. */
+function searchOf(problem, G) {
+  const theta = [];
+  problem.levels.forEach((level, l) => {
+    const q = level.q,
+      g = G[l];
+    if (level.type === "identity") theta.push(Math.sqrt(Math.max(g[0], 0)));
+    else if (level.type === "independent")
+      for (let j = 0; j < q; j++)
+        theta.push(Math.sqrt(Math.max(g[j * q + j], 0)));
+    else if (level.type === "exchangeable") {
+      const v = Math.max(g[0], 1e-300),
+        r = q > 1 ? g[1] / v : 0;
+      theta.push(
+        0.5 * Math.log(v),
+        Math.atanh(Math.max(-0.999999, Math.min(0.999999, r))),
+      );
+    } else {
+      // The symmetric square root.
+      const { values, vectors } = symmetricEigen(g, q),
+        root = new Float64Array(q * q);
+      for (let e = 0; e < q; e++) {
+        const w = Math.sqrt(Math.max(values[e], 0));
+        for (let i = 0; i < q; i++)
+          for (let j = 0; j < q; j++)
+            root[i * q + j] += w * vectors[i * q + e] * vectors[j * q + e];
+      }
+      for (let i = 0; i < q; i++)
+        for (let j = i; j < q; j++) theta.push(root[i * q + j]);
+    }
+  });
+  return theta;
 }
 
 // ---------------------------------------------------------------------------
@@ -552,6 +849,7 @@ function readCommand(session, text) {
             198,
           );
         level.type = structure(item.argument);
+        level.typed = true;
       } else if (word.length >= 6 && "noconstant".startsWith(word))
         level.constant = false;
       else if (/^col(l(i(n(e(ar?)?)?)?)?)?$/.test(word))
@@ -570,6 +868,12 @@ function readCommand(session, text) {
   if (levels.some((l, k) => levels.findIndex((o) => o.name === l.name) !== k))
     throw refuse(
       "a level named twice, for block-diagonal covariances, is not available in the browser yet",
+    );
+  // Time-series operators in the fixed part, as L.x or D2.y.
+  if (/(^|\s)(?:[LFDS]\d*)+\.|(^|\s)(?:[LFDS]\d*)*[LFDS]\(/i.test(feHead))
+    throw refuse(
+      "time-series operators are not available with mixed in the browser yet",
+      "Generate the lagged or differenced variable first, as generate lx = L.x, and list it instead.",
     );
   const parsed = session.parse(
     `anything [if] [in] [fweight pweight] [, ${GLOBAL_OPTIONS}]`,
@@ -601,6 +905,53 @@ function readCommand(session, text) {
 
 // ---------------------------------------------------------------------------
 // Building the problem.
+
+/**
+ * If the columns of x (rows of values) fit y exactly, the columns that
+ * carry the fit (a nonzero coefficient); otherwise null. By modified
+ * Gram-Schmidt, a column that adds nothing to the ones before it skipped.
+ */
+function exactFit(x, y) {
+  const n = y.length,
+    p = x[0].length,
+    norm = (v) => Math.sqrt(v.reduce((t, a) => t + a * a, 0)),
+    basis = [],
+    kept = [],
+    R = [];
+  for (let j = 0; j < p; j++) {
+    const v = x.map((row) => row[j]),
+      size = norm(v),
+      r = [];
+    for (const q of basis) {
+      const c = q.reduce((t, a, i) => t + a * v[i], 0);
+      r.push(c);
+      for (let i = 0; i < n; i++) v[i] -= c * q[i];
+    }
+    const left = norm(v);
+    if (!(left > 1e-10 * size)) continue;
+    basis.push(v.map((a) => a / left));
+    R.push([...r, left]);
+    kept.push(j);
+  }
+  const e = Float64Array.from(y),
+    scale = norm(y),
+    z = basis.map((q) => {
+      const c = q.reduce((t, a, i) => t + a * e[i], 0);
+      for (let i = 0; i < n; i++) e[i] -= c * q[i];
+      return c;
+    });
+  if (!(norm(e) <= 1e-12 * scale) || !kept.length) return null;
+  // Back-substitution for the coefficients of the kept columns.
+  const k = kept.length,
+    b = new Array(k).fill(0);
+  for (let i = k - 1; i >= 0; i--) {
+    let s = z[i];
+    for (let j = i + 1; j < k; j++) s -= R[j][i] * b[j];
+    b[i] = s / R[i][i];
+  }
+  const size = (j) => norm(x.map((row) => row[kept[j]]));
+  return kept.filter((_, i) => Math.abs(b[i]) * size(i) > 1e-10 * scale);
+}
 
 function buildProblem(session, spec) {
   const { parsed, levels: asked, options } = spec,
@@ -646,7 +997,9 @@ function buildProblem(session, spec) {
       isStringType(level.group.type)
         ? level.group.data[i] === ""
         : isMissing(level.group.data[i]),
+    group = spec.group,
     keep = (i) =>
+      (!group || (i >= group.start && i < group.start + group.count)) &&
       levels.every(
         (level) =>
           !missingGroup(level, i) && level.z.every((z) => !isMissing(z[i])),
@@ -657,6 +1010,16 @@ function buildProblem(session, spec) {
     }),
     n = f.sample.length,
     p = f.x[0].length;
+  // As Stata's _rmdcoll: an outcome the fixed effects fit exactly is
+  // collinear with them.
+  if (f.columns.length && n) {
+    const used = exactFit(f.x, f.y);
+    if (used)
+      throw new StataError(
+        `${f.dependent.name} collinear with ${used.map((j) => f.names[j]).join(" ")}`,
+        459,
+      );
+  }
   if (n <= p) throw new StataError("insufficient observations", 2001);
   // Groups: at level l, the values of the variables of levels 1..l.
   const L = levels.length,
@@ -775,7 +1138,7 @@ function parameterNames(levels) {
 }
 
 /** Relative starting values: each effect's standard deviation half the
- * residual's, scaled by its variable's size. */
+ * residual's, scaled by its variable's size, the effects uncorrelated. */
 function startingValues(problem) {
   const theta = [];
   const { frame: f } = problem;
@@ -788,60 +1151,129 @@ function startingValues(problem) {
     });
     if (level.type === "identity" || level.type === "exchangeable") {
       const mean = size.reduce((a, b) => a + b, 0) / size.length;
-      theta.push(Math.log(0.5 / mean));
-      if (level.type === "exchangeable") theta.push(0);
-    } else {
-      size.forEach((s) => theta.push(Math.log(0.5 / s)));
-      if (level.type === "unstructured")
-        for (let k = 0; k < (level.q * (level.q - 1)) / 2; k++) theta.push(0);
-    }
+      if (level.type === "exchangeable") theta.push(Math.log(0.5 / mean), 0);
+      else theta.push(0.5 / mean);
+    } else if (level.type === "independent")
+      size.forEach((s) => theta.push(0.5 / s));
+    else
+      size.forEach((s, i) => {
+        theta.push(0.5 / s);
+        for (let j = i + 1; j < size.length; j++) theta.push(0);
+      });
   }
   return theta;
 }
 
-/** Marks the log standard deviations among the relative parameters. */
-function scaleMask(levels) {
-  const mask = [];
-  for (const level of levels) {
-    const k = parameterCount(level.type, level.q);
-    for (let j = 0; j < k; j++)
-      mask.push(
-        level.type === "exchangeable"
-          ? j === 0
-          : level.type === "unstructured"
-            ? j < level.q
-            : true,
-      );
+/**
+ * Minus the Hessian of f at x by central differences, each parameter's
+ * step chosen as Stata's numerical derivatives choose it: the smallest
+ * that changes f by about a part in 10^8, so that a parameter on which f
+ * hardly depends (the log of a variance near zero) still gets a finite
+ * curvature. Returns { negative }, or { failure } if f cannot be
+ * evaluated near x.
+ */
+function curvature(f, x, fx) {
+  const k = x.length,
+    v0 = (Math.abs(fx) + 1e-8) * 1e-8,
+    v1 = (Math.abs(fx) + 1e-7) * 1e-7,
+    d = [],
+    plus = [],
+    minus = [],
+    at = (steps) => {
+      const y = x.slice();
+      for (const [j, s] of steps) y[j] += s;
+      return f(y);
+    };
+  for (let j = 0; j < k; j++) {
+    let h = (Math.abs(x[j]) + 1e-3) * 1e-3,
+      fp = at([[j, h]]),
+      fm = at([[j, -h]]);
+    // Not even the smallest step stays inside the space: the covariance
+    // matrix is singular to working precision.
+    if (!Number.isFinite(fp) || !Number.isFinite(fm))
+      return { failure: "singular" };
+    // The step is doubled or halved until the change is bracketed, then
+    // the bracket is halved geometrically.
+    let low = 0,
+      high = Infinity;
+    for (let tries = 0; tries < 80; tries++) {
+      const change = Math.max(Math.abs(fx - fm), Math.abs(fp - fx));
+      if (change < v0 && h < 50) low = h;
+      else if (change > v1 && h > 1e-12) high = h;
+      else break;
+      h =
+        low && high < Infinity
+          ? Math.sqrt(low * high)
+          : high < Infinity
+            ? h / 2
+            : h * 2;
+      fp = at([[j, h]]);
+      fm = at([[j, -h]]);
+      // A step grown to move f leaves the space, as where a correlation
+      // is one: Stata's calculation fails there.
+      if (!Number.isFinite(fp) || !Number.isFinite(fm))
+        return { failure: "failed" };
+    }
+    d.push(h);
+    plus.push(fp);
+    minus.push(fm);
   }
-  return mask;
+  const negative = new Float64Array(k * k);
+  for (let j = 0; j < k; j++)
+    negative[j * k + j] = -(plus[j] - 2 * fx + minus[j]) / (d[j] * d[j]);
+  for (let i = 0; i < k; i++)
+    for (let j = 0; j < i; j++) {
+      const v =
+        (at([
+          [i, d[i]],
+          [j, d[j]],
+        ]) -
+          at([
+            [i, d[i]],
+            [j, -d[j]],
+          ]) -
+          at([
+            [i, -d[i]],
+            [j, d[j]],
+          ]) +
+          at([
+            [i, -d[i]],
+            [j, -d[j]],
+          ])) /
+        (4 * d[i] * d[j]);
+      if (!Number.isFinite(v)) return { failure: "singular" };
+      negative[i * k + j] = negative[j * k + i] = -v;
+    }
+  return { negative };
 }
 
 function fitModel(problem) {
-  const start = startingValues(problem),
+  const start = emStart(problem),
     f = (theta) => profiled(problem, theta),
     run = maximize(f, start),
     theta = run.x,
-    lambdas = factors(problem, theta),
+    lambdas = searchFactors(problem, theta),
     kept = reduceAll(problem, lambdas, true),
     m = problem.reml ? problem.n - problem.p : problem.n,
     sigma2 = kept.r2 / m,
     lnsig = 0.5 * Math.log(sigma2),
-    mask = scaleMask(problem.levels),
-    gamma = [...theta.map((v, j) => (mask[j] ? v + lnsig : v)), lnsig],
-    { hessian } = derivatives(
+    gamma = toStataMetric(problem, theta, lnsig),
+    k = gamma.length,
+    // As in Stata, the variance parameters' standard errors come from the
+    // Hessian in Stata's own metric. Where the likelihood cannot be
+    // evaluated beside the estimates (a correlation at one), Stata reports
+    // that the calculation failed; where minus the Hessian is not positive
+    // definite (a covariance matrix nearly singular), its variance is left
+    // at zero and the errors are not shown.
+    { negative, failure } = curvature(
       (x) => inStataMetric(problem, x),
       gamma,
       inStataMetric(problem, gamma),
-      1e-3,
     ),
-    k = gamma.length,
-    negative = new Float64Array(k * k);
-  for (let i = 0; i < k; i++)
-    for (let j = 0; j < k; j++) negative[i * k + j] = -hessian[i][j];
-  const inv = inverse(negative, k),
+    inv = negative && inverse(negative, k),
     Vgamma = inv
       ? toRows(inv, k)
-      : Array.from({ length: k }, () => new Array(k).fill(NaN)),
+      : Array.from({ length: k }, () => new Array(k).fill(0)),
     p = problem.p,
     centered = Array.from({ length: p }, (_, i) =>
       Array.from({ length: p }, (_, j) => sigma2 * kept.Txxinv[i * p + j]),
@@ -883,6 +1315,9 @@ function fitModel(problem) {
     sigma2,
     gamma,
     Vgamma,
+    // No standard errors for the variance parameters: "failed" when the
+    // calculation could not be made, "singular" when it gave none.
+    noSE: failure ?? (inv ? null : "singular"),
     beta,
     // The fixed effects as the centered problem has them, for predict.
     betaStar: kept.beta,
@@ -968,7 +1403,7 @@ function effectRows(problem, sd) {
       }
     }
     blocks.push({
-      heading: `${level.name}: ${level.q === 1 ? "Identity" : STRUCTURES[level.type]}`,
+      heading: `${abbreviate(level.name, 12)}: ${level.q === 1 ? "Identity" : STRUCTURES[level.type]}`,
       rows,
     });
     at += k;
@@ -985,8 +1420,10 @@ function effectRows(problem, sd) {
   };
 }
 
-/** A function's value, standard error by the delta method and interval. */
+/** A function's value, standard error by the delta method and interval;
+ * without V, the value alone. */
 function delta(fn, gamma, V, kind, level) {
+  if (!V) return { value: fn(gamma), se: MISSING, low: MISSING, high: MISSING };
   const value = fn(gamma),
     h = 1e-6,
     grad = gamma.map((_, j) => {
@@ -1051,7 +1488,7 @@ function groupTable(counts, indent) {
     ];
   for (const c of counts)
     lines.push(
-      `${pad}${abbreviate(c.name, 15).padStart(15)} |${count(c.groups).padStart(11)}${count(c.min).padStart(11)}${g(c.avg, "%9.1f").padStart(11)}${count(c.max).padStart(11)}`,
+      `${pad}${abbreviate(c.name, 12).padStart(15)} |${count(c.groups).padStart(11)}${count(c.min).padStart(11)}${g(c.avg, "%9.1fc").padStart(11)}${count(c.max).padStart(11)}`,
     );
   lines.push(`${pad}${"-".repeat(61)}`);
   return lines;
@@ -1089,7 +1526,7 @@ function header(ctx, model, counts, options) {
         count(model.N),
         count(c.groups),
         count(c.min),
-        g(c.avg, "%9.1f"),
+        g(c.avg, "%10.1fc"),
         count(c.max),
         chi2,
         prob,
@@ -1100,7 +1537,7 @@ function header(ctx, model, counts, options) {
       blank = " ".repeat(left);
     ctx.out(`${title.padEnd(left)}${side("Number of obs", values[0])}`);
     ctx.out(
-      `${`Group variable: ${c.name}`.padEnd(left)}${side("Number of groups", values[1])}`,
+      `${`Group variable: ${abbreviate(c.name, 14)}`.padEnd(left)}${side("Number of groups", values[1])}`,
     );
     ctx.out(`${blank}Obs per group:`);
     ctx.out(`${blank}${side("             min", values[2])}`);
@@ -1148,7 +1585,7 @@ function effectsTable(ctx, model, level, sd) {
       effectRow(
         ctx,
         r.lines,
-        delta(r.value, model.gamma, model.Vgamma, r.kind, level),
+        delta(r.value, model.gamma, model.VforSE, r.kind, level),
       );
     ctx.out(`${"-".repeat(29)}+${"-".repeat(48)}`);
   }
@@ -1158,7 +1595,7 @@ function effectsTable(ctx, model, level, sd) {
     delta(
       shown.residual.value,
       model.gamma,
-      model.Vgamma,
+      model.VforSE,
       shown.residual.kind,
       level,
     ),
@@ -1167,7 +1604,8 @@ function effectsTable(ctx, model, level, sd) {
 }
 
 function lrLine(ctx, model) {
-  const value = g(model.chi2_c, "%8.2f"),
+  const c = model.chi2_c,
+    value = g(c, (c > 0.005 && c < 1e5) || c === 0 ? "%8.2f" : "%8.2e"),
     p = g(model.p_c, "%6.4f");
   if (model.df_c === 1)
     ctx.out(
@@ -1179,7 +1617,15 @@ function lrLine(ctx, model) {
     );
 }
 
-function mixed(session, text, ctx) {
+/**
+ * mixed, or xtmixed (xt), its old name, which shows standard deviations
+ * unless asked for variances. Under by, ctx.group is the group fitted.
+ */
+function mixed(session, text, ctx, xt = false) {
+  const metric = (options) => {
+    if (xt && !options.variance) options.stddeviations = true;
+    return options;
+  };
   // Typed alone, with display options at most, mixed shows the last fit.
   if (
     !equations(text)
@@ -1189,11 +1635,13 @@ function mixed(session, text, ctx) {
     const [head, tail] = splitAtComma(text);
     if (!head.trim()) {
       const model = session.estimates;
-      if (model?.command !== "mixed")
+      if (model?.command !== "mixed" || !!model.xt !== xt)
         throw new StataError("last estimates not found", 301);
-      const { options } = session.parse(
-        `[, ${GLOBAL_OPTIONS.replace(/noCONStant |MLe REML |noLOg /g, "")}]`,
-        tail === null ? "" : `, ${tail}`,
+      const options = metric(
+        session.parse(
+          `[, ${GLOBAL_OPTIONS.replace(/noCONStant |MLe REML |noLOg /g, "")}]`,
+          tail === null ? "" : `, ${tail}`,
+        ).options,
       );
       if (model.problem.empty)
         ctx.out(
@@ -1204,10 +1652,32 @@ function mixed(session, text, ctx) {
       return;
     }
   }
-  const spec = readCommand(session, text),
-    { options } = spec,
-    problem = buildProblem(session, spec),
-    f = problem.frame,
+  const spec = { ...readCommand(session, text), group: ctx.group ?? null },
+    options = metric(spec.options),
+    problem = buildProblem(session, spec);
+  // Every innermost group a single observation: its effects cannot be told
+  // from the residual. Stata's optimizer stops on the flat likelihood.
+  const inner = problem.levels.length
+    ? [...problem.maps[problem.levels.length - 1].values()]
+    : [];
+  if (inner.length && inner.every((node) => node.rows.length === 1)) {
+    if (options.log !== false) {
+      ctx.out("");
+      ctx.out("Performing EM optimization ...");
+      ctx.out("");
+      ctx.out("Performing gradient-based optimization: ");
+    }
+    throw new StataError(
+      problem.levels.length === 1 && problem.levels[0].q === 1
+        ? renderSmcl(
+            "{p}could not calculate numerical derivatives -- discontinuous region with missing values encountered{p_end}",
+            session.settings.linesize ?? 79,
+          )
+        : "Hessian is not negative semidefinite",
+      430,
+    );
+  }
+  const f = problem.frame,
     fit = fitModel(problem),
     depvar = f.dependent.name,
     names = [
@@ -1234,9 +1704,12 @@ function mixed(session, text, ctx) {
       reml: problem.reml,
       ll: fit.ll,
       problem,
+      spec,
+      xt,
       fit,
       gamma: fit.gamma,
       Vgamma: fit.Vgamma,
+      VforSE: fit.noSE ? null : fit.Vgamma,
       sigma2: fit.sigma2,
     };
   const wald = waldTest(model);
@@ -1247,12 +1720,14 @@ function mixed(session, text, ctx) {
     df_c: lrDf,
     chi2_c: Math.max(0, 2 * (fit.ll - fit.linear)),
   });
-  model.p_c =
-    lrDf === 1
-      ? 0.5 * chi2tail(1, model.chi2_c)
-      : lrDf
-        ? chi2tail(lrDf, model.chi2_c)
-        : MISSING;
+  // As Stata: the chi-bar-squared halving only for a statistic above
+  // 1e-5, so that a variance estimated at zero gives p = 1. With vce()
+  // Stata makes no comparison with the linear model.
+  model.p_c = lrDf
+    ? chi2tail(lrDf, model.chi2_c) *
+      (lrDf === 1 && model.chi2_c > 1e-5 ? 0.5 : 1)
+    : MISSING;
+  model.lrTested = problem.levels.length > 0 && options.vce === undefined;
   // e(b) and e(V): the fixed effects, then the variance parameters, the
   // two blocks independent.
   const fixed = coefficientSpace({ ...model, space: undefined }),
@@ -1295,6 +1770,11 @@ function mixed(session, text, ctx) {
         ])
       : []),
   ];
+  Object.assign(model, {
+    k_f: names.length,
+    k_rs: gammaNames.filter((n) => /^lns|^lnsig/.test(n)).length,
+    k_rc: gammaNames.filter((n) => /^atr/.test(n)).length,
+  });
   session.estimates = model;
   const gNames = levels.map((l) => l.name),
     vector = (key) => ({
@@ -1313,7 +1793,7 @@ function mixed(session, text, ctx) {
     converged: fit.run.converged ? 1 : 0,
     ic: Math.max(0, fit.run.log.length - 1),
     ll: fit.ll,
-    ...(levels.length
+    ...(model.lrTested
       ? {
           ll_c: fit.linear,
           df_c: model.df_c,
@@ -1323,11 +1803,10 @@ function mixed(session, text, ctx) {
       : {}),
     N: problem.n,
     nrgroups: 1,
-    small: 0,
-    p: model.p,
-    chi2: model.chi2,
-    df_m: model.df_m,
-    rc: 0,
+    // Stata posts these in the other order when vce() is given.
+    ...(model.lrTested
+      ? { small: 0, p: model.p, chi2: model.chi2, df_m: model.df_m, rc: 0 }
+      : { rc: 0, df_m: model.df_m, chi2: model.chi2, p: model.p, small: 0 }),
     cmdline: `mixed ${text.trim()}`,
     chi2type: "Wald",
     rstructlab: "Independent",
@@ -1340,7 +1819,7 @@ function mixed(session, text, ctx) {
       .map((l) => (l.q === 1 ? "Identity" : STRUCTURES[l.type]))
       .join(" "),
     revars: levels.map((l) => l.names.join(" ")).join(" "),
-    cmd: "mixed",
+    cmd: xt ? "xtmixed" : "mixed",
     title: model.title,
     technique: "nr",
     ml_method: "d0",
@@ -1359,7 +1838,20 @@ function mixed(session, text, ctx) {
       : {}),
   };
 
-  // What Stata prints.
+  // What Stata prints. A structure asked of a single effect is noted and
+  // set to identity.
+  for (const level of spec.levels)
+    if (
+      level.typed &&
+      level.type !== "identity" &&
+      level.variables.length + (level.constant ? 1 : 0) === 1
+    )
+      renderSmcl(
+        `{p 0 6}note: single-variable random-effects specification in ${level.name} equation; covariance structure set to identity.{p_end}`,
+        session.settings.linesize ?? 79,
+      )
+        .split("\n")
+        .forEach((line) => ctx.out(line));
   if (problem.empty)
     ctx.out(
       "Note: all random-effects equations are empty; model is linear regression",
@@ -1372,10 +1864,12 @@ function mixed(session, text, ctx) {
     ctx.out("");
     ctx.out("Performing gradient-based optimization: ");
     fit.run.log.forEach((value, k) => ctx.out(iterationLine(k, word, value)));
+    if (!fit.run.converged) ctx.out("convergence not achieved");
     ctx.out("");
     ctx.out("Computing standard errors ...");
-    ctx.out("");
   }
+  if (fit.noSE === "failed") ctx.out("standard-error calculation has failed");
+  if (levels.length && options.log !== false) ctx.out("");
   show(session, model, options, ctx);
 }
 
@@ -1385,11 +1879,26 @@ function mixed(session, text, ctx) {
  * sd() and corr()), named by its level, with its interval and no test.
  */
 function tableOf(model) {
-  const level = model.shownLevel ?? 95,
-    sd = !!model.shownSd,
-    critical = invnormal(1 - (1 - level / 100) / 2),
+  return {
+    "matrix:table": reResults(model, model.shownLevel ?? 95, !!model.shownSd)
+      .table,
+  };
+}
+
+/**
+ * The fixed effects and the random-effects parameters as a table shows
+ * them (variances and covariances, or standard deviations and
+ * correlations): r(table), and for estat sd also r(b) and r(V), the
+ * latter by the delta method. After mixed the random-effects parameters
+ * have no test; after estat sd (asEstat) the covariances and
+ * correlations do, with intervals symmetric about the estimate, and a
+ * level of more than one effect is named by its first.
+ */
+function reResults(model, level, sd, asEstat = false) {
+  const critical = invnormal(1 - (1 - level / 100) / 2),
     fixed = coefficientSpace({ ...model, space: undefined }),
-    columns = [];
+    columns = [],
+    gradients = [];
   fixed.entries.forEach((entry, k) => {
     const b = fixed.b[k],
       variance = fixed.V[k][k],
@@ -1418,41 +1927,68 @@ function tableOf(model) {
   });
   const shown = effectRows(model.problem, sd),
     noTest = missingValue("b"),
-    add = (equation, label, r) =>
+    gamma = model.gamma,
+    V = model.VforSE,
+    add = (equation, label, row) => {
+      const r = delta(row.value, gamma, V, row.kind, level),
+        tested = asEstat && (row.kind === "cov" || row.kind === "corr"),
+        z = tested && !isMissing(r.se) ? r.value / r.se : MISSING;
       columns.push([
         `${equation}:${label}`,
         r.value,
         r.se,
-        noTest,
-        noTest,
-        r.low,
-        r.high,
+        tested ? z : noTest,
+        tested ? (isMissing(z) ? MISSING : 2 * normal(-Math.abs(z))) : noTest,
+        tested && !isMissing(r.se) ? r.value - critical * r.se : r.low,
+        tested && !isMissing(r.se) ? r.value + critical * r.se : r.high,
       ]);
+      gradients.push(
+        gamma.map((_, j) => {
+          const h = 1e-6,
+            a = gamma.slice(),
+            b = gamma.slice();
+          a[j] += h;
+          b[j] -= h;
+          return (row.value(a) - row.value(b)) / (2 * h);
+        }),
+      );
+    };
   shown.blocks.forEach((block, l) => {
-    const name = model.problem.levels[l].name;
+    const level = model.problem.levels[l];
     for (const r of block.rows)
       add(
-        name,
-        r.lines.join(""),
-        delta(r.value, model.gamma, model.Vgamma, r.kind, level),
+        level.name,
+        asEstat &&
+          (r.kind === "sd" || r.kind === "var") &&
+          (level.type === "identity" || level.type === "exchangeable")
+          ? `${r.kind}(${level.names[0]})`
+          : r.lines.join(""),
+        r,
       );
   });
-  add(
-    "Residual",
-    sd ? "sd(e)" : "var(e)",
-    delta(
-      shown.residual.value,
-      model.gamma,
-      model.Vgamma,
-      shown.residual.kind,
-      level,
-    ),
-  );
-  const rows = [0, 1, 2, 3, 4, 5].map((r) => columns.map((c) => c[r + 1]));
+  add("Residual", sd ? "sd(e)" : "var(e)", shown.residual);
+  const rows = [0, 1, 2, 3, 4, 5].map((r) => columns.map((c) => c[r + 1])),
+    names = columns.map((c) => c[0]),
+    k = fixed.entries.length,
+    // The delta method: J V J' for the random-effects block, beside the
+    // fixed effects' own.
+    Vt = names.map(() => new Array(names.length).fill(0));
+  for (let i = 0; i < names.length; i++)
+    for (let j = 0; j <= i; j++) {
+      let t = 0;
+      if (i < k) t = fixed.V[i][j];
+      else if (j >= k && V) {
+        const a = gradients[i - k],
+          b = gradients[j - k];
+        for (let m = 0; m < a.length; m++)
+          for (let n = 0; n < b.length; n++) t += a[m] * V[m][n] * b[n];
+      }
+      Vt[i][j] = Vt[j][i] = t;
+    }
   return {
-    "matrix:table": {
+    table: {
       rowNames: ["b", "se", "z", "pvalue", "ll", "ul", "df", "crit", "eform"],
-      colNames: columns.map((c) => c[0]),
+      colNames: names,
       values: [
         ...rows,
         columns.map(() => MISSING),
@@ -1460,7 +1996,35 @@ function tableOf(model) {
         columns.map(() => 0),
       ],
     },
+    b: { rowNames: ["y1"], colNames: names, values: [rows[0]] },
+    V: { rowNames: names, colNames: names, values: Vt },
   };
+}
+
+/** The fixed effects' table. */
+function fixedTable(session, model, level, sd, ctx) {
+  const problem = model.problem,
+    f = problem.frame,
+    fit = model.fit,
+    depvar = model.depvar,
+    // The labels of the variance parameters count toward the first
+    // column's width, as they do in Stata.
+    w = tableWidth(session, tableModel(f, model.baseLevels), [
+      depvar,
+      ...effectRows(problem, sd).widths,
+      // The levels name the equations of the variance parameters.
+      ...problem.levels.map((l) => l.name),
+    ]);
+  tableHead(ctx, depvar, level, "Coefficient", false, false, w);
+  layoutRows(
+    session,
+    f,
+    model.baseLevels,
+    (j) => row("", fit.beta[j], Math.sqrt(fit.Vbeta[j][j]), level, 0).slice(1),
+    w,
+  ).forEach(ctx.out);
+  ctx.out(rule(w));
+  ctx.out("");
 }
 
 /**
@@ -1481,40 +2045,30 @@ function show(session, model, options, ctx) {
     counts = groupCounts(problem);
   if (options.header !== false)
     header(ctx, model, counts, { nogroup: options.group === false });
-  if (options.fetable !== false) {
-    // The labels of the variance parameters count toward the first
-    // column's width, as they do in Stata.
-    const w = tableWidth(session, tableModel(f, model.baseLevels), [
-      depvar,
-      ...effectRows(problem, !!options.stddeviations).widths,
-    ]);
-    tableHead(ctx, depvar, level, "Coefficient", false, false, w);
-    layoutRows(
-      session,
-      f,
-      model.baseLevels,
-      (j) =>
-        row("", fit.beta[j], Math.sqrt(fit.Vbeta[j][j]), level, 0).slice(1),
-      w,
-    ).forEach(ctx.out);
-    ctx.out(rule(w));
-    ctx.out("");
-  }
+  if (options.fetable !== false)
+    fixedTable(session, model, level, !!options.stddeviations, ctx);
+  // Stata notes that the test is conservative when it is not a chibar2
+  // test of a single variance.
+  let noted = false;
   if (options.retable !== false) {
     effectsTable(ctx, model, level, !!options.stddeviations);
-    if (levels.length && options.lrtest !== false) {
+    if (model.lrTested && options.lrtest !== false) {
       lrLine(ctx, model);
       if (model.df_c > 1) {
         ctx.out("");
         ctx.out(
           "Note: LR test is conservative and provided only for reference.",
         );
+        noted = true;
       }
     }
   }
   if (!fit.run.converged) {
+    if (!noted) ctx.out("");
     ctx.out("Warning: Convergence not achieved.");
   }
+  if (fit.noSE === "failed")
+    ctx.out("Warning: Standard-error calculation failed.");
   ctx.out("");
 }
 
@@ -1533,14 +2087,46 @@ function predictions(model) {
     fit = model.fit,
     { levels, p } = problem,
     lambdas = fit.lambdas,
-    sigma2 = fit.sigma2;
-  // reduceAll(keep) left each node's inverse and F. Walk down from the
-  // fixed effects: x_a = F_y - F_b x_b, Sigma_aa = P^-1 + F_b S_b F_b',
-  // the fixed effects' own block of S held at zero.
-  const out = levels.map(() => new Map()),
-    beta = fit.betaStar,
-    known = Array.from({ length: p }, () => new Array(p).fill(0));
-  const visit = (node, l, xb, Sb) => {
+    sigma2 = fit.sigma2,
+    out = levels.map(() => new Map());
+  // The fixed effects taken as known: their block of S held at zero.
+  walkEffects(
+    problem,
+    fit.betaStar,
+    Array.from({ length: p }, () => new Array(p).fill(0)),
+    (l, node, x, Saa) => {
+      // Back to the effects' own scale: u = L x, Var = s^2 L S L'.
+      const q = levels[l].q,
+        lam = lambdas[l],
+        u = Array.from({ length: q }, (_, i) => {
+          let t = 0;
+          for (let k = 0; k < q; k++) t += lam[i * q + k] * x[k];
+          return t;
+        }),
+        se = Array.from({ length: q }, (_, i) => {
+          let t = 0;
+          for (let a = 0; a < q; a++)
+            for (let b = 0; b < q; b++)
+              t += lam[i * q + a] * Saa[a][b] * lam[i * q + b];
+          return Math.sqrt(sigma2 * t);
+        });
+      out[l].set(node.key, { u, se });
+    },
+  );
+  model.blups = out;
+  return out;
+}
+
+/**
+ * Walks the groups from the outermost level in, after reduceAll(keep)
+ * left each node's inverse and F, with the fixed effects beta (centered)
+ * and their relative covariance Sbeta: each group's spherical effects
+ * given the data, x_a = F_y - F_b x_b, and their relative covariance
+ * S_aa = P^-1 + F_b S_b F_b', passed to visit(level, node, x, S).
+ */
+function walkEffects(problem, beta, Sbeta, visit) {
+  const { levels } = problem;
+  const step = (node, l, xb, Sb) => {
     const q = levels[l].q,
       rest = node.rest,
       nb = rest - 1,
@@ -1564,21 +2150,7 @@ function predictions(model) {
         return t;
       }),
     );
-    // Back to the effects' own scale: u = L x, Var = s^2 L S L'.
-    const lam = lambdas[l],
-      u = Array.from({ length: q }, (_, i) => {
-        let t = 0;
-        for (let k = 0; k <= i; k++) t += lam[i * q + k] * x[k];
-        return t;
-      }),
-      se = Array.from({ length: q }, (_, i) => {
-        let t = 0;
-        for (let a = 0; a <= i; a++)
-          for (let b = 0; b <= i; b++)
-            t += lam[i * q + a] * Saa[a][b] * lam[i * q + b];
-        return Math.sqrt(sigma2 * t);
-      });
-    out[l].set(node.key, { u, se });
+    visit(l, node, x, Saa);
     if (l < levels.length - 1) {
       // The children's ancestors: this level, then the ones above.
       const xc = [...x, ...xb],
@@ -1587,12 +2159,10 @@ function predictions(model) {
           ...Saa.map((r, i) => [...r, ...Sab[i]]),
           ...Sb.map((r, j) => [...Sab.map((s) => s[j]), ...r]),
         ];
-      for (const child of node.children) visit(child, l + 1, xc, Sc);
+      for (const child of node.children) step(child, l + 1, xc, Sc);
     }
   };
-  for (const node of problem.tree) visit(node, 0, beta, known);
-  model.blups = out;
-  return out;
+  for (const node of problem.tree) step(node, 0, beta, Sbeta);
 }
 
 /** The key of observation i's group at each level, or null if missing. */
@@ -1608,8 +2178,47 @@ function keysOf(model, i) {
   return keys;
 }
 
-const PREDICT =
-  "newvarlist [if] [in] [, XB STDP FITted Residuals REFfects RESes RELevel(string) | RSTAndard PEARson SCores Means Modes noOFFset]";
+const PREDICT_OPTIONS =
+    "XB STDP FITted Residuals REFfects RESes RELevel(string) | RSTAndard PEARson SCores Means Modes noOFFset",
+  PREDICT = `newvarlist [if] [in] [, ${PREDICT_OPTIONS}]`;
+
+/** A new variable list given as stub*, spelled out as stub1, stub2 and so
+ * on, as many as asked, a type before the stub given to each; anything
+ * else as it is. Only the predicted effects take a stub. */
+function stubbed(text, wanted, allowed = true) {
+  const at = /\s(if|in)\s/.exec(` ${text} `),
+    list = at ? text.slice(0, Math.max(0, at.index - 1)) : text,
+    after = at ? text.slice(Math.max(0, at.index - 1)) : "",
+    m = /^\s*(?:(\w+)\s+)?([A-Za-z_]\w*)\*\s*$/.exec(list);
+  if (!m) return text;
+  if (!allowed) throw new StataError("* invalid name", 198);
+  const type = m[1] ? `${m[1]} ` : "";
+  return `${Array.from({ length: wanted }, (_, k) => `${type}${m[2]}${k + 1}`).join(" ")} ${after}`;
+}
+
+/**
+ * Stata's check before the predicted effects: the likelihood at the
+ * estimates, recomputed from the data in memory, must be the one the fit
+ * reached; otherwise the data have changed since.
+ */
+function checkData(session, model) {
+  let problem = null;
+  try {
+    problem = buildProblem(session, model.spec);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+  }
+  const same =
+    problem &&
+    problem.n === model.N &&
+    Math.abs(profiled(problem, model.fit.theta) - model.fit.ll) <=
+      1e-12 * (Math.abs(model.fit.ll) + 1);
+  if (!same)
+    throw new StataError(
+      "BLUP calculation failed; estimation data have changed",
+      459,
+    );
+}
 
 function mixedPredict(session, text, ctx) {
   // reffects reses(stub*) or reses(names) asks for the standard errors
@@ -1622,7 +2231,19 @@ function mixedPredict(session, text, ctx) {
   const model = session.estimates,
     problem = model.problem,
     levels = problem.levels,
-    parsed = session.parse(PREDICT, rest === null ? head : `${head}, ${rest}`),
+    // stub* names as many variables as the statistic makes.
+    first = session.parse(
+      `[, ${PREDICT_OPTIONS}]`,
+      rest === null ? "" : `, ${rest}`,
+    ).options,
+    effects = levels.reduce((t, l) => t + l.q, 0),
+    many = first.reffects || first.reses ? effects : 1,
+    parsed = session.parse(
+      PREDICT,
+      rest === null
+        ? stubbed(head, many, !!(first.reffects || first.reses))
+        : `${stubbed(head, many, !!(first.reffects || first.reses))}, ${rest}`,
+    ),
     options = parsed.options,
     chosen = ["xb", "stdp", "fitted", "residuals", "reffects", "reses"].filter(
       (k) => options[k],
@@ -1650,7 +2271,7 @@ function mixedPredict(session, text, ctx) {
   if (asked) {
     if (what !== "reffects")
       throw new StataError("option reses() not allowed", 198);
-    errors = session.parse("newvarlist", asked[2]);
+    errors = session.parse("newvarlist", stubbed(asked[2], wanted));
     if (errors.varlist.length !== wanted)
       throw new StataError(
         `${errors.varlist.length > wanted ? "too many" : "too few"} variables specified\nyou must specify ${wanted} new variable(s)`,
@@ -1670,6 +2291,7 @@ function mixedPredict(session, text, ctx) {
       );
     depth = at + 1;
   }
+  if (what !== "xb" && what !== "stdp") checkData(session, model);
   const data = session.data,
     blups = what === "xb" || what === "stdp" ? null : predictions(model),
     dependent = data.get(model.depvar),
@@ -1824,18 +2446,33 @@ function icc(session, text, ctx) {
           .map((lv) => lv.name)
           .reverse()
           .join("|"),
-        ...delta(fn, model.gamma, model.Vgamma, "icc", level),
+        ...delta(fn, model.gamma, model.VforSE, "icc", level),
       };
     });
+  // A label longer than the column is named Level k, spelled out above.
+  const fixedCovariates = model.names.some((name) => name !== "_cons");
   ctx.out("");
-  ctx.out(`${slopes ? "Conditional" : "Residual"} intraclass correlation`);
+  ctx.out(
+    slopes
+      ? "Conditional intraclass correlation"
+      : fixedCovariates
+        ? "Residual intraclass correlation"
+        : "Intraclass correlation",
+  );
   ctx.out("");
+  const long = rows.map((r, l) =>
+    r.label.length > 29 ? `Level ${levels.length - l + 1}` : null,
+  );
+  rows.forEach((r, l) => {
+    if (long[l]) ctx.out(`${long[l]}: ${r.label}`);
+  });
+  if (long.some(Boolean)) ctx.out("");
   ctx.out("-".repeat(78));
   ctx.out(
     `                       Level |        ICC   Std. err.     [${g(level)}% conf. interval]`,
   );
   ctx.out(`${"-".repeat(29)}+${"-".repeat(48)}`);
-  for (const r of rows) ctx.out(effectLine(r.label, r));
+  rows.forEach((r, l) => ctx.out(effectLine(long[l] ?? r.label, r)));
   ctx.out("-".repeat(78));
   if (slopes)
     ctx.out(
@@ -1895,7 +2532,14 @@ function recovariance(session, text, ctx) {
     at += parameterCount(l.type, l.q);
     return here;
   });
-  const results = { relevels: levels.length + 1 };
+  // As Stata: Cov2, Cov3 and so on and r(relevels), or with relevel()
+  // r(Cov) alone; and, hidden, r(cov), the last matrix shown.
+  const word = parsed.options.correlation ? "Corr" : "Cov",
+    results =
+      parsed.options.relevel === undefined
+        ? { relevels: levels.length + 1 }
+        : {};
+  let last = null;
   for (const l of shown) {
     const level = levels[l],
       q = level.q,
@@ -1927,14 +2571,21 @@ function recovariance(session, text, ctx) {
           .join("")} `,
       ),
     );
-    results[`matrix:${parsed.options.correlation ? "Corr" : "Cov"}${l + 2}`] = {
+    last = {
       rowNames: level.names,
       colNames: level.names,
       values: level.names.map((_, i) =>
         level.names.map((__, j) => value(i, j)),
       ),
     };
+    results[
+      `matrix:${word}${parsed.options.relevel === undefined ? l + 2 : ""}`
+    ] = last;
   }
+  Object.defineProperty(results, `matrix:${word.toLowerCase()}`, {
+    value: last,
+    enumerable: false,
+  });
   session.results.r = results;
 }
 
@@ -1946,15 +2597,40 @@ function mixedEstat(session, text, ctx) {
   if (/^recov(a(r(i(a(n(ce?)?)?)?)?)?)?$/.test(sub))
     return recovariance(session, rest, ctx);
   if (sub === "sd") {
-    const { options } = session.parse("[, Level(cilevel)]", rest);
+    const model = session.estimates,
+      { options } = session.parse(
+        "[, Level(cilevel) VARiance VERBose | POST COEFLegend SELegend]",
+        rest,
+      );
+    if (options.post)
+      throw refuse(
+        "option post of estat sd is not available in the browser yet",
+        "r(b), r(V) and r(table) hold the estimates estat sd shows.",
+      );
+    if (options.coeflegend || options.selegend)
+      throw new StataError("invalid syntax", 198);
+    const sd = !options.variance;
     ctx.out("");
-    effectsTable(ctx, session.estimates, options.level, true);
+    // verbose: the fixed effects first, as mixed shows them.
+    if (options.verbose) fixedTable(session, model, options.level, sd, ctx);
+    effectsTable(ctx, model, options.level, sd);
+    const results = reResults(model, options.level, sd, true);
+    session.results.r = {
+      "matrix:b": results.b,
+      "matrix:V": results.V,
+      "matrix:table": results.table,
+    };
     return;
   }
-  if (sub === "ic") return fallback("estat")(session, text, ctx);
+  if (
+    sub === "ic" ||
+    sub === "vce" ||
+    /^su(m(m(a(r(i(ze?)?)?)?)?)?)?$/.test(sub)
+  )
+    return fallback("estat")(session, text, ctx);
   throw refuse(
     `estat ${sub} after mixed is not available in the browser yet`,
-    "estat icc, estat sd, estat recovariance, estat group and estat ic are; matrix list e(V) shows the variance of the estimates.",
+    "estat icc, estat sd, estat recovariance, estat group, estat ic, estat vce and estat summarize are.",
   );
 }
 
@@ -1972,7 +2648,13 @@ const notYet = (name, instead) => () => {
 };
 
 export const MIXED_COMMANDS = [
-  { name: "mixed", minimum: 5, run: mixed },
+  { name: "mixed", minimum: 5, run: perGroup(mixed), byable: true },
+  {
+    name: "xtmixed",
+    minimum: 7,
+    run: perGroup((session, text, ctx) => mixed(session, text, ctx, true)),
+    byable: true,
+  },
   { name: "predict", minimum: 7, run: afterMixed("predict", mixedPredict) },
   { name: "estat", minimum: 5, run: afterMixed("estat", mixedEstat) },
   {

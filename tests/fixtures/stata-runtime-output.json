@@ -123602,6 +123602,1249 @@
       ]
     },
     {
+      "id": "mixed-pass7-notes-and-tests",
+      "source": "clear\nset seed 202\nset obs 300\ngenerate id = ceil(_n/15)\ngenerate x = runiform()*2\ngenerate z = runiform()\ngenerate double e0 = invnormal(runiform())\nby id, sort: generate double u0 = e0[1]\ngenerate double y = 1 + x - z + u0 + invnormal(runiform())\nmixed y x || id:, cov(un)\nmixed y x || id:, cov(exchangeable) nolog\nmixed y x || id: x, nocons cov(unstructured)\nmixed y x z || id:, vce(oim)\ndisplay \"[\" e(chi2_c) \"][\" e(ll_c) \"]\"\nmixed y x z || id:, nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 202", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/15)", "lines": [] },
+        { "command": "generate x = runiform()*2", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "by id, sort: generate double u0 = e0[1]", "lines": [] },
+        {
+          "command": "generate double y = 1 + x - z + u0 + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "mixed y x || id:, cov(un)",
+          "lines": [
+            "note: single-variable random-effects specification in id equation; covariance structure set to identity.",
+            "",
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "Iteration 0:  Log likelihood = -468.10718",
+            "Iteration 1:  Log likelihood = -468.10718",
+            "",
+            "Computing standard errors ...",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  80.68",
+            "Log likelihood = -468.10718                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9765344   .1087169     8.98   0.000     .7634532    1.189615",
+            "       _cons |   .1894666   .2615201     0.72   0.469    -.3231033    .7020366",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |   1.033998   .3504084      .5321803    2.009004",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.107707   .0936188      .9386098    1.307269",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 143.51        Prob >= chibar2 = 0.0000"
+          ]
+        },
+        {
+          "command": "mixed y x || id:, cov(exchangeable) nolog",
+          "lines": [
+            "note: single-variable random-effects specification in id equation; covariance structure set to identity.",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  80.68",
+            "Log likelihood = -468.10718                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9765344   .1087169     8.98   0.000     .7634532    1.189615",
+            "       _cons |   .1894666   .2615201     0.72   0.469    -.3231033    .7020366",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |   1.033998   .3504084      .5321803    2.009004",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.107707   .0936188      .9386098    1.307269",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 143.51        Prob >= chibar2 = 0.0000"
+          ]
+        },
+        {
+          "command": "mixed y x || id: x, nocons cov(unstructured)",
+          "lines": [
+            "note: single-variable random-effects specification in id equation; covariance structure set to identity.",
+            "",
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "Iteration 0:  Log likelihood = -494.77246",
+            "Iteration 1:  Log likelihood = -494.77246",
+            "",
+            "Computing standard errors ...",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  20.84",
+            "Log likelihood = -494.77246                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9626308   .2108716     4.57   0.000     .5493301    1.375931",
+            "       _cons |   .2196814   .1414572     1.55   0.120    -.0575696    .4969325",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                      var(x) |   .6024433   .2134883      .3007982    1.206583",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.356335   .1147132      1.149148    1.600878",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 90.18         Prob >= chibar2 = 0.0000"
+          ]
+        },
+        {
+          "command": "mixed y x z || id:, vce(oim)",
+          "lines": [
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "Iteration 0:  Log likelihood = -458.13259",
+            "Iteration 1:  Log likelihood = -458.13259",
+            "",
+            "Computing standard errors ...",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(2)     = 107.53",
+            "Log likelihood = -458.13259                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.032445   .1055521     9.78   0.000     .8255668    1.239323",
+            "           z |  -.9577608   .2104222    -4.55   0.000    -1.370181   -.5453408",
+            "       _cons |   .6260448   .2792899     2.24   0.025     .0786466    1.173443",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |   1.065281   .3587086      .5506072     2.06104",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.029819   .0870369      .8726095     1.21535",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display \"[\" e(chi2_c) \"][\" e(ll_c) \"]\"",
+          "lines": ["[.][.]"]
+        },
+        {
+          "command": "mixed y x z || id:, nolog",
+          "lines": [
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(2)     = 107.53",
+            "Log likelihood = -458.13259                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.032445   .1055521     9.78   0.000     .8255668    1.239323",
+            "           z |  -.9577608   .2104222    -4.55   0.000    -1.370181   -.5453408",
+            "       _cons |   .6260448   .2792899     2.24   0.025     .0786466    1.173443",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |   1.065281   .3587086      .5506072     2.06104",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.029819   .0870369      .8726095     1.21535",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 156.48        Prob >= chibar2 = 0.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-pass7-long-level-names",
+      "source": "clear\nset seed 302\nset obs 600\ngenerate school_identifier = ceil(_n/20)\ngenerate classroom_number = ceil(_n/5)\ngenerate hours_studied = runiform()*10\ngenerate double e0 = invnormal(runiform())\ngenerate double e1 = invnormal(runiform())\nby school_identifier, sort: generate double s = e0[1]\nby classroom_number, sort: generate double c = e1[1]\ngenerate double score = 50 + 2*hours_studied + 5*s + 2*c + 3*invnormal(runiform())\nmixed score hours_studied || school_identifier:\nmixed score hours_studied || school_identifier: || classroom_number:, nolog\nestat icc\nestat group\ngenerate school_number = school_identifier\nmixed score || school_number:, nolog stddev\nestat icc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 302", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate school_identifier = ceil(_n/20)", "lines": [] },
+        { "command": "generate classroom_number = ceil(_n/5)", "lines": [] },
+        { "command": "generate hours_studied = runiform()*10", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e1 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "by school_identifier, sort: generate double s = e0[1]",
+          "lines": []
+        },
+        {
+          "command": "by classroom_number, sort: generate double c = e1[1]",
+          "lines": []
+        },
+        {
+          "command": "generate double score = 50 + 2*hours_studied + 5*s + 2*c + 3*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "mixed score hours_studied || school_identifier:",
+          "lines": [
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "Iteration 0:  Log likelihood = -1701.6665",
+            "Iteration 1:  Log likelihood = -1701.6665",
+            "",
+            "Computing standard errors ...",
+            "",
+            "Mixed-effects ML regression                         Number of obs    =     600",
+            "Group variable: school_ident~r                      Number of groups =      30",
+            "                                                    Obs per group:",
+            "                                                                 min =      20",
+            "                                                                 avg =    20.0",
+            "                                                                 max =      20",
+            "                                                    Wald chi2(1)     = 1217.66",
+            "Log likelihood = -1701.6665                         Prob > chi2      =  0.0000",
+            "",
+            "-----------------------------------------------------------------------------------",
+            "            score | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------+----------------------------------------------------------------",
+            "    hours_studied |   1.964727   .0563041    34.89   0.000     1.854373    2.075081",
+            "            _cons |    48.6773   .6758205    72.03   0.000     47.35272    50.00189",
+            "-----------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school_ide~r: Identity       |",
+            "                  var(_cons) |   10.66855   2.947618      6.207645    18.33514",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   14.84578   .8794038      13.21847    16.67342",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 241.73        Prob >= chibar2 = 0.0000"
+          ]
+        },
+        {
+          "command": "mixed score hours_studied || school_identifier: || classroom_number:, nolog",
+          "lines": [
+            "Mixed-effects ML regression                            Number of obs =     600",
+            "",
+            "        Grouping information",
+            "        -------------------------------------------------------------",
+            "                        |     No. of       Observations per group",
+            "         Group variable |     groups    Minimum    Average    Maximum",
+            "        ----------------+--------------------------------------------",
+            "           school_ide~r |         30         20       20.0         20",
+            "           classroom_~r |        120          5        5.0          5",
+            "        -------------------------------------------------------------",
+            "",
+            "                                                       Wald chi2(1)  = 1635.29",
+            "Log likelihood = -1656.4243                            Prob > chi2   =  0.0000",
+            "",
+            "-----------------------------------------------------------------------------------",
+            "            score | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------+----------------------------------------------------------------",
+            "    hours_studied |   2.005913   .0496038    40.44   0.000     1.908691    2.103135",
+            "            _cons |   48.47515   .6644819    72.95   0.000     47.17279    49.77751",
+            "-----------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school_ide~r: Identity       |",
+            "                  var(_cons) |    9.49129    2.97611      5.133582    17.54809",
+            "-----------------------------+------------------------------------------------",
+            "classroom_~r: Identity       |",
+            "                  var(_cons) |   5.860089   1.187364      3.939442    8.717132",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   10.22943   .6605303      9.013388    11.60954",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chi2(2) = 332.21                Prob > chi2 = 0.0000",
+            "",
+            "Note: LR test is conservative and provided only for reference."
+          ]
+        },
+        {
+          "command": "estat icc",
+          "lines": [
+            "Residual intraclass correlation",
+            "",
+            "Level 2: classroom_number|school_identifier",
+            "",
+            "------------------------------------------------------------------------------",
+            "                       Level |        ICC   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "           school_identifier |   .3710316   .0771487      .2358197    .5300012",
+            "                     Level 2 |   .6001131   .0514425      .4964478    .6955258",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat group",
+          "lines": [
+            "-------------------------------------------------------------",
+            "                |     No. of       Observations per group",
+            " Group variable |     groups    Minimum    Average    Maximum",
+            "----------------+--------------------------------------------",
+            "   school_ide~r |         30         20       20.0         20",
+            "   classroom_~r |        120          5        5.0          5",
+            "-------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "generate school_number = school_identifier",
+          "lines": []
+        },
+        {
+          "command": "mixed score || school_number:, nolog stddev",
+          "lines": [
+            "Mixed-effects ML regression                            Number of obs    =  600",
+            "Group variable: school_number                          Number of groups =   30",
+            "                                                       Obs per group:",
+            "                                                                    min =   20",
+            "                                                                    avg = 20.0",
+            "                                                                    max =   20",
+            "                                                       Wald chi2(0)     =    .",
+            "Log likelihood = -2025.6354                            Prob > chi2      =    .",
+            "",
+            "-------------------------------------------------------------------------------",
+            "        score | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "        _cons |   58.32068   .5667476   102.90   0.000     57.20988    59.43149",
+            "-------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school_num~r: Identity       |",
+            "                   sd(_cons) |   2.702224   .4610768      1.934114    3.775381",
+            "-----------------------------+------------------------------------------------",
+            "                sd(Residual) |   6.832379   .2023576      6.447058    7.240731",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 44.66         Prob >= chibar2 = 0.0000"
+          ]
+        },
+        {
+          "command": "estat icc",
+          "lines": [
+            "Intraclass correlation",
+            "",
+            "------------------------------------------------------------------------------",
+            "                       Level |        ICC   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "               school_number |    .135264   .0408899      .0730764    .2368505",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-pass7-degenerate-models",
+      "source": "clear\nset seed 308\nset obs 30\ngenerate single = _n\ngenerate id = ceil(_n/5)\ngenerate x = runiform()\ngenerate double y = x + invnormal(runiform())\ncapture noisily mixed y x || single:\ndisplay _rc\ncapture noisily mixed y x || single:, nolog\ndisplay _rc\ncapture noisily mixed y x || single: x\ndisplay _rc\ncapture noisily mixed y x || id: || single:\ndisplay _rc\ngenerate double y2 = 3\ncapture noisily mixed y2 x || single:\ndisplay _rc\ncapture noisily mixed y2 x || id:\ndisplay _rc\ncapture noisily mixed y x in 1/2 || id:\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 308", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate single = _n", "lines": [] },
+        { "command": "generate id = ceil(_n/5)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate double y = x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "capture noisily mixed y x || single:",
+          "lines": [
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "could not calculate numerical derivatives -- discontinuous region with missing values encountered"
+          ]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "capture noisily mixed y x || single:, nolog",
+          "lines": [
+            "could not calculate numerical derivatives -- discontinuous region with missing values encountered"
+          ]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "capture noisily mixed y x || single: x",
+          "lines": [
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "Iteration 0:  Log likelihood = -42.916931  (not concave)",
+            "Iteration 1:  Log likelihood = -42.605063  (not concave)",
+            "Iteration 2:  Log likelihood = -42.595521  (not concave)",
+            "Iteration 3:  Log likelihood = -42.589707  (not concave)",
+            "Iteration 4:  Log likelihood = -42.589429  (not concave)",
+            "Iteration 5:  Log likelihood = -42.589429  (not concave)",
+            "Hessian is not negative semidefinite"
+          ]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "capture noisily mixed y x || id: || single:",
+          "lines": [
+            "Performing EM optimization ...",
+            "",
+            "Performing gradient-based optimization:",
+            "Iteration 0:  Log likelihood = -42.700725  (not concave)",
+            "Iteration 1:  Log likelihood = -42.674763  (not concave)",
+            "Iteration 2:  Log likelihood = -42.593903  (not concave)",
+            "Iteration 3:  Log likelihood =  -42.58949  (not concave)",
+            "Iteration 4:  Log likelihood = -42.589462  (not concave)",
+            "Iteration 5:  Log likelihood = -42.589432  (not concave)",
+            "Hessian is not negative semidefinite"
+          ]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        { "command": "generate double y2 = 3", "lines": [] },
+        {
+          "command": "capture noisily mixed y2 x || single:",
+          "lines": ["y2 collinear with _cons"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily mixed y2 x || id:",
+          "lines": ["y2 collinear with _cons"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily mixed y x in 1/2 || id:",
+          "lines": ["y collinear with x _cons"]
+        },
+        { "command": "display _rc", "lines": ["459"] }
+      ]
+    },
+    {
+      "id": "mixed-pass7-lrtest-notes",
+      "source": "clear\nset seed 405\nset obs 300\ngenerate id = ceil(_n/15)\ngenerate x = runiform()*2\ngenerate z = runiform()\ngenerate double e0 = invnormal(runiform())\ngenerate double e1 = invnormal(runiform())\nby id, sort: generate double u0 = e0[1]\nby id: generate double u1 = e1[1]\ngenerate double y = 1 + x + z + u0 + .7*u1*x + invnormal(runiform())\nquietly mixed y x z || id:\nestimates store a\nquietly mixed y x || id:\nestimates store b\nlrtest a b\nquietly mixed y x z || id:, reml\nestimates store d\nquietly mixed y x z || id: x, reml\nestimates store e\nlrtest d e\ncapture noisily lrtest a d\ndisplay _rc\nquietly mixed y x || id: x, cov(un)\nestimates store f\ncapture noisily lrtest f a\ndisplay _rc\nestimates clear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 405", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/15)", "lines": [] },
+        { "command": "generate x = runiform()*2", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e1 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "by id, sort: generate double u0 = e0[1]", "lines": [] },
+        { "command": "by id: generate double u1 = e1[1]", "lines": [] },
+        {
+          "command": "generate double y = 1 + x + z + u0 + .7*u1*x + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "quietly mixed y x z || id:", "lines": [] },
+        { "command": "estimates store a", "lines": [] },
+        { "command": "quietly mixed y x || id:", "lines": [] },
+        { "command": "estimates store b", "lines": [] },
+        {
+          "command": "lrtest a b",
+          "lines": [
+            "Likelihood-ratio test",
+            "Assumption: b nested within a",
+            "",
+            " LR chi2(1) =  11.01",
+            "Prob > chi2 = 0.0009"
+          ]
+        },
+        { "command": "quietly mixed y x z || id:, reml", "lines": [] },
+        { "command": "estimates store d", "lines": [] },
+        { "command": "quietly mixed y x z || id: x, reml", "lines": [] },
+        { "command": "estimates store e", "lines": [] },
+        {
+          "command": "lrtest d e",
+          "lines": [
+            "Likelihood-ratio test",
+            "Assumption: d nested within e",
+            "",
+            " LR chi2(1) =  15.78",
+            "Prob > chi2 = 0.0001",
+            "",
+            "Note: The reported degrees of freedom assumes the null hypothesis is not on the boundary of the parameter space. If this is not true, then the reported test is conservative.",
+            "Note: LR tests based on REML are valid only when the fixed-effects specification is identical for both models."
+          ]
+        },
+        {
+          "command": "capture noisily lrtest a d",
+          "lines": ["df(unrestricted) = df(restricted) = 5"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        { "command": "quietly mixed y x || id: x, cov(un)", "lines": [] },
+        { "command": "estimates store f", "lines": [] },
+        {
+          "command": "capture noisily lrtest f a",
+          "lines": ["mixed models are not nested"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        { "command": "estimates clear", "lines": [] }
+      ]
+    },
+    {
+      "id": "mixed-pass7-predict-checks",
+      "source": "clear\nset seed 401\nset obs 60\ngenerate id = ceil(_n/10)\ngenerate x = _n/10\ngenerate double e0 = invnormal(runiform())\nby id, sort: generate double u = e0[1]\ngenerate double y = x + u + invnormal(runiform())\nquietly mixed y x || id:\npredict double u0, reffects\nsort x\npredict double u0s, reffects\ngsort -y\npredict double fs, fitted\nreplace y = y + 1 if id == 2\ncapture noisily predict double u1, reffects\ndisplay _rc\ncapture noisily predict double f1, fitted\ndisplay _rc\ncapture noisily predict double r1, residuals\ndisplay _rc\npredict double xb1, xb\nreplace y = y - 1 if id == 2\npredict double u2, reffects\ndrop in 1/40\ncapture noisily predict double u3, reffects\ndisplay _rc\nclear\nset seed 4202\nset obs 600\ngenerate school = ceil(_n/20)\ngenerate class = ceil(_n/5)\ngenerate x = runiform()*4\ngenerate double e0 = invnormal(runiform())\ngenerate double e1 = invnormal(runiform())\ngenerate double e2 = invnormal(runiform())\ngenerate double e3 = invnormal(runiform())\nbysort school: generate double s = 1.2*e0[1]\nbysort school: generate double sx = 0.5*e3[1]\nbysort class: generate double c = 0.8*e1[1]\ngenerate double y = 1 + 0.6*x + s + sx*x + c + e2\nquietly mixed y x || school: x, cov(un) || class:\npredict re*, reffects\npredict se*, reses\npredict double b*, reffects reses(s*)\ndescribe re1-re3 se1-se3 b1-b3 s1-s3\ncapture noisily predict q*, xb\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 401", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate id = ceil(_n/10)", "lines": [] },
+        { "command": "generate x = _n/10", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "by id, sort: generate double u = e0[1]", "lines": [] },
+        {
+          "command": "generate double y = x + u + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "quietly mixed y x || id:", "lines": [] },
+        { "command": "predict double u0, reffects", "lines": [] },
+        { "command": "sort x", "lines": [] },
+        { "command": "predict double u0s, reffects", "lines": [] },
+        { "command": "gsort -y", "lines": [] },
+        { "command": "predict double fs, fitted", "lines": [] },
+        {
+          "command": "replace y = y + 1 if id == 2",
+          "lines": ["(10 real changes made)"]
+        },
+        {
+          "command": "capture noisily predict double u1, reffects",
+          "lines": ["BLUP calculation failed; estimation data have changed"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily predict double f1, fitted",
+          "lines": ["BLUP calculation failed; estimation data have changed"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily predict double r1, residuals",
+          "lines": ["BLUP calculation failed; estimation data have changed"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        { "command": "predict double xb1, xb", "lines": [] },
+        {
+          "command": "replace y = y - 1 if id == 2",
+          "lines": ["(10 real changes made)"]
+        },
+        { "command": "predict double u2, reffects", "lines": [] },
+        { "command": "drop in 1/40", "lines": ["(40 observations deleted)"] },
+        {
+          "command": "capture noisily predict double u3, reffects",
+          "lines": ["BLUP calculation failed; estimation data have changed"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4202", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate school = ceil(_n/20)", "lines": [] },
+        { "command": "generate class = ceil(_n/5)", "lines": [] },
+        { "command": "generate x = runiform()*4", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e1 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e2 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e3 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "bysort school: generate double s = 1.2*e0[1]",
+          "lines": []
+        },
+        {
+          "command": "bysort school: generate double sx = 0.5*e3[1]",
+          "lines": []
+        },
+        {
+          "command": "bysort class: generate double c = 0.8*e1[1]",
+          "lines": []
+        },
+        {
+          "command": "generate double y = 1 + 0.6*x + s + sx*x + c + e2",
+          "lines": []
+        },
+        {
+          "command": "quietly mixed y x || school: x, cov(un) || class:",
+          "lines": []
+        },
+        { "command": "predict re*, reffects", "lines": [] },
+        { "command": "predict se*, reses", "lines": [] },
+        { "command": "predict double b*, reffects reses(s*)", "lines": [] },
+        {
+          "command": "describe re1-re3 se1-se3 b1-b3 s1-s3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "re1             float   %9.0g                 BLUP r.e. for school: x",
+            "re2             float   %9.0g                 BLUP r.e. for school: _cons",
+            "re3             float   %9.0g                 BLUP r.e. for class: _cons",
+            "se1             float   %9.0g                 BLUP r.e. std. errors for school: x",
+            "se2             float   %9.0g                 BLUP r.e. std. errors for school: _cons",
+            "se3             float   %9.0g                 BLUP r.e. std. errors for class: _cons",
+            "b1              double  %10.0g                BLUP r.e. for school: x",
+            "b2              double  %10.0g                BLUP r.e. for school: _cons",
+            "b3              double  %10.0g                BLUP r.e. for class: _cons",
+            "s1              double  %10.0g                BLUP r.e. std. errors for school: x",
+            "s2              double  %10.0g                BLUP r.e. std. errors for school: _cons",
+            "s3              double  %10.0g                BLUP r.e. std. errors for class: _cons"
+          ]
+        },
+        {
+          "command": "capture noisily predict q*, xb",
+          "lines": ["* invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "mixed-pass7-estat-results",
+      "source": "clear\nset seed 4202\nset obs 600\ngenerate school = ceil(_n/20)\ngenerate x = runiform()*4\ngenerate double e0 = invnormal(runiform())\ngenerate double e2 = invnormal(runiform())\ngenerate double e3 = invnormal(runiform())\nbysort school: generate double s = 1.2*e0[1]\nbysort school: generate double sx = 0.5*e3[1]\ngenerate double y = 1 + 0.6*x + s + sx*x + e2\nquietly mixed y x || school: x, cov(un)\nmatrix list r(table)\nestat sd\nmatrix list r(table)\nreturn list\nestat sd, variance\nmatrix list r(table)\nestat sd, verbose level(90)\nestat recovariance\nreturn list\nmatrix C = r(cov)\nmatrix list C\nestat recovariance, correlation\nmatrix C = r(corr)\nmatrix list C\nestat recovariance, relevel(school)\nreturn list\nestat vce\nestat summarize\nquietly mixed y x || school: x, cov(exchangeable)\nmatrix list r(table)\nestat sd\nmatrix list r(table)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4202", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate school = ceil(_n/20)", "lines": [] },
+        { "command": "generate x = runiform()*4", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e2 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e3 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "bysort school: generate double s = 1.2*e0[1]",
+          "lines": []
+        },
+        {
+          "command": "bysort school: generate double sx = 0.5*e3[1]",
+          "lines": []
+        },
+        {
+          "command": "generate double y = 1 + 0.6*x + s + sx*x + e2",
+          "lines": []
+        },
+        { "command": "quietly mixed y x || school: x, cov(un)", "lines": [] },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,6]",
+            "                 y:          y:     school:     school:     school:   Residual:",
+            "                                                             cov(x,",
+            "                 x       _cons       var(x)  var(_cons)      _cons)      var(e)",
+            "     b   .62970635    1.584159   .17131517   .79966058   .16887555   1.0586782",
+            "    se   .08454779   .18380274   .05531183   .25657636   .08582769   .06427559",
+            "     z   7.4479338   8.6188001          .b          .b          .b          .b",
+            "pvalue   9.481e-14   6.766e-18          .b          .b          .b          .b",
+            "    ll   .46399572   1.2239123   .09098542   .42637533   .00065637   .93990713",
+            "    ul   .79541697   1.9444058    .3225669   1.4997515   .33709474   1.1924578",
+            "    df           .           .           .           .           .           .",
+            "  crit    1.959964    1.959964    1.959964    1.959964    1.959964    1.959964",
+            " eform           0           0           0           0           0           0"
+          ]
+        },
+        {
+          "command": "estat sd",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school: Unstructured         |",
+            "                       sd(x) |   .4139024   .0668175      .3016379    .5679497",
+            "                   sd(_cons) |   .8942374    .143461      .6529742    1.224643",
+            "               corr(x,_cons) |   .4562638   .2144645     -.0382528    .7712627",
+            "-----------------------------+------------------------------------------------",
+            "                sd(Residual) |   1.028921   .0312345      .9694881    1.091997",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,6]",
+            "                y:         y:    school:    school:    school:  Residual:",
+            "                                                       corr(x,",
+            "                x      _cons       sd(x)  sd(_cons)     _cons)      sd(e)",
+            "     b  .62970635   1.584159  .41390236  .89423743  .45626382  1.0289209",
+            "    se  .08454779  .18380274  .06681749  .14346098   .2144645  .03123447",
+            "     z  7.4479338  8.6188001         .b         .b  2.1274562         .b",
+            "pvalue  9.481e-14  6.766e-18         .b         .b   .0333822         .b",
+            "    ll  .46399572  1.2239123   .3016379  .65297422  .03592113  .96948808",
+            "    ul  .79541697  1.9444058  .56794973  1.2246434  .87660652  1.0919972",
+            "    df          .          .          .          .          .          .",
+            "  crit   1.959964   1.959964   1.959964   1.959964   1.959964   1.959964",
+            " eform          0          0          0          0          0          0"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "matrices:",
+            "                  r(b) :  1 x 6",
+            "                  r(V) :  6 x 6",
+            "              r(table) :  9 x 6"
+          ]
+        },
+        {
+          "command": "estat sd, variance",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school: Unstructured         |",
+            "                      var(x) |   .1713152   .0553118      .0909854    .3225669",
+            "                  var(_cons) |   .7996606   .2565764      .4263753    1.499752",
+            "                cov(x,_cons) |   .1688756   .0858277      .0006564    .3370947",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.058678   .0642756      .9399071    1.192458",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,6]",
+            "                 y:          y:     school:     school:     school:   Residual:",
+            "                                                             cov(x,",
+            "                 x       _cons       var(x)  var(_cons)      _cons)      var(e)",
+            "     b   .62970635    1.584159   .17131517   .79966058   .16887555   1.0586782",
+            "    se   .08454779   .18380274   .05531183   .25657636   .08582769   .06427559",
+            "     z   7.4479338   8.6188001          .b          .b   1.9676115          .b",
+            "pvalue   9.481e-14   6.766e-18          .b          .b   .04911276          .b",
+            "    ll   .46399572   1.2239123   .09098542   .42637533   .00065637   .93990713",
+            "    ul   .79541697   1.9444058    .3225669   1.4997515   .33709474   1.1924578",
+            "    df           .           .           .           .           .           .",
+            "  crit    1.959964    1.959964    1.959964    1.959964    1.959964    1.959964",
+            " eform           0           0           0           0           0           0"
+          ]
+        },
+        {
+          "command": "estat sd, verbose level(90)",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      z    P>|z|     [90% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   .6297063   .0845478     7.45   0.000     .4906376    .7687751",
+            "        _cons |   1.584159   .1838027     8.62   0.000      1.28183    1.886488",
+            "-------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [90% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school: Unstructured         |",
+            "                       sd(x) |   .4139024   .0668175       .317379    .5397811",
+            "                   sd(_cons) |   .8942374    .143461      .6868324    1.164273",
+            "               corr(x,_cons) |   .4562638   .2144645       .047041    .7343432",
+            "-----------------------------+------------------------------------------------",
+            "                sd(Residual) |   1.028921   .0312345      .9788064    1.081601",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat recovariance",
+          "lines": [
+            "Random-effects covariance matrix for level school",
+            "",
+            "             |         x      _cons",
+            "-------------+----------------------",
+            "           x |  .1713152",
+            "       _cons |  .1688756   .7996606"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "           r(relevels) =  2",
+            "",
+            "matrices:",
+            "               r(Cov2) :  2 x 2"
+          ]
+        },
+        { "command": "matrix C = r(cov)", "lines": [] },
+        {
+          "command": "matrix list C",
+          "lines": [
+            "symmetric C[2,2]",
+            "               x      _cons",
+            "    x  .17131517",
+            "_cons  .16887555  .79966058"
+          ]
+        },
+        {
+          "command": "estat recovariance, correlation",
+          "lines": [
+            "Random-effects correlation matrix for level school",
+            "",
+            "             |         x      _cons",
+            "-------------+----------------------",
+            "           x |         1",
+            "       _cons |  .4562638          1"
+          ]
+        },
+        { "command": "matrix C = r(corr)", "lines": [] },
+        {
+          "command": "matrix list C",
+          "lines": [
+            "symmetric C[2,2]",
+            "               x      _cons",
+            "    x          1",
+            "_cons  .45626382          1"
+          ]
+        },
+        {
+          "command": "estat recovariance, relevel(school)",
+          "lines": [
+            "Random-effects covariance matrix for level school",
+            "",
+            "             |         x      _cons",
+            "-------------+----------------------",
+            "           x |  .1713152",
+            "       _cons |  .1688756   .7996606"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": ["matrices:", "                r(Cov) :  2 x 2"]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of mixed model",
+            "",
+            "             | y                      | lns1_1_1   | lns1_1_2   | atr1_1_1_2 | lnsig_e",
+            "        e(V) |          x       _cons |      _cons |      _cons |      _cons |      _cons",
+            "-------------+------------------------+------------+------------+------------+-----------",
+            "y            |                        |            |            |            |",
+            "           x |  .00714833             |            |            |            |",
+            "       _cons |  .00286077   .03378345 |            |            |            |",
+            "-------------+------------------------+------------+------------+------------+-----------",
+            "lns1_1_1     |                        |            |            |            |",
+            "       _cons |          0           0 |   .0260606 |            |            |",
+            "-------------+------------------------+------------+------------+------------+-----------",
+            "lns1_1_2     |                        |            |            |            |",
+            "       _cons |          0           0 |  .00072166 |  .02573724 |            |",
+            "-------------+------------------------+------------+------------+------------+-----------",
+            "atr1_1_1_2   |                        |            |            |            |",
+            "       _cons |          0           0 |  -.0029807 | -.00159599 |  .07335914 |",
+            "-------------+------------------------+------------+------------+------------+-----------",
+            "lnsig_e      |                        |            |            |            |",
+            "       _cons |          0           0 | -.00021521 |  -.0001792 |  .00066179 |  .00092152"
+          ]
+        },
+        {
+          "command": "estat summarize",
+          "lines": [
+            "  Estimation sample mixed                  Number of obs =        600",
+            "",
+            "  -------------------------------------------------------------------",
+            "      Variable |         Mean      Std. dev.         Min          Max",
+            "  -------------+-----------------------------------------------------",
+            "             y |     2.793291      1.961235    -2.552365     10.15296",
+            "             x |     1.925517      1.137442     .0033331     3.986047",
+            "  -------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly mixed y x || school: x, cov(exchangeable)",
+          "lines": []
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,5]",
+            "                   y:            y:       school:       school:     Residual:",
+            "                                                         cov(x,",
+            "                   x         _cons   var(x _cons)        _cons)        var(e)",
+            "     b     .62735206     1.5904508     .39057828     .15028702     1.0684323",
+            "    se     .12028607     .14211752      .0992589     .08583593     .06545223",
+            "     z     5.2155004     11.191096            .b            .b            .b",
+            "pvalue     1.833e-07     4.508e-29            .b            .b            .b",
+            "    ll     .39159569     1.3119056     .23735016    -.01794831     .94755045",
+            "    ul     .86310843      1.868996     .64272714     .31852236     1.2047354",
+            "    df             .             .             .             .             .",
+            "  crit      1.959964      1.959964      1.959964      1.959964      1.959964",
+            " eform             0             0             0             0             0"
+          ]
+        },
+        {
+          "command": "estat sd",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "school: Exchangeable         |",
+            "                 sd(x _cons) |   .6249626   .0794119       .487186    .8017027",
+            "               corr(x,_cons) |   .3847808   .2130604     -.0843026    .7142573",
+            "-----------------------------+------------------------------------------------",
+            "                sd(Residual) |    1.03365   .0316607       .973422    1.097604",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,5]",
+            "                 y:          y:     school:     school:   Residual:",
+            "                                                corr(x,",
+            "                 x       _cons        sd(x)      _cons)       sd(e)",
+            "     b   .62735206   1.5904508   .62496262    .3847808     1.03365",
+            "    se   .12028607   .14211752   .07941187   .21306043   .03166073",
+            "     z   5.2155004   11.191096          .b   1.8059703          .b",
+            "pvalue   1.833e-07   4.508e-29          .b   .07092298          .b",
+            "    ll   .39159569   1.3119056   .48718596  -.03280996   .97342203",
+            "    ul   .86310843    1.868996   .80170265   .80237157   1.0976044",
+            "    df           .           .           .           .           .",
+            "  crit    1.959964    1.959964    1.959964    1.959964    1.959964",
+            " eform           0           0           0           0           0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-pass7-margins-xtmixed-by",
+      "source": "clear\nset seed 203\nset obs 300\ngenerate id = ceil(_n/15)\ngenerate x = runiform()*2\ngenerate k = mod(_n, 3) + 1\ngenerate double e0 = invnormal(runiform())\nby id, sort: generate double u0 = e0[1]\ngenerate double y = 1 + x + .5*k + u0 + invnormal(runiform())\ngenerate g = ceil(_n/100)\nquietly mixed y x i.k || id:\nmargins\nmargins k\nmargins, dydx(x)\nmargins, at(x=(0 1))\nxtmixed y x || id:, nolog\ndisplay e(cmd)\nxtmixed, variance\nby g, sort: mixed y x || id:, nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 203", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/15)", "lines": [] },
+        { "command": "generate x = runiform()*2", "lines": [] },
+        { "command": "generate k = mod(_n, 3) + 1", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "by id, sort: generate double u0 = e0[1]", "lines": [] },
+        {
+          "command": "generate double y = 1 + x + .5*k + u0 + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate g = ceil(_n/100)", "lines": [] },
+        { "command": "quietly mixed y x i.k || id:", "lines": [] },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "",
+            "Expression: Linear prediction, fixed portion, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   3.025922   .1711817    17.68   0.000     2.690412    3.361432",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins k",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "",
+            "Expression: Linear prediction, fixed portion, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           k |",
+            "          1  |   2.589919   .1900983    13.62   0.000     2.217334    2.962505",
+            "          2  |   2.987133   .1900578    15.72   0.000     2.614626    3.359639",
+            "          3  |   3.500714   .1901763    18.41   0.000     3.127975    3.873452",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 300",
+            "",
+            "Expression: Linear prediction, fixed portion, predict()",
+            "dy/dx wrt:  x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.007377   .1022042     9.86   0.000     .8070607    1.207694",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(x=(0 1))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "",
+            "Expression: Linear prediction, fixed portion, predict()",
+            "1._at: x = 0",
+            "2._at: x = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         _at |",
+            "          1  |   1.977215   .2015529     9.81   0.000     1.582179    2.372252",
+            "          2  |   2.984593    .171233    17.43   0.000     2.648982    3.320203",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtmixed y x || id:, nolog",
+          "lines": [
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  95.05",
+            "Log likelihood = -469.37361                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.061509   .1088783     9.75   0.000     .8481113    1.274906",
+            "       _cons |   1.920863   .2054961     9.35   0.000     1.518098    2.323628",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                   sd(_cons) |    .713904   .1302489       .499277    1.020794",
+            "-----------------------------+------------------------------------------------",
+            "                sd(Residual) |   1.081463   .0457006      .9955004    1.174849",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 68.03         Prob >= chibar2 = 0.0000"
+          ]
+        },
+        { "command": "display e(cmd)", "lines": ["xtmixed"] },
+        {
+          "command": "xtmixed, variance",
+          "lines": [
+            "Mixed-effects ML regression                          Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     20",
+            "                                                     Obs per group:",
+            "                                                                  min =     15",
+            "                                                                  avg =   15.0",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  95.05",
+            "Log likelihood = -469.37361                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.061509   .1088783     9.75   0.000     .8481113    1.274906",
+            "       _cons |   1.920863   .2054961     9.35   0.000     1.518098    2.323628",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |    .509659   .1859704      .2492775     1.04202",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.169562   .0988471       .991021    1.380269",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 68.03         Prob >= chibar2 = 0.0000"
+          ]
+        },
+        {
+          "command": "by g, sort: mixed y x || id:, nolog",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    100",
+            "Group variable: id                                   Number of groups =      7",
+            "                                                     Obs per group:",
+            "                                                                  min =     10",
+            "                                                                  avg =   14.3",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  34.71",
+            "Log likelihood =  -159.4643                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.130196   .1918208     5.89   0.000     .7542344    1.506158",
+            "       _cons |   1.599914   .4169921     3.84   0.000     .7826247    2.417204",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |    .893726   .5268002      .2814945     2.83752",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.197186   .1756471      .8979997    1.596052",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 36.00         Prob >= chibar2 = 0.0000",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    100",
+            "Group variable: id                                   Number of groups =      8",
+            "                                                     Obs per group:",
+            "                                                                  min =      5",
+            "                                                                  avg =   12.5",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  36.59",
+            "Log likelihood = -153.40354                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.066054   .1762468     6.05   0.000     .7206168    1.411492",
+            "       _cons |   2.077018   .3111736     6.67   0.000     1.467129    2.686907",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |   .4084677   .2487409      .1238253     1.34743",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.101104   .1619495      .8253431    1.469002",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 19.69         Prob >= chibar2 = 0.0000",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "",
+            "Mixed-effects ML regression                          Number of obs    =    100",
+            "Group variable: id                                   Number of groups =      7",
+            "                                                     Obs per group:",
+            "                                                                  min =     10",
+            "                                                                  avg =   14.3",
+            "                                                                  max =     15",
+            "                                                     Wald chi2(1)     =  22.80",
+            "Log likelihood =  -153.7057                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9486903   .1986803     4.77   0.000      .559284    1.338097",
+            "       _cons |   2.269623   .2761069     8.22   0.000     1.728463    2.810782",
+            "------------------------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "id: Identity                 |",
+            "                  var(_cons) |   .0998407   .0984875      .0144425    .6901964",
+            "-----------------------------+------------------------------------------------",
+            "               var(Residual) |   1.199076   .1757213      .8997157    1.598041",
+            "------------------------------------------------------------------------------",
+            "LR test vs. linear model: chibar2(01) = 2.58          Prob >= chibar2 = 0.0540"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

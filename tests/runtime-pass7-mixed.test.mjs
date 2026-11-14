@@ -202,8 +202,10 @@ test("what mixed refuses, with r(198) and what is available instead", () => {
     assert.equal(result.rc, 198, command);
   }
   run(s, "mixed y x || school:");
-  for (const command of ["estat vce", "estat wcorrelation"])
-    assert.equal(s.run(command).rc, 198, command);
+  assert.equal(s.run("estat wcorrelation").rc, 198);
+  // Time-series operators in the fixed part are not yet here: refused with
+  // r(198), not with Stata's r(101) for a genuine prohibition.
+  assert.equal(s.run("mixed y L.x || school:").rc, 198);
 });
 
 test("Stata's own errors after mixed", () => {
@@ -313,5 +315,253 @@ estimates store d`).rc,
       "Note: LR tests based on REML are valid only when the fixed-effects",
       "      specification is identical for both models.",
     ],
+  );
+});
+
+// The seventh red-team round. Every expected value below was recorded
+// from Stata 19 MP (version 17, set processors 1) on the same generated
+// data; where the likelihood is flat (a covariance matrix nearly
+// singular, a variance near zero) Stata stops its Newton steps short of
+// the maximum, and the tolerances say how far.
+const fit = (source, command) => {
+  const s = new Session();
+  assert.equal(s.run(source).rc, 0);
+  const result = s.run(command);
+  assert.equal(result.rc, 0, command);
+  return {
+    s,
+    result,
+    lines: result.output.at(-1).lines.flatMap((l) => l.split("\n")),
+  };
+};
+const UNSTRUCTURED = `clear
+set seed 202
+set obs 300
+generate id = ceil(_n/15)
+generate x = runiform()*2
+generate z = runiform()
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+generate double y = 1 + x - z + u0 + invnormal(runiform())`;
+
+test("three random effects, unstructured: Newton reaches Stata's maximum", () => {
+  const { s, lines } = fit(UNSTRUCTURED, "mixed y x z || id: x z, cov(un)");
+  const e = s.results.e;
+  assert.equal(e.converged, 1);
+  close(e.ll, -457.095167286793, "e(ll)", 2e-8);
+  assert.ok(!lines.some((l) => /Convergence not achieved/.test(l)));
+  const b = matrix(s, "e(b)");
+  [1.03899796577796, -0.983493753699582, 0.637058261886115].forEach(
+    (value, k) => close(b.values[0][k], value, b.colNames[k], 5e-5),
+  );
+  // G is nearly singular: as in Stata, the variance parameters' block of
+  // e(V) is zero and their standard errors are not shown.
+  const V = matrix(s, "e(V)");
+  for (let i = 3; i < 10; i++)
+    for (let j = 3; j < 10; j++) assert.equal(V.values[i][j], 0);
+  assert.ok(
+    lines.some((l) => /^ +var\(_cons\) \| +1\.45\d+ +\. +\. +\.$/.test(l)),
+  );
+});
+
+test("four unstructured effects at 10,000 observations converge quickly", () => {
+  const s = new Session();
+  s.run(`clear
+set seed 601
+set obs 10000
+generate id = ceil(_n/5)
+generate x = runiform()
+generate z = runiform()
+generate w = runiform()
+generate double e0 = invnormal(runiform())
+generate double e1 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+by id: generate double u1 = e1[1]
+generate double y = 1 + x + z + w + u0 + .5*u1*x + invnormal(runiform())`);
+  const started = Date.now(),
+    result = s.run("mixed y x z w || id: x z w, cov(un)"),
+    took = Date.now() - started;
+  assert.equal(result.rc, 0);
+  // About 0.9 s alone (Stata 19 MP takes 6.7 s); the bound leaves room
+  // for the other test files the suite runs beside it.
+  assert.ok(took < 4000, `took ${took} ms`);
+  const e = s.results.e;
+  assert.equal(e.converged, 1);
+  close(e.ll, -15989.8928362535, "e(ll)", 1e-9);
+  const b = matrix(s, "e(b)");
+  close(b.values[0][0], 0.982186526248622, "x", 1e-6);
+  close(b.values[0][14], -0.02358116505826, "lnsig_e", 1e-5);
+  // Stata's first iteration starts where its EM steps leave it.
+  assert.match(
+    result.output.at(-1).lines.join("\n"),
+    /Iteration 0: +Log likelihood = -16031\.405/,
+  );
+});
+
+test("REML with four groups and correlations at one: the standard errors fail as in Stata", () => {
+  const { s, lines } = fit(
+    `clear
+set seed 603
+set obs 10000
+generate id = ceil(_n/2500)
+generate x = runiform()
+generate z = runiform()
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+generate double y = 1 + x + z + u0 + invnormal(runiform())`,
+    "mixed y x z || id: x z, cov(un) reml",
+  );
+  assert.equal(s.results.e.converged, 1);
+  assert.equal(s.results.e.ic, 3);
+  close(s.results.e.ll, -14287.1320171136, "e(ll)", 1e-10);
+  assert.ok(lines.includes("standard-error calculation has failed"));
+  assert.equal(
+    lines.filter(Boolean).at(-1),
+    "Warning: Standard-error calculation failed.",
+  );
+  const V = matrix(s, "e(V)");
+  assert.equal(V.values[3][3], 0);
+  assert.equal(V.values[9][9], 0);
+});
+
+test("a variance at zero leaves the other standard errors, as in Stata", () => {
+  const { s } = fit(
+    `clear
+set seed 901
+set obs 300
+generate id = ceil(_n/15)
+generate x = runiform()*2
+generate z = runiform()
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+generate double y = 1 + x + u0 + invnormal(runiform())`,
+    "mixed y x || id: x",
+  );
+  const table = matrix(s, "r(table)"),
+    column = (name) =>
+      table.values.map((row) => row[table.colNames.indexOf(name)]);
+  // Stata: var(x) 1.48e-12, interval 0 to .; var(_cons) .9080329
+  // (.307828); var(Residual) .9732881 (.0822604).
+  const vx = column("id:var(x)");
+  assert.ok(vx[0] < 1e-10);
+  assert.equal(vx[4], 0);
+  assert.ok(vx[5] > 8e307, "upper limit missing");
+  close(column("id:var(_cons)")[1], 0.307828, "se var(_cons)", 2e-4);
+  close(column("Residual:var(e)")[1], 0.0822604, "se var(e)", 2e-4);
+  const V = matrix(s, "e(V)");
+  assert.ok(V.values[2][2] > 0 && Number.isFinite(V.values[2][2]));
+  close(V.values[4][4], 0.00178582496943, "V lnsig_e", 1e-4);
+});
+
+test("the LR test against the linear model: p = 1 at zero, %8.2e when small", () => {
+  const a = fit(
+    `clear
+set seed 102
+set obs 200
+generate id = ceil(_n/10)
+generate x = runiform()
+generate double y = 2 + x + invnormal(runiform())`,
+    "mixed y x || id:",
+  );
+  assert.equal(a.s.results.e.chi2_c, 0);
+  assert.equal(a.s.results.e.p_c, 1);
+  assert.ok(
+    a.lines.includes(
+      "LR test vs. linear model: chibar2(01) = 0.00          Prob >= chibar2 = 1.0000",
+    ),
+  );
+  const b = fit(
+    `clear
+set seed 703
+set obs 120
+generate id = ceil(_n/12)
+generate x = runiform()
+generate double y = x + invnormal(runiform())`,
+    "mixed y x || id:, reml",
+  );
+  // Stata: e(chi2_c) .000240898851984639 and the line below.
+  close(b.s.results.e.chi2_c, 0.000240898851984639, "e(chi2_c)", 1e-5);
+  assert.ok(
+    b.lines.includes(
+      "LR test vs. linear model: chibar2(01) = 2.4e-04       Prob >= chibar2 = 0.4938",
+    ),
+  );
+});
+
+test("e() after mixed: Stata's order, e(ic), and no LR test under vce()", () => {
+  const s = new Session();
+  s.run(`clear
+set seed 203
+set obs 300
+generate id = ceil(_n/15)
+generate x = runiform()*2
+generate double e0 = invnormal(runiform())
+by id, sort: generate double u0 = e0[1]
+generate double y = 1 + x + u0 + invnormal(runiform())`);
+  run(s, "mixed y x || id:");
+  // Stata: e(ic) = 1, its EM steps leaving one Newton step to go.
+  assert.equal(s.results.e.ic, 1);
+  close(s.results.e.ll, -450.7527744742451, "e(ll)", 1e-12);
+  assert.deepEqual(Object.keys(s.results.e).slice(0, 4), [
+    "rank",
+    "k_f",
+    "k_r",
+    "k",
+  ]);
+  run(s, "mixed y x || id:, vce(oim) reml");
+  const keys = Object.keys(s.results.e),
+    at = keys.indexOf("nrgroups");
+  assert.equal(s.results.e.chi2_c, undefined);
+  assert.deepEqual(keys.slice(at + 1, at + 6), [
+    "rc",
+    "df_m",
+    "chi2",
+    "p",
+    "small",
+  ]);
+});
+
+test("xtmixed, by:, and estat sd's results", () => {
+  const s = new Session();
+  s.run(`clear
+set seed 4202
+set obs 600
+generate school = ceil(_n/20)
+generate g = ceil(_n/300)
+generate x = runiform()*4
+generate double e0 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+generate double e3 = invnormal(runiform())
+bysort school: generate double s = 1.2*e0[1]
+bysort school: generate double sx = 0.5*e3[1]
+generate double y = 1 + 0.6*x + s + sx*x + e2`);
+  run(s, "xtmixed y x || school:");
+  assert.equal(s.results.e.cmd, "xtmixed");
+  const by = s.run("by g, sort: mixed y x || school:, nolog");
+  assert.equal(by.rc, 0);
+  assert.equal(
+    by.output.at(-1).lines.filter((l) => /^-> g = /.test(l)).length,
+    2,
+  );
+  run(s, "mixed y x || school: x, cov(un)");
+  const { r } = run(s, "estat sd");
+  // Stata 19: r(b) sd(x) .41390236, sd(_cons) .89423743, corr .45626382,
+  // sd(e) 1.0289209; the correlation tested, z 2.1274562.
+  assert.deepEqual(r["matrix:b"].colNames, [
+    "y:x",
+    "y:_cons",
+    "school:sd(x)",
+    "school:sd(_cons)",
+    "school:corr(x,_cons)",
+    "Residual:sd(e)",
+  ]);
+  [0.41390236, 0.89423743, 0.45626382, 1.0289209].forEach((v, k) =>
+    close(r["matrix:b"].values[0][k + 2], v, `r(b) ${k}`, 2e-6),
+  );
+  close(r["matrix:table"].values[2][4], 2.1274562, "z corr", 2e-6);
+  assert.equal(r["matrix:table"].values[2][2], missingValue("b"));
+  // r(V) by the delta method: its diagonal gives the standard errors shown.
+  r["matrix:V"].values.forEach((row, i) =>
+    close(Math.sqrt(row[i]), r["matrix:table"].values[1][i], `se ${i}`, 1e-9),
   );
 });

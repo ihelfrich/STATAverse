@@ -155,6 +155,13 @@ for (const c of fixture.cases)
             "mixed-large-sample",
             "mixed-special-forms",
             "mixed-postestimation",
+            "mixed-pass7-notes-and-tests",
+            "mixed-pass7-long-level-names",
+            "mixed-pass7-degenerate-models",
+            "mixed-pass7-lrtest-notes",
+            "mixed-pass7-predict-checks",
+            "mixed-pass7-estat-results",
+            "mixed-pass7-margins-xtmixed-by",
           ].includes(c.id),
         )
       )
