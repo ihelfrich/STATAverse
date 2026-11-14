@@ -18,7 +18,7 @@
 // is maximised by maximizeNR, which takes Stata's Newton steps.
 import { StataError } from "./errors.js";
 import { applyFormat, displayValue } from "./format.js";
-import { chi2tail } from "./distributions.js";
+import { chi2tail, lngamma } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
@@ -26,7 +26,9 @@ import {
   invertSymmetric,
   tableWidth,
 } from "./estimation.js";
+import { perfectPrediction, recheckCollinearity } from "./models.js";
 import { count } from "./reports.js";
+import { evaluateAll } from "./expression.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 import { clusterNote, noCluster, readVce, sandwich } from "./vce.js";
@@ -38,6 +40,7 @@ import {
   iterationLine,
   layoutRows,
   maximizeNR,
+  leastSquares,
   poissonStart,
   quadSum,
   row as coefficientRow,
@@ -55,12 +58,77 @@ const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1);
 const noLog = (text) => /\bnol(o(g)?)?\b/.test(splitAtComma(text)[1] ?? "");
 const LN_SQRT_2PI = 0.5 * Math.log(2 * Math.PI);
 
-/** ln(n!) to the last bit while n! is finite. */
+/**
+ * ln(n!) to the last bit while n! is finite; for an outcome that is not a
+ * whole number, lngamma(n + 1), as Stata takes it.
+ */
 function lnFactorial(n) {
+  if (!Number.isInteger(n)) return lngamma(n + 1);
   if (n > 170) return gammaSums(1, n).ln;
   let product = 1;
   for (let j = 2; j <= n; j++) product *= j;
   return Math.log(product);
+}
+
+/**
+ * ln(Gamma(m + y)/Gamma(m)), digamma(m + y) - digamma(m) and
+ * trigamma(m) - trigamma(m + y), for any y >= 0. A whole y is gammaSums';
+ * a fractional part f is stepped from m to m + f by the asymptotic series,
+ * differenced as gammaSums differences it, at a point moved past 30 by the
+ * recurrence, so that a large m loses nothing.
+ */
+function gammaDifferences(m, y) {
+  const whole = Math.floor(y),
+    f = y - whole;
+  const sums = (base) => {
+    const s = gammaSums(base, whole);
+    // gammaSums' di - tri is the sum of base/(base + j)^2.
+    let s2 = 0;
+    if (whole <= 1000)
+      for (let j = 0; j < whole; j++) s2 += 1 / (base + j) ** 2;
+    else s2 = (s.di - s.tri) / base;
+    return { ln: s.ln, di: s.di, s2 };
+  };
+  if (f === 0) return sums(m);
+  const shift = Math.max(0, Math.ceil(30 - m)),
+    a = m + shift,
+    b = a + f,
+    r = Math.log1p(f / a),
+    // 1/a^k - 1/b^k, without cancellation.
+    inverse = (k) => {
+      let sum = 0;
+      for (let j = 0; j < k; j++) sum += a ** (k - 1 - j) * b ** j;
+      return (f * sum) / (a * b) ** k;
+    };
+  let ln =
+      (a - 0.5) * r +
+      f * Math.log(b) -
+      f -
+      inverse(1) / 12 +
+      inverse(3) / 360 -
+      inverse(5) / 1260 +
+      inverse(7) / 1680,
+    di =
+      r +
+      inverse(1) / 2 +
+      inverse(2) / 12 -
+      inverse(4) / 120 +
+      inverse(6) / 252 -
+      inverse(8) / 240,
+    s2 =
+      inverse(1) +
+      inverse(2) / 2 +
+      inverse(3) / 6 -
+      inverse(5) / 30 +
+      inverse(7) / 42 -
+      inverse(9) / 30;
+  for (let j = 0; j < shift; j++) {
+    ln -= Math.log(m + f + j) - Math.log(m + j);
+    di -= 1 / (m + f + j) - 1 / (m + j);
+    s2 += 1 / (m + j) ** 2 - 1 / (m + f + j) ** 2;
+  }
+  const rest = sums(m + f);
+  return { ln: ln + rest.ln, di: di + rest.di, s2: s2 + rest.s2 };
 }
 
 /**
@@ -346,7 +414,14 @@ function waldStatistic(theta, V, at) {
  * observations with a panel, and the panels in order of their identifiers,
  * each the positions of its observations in the sample.
  */
-function panelDesign(session, parsed, constant, groupName, keep = () => true) {
+function panelDesign(
+  session,
+  parsed,
+  constant,
+  groupName,
+  keep = () => true,
+  { intercept = constant, weight = null } = {},
+) {
   let ivar = groupName;
   if (!ivar) {
     const panel = session.panel;
@@ -354,12 +429,82 @@ function panelDesign(session, parsed, constant, groupName, keep = () => true) {
       throw new StataError("must specify panelvar; use xtset", 459);
     ivar = panel.id;
   }
+  // A group() variable may be a string, whose missing value is "".
   const id = session.data.get(ivar).data,
-    f = frame(session, parsed, constant, true, false, {
-      keep: (i) => !isMissing(id[i]) && keep(i),
-      weight: null,
+    present = (i) =>
+      typeof id[i] === "string" ? id[i] !== "" : !isMissing(id[i]),
+    // The fixed-effects models absorb a constant, so a factor's base level
+    // is left out as beside one; under noconstant the others keep every
+    // level of an ibn. factor.
+    f = frame(session, parsed, constant, intercept, false, {
+      keep: (i) =>
+        present(i) &&
+        keep(i) &&
+        (!weight || (!isMissing(weight[i]) && weight[i] !== 0)),
+      weight,
     });
   return { f, ivar, id };
+}
+
+/**
+ * The design again over some of its observations (flags over f.sample),
+ * with each column's omitted flag as it now stands: the fitted columns,
+ * their placing in the full b and V, and the rows. Collinear columns that
+ * are not perfect predictors keep their notes.
+ */
+function rebuildFrame(f, kept, constant) {
+  const sample = f.sample.filter((_, j) => kept[j]),
+    active = f.columns.filter((c) => !c.base && !c.omitted),
+    at = [
+      ...f.columns.map((c) => active.indexOf(c)),
+      ...(constant ? [active.length] : []),
+    ];
+  return {
+    ...f,
+    sample,
+    active,
+    at,
+    w: f.w && f.w.filter((_, j) => kept[j]),
+    place: (theta, V) => ({
+      b: at.map((j) => (j >= 0 ? theta[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+      estimable: at.map((j) => j >= 0),
+    }),
+    notes: (ctx) => {
+      const omitted = f.columns.filter((c) => c.collinear && !c.perfect);
+      for (const c of omitted)
+        ctx.out(`note: ${c.name} omitted because of collinearity.`);
+      return omitted.length;
+    },
+    y: sample.map((i) => f.dependent.data[i]),
+    x: sample.map((i) => [
+      ...active.map((c) => c.value(i)),
+      ...(constant ? [1] : []),
+    ]),
+    names: [...active.map((c) => c.name), ...(constant ? ["_cons"] : [])],
+  };
+}
+
+/**
+ * The search for regressors that predict a binary outcome perfectly that
+ * xtlogit and xtprobit make before the comparison model (_rmcoll with the
+ * logit option, as logit makes it): the observations a predictor explains
+ * are set aside, it and any column now collinear are omitted, and its
+ * notes are printed, each with a blank line after it.
+ */
+function withoutPerfect(f, constant, ctx) {
+  const outcome = f.y.map((v) => Number(v !== 0)),
+    found = perfectPrediction(f.columns, f.sample, outcome, ctx, false);
+  if (!found.rules.length) return f;
+  found.notes.forEach(ctx.out);
+  for (const rule of found.rules) rule.column.perfect = true;
+  recheckCollinearity(
+    f.columns,
+    f.sample.filter((_, j) => found.keep[j]),
+    constant,
+  );
+  for (const c of f.columns) c.omitted = !!c.collinear || !!c.perfect;
+  return rebuildFrame(f, found.keep, constant);
 }
 
 /** The panels of the positions kept, in order of the identifiers. */
@@ -377,12 +522,37 @@ function panelsOf(id, sample, kept = sample.map((_, r) => r)) {
 
 function sizes(panels) {
   const t = panels.map((p) => p.length);
+  if (!t.length)
+    return { N_g: 0, g_min: MISSING, g_avg: MISSING, g_max: MISSING };
   return {
     N_g: t.length,
     g_min: Math.min(...t),
     g_avg: t.reduce((a, b) => a + b, 0) / t.length,
     g_max: Math.max(...t),
   };
+}
+
+/**
+ * The panel counts as xtlogit, xtprobit and xtpoisson, normal (and
+ * xtlogit, fe) make them: sorted by the sample marker and the panel, a
+ * panel is counted where its identifier differs from the observation
+ * before. When the last observation left out of the sample, in that order,
+ * belongs to the first panel in it, Stata does not count that panel, and
+ * so neither is it counted here.
+ */
+function stataSizes(panels, sample, id) {
+  const inSample = new Uint8Array(id.length);
+  for (const i of sample) inSample[i] = 1;
+  let last;
+  for (let i = 0; i < id.length; i++) {
+    if (inSample[i]) continue;
+    // Missing values, stored above every number, sort last.
+    if (last === undefined || id[i] > last) last = id[i];
+  }
+  const first = panels.length ? id[sample[panels[0][0]]] : undefined;
+  return last !== undefined && first !== undefined && last === first
+    ? sizes(panels.slice(1))
+    : sizes(panels);
 }
 
 /**
@@ -404,6 +574,11 @@ function robustAsked(session, options, ivar, refusal = null) {
     keep: (i) => !noCluster(variable, i),
   };
 }
+
+/** Whether vce(cluster ...) or cluster() was typed. */
+const clusterTyped = (options) =>
+  options.cluster !== undefined ||
+  /^\s*cl(u(s(t(e(r)?)?)?)?)?\b/.test(options.vce ?? "");
 
 /**
  * vce(robust) of a model that clusters on its panels, as xtpoisson and
@@ -467,19 +642,29 @@ function panelSandwich(V, scores, panels, sample, asked) {
   );
 }
 
-/** Refuses weights, which these commands do not take here yet. */
-function noWeights(parsed, command) {
+/**
+ * The weights of the random- and fixed-effects models, as Stata refuses
+ * them: frequency and sampling weights are not allowed (xtpoisson, normal
+ * has its own words); importance weights, the same within each panel, are
+ * taken. pa and clogit take weights themselves.
+ */
+function refuseWeights(parsed, kind, options) {
   const type = parsed.weight?.type;
-  if (type === "fweight" || type === "pweight")
+  if (!type) return;
+  if (type === "aweight") throw new StataError("aweights not allowed", 101);
+  if (kind === "poisson" && options.normal) {
+    if (type === "fweight") throw new StataError("fweights not allowed", 101);
+    if (type === "pweight")
+      throw new StataError(
+        "pweight not allowed for fixed- and random-effects cases",
+        101,
+      );
+  } else if (type === "fweight" || type === "pweight")
     throw new StataError(
-      `${type}s not allowed with fixed- or random-effects models`,
+      kind === "probit"
+        ? `${type}s not allowed with random-effects model`
+        : `${type}s not allowed with fixed- or random-effects models`,
       101,
-    );
-  if (type === "aweight") throw new StataError(`${type}s not allowed`, 101);
-  if (parsed.weight)
-    throw new StataError(
-      `weights are not available with ${command} in the browser yet`,
-      198,
     );
 }
 
@@ -487,23 +672,29 @@ function noWeights(parsed, command) {
 /**
  * The pooled logit, probit or Poisson fit, from Stata's starting values:
  * the constant-only model for logit and probit, poisson.ado's for Poisson.
+ * w, when given, weights each observation.
  */
-function pooledFit(kind, x, y, lnFact, offset, constant, limit = 300) {
+function pooledFit(
+  kind,
+  x,
+  y,
+  lnFact,
+  offset,
+  constant,
+  limit = 300,
+  w = null,
+) {
   const k = x[0].length,
-    n = y.length,
+    weight = (i) => (w ? w[i] : 1),
+    n = y.reduce((t, _, i) => t + weight(i), 0),
     out = new Float64Array(3),
     term = TERMS[kind],
-    mean = y.reduce((a, b) => a + b, 0) / n;
+    mean = y.reduce((a, b, i) => a + weight(i) * b, 0) / n;
   let start;
   if (kind === "poisson")
     start = offset
-      ? x[0].map((_, j) =>
-          constant && j === k - 1
-            ? Math.log(mean) -
-              Math.log(offset.reduce((t, o) => t + Math.exp(o), 0) / n)
-            : 0,
-        )
-      : poissonStart(x, y, lnFact, constant);
+      ? offsetPoissonStart(x, y, lnFact, constant, offset, w)
+      : poissonStart(x, y, lnFact, constant, w);
   else {
     start = new Array(k).fill(0);
     if (constant)
@@ -517,12 +708,13 @@ function pooledFit(kind, x, y, lnFact, offset, constant, limit = 300) {
         information = Array.from({ length: k }, () => new Array(k).fill(0));
       x.forEach((r, i) => {
         term(y[i], dot(r, theta) + (offset ? offset[i] : 0), out, lnFact[i]);
-        sum.add(out[0]);
+        const v = weight(i);
+        sum.add(out[0], v);
         if (!todo) return;
         for (let a = 0; a < k; a++) {
-          gradient[a] += out[1] * r[a];
+          gradient[a] += v * out[1] * r[a];
           for (let c = 0; c <= a; c++)
-            information[a][c] += out[2] * r[a] * r[c];
+            information[a][c] += v * out[2] * r[a] * r[c];
         }
       });
       for (let a = 0; a < k; a++)
@@ -532,6 +724,72 @@ function pooledFit(kind, x, y, lnFact, offset, constant, limit = 300) {
     start,
     limit,
   );
+}
+
+/**
+ * poisson.ado's starting values (Ipois) with an offset: least squares of
+ * y - offset * mean(y) scaled by 1/mean(y), the constant that then matches
+ * the mean (SolveC), and one reweighted least-squares step; the one whose
+ * log likelihood is largest.
+ */
+function offsetPoissonStart(x, y, lnFact, constant, offset, w = null) {
+  const k = x[0].length,
+    weight = (i) => (w ? w[i] : 1),
+    n = y.reduce((t, _, i) => t + weight(i), 0),
+    mean = y.reduce((t, v, i) => t + weight(i) * v, 0) / n,
+    lnf = (xb) => {
+      let total = 0;
+      xb.forEach(
+        (v, i) =>
+          (total +=
+            weight(i) *
+            (y[i] * (v + offset[i]) - Math.exp(v + offset[i]) - lnFact[i])),
+      );
+      return Number.isFinite(total) ? total : NaN;
+    },
+    better = (a, b) => Number.isNaN(b) || a > b,
+    fallback = x[0].map((_, j) =>
+      constant && j === k - 1
+        ? Math.log(mean) -
+          Math.log(
+            offset.reduce((t, o, i) => t + weight(i) * Math.exp(o), 0) / n,
+          )
+        : 0,
+    ),
+    b0 = leastSquares(
+      x,
+      y.map((v, i) => v - offset[i] * mean),
+      w,
+    );
+  if (!b0) return fallback;
+  const b1 = b0.map((v) => v / mean),
+    xb1 = x.map((r) => dot(r, b1)),
+    lnf1 = lnf(xb1);
+  let c = NaN,
+    lnf1c = NaN;
+  if (constant) {
+    const meanExp =
+      xb1.reduce((t, v, i) => t + weight(i) * Math.exp(v + offset[i]), 0) / n;
+    c = Math.log(mean) - Math.log(meanExp);
+    if (Number.isFinite(c)) lnf1c = lnf(xb1.map((v) => v + c));
+    else c = NaN;
+  }
+  const shift = Number.isNaN(c) ? 0 : c,
+    eta = xb1.map((v) => v + shift),
+    z = eta.map((v, i) => y[i] * Math.exp(-(v + offset[i])) - 1 + v),
+    b2 = leastSquares(
+      x,
+      z,
+      eta.map((v, i) => weight(i) * Math.exp(v + offset[i])),
+    ),
+    lnf2 = b2 ? lnf(x.map((r) => dot(r, b2))) : NaN;
+  if (!Number.isNaN(lnf2) && better(lnf2, lnf1) && better(lnf2, lnf1c))
+    return b2;
+  if (!Number.isNaN(lnf1) && better(lnf1, lnf1c) && better(lnf1, lnf2))
+    return b1;
+  if (!(Number.isNaN(lnf1) && Number.isNaN(lnf1c)))
+    return b1.map((v, j) => (j === k - 1 ? v + shift : v));
+  return fallback;
 }
 
 // ----- normal random effects by quadrature -----
@@ -544,7 +802,17 @@ function pooledFit(kind, x, y, lnFact, offset, constant, limit = 300) {
  * at the nodes, not from moving them, and the Newton steps are Stata's.
  * Ordinary quadrature is m = 0 and s = sigma_u.
  */
-function quadratureModel(kind, x, y, lnFact, panels, offset, points, adaptive) {
+function quadratureModel(
+  kind,
+  x,
+  y,
+  lnFact,
+  panels,
+  offset,
+  points,
+  adaptive,
+  weights = null,
+) {
   const k = x[0].length,
     p = k + 1,
     rule = hermite(points),
@@ -638,8 +906,9 @@ function quadratureModel(kind, x, y, lnFact, panels, offset, points, adaptive) {
       s1 = new Float64Array(p),
       s2 = Array.from({ length: p }, () => new Float64Array(p));
     for (let q = 0; q < G; q++) {
-      const L = nodes(q, xb, sigma);
-      sum.add(L);
+      const L = nodes(q, xb, sigma),
+        weight = weights ? weights[q] : 1;
+      sum.add(L, weight);
       if (!todo) continue;
       s1.fill(0);
       for (const row of s2) row.fill(0);
@@ -683,9 +952,9 @@ function quadratureModel(kind, x, y, lnFact, panels, offset, points, adaptive) {
         }
       }
       for (let c = 0; c < p; c++) {
-        gradient[c] += s1[c];
+        gradient[c] += weight * s1[c];
         for (let e = 0; e <= c; e++)
-          information[c][e] += s1[c] * s1[e] - s2[c][e];
+          information[c][e] += weight * (s1[c] * s1[e] - s2[c][e]);
       }
     }
     for (let c = 0; c < p; c++)
@@ -705,23 +974,37 @@ function quadratureModel(kind, x, y, lnFact, panels, offset, points, adaptive) {
     const xb = index(theta),
       sigma = Math.exp(theta[k] / 2);
     let total = 0;
-    for (let q = 0; q < G; q++) total += nodes(q, xb, sigma, 0, sigma);
+    for (let q = 0; q < G; q++)
+      total += (weights ? weights[q] : 1) * nodes(q, xb, sigma, 0, sigma);
     return total;
   }
   return { evaluate, plain, index };
 }
 
 /** The search over rho or tau for starting values, as _GetRho makes it. */
-function searchStart(ctx, logged, word, pooled, model, likelihood) {
+function searchStart(
+  ctx,
+  logged,
+  word,
+  pooled,
+  model,
+  likelihood,
+  shifted = null,
+) {
   const at = (tau) => [...pooled.theta, Math.log(tau / (1 - tau))],
     line = (tau, value) =>
-      `${word} = ${applyFormat(tau, "%4.1f")}    ${likelihood} = ${g(value, "%10.0g").padStart(10)}`;
-  if (logged) ctx.out(line(0, pooled.ll));
-  let previous = pooled.ll,
+      `${word} = ${applyFormat(tau, "%4.1f")}    ${likelihood} = ${g(value, "%10.0g").padStart(10)}`,
+    // Under noconstant Stata's search reads the start of lnsig2u as
+    // a constant (shifted: the pooled log likelihood and the model with
+    // that offset); the Newton steps then start without it.
+    first = shifted ? shifted.ll : pooled.ll,
+    grid = shifted ? shifted.model : model;
+  if (logged) ctx.out(line(0, first));
+  let previous = first,
     last = 0;
   for (let step = 1; step <= 8; step++) {
     const tau = step / 10,
-      value = model.plain(at(tau));
+      value = grid.plain(at(tau));
     if (logged) ctx.out(line(tau, value));
     last = step;
     if (!(value >= previous)) break;
@@ -729,6 +1012,48 @@ function searchStart(ctx, logged, word, pooled, model, likelihood) {
   }
   const chosen = Math.max(1, last - 1) / 10;
   return at(chosen);
+}
+
+/**
+ * The search's model under noconstant: every index moved by the start of
+ * lnsig2u (-.8, or -.2 for xtpoisson), which Stata's search takes for a
+ * constant, with the pooled log likelihood there.
+ */
+function shiftedSearch(
+  kind,
+  x,
+  y,
+  lnFact,
+  panels,
+  offset,
+  theta,
+  points,
+  weights = null,
+  observationWeight = null,
+) {
+  const start = kind === "poisson" ? -0.2 : -0.8,
+    moved = y.map((_, i) => (offset ? offset[i] : 0) + start),
+    out = new Float64Array(3),
+    term = TERMS[kind],
+    sum = quadSum();
+  x.forEach((r, i) => {
+    term(y[i], dot(r, theta) + moved[i], out, lnFact[i]);
+    sum.add(out[0], observationWeight ? observationWeight[i] : 1);
+  });
+  return {
+    model: quadratureModel(
+      kind,
+      x,
+      y,
+      lnFact,
+      panels,
+      moved,
+      points,
+      false,
+      weights,
+    ),
+    ll: sum.value,
+  };
 }
 
 // ----- the commands -----
@@ -751,7 +1076,11 @@ function parseCommand(session, text, kind) {
 function replayed(session, text, ctx, command, eform) {
   if (splitAtComma(text)[0].trim()) return false;
   const model = session.estimates;
-  if (!model?.replay || model.command !== command)
+  // xtlogit, fe leaves e(cmd) clogit, so clogit shows it again too.
+  const shown =
+    model?.command === command ||
+    (command === "clogit" && model?.kind === "clogit");
+  if (!model?.replay || !shown)
     throw new StataError("last estimates not found", 301);
   const parsed = session.parse(
     `[, Level(cilevel)${eform ? ` ${eform}` : ""} BASElevels ALLBASElevels]`,
@@ -775,14 +1104,13 @@ function xtCommand(kind) {
       return;
     const parsed = parseCommand(session, text, kind),
       options = parsed.options,
-      command = MODELS[kind].command,
       chosen = ["re", "fe", "pa"].filter((m) => options[m]);
     if (chosen.length > 1)
-      throw new StataError("only one of re, fe, and pa may be specified", 198);
+      throw new StataError("only one of re, fe, or pa is allowed", 198);
     if (options.fe && kind === "probit")
       throw new StataError("fixed-effects model not available", 198);
-    noWeights(parsed, command);
     if (options.pa) return populationAveraged(session, parsed, text, ctx, kind);
+    refuseWeights(parsed, kind, options);
     if (options.corr)
       throw new StataError("option corr() not allowed without pa", 198);
     if (options.fe) {
@@ -839,14 +1167,16 @@ function checkIntegration(options) {
   );
 }
 
-function outcomeChecks(kind, f, ctx) {
+// xtpoisson, re (gamma) and fe say so of an outcome that is not a count;
+// normal and pa, which fit by me and xtgee, do not.
+function outcomeChecks(kind, f, ctx, noteCounts = true) {
   if (kind === "poisson") {
     if (f.y.some((v) => v < 0))
       throw new StataError(
         `${f.dependent.name} must be greater than or equal to zero`,
         459,
       );
-    if (f.y.some((v) => !Number.isInteger(v)))
+    if (noteCounts && f.y.some((v) => !Number.isInteger(v)))
       ctx.out(
         "note: you are responsible for interpretation of non-count dep. variable",
       );
@@ -886,34 +1216,75 @@ function normalEffects(session, parsed, text, ctx, kind) {
     integration = checkIntegration(options),
     constant = options.constant !== false,
     offset = kind === "poisson" ? offsetOf(session, options) : null,
-    { f, ivar } = panelDesign(session, parsed, constant, null, offset?.keep),
     logged = !noLog(text),
-    word = "Log likelihood";
+    word = "Log likelihood",
+    // Stata counts the observations against the quadrature points before
+    // it looks at the outcome, so too few, or none, is this error.
+    tooFew = () =>
+      new StataError(
+        "number of quadrature points must be less than or equal to number of obs",
+        198,
+      );
+  let design;
+  try {
+    design = panelDesign(session, parsed, constant, null, offset?.keep, {
+      weight: weightValues(session, parsed),
+    });
+  } catch (error) {
+    if (error instanceof StataError && error.message === "no observations")
+      throw tooFew();
+    throw error;
+  }
+  let { f, ivar, id } = design;
+  if (integration.points > f.sample.length) throw tooFew();
   if (!f.active.length && !constant)
     throw new StataError(
       "independent variables required with noconstant option",
       102,
     );
   offset?.check(f.sample);
-  const y = outcomeChecks(kind, f, ctx),
+  if (kind !== "poisson") {
+    outcomeChecks(kind, f, ctx, false);
+    f = withoutPerfect(f, constant, ctx);
+  }
+  const y = outcomeChecks(kind, f, ctx, false),
     n = y.length,
     lnFact = y.map((v) => (kind === "poisson" ? lnFactorial(v) : 0)),
     off = offset ? f.sample.map(offset.value) : null;
-  if (integration.points > n)
-    throw new StataError(
-      "number of quadrature points must be less than or equal to number of obs",
-      198,
+  const panels = panelsOf(id, f.sample),
+    k = f.x[0].length,
+    // Importance weights, the same within each panel, weight its part of
+    // the likelihood.
+    weights = panelWeights(
+      f,
+      panels,
+      parsed.weight?.type,
+      `weight must be constant within ${ivar}`,
+      199,
+    ),
+    observationWeight = weights ? new Array(n).fill(1) : null;
+  if (weights)
+    panels.forEach((rows, q) =>
+      rows.forEach((r) => (observationWeight[r] = weights[q])),
     );
-  const panels = panelsOf(session.data.get(ivar).data, f.sample),
-    k = f.x[0].length;
   f.notes(ctx);
+  ctx.out("");
   if (logged)
     ctx.out(
       kind === "poisson"
         ? "Fitting comparison Poisson model:"
         : "Fitting comparison model:",
     );
-  const pooled = pooledFit(kind, f.x, y, lnFact, off, constant);
+  const pooled = pooledFit(
+    kind,
+    f.x,
+    y,
+    lnFact,
+    off,
+    constant,
+    300,
+    observationWeight,
+  );
   if (logged) {
     ctx.out("");
     pooled.log.forEach((v, j) =>
@@ -932,13 +1303,39 @@ function normalEffects(session, parsed, text, ctx, kind) {
       off,
       integration.points,
       integration.adaptive,
+      weights,
     ),
-    start = searchStart(ctx, logged, spec.grid, pooled, model, word);
+    start = searchStart(
+      ctx,
+      logged,
+      spec.grid,
+      pooled,
+      model,
+      word,
+      constant
+        ? null
+        : shiftedSearch(
+            kind,
+            f.x,
+            y,
+            lnFact,
+            panels,
+            off,
+            pooled.theta,
+            integration.points,
+            weights,
+            observationWeight,
+          ),
+    );
   if (logged) ctx.out("");
   const fit = maximizeNR(model.evaluate, start);
   if (logged) {
     fit.log.forEach((v, j) => ctx.out(iterationLine(j, word, v, fit.notes[j])));
     if (!fit.converged) ctx.out("convergence not achieved");
+    ctx.out("");
+  } else if (!fit.converged) {
+    // Without a log, Stata says so before the table.
+    ctx.out("convergence not achieved");
     ctx.out("");
   }
   const cov = fit.V,
@@ -955,7 +1352,7 @@ function normalEffects(session, parsed, text, ctx, kind) {
       spec.residual === undefined
         ? undefined
         : sigmaU ** 2 / (spec.residual + sigmaU ** 2),
-    groups = sizes(panels),
+    groups = stataSizes(panels, f.sample, id),
     title = spec.title;
   const names = [
       ...f.columns.map((c) => c.name),
@@ -1106,7 +1503,9 @@ function gammaPoisson(session, parsed, text, ctx) {
     constant = options.constant !== false,
     offset = offsetOf(session, options),
     asked = robustOnPanels(session, options, "xtpoisson, re"),
-    { f, ivar } = panelDesign(session, parsed, constant, null, offset?.keep),
+    { f, ivar } = panelDesign(session, parsed, constant, null, offset?.keep, {
+      weight: weightValues(session, parsed),
+    }),
     logged = !noLog(text),
     word = asked ? "Log pseudolikelihood" : "Log likelihood";
   needsNormal(options);
@@ -1122,10 +1521,33 @@ function gammaPoisson(session, parsed, text, ctx) {
     off = offset ? f.sample.map(offset.value) : null,
     panels = panelsOf(session.data.get(ivar).data, f.sample),
     k = f.x[0].length,
-    p = k + 1;
+    p = k + 1,
+    // Importance weights, the same within each panel, weight its part.
+    weights = panelWeights(
+      f,
+      panels,
+      parsed.weight?.type,
+      `weight must be constant within ${ivar}`,
+      199,
+    ),
+    observationWeight = weights ? new Array(n).fill(1) : null;
+  if (weights)
+    panels.forEach((rows, q) =>
+      rows.forEach((r) => (observationWeight[r] = weights[q])),
+    );
   f.notes(ctx);
+  ctx.out("");
   if (logged) ctx.out("Fitting Poisson model:");
-  const pooled = pooledFit("poisson", f.x, y, lnFact, off, constant);
+  const pooled = pooledFit(
+    "poisson",
+    f.x,
+    y,
+    lnFact,
+    off,
+    constant,
+    300,
+    observationWeight,
+  );
   if (logged) {
     ctx.out("");
     pooled.log.forEach((v, j) =>
@@ -1154,7 +1576,7 @@ function gammaPoisson(session, parsed, text, ctx) {
         M += m;
         return m;
       });
-      const { ln, di } = gammaSums(th, Y);
+      const { ln, di, s2 } = gammaDifferences(th, Y);
       // theta ln theta - (theta + Y) ln(theta + M), without cancellation.
       const value =
         ln -
@@ -1162,41 +1584,40 @@ function gammaPoisson(session, parsed, text, ctx) {
         th * Math.log1p(M / th) -
         Y * Math.log(th + M) +
         linear;
-      sum.add(value);
+      const weight = weights ? weights[q] : 1;
+      sum.add(value, weight);
       if (!todo) return;
-      let s2 = 0;
-      if (Y <= 1000) for (let j = 0; j < Y; j++) s2 += 1 / (th + j) ** 2;
-      else s2 = (di - gammaSums(th, Y).tri) / th;
       const ratio = (th + Y) / (th + M),
         sx = new Array(k).fill(0),
         own = new Array(p).fill(0);
       rows.forEach((r, t) => {
         const xr = f.x[r];
         for (let a = 0; a < k; a++) {
-          own[a] += y[r] * xr[a] - ratio * mu[t] * xr[a];
-          gradient[a] += y[r] * xr[a] - ratio * mu[t] * xr[a];
+          own[a] += weight * (y[r] * xr[a] - ratio * mu[t] * xr[a]);
+          gradient[a] += weight * (y[r] * xr[a] - ratio * mu[t] * xr[a]);
           sx[a] += mu[t] * xr[a];
           for (let c = 0; c <= a; c++)
-            information[a][c] += ratio * mu[t] * xr[a] * xr[c];
+            information[a][c] += weight * ratio * mu[t] * xr[a] * xr[c];
         }
       });
       for (let a = 0; a < k; a++)
         for (let c = 0; c <= a; c++)
-          information[a][c] -= ((th + Y) / (th + M) ** 2) * sx[a] * sx[c];
+          information[a][c] -=
+            (weight * (th + Y) * sx[a] * sx[c]) / (th + M) ** 2;
       // In theta = 1/alpha, then by the chain rule in lnalpha = -ln theta:
       // the score digamma(theta+Y) - digamma(theta) + ln theta + 1
       // - ln(theta+M) - (theta+Y)/(theta+M), and its derivative.
       const score = di - Math.log1p(M / th) + 1 - ratio,
         curve = -s2 + 1 / th - 1 / (th + M) - (M - Y) / (th + M) ** 2;
-      gradient[k] += -th * score;
+      gradient[k] += -weight * th * score;
       // Stata puts the panel's lnalpha score on each of its observations
       // and adds them within the panel, which counts it once for each.
-      own[k] = -th * score * rows.length;
+      own[k] = -weight * th * score * rows.length;
       if (collect) collect.push(own);
-      information[k][k] -= th * th * curve + th * score;
+      information[k][k] -= weight * (th * th * curve + th * score);
       for (let a = 0; a < k; a++) {
         const cross = (-(M - Y) / (th + M) ** 2) * sx[a];
-        information[k][a] -= -th * cross;
+        information[k][a] -= -weight * th * cross;
       }
     });
     for (let a = 0; a < p; a++)
@@ -1207,6 +1628,10 @@ function gammaPoisson(session, parsed, text, ctx) {
   if (logged) {
     fit.log.forEach((v, j) => ctx.out(iterationLine(j, word, v, fit.notes[j])));
     if (!fit.converged) ctx.out("convergence not achieved");
+    ctx.out("");
+  } else if (!fit.converged) {
+    // Without a log, Stata says so before the table.
+    ctx.out("convergence not achieved");
     ctx.out("");
   }
   const scores = [];
@@ -1314,7 +1739,12 @@ function gammaPoisson(session, parsed, text, ctx) {
     ]);
     ctx.out("");
     if (asked)
-      ctx.out(`(Std. err. adjusted for clustering on ${ivar})`.padStart(78));
+      ctx.out(
+        // Named, the panel variable is counted as a cluster variable.
+        asked.named
+          ? clusterNote(panels.length, ivar, count)
+          : `(Std. err. adjusted for clustering on ${ivar})`.padStart(78),
+      );
     const critical = invnormal(1 - (1 - options.level / 100) / 2),
       se = Math.sqrt(cov[k][k]),
       known = se > 0 && Number.isFinite(se),
@@ -1397,14 +1827,16 @@ function dropColumns(f, dropped, hide = false) {
  * information. A panel with more positives than negatives is taken from
  * the negatives, with the regressors' signs turned.
  */
-function conditionalLogitModel(x, y, panels) {
+function conditionalLogitModel(x, y, panels, weights = null) {
   const k = x[0]?.length ?? 0;
   return (theta, todo, collect = null) => {
     const sum = quadSum(),
       gradient = new Array(k).fill(0),
       information = Array.from({ length: k }, () => new Array(k).fill(0));
-    for (const rows of panels) {
-      const positives = rows.filter((r) => y[r]).length,
+    for (let q = 0; q < panels.length; q++) {
+      const rows = panels[q],
+        weight = weights ? weights[q] : 1,
+        positives = rows.filter((r) => y[r]).length,
         flip = positives > rows.length - positives,
         choose = flip ? rows.length - positives : positives,
         sign = flip ? -1 : 1,
@@ -1465,14 +1897,16 @@ function conditionalLogitModel(x, y, panels) {
         numerator += xb[t] - shift;
         for (let a = 0; a < k; a++) chosenX[a] += sign * x[r][a];
       });
-      sum.add(numerator - Math.log(B[choose]) - logScale);
+      sum.add(numerator - Math.log(B[choose]) - logScale, weight);
       if (!todo) continue;
       const mean = Array.from(M1[choose], (v) => v / B[choose]);
+      // Each panel's own score, unweighted.
       if (collect) collect.push(chosenX.map((v, a) => v - mean[a]));
       for (let a = 0; a < k; a++) {
-        gradient[a] += chosenX[a] - mean[a];
+        gradient[a] += weight * (chosenX[a] - mean[a]);
         for (let c = 0; c <= a; c++)
-          information[a][c] += M2[choose][a][c] / B[choose] - mean[a] * mean[c];
+          information[a][c] +=
+            weight * (M2[choose][a][c] / B[choose] - mean[a] * mean[c]);
       }
     }
     for (let a = 0; a < k; a++)
@@ -1501,13 +1935,22 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
       198,
     );
   // xtlogit, fe has no robust variance; clogit clusters on the group
-  // unless another variable is named.
-  const asked = robustAsked(
+  // unless another variable is named, and sampling weights ask for it.
+  const wtype = parsed.weight?.type ?? null;
+  let asked = robustAsked(
     session,
     options,
     groupName,
-    panelForm ? "vcetype robust not allowed" : null,
+    panelForm
+      ? `vcetype ${clusterTyped(options) ? "cluster" : "robust"} not allowed`
+      : null,
   );
+  if (!asked && wtype === "pweight")
+    asked = {
+      variable: session.data.get(groupName),
+      named: false,
+      keep: () => true,
+    };
   if (panelForm && (options.intmethod || options.intpoints !== undefined))
     throw new StataError(
       `option ${options.intmethod ? "intmethod" : "intpoints"}() not allowed with fe`,
@@ -1523,26 +1966,62 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
       false,
       groupName,
       asked ? asked.keep : undefined,
+      { intercept: true, weight: weightValues(session, parsed) },
     ),
     logged = !noLog(text),
     word = asked ? "Log pseudolikelihood" : "Log likelihood";
-  if (!full.columns.length)
+  // xtlogit, fe needs a regressor; clogit fits the model with none.
+  if (panelForm && !full.columns.length)
     throw new StataError("too few variables specified", 102);
+  if (wtype === "fweight" && full.w.some((v) => !Number.isInteger(v)))
+    throw new StataError("may not use noninteger frequency weights", 401);
   let y = full.y.map((v) => Number(v !== 0));
   const allPanels = panelsOf(id, full.sample);
+  // A group must lie within one cluster, which clogit checks first.
+  if (asked?.named) {
+    const data = asked.variable.data;
+    if (
+      allPanels.some((rows) =>
+        rows.some((r) => data[full.sample[r]] !== data[full.sample[rows[0]]]),
+      )
+    )
+      throw new StataError(
+        "groups (strata) are not nested within clusters",
+        459,
+      );
+  }
+  full.notes(ctx);
+  // Each group's weight, the same for all its observations; a frequency
+  // weight counts its observations and the group that many times.
+  const allWeights = panelWeights(
+      full,
+      allPanels,
+      wtype,
+      "weights must be the same for all observations in a group",
+      407,
+    ),
+    times = (q) => (wtype === "fweight" ? allWeights[q] : 1),
+    tally = (list) =>
+      list.reduce(
+        (t, q) => ({
+          groups: t.groups + times(q),
+          obs: t.obs + allPanels[q].length * times(q),
+        }),
+        { groups: 0, obs: 0 },
+      );
   if (allPanels.every((rows) => rows.every((r) => y[r] === y[rows[0]]))) {
     throw new StataError("outcome does not vary in any group", 2000);
   }
-  full.notes(ctx);
   if (allPanels.some((rows) => rows.filter((r) => y[r]).length > 1))
     ctx.out("note: multiple positive outcomes within groups encountered.");
-  const varying = allPanels.filter((rows) =>
-      rows.some((r) => y[r] !== y[rows[0]]),
-    ),
-    droppedGroups = allPanels.length - varying.length,
-    droppedObs =
-      allPanels.reduce((t, rows) => t + rows.length, 0) -
-      varying.reduce((t, rows) => t + rows.length, 0);
+  const varyingAt = allPanels
+      .map((rows, q) => (rows.some((r) => y[r] !== y[rows[0]]) ? q : -1))
+      .filter((q) => q >= 0),
+    varying = varyingAt.map((q) => allPanels[q]),
+    before = tally(allPanels.map((_, q) => q)),
+    after = tally(varyingAt),
+    droppedGroups = before.groups - after.groups,
+    droppedObs = before.obs - after.obs;
   if (droppedObs) {
     ctx.out(
       `note: ${count(droppedGroups)} group${droppedGroups > 1 ? "s" : ""} (${count(droppedObs)} obs) omitted because of all positive or`,
@@ -1563,28 +2042,65 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
   for (const c of still)
     ctx.out(`note: ${c.name} omitted because of no within-group variance.`);
   const f = dropColumns(sub, still);
-  if (!f.active.length)
-    throw new StataError(
-      "no regressor varies within any group; conditional logit has nothing to estimate here",
-      2000,
+  if (!f.active.length) {
+    if (panelForm)
+      throw new StataError(
+        "no regressor varies within any group; conditional logit has nothing to estimate here",
+        2000,
+      );
+    return nullConditional(session, ctx, {
+      y,
+      panels,
+      weights: allWeights ? varyingAt.map((q) => allWeights[q]) : null,
+      n: wtype === "fweight" ? after.obs : y.length,
+      depvar: full.dependent.name,
+      group: ivar,
+      sample: sub.sample,
+      logged,
+      word,
+      level: options.level,
+    });
+  }
+  // The groups kept are in identifier order, as varying is.
+  const weights = allWeights ? varyingAt.map((q) => allWeights[q]) : null,
+    observationWeight = new Array(y.length).fill(1);
+  if (weights)
+    panels.forEach((rows, q) =>
+      rows.forEach((r) => (observationWeight[r] = weights[q])),
     );
-  const n = y.length,
+  const n = wtype === "fweight" ? after.obs : y.length,
     k = f.active.length,
-    evaluate = conditionalLogitModel(f.x, y, panels),
+    evaluate = conditionalLogitModel(f.x, y, panels, weights),
     // clogit starts from the coefficients of a logit on the same
-    // observations, at most 20 iterations, when that fit is usable.
+    // observations, at most 20 iterations, when that fit is usable. That
+    // logit sets aside the observations a regressor predicts perfectly and
+    // leaves the regressor at zero.
     start = (() => {
       try {
+        const found = perfectPrediction(
+            f.active,
+            f.sample,
+            y,
+            { out: () => {} },
+            false,
+          ),
+          perfect = new Set(found.rules.map((rule) => rule.column)),
+          used = f.active
+            .map((c, j) => (perfect.has(c) ? -1 : j))
+            .filter((j) => j >= 0),
+          rows = y.map((_, r) => r).filter((r) => found.keep[r]);
         const lg = pooledFit(
           "logit",
-          f.x.map((r) => [...r, 1]),
-          y,
-          y.map(() => 0),
+          rows.map((r) => [...used.map((j) => f.x[r][j]), 1]),
+          rows.map((r) => y[r]),
+          rows.map(() => 0),
           null,
           true,
           20,
+          weights ? rows.map((r) => observationWeight[r]) : null,
         );
-        const b = lg.theta.slice(0, k);
+        const b = new Array(k).fill(0);
+        used.forEach((j, a) => (b[j] = lg.theta[a]));
         return b.every(Number.isFinite) && Math.abs(evaluate(b, 0).value) < 1e50
           ? b
           : new Array(k).fill(0);
@@ -1594,7 +2110,10 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
       }
     })(),
     ll0 = -panels.reduce(
-      (t, rows) => t + lnChoose(rows.length, rows.filter((r) => y[r]).length),
+      (t, rows, q) =>
+        t +
+        (weights ? weights[q] : 1) *
+          lnChoose(rows.length, rows.filter((r) => y[r]).length),
       0,
     );
   if (logged) ctx.out("");
@@ -1602,6 +2121,9 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
   if (logged) {
     fit.log.forEach((v, j) => ctx.out(iterationLine(j, word, v, fit.notes[j])));
     if (!fit.converged) ctx.out("convergence not achieved");
+  } else if (!fit.converged) {
+    // Without a log, Stata says so before the table.
+    ctx.out("convergence not achieved");
   }
   ctx.out("");
   let cov = fit.V,
@@ -1609,6 +2131,16 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
   if (asked) {
     const scores = [];
     evaluate(fit.theta, 1, scores);
+    // _robust2 takes each group's score times its weight, or times the
+    // root of a frequency weight, whose groups then count that often.
+    if (weights)
+      scores.forEach((s, q) => {
+        const factor =
+          wtype === "fweight" && !asked.named
+            ? Math.sqrt(weights[q])
+            : weights[q];
+        for (let a = 0; a < s.length; a++) s[a] *= factor;
+      });
     ({ V: cov, clusters } = panelSandwich(
       fit.V,
       scores,
@@ -1616,6 +2148,12 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
       f.sample,
       asked,
     ));
+    if (wtype === "fweight" && !asked.named) {
+      const G = panels.length,
+        counted = after.groups,
+        rescale = counted / (counted - 1) / (G / (G - 1)) || 1;
+      cov = cov.map((row) => row.map((v) => v * rescale));
+    }
   }
   const theta = fit.theta,
     rank = cov.filter((r, j) => r[j] !== 0).length,
@@ -1630,7 +2168,7 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
       : 2 * (fit.ll - ll0),
     p = isMissing(chi2) ? MISSING : chi2tail(df, chi2),
     r2 = 1 - fit.ll / ll0,
-    groups = sizes(panels),
+    groups = panelForm ? stataSizes(panels, f.sample, id) : sizes(panels),
     title = panelForm
       ? "Conditional fixed-effects logistic regression"
       : "Conditional (fixed-effects) logistic regression",
@@ -1696,6 +2234,7 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
     title,
     chi2type: asked ? "Wald" : "LR",
     ...robustResults(asked, clusters),
+    ...(wtype === "pweight" ? { wtype } : {}),
     ...(allPanels.some((rows) => rows.filter((r) => y[r]).length > 1)
       ? { multiple: "multiple" }
       : {}),
@@ -1742,20 +2281,92 @@ function conditionalLogit(session, parsed, text, ctx, panelForm) {
   unconverged(fit);
 }
 
+/**
+ * clogit with nothing to estimate, which Stata hands to its old _clogit:
+ * the log likelihood of the groups as they are, in that command's layout.
+ */
+function nullConditional(session, ctx, model) {
+  const { y, panels, weights } = model,
+    ll = -panels.reduce(
+      (t, rows, q) =>
+        t +
+        (weights ? weights[q] : 1) *
+          lnChoose(rows.length, rows.filter((r) => y[r]).length),
+      0,
+    ),
+    title = "Conditional (fixed-effects) logistic regression",
+    line = (left, label, value) =>
+      `${left.padEnd(50)}${label.padEnd(16)}= ${value.padStart(10)}`;
+  if (model.logged) {
+    ctx.out("");
+    ctx.out(iterationLine(0, model.word, ll));
+  }
+  ctx.out("");
+  const print = (ctx, options) => {
+    ctx.out(line(title, "Number of obs", count(model.n)));
+    ctx.out(line("", "LR chi2(0)", "0.00"));
+    ctx.out(line("", "Prob > chi2", "."));
+    ctx.out(line(`${model.word} = ${g(ll, "%10.0g")}`, "Pseudo R2", "0.0000"));
+    ctx.out("");
+    tableHead(
+      ctx,
+      model.depvar,
+      options.level,
+      "Coefficient",
+      false,
+      false,
+      12,
+    );
+    ctx.out(rule(12));
+  };
+  const result = {
+    command: "clogit",
+    kind: "clogit",
+    title,
+    depvar: model.depvar,
+    names: [],
+    b: [],
+    V: [],
+    N: model.n,
+    ll,
+    ll_0: ll,
+    sample: model.sample,
+    replay: print,
+  };
+  session.estimates = result;
+  session.results.e = {
+    N: model.n,
+    df_m: 0,
+    ll,
+    ll_0: ll,
+    chi2: 0,
+    r2_p: 0,
+    cmd: "clogit",
+    depvar: model.depvar,
+    group: model.group,
+    title,
+    chi2type: "LR",
+  };
+  print(ctx, { level: model.level });
+}
+
 function clogit(session, text, ctx) {
   if (replayed(session, text, ctx, "clogit", "OR")) return;
   const parsed = session.parse(
     "anything [if] [in] [fweight pweight iweight] [, GRoup(varname) STrata(varname) OR Level(cilevel) noLOg BASElevels ALLBASElevels Robust VCE(string) CLuster(string) | OFFset(varname) FROM(string)]",
     text,
   );
-  noWeights(parsed, "clogit");
   return conditionalLogit(session, parsed, text, ctx, false);
 }
 
 /** xtpoisson, fe: the conditional (multinomial) Poisson likelihood. */
 function conditionalPoisson(session, parsed, text, ctx) {
   const options = parsed.options,
-    asked = robustOnPanels(session, options, "xtpoisson, fe"),
+    asked = clusterTyped(options)
+      ? (() => {
+          throw new StataError("option cluster not allowed", 198);
+        })()
+      : robustOnPanels(session, options, "xtpoisson, fe"),
     word = asked ? "Log pseudolikelihood" : "Log likelihood";
   needsNormal(options);
   if (options.normal)
@@ -1765,7 +2376,10 @@ function conditionalPoisson(session, parsed, text, ctx) {
       f: full,
       ivar,
       id,
-    } = panelDesign(session, parsed, false, null, offset?.keep),
+    } = panelDesign(session, parsed, false, null, offset?.keep, {
+      intercept: true,
+      weight: weightValues(session, parsed),
+    }),
     logged = !noLog(text);
   if (options.constant === false) ctx.out("note: noconstant option ignored");
   if (!full.columns.length)
@@ -1786,15 +2400,36 @@ function conditionalPoisson(session, parsed, text, ctx) {
     );
   const keptPanels = several.filter((rows) => !zeros.includes(rows));
   if (!keptPanels.length) throw new StataError("no observations", 2000);
+  // A collinear variable is left out of the table altogether, as one
+  // constant within groups is.
   const keptPositions = keptPanels.flat().sort((a, b) => a - b),
+    columns = full.columns.filter((c) => !c.collinear),
+    at = columns.map((c) => full.active.indexOf(c)),
     sub = {
       ...full,
+      columns,
+      at,
+      place: (theta, V) => ({
+        b: at.map((j) => (j >= 0 ? theta[j] : 0)),
+        V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+        estimable: at.map((j) => j >= 0),
+      }),
       sample: keptPositions.map((r) => full.sample[r]),
       x: keptPositions.map((r) => full.x[r]),
       y: keptPositions.map((r) => full.y[r]),
+      w: full.w && keptPositions.map((r) => full.w[r]),
     };
   full.notes(ctx);
   const panels = panelsOf(id, sub.sample),
+    // Importance weights, the same within each group, weight its part.
+    weights = panelWeights(
+      sub,
+      panels,
+      parsed.weight?.type,
+      `weight must be constant within ${ivar}`,
+      199,
+    ),
+    weightOf = (q) => (weights ? weights[q] : 1),
     still = constantWithin(sub, panels);
   for (const c of still)
     ctx.out(`note: ${c.name} dropped because it is constant within group`);
@@ -1810,10 +2445,11 @@ function conditionalPoisson(session, parsed, text, ctx) {
     off = offset ? f.sample.map(offset.value) : null,
     lnFact = y.map(lnFactorial),
     constantPart = panels.reduce(
-      (t, rows) =>
+      (t, rows, q) =>
         t +
-        lnFactorial(rows.reduce((s, r) => s + y[r], 0)) -
-        rows.reduce((s, r) => s + lnFact[r], 0),
+        weightOf(q) *
+          (lnFactorial(rows.reduce((s, r) => s + y[r], 0)) -
+            rows.reduce((s, r) => s + lnFact[r], 0)),
       0,
     );
   const evaluate = (theta, todo, collect = null) => {
@@ -1821,8 +2457,10 @@ function conditionalPoisson(session, parsed, text, ctx) {
       gradient = new Array(k).fill(0),
       information = Array.from({ length: k }, () => new Array(k).fill(0));
     sum.add(constantPart);
-    for (const rows of panels) {
-      const xb = rows.map((r) => dot(f.x[r], theta) + (off ? off[r] : 0)),
+    for (let q = 0; q < panels.length; q++) {
+      const rows = panels[q],
+        weight = weightOf(q),
+        xb = rows.map((r) => dot(f.x[r], theta) + (off ? off[r] : 0)),
         top = Math.max(...xb),
         e = xb.map((v) => Math.exp(v - top)),
         M = e.reduce((a, b) => a + b, 0),
@@ -1830,7 +2468,7 @@ function conditionalPoisson(session, parsed, text, ctx) {
       let Y = 0;
       rows.forEach((r, t) => {
         Y += y[r];
-        if (y[r]) sum.add(y[r] * (xb[t] - logM));
+        if (y[r]) sum.add(y[r] * (xb[t] - logM), weight);
       });
       if (!todo) continue;
       const mean = new Array(k).fill(0);
@@ -1838,7 +2476,7 @@ function conditionalPoisson(session, parsed, text, ctx) {
         const share = e[t] / M;
         for (let a = 0; a < k; a++) {
           mean[a] += share * f.x[r][a];
-          gradient[a] += y[r] * f.x[r][a];
+          gradient[a] += weight * y[r] * f.x[r][a];
         }
       });
       rows.forEach((r, t) => {
@@ -1846,13 +2484,18 @@ function conditionalPoisson(session, parsed, text, ctx) {
         for (let a = 0; a < k; a++)
           for (let c = 0; c <= a; c++)
             information[a][c] +=
-              Y * share * (f.x[r][a] - mean[a]) * (f.x[r][c] - mean[c]);
+              weight *
+              Y *
+              share *
+              (f.x[r][a] - mean[a]) *
+              (f.x[r][c] - mean[c]);
       });
-      for (let a = 0; a < k; a++) gradient[a] -= Y * mean[a];
+      for (let a = 0; a < k; a++) gradient[a] -= weight * Y * mean[a];
       if (collect)
         collect.push(
           mean.map(
-            (m, a) => rows.reduce((t, r) => t + y[r] * f.x[r][a], 0) - Y * m,
+            (m, a) =>
+              weight * (rows.reduce((t, r) => t + y[r] * f.x[r][a], 0) - Y * m),
           ),
         );
     }
@@ -1865,6 +2508,9 @@ function conditionalPoisson(session, parsed, text, ctx) {
   if (logged) {
     fit.log.forEach((v, j) => ctx.out(iterationLine(j, word, v, fit.notes[j])));
     if (!fit.converged) ctx.out("convergence not achieved");
+  } else if (!fit.converged) {
+    // Without a log, Stata says so before the table.
+    ctx.out("convergence not achieved");
   }
   ctx.out("");
   const scores = [];
@@ -1953,7 +2599,12 @@ function conditionalPoisson(session, parsed, text, ctx) {
     ]);
     ctx.out("");
     if (asked)
-      ctx.out(`(Std. err. adjusted for clustering on ${ivar})`.padStart(78));
+      ctx.out(
+        // Named, the panel variable is counted as a cluster variable.
+        asked.named
+          ? clusterNote(panels.length, ivar, count)
+          : `(Std. err. adjusted for clustering on ${ivar})`.padStart(78),
+      );
     coefficientTable(session, ctx, result, f, options, [], []);
   };
   result.replay = print;
@@ -1999,6 +2650,97 @@ const GEE = {
   },
 };
 
+/**
+ * Each observation's weight, from the [weight=exp] typed, or null. Every
+ * weight must be the same within a panel or group, which the caller checks
+ * once the sample is known.
+ */
+function weightValues(session, parsed) {
+  if (!parsed.weight) return null;
+  const compiled = session.compile(parsed.weight.exp);
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  return Array.from(evaluateAll(compiled, session.data.n));
+}
+
+/** Each panel's weight, which must be the same for all its observations. */
+function panelWeights(f, panels, type, message, code) {
+  if (!f.w) return null;
+  if (type === "fweight" && f.w.some((v) => !Number.isInteger(v)))
+    throw new StataError("may not use noninteger frequency weights", 401);
+  for (const rows of panels)
+    if (rows.some((r) => f.w[r] !== f.w[rows[0]]))
+      throw new StataError(message, code);
+  return panels.map((rows) => f.w[rows[0]]);
+}
+
+/** Whether a varlist uses factor-variable notation. */
+const factorNotation = (text) =>
+  /#|(^|[\s(])(c|o|i[bo]?[^\s.]*)\./i.test(splitAtComma(text)[0]);
+
+/**
+ * The columns that xtgee, which runs _rmcoll under version 6 when no
+ * factor variable is typed, finds collinear: the cross products (about the
+ * means with a constant) are swept, at each step the column with the
+ * largest diagonal left, and a column whose diagonal has gone to nothing
+ * is collinear. So of x and 3x it keeps 3x.
+ */
+function sweptCollinear(columns, sample, weight, constant) {
+  const k = columns.length,
+    n = sample.length,
+    w = (j) => (weight ? weight[j] : 1),
+    total = sample.reduce((t, _, j) => t + w(j), 0),
+    values = columns.map((c) => {
+      const v = sample.map((i) => c.value(i));
+      if (!constant) return v;
+      const mean = v.reduce((t, x, j) => t + w(j) * x, 0) / total;
+      return v.map((x) => x - mean);
+    }),
+    A = values.map((a) =>
+      values.map((b) => a.reduce((t, x, j) => t + w(j) * x * b[j], 0)),
+    ),
+    original = A.map((row, j) => row[j]),
+    left = new Set(columns.keys()),
+    collinear = [];
+  while (left.size) {
+    let pick = -1;
+    for (const j of left) if (pick < 0 || A[j][j] > A[pick][pick]) pick = j;
+    left.delete(pick);
+    const p = A[pick][pick];
+    if (!(original[pick] > 0 && p > 1e-9 * original[pick] && n > 0)) {
+      collinear.push(columns[pick]);
+      continue;
+    }
+    for (const i of left)
+      for (const j of left) A[i][j] -= (A[i][pick] * A[pick][j]) / p;
+  }
+  return collinear;
+}
+
+/**
+ * The fitted columns that _rmcoll leaves out when a constant is added:
+ * with factor variables typed (version 11), each column collinear with the
+ * constant and the columns before it; otherwise by version 6's sweep.
+ */
+function constantColumns(f, typed) {
+  if (!typed) return sweptCollinear(f.active, f.sample, null, true);
+  const basis = [],
+    independent = (vector) => {
+      let rest = vector;
+      const original = rest.reduce((t, v) => t + v * v, 0);
+      for (const q of basis) {
+        const weight =
+          rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+        rest = rest.map((v, k) => v - weight * q.vector[k]);
+      }
+      const norm = rest.reduce((t, v) => t + v * v, 0);
+      if (!(original > 0 && norm > 1e-9 * original)) return false;
+      basis.push({ vector: rest, norm });
+      return true;
+    };
+  independent(f.sample.map(() => 1));
+  return f.active.filter((c) => !independent(f.sample.map(c.value)));
+}
+
 function populationAveraged(session, parsed, text, ctx, kind) {
   const options = parsed.options,
     gee = GEE[kind],
@@ -2019,37 +2761,145 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     );
   if (options.normal)
     throw new StataError("option normal not allowed with pa", 198);
+  // xtgee takes frequency, sampling and importance weights, each the same
+  // within a panel; sampling weights make the variance robust.
+  const wtype = parsed.weight?.type ?? null;
+  if (wtype === "aweight") throw new StataError("aweights not allowed", 101);
   // The robust (semirobust) variance clusters on the panels.
-  const panelName = session.panel?.id,
-    asked = panelName ? robustAsked(session, options, panelName) : null;
+  const panelName = session.panel?.id;
+  // xtgee takes vce(robust), not vce(cluster).
+  if (clusterTyped(options))
+    throw new StataError(
+      kind === "poisson"
+        ? "option cluster not allowed"
+        : "vcetype cluster not allowed",
+      198,
+    );
+  let asked = panelName ? robustAsked(session, options, panelName) : null;
   if (asked?.named && asked.variable.name !== panelName)
     throw new StataError(
       `vce(cluster ${asked.variable.name}) is not available after ${command}, pa in the browser yet\n    vce(robust) clusters on the panel variable, ${panelName}`,
       198,
     );
+  if (!asked && wtype === "pweight" && panelName)
+    asked = {
+      variable: session.data.get(panelName),
+      named: false,
+      keep: () => true,
+    };
   const offset = kind === "poisson" ? offsetOf(session, options) : null,
-    { f, ivar } = panelDesign(session, parsed, constant, null, offset?.keep),
-    logged = !noLog(text);
+    logged = !noLog(text),
+    typed = factorNotation(text);
+  let { f, ivar, id } = panelDesign(
+    session,
+    parsed,
+    constant,
+    null,
+    offset?.keep,
+    { weight: weightValues(session, parsed) },
+  );
   if (!f.active.length && !constant)
     throw new StataError(
       "independent variables required with noconstant option",
       102,
     );
   offset?.check(f.sample);
-  const y = outcomeChecks(kind, f, ctx),
+  // A 0/1 outcome is searched for perfect predictors when a factor
+  // variable is typed, as xtgee does when it runs under version 11.
+  if (
+    kind !== "poisson" &&
+    typed &&
+    f.y.every((v) => v >= 0 && v <= 1) &&
+    f.y.some((v) => v === 0)
+  )
+    f = withoutPerfect(f, constant, ctx);
+  // Without one, xtgee runs _rmcoll as version 6 did, which keeps the
+  // columns with the most variation and leaves the others out of the
+  // table altogether.
+  let hidden = [];
+  if (!typed) {
+    const candidates = f.columns.filter((c) => !c.base);
+    for (const c of candidates) c.collinear = false;
+    hidden = sweptCollinear(candidates, f.sample, f.w, constant);
+    for (const c of hidden) c.collinear = true;
+    for (const c of f.columns) c.omitted = !!c.collinear || !!c.perfect;
+    f = rebuildFrame(
+      f,
+      f.sample.map(() => true),
+      constant,
+    );
+    if (hidden.length) {
+      const shown = f.columns.filter((c) => !hidden.includes(c)),
+        at = [
+          ...shown.map((c) => f.active.indexOf(c)),
+          ...(constant ? [f.active.length] : []),
+        ];
+      f = {
+        ...f,
+        columns: shown,
+        at,
+        place: (theta, V) => ({
+          b: at.map((j) => (j >= 0 ? theta[j] : 0)),
+          V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+          estimable: at.map((j) => j >= 0),
+        }),
+      };
+    }
+  }
+  const y = outcomeChecks(kind, f, ctx, false),
     n = y.length,
     off = offset ? f.sample.map(offset.value) : null,
     lnFact = y.map((v) => (kind === "poisson" ? lnFactorial(v) : 0)),
-    panels = panelsOf(session.data.get(ivar).data, f.sample),
+    panels = panelsOf(id, f.sample),
     k = f.x[0].length,
-    groups = sizes(panels),
+    weights = panelWeights(
+      f,
+      panels,
+      wtype,
+      `weight must be constant within variable ${ivar}`,
+      199,
+    ),
+    weightOf = (q) => (weights ? weights[q] : 1),
+    // Each observation's weight, its panel's.
+    observationWeight = new Array(n).fill(1);
+  if (weights)
+    panels.forEach((rows, q) =>
+      rows.forEach((r) => (observationWeight[r] = weights[q])),
+    );
+  const totalWeight = panels.reduce((t, _, q) => t + weightOf(q), 0),
+    // Frequency weights count each observation that many times.
+    nObs =
+      wtype === "fweight"
+        ? panels.reduce((t, rows, q) => t + rows.length * weightOf(q), 0)
+        : n,
+    plain = sizes(panels),
+    groups = {
+      ...plain,
+      // Under frequency or importance weights xtgee counts each panel as
+      // many times as its weight, unless the variance is robust, and
+      // averages its size by the weights.
+      N_g: weights && !(asked && wtype !== "fweight") ? totalWeight : plain.N_g,
+      g_avg: weights
+        ? panels.reduce((t, rows, q) => t + rows.length * weightOf(q), 0) /
+          totalWeight
+        : plain.g_avg,
+    },
     pairs = panels.reduce(
-      (t, rows) => t + (rows.length * (rows.length - 1)) / 2,
+      (t, rows, q) => t + (weightOf(q) * (rows.length * (rows.length - 1))) / 2,
       0,
     );
   f.notes(ctx);
   // The pooled fit starts it, as GetIval's logit, probit or glm.
-  let b = pooledFit(kind, f.x, y, lnFact, off, constant).theta,
+  let b = pooledFit(
+      kind,
+      f.x,
+      y,
+      lnFact,
+      off,
+      constant,
+      300,
+      weights ? observationWeight : null,
+    ).theta,
     alpha = 0,
     diff = Infinity,
     iteration = 0,
@@ -2068,11 +2918,13 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     const S1 = new Array(k).fill(0),
       S2 = Array.from({ length: k }, () => new Array(k).fill(0)),
       M = robust ? Array.from({ length: k }, () => new Array(k).fill(0)) : null;
-    for (const rows of panels) {
+    panels.forEach((rows, q) => {
       const m = rows.length,
-        // (I - c J)/(1 - a) is the inverse of the exchangeable R.
+        // (I - c J)/(1 - a) is the inverse of the exchangeable R, and the
+        // panel's weight multiplies all it adds.
         c = a / (1 + (m - 1) * a),
-        scale = 1 / (1 - a),
+        weight = weightOf(q),
+        scale = weight / (1 - a),
         z = rows.map((r) => {
           const s = at[r],
             w = s.d / Math.sqrt(s.v);
@@ -2099,30 +2951,49 @@ function populationAveraged(session, parsed, text, ctx, kind) {
           for (let l = 0; l < k; l++)
             S2[j][l] += scale * row[j] * (row[l] - c * rowSum[l]);
         }
+      // The score already carries the weight once; a frequency weight
+      // counts the panel's outer product that many times, the others
+      // square it.
+      const times = wtype === "fweight" ? 1 / weight : 1;
       if (M)
         for (let j = 0; j < k; j++)
-          for (let l = 0; l < k; l++) M[j][l] += score[j] * score[l];
-    }
+          for (let l = 0; l < k; l++) M[j][l] += times * score[j] * score[l];
+    });
     return { S1, S2, M };
   };
   const maxSize = groups.g_max,
+    totalObservations = observationWeight.reduce((t, v) => t + v, 0),
     lines = [];
   while (iteration < 100 && diff > 1e-6) {
     iteration++;
     reset = false;
     const at = state(b),
       residual = at.map((s, r) => (y[r] - s.mu) / Math.sqrt(s.v)),
-      squares = residual.reduce((t, v) => t + v * v, 0);
+      squares = residual.reduce(
+        (t, v, r) => t + observationWeight[r] * v * v,
+        0,
+      );
+    // Stata shows the iterations it made before it stops.
+    const diverging = (message) => {
+      if (logged) {
+        ctx.out("");
+        lines.forEach(ctx.out);
+      }
+      throw new StataError(message, 430);
+    };
     if (!Number.isFinite(squares))
-      throw new StataError("estimates diverging (missing predictions)", 430);
+      diverging("estimates diverging (missing predictions)");
     let cross = 0;
-    for (const rows of panels)
+    panels.forEach((rows, q) => {
       for (let s = 0; s < rows.length; s++)
         for (let t = s + 1; t < rows.length; t++)
-          cross += residual[rows[s]] * residual[rows[t]];
-    alpha = pairs > 0 ? (cross * (n / squares)) / pairs : 0;
-    if (alpha > 1)
-      throw new StataError("estimates diverging (correlation > 1)", 430);
+          cross += weightOf(q) * residual[rows[s]] * residual[rows[t]];
+    });
+    // With no two observations in any panel, Stata's correlation is
+    // missing, which is more than 1.
+    if (!(pairs > 0)) diverging("estimates diverging (correlation > 1)");
+    alpha = (cross * (totalObservations / squares)) / pairs;
+    if (alpha > 1) diverging("estimates diverging (correlation > 1)");
     if (maxSize > 1 && alpha < -1 / (maxSize - 1)) {
       reset = true;
       alpha = 0.99 * (-1 / (maxSize - 1));
@@ -2150,13 +3021,20 @@ function populationAveraged(session, parsed, text, ctx, kind) {
       a.map((row) =>
         c[0].map((_, j) => row.reduce((t, v, l) => t + v * c[l][j], 0)),
       ),
-    // The semirobust variance, scaled by G/(G - 1).
+    // The semirobust variance, scaled by G/(G - 1), G the panels or, under
+    // frequency weights, the panels counted by their weights.
+    clusters = wtype === "fweight" ? totalWeight : panels.length,
     cov = asked
       ? product(product(bread, M), bread).map((row) =>
-          row.map((v) => (v * panels.length) / (panels.length - 1)),
+          row.map((v) => (v * clusters) / (clusters - 1)),
         )
       : bread,
-    regressors = f.active.map((_, j) => j),
+    // Under noconstant xtgee leaves out of its test a column that, with
+    // the others, stands for a constant (one of a full set of levels).
+    standing = constant ? [] : constantColumns(f, typed),
+    regressors = f.active
+      .map((_, j) => j)
+      .filter((j) => !standing.includes(f.active[j])),
     chi2 = waldStatistic(b, cov, regressors),
     df = regressors.length,
     p = isMissing(chi2) ? MISSING : chi2tail(df, chi2),
@@ -2172,9 +3050,11 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     ...f.place(b, cov),
     columns: f.columns,
     constant,
-    N: n,
+    N: nObs,
     df_m: df,
     rank: cov.filter((r, j) => r[j] !== 0).length,
+    // xtgee names no equation: test writes x1, not [y]x1.
+    unnamedEquation: true,
     vce: asked ? "robust" : "conventional",
     robust: asked,
     vcetype: asked ? (kind === "probit" ? "Semirobust" : "Robust") : undefined,
@@ -2192,7 +3072,7 @@ function populationAveraged(session, parsed, text, ctx, kind) {
   result.margins = averagedMargins(result, kind);
   session.estimates = result;
   session.results.e = {
-    N: n,
+    N: nObs,
     N_g: groups.N_g,
     g_min: groups.g_min,
     g_avg: groups.g_avg,
@@ -2216,6 +3096,7 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     chi2type: "Wald",
     vce: asked ? "robust" : "conventional",
     ...(asked ? { vcetype: result.vcetype } : {}),
+    ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
     ...(offset
       ? { offset: options.exposure ? `ln(${offset.name})` : offset.name }
       : {}),
@@ -2226,7 +3107,7 @@ function populationAveraged(session, parsed, text, ctx, kind) {
   // The header and table, which typing the command alone shows again.
   const print = (ctx, options) => {
     header(ctx, [
-      [title, ["Number of obs", count(n)]],
+      [title, ["Number of obs", count(nObs)]],
       [
         `Group variable: ${abbreviate(ivar, 12)}`,
         ["Number of groups", count(groups.N_g)],
@@ -2241,7 +3122,14 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     ctx.out("");
     if (asked)
       ctx.out(`(Std. err. adjusted for clustering on ${ivar})`.padStart(78));
-    coefficientTable(session, ctx, result, f, options, [], []);
+    const eform = coefficientTable(session, ctx, result, f, options, [], []);
+    // One equation, so only the note on the constant.
+    if (eform && constant)
+      wrapped(
+        session,
+        ctx,
+        `Note: _cons estimates baseline ${kind === "poisson" ? "incidence rate" : "odds"} (conditional on zero random effects).`,
+      );
   };
   result.replay = print;
   print(ctx, options);

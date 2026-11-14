@@ -1553,12 +1553,14 @@ export function coefficientSpace(model) {
     // unnamed, though some of them report z.
     const unnamed = ["ivregress", "xtreg", "regress"],
       tagged =
-        (model.dist === "z" &&
+        ((model.dist === "z" &&
           !unnamed.includes(model.kind) &&
           !unnamed.includes(model.command)) ||
-        !!model.auxiliary ||
-        // svy: logit and the like, which report t.
-        !!model.namedEquation;
+          !!model.auxiliary ||
+          // svy: logit and the like, which report t.
+          !!model.namedEquation) &&
+        // xtgee, which fits the pa models, names no equation.
+        !model.unnamedEquation;
     model.names.forEach((name, index) =>
       entries.push({
         equation: tagged ? model.depvar : null,

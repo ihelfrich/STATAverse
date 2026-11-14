@@ -170,11 +170,14 @@ test("what is not built is refused, never ignored", () => {
     ["xtlogit y x1 x2, re vce(robust)", 198, /vce/],
     ["xtlogit y x1 x2, re vce(cluster id)", 198, /vce/],
     ["xtlogit y x1 x2, pa corr(ar1)", 198, /corr\(ar1\)/],
-    ["xtlogit y x1 x2 [iw=c], re", 198, /weights/],
+    // Importance weights are taken, the same within each panel (Stata 19).
+    ["xtlogit y x1 x2 [iw=c], re", 199, /weight must be constant within id/],
     ["xtlogit y x1 x2 [fw=c], re", 101, /fweights not allowed/],
     ["xtpoisson c x1 x2, re intpoints(8)", 198, /requires option normal/],
     ["xtlogit y x1 x2, fe vce(robust)", 198, /vcetype robust not allowed/],
-    ["xtpoisson c x1 x2, pa vce(cluster t)", 198, /vce\(cluster t\)/],
+    // xtgee takes vce(robust) only; Stata 19 says so (recorded).
+    ["xtpoisson c x1 x2, pa vce(cluster t)", 198, /option cluster not allowed/],
+    ["xtlogit y x1 x2, pa vce(cluster id)", 198, /vcetype cluster not allowed/],
   ]) {
     const result = s.run(command);
     assert.equal(result.rc, code, command);
@@ -186,4 +189,48 @@ test("what is not built is refused, never ignored", () => {
   // Contrasts of margins of pr would need lnsig2u's variance.
   fit(s, "xtlogit y x1 x2, re");
   assert.equal(s.run("margins r.x2").rc, 198);
+});
+
+// The red team's findings on the first build, fixed against Stata 19 MP
+// (version 17, set processors 1) on the data above, with these added:
+// generate cf = c + 0.25, generate w = 1 + mod(id, 3).
+test("an outcome that is not a count takes lngamma, as Stata's does", () => {
+  const s = session();
+  s.run("generate cf = c + 0.25");
+  let m = fit(s, "xtpoisson cf x1 x2");
+  close(m.ll, -492.8464039016913603, "gamma e(ll)", 1e-10);
+  close(m.theta[0], 0.2618013113461793995, "gamma _b[x1]");
+  close(m.theta[3], -1.736558273146450837, "_b[/lnalpha]");
+  close(se(m, 0), 0.0434417274689007302, "gamma _se[x1]");
+  m = fit(s, "xtpoisson cf x1 x2, fe");
+  close(m.ll, -333.986388680878747, "fe e(ll)", 1e-10);
+  close(m.theta[0], 0.2600177113098352533, "fe _b[x1]");
+  close(se(m, 0), 0.0459479546948802289, "fe _se[x1]");
+});
+
+test("weights that Stata takes are taken", () => {
+  const s = session();
+  s.run("generate w = 1 + mod(id, 3)");
+  let m = fit(s, "xtlogit y x1 x2 [pweight=w], pa");
+  close(m.theta[0], 0.7368584724411204601, "pa _b[x1]");
+  close(se(m, 0), 0.1158371788827003285, "pa robust _se[x1]");
+  assert.equal(s.results.e.N_g, 50);
+  m = fit(s, "clogit y x1 x2 [fweight=w], group(id)");
+  close(m.ll, -127.9906813431542787, "clogit fw e(ll)", 1e-10);
+  close(m.theta[0], 1.179175066083028689, "clogit fw _b[x1]");
+  close(se(m, 0), 0.1525105025894511468, "clogit fw _se[x1]");
+  assert.equal(s.results.e.N, 468);
+  m = fit(s, "xtlogit y x1 x2 [iweight=w], re");
+  close(m.ll, -316.2619814216362784, "re iw e(ll)", 1e-9);
+  close(m.theta[0], 1.154039470029327275, "re iw _b[x1]", 1e-6);
+  close(m.theta[3], 1.279164812896138148, "re iw _b[/lnsig2u]", 1e-6);
+  close(se(m, 0), 0.1451413425663134471, "re iw _se[x1]", 1e-6);
+});
+
+test("noconstant keeps every level and starts the search where Stata does", () => {
+  const s = session(),
+    m = fit(s, "xtprobit y x1 x2, noconstant");
+  close(m.ll, -157.8893405350283672, "e(ll)", 1e-9);
+  close(m.theta[0], 0.6659014121608759496, "_b[x1]", 1e-6);
+  close(m.theta[2], 0.3660358115480289443, "_b[/lnsig2u]", 1e-6);
 });

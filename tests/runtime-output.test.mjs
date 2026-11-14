@@ -154,6 +154,14 @@ for (const c of fixture.cases)
             "xt-population-averaged",
             "xt-robust-variances",
             "xt-replay-and-factor-margins",
+            "xt-perfect-prediction-and-noconstant",
+            "xt-conditional-logit-separated-start",
+            "xt-noninteger-counts",
+            "xt-weights-pa-and-conditional",
+            "xt-collinear-columns",
+            "xt-pa-notes-tests-and-replay",
+            "xt-group-counts-and-clusters",
+            "xt-exposure-and-diverging-pa",
           ].includes(c.id),
         )
       )
