@@ -331,15 +331,20 @@ export class Dataset {
       ),
       ...copyChars(this),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
-      // Characteristics, such as the settings reshape keeps with the data.
-      ...(this.chars ? { chars: structuredClone(this.chars) } : {}),
+      // The settings reshape keeps with the data.
+      ...(this.reshapeChars
+        ? { reshapeChars: structuredClone(this.reshapeChars) }
+        : {}),
     };
   }
   restore(snapshot) {
     delete this.chars;
+    delete this.reshapeChars;
     Object.assign(this, {
       ...snapshot,
-      ...(snapshot.chars ? { chars: structuredClone(snapshot.chars) } : {}),
+      ...(snapshot.reshapeChars
+        ? { reshapeChars: structuredClone(snapshot.reshapeChars) }
+        : {}),
       sortedBy: [...snapshot.sortedBy],
       valueLabels: new Map(
         [...snapshot.valueLabels].map(([name, map]) => [name, new Map(map)]),

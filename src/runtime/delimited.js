@@ -10,6 +10,7 @@ import { parseNumlist } from "./numlist.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
 import { bytesOf, decodeAs, decodeAuto, decodeText } from "./encodings.js";
+import { findFile } from "./files.js";
 import {
   FLOAT_MAX,
   MISSING,
@@ -302,11 +303,27 @@ function checkUsing(text) {
     after = rest.slice(file.length).trim();
   if (after) throw new StataError(`invalid '${after.split(/\s+/)[0]}' `, 198);
 }
+/** A note wrapped as Stata wraps it, the lines after the first indented. */
+function wrapNote(text, width) {
+  const lines = [];
+  let current = "";
+  for (const word of text.split(/(?<=\S) (?=\S)|(?<=\.)  (?=\S)/)) {
+    const joint = /\.$/.test(current) ? "  " : " ";
+    if (current && current.length + joint.length + word.length > width) {
+      lines.push(current);
+      current = "       " + word;
+    } else current = current ? current + joint + word : word;
+  }
+  lines.push(current);
+  return lines;
+}
 const hasExtension = (name) => /\.[^./\\]*$/.test(name);
 /** The file, with the extension appended when the name has none. */
 function storedFile(session, typed, extension) {
   const files = (session.files ??= new Map()),
-    name = hasExtension(typed) ? typed : typed + extension,
+    wanted = hasExtension(typed) ? typed : typed + extension,
+    // Names are found whatever their case, as Stata finds them on macOS.
+    name = findFile(files, wanted) || wanted,
     stored = files.get(name);
   if (!stored) throw new StataError(`file ${name} not found`, 601);
   // A file kept as its bytes (a workbook, a picture graph export wrote) is
@@ -565,20 +582,42 @@ function importDelimited(session, text, ctx) {
 
   // The text: decoded as encoding() says, or as the scan chooses.
   const encoding = o.encoding ?? o.charset;
+  // Binary zeros in a file that is not UTF-16 or UTF-32 are dropped before
+  // it is read, and counted with the line of the first, as Stata 19 reports.
+  let bytes = stored.bytes,
+    zeros = 0,
+    zeroLine = 0;
+  if (bytes instanceof Uint8Array && bytes.includes(0)) {
+    const guess =
+      encoding !== undefined ? encoding.trim() : decodeAuto(bytes).encoding;
+    if (!/^utf-?(16|32)/i.test(guess)) {
+      let ends = 0;
+      for (const byte of bytes)
+        if (byte === 0) {
+          if (!zeros++) zeroLine = Math.max(1, ends);
+        } else if (byte === 10) ends++;
+      bytes = bytes.filter((byte) => byte !== 0);
+    }
+  }
   let source;
   if (encoding !== undefined)
-    source = decodeAs(stored.bytes ?? bytesOf(stored.text), encoding.trim());
+    source = decodeAs(bytes ?? bytesOf(stored.text), encoding.trim());
   else {
     let chosenEncoding;
-    if (stored.bytes) {
-      chosenEncoding = stored.encoding;
+    if (bytes) {
+      chosenEncoding = zeros ? undefined : stored.encoding;
       source = stored.text;
       if (!chosenEncoding)
-        ({ encoding: chosenEncoding, text: source } = decodeAuto(stored.bytes));
+        ({ encoding: chosenEncoding, text: source } = decodeAuto(bytes));
     } else
       ({ encoding: chosenEncoding, text: source } = decodeText(stored.text));
     ctx.out(`(encoding automatically selected: ${chosenEncoding})`);
   }
+  if (zeros)
+    wrapNote(
+      `Note:  ${count(zeros)} binary ${zeros === 1 ? "zero was" : "zeros were"} ignored in the source file.  The first instance occurred on line ${count(zeroLine)}.  Binary zeros are not valid in text data.  Inspect your data carefully.`,
+      (session.settings?.linesize ?? 80) - 3,
+    ).forEach((text) => ctx.out(text));
 
   const split = delimiters ?? { chars: [detectDelimiter(source)] },
     { records, unmatched } = splitRecords(source, {
@@ -1061,7 +1100,11 @@ function outsheet(session, text, ctx) {
           if (label !== undefined) return quote(label);
           if (isMissing(value))
             return value === MISSING ? "" : missingName(value);
-          return applyFormat(value, v.format).trim();
+          // outsheet writes a comma format without its thousands separators.
+          return applyFormat(
+            value,
+            v.format.replace(/^(%-?0?\d*\.\d+[fge])c$/, "$1"),
+          ).trim();
         })
         .join(delimiter),
     );

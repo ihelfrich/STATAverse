@@ -926,11 +926,12 @@ export function tabulate(session, text, ctx) {
     const // A value label is cut at 39 characters, and the longest label of
       // the whole value label, used or not, widens the column (not in a
       // table of summaries).
+      // A null byte in a string is shown as \0.
       shown = entries.map(([value]) =>
         typeof value === "string"
-          ? displayWidth(value) > stringWidth
-            ? cutDisplay(value, stringWidth - 2) + ".."
-            : value
+          ? displayWidth(shownText(value)) > stringWidth
+            ? cutDisplay(shownText(value), stringWidth - 2) + ".."
+            : shownText(value)
           : label(0, value) === undefined
             ? show(0, value)
             : cutDisplay(show(0, value), target ? 9 : 39),

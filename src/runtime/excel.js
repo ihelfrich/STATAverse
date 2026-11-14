@@ -612,8 +612,8 @@ function cellText(cell, book, numeric) {
 function headerName(text, col, taken) {
   let name = [...text].slice(0, 32).join("");
   name = name.replace(/[^\p{L}\p{Nd}_]/gu, "").replace(/^[0-9]+/, "");
-  // Stata keeps letters outside ASCII in names; this runtime's names are
-  // ASCII, so such a header falls back to the column letter.
+  // Stata keeps letters outside ASCII in names (Ünïcode), as this runtime
+  // does; a header with no letters left falls back to the column letter.
   if (!name || !isName(name) || isReserved(name) || taken.has(name))
     name = columnName(col);
   taken.add(name);

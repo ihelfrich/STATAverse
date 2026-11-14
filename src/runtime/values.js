@@ -105,8 +105,8 @@ export function inferType(values) {
 }
 
 const encoder = new TextEncoder(),
-  decoder = new TextDecoder(),
-  strict = new TextDecoder("utf-8", { fatal: true });
+  decoder = new TextDecoder("utf-8", { ignoreBOM: true }),
+  strict = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 // Stata keeps a string's bytes as they are, UTF-8 or not: text from a file
 // saved by Stata 13 or earlier is in the system code page (Latin-1, say),
 // and substr() can cut a character in two. A byte that is not part of a

@@ -895,7 +895,9 @@ function displayLine(session, ctx, text) {
   for (let rest = text.slice(width); rest; rest = rest.slice(width - 2))
     ctx.out("> " + rest.slice(0, width - 2));
 }
-const reshapeChars = (data) => (data.chars ??= {});
+// reshape's settings and saved labels, which Stata keeps as _dta
+// characteristics, are kept beside the data and travel with them.
+const reshapeChars = (data) => (data.reshapeChars ??= {});
 
 /**
  * What describe, short leaves in r(), which reshape.ado runs before it
@@ -1023,7 +1025,7 @@ function reshapeSimple(session, direction, text) {
 /** Macros0 and Macros: the settings, checked; NotDefd when one is missing. */
 function reshapeMacros(session) {
   const data = session.data,
-    spec = data.chars?.reshape,
+    spec = data.reshapeChars?.reshape,
     notDefined = (what) =>
       spec
         ? new StataError(`${what} not defined`, 111)
@@ -1199,7 +1201,7 @@ function saveCharsForLong(data, spec) {
 }
 /** ApplyCharsForLong: those labels, put back once the data are long. */
 function applyCharsForLong(result, spec) {
-  const saved = result.chars?.labels;
+  const saved = result.reshapeChars?.labels;
   if (!saved) return;
   const j = result.get(spec.j);
   if (saved.jValLabName && !spec.str) {
@@ -1301,6 +1303,7 @@ function reshapeWide(session, ctx) {
   result.valueLabels = data.valueLabels;
   result.label = data.label;
   result.chars = data.chars;
+  result.reshapeChars = data.reshapeChars;
   result.n = groups.length;
   const copy = (variable, values, name = variable.name) => {
     result.generate(name, values, {
@@ -1464,6 +1467,7 @@ function reshapeLong(session, ctx) {
   result.valueLabels = data.valueLabels;
   result.label = data.label;
   result.chars = data.chars;
+  result.reshapeChars = data.reshapeChars;
   result.n = rows.length;
   const jValues = rows.map(([, level]) => (spec.str ? level : Number(level)));
   const columns = new Map();
@@ -1678,7 +1682,7 @@ function reshape(session, text, ctx) {
     word = /^\S*/.exec(trimmed)[0],
     rest = trimmed.slice(word.length);
   if (word === "clear") {
-    if (session.data.chars) delete session.data.chars.reshape;
+    if (session.data.reshapeChars) delete session.data.reshapeChars.reshape;
     return;
   }
   if (word === "long" || word === "wide") {

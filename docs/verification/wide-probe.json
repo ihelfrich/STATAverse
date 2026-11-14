@@ -1,8 +1,8 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 392,
-  "refused": 127,
+  "pass": 402,
+  "refused": 117,
   "wrong": 0,
   "crash": 0,
   "groups": {
@@ -13,8 +13,8 @@
       "crash": 0
     },
     "desc": {
-      "pass": 30,
-      "refused": 15,
+      "pass": 35,
+      "refused": 10,
       "wrong": 0,
       "crash": 0
     },
@@ -25,8 +25,8 @@
       "crash": 0
     },
     "est": {
-      "pass": 47,
-      "refused": 21,
+      "pass": 48,
+      "refused": 20,
       "wrong": 0,
       "crash": 0
     },
@@ -43,14 +43,14 @@
       "crash": 0
     },
     "prog": {
-      "pass": 88,
-      "refused": 22,
+      "pass": 89,
+      "refused": 21,
       "wrong": 0,
       "crash": 0
     },
     "date": {
-      "pass": 19,
-      "refused": 8,
+      "pass": 22,
+      "refused": 5,
       "wrong": 0,
       "crash": 0
     },
@@ -444,7 +444,7 @@
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||tabulate region female, cell nofreq"
     },
     {
@@ -479,7 +479,7 @@
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||table region, statistic(mean wage) statistic(sd wage) nformat(%9.2f)"
     },
     {
@@ -509,7 +509,7 @@
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||inspect wage"
     },
     {
@@ -529,12 +529,12 @@
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||misstable summarize"
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||misstable patterns"
     },
     {
@@ -949,7 +949,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms||xtset firm year;;xtdescribe"
     },
     {
@@ -2084,7 +2084,7 @@
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||save \"mydata.dta\", replace;;use id wage using mydata, clear"
     },
     {
@@ -2264,17 +2264,17 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||display clock(\"2024-03-15 14:30:00\", \"YMDhms\") \" \" %tc clock(\"2024-03-15 14:30:00\", \"YMDhms\") \" \" dofc(clock(\"2024-03-15 14:30:00\", \"YMDhms\")) \" \" hh(clock(\"2024-03-15 14:30:00\", \"YMDhms\"))"
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||display datediff(mdy(1,1,2020), mdy(3,1,2021), \"month\") \" \" age(mdy(1,1,2000), mdy(6,1,2024))"
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||generate monthly = monthly(\"2020m5\", \"YM\");;format monthly %tm;;list monthly in 1"
     },
     {

@@ -47,9 +47,9 @@ const shown = (variable, i) =>
   typeof variable.data[i] === "string"
     ? variable.data[i]
     : applyFormat(variable.data[i], "%21.0g").trim();
-// Stata keeps letters outside ASCII in a variable name; this runtime's names
-// are ASCII, so such a header names the variable by its column letter.
-const RENAMED = { Ünïcode: "M" };
+// Stata keeps letters outside ASCII in a variable name, and so does this
+// runtime; nothing is renamed.
+const RENAMED = {};
 
 for (const expected of recorded.results)
   test(`imports as Stata 19 does: ${expected.command}`, () => {

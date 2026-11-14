@@ -336,7 +336,11 @@ test("a CSV file of 300,000 rows (8.9 MB) is imported", () => {
   session.addFile("tall.csv", rows.join("\n") + "\n");
   const result = session.run("import delimited using tall.csv, clear");
   assert.equal(result.rc, 0);
-  assert.deepEqual(result.output[0].lines, ["(4 vars, 300,000 obs)"]);
+  // Stata 19 names the encoding its scan chose, UTF-8 for this file.
+  assert.deepEqual(result.output[0].lines, [
+    "(encoding automatically selected: UTF-8)",
+    "(4 vars, 300,000 obs)",
+  ]);
 });
 
 test("the Variables pane is told each variable's value label", () => {
@@ -420,7 +424,9 @@ test("a workbook, SPSS or SAS file is given to the session as its bytes", async 
     stub = {
       addData: (name) => calls.push(["data", name]),
       addBinary: (name, bytes) => calls.push(["binary", name, bytes.length]),
-      addFile: (name, text) => calls.push(["text", name, text]),
+      // Text arrives as its bytes, decoded in the session as Stata decodes it.
+      addFile: (name, file) =>
+        calls.push(["text", name, new TextDecoder().decode(file)]),
     },
     bytes = new Uint8Array([80, 75, 3, 4, 0, 0]);
   for (const name of ["course.xlsx", "s.sav", "DEMO_J.xpt", "c.sas7bdat"])
@@ -434,7 +440,7 @@ test("a workbook, SPSS or SAS file is given to the session as its bytes", async 
     ["text", "a.csv", "x,y\n1,2\n"],
   ]);
   assert.throws(
-    () => giveFile(stub, "odd.txt", "text", bytes),
+    () => createConsoleSession().addFile("odd.txt", bytes),
     /odd\.txt is not a text file/,
   );
   // In the real session the bytes are kept under the file's name.

@@ -655,7 +655,10 @@ function columns(ctx, names, linesize) {
   }
 }
 const BYTES = { byte: 1, int: 2, long: 4, float: 4, double: 8, strL: 8 };
-const hasNotes = (data, name) => (data.notes?.get?.(name)?.length ?? 0) > 0;
+// Notes are the characteristics note1, note2, ... with their count in
+// note0, as Stata keeps them (see notes in everyday.js).
+const hasNotes = (data, name) =>
+  Number(data.chars?.get?.(name)?.get?.("note0") ?? 0) > 0;
 const CHANGED = "     Note: Dataset has changed since last saved.";
 
 /** describe, replace: a dataset with a row for each variable described. */

@@ -8,7 +8,7 @@ import { applyFormat } from "./format.js";
 import { count, perGroup, percentile } from "./reports.js";
 import { deltaText } from "./panel.js";
 import { splitAtComma } from "./syntax.js";
-import { MISSING, isMissing, isStringType, missingName } from "./values.js";
+import { MISSING, isMissing, isStringType } from "./values.js";
 
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
 const scope = (session, parsed, ctx) =>
@@ -690,58 +690,8 @@ function xtdescribe(session, text, ctx) {
   }
 }
 
-// ----- outsheet -----
-function outsheet(session, text, ctx) {
-  const parsed = session.parse(
-      "[varlist] using/ [if] [in] [, Comma DELIMiter(string asis) NONames noLabel noQuote replace]",
-      text,
-    ),
-    data = session.data,
-    files = (session.files ??= new Map());
-  let name = parsed.using.trim().replace(/^"([\s\S]*)"$/, "$1");
-  if (!name) throw invalid("invalid file specification");
-  if (!/\.[A-Za-z0-9]+$/.test(name)) name += ".out";
-  if (files.has(name) && !parsed.options.replace)
-    throw new StataError(`file ${name} already exists`, 602);
-  let delimiter = "\t";
-  if (parsed.options.delimiter !== undefined) {
-    if (parsed.options.comma)
-      throw invalid("options comma and delimiter() may not be combined");
-    delimiter = parsed.options.delimiter.trim().replace(/^"([\s\S]*)"$/, "$1");
-  } else if (parsed.options.comma) delimiter = ",";
-  const quote = parsed.options.quote !== false,
-    useLabels = parsed.options.label !== false,
-    variables = parsed.varlist.map((v) => data.get(v)),
-    // Strings are quoted as they are; outsheet does not double a quote.
-    wrap = (cell) => (quote ? `"${cell}"` : cell),
-    lines = [];
-  if (!parsed.options.nonames)
-    lines.push(variables.map((v) => v.name).join(delimiter));
-  for (const i of session.rows(parsed, null))
-    lines.push(
-      variables
-        .map((v) => {
-          const value = v.data[i];
-          if (isStringType(v.type)) return wrap(value);
-          const label = useLabels
-            ? data.valueLabels.get(v.valueLabel)?.get(value)
-            : undefined;
-          if (label !== undefined) return wrap(label);
-          if (value === MISSING) return "";
-          if (isMissing(value)) return missingName(value);
-          // outsheet writes a comma format without its thousands separators.
-          return fmt(value, v.format.replace(/^(%-?0?\d*\.\d+[fge])c$/, "$1"));
-        })
-        .join(delimiter),
-    );
-  if (parsed.options.replace && !files.has(name))
-    ctx.out(`(file ${name} not found)`);
-  files.set(name, { text: lines.join("\n") + "\n" });
-}
-
 export const INSPECT_COMMANDS = [
   { name: "inspect", minimum: 3, run: perGroup(inspect), byable: true },
   { name: "misstable", minimum: 9, run: misstable },
   { name: "xtdescribe", minimum: 5, run: xtdescribe },
-  { name: "outsheet", minimum: 4, run: outsheet },
 ];

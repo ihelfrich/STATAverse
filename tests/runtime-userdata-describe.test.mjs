@@ -313,9 +313,18 @@ test("a file's sort order ends at the first 0 of its sortlist", () => {
   ]);
 });
 
+// Notes are kept as Stata keeps them: characteristics note1, note2, ...
+// with their count in note0.
+const notesOf = (chars, owner) => {
+  const own = chars?.get(owner);
+  return Array.from({ length: Number(own?.get("note0") ?? 0) }, (_, k) =>
+    own.get(`note${k + 1}`),
+  );
+};
+
 test("notes stored in a file are read, listed, marked and dropped", () => {
   const data = readDta(fixture("describe-notes.dta"));
-  assert.deepEqual(data.notes.get("_dta"), ["Collected in fall 2024"]);
+  assert.deepEqual(notesOf(data.chars, "_dta"), ["Collected in fall 2024"]);
   assert.equal(data.chars.get("income").get("source"), "simulated");
   const out = run(
     withFiles("notes.dta"),
@@ -361,11 +370,10 @@ test("notes and characteristics go into an exported file", () => {
   const s = withFiles("notes.dta");
   s.run("use notes.dta, clear\nnotes female: added here\ndrop city");
   const back = readDta(s.exportData().bytes);
-  assert.deepEqual([...back.notes].sort(), [
-    ["_dta", ["Collected in fall 2024"]],
-    ["female", ["added here"]],
-    ["income", ["Top-coded at 1,000,000"]],
-  ]);
+  assert.deepEqual(
+    ["_dta", "female", "income"].map((owner) => notesOf(back.chars, owner)),
+    [["Collected in fall 2024"], ["added here"], ["Top-coded at 1,000,000"]],
+  );
   assert.equal(back.chars.get("income").get("source"), "simulated");
 });
 

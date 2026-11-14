@@ -131,8 +131,8 @@ export function createConsoleSession() {
     },
     /** A file kept as its bytes: an Excel workbook, an SPSS or SAS file. */
     addBinary(name, bytes) {
-      // A workbook or an SPSS or SAS file is checked as addData checks it.
-      if (binaryKind(name)) return this.addData(name, bytes);
+      // Kept as its bytes, as Stata keeps any file in its folder; the command
+      // that reads it (import excel, import spss, ...) checks it.
       const file = { bytes: new Uint8Array(bytes) };
       added.set(name, file);
       put(name, file);
