@@ -32,6 +32,7 @@ import { MARGINS_COMMANDS } from "./margins.js";
 import { CONTRAST_COMMANDS } from "./contrast.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { FOREIGN_COMMANDS } from "./foreign.js";
+import { INFILE_COMMANDS } from "./infix.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
 import {
   DATA_COMMANDS,
@@ -1960,6 +1961,7 @@ export const COMMANDS = [
   ...FOREIGN_COMMANDS,
   ...CONTRAST_COMMANDS,
   ...DELIMITED_COMMANDS,
+  ...INFILE_COMMANDS,
   ...MATRIX_COMMANDS,
   ...ESTIMATION_COMMANDS,
   ...DATA_COMMANDS,

@@ -21,6 +21,7 @@ import {
   MISSING,
   isMissing,
   isStringType,
+  missingName,
   missingValue,
   stringWidth,
 } from "./values.js";
@@ -270,14 +271,53 @@ const SAS_NUMBERS = new Set(
     " ",
   ),
 );
-// The few formats import sasxport8 carries over; it ignores the rest.
+// The formats import sasxport8 carries over, as Stata 19 maps them. It
+// does so only for a format written without a width or decimals, as
+// Stata's own export sasxport8 writes them; COMMA12.2, DATE9. and every
+// other name get %10.0g.
 const SAS8_FORMATS = {
-  DATE: "%td",
-  WEEKDATE: "%td_DAYNAME,_Month_DD,_CCYY",
+  COMMA: "%20.0gc",
+  COMMAX: "%20.0gc",
+  DOLLAR: "%10.2gc",
+  DOLLARX: "%15.0gc",
+  NEGPAREN: "%10.0gc",
+  OCTAL: "%10.0gc",
+  E: "%15.4e",
   D: "%15.4g",
+  PERCENT: "%10.2g",
+  Z: "%010.2g",
+  JULIAN: "%8.0f",
+  SSN: "%9.0f",
+  HEX: "%21x",
+  WORDF: "%8.0g",
+  WORDS: "%8.0g",
+  ROMAN: "%8.0g",
+  DATE: "%td",
+  WORDDATE: "%td_Month_DD,_CCYY",
+  WEEKDATE: "%td_DAYNAME,_Month_DD,_CCYY",
+  WORDDATX: "%td_DAYNAME,_DD_Month_CCYY",
+  DDMMYY: "%tdDD/NN/YY",
+  MMDDYY: "%tdNN/DD/YY",
+  YYMMDD: "%tdYYNNDD",
+  MONYY: "%tdMonthCCYY",
+  MMYY: "%tdNN!MCCYY",
+  YYMM: "%tdCCYY!MNN",
+  YYMON: "%tdCCYYMonth",
+  YYQ: "%tdCCYY!Qq",
+  YEAR: "%tdCCYY",
+  MONNAME: "%tdMonth",
+  MONTH: "%tdnn",
+  QTR: "%tdq",
+  DAY: "%tdDD",
+  WEEKDAY: "%tdda",
+  DOWNAME: "%tdDAYNAME",
   // Stata gives these formats and leaves the values as SAS's seconds.
   DATETIME: "%tc",
   TIME: "%tcHH:MM:SS",
+  TOD: "%tcHH:MM:SS",
+  HHMM: "%tcHH:MM",
+  MMSS: "%tcMM:SS",
+  HOUR: "%tcHH",
 };
 
 const hasData = (session) =>
@@ -310,10 +350,21 @@ function wrapNote(text, width, indent) {
   return lines;
 }
 
-/** Value labels from formats.xpf, as Stata's export sasxport5 writes it. */
+// Stata's value labels hold whole numbers from -2147483647 to 2147483620.
+// export sasxport5 writes the label of .a to .z as 2147483622 to
+// 2147483647, which import sasxport5 then refuses.
+const LABEL_LOW = -2147483647,
+  LABEL_HIGH = 2147483620;
+
+/**
+ * Value labels from formats.xpf, as Stata's export sasxport5 writes it. A
+ * value no label can hold makes the whole file invalid, r(610), as in
+ * Stata 19.
+ */
 function formatsFile(session) {
   const files = session.files ?? new Map();
-  const stored = files.get("formats.xpf") ?? files.get("FORMATS.xpf");
+  const fileName = files.has("formats.xpf") ? "formats.xpf" : "FORMATS.xpf",
+    stored = files.get(fileName);
   if (!stored) return null;
   let file;
   try {
@@ -334,6 +385,11 @@ function formatsFile(session) {
   names.forEach((fmt, i) => {
     const value = Number(String(starts[i]).trim());
     if (!Number.isInteger(value)) return;
+    if (value < LABEL_LOW || value > LABEL_HIGH)
+      throw new StataError(
+        `may not label ${value}\n${fileName} is not a valid value label file`,
+        610,
+      );
     const name = fmt.trim().toLowerCase();
     if (!out.has(name)) out.set(name, new Map());
     out.get(name).set(value, String(labels[i]));
@@ -431,7 +487,14 @@ export function importSasxport(session, text, ctx, version) {
       data.get(varName).label = v.label;
     });
     if (labelNames.size) {
-      const definitions = options.novallabels ? null : formatsFile(session);
+      let definitions = null;
+      try {
+        if (!options.novallabels) definitions = formatsFile(session);
+      } catch (error) {
+        // Stata has cleared memory by then and leaves it empty.
+        session.data = new Dataset({ defaultType: session.data.defaultType });
+        throw error;
+      }
       if (!definitions && !options.novallabels)
         lines.push(
           ...wrapNote(
@@ -454,7 +517,7 @@ export function importSasxport(session, text, ctx, version) {
       if (v.numeric) {
         data.generate(v.name, values, { type: integerType(values) });
         data.get(v.name).format =
-          (!v.width && SAS8_FORMATS[format]) || "%10.0g";
+          (!v.width && !v.decimals && SAS8_FORMATS[format]) || "%10.0g";
       } else {
         const width = Math.max(
           1,
@@ -701,7 +764,8 @@ export function exportSasxport(session, text, ctx, version) {
         198,
       );
   const rows = session.rows(parsed, null),
-    labelled = [];
+    labelled = [],
+    vallab = options.vallabfile ? unquote(options.vallabfile) : "xpf";
   const variables = data.variables.map((v, k) => {
     const numeric = !isStringType(v.type);
     let format = "",
@@ -710,9 +774,13 @@ export function exportSasxport(session, text, ctx, version) {
       if (/^%-?(td|d)/.test(v.format)) {
         format = "MMDDYY";
         width = 10;
-      } else if (v.valueLabel && data.valueLabels.has(v.valueLabel)) {
+      } else if (v.valueLabel) {
+        // The label's name is the SAS format; formats.xpf, when written,
+        // must define it.
+        if (data.valueLabels.has(v.valueLabel)) labelled.push(v.valueLabel);
+        else if (vallab === "xpf")
+          throw new StataError(`value label ${v.valueLabel} not found`, 111);
         format = v.valueLabel.toUpperCase().slice(0, 8);
-        labelled.push(v.valueLabel);
       } else {
         format = "BEST";
         width = 12;
@@ -736,17 +804,25 @@ export function exportSasxport(session, text, ctx, version) {
     ),
   });
   ctx.out(`file ${name} saved`);
-  const vallab = options.vallabfile ? unquote(options.vallabfile) : "xpf";
   // Stata removes an older formats.xpf when it writes no value labels.
   if (!labelled.length || vallab !== "xpf") files.delete("formats.xpf");
   if (labelled.length && vallab === "xpf") {
     const names = [],
       starts = [],
       texts = [];
+    // Values in order, as Stata keeps them; .a to .z are written as
+    // 2147483622 to 2147483647.
     for (const label of new Set(labelled))
-      for (const [value, text] of data.valueLabels.get(label)) {
+      for (const [value, text] of [...data.valueLabels.get(label)].sort(
+        ([a], [b]) => a - b,
+      )) {
+        const letter = missingName(value);
         names.push(label.toUpperCase().slice(0, 8));
-        starts.push(String(value));
+        starts.push(
+          String(
+            letter === null ? value : 2147483621 + letter.charCodeAt(1) - 96,
+          ),
+        );
         texts.push(text);
       }
     const labelWidth = Math.max(

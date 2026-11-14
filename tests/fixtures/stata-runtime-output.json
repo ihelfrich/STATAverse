@@ -99004,6 +99004,1056 @@
       ]
     },
     {
+      "id": "files-delimited-rows-count-empty-lines-and-separators",
+      "source": "clear\ninput str30 line\n\"Report generated 2024\"\n\"\"\n\"region,sales,units\"\n\"East,1200.50,10\"\n\"West,980,\"\n\"\"\n\"North,NA,7\"\nend\nexport delimited using f6blank.csv, replace novarnames delimiter(tab)\nimport delimited using f6blank.csv, clear varnames(3)\nlist\ndescribe\nimport delimited using f6blank.csv, clear rowrange(3:5)\nlist\nimport delimited using f6blank.csv, clear varnames(3) rowrange(5)\nlist\nimport delimited using f6blank.csv, clear varnames(3) rowrange(3:5)\ndescribe\nlist\nimport delimited using f6blank.csv, clear varnames(2) emptylines(include)\nlist\nimport delimited using f6blank.csv, clear rowrange(2:4) emptylines(include)\nlist\nimport delimited using f6blank.csv, clear rowrange(6:6)\nlist\nimport delimited using f6blank.csv, clear varnames(1) rowrange(3:5)\ndescribe\nclear\ninput str30 line\n\"a,b\"\n\"\"\n\"\"\n\"1,2\"\nend\nexport delimited using f6two.csv, replace novarnames delimiter(tab)\nimport delimited using f6two.csv, clear rowrange(2:3)\nlist\nimport delimited using f6two.csv, clear varnames(2)\ndescribe\nclear\ninput str30 line\n\"ville;revenu\"\n\"Paris;35 123,50\"\n\"Lyon;29 800,25\"\n\"Nice;980,00\"\nend\nexport delimited using f6espace.csv, replace novarnames delimiter(tab)\nimport delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(,) groupseparator(\" \")\ndescribe\nlist\nimport delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(\" , \") groupseparator(\" \")\nlist\ncapture noisily import delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(,) groupseparator(..)\ncapture noisily import delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(,,) groupseparator(.)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str30 line",
+          "lines": [
+            "                               line",
+            "  1. \"Report generated 2024\"",
+            "  2. \"\"",
+            "  3. \"region,sales,units\"",
+            "  4. \"East,1200.50,10\"",
+            "  5. \"West,980,\"",
+            "  6. \"\"",
+            "  7. \"North,NA,7\"",
+            "  8. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6blank.csv, replace novarnames delimiter(tab)",
+          "lines": ["(file f6blank.csv not found)", "file f6blank.csv saved"]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear varnames(3)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     | region     sales   units |",
+            "     |--------------------------|",
+            "  1. |   East   1200.50      10 |",
+            "  2. |   West       980       . |",
+            "  3. |  North        NA       7 |",
+            "     +--------------------------+"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "region          str5    %9s",
+            "sales           str7    %9s",
+            "units           byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear rowrange(3:5)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     |     v1        v2      v3 |",
+            "     |--------------------------|",
+            "  1. | region     sales   units |",
+            "  2. |   East   1200.50      10 |",
+            "  3. |   West       980         |",
+            "     +--------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear varnames(3) rowrange(5)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------+",
+            "     | region   sales   units |",
+            "     |------------------------|",
+            "  1. |   West     980       . |",
+            "  2. |  North      NA       7 |",
+            "     +------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear varnames(3) rowrange(3:5)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "region          str4    %9s",
+            "sales           float   %9.0g",
+            "units           byte    %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------+",
+            "     | region    sales   units |",
+            "     |-------------------------|",
+            "  1. |   East   1200.5      10 |",
+            "  2. |   West      980       . |",
+            "     +-------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear varnames(2) emptylines(include)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 6 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     |     v1        v2      v3 |",
+            "     |--------------------------|",
+            "  1. | region     sales   units |",
+            "  2. |   East   1200.50      10 |",
+            "  3. |   West       980         |",
+            "  4. |                          |",
+            "  5. |  North        NA       7 |",
+            "     |--------------------------|",
+            "  6. |                          |",
+            "     +--------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear rowrange(2:4) emptylines(include)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     |     v1        v2      v3 |",
+            "     |--------------------------|",
+            "  1. |                          |",
+            "  2. | region     sales   units |",
+            "  3. |   East   1200.50      10 |",
+            "     +--------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear rowrange(6:6)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     |    v1   v2   v3 |",
+            "     |-----------------|",
+            "  1. | North   NA    7 |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6blank.csv, clear varnames(1) rowrange(3:5)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "reportgene~2024 str6    %9s                   Report generated 2024",
+            "v2              str7    %9s",
+            "v3              str5    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str30 line",
+          "lines": [
+            "                               line",
+            "  1. \"a,b\"",
+            "  2. \"\"",
+            "  3. \"\"",
+            "  4. \"1,2\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6two.csv, replace novarnames delimiter(tab)",
+          "lines": ["(file f6two.csv not found)", "file f6two.csv saved"]
+        },
+        {
+          "command": "import delimited using f6two.csv, clear rowrange(2:3)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 1 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | a   b |",
+            "     |-------|",
+            "  1. | 1   2 |",
+            "     +-------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6two.csv, clear varnames(2)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 0 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g                 1",
+            "v2              byte    %8.0g                 2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str30 line",
+          "lines": [
+            "                               line",
+            "  1. \"ville;revenu\"",
+            "  2. \"Paris;35 123,50\"",
+            "  3. \"Lyon;29 800,25\"",
+            "  4. \"Nice;980,00\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6espace.csv, replace novarnames delimiter(tab)",
+          "lines": ["(file f6espace.csv not found)", "file f6espace.csv saved"]
+        },
+        {
+          "command": "import delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(,) groupseparator(\" \")",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              str5    %9s",
+            "v2              str9    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     |    v1          v2 |",
+            "     |-------------------|",
+            "  1. | ville      revenu |",
+            "  2. | Paris   35 123,50 |",
+            "  3. |  Lyon   29 800,25 |",
+            "  4. |  Nice      980,00 |",
+            "     +-------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(\" , \") groupseparator(\" \")",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(2 vars, 4 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     |    v1          v2 |",
+            "     |-------------------|",
+            "  1. | ville      revenu |",
+            "  2. | Paris   35 123,50 |",
+            "  3. |  Lyon   29 800,25 |",
+            "  4. |  Nice      980,00 |",
+            "     +-------------------+"
+          ]
+        },
+        {
+          "command": "capture noisily import delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(,) groupseparator(..)",
+          "lines": ["option groupseparator() may contain only one character."]
+        },
+        {
+          "command": "capture noisily import delimited using f6espace.csv, clear delimiters(\";\") decimalseparator(,,) groupseparator(.)",
+          "lines": ["option decimalseparator() may contain only one character."]
+        }
+      ]
+    },
+    {
+      "id": "files-sasxport5-extended-missing-labels",
+      "source": "clear\nset obs 6\ngenerate id = _n\ngenerate byte sex = cond(_n <= 2, 1, cond(_n <= 4, 2, .a))\nlabel define f6sexlbl 1 \"Male\" 2 \"Female\" .a \"Refused\"\nlabel values sex f6sexlbl\nexport sasxport5 f6survey.xpt, replace\ncapture noisily import sasxport5 f6survey.xpt, clear\ndisplay _rc\ndescribe\nlabel list\nimport sasxport5 f6survey.xpt, clear novallabels\ndescribe\ncapture noisily export sasxport5 f6back.xpt, replace\ndisplay _rc\nexport sasxport5 f6back.xpt, replace vallabfile(none)\ncapture noisily export sasxport5 id using f6back.xpt, replace\ndisplay _rc\nlabel define f6zz 3 \"c\" 1 \"a\" .z \"zed\" .b \"bee\"\ngenerate byte q = cond(_n == 1, 3, cond(_n == 2, .b, 1))\nlabel values q f6zz\nexport sasxport5 q using f6q.xpt, replace\ncapture noisily import sasxport5 f6q.xpt, clear\ndisplay _rc\nclear\nset obs 2\ngenerate byte q = _n * 2 - 1\nlabel define f6ok 3 \"c\" 1 \"a\"\nlabel values q f6ok\nexport sasxport5 f6ok.xpt, replace\nimport sasxport5 f6ok.xpt, clear\nlabel list\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate byte sex = cond(_n <= 2, 1, cond(_n <= 4, 2, .a))",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "label define f6sexlbl 1 \"Male\" 2 \"Female\" .a \"Refused\"",
+          "lines": []
+        },
+        { "command": "label values sex f6sexlbl", "lines": [] },
+        {
+          "command": "export sasxport5 f6survey.xpt, replace",
+          "lines": ["file f6survey.xpt saved", "file formats.xpf saved"]
+        },
+        {
+          "command": "capture noisily import sasxport5 f6survey.xpt, clear",
+          "lines": [
+            "may not label 2147483622",
+            "formats.xpf is not a valid value label file"
+          ]
+        },
+        { "command": "display _rc", "lines": ["610"] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        { "command": "label list", "lines": [] },
+        {
+          "command": "import sasxport5 f6survey.xpt, clear novallabels",
+          "lines": []
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             6",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              double  %10.0g",
+            "sex             double  %10.0g     f6sexlbl",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "capture noisily export sasxport5 f6back.xpt, replace",
+          "lines": ["value label f6sexlbl not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "export sasxport5 f6back.xpt, replace vallabfile(none)",
+          "lines": ["file f6back.xpt saved"]
+        },
+        {
+          "command": "capture noisily export sasxport5 id using f6back.xpt, replace",
+          "lines": ["file f6back.xpt saved"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "label define f6zz 3 \"c\" 1 \"a\" .z \"zed\" .b \"bee\"",
+          "lines": []
+        },
+        {
+          "command": "generate byte q = cond(_n == 1, 3, cond(_n == 2, .b, 1))",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "label values q f6zz", "lines": [] },
+        {
+          "command": "export sasxport5 q using f6q.xpt, replace",
+          "lines": ["file f6q.xpt saved", "file formats.xpf saved"]
+        },
+        {
+          "command": "capture noisily import sasxport5 f6q.xpt, clear",
+          "lines": [
+            "may not label 2147483623",
+            "formats.xpf is not a valid value label file"
+          ]
+        },
+        { "command": "display _rc", "lines": ["610"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate byte q = _n * 2 - 1", "lines": [] },
+        { "command": "label define f6ok 3 \"c\" 1 \"a\"", "lines": [] },
+        { "command": "label values q f6ok", "lines": [] },
+        {
+          "command": "export sasxport5 f6ok.xpt, replace",
+          "lines": ["file f6ok.xpt saved", "file formats.xpf saved"]
+        },
+        { "command": "import sasxport5 f6ok.xpt, clear", "lines": [] },
+        {
+          "command": "label list",
+          "lines": ["f6ok:", "           1 a", "           3 c"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---+",
+            "     | q |",
+            "     |---|",
+            "  1. | a |",
+            "  2. | c |",
+            "     +---+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "files-infix-and-infile",
+      "source": "clear\ninput str40 line\n\"  1 20M3.50Economics\"\n\"  2 19F3.90History\"\n\"  3 21F2.75Physics\"\n\"\"\n\"  5  xF -1e1Art\"\n\" 61,0 F 1,5Law extra text\"\n\"  7\"\nend\nexport delimited using f6fix.dat, replace novarnames delimiter(tab)\ninfix id 1-3 age 4-5 str sex 6 gpa 7-10 str major 11-20 using f6fix.dat, clear\ndescribe\nlist\ninfix int id 1-3 byte age 4-5 str1 sex 6 double gpa 7-10 str3 major 11-20 using f6fix.dat, clear\ndescribe\ninfix id 1-3 age 4-5 using f6fix.dat in 2/3, clear\nlist\ninfix id 1-3 age 4-5 using f6fix.dat if age > 19, clear\nlist\ncapture noisily infix id 1-3 age 4-5 using f6fix.dat\ncapture noisily infix id 1-3 age 4-5 using f6fix, clear\ncapture noisily infix id 3-1 using f6fix.dat, clear\ncapture noisily infix id 1-3, clear\ninfix 2 lines 1: id 1-3 2: age 1-2 using f6fix.dat, clear\nlist\ncapture noisily infix id 1-3 id 4-5 using f6fix.dat, clear\ninfix str20 s 1-50 using f6fix.dat, clear\ndescribe\ncapture noisily infix 1x 1-3 using f6fix.dat, clear\ncapture noisily infix id 1-3 using f6fix.dat, clear foo\nclear\ninput str40 line\n\"1 Ann 3.5\"\n\"2 Bob 3.9\"\n\"3,Cal,2.75\"\n\"4 Dee .a\"\n\"\"\n\"5   Ed 1e1 6\"\n\"Fay x 7 Gus\"\nend\nexport delimited using f6free.raw, replace novarnames delimiter(tab)\ninfile id str10 name gpa using f6free.raw, clear\ndescribe\nlist\ninfile id str2 name gpa using f6free, clear\nlist\ninfile id name gpa using f6free.raw in 2/4, clear\nlist\ninfile id str10 name gpa using f6free.raw in 6/9, clear\ninfile id str10 name gpa using f6free.raw if gpa > 3, clear\nlist\ninfile int id str name double gpa using f6free.raw, clear\ndescribe\ninfile id str10 name gpa using f6free.raw, clear byvariable(2)\nlist\ncapture noisily infile id str10 name gpa using f6free.raw in 0/3, clear\ncapture noisily infile id str10 name gpa using f6free.raw in 3/2, clear\ninfile x1-x3 using f6free.raw, clear\ndescribe, simple\nclear\ninput str40 line\n\"infile dictionary using f6fix.dat {\"\n\"* columns 1 to 5\"\n\"  _column(1) int id %3f\"\n\"  _column(4) byte age %2f\"\n\"  _skip(1) str4 code %4s\"\n\"}\"\nend\nexport delimited using f6dict.dct, replace novarnames delimiter(tab)\ninfile using f6dict.dct, clear\ndescribe\nlist\ninfile using f6dict in 5/7, clear\nlist\nclear\ninput str40 line\n\"infix dictionary using f6fix.dat {\"\n\"  id 1-3\"\n\"  str sex 6\"\n\"}\"\nend\nexport delimited using f6idict.dct, replace novarnames delimiter(tab)\ninfix using f6idict.dct, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"  1 20M3.50Economics\"",
+            "  2. \"  2 19F3.90History\"",
+            "  3. \"  3 21F2.75Physics\"",
+            "  4. \"\"",
+            "  5. \"  5  xF -1e1Art\"",
+            "  6. \" 61,0 F 1,5Law extra text\"",
+            "  7. \"  7\"",
+            "  8. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6fix.dat, replace novarnames delimiter(tab)",
+          "lines": ["(file f6fix.dat not found)", "file f6fix.dat saved"]
+        },
+        {
+          "command": "infix id 1-3 age 4-5 str sex 6 gpa 7-10 str major 11-20 using f6fix.dat, clear",
+          "lines": [
+            "'M3.5' cannot be read as a number for gpa[1]",
+            "'F3.9' cannot be read as a number for gpa[2]",
+            "'F2.7' cannot be read as a number for gpa[3]",
+            "'F-1' cannot be read as a number for gpa[5]",
+            "',0' cannot be read as a number for age[6]",
+            "'F1,' cannot be read as a number for gpa[6]",
+            "(7 observations read)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              float   %9.0g",
+            "age             float   %9.0g",
+            "sex             str1    %9s",
+            "gpa             float   %9.0g",
+            "major           str10   %10s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------+",
+            "     | id   age   sex   gpa        major |",
+            "     |-----------------------------------|",
+            "  1. |  1     2     0     .   0Economics |",
+            "  2. |  2     1     9     .     0History |",
+            "  3. |  3     2     1     .     5Physics |",
+            "  4. |  .     .           .              |",
+            "  5. |  5     .     x     .        e1Art |",
+            "     |-----------------------------------|",
+            "  6. | 61     .           .   5Law extra |",
+            "  7. |  7     .           .              |",
+            "     +-----------------------------------+"
+          ]
+        },
+        {
+          "command": "infix int id 1-3 byte age 4-5 str1 sex 6 double gpa 7-10 str3 major 11-20 using f6fix.dat, clear",
+          "lines": [
+            "'M3.5' cannot be read as a number for gpa[1]",
+            "'F3.9' cannot be read as a number for gpa[2]",
+            "'F2.7' cannot be read as a number for gpa[3]",
+            "'F-1' cannot be read as a number for gpa[5]",
+            "',0' cannot be read as a number for age[6]",
+            "'F1,' cannot be read as a number for gpa[6]",
+            "(7 observations read)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              int     %8.0g",
+            "age             byte    %8.0g",
+            "sex             str1    %9s",
+            "gpa             double  %10.0g",
+            "major           str10   %10s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "infix id 1-3 age 4-5 using f6fix.dat in 2/3, clear",
+          "lines": ["(2 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  2     1 |",
+            "  2. |  3     2 |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "infix id 1-3 age 4-5 using f6fix.dat if age > 19, clear",
+          "lines": [
+            "',0' cannot be read as a number for age[3]",
+            "(4 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  .     . |",
+            "  2. |  5     . |",
+            "  3. | 61     . |",
+            "  4. |  7     . |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "capture noisily infix id 1-3 age 4-5 using f6fix.dat",
+          "lines": ["you must start with an empty dataset"]
+        },
+        {
+          "command": "capture noisily infix id 1-3 age 4-5 using f6fix, clear",
+          "lines": ["file f6fix.raw not found"]
+        },
+        {
+          "command": "capture noisily infix id 3-1 using f6fix.dat, clear",
+          "lines": ["dictionary invalid"]
+        },
+        {
+          "command": "capture noisily infix id 1-3, clear",
+          "lines": ["using required"]
+        },
+        {
+          "command": "infix 2 lines 1: id 1-3 2: age 1-2 using f6fix.dat, clear",
+          "lines": ["unexpected end of file", "(4 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  1     . |",
+            "  2. |  3     . |",
+            "  3. |  5     6 |",
+            "  4. |  7     . |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "capture noisily infix id 1-3 id 4-5 using f6fix.dat, clear",
+          "lines": ["variable id already defined"]
+        },
+        {
+          "command": "infix str20 s 1-50 using f6fix.dat, clear",
+          "lines": ["(7 observations read)"]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               str50   %50s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "capture noisily infix 1x 1-3 using f6fix.dat, clear",
+          "lines": ["1x invalid name"]
+        },
+        {
+          "command": "capture noisily infix id 1-3 using f6fix.dat, clear foo",
+          "lines": ["option foo not allowed"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"1 Ann 3.5\"",
+            "  2. \"2 Bob 3.9\"",
+            "  3. \"3,Cal,2.75\"",
+            "  4. \"4 Dee .a\"",
+            "  5. \"\"",
+            "  6. \"5   Ed 1e1 6\"",
+            "  7. \"Fay x 7 Gus\"",
+            "  8. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6free.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file f6free.raw not found)", "file f6free.raw saved"]
+        },
+        {
+          "command": "infile id str10 name gpa using f6free.raw, clear",
+          "lines": [
+            "'Ed' cannot be read as a number for gpa[5]",
+            "'Fay' cannot be read as a number for gpa[6]",
+            "'x' cannot be read as a number for id[7]",
+            "'Gus' cannot be read as a number for gpa[7]",
+            "(7 observations read)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              float   %9.0g",
+            "name            str10   %10s",
+            "gpa             float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     | id   name    gpa |",
+            "     |------------------|",
+            "  1. |  1    Ann    3.5 |",
+            "  2. |  2    Bob    3.9 |",
+            "  3. |  3    Cal   2.75 |",
+            "  4. |  4    Dee     .a |",
+            "  5. |  .      5      . |",
+            "     |------------------|",
+            "  6. | 10      6      . |",
+            "  7. |  .      7      . |",
+            "     +------------------+"
+          ]
+        },
+        {
+          "command": "infile id str2 name gpa using f6free, clear",
+          "lines": [
+            "'Ed' cannot be read as a number for gpa[5]",
+            "'Fay' cannot be read as a number for gpa[6]",
+            "'x' cannot be read as a number for id[7]",
+            "'Gus' cannot be read as a number for gpa[7]",
+            "(7 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     | id   name    gpa |",
+            "     |------------------|",
+            "  1. |  1     An    3.5 |",
+            "  2. |  2     Bo    3.9 |",
+            "  3. |  3     Ca   2.75 |",
+            "  4. |  4     De     .a |",
+            "  5. |  .      5      . |",
+            "     |------------------|",
+            "  6. | 10      6      . |",
+            "  7. |  .      7      . |",
+            "     +------------------+"
+          ]
+        },
+        {
+          "command": "infile id name gpa using f6free.raw in 2/4, clear",
+          "lines": [
+            "'Bob' cannot be read as a number for name[1]",
+            "'Cal' cannot be read as a number for name[2]",
+            "'Dee' cannot be read as a number for name[3]",
+            "(eof not at end of obs)",
+            "(3 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     | id   name    gpa |",
+            "     |------------------|",
+            "  1. |  2      .    3.9 |",
+            "  2. |  3      .   2.75 |",
+            "  3. |  4      .     .a |",
+            "     +------------------+"
+          ]
+        },
+        {
+          "command": "infile id str10 name gpa using f6free.raw in 6/9, clear",
+          "lines": [
+            "'Fay' cannot be read as a number for gpa[1]",
+            "'x' cannot be read as a number for id[2]",
+            "'Gus' cannot be read as a number for gpa[2]",
+            "(2 observations read)"
+          ]
+        },
+        {
+          "command": "infile id str10 name gpa using f6free.raw if gpa > 3, clear",
+          "lines": [
+            "'Ed' cannot be read as a number for gpa[4]",
+            "'Fay' cannot be read as a number for gpa[5]",
+            "'x' cannot be read as a number for id[6]",
+            "'Gus' cannot be read as a number for gpa[6]",
+            "(6 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | id   name   gpa |",
+            "     |-----------------|",
+            "  1. |  1    Ann   3.5 |",
+            "  2. |  2    Bob   3.9 |",
+            "  3. |  4    Dee    .a |",
+            "  4. |  .      5     . |",
+            "  5. | 10      6     . |",
+            "     |-----------------|",
+            "  6. |  .      7     . |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "infile int id str name double gpa using f6free.raw, clear",
+          "lines": [
+            "'Ann' cannot be read as a number for str[1]",
+            "'Bob' cannot be read as a number for id[2]",
+            "'Cal' cannot be read as a number for gpa[2]",
+            "'Dee' cannot be read as a number for name[3]",
+            "'Ed' cannot be read as a number for name[4]",
+            "'Fay' cannot be read as a number for str[5]",
+            "'x' cannot be read as a number for name[5]",
+            "'Gus' cannot be read as a number for id[6]",
+            "(eof not at end of obs)",
+            "(6 observations read)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             6",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              int     %8.0g",
+            "str             float   %9.0g",
+            "name            float   %9.0g",
+            "gpa             double  %10.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "infile id str10 name gpa using f6free.raw, clear byvariable(2)",
+          "lines": [
+            "'Ann' cannot be read as a number for id[2]",
+            "'Bob' cannot be read as a number for gpa[1]",
+            "(2 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | id   name   gpa |",
+            "     |-----------------|",
+            "  1. |  1    3.5     . |",
+            "  2. |  .      2   3.9 |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "capture noisily infile id str10 name gpa using f6free.raw in 0/3, clear",
+          "lines": ["'0' invalid observation number"]
+        },
+        {
+          "command": "capture noisily infile id str10 name gpa using f6free.raw in 3/2, clear",
+          "lines": ["observation numbers out of range"]
+        },
+        {
+          "command": "infile x1-x3 using f6free.raw, clear",
+          "lines": [
+            "'Ann' cannot be read as a number for x2[1]",
+            "'Bob' cannot be read as a number for x2[2]",
+            "'Cal' cannot be read as a number for x2[3]",
+            "'Dee' cannot be read as a number for x2[4]",
+            "'Ed' cannot be read as a number for x3[5]",
+            "'Fay' cannot be read as a number for x3[6]",
+            "'x' cannot be read as a number for x1[7]",
+            "'Gus' cannot be read as a number for x3[7]",
+            "(7 observations read)"
+          ]
+        },
+        { "command": "describe, simple", "lines": ["x1  x2  x3"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using f6fix.dat {\"",
+            "  2. \"* columns 1 to 5\"",
+            "  3. \"  _column(1) int id %3f\"",
+            "  4. \"  _column(4) byte age %2f\"",
+            "  5. \"  _skip(1) str4 code %4s\"",
+            "  6. \"}\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6dict.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file f6dict.dct not found)", "file f6dict.dct saved"]
+        },
+        {
+          "command": "infile using f6dict.dct, clear",
+          "lines": [
+            "infile dictionary using f6fix.dat {",
+            "* columns 1 to 5",
+            "  _column(1) int id %3f",
+            "  _column(4) byte age %2f",
+            "  _skip(1) str4 code %4s",
+            "}",
+            "",
+            "',0' cannot be read as a number for age[6]",
+            "(7 observations read)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              int     %8.0g",
+            "age             byte    %8.0g",
+            "code            str4    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | id   age   code |",
+            "     |-----------------|",
+            "  1. |  1     2   M3.5 |",
+            "  2. |  2     1   F3.9 |",
+            "  3. |  3     2   F2.7 |",
+            "  4. |  .     .        |",
+            "  5. |  5     .   F -1 |",
+            "     |-----------------|",
+            "  6. | 61     .   F 1, |",
+            "  7. |  7     .        |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "infile using f6dict in 5/7, clear",
+          "lines": [
+            "infile dictionary using f6fix.dat {",
+            "* columns 1 to 5",
+            "  _column(1) int id %3f",
+            "  _column(4) byte age %2f",
+            "  _skip(1) str4 code %4s",
+            "}",
+            "",
+            "',0' cannot be read as a number for age[2]",
+            "(3 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | id   age   code |",
+            "     |-----------------|",
+            "  1. |  5     .   F -1 |",
+            "  2. | 61     .   F 1, |",
+            "  3. |  7     .        |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infix dictionary using f6fix.dat {\"",
+            "  2. \"  id 1-3\"",
+            "  3. \"  str sex 6\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using f6idict.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file f6idict.dct not found)", "file f6idict.dct saved"]
+        },
+        {
+          "command": "infix using f6idict.dct, clear",
+          "lines": [
+            "infix dictionary using f6fix.dat {",
+            "  id 1-3",
+            "  str sex 6",
+            "}",
+            "(7 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   sex |",
+            "     |----------|",
+            "  1. |  1     0 |",
+            "  2. |  2     9 |",
+            "  3. |  3     1 |",
+            "  4. |  .       |",
+            "  5. |  5     x |",
+            "     |----------|",
+            "  6. | 61       |",
+            "  7. |  7       |",
+            "     +----------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

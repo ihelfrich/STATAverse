@@ -12,6 +12,10 @@ export const PAGE_LIMIT = 500_000_000;
 
 const extension = (name) => /\.([^.\\/]+)$/.exec(name)?.[1].toLowerCase() ?? "";
 
+/** The kinds of file the picker offers: those fileKind takes. */
+export const ACCEPT =
+  ".csv,.tsv,.txt,.dta,.do,.xlsx,.xlsm,.xls,.sav,.zsav,.xpt,.v5xpt,.v8xpt,.xpf,.sas7bdat,text/csv,text/plain";
+
 /**
  * How a file is taken: "dta" is read as a dataset, "text" as text, "do" goes
  * to the do-file editor, and "binary" is kept as bytes for the import command
@@ -21,19 +25,25 @@ export function fileKind(name) {
   const ext = extension(name);
   if (ext === "dta") return "dta";
   if (ext === "do") return "do";
-  if (/^(xlsx|xlsm|xls|sav|xpt|v5xpt|v8xpt|sas7bdat)$/.test(ext))
+  if (/^(xlsx|xlsm|xls|sav|zsav|xpt|v5xpt|v8xpt|xpf|sas7bdat)$/.test(ext))
     return "binary";
   return "text";
 }
 
-/** The command that loads an added file into memory, as Stata would. */
+/**
+ * The command that loads an added file into memory, as Stata would, or ""
+ * for formats.xpf, which holds the value labels import sasxport5 attaches
+ * and is not a dataset to load.
+ */
 export function loadCommand(name) {
   const ext = extension(name),
     file = `"${name}"`;
+  if (ext === "xpf") return "";
   if (ext === "dta") return `use ${file}, clear`;
   if (/^(xlsx|xlsm|xls)$/.test(ext))
     return `import excel using ${file}, firstrow clear`;
-  if (ext === "sav") return `import spss using ${file}, clear`;
+  if (ext === "sav" || ext === "zsav")
+    return `import spss using ${file}, clear`;
   if (ext === "xpt" || ext === "v5xpt")
     return `import sasxport5 ${file}, clear`;
   if (ext === "v8xpt") return `import sasxport8 ${file}, clear`;
