@@ -13868,3 +13868,447 @@ export delimited using r6letters.csv, replace novarnames delimiter(tab)
 import delimited using r6letters.csv, clear delimiters(";") groupseparator(x)
 describe
 list
+=== list-value-labels-cut-to-format-width
+clear
+set obs 6
+generate id = _n
+generate sex = mod(_n,2)+1
+label define sexlbl 1 "Male respondent long" 2 "Female respondent"
+label values sex sexlbl
+describe sex
+generate q1 = mod(_n,4)+1
+label define agr 1 "Strongly disagree" 2 "Disagree" 3 "Agree" 4 "Strongly agree"
+label values q1 agr
+format q1 %8.2f
+format sex %4.0g
+generate grp = mod(_n,3)
+label define g 0 "Control group" 1 "Treatment A" 2 "Treatment B (high dose)"
+label values grp g
+format grp %12.0g
+list sex q1 grp
+list q1 in 1/5
+list sex q1 grp, clean
+list sex q1 grp, nolabel
+list sex in 1/3, string(2)
+format sex %6.0g
+list sex, string(5)
+generate x = mod(_n,2)+1
+label define xl 1 "zero label long" 2 "one label long"
+label values x xl
+format x %5.2fc
+list x in 1/2
+format x %3.1e
+list x in 1/2
+format x %05.0f
+list x in 1/2
+format x %tc
+list x in 1/2
+format x %-4.0g
+list x in 1/2
+format x %-5.2f
+list x in 1/2
+format x %10.0g
+list x in 1/2
+generate longname = _n
+label values longname xl
+format longname %3.0g
+list longname in 1/2
+list longname in 1/2, abbreviate(4)
+format longname %-3.0g
+list longname x in 1/2
+describe x longname
+generate d = 12345 + _n
+label define dl 12346 "twelve"
+label values d dl
+format d %4.0g
+list d in 1/3
+generate j = .a
+replace j = 1 in 1
+label define jl 1 "one" .a "missing a long label"
+label values j jl
+format j %5.0g
+list j in 1/3
+generate f = mod(_n,2)+1
+label define fl 1 "中文标签很长的" 2 "abc"
+label values f fl
+format f %5.0g
+list f in 1/2
+format f %6.0g
+list f in 1/2
+generate byte z = mod(_n,2)+1
+label define zl 1 "é accent lab" 2 "ü"
+label values z zl
+describe z
+format z %4.0g
+list z in 1/2
+generate h = 1
+label define hl 1 "A label that is longer than the line allows in a boxed list at the default linesize of 79 here"
+label values h hl
+set linesize 79
+list h in 1
+format h %75.0g
+list h in 1
+list id h in 1, clean
+format h %12.0g
+list h in 1
+list id sex q1 grp x longname d j f z h in 1/2
+set linesize 200
+=== label-values-widens-only-new-variables
+clear
+set obs 2
+generate x = _n
+generate y = _n
+generate z = _n
+label define L 1 "abcdefghijklmn"
+label values x L
+format x %4.0g
+label values y L
+describe x y
+label values z L
+format x %4.0g
+format y %5.0g
+format z %6.0g
+label define L 2 "abcdefghijklmnopq", add
+describe x y z
+format x %4.0g
+format y %5.0g
+format z %6.0g
+label values x y L
+describe x y z
+label values x
+label values x L
+describe x y z
+format x %-4.0g
+label define M 1 "a much longer label than the others are"
+label values x M
+describe x
+=== list-clean-wrapped-at-linesize
+clear
+set obs 6
+set seed 42
+generate id = _n
+generate double income = round(runiform()*50000+20000, .01)
+generate age = 20 + _n
+generate female = mod(_n,2)
+generate str45 region = cond(mod(_n,2), "South", "Northeast and Mid-Atlantic")
+generate str12 grp = "treatment B"
+generate str18 name = "Bob  Smith"
+generate score = 70 + _n/10
+generate w = 1
+generate double pw = 1.9299875
+generate pass = 1
+generate double before = 20 + runiform()
+generate double after = 21 + runiform()
+generate str5 sid = string(_n, "%05.0f")
+generate str11 edu = "High school"
+set linesize 79
+list in 1/3, clean
+list in 1/3, clean noobs
+list in 1/2, clean noheader
+list region name in 1/2, clean
+set linesize 100
+list in 1/3, clean
+list in 1/2, clean linesize(200)
+set linesize 120
+list in 1/2, clean
+set linesize 200
+=== list-clean-long-strings-wrapped
+clear
+set obs 3
+generate id = 1000 + _n
+generate str240 essay = "This is a long essay text for student " + string(_n) + " lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
+generate str200 s2 = substr(essay, 1, 200)
+generate str72 v = "v" * 72
+generate str71 w = "w" * 71
+generate str70 w2 = "w" * 70
+generate str75 w3 = "w" * 75
+generate str74 w4 = "w" * 74
+generate str73 u = "u" * 73
+generate str90 c = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+set linesize 80
+list id essay in 1, clean noobs
+list id s2 in 1, clean noobs
+set linesize 120
+list id essay in 1, clean noobs
+set linesize 79
+list v in 1/2, clean
+list w in 1/2, clean
+list w2 in 1/2, clean
+list w3 in 1/2, clean noobs
+list w4 in 1/2, clean noobs
+list id u in 1/2, clean noobs
+list id c in 1/2, clean
+set linesize 200
+=== list-table-wrapped-at-linesize
+clear
+set obs 3
+generate id = _n
+generate str60 s = "abcdefghij" * 6
+generate str20 t = "x"
+set linesize 79
+list id s s t, table
+list id s s t, linesize(200)
+list id s s t, table divider separator(2)
+list id s s t, linesize(100)
+list id s t, clean divider separator(1)
+set linesize 200
+list id s s t, linesize(79)
+list id s s t, clean linesize(79)
+=== by-headings-wrapped-at-linesize
+clear
+set obs 6
+generate id = _n
+generate region = mod(_n,3)+1
+generate grp = mod(_n,2)
+label define reg 1 "North" 2 "Midwest region of the United States of America and Canada and Mexico together" 3 "South"
+label values region reg
+generate str80 lab = "Midwest region of the United States of America and Canada and Mexico"
+replace lab = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn" in 2
+replace lab = "abcdefghijklmnopqrstuvwxyzabcdefghijklmno" in 3
+generate str30 a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+generate str30 b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+generate x = 1
+label define xl 1 "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+label values x xl
+generate 中文 = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+generate double v = 1.5 + _n
+format v %6.2f
+set linesize 79
+bysort region (id): list id
+by region grp (id), sort: list id, clean
+by region grp, sort: count
+by lab (id), sort: list id, noobs
+by a b id, sort: count
+by x id, sort: count
+by 中文 id, sort: count
+by v, sort: count
+set linesize 60
+by region grp, sort: count
+set linesize 200
+by lab, sort: count
+=== numlabel-widens-formats
+clear
+set obs 4
+generate x = mod(_n,4)+1
+label define l 1 "Strongly agree" 2 "Agree" 3 "Disagree" 4 "Strongly disagree"
+label values x l
+describe x
+numlabel l, add
+describe x
+list x
+numlabel l, remove
+describe x
+list x
+format x %-5.0g
+numlabel l, add mask("(#) ")
+describe x
+list x
+generate y = _n
+label define a 1 "1. Uno" 2 "Dos" .a "Missing"
+label define b 1 "One" 2 "Two"
+label values y a
+capture noisily numlabel, add
+capture noisily numlabel a, add detail
+capture noisily numlabel b, add mask("[#] ")
+label list b
+numlabel a, add force
+label list a
+describe y
+capture noisily numlabel a, add
+capture noisily numlabel a, remove mask("##")
+capture noisily numlabel a, add remove
+capture noisily numlabel a
+capture noisily numlabel a, add foo
+capture noisily numlabel zz, add
+numlabel a b, remove force
+label list a
+=== label-values-stops-at-string-variable
+clear
+set obs 3
+generate q1 = _n
+generate q2 = _n
+generate str5 q3 = "a"
+generate q4 = _n
+label define l 1 "A fairly long label one" 2 "Two"
+capture noisily label values q1-q4 l
+describe q1 q2 q4
+list q1 q2 q4
+=== label-nofix-option
+clear
+set obs 4
+generate y = _n
+generate x = _n
+generate z = _n
+label define m 1 "Low income household" 2 "Middle"
+label values y m, nofix
+describe y
+list y
+label define m 3 "Highest income household bracket", add nofix
+describe y
+list y
+format x %-20.0g
+generate y2 = _n
+label define l 1 "Seventeen chars!!" 2 "B"
+label values x y2 l
+label define l 3 "Third value with a long label", add nofix
+describe x y2
+list y2
+capture noisily label define l 4 "Four", foo
+capture noisily label define l 4 "Four", add nof
+capture noisily label values z l, foo
+capture noisily label values z l nofix
+capture noisily label values z, nofix
+capture noisily label values z ., nofix
+capture noisily label values z l, nofix nofix
+label values z l,nofix
+describe z
+label define l 5 "Five is also quite long", modify nofix
+describe z
+label define l 6 "another long one here, too", replace
+describe x y2 z
+=== label-copy
+clear
+set obs 2
+generate x = _n
+label define l 1 "A fairly long label one" 2 "Two"
+label define k 1 "K"
+label values x k
+capture noisily label copy l k
+capture noisily label copy l k, foo
+capture noisily label copy zz k2
+capture noisily label copy l
+capture noisily label copy l 1bad
+capture noisily label copy l k m
+capture noisily label copy l k, replace replace
+label copy l k, replace
+describe x
+label list k
+label copy k k3
+label list k3
+list x
+=== value-labels-lose-blanks-at-both-ends
+clear
+set obs 5
+generate x = _n
+label define l 1 "  lead" 2 "trail   " 3 "  both  " 4 "mid  dle"
+label values x l
+list x
+list x, clean
+list x in 1/2, display
+list x, string(4)
+generate str8 s = "  ab"
+replace s = "cd  " in 2
+list s
+format x %-9.0g
+list x
+format x %td
+list x
+format x %4.0g
+list x
+label define l 1 "   Indented label" 2 "Plain", replace
+format x %9.0g
+list x, string(3)
+format x %8.0g
+list x, string(3)
+list x, string(6)
+format x %-20.0g
+list x
+=== by-headings-cut-labels-to-format
+clear
+set obs 5
+generate x = _n
+generate q = _n
+label define l 1 "A fairly long label one" 2 "Two" 3 "  lead" 4 "trail   "
+label values x l
+format x %3.0g
+list x
+sort x
+by x: count
+format x %5.0g
+by x: count
+format x %5.2f
+by x: summarize q
+format x %-9.0g
+by x: count
+format x %td
+by x: count
+generate double d = _n
+label values d l
+format d %4.0g
+by d, sort: count
+=== list-display-wrapped-at-linesize
+clear
+set obs 2
+generate id = _n
+generate str12 v1 = "value1_" + string(_n) + "xxxx"
+generate str12 v2 = "value2_" + string(_n) + "xxxx"
+generate str12 v3 = "value3_" + string(_n) + "xxxx"
+generate str12 v4 = "value4_" + string(_n) + "xxxx"
+generate str12 v5 = "value5_" + string(_n) + "xxxx"
+generate str12 v6 = "value6_" + string(_n) + "xxxx"
+generate str12 v7 = "value7_" + string(_n) + "xxxx"
+generate str12 v8 = "value8_" + string(_n) + "xxxx"
+generate str12 v9 = "value9_" + string(_n) + "xxxx"
+generate str12 v10 = "value10_" + string(_n) + "xxxx"
+generate str12 v11 = "value11_" + string(_n) + "xxxx"
+generate str12 v12 = "value12_" + string(_n) + "xxxx"
+set linesize 79
+list, display linesize(200)
+list in 1, display linesize(120)
+list in 1, separator(0) linesize(150)
+list in 1, display noobs linesize(100)
+set linesize 200
+=== tab1-tab2-headings-wrapped
+clear
+set obs 12
+generate id = _n
+generate grp = mod(_n,2)
+generate region = mod(_n,3)+1
+generate income = _n * 1000 + 0.5
+local c income > 2000 & income < 9000 & id != 4 & id != 5 & id != 7
+set linesize 79
+tab1 grp region if `c'
+tab2 grp region if `c'
+tab2 grp region if id > 2
+tab2 grp region in 2/7
+tab2 grp region id if id > 9 in 8/12
+tab1 grp region if id > 2 in 1/7
+set linesize 60
+tab2 grp region if `c'
+set linesize 200
+=== narrow-g-formats
+clear
+set obs 3
+generate x = _n * 3
+generate double y = _n + 0.5
+generate z = _n * 50
+replace z = .a in 3
+format x %3.0g
+format y %3.0g
+list x y
+format x %2.0g
+format y %1.0g
+list x y
+format x %3.1g
+format y %2.1g
+format z %3.2g
+list x y z
+format x %-3.1g
+format y %-3.0g
+list x y
+format x %4.0g
+list x
+format z %3.0g
+list z
+display "[" %3.0g 3 "]"
+display "[" %3.0g 0 "]"
+display "[" %3.0g -1.5 "]"
+display "[" %-3.0g 0.25 "]"
+display "[" %2.1g 12.5 "]"
+display "[" %3.2g 1234 "]"
+display "[" %-2.1g -15 "]"
+display "[" %3.0gc 999 "]"
+display "[" %03.0g 7 "]"
+display "[" %3.0g . "]"
+display "[" %2.1g . "]"
+display "[" %-2.1g .a "]"

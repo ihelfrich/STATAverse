@@ -5,9 +5,21 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import { abbreviate } from "./estimation.js";
-import { count, labelled, moments, perGroup } from "./reports.js";
+import {
+  count,
+  labelled,
+  moments,
+  perGroup,
+  widenForLabel,
+} from "./reports.js";
 import { mean } from "./tables.js";
-import { MISSING, displayWidth, isMissing, isStringType } from "./values.js";
+import {
+  MISSING,
+  displayWidth,
+  isMissing,
+  isStringType,
+  missingName,
+} from "./values.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -702,25 +714,104 @@ function charText(text) {
   return text;
 }
 
-/** numlabel: puts each value in front of its label, or takes it away. */
+/**
+ * numlabel: puts each value in front of its label, or takes it away, as
+ * numlabel.ado does: the prefix is mask() with # replaced by the value
+ * ("#. " by default), a label whose values are only partly prefixed is
+ * refused unless force is given, and each changed label is redefined with
+ * label define, modify, which widens the formats of the variables that
+ * carry it.
+ */
 function numlabel(session, text, ctx) {
-  const m = /^\s*([^,]*),\s*(add|remove)\b([\s\S]*)$/i.exec(text);
-  if (!m) throw new StataError("either add or remove must be specified", 198);
+  const parsed = session.parse(
+      "[anything(id=labellist name=names)] [, Add Remove Mask(string) Detail force]",
+      text,
+    ),
+    { add, remove, detail, force } = parsed.options;
+  let mask = parsed.options.mask;
+  if (add && remove)
+    throw new StataError(
+      "options add and remove must not be both specified",
+      198,
+    );
+  if (!add && !remove)
+    throw new StataError("option add or remove should be specified", 198);
+  if (mask !== undefined && mask !== "") {
+    if (mask.split("#").length !== 2)
+      throw new StataError(
+        `mask ${mask} should contain 1 substitution char #`,
+        198,
+      );
+  } else mask = "#. ";
   const labels = session.data.valueLabels,
-    names = m[1].trim() ? m[1].trim().split(/\s+/) : [...labels.keys()],
-    adding = m[2].toLowerCase() === "add";
-  if (/\bmask\s*\(/.test(m[3]))
-    throw new StataError("numlabel, mask() is not available yet", 198);
+    names = parsed.anything
+      ? parsed.anything.trim().split(/\s+/)
+      : [...labels.keys()].sort();
   if (!labels.size) return ctx.out("(dataset has no value labels)");
-  for (const name of names) {
-    const map = labels.get(name);
-    if (!map) throw new StataError(`value label ${name} not found`, 111);
-    for (const [value, label] of map) {
-      const prefix = `${value}. `;
-      if (adding && !label.startsWith(prefix)) map.set(value, prefix + label);
-      else if (!adding && label.startsWith(prefix))
-        map.set(value, label.slice(prefix.length));
+  for (const name of names)
+    if (!labels.has(name))
+      throw new StataError(`value label ${name} not found`, 111);
+  const entries = names.map((name) => ({
+    name,
+    rows: [...labels.get(name)]
+      .sort((a, b) => a[0] - b[0])
+      .map(([value, label]) => {
+        const prefix = mask.replace(
+          "#",
+          isMissing(value) ? missingName(value) : String(value),
+        );
+        return { value, label, prefix, has: label.startsWith(prefix) };
+      }),
+  }));
+  if (!force) {
+    const partial = entries.filter(
+      ({ rows }) => rows.some((r) => r.has) && rows.some((r) => !r.has),
+    );
+    if (partial.length) {
+      if (detail) {
+        ctx.out("");
+        ctx.out("The following value labels are only partially numlabel-ed");
+        for (const { name, rows } of partial) {
+          ctx.out("-".repeat(session.settings.linesize ?? 80));
+          ctx.out(`-> lname = ${name}`);
+          ctx.out("");
+          // numlabel.ado separates the columns with a tab, which the
+          // Results window sets at the next multiple of eight columns.
+          const tab = (text) => text + " ".repeat(8 - (text.length % 8));
+          ctx.out(`${tab(`  ${"value".padEnd(9)}`)}label`);
+          for (const r of rows) {
+            const value = isMissing(r.value)
+              ? missingName(r.value)
+              : String(r.value);
+            ctx.out(`${tab(`  ${value.padStart(9)}`)}${r.label}`);
+          }
+          ctx.out("");
+        }
+      } else {
+        ctx.out("there are value labels that are only partially numlabel-ed");
+        ctx.out("specify option detail for a list of these value labels");
+      }
+      ctx.out("specify option force to modify value labels anyway");
+      throw new StataError("", 180);
     }
+  }
+  let changed = 0;
+  for (const { rows } of entries)
+    for (const r of rows) {
+      r.next = add
+        ? r.has
+          ? r.label
+          : r.prefix + r.label
+        : r.has
+          ? r.label.slice(r.prefix.length)
+          : r.label;
+      if (r.next !== r.label) changed++;
+    }
+  if (!changed) return ctx.out("(no value label to be modified)");
+  for (const { name, rows } of entries) {
+    const map = labels.get(name);
+    for (const r of rows) map.set(r.value, r.next);
+    widenForLabel(session, name);
   }
 }
 

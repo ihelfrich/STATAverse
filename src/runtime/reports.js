@@ -17,6 +17,7 @@ import {
   missingName,
   padDisplay,
   shownText,
+  truncateBytes,
   truncateColumns,
 } from "./values.js";
 
@@ -105,6 +106,54 @@ export function labelled(session, variable, value, useLabels = true) {
   return isMissing(value) && spec?.kind !== "hex" && spec?.kind !== "binary"
     ? missingName(value)
     : applyFormat(value, variable.format).trim();
+}
+/**
+ * A value as list and by's group heading show it, and whether it is text.
+ * A value label is cut to the width of a right-justified %g, %f or %e
+ * format, counted in bytes, and then loses the blanks at both its ends; a
+ * left-justified or a date format shows the label whole, also without
+ * them.
+ */
+export function shownValue(session, variable, value, useLabels = true) {
+  const text = labelled(session, variable, value, useLabels);
+  if (typeof value === "string") return { text, textual: true };
+  const map = useLabels
+    ? session.data.valueLabels.get(variable.valueLabel)
+    : null;
+  if (!map?.has(value)) return { text, textual: false };
+  const spec = parseFormat(variable.format ?? "%9.0g"),
+    width = spec?.kind === "number" && !spec.left ? spec.width : 0;
+  return {
+    text: (width ? truncateBytes(text, width) : text).trim(),
+    textual: true,
+  };
+}
+
+/**
+ * When a value label is attached or grows, Stata widens the %g, %f or %e
+ * format of each variable carrying it to the bytes of its longest text,
+ * dropping a - or 0 modifier; it never narrows one, and leaves dates and
+ * the binary formats alone. label values widens only the variables it
+ * gives the label to anew, not every one that carries it.
+ */
+export function widenForLabel(session, name, only = null) {
+  const map = session.data.valueLabels.get(name);
+  if (!map) return;
+  let longest = 0;
+  for (const text of map.values())
+    longest = Math.max(longest, byteLength(text));
+  for (const variable of session.data.variables ?? []) {
+    if (variable.valueLabel !== name || (only && !only.has(variable))) continue;
+    const spec = parseFormat(variable.format ?? "");
+    if (
+      spec?.kind !== "number" ||
+      !/^%-?0?\d+\.\d+[gfe]c?$/.test(variable.format)
+    )
+      continue;
+    const width = Math.min(longest, 2045);
+    if (width > spec.width)
+      variable.format = `%${width}.${spec.digits}${spec.style}${spec.commas ? "c" : ""}`;
+  }
 }
 const scope = (session, parsed, ctx) =>
   session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null);
@@ -1471,16 +1520,10 @@ export function list(session, text, ctx) {
     // The widest value a boxed list shows whole.
     room = linesize - (noobs ? 6 : 9),
     columns = variables.map((v) => {
-      const labels =
-          options.label !== false && session.data.valueLabels.get(v.valueLabel),
-        string = isStringType(v.type),
-        cells = rows.map((i) => {
-          const value = v.data[i];
-          return {
-            text: labelled(session, v, value, options.label !== false),
-            textual: string || (labels && labels.has(value)),
-          };
-        });
+      const string = isStringType(v.type),
+        cells = rows.map((i) =>
+          shownValue(session, v, v.data[i], options.label !== false),
+        );
       return { v, string, cells };
     });
   // string(#) and the line cut long strings and labels.
@@ -1540,17 +1583,27 @@ export function list(session, text, ctx) {
     number = (i) => `${String(i - first + 1).padStart(3)}. `,
     natural = (list) =>
       list.reduce((total, c) => total + c.width, 0) + 3 * (list.length - 1) + 2;
+  // A line longer than the session's linesize, which linesize() does not
+  // change, goes on after "> " on the next lines.
+  const print = ctx.out,
+    out = (text) =>
+      wrapLine(text, session.settings.linesize ?? 80).forEach((piece) =>
+        print(piece.trimEnd()),
+      );
   if (options.clean) {
     // Without observation numbers the rows start one column further in.
-    const line = (items) => items.join("   ");
+    // Each line ends in two blanks, where a table has " |", and those
+    // count when the line is wrapped.
+    const line = (items) => items.join("   ") + "  ";
     if (options.header !== false) ctx.out("");
     if (options.header !== false)
-      ctx.out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
+      out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
     rows.forEach((i, k) =>
-      ctx.out(
+      out(
         `${noobs ? " " : number(i).trimEnd()}   ${line(columns.map((c) => value(c, k)))}`,
       ),
     );
+    ctx.out("");
     return;
   }
   const inner = natural(columns),
@@ -1558,6 +1611,8 @@ export function list(session, text, ctx) {
       options.table ||
       (!options.display && margin.length + inner + 2 <= linesize);
   if (table) {
+    // Only table, or a linesize() wider than the line, makes one too wide.
+    ctx = { ...ctx, out };
     const gap = options.divider ? " | " : "   ",
       line = (items) => items.join(gap),
       rule = options.divider
@@ -1589,7 +1644,9 @@ export function list(session, text, ctx) {
     ctx.out("");
     return;
   }
-  // Display layout: blocks of columns no wider than the line allows.
+  // Display layout: blocks of columns no wider than the line allows. A
+  // linesize() wider than the session's makes its lines wrap there too.
+  ctx = { ...ctx, out };
   const most = linesize - margin.length - 2,
     blocks = [];
   for (const column of columns) {
@@ -1657,24 +1714,58 @@ export function list(session, text, ctx) {
 }
 
 /**
+ * A line as Stata prints one wider than the linesize: cut where the next
+ * character would pass the linesize, counted in display columns (two for
+ * CJK characters), the rest on lines that start with "> ".
+ */
+export function wrapLine(line, linesize) {
+  if (displayWidth(line) <= linesize) return [line];
+  const lines = [];
+  let current = "",
+    used = 0;
+  for (const character of line) {
+    const width = displayWidth(character);
+    if (used + width > linesize && used > 2) {
+      lines.push(current);
+      current = "> ";
+      used = 2;
+    }
+    current += character;
+    used += width;
+  }
+  lines.push(current);
+  return lines;
+}
+
+/**
  * Runs a reporting command once per by-group, under Stata's group heading.
  * As in Stata's by, a group with no observations, r(2000), is not an
  * error: its message is shown and the next group runs.
  */
 export const perGroup = (run) => (session, text, ctx) => {
   if (!ctx.by) return run(session, text, ctx);
-  const rule = "-".repeat(session.settings.linesize ?? 80);
+  const linesize = session.settings.linesize ?? 80,
+    rule = "-".repeat(linesize),
+    // A string wider than 40 columns shows its first 38 and "..".
+    shown = (variable, value) => {
+      const { text } = shownValue(session, variable, value);
+      return typeof value === "string" && displayWidth(text) > 40
+        ? truncateColumns(text, 38) + ".."
+        : text;
+    };
   for (const group of ctx.by.groups) {
     ctx.out(rule);
-    ctx.out(
+    // The heading is wrapped at the linesize, as any line Stata prints.
+    wrapLine(
       "-> " +
         ctx.by.keys
           .map((key) => {
             const variable = session.data.get(key);
-            return `${key} = ${labelled(session, variable, variable.data[group.start])}`;
+            return `${key} = ${shown(variable, variable.data[group.start])}`;
           })
           .join(", "),
-    );
+      linesize,
+    ).forEach((line) => ctx.out(line));
     try {
       run(session, text, { ...ctx, group });
     } catch (error) {
@@ -1729,7 +1820,11 @@ export function tab1(session, text, ctx) {
   // The heading repeats the if and the in, each after a blank.
   ctx.out("");
   for (const name of names) {
-    ctx.out(`-> tabulation of ${name} ${q.condition} ${q.range}`.trimEnd());
+    // The heading is wrapped at the linesize, as any line Stata prints.
+    wrapLine(
+      `-> tabulation of ${name} ${q.condition} ${q.range}`.trimEnd(),
+      session.settings.linesize ?? 80,
+    ).forEach((line) => ctx.out(line));
     try {
       tabulate(session, `${name} ${q.rest}`, ctx);
       session.rc = 0;
@@ -1750,7 +1845,10 @@ export function tab2(session, text, ctx) {
   ctx.out("");
   for (let a = 0; a < names.length; a++)
     for (let b = a + 1; b < names.length; b++) {
-      ctx.out(`-> tabulation of ${names[a]} by ${names[b]}  `);
+      wrapLine(
+        `-> tabulation of ${names[a]} by ${names[b]} ${q.condition} ${q.range}`.trimEnd(),
+        session.settings.linesize ?? 80,
+      ).forEach((line) => ctx.out(line));
       tabulate(session, `${names[a]} ${names[b]} ${q.rest}`, ctx);
     }
 }
