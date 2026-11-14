@@ -33909,6 +33909,1011 @@
       ]
     },
     {
+      "id": "likelihood-steps-and-eform-bases",
+      "source": "clear\nset seed 5311\nset obs 600\ngenerate byte a = runiform() > .5\ngenerate byte b = runiform() > .6\ngenerate byte g = 1 + floor(runiform() * 4)\ngenerate double x = 8 + floor(runiform() * 12)\ngenerate double w = 5 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)\ngenerate double u = runiform()\ngenerate byte r = 1 + (.15 * x + a + ln(u / (1 - u)) > 2) + (.15 * x + a + ln(u / (1 - u)) > 3) + (.15 * x + a + ln(u / (1 - u)) > 4)\ngenerate int c = 20 + floor(runiform() * 30) + 3 * a\ngenerate byte k = 4 + (_n <= 10)\ngenerate byte z = 3 + mod(_n, 2) + a\nnbreg k x\nnbreg z i.a\nologit r i.g, or baselevels\nologit r i.a##i.b, or allbaselevels nolog\nnbreg c i.g, allbaselevels irr\nnbreg c i.a#i.b, irr baselevels nolog\nologit r x, vce(cluster g) nolog\noprobit r x i.b, vce(cluster g) nolog\noprobit r x, cluster(b) robust nolog\nnbreg c x i.a i.b, vce(cluster g) nolog\nnbreg c x, vce(cluster b) nolog\ntobit w x i.a, ll(8) ul(40) vce(cluster g) nolog\ntobit w x, ll(8) vce(cluster b) nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5311", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate byte a = runiform() > .5", "lines": [] },
+        { "command": "generate byte b = runiform() > .6", "lines": [] },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 4)",
+          "lines": []
+        },
+        {
+          "command": "generate double x = 8 + floor(runiform() * 12)",
+          "lines": []
+        },
+        {
+          "command": "generate double w = 5 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)",
+          "lines": []
+        },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte r = 1 + (.15 * x + a + ln(u / (1 - u)) > 2) + (.15 * x + a + ln(u / (1 - u)) > 3) + (.15 * x + a + ln(u / (1 - u)) > 4)",
+          "lines": []
+        },
+        {
+          "command": "generate int c = 20 + floor(runiform() * 30) + 3 * a",
+          "lines": []
+        },
+        { "command": "generate byte k = 4 + (_n <= 10)", "lines": [] },
+        { "command": "generate byte z = 3 + mod(_n, 2) + a", "lines": [] },
+        {
+          "command": "nbreg k x",
+          "lines": [
+            "Fitting Poisson model:",
+            "",
+            "Iteration 0:  Log likelihood = -981.93269",
+            "Iteration 1:  Log likelihood = -981.93269",
+            "",
+            "Fitting constant-only model:",
+            "",
+            "Iteration 0:  Log likelihood = -1503.4345",
+            "Iteration 1:  Log likelihood = -981.93646",
+            "Iteration 2:  Log likelihood = -981.93646",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -981.93269",
+            "Iteration 1:  Log likelihood = -981.93269",
+            "",
+            "Negative binomial regression                            Number of obs =    600",
+            "                                                        LR chi2(1)    =   0.01",
+            "Dispersion: mean                                        Prob > chi2   = 0.9308",
+            "Log likelihood = -981.93269                             Pseudo R2     = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           k | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0005317   .0061229     0.09   0.931     -.011469    .0125324",
+            "       _cons |   1.383283   .0850583    16.26   0.000     1.216572    1.549994",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -53.41629          .                             .           .",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   6.33e-24          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 0.00                 Prob >= chibar2 = 1.000"
+          ]
+        },
+        {
+          "command": "nbreg z i.a",
+          "lines": [
+            "Fitting Poisson model:",
+            "",
+            "Iteration 0:  Log likelihood = -994.43141",
+            "Iteration 1:  Log likelihood = -994.43141",
+            "",
+            "Fitting constant-only model:",
+            "",
+            "Iteration 0:  Log likelihood = -1500.9841",
+            "Iteration 1:  Log likelihood = -1011.6352",
+            "Iteration 2:  Log likelihood = -1011.6352",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -994.49381",
+            "Iteration 1:  Log likelihood = -994.43141",
+            "Iteration 2:  Log likelihood = -994.43141",
+            "",
+            "Negative binomial regression                            Number of obs =    600",
+            "                                                        LR chi2(1)    =  34.41",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -994.43141                             Pseudo R2     = 0.0170",
+            "",
+            "------------------------------------------------------------------------------",
+            "           z | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.a |   .2403208   .0411123     5.85   0.000     .1597422    .3208995",
+            "       _cons |   1.258914   .0307148    40.99   0.000     1.198714    1.319114",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -49.86376          .                             .           .",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   2.21e-22          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 0.00                 Prob >= chibar2 = 1.000"
+          ]
+        },
+        {
+          "command": "ologit r i.g, or baselevels",
+          "lines": [
+            "Iteration 0:  Log likelihood = -803.87341",
+            "Iteration 1:  Log likelihood = -796.67649",
+            "Iteration 2:  Log likelihood = -796.67096",
+            "Iteration 3:  Log likelihood = -796.67096",
+            "",
+            "Ordered logistic regression                             Number of obs =    600",
+            "                                                        LR chi2(3)    =  14.40",
+            "                                                        Prob > chi2   = 0.0024",
+            "Log likelihood = -796.67096                             Pseudo R2     = 0.0090",
+            "",
+            "------------------------------------------------------------------------------",
+            "           r | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          1  (base)",
+            "          2  |   2.130977   .4615423     3.49   0.000     1.393861    3.257903",
+            "          3  |   1.849508   .3836189     2.96   0.003     1.231694    2.777216",
+            "          4  |   1.482806   .3131474     1.87   0.062     .9802183    2.243086",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.0437252   .1528724                     -.3433496    .2558991",
+            "       /cut2 |   .9063345    .157931                      .5967955    1.215874",
+            "       /cut3 |   1.839562   .1723668                      1.501729    2.177394",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to odds ratios."
+          ]
+        },
+        {
+          "command": "ologit r i.a##i.b, or allbaselevels nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    600",
+            "                                                        LR chi2(3)    =  28.93",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -789.40926                             Pseudo R2     = 0.0180",
+            "",
+            "------------------------------------------------------------------------------",
+            "           r | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |",
+            "          0  |          1  (base)",
+            "          1  |     1.9827   .3798673     3.57   0.000     1.361992    2.886287",
+            "             |",
+            "           b |",
+            "          0  |          1  (base)",
+            "          1  |   1.003525   .2225677     0.02   0.987     .6497461    1.549932",
+            "             |",
+            "         a#b |",
+            "        0 0  |          1  (base)",
+            "        0 1  |          1  (base)",
+            "        1 0  |          1  (base)",
+            "        1 1  |   1.268479   .3886912     0.78   0.438     .6957539    2.312656",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.1018127    .135135                     -.3666724     .163047",
+            "       /cut2 |   .8646698   .1393926                      .5914653    1.137874",
+            "       /cut3 |   1.813174   .1553091                      1.508773    2.117574",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to odds ratios."
+          ]
+        },
+        {
+          "command": "nbreg c i.g, allbaselevels irr",
+          "lines": [
+            "Fitting Poisson model:",
+            "",
+            "Iteration 0:  Log likelihood = -2280.1206",
+            "Iteration 1:  Log likelihood = -2280.1206",
+            "",
+            "Fitting constant-only model:",
+            "",
+            "Iteration 0:  Log likelihood = -2757.9026",
+            "Iteration 1:  Log likelihood = -2211.7899  (not concave)",
+            "Iteration 2:  Log likelihood = -2168.9536",
+            "Iteration 3:  Log likelihood = -2161.9079",
+            "Iteration 4:  Log likelihood = -2159.4164",
+            "Iteration 5:  Log likelihood = -2159.4116",
+            "Iteration 6:  Log likelihood = -2159.4116",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -2158.7191",
+            "Iteration 1:  Log likelihood = -2158.7183",
+            "Iteration 2:  Log likelihood = -2158.7183",
+            "",
+            "Negative binomial regression                            Number of obs =    600",
+            "                                                        LR chi2(3)    =   1.39",
+            "Dispersion: mean                                        Prob > chi2   = 0.7087",
+            "Log likelihood = -2158.7183                             Pseudo R2     = 0.0003",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          1  (base)",
+            "          2  |   .9755194   .0286646    -0.84   0.399      .920925     1.03335",
+            "          3  |   .9998061    .028289    -0.01   0.995     .9458701    1.056818",
+            "          4  |   .9770263   .0279722    -0.81   0.417     .9237117    1.033418",
+            "             |",
+            "       _cons |   36.39456   .7433946   175.97   0.000     34.96631    37.88114",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -3.385674   .1063241                     -3.594065   -3.177283",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .0338548   .0035996                      .0274864    .0416988",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
+            "Note: _cons estimates baseline incidence rate.",
+            "LR test of alpha=0: chibar2(01) = 242.80               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "nbreg c i.a#i.b, irr baselevels nolog",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    600",
+            "                                                        LR chi2(3)    =  31.79",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -2143.5181                             Pseudo R2     = 0.0074",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         a#b |",
+            "        0 0  |          1  (base)",
+            "        0 1  |   .9530074   .0280863    -1.63   0.102      .899519    1.009676",
+            "        1 0  |   1.113197    .028049     4.26   0.000     1.059558    1.169552",
+            "        1 1  |   1.047691   .0291707     1.67   0.094     .9920495    1.106453",
+            "             |",
+            "       _cons |   34.78125   .6122053   201.63   0.000     33.60181    36.00209",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -3.482401   .1114253                      -3.70079   -3.264011",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .0307335   .0034245                       .024704    .0382347",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
+            "Note: _cons estimates baseline incidence rate.",
+            "LR test of alpha=0: chibar2(01) = 207.44               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "ologit r x, vce(cluster g) nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    600",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -789.32079                       Pseudo R2     = 0.0181",
+            "",
+            "                                      (Std. err. adjusted for 4 clusters in g)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           r | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1215877   .0182382     6.67   0.000     .0858414    .1573339",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |    1.15925   .2188452                      .7303211    1.588179",
+            "       /cut2 |   2.133049    .173289                      1.793409     2.47269",
+            "       /cut3 |   3.075518   .1857808                      2.711395    3.439642",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "oprobit r x i.b, vce(cluster g) nolog",
+          "lines": [
+            "Ordered probit regression                               Number of obs =    600",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -789.43192                       Pseudo R2     = 0.0180",
+            "",
+            "                                      (Std. err. adjusted for 4 clusters in g)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           r | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0712498   .0113761     6.26   0.000     .0489531    .0935464",
+            "         1.b |   .1198713   .0842684     1.42   0.155    -.0452917    .2850344",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |   .7070539   .1601594                      .3931473    1.020961",
+            "       /cut2 |   1.308791    .133453                      1.047228    1.570354",
+            "       /cut3 |   1.870048   .1423356                      1.591075    2.149021",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "oprobit r x, cluster(b) robust nolog",
+          "lines": [
+            "Ordered probit regression                               Number of obs =    600",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -790.27264                       Pseudo R2     = 0.0169",
+            "",
+            "                                      (Std. err. adjusted for 2 clusters in b)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           r | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0711738   .0278158     2.56   0.011     .0166558    .1256917",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |   .6600999   .3234875                       .026076    1.294124",
+            "       /cut2 |    1.26102   .3329268                       .608496    1.913545",
+            "       /cut3 |   1.821154   .3089585                      1.215606    2.426702",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "nbreg c x i.a i.b, vce(cluster g) nolog",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    600",
+            "                                                        Wald chi2(1)  =      .",
+            "Dispersion: mean                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -2142.9881                       Pseudo R2     = 0.0076",
+            "",
+            "                                      (Std. err. adjusted for 4 clusters in g)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           c | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.0031887    .002961    -1.08   0.282    -.0089921    .0026147",
+            "         1.a |    .102346    .016981     6.03   0.000     .0690638    .1356282",
+            "         1.b |  -.0546164   .0216118    -2.53   0.011    -.0969748    -.012258",
+            "       _cons |   3.594372   .0440206    81.65   0.000     3.508093    3.680651",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -3.486019   .0629074                     -3.609315   -3.362723",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .0306225   .0019264                      .0270704    .0346408",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "nbreg c x, vce(cluster b) nolog",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    600",
+            "                                                        Wald chi2(0)  =      .",
+            "Dispersion: mean                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -2158.8315                       Pseudo R2     = 0.0003",
+            "",
+            "                                      (Std. err. adjusted for 2 clusters in b)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           c | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   -.003283   .0048361    -0.68   0.497    -.0127616    .0061957",
+            "       _cons |   3.626932   .0881923    41.13   0.000     3.454078    3.799785",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -3.384973   .0237538                     -3.431529   -3.338416",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .0338786   .0008047                      .0323375    .0354931",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit w x i.a, ll(8) ul(40) vce(cluster g) nolog",
+          "lines": [
+            "Tobit regression                                   Number of obs     =     600",
+            "                                                          Uncensored =     574",
+            "Limits: Lower =  8                                     Left-censored =       8",
+            "        Upper = 40                                    Right-censored =      18",
+            "",
+            "                                                   F(2, 599)         = 3326.71",
+            "                                                   Prob > F          =  0.0000",
+            "Log pseudolikelihood = -1827.992                   Pseudo R2         =  0.0989",
+            "",
+            "                                      (Std. err. adjusted for 4 clusters in g)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           w | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.604295   .0435185    36.86   0.000     1.518828    1.689763",
+            "         1.a |   1.710362   .3245121     5.27   0.000     1.073042    2.347681",
+            "       _cons |   3.330401   .7909752     4.21   0.000     1.776979    4.883822",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.w)|   30.51424   3.212743                      24.81424    37.52357",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit w x, ll(8) vce(cluster b) nolog",
+          "lines": [
+            "Tobit regression                                   Number of obs     =     600",
+            "                                                          Uncensored =     592",
+            "Limits: Lower =    8                                   Left-censored =       8",
+            "        Upper = +inf                                  Right-censored =       0",
+            "",
+            "                                                   F(1, 601)         = 1503.45",
+            "                                                   Prob > F          =  0.0000",
+            "Log pseudolikelihood = -1863.3577                  Pseudo R2         =  0.0950",
+            "",
+            "                                      (Std. err. adjusted for 2 clusters in b)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           w | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.594956   .0411343    38.77   0.000     1.514172    1.675741",
+            "       _cons |   4.286083   1.121819     3.82   0.000     2.082921    6.489244",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.w)|   30.62812   .8438812                      29.01484    32.33109",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "likelihood-options-and-refusals",
+      "source": "clear\nset seed 5312\nset obs 500\ngenerate byte a = runiform() > .5\ngenerate byte b = runiform() > .6\ngenerate byte g = 1 + floor(runiform() * 4)\ngenerate double x = 8 + floor(runiform() * 12)\ngenerate double w = -4 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)\ngenerate byte yb = runiform() < .3 + .1 * a\ngenerate int c = 20 + floor(runiform() * 30) + 3 * a\nlogit yb i.g, allbaselevels\nprobit yb i.g x, baselevels nolog\npoisson c i.g, allbaselevels nolog\nlogit yb i.g, or baselevels nolog\npoisson c i.a x, irr baselevels nolog\nset showbaselevels all\nregress w i.a\nregress w i.a##i.b\nologit g i.a, nolog\nset showbaselevels on\nregress w i.a##i.b\nlogit yb i.a#i.b, nolog\nset showbaselevels off\nregress w i.a\ncapture noisily set showbaselevels foo\ndisplay _rc\nset showbaselevels\nregress w i.a\ncapture noisily tobit w x, ll(5) vce(cluster)\ncapture noisily tobit w x, ll(5) vce(robust extra)\ncapture noisily tobit w x, ll(5) vce(hc3)\ncapture noisily tobit w x, ll(5) vce(foo)\ncapture noisily tobit w x, ll(5) vce(cluster a b)\ncapture noisily tobit w x, ll(5) cluster(a)\ncapture noisily ologit g x, vce(cluster a a)\ncapture noisily nbreg c x, vce(hc2)\ncapture noisily logit yb x, vce(cluster)\ncapture noisily poisson c x, vce(robust extra)\ncapture noisily regress w x, vce(cluster)\ncapture noisily regress w x, vce(robust extra)\ncapture noisily regress w x, vce(foo)\ncapture noisily tobit w x, ll(40) ul(10)\ncapture noisily tobit w x, ll(abc)\ntobit w x, ll(5) noconstant\ntobit w x i.a, ul(30) noconstant vce(robust) nolog\ntobit w, ll(10)\ntobit w x, ll(5) noconstant vce(cluster g) nolog\ncapture noisily error \"198\"\ncapture noisily error\ncapture noisily error 198 199\ncapture noisily error abc\ncapture noisily error 1+\ncapture noisily error 198,\ncapture noisily error 2 3 4\ndisplay _rc\nset showbaselevels off\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5312", "lines": [] },
+        {
+          "command": "set obs 500",
+          "lines": ["Number of observations (_N) was 0, now 500."]
+        },
+        { "command": "generate byte a = runiform() > .5", "lines": [] },
+        { "command": "generate byte b = runiform() > .6", "lines": [] },
+        {
+          "command": "generate byte g = 1 + floor(runiform() * 4)",
+          "lines": []
+        },
+        {
+          "command": "generate double x = 8 + floor(runiform() * 12)",
+          "lines": []
+        },
+        {
+          "command": "generate double w = -4 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)",
+          "lines": []
+        },
+        {
+          "command": "generate byte yb = runiform() < .3 + .1 * a",
+          "lines": []
+        },
+        {
+          "command": "generate int c = 20 + floor(runiform() * 30) + 3 * a",
+          "lines": []
+        },
+        {
+          "command": "logit yb i.g, allbaselevels",
+          "lines": [
+            "Iteration 0:  Log likelihood = -327.28012",
+            "Iteration 1:  Log likelihood = -326.05056",
+            "Iteration 2:  Log likelihood = -326.04972",
+            "Iteration 3:  Log likelihood = -326.04972",
+            "",
+            "Logistic regression                                     Number of obs =    500",
+            "                                                        LR chi2(3)    =   2.46",
+            "                                                        Prob > chi2   = 0.4824",
+            "Log likelihood = -326.04972                             Pseudo R2     = 0.0038",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          0  (base)",
+            "          2  |   -.197225   .2603594    -0.76   0.449      -.70752    .3130701",
+            "          3  |  -.2557684   .2729051    -0.94   0.349    -.7906526    .2791157",
+            "          4  |  -.3921509    .253223    -1.55   0.121    -.8884588    .1041571",
+            "             |",
+            "       _cons |  -.3528214   .1809538    -1.95   0.051    -.7074843    .0018416",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit yb i.g x, baselevels nolog",
+          "lines": [
+            "Probit regression                                       Number of obs =    500",
+            "                                                        LR chi2(4)    =   2.69",
+            "                                                        Prob > chi2   = 0.6114",
+            "Log likelihood = -325.93638                             Pseudo R2     = 0.0041",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          0  (base)",
+            "          2  |  -.1257522   .1615467    -0.78   0.436    -.4423779    .1908736",
+            "          3  |  -.1585033   .1687098    -0.94   0.347    -.4891684    .1721619",
+            "          4  |  -.2356169   .1564362    -1.51   0.132    -.5422263    .0709925",
+            "             |",
+            "           x |    .008117   .0170522     0.48   0.634    -.0253047    .0415386",
+            "       _cons |   -.333079   .2618064    -1.27   0.203    -.8462102    .1800522",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson c i.g, allbaselevels nolog",
+          "lines": [
+            "Poisson regression                                      Number of obs =    500",
+            "                                                        LR chi2(3)    =   4.31",
+            "                                                        Prob > chi2   = 0.2298",
+            "Log likelihood = -1876.1454                             Pseudo R2     = 0.0011",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          0  (base)",
+            "          2  |  -.0204864   .0213874    -0.96   0.338     -.062405    .0214322",
+            "          3  |  -.0205131    .022305    -0.92   0.358      -.06423    .0232038",
+            "          4  |   .0159207   .0203359     0.78   0.434    -.0239369    .0557782",
+            "             |",
+            "       _cons |   3.569309   .0149537   238.69   0.000         3.54    3.598618",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit yb i.g, or baselevels nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    500",
+            "                                                        LR chi2(3)    =   2.46",
+            "                                                        Prob > chi2   = 0.4824",
+            "Log likelihood = -326.04972                             Pseudo R2     = 0.0038",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yb | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |          1  (base)",
+            "          2  |   .8210059   .2137566    -0.76   0.449      .492865    1.367617",
+            "          3  |   .7743213   .2113162    -0.94   0.349     .4535487     1.32196",
+            "          4  |   .6756022    .171078    -1.55   0.121     .4112891    1.109775",
+            "             |",
+            "       _cons |   .7027027   .1271567    -1.95   0.051     .4928826    1.001843",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        {
+          "command": "poisson c i.a x, irr baselevels nolog",
+          "lines": [
+            "Poisson regression                                      Number of obs =    500",
+            "                                                        LR chi2(2)    =  31.49",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -1862.5569                             Pseudo R2     = 0.0084",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |",
+            "          0  |          1  (base)",
+            "          1  |    1.07596   .0162733     4.84   0.000     1.044533    1.108333",
+            "             |",
+            "           x |   1.005242   .0022469     2.34   0.019     1.000848    1.009656",
+            "       _cons |   31.71794    1.01268   108.27   0.000     29.79395    33.76617",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline incidence rate."
+          ]
+        },
+        { "command": "set showbaselevels all", "lines": [] },
+        {
+          "command": "regress w i.a",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       500",
+            "-------------+----------------------------------   F(1, 498)       =     20.08",
+            "       Model |  1100.19369         1  1100.19369   Prob > F        =    0.0000",
+            "    Residual |  27285.9749       498  54.7911142   R-squared       =    0.0388",
+            "-------------+----------------------------------   Adj R-squared   =    0.0368",
+            "       Total |  28386.1685       499  56.8861093   Root MSE        =    7.4021",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |",
+            "          0  |          0  (base)",
+            "          1  |   2.969117   .6625944     4.48   0.000     1.667292    4.270942",
+            "             |",
+            "       _cons |   15.37102   .4590589    33.48   0.000     14.46909    16.27295",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress w i.a##i.b",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       500",
+            "-------------+----------------------------------   F(3, 496)       =      8.85",
+            "       Model |   1441.9162         3  480.638733   Prob > F        =    0.0000",
+            "    Residual |  26944.2523       496  54.3230894   R-squared       =    0.0508",
+            "-------------+----------------------------------   Adj R-squared   =    0.0451",
+            "       Total |  28386.1685       499  56.8861093   Root MSE        =    7.3704",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |",
+            "          0  |          0  (base)",
+            "          1  |   2.692323   .8385902     3.21   0.001     1.044697     4.33995",
+            "             |",
+            "           b |",
+            "          0  |          0  (base)",
+            "          1  |  -2.107186   .9559394    -2.20   0.028    -3.985376   -.2289962",
+            "             |",
+            "         a#b |",
+            "        0 0  |          0  (base)",
+            "        0 1  |          0  (base)",
+            "        1 0  |          0  (base)",
+            "        1 1  |   .9472033   1.361519     0.70   0.487    -1.727852    3.622259",
+            "             |",
+            "       _cons |   16.11664   .5686402    28.34   0.000      14.9994    17.23388",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ologit g i.a, nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    500",
+            "                                                        LR chi2(1)    =   3.45",
+            "                                                        Prob > chi2   = 0.0631",
+            "Log likelihood = -688.03413                             Pseudo R2     = 0.0025",
+            "",
+            "------------------------------------------------------------------------------",
+            "           g | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |",
+            "          0  |          0  (base)",
+            "          1  |  -.2986489   .1608607    -1.86   0.063    -.6139302    .0166324",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -1.236445   .1311598                     -1.493514   -.9793767",
+            "       /cut2 |  -.1500766   .1178699                     -.3810974    .0809443",
+            "       /cut3 |   .7483106   .1227884                      .5076497    .9889715",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set showbaselevels on", "lines": [] },
+        {
+          "command": "regress w i.a##i.b",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       500",
+            "-------------+----------------------------------   F(3, 496)       =      8.85",
+            "       Model |   1441.9162         3  480.638733   Prob > F        =    0.0000",
+            "    Residual |  26944.2523       496  54.3230894   R-squared       =    0.0508",
+            "-------------+----------------------------------   Adj R-squared   =    0.0451",
+            "       Total |  28386.1685       499  56.8861093   Root MSE        =    7.3704",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |",
+            "          0  |          0  (base)",
+            "          1  |   2.692323   .8385902     3.21   0.001     1.044697     4.33995",
+            "             |",
+            "           b |",
+            "          0  |          0  (base)",
+            "          1  |  -2.107186   .9559394    -2.20   0.028    -3.985376   -.2289962",
+            "             |",
+            "         a#b |",
+            "        1 1  |   .9472033   1.361519     0.70   0.487    -1.727852    3.622259",
+            "             |",
+            "       _cons |   16.11664   .5686402    28.34   0.000      14.9994    17.23388",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit yb i.a#i.b, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    500",
+            "                                                        LR chi2(3)    =   7.00",
+            "                                                        Prob > chi2   = 0.0720",
+            "Log likelihood = -323.78127                             Pseudo R2     = 0.0107",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         a#b |",
+            "        0 0  |          0  (base)",
+            "        0 1  |  -.1854032    .281438    -0.66   0.510    -.7370116    .3662052",
+            "        1 0  |   .4825824   .2346677     2.06   0.040     .0226421    .9425227",
+            "        1 1  |    .076373   .2684595     0.28   0.776    -.4497979    .6025439",
+            "             |",
+            "       _cons |  -.6931472   .1636634    -4.24   0.000    -1.013922   -.3723728",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set showbaselevels off", "lines": [] },
+        {
+          "command": "regress w i.a",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       500",
+            "-------------+----------------------------------   F(1, 498)       =     20.08",
+            "       Model |  1100.19369         1  1100.19369   Prob > F        =    0.0000",
+            "    Residual |  27285.9749       498  54.7911142   R-squared       =    0.0388",
+            "-------------+----------------------------------   Adj R-squared   =    0.0368",
+            "       Total |  28386.1685       499  56.8861093   Root MSE        =    7.4021",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.a |   2.969117   .6625944     4.48   0.000     1.667292    4.270942",
+            "       _cons |   15.37102   .4590589    33.48   0.000     14.46909    16.27295",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily set showbaselevels foo",
+          "lines": ["on, off, or all required"]
+        },
+        { "command": "display _rc", "lines": ["100"] },
+        { "command": "set showbaselevels", "lines": [] },
+        {
+          "command": "regress w i.a",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       500",
+            "-------------+----------------------------------   F(1, 498)       =     20.08",
+            "       Model |  1100.19369         1  1100.19369   Prob > F        =    0.0000",
+            "    Residual |  27285.9749       498  54.7911142   R-squared       =    0.0388",
+            "-------------+----------------------------------   Adj R-squared   =    0.0368",
+            "       Total |  28386.1685       499  56.8861093   Root MSE        =    7.4021",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.a |   2.969117   .6625944     4.48   0.000     1.667292    4.270942",
+            "       _cons |   15.37102   .4590589    33.48   0.000     14.46909    16.27295",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(5) vce(cluster)",
+          "lines": ["option vce(cluster clustvar) incorrectly specified"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(5) vce(robust extra)",
+          "lines": ["option vce() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(5) vce(hc3)",
+          "lines": ["vcetype hc3 not allowed"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(5) vce(foo)",
+          "lines": ["vcetype foo not allowed"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(5) vce(cluster a b)",
+          "lines": ["multiway cluster VCE not allowed"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(5) cluster(a)",
+          "lines": ["option cluster() not allowed"]
+        },
+        {
+          "command": "capture noisily ologit g x, vce(cluster a a)",
+          "lines": ["multiway cluster VCE not allowed"]
+        },
+        {
+          "command": "capture noisily nbreg c x, vce(hc2)",
+          "lines": ["vcetype hc2 not allowed"]
+        },
+        {
+          "command": "capture noisily logit yb x, vce(cluster)",
+          "lines": ["option vce(cluster clustvar) incorrectly specified"]
+        },
+        {
+          "command": "capture noisily poisson c x, vce(robust extra)",
+          "lines": ["option vce() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily regress w x, vce(cluster)",
+          "lines": ["option vce(cluster clustvar) incorrectly specified"]
+        },
+        {
+          "command": "capture noisily regress w x, vce(robust extra)",
+          "lines": ["option vce() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily regress w x, vce(foo)",
+          "lines": ["vcetype foo not allowed"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(40) ul(10)",
+          "lines": ["observations with ll() > ul() not allowed"]
+        },
+        {
+          "command": "capture noisily tobit w x, ll(abc)",
+          "lines": ["invalid option ll()"]
+        },
+        {
+          "command": "tobit w x, ll(5) noconstant",
+          "lines": [
+            "Refining starting values:",
+            "",
+            "Grid node 0:  Log likelihood = -1535.2197",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -1535.2197",
+            "Iteration 1:  Log likelihood = -1534.3074",
+            "Iteration 2:  Log likelihood = -1534.3057",
+            "Iteration 3:  Log likelihood = -1534.3057",
+            "",
+            "Tobit regression                                   Number of obs     =     500",
+            "                                                          Uncensored =     474",
+            "Limits: Lower =    5                                   Left-censored =      26",
+            "        Upper = +inf                                  Right-censored =       0",
+            "",
+            "                                                   F(1, 499)         = 4521.43",
+            "                                                   Prob > F          =  0.0000",
+            "Log likelihood = -1534.3057                        Pseudo R2         =  0.2619",
+            "",
+            " ( 1)  [w]_cons = 0",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.235177   .0183693    67.24   0.000     1.199087    1.271268",
+            "       _cons |          0  (omitted)",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.w)|   33.61731   2.207117                      29.54895     38.2458",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit w x i.a, ul(30) noconstant vce(robust) nolog",
+          "lines": [
+            "Tobit regression                                   Number of obs     =     500",
+            "                                                          Uncensored =     482",
+            "Limits: Lower = -inf                                   Left-censored =       0",
+            "        Upper =   30                                  Right-censored =      18",
+            "",
+            "                                                   F(2, 498)         = 2281.60",
+            "                                                   Prob > F          =  0.0000",
+            "Log pseudolikelihood = -1551.0174                  Pseudo R2         =  0.2692",
+            "",
+            " ( 1)  [w]_cons = 0",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           w | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.173876   .0247269    47.47   0.000     1.125295    1.222458",
+            "         1.a |    1.84621   .5229151     3.53   0.000     .8188187    2.873602",
+            "       _cons |          0  (omitted)",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.w)|   33.31635   1.884104                      29.81282     37.2316",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit w, ll(10)",
+          "lines": [
+            "Refining starting values:",
+            "",
+            "Grid node 0:  Log likelihood = -1503.2267",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -1503.2267",
+            "Iteration 1:  Log likelihood = -1487.5111",
+            "Iteration 2:  Log likelihood =  -1487.147",
+            "Iteration 3:  Log likelihood = -1487.1466",
+            "Iteration 4:  Log likelihood = -1487.1466",
+            "",
+            "Tobit regression                                    Number of obs     =    500",
+            "                                                           Uncensored =    401",
+            "Limits: Lower =   10                                    Left-censored =     99",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    F(0, 500)         =      .",
+            "                                                    Prob > F          =      .",
+            "Log likelihood = -1487.1466                         Pseudo R2         = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   16.74532   .3520132    47.57   0.000     16.05372    17.43693",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.w)|   58.44251   4.336748                      50.51401    67.61544",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit w x, ll(5) noconstant vce(cluster g) nolog",
+          "lines": [
+            "Tobit regression                                  Number of obs     =      500",
+            "                                                         Uncensored =      474",
+            "Limits: Lower =    5                                  Left-censored =       26",
+            "        Upper = +inf                                 Right-censored =        0",
+            "",
+            "                                                  F(1, 499)         = 14751.61",
+            "                                                  Prob > F          =   0.0000",
+            "Log pseudolikelihood = -1534.3057                 Pseudo R2         =   0.2619",
+            "",
+            " ( 1)  [w]_cons = 0",
+            "                                      (Std. err. adjusted for 4 clusters in g)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           w | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.235177   .0101697   121.46   0.000     1.215197    1.255158",
+            "       _cons |          0  (omitted)",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.w)|   33.61731    2.69513                      28.71808    39.35233",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily error \"198\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "capture noisily error", "lines": ["invalid syntax"] },
+        {
+          "command": "capture noisily error 198 199",
+          "lines": ["invalid '199'"]
+        },
+        { "command": "capture noisily error abc", "lines": ["abc not found"] },
+        { "command": "capture noisily error 1+", "lines": ["invalid syntax"] },
+        {
+          "command": "capture noisily error 198,",
+          "lines": ["options not allowed"]
+        },
+        { "command": "capture noisily error 2 3 4", "lines": ["invalid '3'"] },
+        { "command": "display _rc", "lines": ["197"] },
+        { "command": "set showbaselevels off", "lines": [] }
+      ]
+    },
+    {
+      "id": "ordered-determined-notes",
+      "source": "clear\nset seed 5313\nset obs 400\ngenerate double x = runiform() * 20 - 10\ngenerate double u = runiform()\ngenerate double lat = 3 * x + ln(u / (1 - u))\ngenerate byte y = 1 + (lat > -3) + (lat > 4)\nologit y x\noprobit y x, nolog\nologit y x, or nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5313", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate double x = runiform() * 20 - 10", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate double lat = 3 * x + ln(u / (1 - u))",
+          "lines": []
+        },
+        {
+          "command": "generate byte y = 1 + (lat > -3) + (lat > 4)",
+          "lines": []
+        },
+        {
+          "command": "ologit y x",
+          "lines": [
+            "Iteration 0:  Log likelihood = -361.17953",
+            "Iteration 1:  Log likelihood =  -56.26221",
+            "Iteration 2:  Log likelihood = -38.934048",
+            "Iteration 3:  Log likelihood = -30.785547",
+            "Iteration 4:  Log likelihood = -30.551179",
+            "Iteration 5:  Log likelihood =  -30.55004",
+            "Iteration 6:  Log likelihood =  -30.55004",
+            "",
+            "Ordered logistic regression                             Number of obs =    400",
+            "                                                        LR chi2(1)    = 661.26",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -30.55004                              Pseudo R2     = 0.9154",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.776605    .704502     5.36   0.000     2.395807    5.157404",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -2.449313   .7549578                     -3.929003   -.9696232",
+            "       /cut2 |   4.735263   .9836232                      2.807397    6.663129",
+            "------------------------------------------------------------------------------",
+            "Note: 220 observations completely determined. Standard errors questionable."
+          ]
+        },
+        {
+          "command": "oprobit y x, nolog",
+          "lines": [
+            "Ordered probit regression                               Number of obs =    400",
+            "                                                        LR chi2(1)    = 661.83",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -30.263274                             Pseudo R2     = 0.9162",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.088775   .3582092     5.83   0.000     1.386698    2.790853",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -1.301771   .3865732                     -2.059441   -.5441014",
+            "       /cut2 |   2.608511   .5140767                      1.600939    3.616082",
+            "------------------------------------------------------------------------------",
+            "Note: 274 observations completely determined. Standard errors questionable."
+          ]
+        },
+        {
+          "command": "ologit y x, or nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    400",
+            "                                                        LR chi2(1)    = 661.26",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -30.55004                              Pseudo R2     = 0.9154",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   43.66756   30.76388     5.36   0.000     10.97705    173.7129",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -2.449313   .7549578                     -3.929003   -.9696232",
+            "       /cut2 |   4.735263   .9836232                      2.807397    6.663129",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to odds ratios.",
+            "Note: 220 observations completely determined. Standard errors questionable."
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

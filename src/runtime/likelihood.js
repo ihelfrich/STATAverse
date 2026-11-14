@@ -19,7 +19,7 @@ import {
   termRows,
 } from "./estimation.js";
 import { count, labelled } from "./reports.js";
-import { splitAtComma } from "./syntax.js";
+import { optionItems, splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
 import { clusterNote, noCluster, readVce, sandwich } from "./vce.js";
@@ -106,9 +106,11 @@ export function maximize(objective, start, scales) {
  * A fit's coefficient rows laid out by term, as Stata lays them out: factor
  * variables as headed groups of levels, base levels hidden unless
  * baselevels ("base") or allbaselevels ("all") asks for them, long names
- * abbreviated. cell(j) gives the text after the bar for f.names[j].
+ * abbreviated. cell(j) gives the text after the bar for f.names[j]. In a
+ * table of odds or rate ratios (eform) a base or omitted coefficient, fixed
+ * at zero, is shown as a ratio of one.
  */
-function layoutRows(session, f, baseLevels, cell) {
+function layoutRows(session, f, baseLevels, cell, eform = false) {
   const constant = f.names.includes("_cons"),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])];
   return termRows(
@@ -120,6 +122,8 @@ function layoutRows(session, f, baseLevels, cell) {
       baseLevels,
     },
     (k) => cell(f.at[k]),
+    undefined,
+    eform ? 1 : 0,
   );
 }
 
@@ -194,29 +198,124 @@ function frame(
 }
 const dot = (row, theta, offset = 0) =>
   row.reduce((t, v, k) => t + v * theta[offset + k], 0);
+/** Splits a double into halves whose products are exact (Veltkamp). */
+const split = (a) => {
+  const c = 134217729 * a,
+    high = c - (c - a);
+  return [high, a - high];
+};
+/**
+ * A running sum carried to about twice double precision. Stata's ml sums
+ * each observation's log likelihood in quad precision (quadcolsum, or
+ * quadcross with the weights), so that near the maximum a step too small
+ * to matter leaves the sum unchanged instead of moving it by rounding; the
+ * line search, and its "(backed up)" notes, follow from that. add(x, w)
+ * adds w*x, the product's own rounding error included.
+ */
+function quadSum() {
+  const vector = quadVector(1);
+  return {
+    add: (x, w = 1) => vector.add(0, x, w),
+    get value() {
+      return vector.values()[0];
+    },
+  };
+}
+/** The same for each element of a vector of n sums. */
+function quadVector(n) {
+  const sum = new Array(n).fill(0),
+    carry = new Array(n).fill(0);
+  return {
+    add(a, x, w = 1) {
+      let product = x,
+        error = 0;
+      if (w !== 1) {
+        product = w * x;
+        const [xh, xl] = split(x),
+          [wh, wl] = split(w);
+        error = xh * wh - product + xh * wl + xl * wh + xl * wl;
+        if (!Number.isFinite(error)) error = 0;
+      }
+      const s = sum[a],
+        total = s + product;
+      carry[a] +=
+        (Math.abs(s) >= Math.abs(product)
+          ? s - total + product
+          : product - total + s) + error;
+      sum[a] = total;
+    },
+    values: () => sum.map((s, a) => (Number.isFinite(s) ? s + carry[a] : s)),
+  };
+}
 const side = (label, value, width = 14, pad = 7) =>
   `${label.padEnd(width)}=${value.padStart(pad)}`;
-function iterations(ctx, text, log, word = "Log likelihood", notes = []) {
-  if (/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) return;
+/**
+ * The header of ologit, oprobit, mlogit and nbreg, from [left text, label,
+ * value] rows: the values sit in a column of seven ending at column 78, and
+ * one that needs more widens the column and moves the block left.
+ */
+function header(ctx, rows) {
+  const pad = Math.max(7, ...rows.map((r) => r[2].length + 1)),
+    left = 56 - (pad - 7);
+  for (const [text, label, value] of rows)
+    ctx.out(`${text.padEnd(left)}${side(label, value, 14, pad)}`);
+}
+const noLog = (text) => /\bnolog\b/.test(splitAtComma(text)[1] ?? "");
+/**
+ * An iteration log and the blank line after it; a fit that ran out of
+ * iterations ends with Stata's warning that convergence was not achieved.
+ */
+function iterations(
+  ctx,
+  text,
+  log,
+  word = "Log likelihood",
+  notes = [],
+  converged = true,
+) {
+  if (noLog(text)) return;
   log.forEach((value, k) => ctx.out(iterationLine(k, word, value, notes[k])));
+  if (!converged) ctx.out("convergence not achieved");
   ctx.out("");
 }
-/** One line of an iteration log, with Stata's note beside it, if any. */
+/**
+ * One line of an iteration log, with Stata's note beside it, if any. The
+ * number and its colon take three columns before the space.
+ */
 const iterationLine = (k, word, value, note) =>
-  `Iteration ${k}:  ${word} = ${g(value, "%10.0g").padStart(10)}${note ? `  (${note})` : ""}`;
+  `Iteration ${`${k}:`.padEnd(3)} ${word} = ${g(value, "%10.0g").padStart(10)}${note ? `  (${note})` : ""}`;
 /**
  * What ologit, oprobit and mlogit, which are built into Stata, print before
  * their header: a blank line, any notes of omitted variables, then the
- * iteration log, or without a log a blank line after the notes.
+ * iteration log, or without a log a blank line after the notes. Without a
+ * log, a fit that did not converge says so first.
  */
-function opening(ctx, text, f, log, word, notes) {
+function opening(ctx, text, f, fit, word) {
+  if (noLog(text) && !fit.converged) ctx.out("convergence not achieved");
   ctx.out("");
-  if (f.notes(ctx) && /\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
-    ctx.out("");
-  iterations(ctx, text, log, word, notes);
+  if (f.notes(ctx) && noLog(text)) ctx.out("");
+  iterations(ctx, text, fit.log, word, fit.notes, fit.converged);
+}
+/**
+ * Stata's note on observations whose outcome the fit predicts with
+ * certainty: those for which the other outcomes together have probability
+ * under 1e-6.
+ */
+function determinedNote(ctx, determined) {
+  if (determined)
+    ctx.out(
+      `Note: ${count(determined)} observation${determined === 1 ? "" : "s"} completely determined. Standard errors questionable.`,
+    );
+}
+/** Stops a fit that did not converge, after its table, as Stata does. */
+function unconverged(fit) {
+  if (!fit.converged) throw new StataError("convergence not achieved", 430);
 }
 /** One row of a coefficient table tested against the normal or t. */
 function row(label, b, se, level, df, transform) {
+  // A coefficient with no variance shows only its value.
+  if (!(se > 0))
+    return `${label}|${g(transform ? Math.exp(b) : b).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
   const z = b / se,
     p = df ? 2 * ttail(df, Math.abs(z)) : 2 * normal(-Math.abs(z)),
     critical = df
@@ -245,7 +344,9 @@ const tableHead = (ctx, depvar, level, first, t, robust) => {
  * zero weight being left out. Sampling weights imply the sandwich.
  */
 function requested(session, parsed) {
-  const { robust, cluster } = readVce(session, parsed.options, /^oim$/);
+  const { robust, cluster } = readVce(session, parsed.options, /^oim$/, {
+    multiway: false,
+  });
   let weight = null;
   if (parsed.weight) {
     if (parsed.weight.type !== "pweight")
@@ -270,6 +371,39 @@ function requested(session, parsed) {
 /** The sandwich variance of a fit from its observations' scores. */
 const robustVariance = (f, asked, V, scores) =>
   sandwich(V, scores, f.w, asked.cluster, f.sample);
+
+/**
+ * The rank of a robust variance V, which is e(rank). A cluster variance has
+ * at most one dimension fewer than there are clusters, so with few clusters
+ * it is less than the number of parameters. Stata then counts as tested
+ * only what the rank leaves after the parameters outside the test (the cut
+ * points; nbreg's constant and lnalpha), and reports the test as missing
+ * when that is fewer than the coefficients. The rank is found by sweeping
+ * the largest remaining diagonal until what remains is nil.
+ */
+function robustRank(V, clusters) {
+  const n = V.length,
+    a = V.map((row) => row.slice()),
+    kept = [],
+    limit = clusters ? Math.min(n, clusters - 1) : n;
+  while (kept.length < limit) {
+    let best = -1;
+    for (let j = 0; j < n; j++)
+      if (
+        !kept.includes(j) &&
+        a[j][j] > 1e-13 * V[j][j] &&
+        (best < 0 || a[j][j] > a[best][best])
+      )
+        best = j;
+    if (best < 0) break;
+    kept.push(best);
+    const pivot = a[best][best],
+      column = a.map((row) => row[best]);
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++) a[r][c] -= (column[r] * column[c]) / pivot;
+  }
+  return kept.length;
+}
 
 /** The Wald statistic that the coefficients at `at` are all zero. */
 function waldStatistic(theta, V, at) {
@@ -335,6 +469,13 @@ function tobitTerm(y, xb, variance, state, limit) {
 }
 
 function tobit(session, text, ctx) {
+  // tobit has vce(cluster), but not the older cluster() spelling.
+  if (
+    optionItems(splitAtComma(text)[1] ?? "").some((o) =>
+      /^cl(u(s(t(er?)?)?)?)?$/.test(o.name),
+    )
+  )
+    throw new StataError("option cluster() not allowed", 198);
   // ll and ul may stand alone, as ll() does, for the outcome's own limit.
   const [head, tail] = splitAtComma(text),
     parsed = session.parse(
@@ -355,16 +496,41 @@ function tobit(session, text, ctx) {
       true,
       asked,
     ),
-    limit = (option, pick) =>
-      !given(option)
-        ? null
-        : options[option]?.trim()
-          ? session.scalar(options[option])
-          : pick(...f.y),
+    // A limit is a number, or an expression that gives one, as tobit's
+    // _chk_limit takes it; . is no limit.
+    limit = (option, pick) => {
+      if (!given(option)) return null;
+      const raw = options[option]?.trim() ?? "";
+      if (!raw) return pick(...f.y);
+      if (raw === ".") return null;
+      let variable = null;
+      try {
+        if (/^[A-Za-z_]\w*$/.test(raw))
+          variable = session.data.get(session.varlist(raw)[0]);
+      } catch {
+        variable = null;
+      }
+      if (variable && !/^str/.test(variable.type))
+        throw new StataError(
+          `a limit that varies by observation, ${option}(${raw}), is not available in the browser yet; give a number`,
+          198,
+        );
+      let value = null;
+      try {
+        value = session.scalar(raw);
+      } catch {
+        value = null;
+      }
+      if (typeof value !== "number" || isMissing(value))
+        throw new StataError(`invalid option ${option}()`, 198);
+      return value;
+    },
     lower = limit("ll", Math.min),
     upper = limit("ul", Math.max);
   if (lower === null && upper === null)
     throw new StataError("you must specify ll() or ul()", 198);
+  if (lower !== null && upper !== null && lower > upper)
+    throw new StataError("observations with ll() > ul() not allowed", 198);
   // Each observation's state: -1 left-censored, 1 right-censored, 0
   // observed.
   const censor = (y) =>
@@ -397,11 +563,11 @@ function tobit(session, text, ctx) {
             information = Array.from({ length: k + 1 }, () =>
               new Array(k + 1).fill(0),
             );
-          let value = 0;
+          const total = quadSum();
           x.forEach((r, i) => {
             const wi = w ? w[i] : 1,
               [l, dxb, dv, dxx, dxv, dvv] = term(i, theta);
-            value += wi * l;
+            total.add(l, wi);
             if (!todo) return;
             r.forEach((v, a) => {
               gradient[a] += wi * dxb * v;
@@ -412,7 +578,7 @@ function tobit(session, text, ctx) {
             gradient[k] += wi * dv;
             information[k][k] -= wi * dvv;
           });
-          return { value, gradient, information };
+          return { value: total.value, gradient, information };
         },
         scores: (theta) =>
           x.map((r, i) => {
@@ -420,19 +586,22 @@ function tobit(session, text, ctx) {
             return [...r.map((v) => dxb * v), dv];
           }),
         // Stata starts from least squares on the outcome held within its
-        // limits, with the variance of those residuals.
+        // limits, with the variance of those residuals about their mean
+        // (which is not zero without a constant).
         start: () => {
           const clamped = y.map((v, i) =>
               states[i] < 0 ? lower : states[i] > 0 ? upper : v,
             ),
-            beta = leastSquares(x, clamped, w) ?? new Array(k).fill(0),
+            beta = k
+              ? (leastSquares(x, clamped, w) ?? new Array(k).fill(0))
+              : [],
             weight = (i) => (w ? w[i] : 1),
             total = x.reduce((t, _, i) => t + weight(i), 0),
+            residual = x.map((r, i) => clamped[i] - dot(r, beta)),
+            mean = residual.reduce((t, v, i) => t + weight(i) * v, 0) / total,
             variance =
-              x.reduce(
-                (t, r, i) => t + weight(i) * (clamped[i] - dot(r, beta)) ** 2,
-                0,
-              ) / total;
+              residual.reduce((t, v, i) => t + weight(i) * (v - mean) ** 2, 0) /
+              total;
           return [...beta, variance || 1];
         },
       };
@@ -441,31 +610,27 @@ function tobit(session, text, ctx) {
       const m = likelihoodOf(x, y, w);
       return maximizeNR(m.evaluate, m.start());
     },
-    // The constant-only model. Stata's tobit fits it to the observations
-    // before those with no cluster are set aside.
+    // The model with no regressors: the constant alone, or without a
+    // constant only the variance. Stata's tobit fits it to the
+    // observations before those with no cluster are set aside.
+    constant = f.names.at(-1) === "_cons",
     nullFit = () => {
-      if (!asked.cluster)
-        return fit(
-          f.x.map(() => [1]),
-          f.y,
-          f.w,
-        );
-      const wide = frame(session, parsed, true, undefined, true, {
-        ...asked,
-        keep: asked.keepWeighted,
-      });
+      const wide = asked.cluster
+        ? frame(session, parsed, constant, undefined, true, {
+            ...asked,
+            keep: asked.keepWeighted,
+          })
+        : f;
       return fit(
-        wide.x.map(() => [1]),
+        wide.x.map(() => (constant ? [1] : [])),
         wide.y,
         wide.w,
       );
     },
     full = fit(f.x, f.y, f.w),
     k = f.x[0].length,
-    constant = f.names.at(-1) === "_cons",
-    ll0 = constant ? nullFit().ll : MISSING,
-    dfModel = f.active.length,
-    df = n - dfModel,
+    ll0 = nullFit().ll,
+    regressors = f.active.length,
     robust = asked.robust,
     { V, clusters } = robust
       ? robustVariance(
@@ -476,14 +641,24 @@ function tobit(session, text, ctx) {
         )
       : { V: full.V, clusters: null },
     word = robust ? "Log pseudolikelihood" : "Log likelihood",
-    chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
-    wald = robust
-      ? waldStatistic(
-          full.theta,
-          V,
-          f.active.map((_, j) => j),
-        )
-      : MISSING,
+    // As tobit.ado reckons them: the rank of the variance (less than full
+    // with few clusters), df_r = N - (rank - 1 - constant), and a
+    // likelihood-ratio test only with a constant, regressors and no robust
+    // variance; otherwise the Wald test of the regressors, as F(df_m, df_r),
+    // missing without regressors.
+    rank = robust ? robustRank(V, clusters) : k + 1,
+    df = n - (rank - 1 - Number(constant)),
+    lr = constant && regressors > 0 && !robust,
+    dfModel = regressors,
+    chi2 = lr ? 2 * (full.ll - ll0) : MISSING,
+    wald =
+      !lr && regressors
+        ? waldStatistic(
+            full.theta,
+            V,
+            f.active.map((_, j) => j),
+          )
+        : MISSING,
     F = isMissing(wald) ? MISSING : wald / dfModel,
     variance = full.theta[k],
     seVariance = Math.sqrt(V[k][k]),
@@ -509,7 +684,7 @@ function tobit(session, text, ctx) {
       N: n,
       df_m: dfModel,
       df_r: df,
-      rank: k + 1,
+      rank,
       ll: full.ll,
       ll_0: ll0,
       vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
@@ -533,21 +708,18 @@ function tobit(session, text, ctx) {
     df_r: df,
     ll: full.ll,
     ll_0: ll0,
-    ...(robust
-      ? {
-          F,
-          p: isMissing(F) ? MISSING : Ftail(dfModel, df, F),
-        }
-      : {
-          chi2,
-          p: isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
-        }),
-    r2_p: isMissing(ll0) ? MISSING : 1 - full.ll / ll0,
+    ...(lr
+      ? { chi2, p: chi2tail(dfModel, chi2) }
+      : regressors
+        ? { F, p: isMissing(F) ? MISSING : Ftail(dfModel, df, F) }
+        : {}),
+    r2_p: 1 - full.ll / ll0,
     N_unc: counts[0],
     N_lc: counts[1],
     N_rc: counts[2],
-    rank: k + 1,
-    k: names.length + 1,
+    rank,
+    // e(b) holds an omitted _cons under noconstant.
+    k: names.length + (constant ? 1 : 2),
     cmd: "tobit",
     depvar: model.depvar,
     vce: model.vce,
@@ -567,13 +739,13 @@ function tobit(session, text, ctx) {
     ctx.out("Fitting full model:");
     ctx.out("");
   }
-  iterations(ctx, text, full.log, word, full.notes);
+  iterations(ctx, text, full.log, word, full.notes, full.converged);
   const e = session.results.e,
     shown = [
       count(n),
       ...counts.map(count),
-      applyFormat(robust ? F : chi2, "%7.2f").trim(),
-      applyFormat(e.p, "%6.4f").trim(),
+      applyFormat(lr ? chi2 : F, "%7.2f").trim(),
+      applyFormat(e.p ?? MISSING, "%6.4f").trim(),
       applyFormat(e.r2_p, "%6.4f").trim(),
     ],
     // The values sit in a column of seven ending at column 78; one that
@@ -595,20 +767,23 @@ function tobit(session, text, ctx) {
   );
   ctx.out("");
   ctx.out(
-    `${" ".repeat(left)}${stat(robust ? `F(${dfModel}, ${df})` : `LR chi2(${dfModel})`, shown[4])}`,
+    `${" ".repeat(left)}${stat(lr ? `LR chi2(${dfModel})` : `F(${dfModel}, ${df})`, shown[4])}`,
   );
   ctx.out(
-    `${" ".repeat(left)}${stat(robust ? "Prob > F" : "Prob > chi2", shown[5])}`,
+    `${" ".repeat(left)}${stat(lr ? "Prob > chi2" : "Prob > F", shown[5])}`,
   );
   ctx.out(
     `${`${word} = ${g(full.ll, "%10.0g")}`.padEnd(left)}${stat("Pseudo R2", shown[6])}`,
   );
   ctx.out("");
+  // tobit fits noconstant as gsem does, by constraining _cons to zero.
+  if (!constant) ctx.out(` ( 1)  [${model.depvar}]_cons = 0`);
   if (asked.cluster) ctx.out(clusterNote(clusters, asked.cluster.name, count));
   tableHead(ctx, model.depvar, options.level, "Coefficient", true, robust);
   layoutRows(session, f, model.baseLevels, (j) =>
     row("", full.theta[j], Math.sqrt(V[j][j]), options.level, df).slice(1),
   ).forEach(ctx.out);
+  if (!constant) ctx.out(`${"_cons".padStart(12)} |          0  (omitted)`);
   ctx.out(SPLIT);
   ctx.out(
     plainRow(
@@ -620,6 +795,7 @@ function tobit(session, text, ctx) {
     ),
   );
   ctx.out(RULE);
+  unconverged(full);
   ctx.out("");
 }
 
@@ -684,17 +860,17 @@ function ordered(kind) {
       },
       objective = (theta) => {
         const gradient = new Array(k + cuts).fill(0);
-        let value = 0;
+        const total = quadSum();
         for (let c = 1; c < cuts; c++)
           if (!(theta[k + c] > theta[k + c - 1]))
             return { value: -Infinity, gradient };
         f.x.forEach((r, i) => {
           const w = weight(i),
             one = term(r, i, theta);
-          value += w * one.value;
+          total.add(one.value, w);
           one.gradient.forEach((v, a) => (gradient[a] += w * v));
         });
-        return { value, gradient };
+        return { value: total.value, gradient };
       },
       // The constant-only model: cut points at the cumulative shares.
       start = new Array(k + cuts).fill(0),
@@ -717,7 +893,7 @@ function ordered(kind) {
         for (let c = 1; c < cuts; c++)
           if (!(theta[k + c] > theta[k + c - 1]))
             return { value: -Infinity, gradient, information };
-        let value = 0;
+        const total = quadSum();
         f.x.forEach((r, i) => {
           const w = weight(i),
             xb = dot(r, theta),
@@ -734,7 +910,7 @@ function ordered(kind) {
             Lhh = (top ? link.slope(h) / p : 0) - Lh * Lh,
             Lll = (bottom ? -link.slope(l) / p : 0) - Ll * Ll,
             Lhl = -Lh * Ll;
-          value += w * Math.log(p);
+          total.add(Math.log(p), w);
           if (!todo) return;
           const bb = Lhh + 2 * Lhl + Lll,
             bh = -(Lhh + Lhl),
@@ -764,7 +940,7 @@ function ordered(kind) {
             information[k + j - 1][k + j] -= w * Lhl;
           }
         });
-        return { value, gradient, information };
+        return { value: total.value, gradient, information };
       },
       ll0 = objective(start).value,
       full = maximizeNR(evaluate, start),
@@ -778,12 +954,22 @@ function ordered(kind) {
           )
         : { V: full.V, clusters: null },
       word = robust ? "Log pseudolikelihood" : "Log likelihood",
+      // With few clusters the robust variance has less than full rank;
+      // the test then counts the coefficients it keeps, and is missing.
+      rank = robust
+        ? robustRank(V, clusters)
+        : V.filter((row, j) => row[j] !== 0).length,
+      // The rank less the cut points: k, unless the fit failed and some
+      // parameters have no variance, when it can be negative.
+      dfModel = robust ? Math.max(0, Math.min(k, rank - cuts)) : rank - cuts,
       chi2 = robust
-        ? waldStatistic(
-            full.theta,
-            V,
-            f.active.map((_, j) => j),
-          )
+        ? dfModel < k
+          ? MISSING
+          : waldStatistic(
+              full.theta,
+              V,
+              f.active.map((_, j) => j),
+            )
         : 2 * (full.ll - ll0),
       names = f.columns.map((c) => c.name),
       transform = options.or && kind === "ologit",
@@ -797,8 +983,8 @@ function ordered(kind) {
         columns: f.columns,
         constant: false,
         N: n,
-        df_m: k,
-        rank: k + cuts,
+        df_m: dfModel,
+        rank,
         ll: full.ll,
         ll_0: ll0,
         vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
@@ -836,14 +1022,14 @@ function ordered(kind) {
     session.estimates = model;
     session.results.e = {
       N: n,
-      df_m: k,
+      df_m: dfModel,
       ll: full.ll,
       ll_0: ll0,
       chi2,
-      p: isMissing(chi2) ? MISSING : chi2tail(k, chi2),
+      p: isMissing(chi2) || dfModel <= 0 ? MISSING : chi2tail(dfModel, chi2),
       r2_p: 1 - full.ll / ll0,
       k_cat: levels.length,
-      rank: k + cuts,
+      rank,
       k: names.length + cuts,
       cmd: kind,
       depvar: model.depvar,
@@ -851,22 +1037,42 @@ function ordered(kind) {
       ...(robust ? { chi2type: "Wald" } : {}),
       ...robustResults(asked, clusters),
     };
+    // Observations the fit determines: the probability below the
+    // outcome's interval and above it are both under 1e-6.
+    const determined = f.x.filter((r, i) => {
+      const xb = dot(r, full.theta),
+        j = category[i],
+        below = j > 0 ? link.cdf(full.theta[k + j - 1] - xb) : 0,
+        above = j < cuts ? link.cdf(xb - full.theta[k + j]) : 0;
+      return below < 1e-6 && above < 1e-6;
+    }).length;
+    if (determined) session.results.e.N_cd = determined;
     const critical = invnormal(1 - (1 - options.level / 100) / 2);
-    opening(ctx, text, f, full.log, word, full.notes);
-    ctx.out(`${link.title.padEnd(56)}${side("Number of obs", count(n))}`);
+    opening(ctx, text, f, full, word);
     // Without regressors there is no test to report, and no coefficients
     // above the cut points.
-    if (f.columns.length) {
-      ctx.out(
-        `${" ".repeat(56)}${side(`${robust ? "Wald" : "LR"} chi2(${k})`, applyFormat(chi2, "%7.2f").trim())}`,
-      );
-      ctx.out(
-        `${" ".repeat(56)}${side("Prob > chi2", applyFormat(session.results.e.p, "%6.4f").trim())}`,
-      );
-    }
-    ctx.out(
-      `${`${word} = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(1 - full.ll / ll0, "%6.4f").trim())}`,
-    );
+    header(ctx, [
+      [link.title, "Number of obs", count(n)],
+      ...(f.columns.length
+        ? [
+            [
+              "",
+              `${robust ? "Wald" : "LR"} chi2(${dfModel})`,
+              applyFormat(chi2, "%7.2f").trim(),
+            ],
+            [
+              "",
+              "Prob > chi2",
+              applyFormat(session.results.e.p, "%6.4f").trim(),
+            ],
+          ]
+        : []),
+      [
+        `${word} = ${g(full.ll, "%10.0g")}`,
+        "Pseudo R2",
+        applyFormat(1 - full.ll / ll0, "%6.4f").trim(),
+      ],
+    ]);
     ctx.out("");
     if (asked.cluster)
       ctx.out(clusterNote(clusters, asked.cluster.name, count));
@@ -878,27 +1084,32 @@ function ordered(kind) {
       false,
       robust,
     );
-    layoutRows(session, f, baseLevelsAsked(options), (j) =>
-      row(
-        "",
-        full.theta[j],
-        Math.sqrt(V[j][j]),
-        options.level,
-        0,
-        transform,
-      ).slice(1),
+    layoutRows(
+      session,
+      f,
+      baseLevelsAsked(options),
+      (j) =>
+        row(
+          "",
+          full.theta[j],
+          Math.sqrt(V[j][j]),
+          options.level,
+          0,
+          transform,
+        ).slice(1),
+      transform,
     ).forEach(ctx.out);
     if (f.columns.length) ctx.out(SPLIT);
     for (let c = 0; c < cuts; c++) {
       const value = full.theta[k + c],
-        se = Math.sqrt(V[k + c][k + c]);
+        se = V[k + c][k + c] > 0 ? Math.sqrt(V[k + c][k + c]) : MISSING;
       ctx.out(
         plainRow(
           `${`/cut${c + 1}`.padStart(12)} `,
           value,
           se,
-          value - critical * se,
-          value + critical * se,
+          isMissing(se) ? MISSING : value - critical * se,
+          isMissing(se) ? MISSING : value + critical * se,
         ),
       );
     }
@@ -907,6 +1118,8 @@ function ordered(kind) {
       ctx.out(
         "Note: Estimates are transformed only in the first equation to odds ratios.",
       );
+    determinedNote(ctx, determined);
+    unconverged(full);
     ctx.out("");
   };
 }
@@ -953,20 +1166,20 @@ function mlogit(session, text, ctx) {
     size = others.length * k,
     objective = (theta) => {
       const gradient = new Array(size).fill(0);
-      let value = 0;
+      const total = quadSum();
       f.x.forEach((r, i) => {
         const xb = others.map((_, e) => dot(r, theta, e * k)),
           top = Math.max(0, greatest(xb)),
           denominator =
             Math.exp(-top) + xb.reduce((t, v) => t + Math.exp(v - top), 0),
           logSum = top + Math.log(denominator);
-        value += (which[i] >= 0 ? xb[which[i]] : 0) - logSum;
+        total.add((which[i] >= 0 ? xb[which[i]] : 0) - logSum);
         others.forEach((_, e) => {
           const d = Number(which[i] === e) - Math.exp(xb[e] - logSum);
           r.forEach((v, a) => (gradient[e * k + a] += d * v));
         });
       });
-      return { value, gradient };
+      return { value: total.value, gradient };
     },
     start = new Array(size).fill(0);
   if (constant)
@@ -1007,7 +1220,10 @@ function mlogit(session, text, ctx) {
     },
     ll0 = constant ? objective(start).value : MISSING,
     full = maximizeNR(evaluate, start),
-    dfModel = others.length * f.active.length,
+    // The rank of the variance less the constants: the number of
+    // coefficients, unless the fit failed and some have no variance.
+    rank = full.V.filter((row, j) => row[j] !== 0).length,
+    dfModel = rank - (constant ? others.length : 0),
     chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
     label = (j) => labelled(session, f.dependent, outcomes[j]),
     names = others.flatMap((j) => f.names.map((name) => `${label(j)}:${name}`)),
@@ -1024,7 +1240,7 @@ function mlogit(session, text, ctx) {
       estimable: names.map(() => true),
       N: n,
       df_m: dfModel,
-      rank: size,
+      rank,
       ll: full.ll,
       ll_0: ll0,
       vce: "oim",
@@ -1059,28 +1275,34 @@ function mlogit(session, text, ctx) {
     ll: full.ll,
     ll_0: ll0,
     chi2,
-    p: isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
+    p: isMissing(chi2) || dfModel <= 0 ? MISSING : chi2tail(dfModel, chi2),
     r2_p: isMissing(ll0) ? MISSING : 1 - full.ll / ll0,
     k_out: outcomes.length,
     baseout: outcomes[base],
     ibaseout: base + 1,
-    rank: size,
+    rank,
     k: size,
     cmd: "mlogit",
     depvar: model.depvar,
     vce: "oim",
   };
-  opening(ctx, text, f, full.log, "Log likelihood", full.notes);
-  ctx.out(`${model.title.padEnd(56)}${side("Number of obs", count(n))}`);
-  ctx.out(
-    `${" ".repeat(56)}${side(`LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim())}`,
-  );
-  ctx.out(
-    `${" ".repeat(56)}${side("Prob > chi2", applyFormat(session.results.e.p, "%6.4f").trim())}`,
-  );
-  ctx.out(
-    `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
-  );
+  // Where the fit predicts every outcome with certainty, Stata notes that
+  // all observations are completely determined. (Where it predicts only
+  // some, Stata's count follows a rule not reproduced here, and no note
+  // is printed.)
+  const determined = full.ll === 0 ? n : 0;
+  if (determined) session.results.e.N_cd = determined;
+  opening(ctx, text, f, full, "Log likelihood");
+  header(ctx, [
+    [model.title, "Number of obs", count(n)],
+    ["", `LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim()],
+    ["", "Prob > chi2", applyFormat(session.results.e.p, "%6.4f").trim()],
+    [
+      `Log likelihood = ${g(full.ll, "%10.0g")}`,
+      "Pseudo R2",
+      applyFormat(session.results.e.r2_p, "%6.4f").trim(),
+    ],
+  ]);
   ctx.out("");
   ctx.out(RULE);
   ctx.out(
@@ -1122,8 +1344,10 @@ function mlogit(session, text, ctx) {
       );
   });
   ctx.out(RULE);
+  determinedNote(ctx, determined);
   if (options.rrr && constant)
     ctx.out("Note: _cons estimates baseline relative risk for each outcome.");
+  unconverged(full);
   ctx.out("");
 }
 
@@ -1189,33 +1413,41 @@ export function gammaSums(m, y) {
     tri: tri + diRest - m * trigammaDifference,
   };
 }
-/** ln(n!), the sum of ln k for k up to n. */
-const lnFactorial = (n) => gammaSums(1, n).ln;
+/**
+ * ln(n!) to the last bit, as Stata's lngamma(n+1) gives it: the logarithm
+ * of n! itself while n! is finite, and the sum of ln k beyond. (A sum of
+ * logarithms can be a bit off, which near alpha = 0 is enough to change
+ * where nbreg stops.)
+ */
+const lnFactorial = (n) => {
+  if (n > 170) return gammaSums(1, n).ln;
+  let product = 1;
+  for (let j = 2; j <= n; j++) product *= j;
+  return Math.log(product);
+};
 
 /** Weighted least squares of y on the rows of x, or null if singular. */
 function leastSquares(x, y, w) {
+  // The cross products in quad precision, as Stata forms them.
   const k = x[0].length,
-    xtx = Array.from({ length: k }, () => new Array(k).fill(0)),
-    xty = new Array(k).fill(0);
+    xtx = quadVector(k * k),
+    xty = quadVector(k);
   x.forEach((r, i) => {
     const wi = w ? w[i] : 1;
     for (let a = 0; a < k; a++) {
-      xty[a] += wi * r[a] * y[i];
-      for (let c = 0; c < k; c++) xtx[a][c] += wi * r[a] * r[c];
+      xty.add(a, r[a] * y[i], wi);
+      for (let c = 0; c < k; c++) xtx.add(a * k + c, r[a] * r[c], wi);
     }
   });
-  const inverse = invertSymmetric(xtx);
+  const sums = xtx.values(),
+    xy = xty.values(),
+    inverse = invertSymmetric(
+      Array.from({ length: k }, (_, a) => sums.slice(a * k, a * k + k)),
+    );
   return inverse
-    ? inverse.map((row) => row.reduce((t, v, c) => t + v * xty[c], 0))
+    ? inverse.map((row) => row.reduce((t, v, c) => t + v * xy[c], 0))
     : null;
 }
-
-/**
- * The Poisson model nbreg fits first, as Stata's poisson fits it: starting
- * values from Ipois in poisson.ado (least squares scaled by the mean, the
- * constant solved for, and one reweighted least-squares step, whichever of
- * the three fits best), then Newton steps as ml takes them.
- */
 function poissonFit(x, y, lnFact, constant, w = null) {
   const k = x[0].length,
     weight = (i) => (w ? w[i] : 1),
@@ -1269,22 +1501,35 @@ function poissonFit(x, y, lnFact, constant, w = null) {
   const start =
     candidates[0] ??
     x[0].map((_, j) => (constant && j === k - 1 ? Math.log(mean || 1) : 0));
+  // The log likelihood is b'X'y - sum exp(xb) - sum ln y!, with X'y and
+  // the last sum formed once, so that a step too small to matter changes
+  // it only through the exponentials.
+  const xty = quadVector(k),
+    constant0 = quadSum();
+  x.forEach((r, i) => {
+    r.forEach((v, a) => xty.add(a, v * y[i], weight(i)));
+    constant0.add(lnFact[i], weight(i));
+  });
+  const cross = xty.values(),
+    fixed = constant0.value;
   return maximizeNR((theta, todo) => {
     const gradient = new Array(k).fill(0),
       information = Array.from({ length: k }, () => new Array(k).fill(0));
-    let value = 0;
+    const total = quadSum();
+    theta.forEach((b, a) => total.add(cross[a], b));
+    total.add(-fixed);
     x.forEach((r, i) => {
       const xb = dot(r, theta),
         mu = Math.exp(xb),
         wi = weight(i);
-      value += wi * (y[i] * xb - mu - lnFact[i]);
+      total.add(-mu, wi);
       if (todo)
         r.forEach((v, a) => {
           gradient[a] += wi * (y[i] - mu) * v;
           r.forEach((u, c) => (information[a][c] += wi * mu * v * u));
         });
     });
-    return { value, gradient, information };
+    return { value: total.value, gradient, information };
   }, start);
 }
 
@@ -1347,7 +1592,15 @@ export function maximizeNR(evaluate, start) {
     // had to be halved six times or more.
     notes = [""];
   for (let iteration = 1; ; iteration++) {
-    if (iteration > 300) throw new StataError("convergence not achieved", 430);
+    // After 300 steps Stata stops, notes whether the surface is concave
+    // there, and reports what it has; the caller says convergence was not
+    // achieved.
+    if (iteration > 300) {
+      const V = generalizedInverse(current.information);
+      if (!concave(current.information, V))
+        notes[iteration - 1] = "not concave";
+      return { theta, ll: current.value, V, log, notes, converged: false };
+    }
     const before = theta,
       v0 = current.value,
       information = current.information;
@@ -1375,17 +1628,15 @@ export function maximizeNR(evaluate, start) {
       const ratio = trace0 / inverse.reduce((t, row, j) => t + row[j], 0);
       if (ratio > 0) inverse = inverse.map((row) => row.map((v) => v * ratio));
       delta = times(inverse, current.gradient);
-      const eps =
-          iteration <= 2
+      // A ratio that is not a number is Mata's missing, which is larger
+      // than any number: eps is then its upper bound.
+      const change =
+          (0.1 * (log[iteration - 1] - log[iteration - 2])) /
+          Math.abs(log[iteration - 2]),
+        eps =
+          iteration <= 2 || !Number.isFinite(change)
             ? 1e-2
-            : Math.min(
-                1e-2,
-                Math.max(
-                  1e-8,
-                  (0.1 * (log[iteration - 1] - log[iteration - 2])) /
-                    Math.abs(log[iteration - 2]),
-                ),
-              ),
+            : Math.min(1e-2, Math.max(1e-8, change)),
         c =
           (eps * Math.abs(v0)) /
           current.gradient.reduce((t, g, k) => t + g * delta[k], 0);
@@ -1435,7 +1686,7 @@ export function maximizeNR(evaluate, start) {
         Math.abs(current.gradient.reduce((t, g, k) => t + g * step[k], 0)) <
           1e-5
       )
-        return { theta, ll: current.value, V, log, notes };
+        return { theta, ll: current.value, V, log, notes, converged: true };
     }
   }
 }
@@ -1479,7 +1730,9 @@ function nbreg(session, text, ctx) {
         alpha = Math.exp(ln),
         { ln: lnGamma, di: digamma, tri: trigamma } = gammaSums(m, y),
         lnp = -Math.log1p(Math.exp(xb + ln)),
-        p = Math.exp(lnp),
+        // p as nbreg_lf computes it; at the maximum the scores are all
+        // rounding, and the step follows them.
+        p = 1 / (1 + Math.exp(xb + ln)),
         value =
           lnGamma - lnFact[i] + m * lnp - y * Math.log1p(Math.exp(-xb - ln));
       if (!todo) return { value };
@@ -1489,7 +1742,7 @@ function nbreg(session, text, ctx) {
         s1,
         s2: m * (-digamma - lnp) + s1,
         d11: mu * p * (alpha * p * (y - mu) + 1),
-        d12: alpha * mu * p * p * (y - mu),
+        d12: alpha * mu * (p * p) * (y - mu),
         // trigamma here is the sum of j/(m+j)^2, which is
         // (digamma(y+m) - digamma(m)) - m(trigamma(m) - trigamma(y+m)).
         d22: m * (-lnp - trigamma) + mu * p * (alpha * p * (y - mu) - 1),
@@ -1501,7 +1754,7 @@ function nbreg(session, text, ctx) {
         information = Array.from({ length: k + 1 }, () =>
           new Array(k + 1).fill(0),
         );
-      let value = 0;
+      const sum = quadSum();
       x.forEach((r, i) => {
         const w = weight(i),
           {
@@ -1512,7 +1765,7 @@ function nbreg(session, text, ctx) {
             d12,
             d22,
           } = term(dot(r, theta), theta[k], i, todo);
-        value += w * l;
+        sum.add(l, w);
         if (!todo) return;
         r.forEach((v, a) => {
           gradient[a] += w * s1 * v;
@@ -1523,7 +1776,7 @@ function nbreg(session, text, ctx) {
         gradient[k] += w * s2;
         information[k][k] += w * d22;
       });
-      return { value, gradient, information };
+      return { value: sum.value, gradient, information };
     },
     base = poissonFit(f.x, f.y, lnFact, constant, f.w),
     k = f.x[0].length,
@@ -1560,7 +1813,7 @@ function nbreg(session, text, ctx) {
         : [...new Array(k - 1).fill(0), ...null0.theta];
     })(),
     full = maximizeNR(negative(f.x), start),
-    dfModel = f.active.length,
+    regressors = f.active.length,
     robust = asked.robust,
     { V: cov, clusters } = robust
       ? robustVariance(
@@ -1575,12 +1828,24 @@ function nbreg(session, text, ctx) {
       : { V: full.V, clusters: null },
     word = robust ? "Log pseudolikelihood" : "Log likelihood",
     ll0 = null0 ? null0.ll : MISSING,
+    // The rank of the variance: lnalpha is dropped at the boundary, and
+    // with few clusters a robust variance has less than full rank; the test
+    // then counts what the rank leaves after the constant and lnalpha, and
+    // is missing.
+    rank = robust
+      ? robustRank(cov, clusters)
+      : cov.filter((row, j) => row[j] !== 0).length,
+    dfModel = robust
+      ? Math.max(0, Math.min(regressors, rank - (k + 1 - regressors)))
+      : regressors,
     chi2 = robust
-      ? waldStatistic(
-          full.theta,
-          cov,
-          f.active.map((_, j) => j),
-        )
+      ? dfModel < regressors
+        ? MISSING
+        : waldStatistic(
+            full.theta,
+            cov,
+            f.active.map((_, j) => j),
+          )
       : null0
         ? 2 * (full.ll - ll0)
         : MISSING,
@@ -1595,8 +1860,6 @@ function nbreg(session, text, ctx) {
     chi2c = boundary || full.ll < base.ll ? 0 : 2 * (full.ll - base.ll),
     seLn = cov[k][k] > 0 ? Math.sqrt(cov[k][k]) : MISSING,
     noSe = isMissing(seLn),
-    // The rank of the variance: lnalpha is dropped at the boundary.
-    rank = cov.filter((row, j) => row[j] !== 0).length,
     alpha = Math.exp(lnalpha),
     critical = invnormal(1 - (1 - options.level / 100) / 2),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
@@ -1656,21 +1919,22 @@ function nbreg(session, text, ctx) {
     ]) {
       ctx.out(title);
       ctx.out("");
-      fitted.log.forEach((value, j) =>
-        ctx.out(iterationLine(j, word, value, fitted.notes[j])),
-      );
-      ctx.out("");
+      iterations(ctx, text, fitted.log, word, fitted.notes, fitted.converged);
     }
-  ctx.out(`${model.title.padEnd(56)}${side("Number of obs", count(n))}`);
-  ctx.out(
-    `${" ".repeat(56)}${side(`${robust ? "Wald" : "LR"} chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim())}`,
-  );
-  ctx.out(
-    `${"Dispersion: mean".padEnd(56)}${side("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
-  );
-  ctx.out(
-    `${`${word} = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
-  );
+  header(ctx, [
+    [model.title, "Number of obs", count(n)],
+    [
+      "",
+      `${robust ? "Wald" : "LR"} chi2(${dfModel})`,
+      applyFormat(chi2, "%7.2f").trim(),
+    ],
+    ["Dispersion: mean", "Prob > chi2", applyFormat(p, "%6.4f").trim()],
+    [
+      `${word} = ${g(full.ll, "%10.0g")}`,
+      "Pseudo R2",
+      applyFormat(session.results.e.r2_p, "%6.4f").trim(),
+    ],
+  ]);
   ctx.out("");
   if (asked.cluster) ctx.out(clusterNote(clusters, asked.cluster.name, count));
   tableHead(
@@ -1681,15 +1945,20 @@ function nbreg(session, text, ctx) {
     false,
     robust,
   );
-  layoutRows(session, f, baseLevelsAsked(options), (j) =>
-    row(
-      "",
-      full.theta[j],
-      Math.sqrt(cov[j][j]),
-      options.level,
-      0,
-      !!options.irr,
-    ).slice(1),
+  layoutRows(
+    session,
+    f,
+    baseLevelsAsked(options),
+    (j) =>
+      row(
+        "",
+        full.theta[j],
+        Math.sqrt(cov[j][j]),
+        options.level,
+        0,
+        !!options.irr,
+      ).slice(1),
+    !!options.irr,
   ).forEach(ctx.out);
   ctx.out(SPLIT);
   ctx.out(
@@ -1723,6 +1992,7 @@ function nbreg(session, text, ctx) {
     ctx.out(
       `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, (chi2c > 0.005 && chi2c < 1e4) || boundary ? "%8.2f" : "%8.2e").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(boundary ? 1 : 0.5 * chi2tail(1, chi2c), "%5.3f")}`,
     );
+  unconverged(full);
   ctx.out("");
 }
 

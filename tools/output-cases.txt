@@ -4809,3 +4809,98 @@ tobit y x, ll(5)
 tobit y i.a#i.b, ll(5) ul(40)
 tobit y x i.a, ll ul
 tobit y c.x##c.x, ll(5) ul(35) nolog
+=== likelihood-steps-and-eform-bases
+clear
+set seed 5311
+set obs 600
+generate byte a = runiform() > .5
+generate byte b = runiform() > .6
+generate byte g = 1 + floor(runiform() * 4)
+generate double x = 8 + floor(runiform() * 12)
+generate double w = 5 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)
+generate double u = runiform()
+generate byte r = 1 + (.15 * x + a + ln(u / (1 - u)) > 2) + (.15 * x + a + ln(u / (1 - u)) > 3) + (.15 * x + a + ln(u / (1 - u)) > 4)
+generate int c = 20 + floor(runiform() * 30) + 3 * a
+generate byte k = 4 + (_n <= 10)
+generate byte z = 3 + mod(_n, 2) + a
+nbreg k x
+nbreg z i.a
+ologit r i.g, or baselevels
+ologit r i.a##i.b, or allbaselevels nolog
+nbreg c i.g, allbaselevels irr
+nbreg c i.a#i.b, irr baselevels nolog
+ologit r x, vce(cluster g) nolog
+oprobit r x i.b, vce(cluster g) nolog
+oprobit r x, cluster(b) robust nolog
+nbreg c x i.a i.b, vce(cluster g) nolog
+nbreg c x, vce(cluster b) nolog
+tobit w x i.a, ll(8) ul(40) vce(cluster g) nolog
+tobit w x, ll(8) vce(cluster b) nolog
+=== likelihood-options-and-refusals
+clear
+set seed 5312
+set obs 500
+generate byte a = runiform() > .5
+generate byte b = runiform() > .6
+generate byte g = 1 + floor(runiform() * 4)
+generate double x = 8 + floor(runiform() * 12)
+generate double w = -4 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)
+generate byte yb = runiform() < .3 + .1 * a
+generate int c = 20 + floor(runiform() * 30) + 3 * a
+logit yb i.g, allbaselevels
+probit yb i.g x, baselevels nolog
+poisson c i.g, allbaselevels nolog
+logit yb i.g, or baselevels nolog
+poisson c i.a x, irr baselevels nolog
+set showbaselevels all
+regress w i.a
+regress w i.a##i.b
+ologit g i.a, nolog
+set showbaselevels on
+regress w i.a##i.b
+logit yb i.a#i.b, nolog
+set showbaselevels off
+regress w i.a
+capture noisily set showbaselevels foo
+display _rc
+set showbaselevels
+regress w i.a
+capture noisily tobit w x, ll(5) vce(cluster)
+capture noisily tobit w x, ll(5) vce(robust extra)
+capture noisily tobit w x, ll(5) vce(hc3)
+capture noisily tobit w x, ll(5) vce(foo)
+capture noisily tobit w x, ll(5) vce(cluster a b)
+capture noisily tobit w x, ll(5) cluster(a)
+capture noisily ologit g x, vce(cluster a a)
+capture noisily nbreg c x, vce(hc2)
+capture noisily logit yb x, vce(cluster)
+capture noisily poisson c x, vce(robust extra)
+capture noisily regress w x, vce(cluster)
+capture noisily regress w x, vce(robust extra)
+capture noisily regress w x, vce(foo)
+capture noisily tobit w x, ll(40) ul(10)
+capture noisily tobit w x, ll(abc)
+tobit w x, ll(5) noconstant
+tobit w x i.a, ul(30) noconstant vce(robust) nolog
+tobit w, ll(10)
+tobit w x, ll(5) noconstant vce(cluster g) nolog
+capture noisily error "198"
+capture noisily error
+capture noisily error 198 199
+capture noisily error abc
+capture noisily error 1+
+capture noisily error 198,
+capture noisily error 2 3 4
+display _rc
+set showbaselevels off
+=== ordered-determined-notes
+clear
+set seed 5313
+set obs 400
+generate double x = runiform() * 20 - 10
+generate double u = runiform()
+generate double lat = 3 * x + ln(u / (1 - u))
+generate byte y = 1 + (lat > -3) + (lat > 4)
+ologit y x
+oprobit y x, nolog
+ologit y x, or nolog

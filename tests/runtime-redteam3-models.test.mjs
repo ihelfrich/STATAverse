@@ -10,6 +10,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Session } from "../src/runtime/session.js";
+import { Dataset } from "../src/runtime/store.js";
+import { isMissing } from "../src/runtime/values.js";
+import { LIBRARY } from "../src/console-datasets.js";
 
 const SETUP = [
   "clear",
@@ -313,4 +316,252 @@ test("error with a negative, missing or too large code stops with 100000 and no 
   const session = new Session();
   assert.equal(session.run("error 1.5").rc, 2);
   assert.equal(session.run("error 0.4").rc, 0);
+});
+
+// ----- The third round's follow-up: few clusters, tobit's edges, fits
+// that do not converge, and nbreg where the data are not overdispersed.
+// Every expected value below was recorded from Stata 19 MP (version 17,
+// set processors 1). The printed tables are compared line by line in
+// tests/runtime-output.test.mjs (cases likelihood-steps-and-eform-bases,
+// likelihood-options-and-refusals and ordered-determined-notes).
+
+const FEW = [
+  "clear",
+  "set seed 5311",
+  "set obs 600",
+  "generate byte a = runiform() > .5",
+  "generate byte b = runiform() > .6",
+  "generate byte g = 1 + floor(runiform() * 4)",
+  "generate double x = 8 + floor(runiform() * 12)",
+  "generate double w = 5 + 1.5 * x + 2 * a - b + 14 * (runiform() + runiform() - 1)",
+  "generate double u = runiform()",
+  "generate byte r = 1 + (.15 * x + a + ln(u / (1 - u)) > 2) + (.15 * x + a + ln(u / (1 - u)) > 3) + (.15 * x + a + ln(u / (1 - u)) > 4)",
+  "generate int c = 20 + floor(runiform() * 30) + 3 * a",
+].join("\n");
+
+/** e() after a command; a value given as null must be missing or absent. */
+function expectE(session, command, expected) {
+  assert.equal(session.run(command).rc, 0, command);
+  const e = session.results.e;
+  for (const [key, value] of Object.entries(expected))
+    if (value === null)
+      assert.ok(
+        e[key] === undefined || isMissing(e[key]),
+        `${command}: e(${key}) is missing`,
+      );
+    else close(e[key], value, `${command}: e(${key})`);
+}
+
+test("with few clusters the rank of the variance limits the model test, as in Stata", () => {
+  const session = new Session();
+  assert.equal(session.run(FEW).rc, 0);
+  // e(rank) is the rank of the cluster variance, at most one less than the
+  // clusters; the test counts what it leaves after the cut points (or the
+  // constant and lnalpha) and is missing when that is short.
+  expectE(session, "ologit r x, vce(cluster g)", {
+    df_m: 0,
+    chi2: null,
+    p: null,
+    rank: 3,
+    N_clust: 4,
+  });
+  expectE(session, "oprobit r x i.b, vce(cluster g)", {
+    df_m: 0,
+    chi2: null,
+    rank: 3,
+    N_clust: 4,
+  });
+  expectE(session, "nbreg c x i.a i.b, vce(cluster g)", {
+    df_m: 1,
+    chi2: null,
+    rank: 3,
+    N_clust: 4,
+  });
+  expectE(session, "nbreg c x, vce(cluster b)", {
+    df_m: 0,
+    chi2: null,
+    rank: 1,
+    N_clust: 2,
+  });
+  // tobit's df_r is N - (rank - 1 - constant), and its F test keeps both
+  // regressors.
+  expectE(session, "tobit w x i.a, ll(8) ul(40) vce(cluster g)", {
+    df_m: 2,
+    df_r: 599,
+    rank: 3,
+    F: 3326.7134273281722,
+    p: 0,
+  });
+  const j = session.estimates.names.indexOf("x");
+  close(
+    Math.sqrt(session.estimates.V[j][j]),
+    0.043518529186879366,
+    "tobit cluster g: se of x",
+  );
+  expectE(session, "tobit w x, ll(8) vce(cluster b)", {
+    df_m: 1,
+    df_r: 601,
+    rank: 1,
+    F: 1503.4487577922773,
+  });
+});
+
+test("tobit with noconstant or no regressors reports Stata's F test and e()", () => {
+  const session = new Session();
+  assert.equal(session.run(FEW).rc, 0);
+  // noconstant: the null model has no constant either, the test is
+  // F(df_m, df_r), and e(b) holds _cons as omitted.
+  expectE(session, "tobit w x, ll(5) noconstant", {
+    df_m: 1,
+    df_r: 599,
+    rank: 2,
+    k: 3,
+    F: 13084.118894450725,
+    p: 0,
+    ll_0: -2819.3965112854048,
+    r2_p: 0.33142787873117663,
+    ll: -1884.9699062480033,
+  });
+  close(session.estimates.b[0], 1.8945153234100922, "noconstant: b of x");
+  // No regressors: F(0, N) is missing and e() has no F, p or chi2.
+  expectE(session, "tobit w, ll(10)", {
+    df_m: 0,
+    df_r: 600,
+    rank: 2,
+    k: 2,
+    F: null,
+    p: null,
+    chi2: null,
+    ll_0: -2049.6767706417781,
+    r2_p: 0,
+  });
+  // ll() above ul(), and a limit that is not a number, are Stata's errors.
+  for (const [command, message] of [
+    ["tobit w x, ll(40) ul(10)", "observations with ll() > ul() not allowed"],
+    ["tobit w x, ll(abc)", "invalid option ll()"],
+    ["tobit w x, ll(5) cluster(a)", "option cluster() not allowed"],
+  ]) {
+    const result = session.run(command);
+    assert.equal(result.rc, 198, command);
+    assert.equal(result.output[0].lines[0], message, command);
+  }
+});
+
+/** A session holding the Console's labor dataset, as the tester used. */
+function labor() {
+  const session = new Session();
+  session.data = Dataset.fromRows(LIBRARY.labor.data);
+  return session;
+}
+
+test("ologit, oprobit and mlogit that cannot converge print the log and table, then stop with r(430)", () => {
+  const session = labor();
+  session.run(
+    "generate byte perf = cond(education < 12, 1, cond(education < 16, 2, 3))",
+  );
+  for (const [command, coefficients] of [
+    [
+      "ologit perf education",
+      [201.5578792265224, 2357.8100727953206, 3074.2284286911226],
+    ],
+    [
+      "oprobit perf education",
+      [45.736709561901037, 533.45398772823455, 696.8840729472571],
+    ],
+    [
+      "mlogit perf education",
+      [
+        -139.87364753930086, 1608.5515065554928, 134.9585260649684,
+        -2100.2968885604259,
+      ],
+    ],
+  ]) {
+    const result = session.run(command),
+      lines = result.output.flatMap((o) => o.lines ?? []);
+    assert.equal(result.rc, 430, command);
+    // Iterations 0 to 300, then the warning, the table, Stata's note and
+    // the error.
+    assert.equal(
+      lines.filter((line) => /^Iteration \d+:/.test(line)).length,
+      301,
+      command,
+    );
+    assert.equal(
+      lines[
+        lines.indexOf(
+          "Iteration 300: Log likelihood =          0  (not concave)",
+        ) + 1
+      ],
+      "convergence not achieved",
+      command,
+    );
+    assert.ok(
+      lines.includes(
+        "Note: 600 observations completely determined. Standard errors questionable.",
+      ),
+      command,
+    );
+    assert.equal(lines.at(-2), "convergence not achieved", command);
+    const e = session.results.e,
+      model = session.estimates;
+    close(e.ll, 0, `${command}: e(ll)`);
+    close(e.N_cd, 600, `${command}: e(N_cd)`);
+    const b = model.cuts
+      ? [...model.b.filter((_, j) => model.estimable[j]), ...model.cuts]
+      : model.b;
+    coefficients.forEach((value, j) =>
+      assert.ok(
+        Math.abs(b[j] - value) <= 1e-9 * Math.abs(value),
+        `${command}: coefficient ${j}: ${b[j]} vs Stata ${value}`,
+      ),
+    );
+  }
+});
+
+test("nbreg where the data are not overdispersed stops where Stata stops, with no backed-up notes", () => {
+  const session = labor();
+  session.run("generate k = 4");
+  session.run("replace k = 5 in 1/10");
+  const result = session.run("nbreg k education"),
+    text = result.output.flatMap((o) => o.lines ?? []).join("\n");
+  assert.equal(result.rc, 0);
+  assert.doesNotMatch(text, /backed up/);
+  // Stata 19: /lnalpha -53.41629, alpha 6.33e-24.
+  const e = session.results.e;
+  assert.ok(
+    Math.abs(e.alpha - 6.3328687675631e-24) <= 1e-12 * 6.3328687675631e-24,
+    `alpha ${e.alpha}`,
+  );
+  close(e.ll, -981.93641964654773, "e(ll)");
+  close(e.ll_0, -981.93646257589239, "e(ll_0)");
+  close(e.rank, 2, "e(rank)");
+});
+
+test("error with an argument that is not a number stops with 197, as Stata's does", () => {
+  // Recorded from Stata 19.
+  for (const [argument, message] of [
+    ['"198"', "type mismatch"],
+    ["", "invalid syntax"],
+    ["198 199", "invalid '199'"],
+    ["abc", "abc not found"],
+    ["1+", "invalid syntax"],
+    ["198,", "options not allowed"],
+  ]) {
+    const result = new Session().run(`error ${argument}`);
+    assert.equal(result.rc, 197, `error ${argument}`);
+    assert.equal(result.output[0].lines[0], message, `error ${argument}`);
+  }
+  assert.equal(new Session().run("error (198)").rc, 198);
+});
+
+test("set showbaselevels takes on, off or all and shows base levels as the options do", () => {
+  const session = new Session();
+  const wrong = session.run("set showbaselevels foo");
+  // Stata 19: on, off, or all required, r(100).
+  assert.equal(wrong.rc, 100);
+  assert.equal(wrong.output[0].lines[0], "on, off, or all required");
+  assert.equal(session.run("set showbaselevels all").rc, 0);
+  assert.equal(session.settings.showbaselevels, "all");
+  assert.equal(session.run("set showbaselevels off").rc, 0);
+  assert.equal(session.settings.showbaselevels, undefined);
 });

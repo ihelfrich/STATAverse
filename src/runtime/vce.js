@@ -10,9 +10,11 @@ const ROBUST = /^r(o(b(u(st?)?)?)?)?$/,
 /**
  * Reads `robust` and `vce()`. `plain` matches the names of the command's own
  * conventional variance (oim, unadjusted, conventional). Returns whether a
- * robust variance was asked for and the cluster variable, if any.
+ * robust variance was asked for and the cluster variable, if any. multiway
+ * false is for commands that, in Stata, refuse more than one cluster
+ * variable; for the others it is a feature not yet here.
  */
-export function readVce(session, options, plain) {
+export function readVce(session, options, plain, { multiway = true } = {}) {
   // cluster(id) is the older spelling of vce(cluster id).
   const text = (
     options.vce ?? (options.cluster ? `cluster ${options.cluster}` : "")
@@ -26,8 +28,31 @@ export function readVce(session, options, plain) {
       cluster: session.data.get(session.varlist(match[1])[0]),
     };
   if (plain.test(text)) return { robust: !!options.robust, cluster: null };
+  refuseVce(text, plain, multiway);
+}
+/**
+ * Refuses vce(text): what is not a vce() at all with Stata's own messages,
+ * and a variance Stata has but this command here lacks with a hint.
+ */
+export function refuseVce(text, plain, multiway) {
+  const [type, ...more] = text.split(/\s+/);
+  if (CLUSTER.test(`${type} x`)) {
+    if (!more.length)
+      throw new StataError(
+        "option vce(cluster clustvar) incorrectly specified",
+        198,
+      );
+    if (!multiway)
+      throw new StataError("multiway cluster VCE not allowed", 198);
+  } else if (ROBUST.test(type) || plain.test(type))
+    throw new StataError("option vce() incorrectly specified", 198);
+  else if (!VCETYPES.test(type))
+    throw new StataError(`vcetype ${type} not allowed`, 198);
   throw new StataError(`vce(${text}) is not available yet`, 198);
 }
+/** Variance types Stata's estimation commands know but this one lacks. */
+const VCETYPES =
+  /^(opg|b(o(o(t(s(t(r(ap?)?)?)?)?)?)?)?|bs|j(a(c(k(k(n(i(fe?)?)?)?)?)?)?)?|jk|hac)$/;
 
 /** Whether observation `i` has no value of the cluster variable. */
 export const noCluster = (variable, i) =>

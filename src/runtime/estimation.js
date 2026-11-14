@@ -13,7 +13,7 @@ import { count, labelled, moments, percentile, present } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
-import { noCluster } from "./vce.js";
+import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 export const RULE = "-".repeat(78);
@@ -339,7 +339,11 @@ export function fit(session, parsed, by) {
       parsed.weight?.type === "pweight" ||
       /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
   if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
-    throw new StataError(`vce(${vceText}) is not available yet`, 198);
+    refuseVce(
+      vceText.trim(),
+      /^(ols|conventional|r(o(b(u(st?)?)?)?)?|hc[123])$/,
+      true,
+    );
   let obs = cluster ? sample.filter((i) => !noCluster(cluster, i)) : sample,
     w = null,
     sumW;
@@ -579,13 +583,14 @@ export function fit(session, parsed, by) {
  * that is up to linesize - 67. Longer names, and the dependent variable in
  * the header, are abbreviated to the width.
  */
-export function tableWidth(session, model) {
-  const shown = model.names
-    .filter((_, k) => !hiddenBase(model.columns?.[k], model))
-    .map((name) => {
-      const term = model.columns?.[model.names.indexOf(name)]?.term;
-      return term && !term.variable ? term.header : name;
-    });
+export function tableWidth(session, table) {
+  const model = withBaseSetting(session, table),
+    shown = model.names
+      .filter((_, k) => !hiddenBase(model.columns?.[k], model))
+      .map((name) => {
+        const term = model.columns?.[model.names.indexOf(name)]?.term;
+        return term && !term.variable ? term.header : name;
+      });
   // The dependent variable does not widen the column; it is abbreviated.
   const cap = (session.settings?.linesize ?? 80) - 67,
     // A name counts whole when the line allows it; an interaction that does
@@ -639,6 +644,15 @@ const hiddenBase = (column, model) => {
   );
 };
 
+/**
+ * A model as its table shows it: without baselevels or allbaselevels, set
+ * showbaselevels on or all decides.
+ */
+const withBaseSetting = (session, model) =>
+  model.baseLevels || !session.settings?.showbaselevels
+    ? model
+    : { ...model, baseLevels: session.settings.showbaselevels };
+
 /** Which base levels the options of an estimation command ask to show. */
 export const baseLevelsAsked = (options) =>
   options.allbaselevels ? "all" : options.baselevels ? "base" : undefined;
@@ -649,12 +663,13 @@ export const abbreviate = (name, width) =>
 
 export function termRows(
   session,
-  model,
+  table,
   cells,
   width,
   omittedValue = 0,
   baseTail = "",
 ) {
+  const model = withBaseSetting(session, table);
   // Without a width the column is twelve and names are not shortened.
   const w = width ?? 12,
     short = (name) => (width ? abbreviate(name, w) : name),
