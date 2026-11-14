@@ -380,5 +380,169 @@ test("didregress refuses what it does not compute", () => {
   run(s, "didregress (y x) (d), group(grp) time(year) vce(robust)");
   assert.equal(s.run("estat ptrends").rc, 198);
   assert.equal(s.run("estat trendplots").rc, 198);
-  assert.equal(s.run("predict yhat").rc, 198);
+});
+
+// ----- The red team's findings on the seventh pass, fixed -----
+// Values recorded from Stata 19 MP (version 17, set processors 1) on the
+// same generated data, printed with %21.15g.
+
+const SAMPLES = `clear
+set seed 404
+set obs 200
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*3
+generate t = runiform() < invlogit(-0.2 + 0.7*x1)
+generate yb = runiform() < invlogit(-0.5 + 0.4*x1 + 0.8*t)
+generate y = 1 + x1 + 0.4*x2 + t + invnormal(runiform())
+replace x2 = . in 7`;
+
+test("aipw, atet with an observation set aside: variance and predictions", () => {
+  const s = session(SAMPLES);
+  // Stata divides the equations of the means by the share treated in the
+  // sample and their derivatives by the share among all the data.
+  run(s, "teffects aipw (y x1 x2) (t x1 x2), atet");
+  close(coefficients(s)[0], 1.08715461867439, "ATET", 1e-9);
+  close(Math.sqrt(variance(s, 0)), 0.155372660158606, "ATET se", 1e-8);
+  close(Math.sqrt(variance(s, 1)), 0.146643137298945, "POmean se", 1e-8);
+  // predict divides by the share treated among the observations predicted.
+  run(s, "predict double a1, te");
+  run(s, "predict double a2 a3, cmean");
+  const mean = (name) => {
+    const v = [...s.data.get(name).data].filter((x) => x < 8.9e307);
+    return [v.reduce((t, x) => t + x, 0) / v.length, v.length];
+  };
+  close(mean("a1")[0], 1.09261770720763, "mean te", 1e-9);
+  close(mean("a3")[0], 3.18627091119038, "mean cmean 1", 1e-9);
+  assert.equal(mean("a3")[1], 199);
+  run(s, "teffects aipw (y x1 x2) (t x1 x2) if x1 > -1, atet");
+  close(Math.sqrt(variance(s, 0)), 0.160688418431855, "ATET se, if", 1e-8);
+  // ate's cmean needs no propensity score where the level is not observed.
+  run(s, "teffects aipw (yb x1, logit) (t x1 x2)");
+  run(s, "predict double h2 h3, cmean");
+  close(mean("h3")[0], 0.563915443569422, "mean cmean, logit", 1e-9);
+  assert.equal(mean("h3")[1], 200);
+});
+
+test("aipw's nls and wnls fit the conditional means by least squares", () => {
+  const s = session(SAMPLES);
+  for (const [command, b, se] of [
+    ["teffects aipw (y x1) (t x1), nls", 1.12172173616595, 0.146404201350917],
+    ["teffects aipw (y x1) (t x1), wnls", 1.11622310939588, 0.149180769987303],
+    [
+      "teffects aipw (yb x1, logit) (t x1), nls",
+      0.146195084995674,
+      0.0757853869688605,
+    ],
+  ]) {
+    run(s, command);
+    close(coefficients(s)[0], b, `${command}: b`, 1e-7);
+    close(Math.sqrt(variance(s, 0)), se, `${command}: se`, 1e-6);
+  }
+  assert.equal(s.results.e.cme, "nls");
+});
+
+test("heckman's two-step probit variance is version 6's, at its last step's start", () => {
+  const s = session(`clear
+set seed 4646
+set obs 200
+generate x1 = invnormal(runiform())
+generate z = invnormal(runiform())
+generate u1 = invnormal(runiform())
+generate s = (0.2 + 0.8*z + 0.3*x1 + u1) > 0
+generate y = 2 + 0.6*x1 + u1 if s`);
+  run(s, "heckman y x1, select(x1 z) twostep");
+  const at = (name) => s.estimates.names.indexOf(name);
+  close(Math.sqrt(variance(s, at("select:x1"))), 0.104017555774428, "x1", 1e-7);
+  close(Math.sqrt(variance(s, at("select:z"))), 0.139734670075741, "z", 1e-7);
+  close(
+    Math.sqrt(variance(s, at("/mills:lambda"))),
+    0.183009803025062,
+    "lambda",
+    1e-6,
+  );
+});
+
+test("heckman's scores and predictions bounded by pr(), e() and ystar()", () => {
+  const s = session(`clear
+set seed 662
+set obs 80
+generate x1 = invnormal(runiform())
+generate z = invnormal(runiform())
+generate u1 = invnormal(runiform())
+generate u2 = 0.5*u1 + 0.85*invnormal(runiform())
+generate s = (0.2 + 0.8*z + 0.3*x1 + u1) > 0
+generate y = 2 + 0.6*x1 + u2 if s`);
+  run(s, "heckman y x1, select(x1 z) nolog");
+  run(s, "predict double q*, scores");
+  const column = (name) => [...s.data.get(name).data];
+  [
+    42.0745546694657, 32.7799988030817, 16.7554135106979, 76.0246998252921,
+  ].forEach((v, k) =>
+    close(
+      column(`q${k + 1}`).reduce((t, x) => t + x * x, 0),
+      v,
+      `sum of squared scores ${k + 1}`,
+      1e-8,
+    ),
+  );
+  close(column("q1")[0], -0.288128808918988, "q1[1]", 1e-8);
+  close(column("q4")[3], -0.866551545852042, "q4[4]", 1e-8);
+  run(s, "predict double p1, e(0,3)");
+  run(s, "predict double p2, pr(.,2)");
+  run(s, "predict double p3, ystar(0,3)");
+  const mean = (name) => column(name).reduce((t, x) => t + x, 0) / 80;
+  close(mean("p1"), 1.73057404581094, "e(0,3)", 1e-9);
+  close(mean("p2"), 0.511179860885585, "pr(.,2)", 1e-9);
+  close(mean("p3"), 1.86119427011608, "ystar(0,3)", 1e-9);
+  // The two-step fit has no scores; a selection indicator of 0 and 2 is
+  // never censored, as Stata reads its sum.
+  run(s, "heckman y x1, select(x1 z) twostep");
+  assert.equal(s.run("predict w1, scores").rc, 198);
+  run(s, "generate s2 = 2*s");
+  assert.equal(s.run("heckman y x1, select(s2 = x1 z)").rc, 498);
+});
+
+const CELLS = `clear
+set seed 808
+set obs 20
+generate id = _n
+generate grp = ceil(_n/2)
+generate treatedgrp = grp == 10
+generate a = invnormal(runiform())
+expand 5
+bysort id: generate t = _n
+generate x = invnormal(runiform())
+generate z = runiform() < 0.5
+generate d = treatedgrp & t >= 4
+generate y = a + 0.3*t + 0.5*x + 1.2*d + invnormal(runiform())`;
+
+test("didregress: e(rank), residuals, weights and a treatment varying in a cell", () => {
+  const s = session(CELLS);
+  // e(rank) is the rank of the cluster-robust variance.
+  run(s, "didregress (y x) (d), group(grp) time(t)");
+  assert.equal(s.results.e.rank, 5);
+  run(s, "predict double r1, residuals");
+  close(Math.max(...s.data.get("r1").data), 2.85117905918607, "residual", 1e-9);
+  run(s, "didregress (y x i.z) (d), group(grp) time(t)");
+  assert.equal(s.results.e.rank, 6);
+  run(s, "didregress (y x) (d) [fweight=1+z], group(grp) time(t)");
+  close(Math.sqrt(variance(s, 0)), 0.203725597636213, "fweight se", 1e-9);
+  assert.equal(s.results.e.N, 157);
+  run(s, "didregress (y x) (d) [pweight=1+z], group(grp) time(t)");
+  close(coefficients(s)[0], 2.84844908546071, "pweight ATET", 1e-9);
+  close(Math.sqrt(variance(s, 0)), 0.210266851603635, "pweight se", 1e-9);
+  run(s, "xtset id t");
+  run(s, "xtdidregress (y x) (d), group(grp) time(t)");
+  assert.equal(s.results.e.rank, 5);
+  run(s, "xtdidregress (y x) (d), group(id) time(t)");
+  assert.equal(s.results.e.rank, 6);
+  run(s, "predict double xr, residuals");
+  const xr = [...s.data.get("xr").data];
+  close(Math.max(...xr), 2.21320770753515, "xt residual max", 1e-9);
+  close(Math.min(...xr), -1.97102346407515, "xt residual min", 1e-9);
+  // Stata refuses a treatment that varies within a group and period.
+  run(s, "generate dv = d");
+  run(s, "replace dv = 1 - d if id == 19 & t == 5");
+  assert.equal(s.run("didregress (y x) (dv), group(grp) time(t)").rc, 198);
+  assert.equal(s.run("xtdidregress (y x) (dv), group(grp) time(t)").rc, 198);
 });

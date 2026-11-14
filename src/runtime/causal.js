@@ -13,8 +13,8 @@
 // xtreg, fe fits, each with standard errors clustered by group.
 import { StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
-import { applyFormat } from "./format.js";
-import { Ftail, chi2tail } from "./distributions.js";
+import { applyFormat, parseFormat } from "./format.js";
+import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import { abbreviate, baseLevelsAsked } from "./estimation.js";
 import {
@@ -24,7 +24,9 @@ import {
   row,
   rule,
   split,
+  statistic,
 } from "./likelihood.js";
+import { smclParagraph } from "./data-utilities.js";
 import { count, labelled } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType, missingValue } from "./values.js";
@@ -112,6 +114,86 @@ function leastSquares(x, y, w) {
   return inv && inv.map((row) => row.reduce((t, v, c) => t + v * xy[c], 0));
 }
 const dot = (a, b) => a.reduce((t, v, k) => t + v * b[k], 0);
+/**
+ * Weighted least squares as regress fits it when its columns are
+ * collinear: each column in turn is kept unless the kept ones before it
+ * span it, and a dropped column's coefficient is zero. Returns the
+ * coefficients and the positions dropped.
+ */
+function leastSquaresDropping(x, y, w) {
+  const k = x[0]?.length ?? 0,
+    xx = zeros(k, k),
+    xy = new Array(k).fill(0);
+  x.forEach((r, i) => {
+    const wi = w ? w[i] : 1;
+    for (let a = 0; a < k; a++) {
+      xy[a] += wi * r[a] * y[i];
+      for (let c = 0; c < k; c++) xx[a][c] += wi * r[a] * r[c];
+    }
+  });
+  // Sweep the columns in order; one whose remaining variance is nil
+  // beside its own is spanned by those before it.
+  const A = xx.map((r) => r.slice()),
+    kept = [],
+    dropped = [];
+  for (let c = 0; c < k; c++) {
+    if (!(xx[c][c] > 0) || !(A[c][c] > 1e-13 * xx[c][c])) {
+      dropped.push(c);
+      continue;
+    }
+    const p = A[c][c];
+    for (let r = 0; r < k; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / p;
+      for (let a = 0; a < k; a++) if (a !== c) A[r][a] -= f * A[c][a];
+    }
+    kept.push(c);
+  }
+  const beta = new Array(k).fill(0);
+  if (kept.length) {
+    const inv = inverse(kept.map((a) => kept.map((c) => xx[a][c]))) ?? [];
+    kept.forEach((a, i) => {
+      beta[a] = kept.reduce((t, c, j) => t + (inv[i]?.[j] ?? 0) * xy[c], 0);
+    });
+  }
+  return { beta, dropped };
+}
+/**
+ * The observations a binary model predicts with certainty, as logit,
+ * mlogit and probit count them, from each one's index v: logit (and
+ * mlogit) a success whose probability is within the root of the machine's
+ * precision of one, or a failure whose probability is within it of
+ * nought; probit one whose index is beyond six on its side.
+ */
+function determinedCounts(kind, v, t) {
+  const c = 2 ** -26,
+    cut = kind === "probit" ? 6 : Math.log((1 - c) / c);
+  let successes = 0,
+    failures = 0;
+  v.forEach((u, i) => {
+    if (t[i] && u > cut) successes++;
+    else if (!t[i] && u < -cut) failures++;
+  });
+  return [successes, failures];
+}
+/** teffects's notes of a model's completely determined observations. */
+function determinedNotes(session, ctx, which, successes, failures) {
+  const width = session.settings?.linesize ?? 80;
+  for (const [n, word] of [
+    [successes, "success"],
+    [failures, "failure"],
+  ])
+    if (n)
+      smclParagraph(
+        [
+          `note: ${which} model has ${n} ${word} observation${n === 1 ? "" : "s"} completely determined; the model, as specified, may not be identified`,
+        ],
+        width,
+        0,
+        6,
+        2,
+      ).forEach((line) => ctx.out(line));
+}
 
 // ----- the normal distribution in its tails -----
 /** phi(c)/Phi(c), carried by its asymptotic series far in the left tail. */
@@ -165,7 +247,7 @@ function binaryTerm(kind, v, t) {
   };
 }
 /** Fits a logit or probit of t on the rows z by Newton's method. */
-function fitBinary(kind, z, t, w) {
+function fitBinary(kind, z, t, w, limit = 100, fromZero = false) {
   const k = z[0].length;
   const evaluate = (theta, todo) => {
     let value = 0;
@@ -189,10 +271,10 @@ function fitBinary(kind, z, t, w) {
   const start = new Array(k).fill(0),
     total = w ? w.reduce((s, v) => s + v, 0) : z.length,
     share = t.reduce((s, v, i) => s + (w ? w[i] : 1) * v, 0) / total;
-  if (z.every((r) => r[k - 1] === 1) && share > 0 && share < 1)
+  if (!fromZero && z.every((r) => r[k - 1] === 1) && share > 0 && share < 1)
     start[k - 1] =
       kind === "logit" ? Math.log(share / (1 - share)) : invnormal(share);
-  return maximizeNR(evaluate, start, 100);
+  return maximizeNR(evaluate, start, limit);
 }
 
 /**
@@ -202,21 +284,51 @@ function fitBinary(kind, z, t, w) {
  * Poisson.
  */
 function outcomeTerm(model, v, y) {
-  if (model === "linear") return { mean: v, dmean: 1, s: y - v, ds: -1 };
+  if (model === "linear")
+    return { mean: v, dmean: 1, d2mean: 0, s: y - v, ds: -1 };
   if (model === "poisson") {
     const mu = Math.exp(v);
-    return { mean: mu, dmean: mu, s: y - mu, ds: -mu };
+    return { mean: mu, dmean: mu, d2mean: mu, s: y - mu, ds: -mu };
   }
-  const term = binaryTerm(model, v, y ? 1 : 0);
+  const term = binaryTerm(model, v, y ? 1 : 0),
+    mean = model === "logit" ? 1 / (1 + Math.exp(-v)) : normal(v);
   return {
-    mean: model === "logit" ? 1 / (1 + Math.exp(-v)) : normal(v),
+    mean,
     dmean: term.f,
+    d2mean: model === "logit" ? term.f * (1 - 2 * mean) : -v * term.f,
     s: term.s,
     ds: term.ds,
   };
 }
+/**
+ * Fits the conditional mean of y in the rows x by weighted nonlinear least
+ * squares, as nl fits it for aipw's nls and wnls.
+ */
+function fitNLS(model, x, y, w) {
+  const k = x[0].length,
+    evaluate = (theta, todo) => {
+      let value = 0;
+      const gradient = new Array(k).fill(0),
+        information = zeros(k, k);
+      x.forEach((r, i) => {
+        const wi = w ? w[i] : 1,
+          term = outcomeTerm(model, dot(r, theta), y[i]),
+          e = y[i] - term.mean;
+        value -= 0.5 * wi * e * e;
+        if (!todo) return;
+        const curvature = term.dmean * term.dmean - e * term.d2mean;
+        for (let a = 0; a < k; a++) {
+          gradient[a] += wi * e * term.dmean * r[a];
+          for (let c = 0; c < k; c++)
+            information[a][c] += wi * curvature * r[a] * r[c];
+        }
+      });
+      return { value, gradient, information };
+    };
+  return maximizeNR(evaluate, new Array(k).fill(0), 100);
+}
 /** Fits a Poisson regression of y on the rows x by Newton's method. */
-function fitPoisson(x, y, w) {
+function fitPoisson(x, y, w, limit = 100, fromZero = false) {
   const k = x[0].length,
     evaluate = (theta, todo) => {
       let value = 0;
@@ -239,8 +351,9 @@ function fitPoisson(x, y, w) {
     start = new Array(k).fill(0),
     total = w ? w.reduce((t, v) => t + v, 0) : x.length,
     mean = y.reduce((t, v, i) => t + (w ? w[i] : 1) * v, 0) / total;
-  if (x.every((r) => r[k - 1] === 1) && mean > 0) start[k - 1] = Math.log(mean);
-  return maximizeNR(evaluate, start, 100);
+  if (!fromZero && x.every((r) => r[k - 1] === 1) && mean > 0)
+    start[k - 1] = Math.log(mean);
+  return maximizeNR(evaluate, start, limit);
 }
 
 // ----- displays shared by the commands -----
@@ -293,7 +406,15 @@ const capWidth = (session) => (session.settings?.linesize ?? 80) - 67;
  * the products of B summed within the clusters of a variable when one is
  * given. Returns the variance and the number of clusters.
  */
-function sandwichOf(contributions, size, rows, w, cluster, frequency) {
+function sandwichOf(
+  contributions,
+  size,
+  rows,
+  w,
+  cluster,
+  frequency,
+  forced = new Set(),
+) {
   const A = zeros(size, size),
     B = zeros(size, size),
     sums = new Map();
@@ -317,14 +438,68 @@ function sandwichOf(contributions, size, rows, w, cluster, frequency) {
   for (const sum of sums.values())
     for (let a = 0; a < size; a++)
       for (let c = 0; c < size; c++) B[a][c] += sum[a] * sum[c];
-  const inv = inverse(A);
-  if (!inv) throw new StataError("the estimating equations are singular", 498);
+  const { inv, dropped } = generalizedInverse(A, forced);
   const V = multiply(multiply(inv, B), transpose(inv));
+  // A parameter the equations do not identify has no standard error: one
+  // set aside, and one that moves along a direction in which the
+  // equations do not change (each set-aside parameter moved by one, the
+  // kept ones solving the rest).
+  const missing = new Array(size).fill(false),
+    keptAt = A.map((_, k) => k).filter((k) => !dropped.includes(k));
+  for (const c of dropped) {
+    missing[c] = true;
+    const direction = keptAt.map(
+        (r) => -keptAt.reduce((t, s) => t + inv[r][s] * A[s][c], 0),
+      ),
+      largest = Math.max(1, ...direction.map(Math.abs));
+    keptAt.forEach((r, a) => {
+      if (Math.abs(direction[a]) > 1e-6 * largest) missing[r] = true;
+    });
+  }
   return {
     V: V.map((row, a) => row.map((v, c) => (v + V[c][a]) / 2)),
     clusters: cluster ? sums.size : null,
     A,
+    inv,
+    dropped,
+    missing,
   };
+}
+/**
+ * The inverse of A, or where A is singular the inverse of what is left
+ * when the parameters it cannot identify are set aside, as gmm sets them
+ * aside: each in turn, those whose pivot is nil once the ones before are
+ * swept, and those in `forced`. Their rows and columns are zero.
+ */
+function generalizedInverse(A, forced = new Set()) {
+  const size = A.length;
+  if (!forced.size) {
+    const inv = inverse(A);
+    if (inv) return { inv, dropped: [] };
+  }
+  const W = A.map((r) => r.slice()),
+    dropped = [];
+  for (let c = 0; c < size; c++) {
+    const scale = Math.max(
+      ...A[c].map(Math.abs),
+      ...A.map((r) => Math.abs(r[c])),
+    );
+    if (forced.has(c) || !(Math.abs(W[c][c]) > 1e-13 * scale)) {
+      dropped.push(c);
+      continue;
+    }
+    for (let r = 0; r < size; r++) {
+      if (r === c || dropped.includes(r)) continue;
+      const f = W[r][c] / W[c][c];
+      if (f) for (let a = 0; a < size; a++) W[r][a] -= f * W[c][a];
+    }
+  }
+  const kept = A.map((_, k) => k).filter((k) => !dropped.includes(k)),
+    sub = inverse(kept.map((r) => kept.map((c) => A[r][c]))),
+    inv = zeros(size, size);
+  if (!sub) throw new StataError("the estimating equations are singular", 498);
+  kept.forEach((r, a) => kept.forEach((c, b) => (inv[r][c] = sub[a][b])));
+  return { inv, dropped };
 }
 
 // ======================================================================
@@ -374,6 +549,13 @@ function specifications(text) {
   return { groups, rest };
 }
 
+/**
+ * Whether text follows the parenthesised specifications that is not if,
+ * in, a weight or the options: a model written without its parentheses.
+ */
+const unenclosed = (rest) =>
+  rest.trim() !== "" && !/^(,|\[|if\b|in\b)/.test(rest.trim());
+
 /** One model specification: its variables and its options. */
 function readSpecification(session, text, allowed, what) {
   const [head, tail] = splitAtComma(text),
@@ -413,13 +595,25 @@ function weightsOf(session, parsed) {
 function levelNamed(session, variable, text, levels, option) {
   const raw = String(text).trim();
   let value = Number(raw);
-  if (!/^-?[\d.]+$/.test(raw)) {
+  if (!/^-?\d+$/.test(raw)) {
+    // As _teffects_label2value reads a label: the variable needs a value
+    // label, and the label must be one of its own.
+    if (!variable.valueLabel)
+      throw new StataError(`variable ${variable.name} has no label`, 459);
     const map = session.data.valueLabels.get(variable.valueLabel);
     value = NaN;
     for (const [v, label] of map ?? []) if (label === raw) value = v;
     if (Number.isNaN(value))
       throw new StataError(
-        `invalid ${option}(${raw}) specification; label ${raw} not found`,
+        smclParagraph(
+          [
+            `label ${raw} cannot be found in value label ${variable.valueLabel} for variable ${variable.name}`,
+          ],
+          session.settings?.linesize ?? 80,
+          0,
+          0,
+          0,
+        ).join("\n"),
         459,
       );
   }
@@ -446,12 +640,30 @@ const framed = (session, words, constant, only) =>
  * after.
  */
 function estimateTeffects(session, spec) {
-  const { sub, kind, outcome, treatment, parsed, stat, cluster } = spec,
+  const { sub, kind, outcome, treatment, parsed, stat, cluster, ctx } = spec,
+    cmm = spec.cmm ?? "ml",
     options = parsed.options,
     weights = weightsOf(session, parsed),
     tVariable = session.data.get(session.varlist(treatment.words[0])[0]);
-  if (isStringType(tVariable.type))
-    throw new StataError("string variables not allowed", 109);
+  // A string variable in either model, as syntax refuses it, with the
+  // model named and the outline of the syntax.
+  for (const [words, which] of [
+    [treatment.words, "treatment"],
+    [outcome.words, "outcome"],
+  ])
+    for (const word of words) {
+      const bare = word.replace(/^(i|c|ib\d+|ibn)\./, "");
+      if (!/^[A-Za-z_]\w*$/.test(bare)) continue;
+      const string = session
+        .varlist(bare)
+        .find((name) => isStringType(session.data.get(name).type));
+      if (string)
+        throw outlined(
+          sub,
+          `string variables not allowed in varlist;\n${string} is a string variable\n    The ${which}-model is misspecified.`,
+          109,
+        );
+    }
   for (const word of outcome.words.slice(1)) {
     const bare = word.replace(/^(i|c|ib\d+|ibn)\./, "");
     if (
@@ -514,7 +726,7 @@ function estimateTeffects(session, spec) {
       `a treatment of ${levels.length} levels is not available with teffects ${sub} in the browser yet; teffects ra takes one, and ${sub} a treatment of two levels`,
       198,
     );
-  if (levels.length > 2 && stat === "atet")
+  if (levels.length > 2 && stat === "atet" && sub !== "ra")
     throw new StataError(
       "atet with a treatment of more than two levels is not available in the browser yet",
       198,
@@ -570,50 +782,102 @@ function estimateTeffects(session, spec) {
       "the treatment model has no parameters; drop noconstant or name its variables",
       198,
     );
+  // The notes of variables omitted for collinearity: the treatment
+  // model's, then the outcome model's, as Stata parses them.
+  if (kind.treatment) ft.notes(ctx);
+  if (kind.outcome) fo.notes(ctx);
 
-  // The treatment model, and Stata's checks of what it predicts.
+  // The treatment model, and Stata's checks of what it predicts: the
+  // model is fitted as mlogit (logit) or probit fits it, in at most 50
+  // steps, and an observation is completely determined where it predicts
+  // the observed level within the root of the machine's precision.
   let gamma = [];
   if (kind.treatment) {
+    // probit, unlike mlogit, stops where one variable alone separates the
+    // levels, which teffects reports as its initial estimates failing.
+    if (model === "probit")
+      for (let a = 0; a < m; a++) {
+        const ones = z.filter((_, i) => T[i]).map((r) => r[a]),
+          zeros = z.filter((_, i) => !T[i]).map((r) => r[a]);
+        if (
+          Math.max(...zeros) < Math.min(...ones) ||
+          Math.max(...ones) < Math.min(...zeros)
+        )
+          throw new StataError(
+            "treatment model initial estimates failed",
+            2000,
+          );
+      }
     let fitted;
     try {
-      fitted = fitBinary(model, z, T, w);
+      fitted = fitBinary(model, z, T, w, 50);
     } catch (error) {
       if (!(error instanceof StataError)) throw error;
       fitted = { converged: false, theta: new Array(m).fill(0) };
     }
     gamma = fitted.theta;
     const p = z.map((r) => binaryTerm(model, dot(r, gamma), 1).p),
-      determined = p.filter((v) => !(v > 1e-10 && v < 1 - 1e-10)).length;
-    if (determined && (model === "logit" || !fitted.converged))
+      [successes, failures] = determinedCounts(
+        model,
+        z.map((r) => dot(r, gamma)),
+        T,
+      );
+    if (model === "logit" && successes + failures)
       throw new StataError(
-        `treatment model has ${determined} observation${determined === 1 ? "" : "s"} completely determined; the model, as specified, is not identified`,
+        `treatment model has ${successes + failures} observation${successes + failures === 1 ? "" : "s"} completely determined; the model, as specified, is not identified`,
         322,
       );
+    determinedNotes(session, ctx, "treatment", successes, failures);
     // No level's probability under the tolerance (for atet, the treated
     // level's not above one less it).
-    const tolerance = 1e-5,
+    const tolerance = spec.pstolerance ?? 1e-5,
+      shown = applyFormat(tolerance, "%9.3e").trim(),
+      violators = new Set(),
       messages = [];
     if (atet) {
-      const over = p.filter((v) => v > 1 - tolerance).length;
-      if (over)
+      const over = rows.filter((_, i) => p[i] > 1 - tolerance);
+      over.forEach((i) => violators.add(i));
+      if (over.length)
         messages.push(
-          `treatment ${treated} has ${over} propensity score${over > 1 ? "s" : ""} greater than 1 - ${applyFormat(tolerance, "%9.3e")}`,
+          `treatment ${treated} has ${over.length} propensity score${over.length > 1 ? "s" : ""} greater than 1 - ${shown}`,
         );
     } else
       levels.forEach((level, j) => {
-        const under = p.filter(
-          (v) => (j === tIndex ? v : 1 - v) < tolerance,
-        ).length;
-        if (under)
+        const under = rows.filter(
+          (_, i) => (j === tIndex ? p[i] : 1 - p[i]) < tolerance,
+        );
+        under.forEach((i) => violators.add(i));
+        if (under.length)
           messages.push(
-            `treatment ${level} has ${under} propensity score${under > 1 ? "s" : ""} less than ${applyFormat(tolerance, "%9.3e")}`,
+            `treatment ${level} has ${under.length} propensity score${under.length > 1 ? "s" : ""} less than ${shown}`,
           );
       });
-    if (messages.length)
-      throw new StataError(
-        `${messages.join("\n")}\ntreatment overlap assumption has been violated; use option osample() to identify the overlap violators`,
-        498,
+    if (spec.osample) {
+      const values = new Array(session.data.n).fill(MISSING);
+      for (const i of rows) values[i] = violators.has(i) ? 1 : 0;
+      session.data.generate(spec.osample, values, { type: "byte" });
+      session.data.get(spec.osample).label = "overlap violation indicator";
+    }
+    if (messages.length) {
+      const width = session.settings?.linesize ?? 80,
+        lines = messages.flatMap((text) =>
+          smclParagraph([text], width, 0, 0, 0),
+        );
+      lines.push(
+        ...smclParagraph(
+          [
+            spec.osample
+              ? `treatment overlap assumption has been violated by observations identified in variable osample(${spec.osample})`
+              : "treatment overlap assumption has been violated; use option osample() to identify the overlap violators",
+          ],
+          width,
+          0,
+          0,
+          0,
+        ),
       );
+      throw new StataError(lines.join("\n"), 498);
+    }
   }
   // Observation i's probability of each level at the parameters th, each
   // one's derivative in the index z*gamma, and the treatment model's score.
@@ -643,45 +907,95 @@ function estimateTeffects(session, spec) {
           ];
 
   // Each block solved in closed form: the treatment model, then the
-  // outcome regressions, then the means.
-  const theta = new Array(K).fill(0);
+  // outcome regressions, then the means. A regression its data cannot
+  // identify (whose collinear columns are dropped, in order, as regress
+  // drops them) is where Stata's gmm finds its surface not concave and
+  // stops without converging.
+  const theta = new Array(K).fill(0),
+    unidentified = new Set();
   gamma.forEach((v, q) => (theta[gAt + q] = v));
   const prs = kind.treatment ? rows.map((_, i) => propensity(i, theta)) : [];
-  if (kind.outcome)
+  if (kind.outcome) {
+    let successes = 0,
+      failures = 0,
+      joint = null;
     levels.forEach((_, j) => {
       const own = [];
       d.forEach((dj, i) => dj === j && own.push(i));
       const rowsOf = own.map((i) => x[i]),
         ys = own.map((i) => y[i]),
         ws = own.map(
-          (i) => weightOf(i) * (sub === "ipwra" ? ratio(prs[i], j)[0] : 1),
+          (i) =>
+            weightOf(i) *
+            (sub === "ipwra"
+              ? ratio(prs[i], j)[0]
+              : cmm === "wnls"
+                ? (1 / prs[i].p[j]) * (1 / prs[i].p[j] - 1)
+                : 1),
         );
       let beta;
-      if (om === "linear") beta = leastSquares(rowsOf, ys, ws);
-      else {
+      if (cmm !== "ml" && om !== "linear") {
         let fit = null;
         try {
-          fit =
-            om === "poisson"
-              ? fitPoisson(rowsOf, ys, ws)
-              : fitBinary(
-                  om,
-                  rowsOf,
-                  ys.map((v) => (v ? 1 : 0)),
-                  ws,
-                );
+          fit = fitNLS(om, rowsOf, ys, ws);
         } catch (error) {
           if (!(error instanceof StataError)) throw error;
         }
-        beta = fit?.converged ? fit.theta : null;
+        if (!fit?.theta)
+          throw new StataError(
+            `the outcome model of treatment level ${levels[j]} could not be fitted`,
+            498,
+          );
+        beta = fit.theta;
+      } else if (om === "linear") {
+        const fit = leastSquaresDropping(rowsOf, ys, ws);
+        beta = fit.beta;
+        fit.dropped.forEach((a) => unidentified.add(bAt(j) + a));
+      } else {
+        // Stata fits every level's model at once, as one model of the
+        // outcome on the levels' indicators interacted with the
+        // regressors, from zero and in at most 20 steps.
+        if (!joint) {
+          const jointRows = x.map((r, i) =>
+              levels.flatMap((_, l) => (d[i] === l ? r : r.map(() => 0))),
+            ),
+            jointWeights = rows.map(
+              (_, i) =>
+                weightOf(i) * (sub === "ipwra" ? ratio(prs[i], d[i])[0] : 1),
+            );
+          let fit = null;
+          try {
+            fit =
+              om === "poisson"
+                ? fitPoisson(jointRows, y, jointWeights, 20, true)
+                : fitBinary(
+                    om,
+                    jointRows,
+                    y.map((v) => (v ? 1 : 0)),
+                    jointWeights,
+                    20,
+                    true,
+                  );
+          } catch (error) {
+            if (!(error instanceof StataError)) throw error;
+          }
+          if (!fit?.theta)
+            throw new StataError("outcome model initial estimates failed", 498);
+          joint = fit.theta;
+          if (om !== "poisson") {
+            [successes, failures] = determinedCounts(
+              om,
+              jointRows.map((r) => dot(r, joint)),
+              y.map((v) => (v ? 1 : 0)),
+            );
+          }
+        }
+        beta = joint.slice(j * ko, (j + 1) * ko);
       }
-      if (!beta)
-        throw new StataError(
-          `the outcome model of treatment level ${levels[j]} is not identified`,
-          498,
-        );
       beta.forEach((v, a) => (theta[bAt(j) + a] = v));
     });
+    determinedNotes(session, ctx, "outcome", successes, failures);
+  }
   const xb = (i, j, th) => {
     let total = 0;
     for (let a = 0; a < ko; a++) total += x[i][a] * th[bAt(j) + a];
@@ -726,16 +1040,29 @@ function estimateTeffects(session, spec) {
           fitted = term.mean,
           residual = y[i] - fitted,
           [r, dr] = pr && own ? ratio(pr, j) : [0, 0];
-        // Level j's outcome regression, weighted under ipwra.
+        // Level j's outcome regression, weighted under ipwra; by
+        // (weighted) nonlinear least squares under aipw's nls and wnls.
         if (kind.outcome && own) {
-          const omega = sub === "ipwra" ? r : 1,
-            domega = sub === "ipwra" ? dr : 0;
+          let omega = sub === "ipwra" ? r : 1,
+            domega = sub === "ipwra" ? dr : 0,
+            score = term.s,
+            dscore = term.ds;
+          if (cmm !== "ml") {
+            score = residual * term.dmean;
+            dscore = -term.dmean * term.dmean + residual * term.d2mean;
+            if (cmm === "wnls") {
+              const q = 1 / pr.p[j],
+                dq = -pr.dp[j] / pr.p[j] ** 2;
+              omega = q * (q - 1);
+              domega = (2 * q - 1) * dq;
+            }
+          }
           for (let a = 0; a < ko; a++) {
-            psi[bAt(j) + a] = omega * x[i][a] * term.s;
+            psi[bAt(j) + a] = omega * x[i][a] * score;
             for (let b = 0; b < ko; b++)
-              jac[bAt(j) + a][bAt(j) + b] = omega * term.ds * x[i][a] * x[i][b];
+              jac[bAt(j) + a][bAt(j) + b] = omega * dscore * x[i][a] * x[i][b];
             for (let q = 0; q < m; q++)
-              jac[bAt(j) + a][gAt + q] = domega * x[i][a] * term.s * z[i][q];
+              jac[bAt(j) + a][gAt + q] = domega * x[i][a] * score * z[i][q];
           }
         }
         // Level j's mean.
@@ -768,8 +1095,34 @@ function estimateTeffects(session, spec) {
       return { psi, jac };
     });
   const frequency = weights?.type === "fweight",
-    at = equations(theta),
-    { V: Vtheta, clusters, A } = sandwichOf(at, K, rows, w, cluster, frequency),
+    at = equations(theta);
+  // Stata's aipw, atet divides the equations of the means by the share
+  // treated in the sample, but their derivatives by the share treated
+  // among every observation of the data with a treatment (unweighted
+  // both), so that the variance it reports carries the ratio of the two.
+  if (sub === "aipw" && atet) {
+    let all = 0,
+      allTreated = 0;
+    for (const v of tVariable.data)
+      if (!isMissing(v)) {
+        all++;
+        if (v === treated) allTreated++;
+      }
+    const ratioOfShares =
+      (T.reduce((t, v) => t + v, 0) / n) * (all / allTreated);
+    at.forEach(({ jac }) => {
+      for (let j = 0; j < L; j++)
+        for (let a = 0; a < K; a++) jac[j][a] *= ratioOfShares;
+    });
+  }
+  const {
+      V: Vtheta,
+      clusters,
+      A,
+      inv: step,
+      dropped,
+      missing,
+    } = sandwichOf(at, K, rows, w, cluster, frequency, unidentified),
     total = w ? w.reduce((t, v) => t + v, 0) : n,
     sumOf = (list) => {
       const sum = new Array(K).fill(0);
@@ -780,7 +1133,6 @@ function estimateTeffects(session, spec) {
     },
     criterion = (sum) => dot(sum, sum) / (total * total),
     sum = sumOf(at),
-    step = inverse(A),
     next = theta.map((v, a) => v - dot(step[a], sum)),
     criteria = [criterion(sum), criterion(sumOf(equations(next)))];
 
@@ -805,7 +1157,11 @@ function estimateTeffects(session, spec) {
       ...Array.from({ length: K - L }, (_, k) => unit(L + k)),
     ],
     bFit = Lmat.map((r) => dot(r, theta)),
-    VFit = multiply(multiply(Lmat, Vtheta), transpose(Lmat));
+    VFit = multiply(multiply(Lmat, Vtheta), transpose(Lmat)),
+    missingFit = Lmat.map((r) => r.some((v, k) => v && missing[k])),
+    // gmm stops without converging where its surface is not concave: an
+    // equation it cannot identify.
+    converged = !dropped.length;
 
   // e(b)'s names with their equations, base levels included.
   const tName = tVariable.name,
@@ -850,14 +1206,19 @@ function estimateTeffects(session, spec) {
       stripe,
       b: place.map((k) => (k >= 0 ? bFit[k] : 0)),
       V: place.map((r) =>
-        place.map((k) => (r >= 0 && k >= 0 ? VFit[r][k] : 0)),
+        place.map((k) =>
+          r >= 0 && k >= 0 && !missingFit[r] && !missingFit[k] ? VFit[r][k] : 0,
+        ),
       ),
       estimable: place.map((k) => k >= 0),
+      seMissing: place.map((k) => k >= 0 && missingFit[k]),
       columns: [],
       N,
       sample: rows,
       vce: cluster ? "cluster" : "robust",
       teffects: {
+        converged,
+        unidentified: dropped.length > 0,
         sub,
         stat,
         tvar: tName,
@@ -866,10 +1227,12 @@ function estimateTeffects(session, spec) {
         treated,
         tmodel: kind.treatment ? model : null,
         omodel: om,
+        cmm,
         outcomeFrame: kind.outcome ? fo : null,
         treatmentFrame: kind.treatment ? ft : null,
         clusters,
         clustvar: cluster?.name ?? null,
+        weightExp: parsed.weight?.exp ?? null,
       },
     },
     counts = Object.fromEntries(
@@ -888,25 +1251,28 @@ function estimateTeffects(session, spec) {
       ...counts,
       k_eq: new Set(stripe.map((s) => s.equation)).size,
       k_levels: L,
-      treated,
-      control,
-      converged: 1,
+      // aipw names the control first.
+      ...(sub === "aipw" ? { control, treated } : { treated, control }),
+      converged: converged ? 1 : 0,
       ...(cluster ? { N_clust: clusters } : {}),
       cmd: "teffects",
+      cmdline: spec.cmdline,
       predict: "teffects_p",
       estat_cmd: "teffects_estat",
       marginsnotok: "_ALL",
       vcetype: "Robust",
       vce: cluster ? "cluster" : "robust",
       ...(cluster ? { clustvar: cluster.name } : {}),
-      ...(kind.treatment ? { tmodel: model } : {}),
+      ...(sub === "ipw" ? { tmodel: model } : {}),
       depvar: fitted.depvar,
       tvar: tName,
       subcmd: sub,
+      ...(kind.treatment && sub !== "ipw" ? { tmodel: model } : {}),
       ...(kind.outcome ? { omodel: om } : {}),
       stat,
       title,
       tlevels: levels.join(" "),
+      ...(sub === "aipw" ? { cme: cmm } : {}),
       properties: "b V",
     };
   return { model: fitted, results, criteria };
@@ -920,22 +1286,77 @@ const frameWidth = (f) =>
     f.names.at(-1) === "_cons" ? 5 : 0,
   );
 
+/**
+ * The display options _get_diopts takes for these tables: cformat(),
+ * pformat() and sformat(), each refused when not a numeric format and
+ * set aside, with a note, when wider than its column; and nofvlabel.
+ */
+function displayFormats(options, ctx) {
+  const column = (name, widest) => {
+    const format = options[name];
+    if (format === undefined) return null;
+    const spec = parseFormat(format.trim());
+    if (!spec || spec.kind !== "number")
+      throw new StataError(
+        `invalid ${name}() -- '${format.trim()}' found where numeric format expected`,
+        198,
+      );
+    if (spec.width > widest) {
+      ctx.out(`note: invalid ${name}(), using default`);
+      return null;
+    }
+    return format.trim();
+  };
+  return {
+    cformat: column("cformat", 9),
+    pformat: column("pformat", 5),
+    sformat: column("sformat", 8),
+    nofvlabel: !!options.nofvlabel,
+  };
+}
+/**
+ * A coefficient's cells after its label, tested against the normal or t
+ * with df degrees of freedom, in the formats given: a missing standard
+ * error leaves every cell but the coefficient a dot.
+ */
+function tableCells(b, se, level, df, formats = {}) {
+  const { cformat, pformat, sformat } = formats;
+  if (!cformat && !pformat && !sformat)
+    return row("", b, se, level, df).slice(1);
+  const number = (v) => (cformat ? applyFormat(v, cformat).trim() : g(v));
+  if (!(se > 0))
+    return `${number(b).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
+  const z = b / se,
+    p = df ? 2 * ttail(df, Math.abs(z)) : 2 * normal(-Math.abs(z)),
+    critical = df
+      ? invttail(df, (1 - level / 100) / 2)
+      : invnormal(1 - (1 - level / 100) / 2),
+    pText = pformat ? applyFormat(p, pformat).trim() : applyFormat(p, "%5.3f");
+  return `${number(b).padStart(11)}${number(se).padStart(11)}${sformat ? applyFormat(z, sformat).trim().padStart(9) : statistic(z)}${pText.length > 5 ? `   ${pText}` : pText.padStart(8)}${number(b - critical * se).padStart(13)}${number(b + critical * se).padStart(12)}`;
+}
+
 /** Prints a teffects fit: its header and its table. */
 function showTeffects(session, model, ctx, options) {
   const { level, aequations, coeflegend, baseLevels } = options,
+    formats = options.formats ?? {},
     te = model.teffects,
     tVariable = session.data.get(te.tvar),
-    label = (v) => String(tVariable ? labelled(session, tVariable, v) : v);
+    label = (v) =>
+      String(
+        tVariable && !formats.nofvlabel ? labelled(session, tVariable, v) : v,
+      );
   ctx.out(
     `${"Treatment-effects estimation".padEnd(48)}Number of obs     = ${count(model.N).padStart(10)}`,
   );
   ctx.out(`Estimator      : ${ESTIMATORS[te.sub].title}`);
+  const by =
+    te.sub !== "aipw"
+      ? ""
+      : ` by ${{ ml: "ML", nls: "NLS", wnls: "WNLS" }[te.cmm ?? "ml"]}`;
   ctx.out(
-    `Outcome model  : ${te.sub === "ipw" ? "weighted mean" : `${{ linear: "linear", logit: "logit", probit: "probit", poisson: "Poisson" }[te.omodel ?? "linear"]}${te.sub === "aipw" ? " by ML" : ""}`}`,
+    `Outcome model  : ${te.sub === "ipw" ? "weighted mean" : `${{ linear: "linear", logit: "logit", probit: "probit", poisson: "Poisson" }[te.omodel ?? "linear"]}${by}`}`,
   );
   ctx.out(`Treatment model: ${te.tmodel ?? "none"}`);
-  if (te.clustvar && !coeflegend)
-    ctx.out(clusterNote(te.clusters, te.clustvar, count));
   // The effects and means: each under its equation, the treatment
   // variable's name above its levels.
   const main = [];
@@ -971,7 +1392,16 @@ function showTeffects(session, model, ctx, options) {
     cell = (k) =>
       coeflegend
         ? legendCell(model.b[k], name(k))
-        : row("", model.b[k], Math.sqrt(model.V[k][k]), level, 0).slice(1);
+        : tableCells(
+            model.b[k],
+            model.seMissing?.[k] ? NaN : Math.sqrt(model.V[k][k]),
+            level,
+            0,
+            formats,
+          );
+  // The note of clusters is aligned with the table's right edge.
+  if (te.clustvar && !coeflegend)
+    ctx.out(clusterNote(te.clusters, te.clustvar, count, w + 66));
   if (coeflegend) legendHeads(ctx, w, model.depvar);
   else heads(ctx, w, model.depvar, level, true);
   let current = null;
@@ -1005,22 +1435,74 @@ function showTeffects(session, model, ctx, options) {
     );
   }
   ctx.out(rule(w));
+  if (te.converged === false) ctx.out("Warning: Convergence not achieved.");
 }
+
+/**
+ * What gmm prints after its log when it stops without converging: that it
+ * did not, and where standard errors are missing, why.
+ */
+function convergenceNotes(session, ctx, te) {
+  if (te.converged !== false) return;
+  ctx.out("convergence not achieved");
+  if (te.unidentified)
+    smclParagraph(
+      [
+        "The Gauss-Newton stopping criterion has been met but missing standard errors indicate some of the parameters are not identified.",
+      ],
+      session.settings?.linesize ?? 80,
+      4,
+      4,
+      2,
+    ).forEach((line) => ctx.out(line));
+}
+
+/** teffects's message for a procedure it does not know, as a paragraph. */
+const invalidProcedure = (session) =>
+  new StataError(
+    smclParagraph(
+      [
+        "invalid procedure; expected one of ra, ipw, ipwra, aipw, nnmatch, or psmatch",
+      ],
+      session.settings?.linesize ?? 80,
+      0,
+      0,
+      0,
+    ).join("\n"),
+    198,
+  );
+
+/**
+ * Options teffects does not take are named as typed, together, in
+ * teffects's own words.
+ */
+function notAllowed(words) {
+  return new StataError(
+    `${words.length > 1 ? "options" : "option"} ${words.join(" ")} ${words.length > 1 ? "are" : "is"} not allowed`,
+    198,
+  );
+}
+
+const TEFFECTS_OPTIONS =
+  "[if] [in] [fweight pweight iweight] [, ATE ATET POMeans NLS WNLS AEQuations Level(cilevel) VCE(string) noLOg CONtrol(string) TLEvel(string) COEFLegend BASElevels ALLBASElevels CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL PSTOLerance(string) OSample(string) ITERate(string) TOLerance(string) *]";
 
 function replayTeffects(session, text, ctx) {
   const model = session.estimates;
-  if (!model || model.command !== "teffects")
-    throw new StataError("last estimates not found", 301);
+  if (!model || model.command !== "teffects") throw invalidProcedure(session);
   const parsed = session.parse(
-    "[, AEQuations Level(cilevel) COEFLegend BASElevels ALLBASElevels]",
-    text,
-  );
+      "[, AEQuations Level(cilevel) COEFLegend BASElevels ALLBASElevels CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL *]",
+      text,
+    ),
+    rest = parsed.options["*"] ?? [];
+  if (rest.length) throw notAllowed(rest);
+  const formats = displayFormats(parsed.options, ctx);
   ctx.out("");
   showTeffects(session, model, ctx, {
     level: parsed.options.level,
     aequations: !!parsed.options.aequations,
     coeflegend: !!parsed.options.coeflegend,
     baseLevels: baseLevelsAsked(parsed.options),
+    formats,
   });
 }
 
@@ -1035,8 +1517,21 @@ function teffects(session, text, ctx) {
       198,
     );
   const kind = ESTIMATORS[sub];
-  if (!kind) throw new StataError(`unknown subcommand ${sub}`, 198);
+  if (!kind) throw invalidProcedure(session);
   const { groups, rest } = specifications(after);
+  if (unenclosed(rest))
+    throw new StataError(
+      smclParagraph(
+        [
+          `invalid teffects ${sub} specification; the model specifications should be enclosed in parentheses, or you are missing the comma preceding the options`,
+        ],
+        session.settings?.linesize ?? 80,
+        0,
+        0,
+        0,
+      ).join("\n"),
+      198,
+    );
   if (groups.length < 2)
     throw outlined(
       sub,
@@ -1076,18 +1571,93 @@ function teffects(session, text, ctx) {
     );
   if (!treatment.words.length)
     throw outlined(sub, "treatment variable required");
-  const parsed = session.parse(
-      "[if] [in] [fweight pweight iweight] [, ATE ATET POMeans AEQuations Level(cilevel) VCE(string) noLOg CONtrol(string) TLEvel(string) COEFLegend BASElevels ALLBASElevels | PSTOLerance(real 1e-5) OSample(string) ITERate(integer 300) TOLerance(real 1e-6) NOSHOW]",
-      rest,
-    ),
+  // The options in the order Stata reads them: the display options, the
+  // vce and the iteration controls, those of the estimators with a
+  // treatment model, then whatever is left, which is refused.
+  const parsed = session.parse(TEFFECTS_OPTIONS, rest),
     options = parsed.options,
-    stats = ["ate", "atet", "pomeans"].filter((s) => options[s]);
+    leftover = [...(options["*"] ?? [])];
+  for (const [option, word] of [
+    ["nls", "nls"],
+    ["wnls", "wnls"],
+  ])
+    if (options[option] && sub !== "aipw") leftover.push(word);
+  if (!kind.treatment) {
+    if (options.pstolerance !== undefined)
+      leftover.push(`pstolerance(${options.pstolerance})`);
+    if (options.osample !== undefined)
+      leftover.push(`osample(${options.osample})`);
+  }
+  const formats = displayFormats(options, ctx);
+  // A vce() teffects cannot read is named, and then the option.
+  let cluster;
+  try {
+    ({ cluster } = readVce(session, options, /^robust$/, {
+      multiway: false,
+    }));
+  } catch (error) {
+    if (
+      !(error instanceof StataError) ||
+      /not available|in the browser/.test(error.message)
+    )
+      throw error;
+    throw new StataError(`${error.message}\nin option vce()`, error.code);
+  }
+  const nonnegative = (value, integer) => {
+    if (value === undefined) return;
+    const v = Number(value);
+    if (
+      !/^\s*[-+.\d]/.test(value) ||
+      !Number.isFinite(v) ||
+      v < 0 ||
+      (integer && !Number.isInteger(v))
+    )
+      throw new StataError(
+        integer
+          ? "iterate(#) must be a nonnegative integer"
+          : "tolerance() must be a greater than or equal to 0",
+        198,
+      );
+  };
+  nonnegative(options.iterate, true);
+  nonnegative(options.tolerance, false);
+  let pstolerance = null;
+  if (kind.treatment && options.pstolerance !== undefined) {
+    pstolerance = Number(options.pstolerance);
+    if (!Number.isFinite(pstolerance) || pstolerance < 0 || pstolerance >= 1)
+      throw new StataError(
+        "pstolerance() must be greater than or equal to 0 and less than 1",
+        198,
+      );
+  }
+  let osample = null;
+  if (kind.treatment && options.osample !== undefined) {
+    osample = options.osample.trim();
+    if (!/^[A-Za-z_]\w{0,31}$/.test(osample))
+      throw new StataError(`${osample} invalid name`, 198);
+    if (session.data.names.includes(osample))
+      throw new StataError(
+        `invalid option osample(newvarname); variable ${osample} already exists`,
+        110,
+      );
+  }
+  if (leftover.length) throw notAllowed(leftover);
+  const stats = ["ate", "atet", "pomeans"].filter((s) => options[s]);
   if (stats.length > 1)
     throw new StataError(
-      `options ${stats.join(" and ")} may not be combined`,
+      stats.length === 2
+        ? `${stats[0]} and ${stats[1]} cannot both be specified`
+        : "ate, atet, and pomeans cannot all be specified",
       184,
     );
+  if (options.nls && options.wnls)
+    throw new StataError("nls and wnls cannot both be specified", 184);
   const stat = stats[0] ?? "ate";
+  if (options.control !== undefined && stat === "pomeans")
+    throw new StataError(
+      "options control() and pomeans may not be combined",
+      184,
+    );
   if (options.tlevel !== undefined && stat !== "atet")
     throw new StataError(
       `options tlevel() and ${stat}${stats.length ? "" : " (the default)"} may not be combined`,
@@ -1098,18 +1668,20 @@ function teffects(session, text, ctx) {
       "iweights are not available with teffects in the browser yet; fweights and pweights are",
       198,
     );
-  const { cluster } = readVce(session, options, /^robust$/, {
-      multiway: false,
-    }),
-    fit = estimateTeffects(session, {
-      sub,
-      kind,
-      outcome,
-      treatment,
-      parsed,
-      stat,
-      cluster,
-    });
+  const fit = estimateTeffects(session, {
+    sub,
+    kind,
+    outcome,
+    treatment,
+    parsed,
+    stat,
+    cluster,
+    ctx,
+    cmm: options.nls ? "nls" : options.wnls ? "wnls" : "ml",
+    pstolerance,
+    osample,
+    cmdline: `teffects ${trimmed.replace(/\s+/g, " ")}`,
+  });
   session.estimates = fit.model;
   session.results.e = fit.results;
   ctx.out("");
@@ -1121,13 +1693,16 @@ function teffects(session, text, ctx) {
         `Iteration ${k}:  EE criterion = ${value.toExponential(3).replace(/e([+-])(\d)$/, "e$10$2")}`,
       ),
     );
-    ctx.out("");
   }
+  convergenceNotes(session, ctx, fit.model.teffects);
+  if (options.log !== false || fit.model.teffects.converged === false)
+    ctx.out("");
   showTeffects(session, fit.model, ctx, {
     level: options.level,
     aequations: !!options.aequations,
     coeflegend: !!options.coeflegend,
     baseLevels: baseLevelsAsked(options),
+    formats,
   });
 }
 
@@ -1240,6 +1815,49 @@ function heckmanLikelihood(x, z, y, s, w) {
   };
 }
 
+/**
+ * The variance heckman's two-step probit reports. heckman fits its first
+ * step under version 6, whose probit takes plain Newton steps from zero
+ * and, once the step it would take next is small (g'inv(H)g under 5e-7,
+ * a bound found from Stata's own results),
+ * takes it but reports the inverse of the information where it started,
+ * not at the estimates. Returns null where Newton's steps do not settle.
+ */
+function version6Variance(z, s) {
+  const k = z[0].length,
+    theta = new Array(k).fill(0);
+  const at = (th) => {
+    let value = 0;
+    const gradient = new Array(k).fill(0),
+      information = zeros(k, k);
+    z.forEach((r, i) => {
+      const term = binaryTerm("probit", dot(r, th), s[i]);
+      value += term.ll;
+      for (let a = 0; a < k; a++) {
+        gradient[a] += term.s * r[a];
+        for (let c = 0; c < k; c++) information[a][c] -= term.ds * r[a] * r[c];
+      }
+    });
+    return { value, gradient, information };
+  };
+  let current = at(theta);
+  for (let step = 0; step < 100; step++) {
+    const inv = inverse(current.information);
+    if (!inv) return null;
+    const delta = inv.map((r) => dot(r, current.gradient));
+    if (dot(current.gradient, delta) < 5e-7) return inv;
+    let next = theta.map((v, a) => v + delta[a]),
+      value = at(next).value;
+    for (let half = 0; half < 30 && !(value >= current.value); half++) {
+      next = next.map((v, a) => (v + theta[a]) / 2);
+      value = at(next).value;
+    }
+    theta.splice(0, k, ...next);
+    current = at(theta);
+  }
+  return null;
+}
+
 /** The selection equation's rows: its variables with a constant. */
 function selectionFrame(session, words, constant, only) {
   // frame reads its first word as a dependent variable; the first
@@ -1271,10 +1889,6 @@ function waldOf(b, V, at) {
   );
 }
 
-/** A row with no test: an ancillary parameter and its interval. */
-const plainRow = (label, value, se, low, high) =>
-  `${label}|${g(value).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(low).padStart(13)}${g(high).padStart(12)}`;
-
 /** The header of _crcshdr: title rows, then the test and the likelihood. */
 function crcsHeader(ctx, rows) {
   for (const [left, label, value] of rows)
@@ -1293,12 +1907,17 @@ function heckman(session, text, ctx) {
     // heckman y = x1 x2 is heckman y x1 x2.
     body = head.replace(/^(\s*[\w.]+)\s*=\s*/, "$1 "),
     parsed = session.parse(
-      "anything [if] [in] [fweight pweight iweight aweight] [, SELect(string) TWOstep MLe noCONstant Level(cilevel) noLOg VCE(string) Robust CLuster(string) Mills(string) NShazard(string) RHOSigma RHOTrunc RHOLimited RHOForce | FIRst NOSKIP LRMODEL FROM(string) OFFset(varname) SCore(string) CONSTraints(string) TECHnique(string) ITERate(integer 300)]",
+      "anything [if] [in] [fweight pweight iweight aweight] [, SELect(string) TWOstep MLe noCONstant Level(cilevel) noLOg VCE(string) Robust CLuster(string) Mills(string) NShazard(string) RHOSigma RHOTrunc RHOLimited RHOForce noHEADer NOCNSReport CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL ITERate(integer 300) | FIRst NOSKIP LRMODEL FROM(string) OFFset(varname) SCore(string) CONSTraints(string) TECHnique(string)]",
       `${body}${tail === null ? "" : `,${tail}`}`,
     ),
     options = parsed.options;
-  if (options.select === undefined)
+  if (!options.select?.trim())
     throw new StataError("option select() required", 198);
+  const display = {
+      formats: displayFormats(options, ctx),
+      noheader: options.header === false,
+    },
+    cmdline = `heckman ${trimmed.replace(/\s+/g, " ")}`;
   if (options.twostep && options.mle)
     throw new StataError("only one of mle and twostep is allowed.", 198);
   const weights = weightsOf(session, parsed);
@@ -1353,6 +1972,18 @@ function heckman(session, text, ctx) {
     words = parsed.anything.trim().split(/\s+/).filter(Boolean),
     yVariable = session.data.get(session.varlist(words[0])[0]),
     constant = options.constant !== false;
+  // A string variable has no numeric value, which heckman finds as an
+  // empty sample.
+  for (const word of [...words, ...selWords]) {
+    const bare = word.replace(/^(i|c|ib\d+|ibn)\./, "");
+    if (
+      /^[A-Za-z_]\w*$/.test(bare) &&
+      session
+        .varlist(bare)
+        .some((name) => isStringType(session.data.get(name).type))
+    )
+      throw new StataError("no observations", 2000);
+  }
   if (!selConstant && !selWords.length)
     throw new StataError("no variables specified for selection", 198);
   if (!constant && words.length < 2)
@@ -1408,7 +2039,17 @@ function heckman(session, text, ctx) {
     throw new StataError("negative weights encountered", 402);
   if (frequency && w.some((v) => !Number.isInteger(v)))
     throw new StataError("may not use noninteger frequency weights", 401);
-  if (n1 === n)
+  // The notes of omitted variables: the selection equation's, then the
+  // outcome's, as heckman removes them.
+  sz.notes(ctx);
+  fx.notes(ctx);
+  // Stata checks that the selection indicator's sum falls short of its
+  // count, which a 0/2 indicator, for one, does not.
+  const indicatorSum = rows.reduce(
+    (t, i) => t + (selVariable ? selVariable.data[i] : Number(isSelected(i))),
+    0,
+  );
+  if (n1 === n || indicatorSum === rows.length)
     throw new StataError(
       "Dependent variable never censored because of selection: \nmodel would simplify to OLS regression",
       498,
@@ -1486,7 +2127,9 @@ function heckman(session, text, ctx) {
       rows,
       second,
       gamma,
-      Vprobit: probit.V,
+      // heckman fits its first step under version 6, whose probit reports
+      // the variance at the start of its last step.
+      Vprobit: version6Variance(z, s) ?? probit.V,
       lambda,
       delta,
       sigma,
@@ -1502,6 +2145,8 @@ function heckman(session, text, ctx) {
       level,
       millsOut,
       probitConverged: probit.converged,
+      display,
+      cmdline,
     });
 
   // Maximum likelihood from the two-step estimates.
@@ -1515,7 +2160,7 @@ function heckman(session, text, ctx) {
     ];
   let full;
   try {
-    full = maximizeNR(like.evaluate, start, 300);
+    full = maximizeNR(like.evaluate, start, options.iterate);
   } catch (error) {
     if (error instanceof StataError && error.log && options.log !== false) {
       ctx.out("");
@@ -1656,6 +2301,7 @@ function heckman(session, text, ctx) {
     p_c: chi2tail(1, chi2c),
     chi2_c: chi2c,
     ...(cluster ? { N_clust: clusters } : {}),
+    cmdline,
     marginsok: "default XB PSel YCond YExpected Mills NShazard",
     marginsnotok: "SCores SCORESEL stdp stdf stdpsel",
     cmd: "heckman",
@@ -1664,14 +2310,68 @@ function heckman(session, text, ctx) {
     title2: "(regression model with sample selection)",
     chi2_ct: robustish ? "Wald" : "LR",
     depvar: selDepName ? `${depvar} ${selDepName}` : depvar,
+    ...(weights ? { wexp: `= ${parsed.weight.exp}`, wtype: weights.type } : {}),
     chi2type: "Wald",
+    deriv_useminbound: "off",
+    opt: "moptimize",
     ...(robustish ? { vcetype: "Robust" } : {}),
     vce: model.vce,
     ...(cluster ? { clustvar: cluster.name } : {}),
     ...(millsOut ? { mills: millsOut } : {}),
-    ...(weights ? { wexp: `= ${parsed.weight.exp}`, wtype: weights.type } : {}),
     title: "Heckman selection model",
+    user: "heck_d2",
+    ml_method: "e2",
+    technique: "nr",
+    which: "max",
     properties: "b V",
+    // ml's iteration log (20 places) and the gradient at the estimates;
+    // under a robust variance, the variance the model itself implies.
+    // The constraints that hold omitted coefficients at zero.
+    ...(place.some((k) => k < 0)
+      ? {
+          "matrix:Cns": {
+            rowNames: place
+              .map((k, j) => (k < 0 ? `_ce${j}` : null))
+              .filter(Boolean),
+            colNames: [...model.names, "_r"],
+            values: place
+              .map((k, j) =>
+                k < 0 ? [...place.map((_, c) => Number(c === j)), 0] : null,
+              )
+              .filter(Boolean),
+          },
+        }
+      : {}),
+    "matrix:ilog": {
+      rowNames: ["r1"],
+      colNames: Array.from({ length: 20 }, (_, k) => `c${k + 1}`),
+      values: [
+        Array.from({ length: 20 }, (_, k) =>
+          k < full.log.length ? full.log[k] : MISSING,
+        ),
+      ],
+    },
+    "matrix:gradient": {
+      rowNames: ["r1"],
+      colNames: model.names,
+      values: [
+        (() => {
+          const gradient = like.evaluate(full.theta, 1).gradient;
+          return place.map((k) => (k >= 0 ? gradient[k] : 0));
+        })(),
+      ],
+    },
+    ...(robustish
+      ? {
+          "matrix:V_modelbased": {
+            rowNames: model.names,
+            colNames: model.names,
+            values: place.map((r) =>
+              place.map((c) => (r >= 0 && c >= 0 ? full.V[r][c] : 0)),
+            ),
+          },
+        }
+      : {}),
   };
   if (options.log !== false) {
     ctx.out("");
@@ -1679,6 +2379,9 @@ function heckman(session, text, ctx) {
       ctx.out(iterationText(k, "Log likelihood", v, full.notes[k])),
     );
   }
+  // ml says so where it stopped short, after its log or, without one,
+  // first.
+  if (!full.converged) ctx.out("convergence not achieved");
   if (millsOut) {
     const values = new Array(session.data.n).fill(MISSING);
     rows.forEach((i, k) => {
@@ -1687,8 +2390,7 @@ function heckman(session, text, ctx) {
     session.data.generate(millsOut, values, { type: "double" });
     session.data.get(millsOut).label = "nonselection hazard";
   }
-  ctx.out("");
-  showHeckman(session, model, ctx, level);
+  showHeckman(session, model, ctx, level, display);
   if (!full.converged) throw new StataError("convergence not achieved", 430);
 }
 
@@ -1813,12 +2515,16 @@ function heckmanTwostep(session, ctx, fit) {
     selambda: Math.sqrt(V[K - 1][K - 1]),
     fconverged: fit.probitConverged ? 1 : 0,
     rank: K,
+    cmdline: fit.cmdline,
     cmd: "heckman",
     vce: "conventional",
     method: "two-step",
     rhometh: method,
     depvar: selName !== "select" ? `${depvar} ${selName}` : depvar,
     ...(fit.millsOut ? { mills: fit.millsOut } : {}),
+    marginsnotok: "SCores SCORESEL stdp stdf stdpsel YCond YExpected",
+    marginsok:
+      "XB XBSel Mills NShazard PSel E(passthru) Pr(passthru) YStar(passthru) default",
     predict: "heckma_p",
     title: model.title,
     title2: "(regression model with sample selection)",
@@ -1831,45 +2537,48 @@ function heckmanTwostep(session, ctx, fit) {
     session.data.generate(fit.millsOut, values, { type: "double" });
     session.data.get(fit.millsOut).label = "nonselection hazard";
   }
-  ctx.out("");
-  showHeckman(session, model, ctx, level);
+  showHeckman(session, model, ctx, level, fit.display);
 }
 
 /** Prints a heckman fit, two-step or ML. */
-function showHeckman(session, model, ctx, level) {
+function showHeckman(session, model, ctx, level, display = {}) {
   const h = model.heckman,
     ml = h.method === "ml",
-    word = h.robust ? "Log pseudolikelihood" : "Log likelihood";
-  crcsHeader(ctx, [
-    [
-      ml
-        ? "Heckman selection model"
-        : "Heckman selection model -- two-step estimates",
-      "Number of obs",
-      count(model.N),
-    ],
-    [
-      "(regression model with sample selection)".padEnd(54) +
-        "Selected    = " +
-        count(h.n1).padStart(10),
-    ],
-    [" ".repeat(54) + "Nonselected = " + count(model.N - h.n1).padStart(10)],
-    [""],
-    [
-      "",
-      `Wald chi2(${h.df})`,
-      applyFormat(h.chi2, h.chi2 < 1e6 ? "%9.2f" : "%9.2e").trim(),
-    ],
-    [
-      ml ? `${word} = ${applyFormat(model.ll, "%9.0g")}` : "",
-      "Prob > chi2",
-      applyFormat(
-        isMissing(h.chi2) ? MISSING : chi2tail(h.df, h.chi2),
-        "%10.4f",
-      ).trim(),
-    ],
-  ]);
-  ctx.out("");
+    word = h.robust ? "Log pseudolikelihood" : "Log likelihood",
+    formats = display.formats ?? {};
+  if (!display.noheader) {
+    ctx.out("");
+    crcsHeader(ctx, [
+      [
+        ml
+          ? "Heckman selection model"
+          : "Heckman selection model -- two-step estimates",
+        "Number of obs",
+        count(model.N),
+      ],
+      [
+        "(regression model with sample selection)".padEnd(54) +
+          "Selected    = " +
+          count(h.n1).padStart(10),
+      ],
+      [" ".repeat(54) + "Nonselected = " + count(model.N - h.n1).padStart(10)],
+      [""],
+      [
+        "",
+        `Wald chi2(${ml || h.df ? h.df : ""})`,
+        applyFormat(h.chi2, h.chi2 < 1e6 ? "%9.2f" : "%9.2e").trim(),
+      ],
+      [
+        ml ? `${word} = ${applyFormat(model.ll, "%9.0g")}` : "",
+        "Prob > chi2",
+        applyFormat(
+          isMissing(h.chi2) ? MISSING : chi2tail(h.df, h.chi2),
+          "%10.4f",
+        ).trim(),
+      ],
+    ]);
+    ctx.out("");
+  }
   if (h.clustvar) ctx.out(clusterNote(h.clusters, h.clustvar, count));
   // The first column counts the equations' names and their coefficients.
   const cap = Math.max(12, capWidth(session)),
@@ -1886,7 +2595,17 @@ function showHeckman(session, model, ctx, level) {
       ),
     ),
     cell = (k) =>
-      row("", model.b[k], Math.sqrt(model.V[k][k]), level, 0).slice(1),
+      tableCells(
+        model.b[k],
+        model.seMissing?.[k] ? NaN : Math.sqrt(model.V[k][k]),
+        level,
+        0,
+        formats,
+      ),
+    number = (v) =>
+      formats.cformat ? applyFormat(v, formats.cformat).trim() : g(v),
+    plainRow = (label, value, se, low, high) =>
+      `${label}|${number(value).padStart(11)}${number(se).padStart(11)}${" ".repeat(17)}${number(low).padStart(13)}${number(high).padStart(12)}`,
     shownDepvar = h.selName === "select" ? model.depvar : "";
   heads(ctx, w, shownDepvar, level, h.robust);
   const equation = (name, f) => {
@@ -1966,9 +2685,14 @@ function replayHeckman(session, text, ctx) {
   const model = session.estimates;
   if (!model || model.command !== "heckman")
     throw new StataError("last estimates not found", 301);
-  const parsed = session.parse("[, Level(cilevel)]", text);
-  ctx.out("");
-  showHeckman(session, model, ctx, parsed.options.level);
+  const parsed = session.parse(
+    "[, Level(cilevel) noHEADer CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL]",
+    text,
+  );
+  showHeckman(session, model, ctx, parsed.options.level, {
+    formats: displayFormats(parsed.options, ctx),
+    noheader: parsed.options.header === false,
+  });
 }
 
 // ======================================================================
@@ -1984,20 +2708,32 @@ function replayHeckman(session, text, ctx) {
  * in the small-sample adjustment (areg) or not (xtreg). Returns the
  * coefficients and variance of the kept columns, the constant last.
  */
-function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
+function absorbedFit(
+  y,
+  columns,
+  absorb,
+  vce,
+  absorbedCounts,
+  weights = null,
+  frequency = false,
+) {
   const n = y.length,
+    wt = (i) => (weights ? weights[i] : 1),
+    root = y.map((_, i) => Math.sqrt(wt(i))),
+    totalWeight = y.reduce((t, _, i) => t + wt(i), 0),
+    // Each variable less its (weighted) group mean plus its overall mean.
     demean = (values) => {
       if (!absorb) return values.slice();
       const sums = new Map();
       let total = 0;
       values.forEach((v, i) => {
         const entry = sums.get(absorb[i]) ?? [0, 0];
-        entry[0] += v;
-        entry[1] += 1;
+        entry[0] += wt(i) * v;
+        entry[1] += wt(i);
         sums.set(absorb[i], entry);
-        total += v;
+        total += wt(i) * v;
       });
-      const mean = total / n;
+      const mean = total / totalWeight;
       return values.map((v, i) => {
         const [s, c] = sums.get(absorb[i]);
         return v - s / c + mean;
@@ -2005,6 +2741,9 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
     },
     ty = demean(y),
     all = [...columns.map(demean), new Array(n).fill(1)],
+    // The columns as weighted least squares sees them: times the root of
+    // each weight.
+    scaled = all.map((col) => col.map((v, i) => v * root[i])),
     constant = all.length - 1,
     // Modified Gram-Schmidt, the constant first and then each column in
     // turn: a column whose part the kept ones leave is nil, beside its
@@ -2013,7 +2752,7 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
     R = [],
     kept = [];
   for (const k of [constant, ...columns.map((_, j) => j)]) {
-    const v = all[k].slice(),
+    const v = scaled[k].slice(),
       r = [];
     for (const q of Q) {
       const c = dot(q, v);
@@ -2021,9 +2760,11 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
       for (let i = 0; i < n; i++) v[i] -= c * q[i];
     }
     const norm2 = dot(v, v),
-      mean = all[k].reduce((t, u) => t + u, 0) / n,
+      mean = all[k].reduce((t, u, i) => t + wt(i) * u, 0) / totalWeight,
       spread =
-        k === constant ? n : all[k].reduce((t, u) => t + (u - mean) ** 2, 0);
+        k === constant
+          ? totalWeight
+          : all[k].reduce((t, u, i) => t + wt(i) * (u - mean) ** 2, 0);
     if (!(spread > 0) || !(norm2 > 1e-13 * spread)) continue;
     const norm = Math.sqrt(norm2);
     Q.push(v.map((u) => u / norm));
@@ -2043,7 +2784,7 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
       Rinv[i][j] = -t / R[i][i];
     }
   }
-  const qy = Q.map((q) => dot(q, ty)),
+  const qy = Q.map((q) => q.reduce((t, v, i) => t + v * root[i] * ty[i], 0)),
     betaKept = Rinv.map((r) => dot(r, qy)),
     breadKept = Rinv.map((r) => Rinv.map((s) => dot(r, s))),
     order = kept
@@ -2059,6 +2800,8 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
     e = ty.map((v, i) => v - X.reduce((t, col, a) => t + col[i] * beta[a], 0)),
     groups = absorb ? new Set(absorb).size : 0,
     K = p + (absorb && absorbedCounts ? groups - 1 : 0),
+    // A frequency weight counts its observation that many times.
+    N = frequency ? totalWeight : n,
     meat = zeros(p, p);
   let scale,
     clusters = null;
@@ -2066,20 +2809,22 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
     const sums = new Map();
     for (let i = 0; i < n; i++) {
       const sum = sums.get(vce.cluster[i]) ?? new Array(p).fill(0);
-      for (let a = 0; a < p; a++) sum[a] += X[a][i] * e[i];
+      for (let a = 0; a < p; a++) sum[a] += wt(i) * X[a][i] * e[i];
       sums.set(vce.cluster[i], sum);
     }
     for (const sum of sums.values())
       for (let a = 0; a < p; a++)
         for (let c = 0; c < p; c++) meat[a][c] += sum[a] * sum[c];
     clusters = sums.size;
-    scale = (clusters / (clusters - 1)) * ((n - 1) / (n - K));
+    scale = (clusters / (clusters - 1)) * ((N - 1) / (N - K));
   } else {
-    for (let i = 0; i < n; i++)
+    for (let i = 0; i < n; i++) {
+      const m = frequency ? wt(i) : wt(i) * wt(i);
       for (let a = 0; a < p; a++)
         for (let c = 0; c < p; c++)
-          meat[a][c] += e[i] * e[i] * X[a][i] * X[c][i];
-    scale = n / (n - K);
+          meat[a][c] += m * e[i] * e[i] * X[a][i] * X[c][i];
+    }
+    scale = N / (N - K);
   }
   const W = multiply(multiply(bread, meat), bread),
     V = W.map((r, a) => r.map((v, c) => ((v + W[c][a]) / 2) * scale));
@@ -2090,7 +2835,7 @@ function absorbedFit(y, columns, absorb, vce, absorbedCounts) {
     clusters,
     df_r: vce.cluster ? clusters - 1 : null,
     rank: p,
-    N: n,
+    N,
   };
 }
 
@@ -2157,8 +2902,11 @@ function wrappedNote(session, ctx, text) {
 }
 
 /** Prints a didregress or xtdidregress fit. */
-function showDid(session, model, ctx, { level, aequations, coeflegend }) {
-  const did = model.did;
+function showDid(session, model, ctx, options) {
+  const { level, aequations, coeflegend } = options,
+    formats = options.formats ?? {},
+    did = model.did,
+    contrast = formats.nofvlabel ? "(1 vs 0)" : did.contrast;
   ctx.out("");
   showGroupTable(ctx, model);
   ctx.out("");
@@ -2169,7 +2917,6 @@ function showDid(session, model, ctx, { level, aequations, coeflegend }) {
   );
   ctx.out(`Data type: ${did.xt ? "Longitudinal" : "Repeated cross-sectional"}`);
   ctx.out("");
-  if (did.clustvar) ctx.out(clusterNote(did.clusters, did.clustvar, count));
   const t = did.df_r !== null,
     w = Math.max(
       12,
@@ -2177,7 +2924,7 @@ function showDid(session, model, ctx, { level, aequations, coeflegend }) {
         Math.max(12, capWidth(session)),
         Math.max(
           did.treatment.length,
-          did.contrast.length + 1,
+          contrast.length + 1,
           ...(aequations ? did.controls.columns.map((c) => c.name.length) : []),
         ),
       ),
@@ -2188,18 +2935,20 @@ function showDid(session, model, ctx, { level, aequations, coeflegend }) {
             model.b[k],
             `${model.stripe[k].equation}:${model.stripe[k].name}`,
           )
-        : row(
-            "",
+        : tableCells(
             model.b[k],
             Math.sqrt(model.V[k][k]),
             level,
             did.df_r ?? 0,
-          ).slice(1);
+            formats,
+          );
+  if (did.clustvar)
+    ctx.out(clusterNote(did.clusters, did.clustvar, count, w + 66));
   if (coeflegend) legendHeads(ctx, w, model.depvar);
   else heads(ctx, w, model.depvar, level, true, "Coefficient", t);
   ctx.out(equationLine("ATET", w));
   ctx.out(`${abbreviate(did.treatment, w).padStart(w)} |`);
-  const pieces = labelLines(did.contrast, w);
+  const pieces = labelLines(contrast, w);
   pieces
     .slice(0, -1)
     .forEach((piece) => ctx.out(`${`${piece}  `.padStart(w + 1)}|`));
@@ -2251,16 +3000,23 @@ function didregress(xt) {
       if (!model || model.command !== command)
         throw new StataError("last estimates not found", 301);
       const parsed = session.parse(
-        "[, AEQuations Level(cilevel) COEFLegend]",
+        "[, AEQuations Level(cilevel) COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL]",
         text,
       );
       return showDid(session, model, ctx, {
         level: parsed.options.level,
         aequations: !!parsed.options.aequations,
         coeflegend: !!parsed.options.coeflegend,
+        formats: displayFormats(parsed.options, ctx),
       });
     }
     const { groups, rest } = specifications(text);
+    if (unenclosed(rest))
+      throw paragraphError(
+        session,
+        "invalid outcome-model or treatment specifications; ",
+        "The model specifications should be enclosed in parentheses, or maybe you are missing the comma preceding the options.",
+      );
     if (groups.length !== 2)
       throw new StataError(
         groups.length < 2
@@ -2285,19 +3041,20 @@ function didregress(xt) {
     if (!words.length) throw new StataError("varlist required", 100);
     if (treatWords.length !== 1)
       throw new StataError(
-        treatWords.length ? "too many variables specified" : "varlist required",
+        `for the treatment specification:\n${treatWords.length ? "too many variables specified" : "varname required"}`,
         treatWords.length ? 103 : 100,
       );
     const parsed = session.parse(
-        "[if] [in] [fweight pweight aweight] [, Group(string) Time(string) VCE(string) noLOg AEQuations Level(cilevel) noGTEFFECTS COEFLegend | AGGREGate(string) WILDBOOTstrap(string) noINTERact]",
+        "[if] [in] [fweight pweight aweight] [, Group(string) Time(string) VCE(string) noLOg AEQuations Level(cilevel) noGTEFFECTS COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLABEL | AGGREGate(string) WILDBOOTstrap(string) noINTERact]",
         rest,
       ),
       options = parsed.options;
-    if (parsed.weight)
+    if (parsed.weight && xt)
       throw new StataError(
-        `weights are not available with ${command} in the browser yet`,
+        "weights are not available with xtdidregress in the browser yet; didregress takes them",
         198,
       );
+    const weights = weightsOf(session, parsed);
     if (options.group === undefined)
       throw new StataError("option group() required", 198);
     const groupNames = session.varlist(options.group);
@@ -2319,11 +3076,14 @@ function didregress(xt) {
       tVariable = session.data.get(session.varlist(options.time)[0]),
       dVariable = session.data.get(session.varlist(treatWords[0])[0]),
       pVariable = panel ? session.data.get(panel) : null;
-    for (const v of [gVariable, tVariable])
-      if (isStringType(v.type))
-        throw new StataError("group variables may not be strings", 198);
     if (isStringType(dVariable.type))
-      throw new StataError("string variables not allowed", 109);
+      throw new StataError(
+        `for the treatment specification:\nstring variables not allowed in varlist;\n${dVariable.name} is a string variable`,
+        109,
+      );
+    if (isStringType(tVariable.type))
+      throw new StataError(`${tVariable.name} must be a numeric variable`, 198);
+    const formats = displayFormats(options, ctx);
     // The vce: clustered by group unless asked otherwise.
     let vceText = (options.vce ?? "").trim(),
       robust = false,
@@ -2353,10 +3113,70 @@ function didregress(xt) {
               ![gVariable, tVariable, dVariable, pVariable]
                 .filter(Boolean)
                 .some((v) => isMissing(v.data[i])) &&
-              (!clusterVariable || !noCluster(clusterVariable, i)),
+              (!clusterVariable || !noCluster(clusterVariable, i)) &&
+              (!weights ||
+                (!isMissing(weights.values[i]) && weights.values[i] !== 0)),
           ),
-      ),
-      fr = frame(
+      );
+    if (weights) {
+      for (const i of keep) {
+        if (weights.values[i] < 0)
+          throw new StataError("negative weights encountered", 402);
+        if (weights.type === "fweight" && !Number.isInteger(weights.values[i]))
+          throw new StataError("may not use noninteger frequency weights", 401);
+      }
+      if (weights.type !== "fweight")
+        ctx.out(
+          `(sum of wgt is ${applyFormat(
+            [...keep].reduce((t, i) => t + weights.values[i], 0),
+            "%18.0gc",
+          ).trim()})`,
+        );
+    }
+    // Stata's checks, in its order: the treatment is 0 and 1, the time a
+    // nonnegative integer that varies, the group numeric and a
+    // nonnegative integer.
+    const dValues = [...keep].map((i) => dVariable.data[i]),
+      treatmentText =
+        "The treatment variable is either zero for controlled observations or 1 for treated observations. To use a continuous treatment, specify " +
+        `(${dVariable.name}, continuous) for your treatment specification.`;
+    if (dValues.every((v) => v === dValues[0]))
+      throw paragraphError(
+        session,
+        "invalid treatment variable",
+        `Either the treatment does not vary or it is never zero. ${treatmentText}`,
+        2000,
+      );
+    if (Math.min(...dValues) !== 0 || Math.max(...dValues) !== 1)
+      throw paragraphError(
+        session,
+        "invalid treatment variable",
+        treatmentText,
+        2000,
+      );
+    const times = [...keep].map((i) => tVariable.data[i]);
+    if (times.some((v) => v < 0 || !Number.isInteger(v)))
+      throw new StataError(
+        "time variable may only have nonnegative integer values",
+        451,
+      );
+    if (times.every((v) => v === times[0]))
+      throw new StataError("time variable must vary", 451);
+    if (isStringType(gVariable.type))
+      throw new StataError(
+        "group variables may not be strings\n    To create a numeric group variable use the encode command.",
+        198,
+      );
+    if (
+      [...keep].some(
+        (i) => gVariable.data[i] < 0 || !Number.isInteger(gVariable.data[i]),
+      )
+    )
+      throw new StataError(
+        `group variable ${gVariable.name} may not contain noninteger or negative values`,
+        452,
+      );
+    const fr = frame(
         session,
         {
           anything: [...words, `i.${tVariable.name}`].join(" "),
@@ -2370,16 +3190,6 @@ function didregress(xt) {
       d = rows.map((i) => dVariable.data[i]),
       time = rows.map((i) => tVariable.data[i]),
       group = rows.map((i) => gVariable.data[i]);
-    if (
-      !d.every((v) => v === 0 || v === 1) ||
-      !d.some((v) => v === 1) ||
-      !d.some((v) => v === 0)
-    )
-      throw paragraphError(
-        session,
-        "invalid treatment variable",
-        `Either the treatment does not vary or it is never zero. The treatment variable is either zero for controlled observations or 1 for treated observations. To use a continuous treatment, specify (${dVariable.name}, continuous) for your treatment specification.`,
-      );
     // Each group's treatment: treated if any of its observations is.
     const ever = new Map(),
       firstTreated = new Map(),
@@ -2415,6 +3225,47 @@ function didregress(xt) {
           );
         home.set(id, gVariable.data[i]);
       }
+    }
+    // Every observation of a group in a period has one treatment: Stata
+    // compares the treatment's extremes, spread and mean with those of its
+    // means within the group and period, in float.
+    {
+      const cells = new Map();
+      d.forEach((v, k) => {
+        const key = `${group[k]}\u0000${time[k]}`,
+          cell = cells.get(key) ?? [0, 0];
+        cell[0] += v;
+        cell[1] += 1;
+        cells.set(key, cell);
+      });
+      const means = d.map((_, k) => {
+          const [sum, size] = cells.get(`${group[k]}\u0000${time[k]}`);
+          return sum / size;
+        }),
+        summary = (values) => {
+          const mean = values.reduce((t, v) => t + v, 0) / values.length,
+            sd = Math.sqrt(
+              values.reduce((t, v) => t + (v - mean) ** 2, 0) /
+                Math.max(1, values.length - 1),
+            );
+          return [Math.max(...values), Math.min(...values), sd, mean].map((v) =>
+            Math.fround(v),
+          );
+        },
+        [a, b] = [summary(means), summary(d)];
+      if (a.some((v, k) => v !== b[k]))
+        throw new StataError(
+          [
+            `treatment variable varies at the ${gVariable.name} ${tVariable.name} level`,
+            ...smclParagraph(
+              [
+                "For example, if state and year are your group() and time() variables and you have individual-level data, all individuals in the state in a given year should have the same treatment. Your data do not fulfill this requirement.",
+              ],
+              session.settings?.linesize ?? 80,
+            ),
+          ].join("\n"),
+          198,
+        );
     }
     const treatedTimes = [...firstTreated.values()],
       controlTimes = [...firstControl.values()],
@@ -2469,7 +3320,15 @@ function didregress(xt) {
       vce = clusterVariable
         ? { cluster: rows.map((i) => clusterVariable.data[i]) }
         : { robust: true },
-      fit = absorbedFit(y, columns, absorb, vce, !xt);
+      fit = absorbedFit(
+        y,
+        columns,
+        absorb,
+        vce,
+        !xt,
+        weights && rows.map((i) => weights.values[i]),
+        weights?.type === "fweight",
+      );
     if (!fit.kept.includes(columns.length - 1))
       throw new StataError(
         `${dVariable.name} omitted because of collinearity`,
@@ -2530,7 +3389,7 @@ function didregress(xt) {
         V,
         estimable: place.map((k) => k >= 0),
         columns: [],
-        N: n,
+        N: fit.N,
         sample: rows,
         vce: clusterVariable ? "cluster" : "robust",
         did: {
@@ -2555,15 +3414,22 @@ function didregress(xt) {
           controls,
           covariates: words.slice(1),
           y: fr.dependent.name,
+          weightExp: parsed.weight?.exp ?? null,
         },
       };
     session.estimates = model;
-    session.results.e = {
-      N: n,
-      rank: Math.min(fit.rank, fit.clusters ? fit.clusters - 1 : fit.rank),
+    // The rank Stata reports is that of the (cluster-)robust variance,
+    // which has no more dimensions than the clusters allow.
+    const scalars = {
+      N: fit.N,
+      rank: matrixRank(fit.V),
       ...(clusterVariable ? { N_clust: fit.clusters, df_r: fit.df_r } : {}),
       tmin,
       tmax,
+    };
+    session.results.e = {
+      ...scalars,
+      cmdline: `${command} ${trimmed.replace(/\s+/g, " ")}`,
       predict: "didregress_p",
       treatment_type: "binary",
       treatment: dVariable.name,
@@ -2575,6 +3441,9 @@ function didregress(xt) {
       ...(clusterVariable ? { clustvar: clusterVariable.name } : {}),
       vcetype: "Robust",
       vce: clusterVariable ? "cluster" : "robust",
+      ...(weights
+        ? { wtype: weights.type, wexp: `= ${parsed.weight.exp}` }
+        : {}),
       _contrast_not_ok: "_ALL",
       marginsnotok: "_ALL",
       groupvars: gVariable.name,
@@ -2594,12 +3463,40 @@ function didregress(xt) {
         ],
       },
     };
+    // areg's notes of what it omitted: a covariate collinear with the
+    // others, the time effects or the groups it absorbs.
+    for (const c of ordered)
+      if (!fit.kept.includes(ordered.indexOf(c)))
+        ctx.out(`note: ${c.name} omitted because of collinearity.`);
     showDid(session, model, ctx, {
       level: options.level,
       aequations: !!options.aequations,
       coeflegend: !!options.coeflegend,
+      formats,
     });
   };
+}
+/**
+ * The rank of a symmetric matrix as Stata's rank of a variance counts it:
+ * scaled to unit diagonal and swept in order, a pivot below 1e-12 of its
+ * own scale adding nothing.
+ */
+function matrixRank(V) {
+  const n = V.length,
+    scale = V.map((r, i) => (r[i] > 0 ? 1 / Math.sqrt(r[i]) : 0)),
+    A = V.map((r, i) => r.map((v, j) => v * scale[i] * scale[j]));
+  let rank = 0;
+  for (let c = 0; c < n; c++) {
+    if (!(A[c][c] > 1e-12)) continue;
+    rank++;
+    const p = A[c][c];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / p;
+      if (f) for (let a = 0; a < n; a++) A[r][a] -= f * A[c][a];
+    }
+  }
+  return rank;
 }
 
 /**
@@ -2638,6 +3535,15 @@ function didEstat(session, text, ctx) {
       `estat ${test} not allowed with option nogteffects`,
       198,
     );
+  // The tests hold the estimates and put them back, which leaves e()'s
+  // scalars listed in the reverse of the order they were set.
+  if (!did.held && session.results.e) {
+    const entries = Object.entries(session.results.e),
+      numbers = entries.filter(([, v]) => typeof v === "number").reverse(),
+      others = entries.filter(([, v]) => typeof v !== "number");
+    session.results.e = Object.fromEntries([...numbers, ...others]);
+    did.held = true;
+  }
   if (!did.clustvar)
     throw new StataError(
       `option vce(${model.vce}) not allowed with estat ${test}`,
@@ -2757,9 +3663,17 @@ function didEstat(session, text, ctx) {
  */
 function heckmanPredict(session, text, ctx) {
   const model = session.estimates,
-    h = model.heckman,
-    parsed = session.parse(
-      "newvarname [if] [in] [, XB YCond YExpected Mills NShazard PSel XBSel STDP STDF STDPSel | E(string) Pr(string) YStar(string) SCores SCORESEL noOFFset]",
+    h = model.heckman;
+  let scoring = null;
+  try {
+    scoring = session.parse("anything [if] [in] [, SCores SCORESEL]", text);
+  } catch {
+    scoring = null;
+  }
+  if (scoring && (scoring.options.scores || scoring.options.scoresel))
+    return heckmanScores(session, scoring, ctx);
+  const parsed = session.parse(
+      "newvarname [if] [in] [, XB YCond YExpected Mills NShazard PSel XBSel STDP STDF STDPSel E(string) Pr(string) YStar(string) | noOFFset]",
       text,
     ),
     options = parsed.options,
@@ -2774,10 +3688,15 @@ function heckmanPredict(session, text, ctx) {
       "stdp",
       "stdf",
       "stdpsel",
-    ].filter((name) => options[name]);
+      "e",
+      "pr",
+      "ystar",
+    ].filter((name) => options[name] !== undefined && options[name] !== false);
   if (asked.length > 1) throw invalid();
   const type = asked[0] ?? "xb";
   if (!asked.length) ctx.out("(option xb assumed; fitted values)");
+  if (["e", "pr", "ystar"].includes(type))
+    return heckmanBounded(session, parsed, type, options[type], ctx);
   const ml = h.method === "ml",
     at = (equation, name) =>
       model.stripe.findIndex((e) => e.equation === equation && e.name === name),
@@ -2853,6 +3772,193 @@ function heckmanPredict(session, text, ctx) {
     ctx.out(
       `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
     );
+  return true;
+}
+
+/** An equation's index at observation i after heckman, or null. */
+function heckmanIndex(model, equation, f, i) {
+  let total = 0;
+  for (const c of f.columns) {
+    const k = model.stripe.findIndex(
+      (e) => e.equation === equation && e.name === c.name,
+    );
+    if (k < 0 || !model.estimable[k]) continue;
+    const v = c.value(i);
+    if (isMissing(v)) return null;
+    total += model.b[k] * v;
+  }
+  const k = model.stripe.findIndex(
+    (e) => e.equation === equation && e.name === "_cons",
+  );
+  return k >= 0 ? total + model.b[k] : total;
+}
+
+/**
+ * predict's pr(a,b), e(a,b) and ystar(a,b) after heckman, as regre_p2
+ * computes them for the outcome's latent normal with mean xb and the
+ * model's sigma: a bound may be a number, a variable, or . for none.
+ */
+function heckmanBounded(session, parsed, type, spec, ctx) {
+  const model = session.estimates,
+    h = model.heckman,
+    parts = String(spec).split(",");
+  if (parts.length !== 2) throw invalid();
+  const bound = (text) => {
+      const t = text.trim();
+      if (t === ".") return { at: () => MISSING, text: "." };
+      if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t))
+        return { at: () => Number(t), text: t };
+      const v = session.data.get(session.varlist(t)[0]);
+      return { at: (i) => v.data[i], text: t };
+    },
+    [lower, upper] = parts.map(bound),
+    sigma =
+      h.method === "ml"
+        ? Math.exp(model.b[model.stripe.findIndex((e) => e.name === "lnsigma")])
+        : h.sigma,
+    rows = session.rows(parsed, null),
+    values = new Array(session.data.n).fill(MISSING),
+    probability = (xb, a, b) =>
+      isMissing(a) && isMissing(b)
+        ? 1
+        : isMissing(b)
+          ? normal(-(a - xb) / sigma)
+          : isMissing(a)
+            ? normal((b - xb) / sigma)
+            : normal((b - xb) / sigma) - normal((a - xb) / sigma),
+    expected = (xb, a, b) => {
+      const L = (a - xb) / sigma,
+        U = (b - xb) / sigma;
+      if (isMissing(a) && isMissing(b)) return xb;
+      if (isMissing(b)) return xb + (sigma * density(L)) / normal(-L);
+      if (isMissing(a)) return xb - (sigma * density(U)) / normal(U);
+      return xb - (sigma * (density(U) - density(L))) / (normal(U) - normal(L));
+    };
+  for (const i of rows) {
+    const xb = heckmanIndex(model, model.depvar, h.fx, i),
+      a = lower.at(i),
+      b = upper.at(i);
+    if (xb === null) continue;
+    if (!isMissing(a) && !isMissing(b) && a > b)
+      throw new StataError(
+        `option ${type}(a,b) incorrectly specified; b must be >= a`,
+        198,
+      );
+    if (type === "pr") values[i] = probability(xb, a, b);
+    else if (type === "e") values[i] = expected(xb, a, b);
+    else {
+      const p = probability(xb, a, b),
+        e = expected(xb, a, b);
+      values[i] =
+        isMissing(a) && isMissing(b)
+          ? e
+          : isMissing(b)
+            ? p * e + (1 - p) * a
+            : isMissing(a)
+              ? p * e + (1 - p) * b
+              : p * e +
+                probability(xb, MISSING, a) * a +
+                (1 - p - probability(xb, MISSING, a)) * b;
+    }
+    if (!Number.isFinite(values[i])) values[i] = MISSING;
+  }
+  const name = parsed.varlist[0],
+    depvar = model.depvar,
+    title =
+      lower.text === "." && upper.text === "."
+        ? ""
+        : lower.text === "."
+          ? `${depvar}<${upper.text}`
+          : upper.text === "."
+            ? `${depvar}>${lower.text}`
+            : `${lower.text}<${depvar}<${upper.text}`,
+    sorted = [...session.data.sortedBy];
+  session.data.generate(name, values, {
+    type: parsed.typed?.[0] ? parsed.types[0] : undefined,
+  });
+  session.data.sortedBy = sorted;
+  session.data.get(name).label =
+    type === "pr"
+      ? `Pr(${title || depvar})`
+      : type === "e"
+        ? title
+          ? `E(${depvar}|${title})`
+          : `E(${depvar})`
+        : title
+          ? `E(${depvar}*|${title})`
+          : `E(${depvar})`;
+  const missing = values.filter(isMissing).length;
+  if (missing)
+    ctx.out(
+      `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
+    );
+  return true;
+}
+
+/**
+ * predict's scores after heckman's maximum likelihood: each equation's
+ * derivative of the observation's log likelihood in its index (xb, zg,
+ * athrho, lnsigma), as ml score gives them; stub* names one variable for
+ * each, and scoresel asks for the selection equation's alone.
+ */
+function heckmanScores(session, parsed, ctx) {
+  const model = session.estimates,
+    h = model.heckman,
+    options = parsed.options;
+  if (h.method !== "ml")
+    throw new StataError(
+      `option ${options.scores ? "scores" : "scoresel"} is not allowed with two-step results`,
+      198,
+    );
+  const all = parsed.anything.trim().split(/\s+/).filter(Boolean),
+    // A storage type may lead the names.
+    type = /^(byte|int|long|float|double)$/.test(all[0]) ? all[0] : undefined,
+    words = type ? all.slice(1) : all,
+    stub = words.length === 1 && /^[A-Za-z_]\w*\*$/.test(words[0]),
+    equations = options.scoresel ? [1] : [0, 1, 2, 3],
+    names = stub
+      ? equations.map((_, k) => `${words[0].slice(0, -1)}${k + 1}`)
+      : words;
+  if (!stub && names.length > 1 && names.length < equations.length)
+    throw new StataError("too few variables specified", 102);
+  if (names.length > equations.length)
+    throw new StataError("too many variables specified", 103);
+  for (const name of names) {
+    if (!/^[A-Za-z_]\w*$/.test(name))
+      throw new StataError(`${name} invalid name`, 198);
+    if (session.data.names.includes(name))
+      throw new StataError(`variable ${name} already defined`, 110);
+  }
+  const at = (name) => model.stripe.findIndex((e) => e.name === name),
+    athrho = model.b[at("athrho")],
+    lnsigma = model.b[at("lnsigma")],
+    selDep = model.depvar.split(" ")[1] ?? null,
+    y = session.data.get(model.depvar.split(" ")[0]).data,
+    selVariable = selDep ? session.data.get(selDep).data : null,
+    columns = names.map(() => new Array(session.data.n).fill(MISSING));
+  for (const i of session.rows(parsed, null)) {
+    const zg = heckmanIndex(model, h.selName, h.sz, i);
+    if (zg === null) continue;
+    const selected = selVariable
+      ? !isMissing(selVariable[i]) && selVariable[i] !== 0
+      : !isMissing(y[i]);
+    let gradient;
+    if (!selected) gradient = [0, -mills(-zg), 0, 0];
+    else {
+      const xb = heckmanIndex(model, model.depvar.split(" ")[0], h.fx, i);
+      if (xb === null || isMissing(y[i])) continue;
+      gradient = selectedTerm(y[i], xb, zg, athrho, lnsigma).gradient;
+    }
+    names.forEach((_, k) => (columns[k][i] = gradient[equations[k]]));
+  }
+  const labels = [model.depvar.split(" ")[0], h.selName, "/athrho", "/lnsigma"],
+    sorted = [...session.data.sortedBy];
+  names.forEach((name, k) => {
+    session.data.generate(name, columns[k], { type });
+    session.data.get(name).label =
+      `equation-level score for [${labels[equations[k]]}] from heckman`;
+  });
+  session.data.sortedBy = sorted;
   return true;
 }
 
@@ -2965,25 +4071,48 @@ function teffectsPredict(session, text, ctx) {
       return isMissing(p) ? MISSING : level === te.treated ? p : 1 - p;
     },
     xbOf = (i, level) => indexOf(`OME${level}`, te.outcomeFrame, i),
+    rows = new Set(session.rows(parsed, null)),
     // aipw, atet's conditional mean is the term of its equation, which is
-    // over the treated, divided by the share treated in the sample.
-    tData = session.data.get(te.tvar).data,
-    shareTreated =
-      model.sample.filter((i) => tData[i] === te.treated).length /
-      model.sample.length,
+    // over the treated, divided by the share treated among the
+    // observations predicted (one with no treatment counting as
+    // untreated), weighted as the fit was.
+    weightValues = te.weightExp
+      ? evaluateAll(session.compile(te.weightExp), session.data.n)
+      : null,
+    shareTreated = (() => {
+      if (sub !== "aipw" || te.stat !== "atet") return 1;
+      let top = 0,
+        bottom = 0;
+      for (const i of rows) {
+        const wi = weightValues ? weightValues[i] : 1;
+        if (isMissing(wi)) continue;
+        top += wi * Number(t[i] === te.treated);
+        bottom += wi;
+      }
+      return top / bottom;
+    })(),
+    // As teffects_p computes them, with Stata's arithmetic of missing
+    // values: aipw's correction is nil, with no propensity needed, for an
+    // observation not at the level (ate and pomeans), but missing where
+    // any of its terms is (atet).
     cmeanOf = (i, level) => {
       const v = xbOf(i, level);
       if (isMissing(v)) return v;
       const fitted = outcomeTerm(te.omodel ?? "linear", v, 0).mean;
       if (sub !== "aipw") return fitted;
-      const p = psOf(i, level);
-      if (isMissing(p) || isMissing(y[i]) || isMissing(t[i])) return MISSING;
-      if (te.stat !== "atet")
-        return fitted + (t[i] === level ? (y[i] - fitted) / p : 0);
-      const treated = Number(t[i] === te.treated),
-        r = level === te.treated ? 1 : psOf(i, te.treated) / p;
+      const own = t[i] === level;
+      if (isMissing(y[i])) return MISSING;
+      if (te.stat !== "atet") {
+        if (!own) return fitted;
+        const p = psOf(i, level);
+        return isMissing(p) ? MISSING : fitted + (y[i] - fitted) / p;
+      }
+      const p = psOf(i, level),
+        pt = psOf(i, te.treated);
+      if (isMissing(p) || isMissing(pt) || isMissing(y[i])) return MISSING;
       return (
-        (treated * fitted + (t[i] === level ? r * (y[i] - fitted) : 0)) /
+        (Number(t[i] === te.treated) * fitted +
+          (own ? (pt / p) * (y[i] - fitted) : 0)) /
         shareTreated
       );
     },
@@ -3008,8 +4137,7 @@ function teffectsPredict(session, text, ctx) {
             ? `Linear prediction, ${te.tvar}=${level}`
             : `linear prediction, ${te.tvar}=${level}`,
         psxb: `propensity score, linear prediction, ${te.tvar}=${level}`,
-      })[type],
-    rows = new Set(session.rows(parsed, null));
+      })[type];
   names.forEach((name, k) => {
     const level = chosen[k],
       values = new Array(session.data.n).fill(MISSING);
@@ -3038,12 +4166,30 @@ function teffectsPredict(session, text, ctx) {
 export function causalPostestimation(name, session, text, ctx) {
   const model = session.estimates;
   if (!model?.stripe || !OWN.has(model.command)) return false;
+  if (name === "margins") {
+    // heckman takes margins; teffects and the difference-in-differences
+    // commands mark it not appropriate (e(marginsnotok) _ALL).
+    if (model.command === "heckman") return false;
+    throw new StataError(
+      `command margins not appropriate after ${model.command}`,
+      322,
+    );
+  }
   if (name === "estat") {
     const what = text.trim().split(/[\s,]+/)[0];
     if (model.did && didEstat(session, text, ctx)) return true;
     if (/^vce$/.test(what)) return false;
-    if (model.command === "heckman" && model.ll !== undefined && what === "ic")
-      return false;
+    const summarize = what.length >= 2 && "summarize".startsWith(what);
+    // teffects_estat knows only vce and summarize.
+    if (model.command === "teffects" && !summarize)
+      throw new StataError(`estat ${what} is not allowed`, 321);
+    if (what === "ic") {
+      if (model.ll !== undefined) return false;
+      throw new StataError(
+        "likelihood information not found in last estimation results",
+        321,
+      );
+    }
     throw new StataError(
       `estat ${what} is not available after ${model.command} in the browser yet`,
       198,
@@ -3051,10 +4197,90 @@ export function causalPostestimation(name, session, text, ctx) {
   }
   if (model.command === "heckman") return heckmanPredict(session, text, ctx);
   if (model.command === "teffects") return teffectsPredict(session, text, ctx);
-  throw new StataError(
-    `predict is not available after ${model.command} in the browser yet`,
-    198,
-  );
+  return didPredict(session, text, ctx);
+}
+
+/**
+ * predict after didregress and xtdidregress, as didregress_p computes it:
+ * the linear prediction from the treatment, the covariates, the time
+ * effects and the constant (xb, the default), or the residual less its
+ * mean within the absorbed group or panel among the observations predicted
+ * (residuals).
+ */
+function didPredict(session, text, ctx) {
+  const model = session.estimates,
+    did = model.did,
+    parsed = session.parse("newvarname [if] [in] [, Residuals XB]", text),
+    options = parsed.options;
+  if (options.residuals && options.xb)
+    throw new StataError(
+      "you may specify at most one of xb and residuals",
+      198,
+    );
+  const name = parsed.varlist[0],
+    rows = session.rows(parsed, null),
+    treatment = session.data.get(did.treatment).data,
+    y = session.data.get(model.depvar).data,
+    // The coefficients after the treatment's: the controls, the constant.
+    xb = (i) => {
+      if (isMissing(treatment[i])) return MISSING;
+      let total = model.b[0] * treatment[i];
+      for (const [k, c] of did.controls.columns.entries()) {
+        if (!model.estimable[k + 1]) continue;
+        const v = c.value(i);
+        if (isMissing(v)) return MISSING;
+        total += model.b[k + 1] * v;
+      }
+      return total + model.b.at(-1);
+    },
+    values = new Array(session.data.n).fill(MISSING);
+  if (!options.residuals) {
+    ctx.out("(option xb assumed; fitted values)");
+    for (const i of rows) values[i] = xb(i);
+  } else {
+    const absorbed = did.xt
+        ? session.data.get(did.panel).data
+        : did.gteffects
+          ? session.data.get(did.group).data
+          : null,
+      fitted = new Map(rows.map((i) => [i, xb(i)])),
+      weightValues = did.weightExp
+        ? evaluateAll(session.compile(did.weightExp), session.data.n)
+        : null,
+      sums = new Map();
+    // Stata's sum() treats a missing term as nought, and its mean is over
+    // every observation of the group predicted.
+    if (absorbed)
+      for (const i of rows) {
+        const e = y[i] - fitted.get(i),
+          wi = weightValues ? weightValues[i] : 1,
+          entry = sums.get(absorbed[i]) ?? [0, 0];
+        if (!isMissing(y[i]) && !isMissing(fitted.get(i)) && !isMissing(wi))
+          entry[0] += wi * e;
+        if (!isMissing(wi)) entry[1] += wi;
+        sums.set(absorbed[i], entry);
+      }
+    for (const i of rows) {
+      const f = fitted.get(i);
+      if (isMissing(f) || isMissing(y[i])) continue;
+      const [sum, size] = absorbed ? sums.get(absorbed[i]) : [0, 1];
+      values[i] = y[i] - f - sum / size;
+    }
+  }
+  const sorted = [...session.data.sortedBy];
+  session.data.generate(name, values, {
+    type: parsed.typed?.[0] ? parsed.types[0] : undefined,
+  });
+  session.data.sortedBy = sorted;
+  session.data.get(name).label = options.residuals
+    ? "Residuals"
+    : "Fitted values";
+  const missing = rows.filter((i) => isMissing(values[i])).length;
+  if (missing && !options.residuals)
+    ctx.out(
+      `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
+    );
+  return true;
 }
 const OWN = new Set(["teffects", "heckman", "didregress", "xtdidregress"]);
 

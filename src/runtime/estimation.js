@@ -763,8 +763,13 @@ function tableBlocks(session, model) {
  */
 function levelLabel(session, column) {
   const factors = column.term.components.filter((c) => c.factor),
+    // A level without a value label is shown as its number, even where
+    // the variable has a date format (2020m2 shows as 721).
     pieces = column.levels.map((level, j) =>
-      labelled(session, factors[j].variable, level),
+      /^%-?t/.test(factors[j].variable.format ?? "") &&
+      !session.data.valueLabels?.get(factors[j].variable.valueLabel)?.has(level)
+        ? String(level)
+        : labelled(session, factors[j].variable, level),
     ),
     named = column.levels.some(
       (level, j) =>

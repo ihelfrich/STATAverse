@@ -1364,6 +1364,13 @@ function returns(kind) {
         ctx.out("matrices:");
         ctx.out(`${label("b")} :  1 x ${k}`);
         ctx.out(`${label("V")} :  ${k} x ${k}`);
+        // Other matrices the command stored, such as didregress's
+        // e(group_count), in the order it stored them.
+        for (const [key, value] of entries)
+          if (key.startsWith("matrix:") && value?.values)
+            ctx.out(
+              `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+            );
         if (tabled) {
           if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
           ctx.out(`${label("_N")} :  1 x ${k}`);
@@ -2584,11 +2591,12 @@ COMMANDS.forEach((c, k) => {
         : run(session, text, ctx),
   };
 });
-// predict and estat after teffects, heckman, didregress and xtdidregress
+// predict, estat and margins after teffects, heckman, didregress and xtdidregress
 // are answered by those commands' own module, which refuses what it does
 // not compute rather than let the linear model's predict run.
 COMMANDS.forEach((c, k) => {
-  if (c.name !== "predict" && c.name !== "estat") return;
+  if (c.name !== "predict" && c.name !== "estat" && c.name !== "margins")
+    return;
   const run = COMMANDS[k].run;
   COMMANDS[k] = {
     ...COMMANDS[k],
