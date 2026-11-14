@@ -61,6 +61,7 @@ import {
   tab1,
   tab2,
   tabulate,
+  widenForLabel,
 } from "./reports.js";
 import {
   MAX_STRING_WIDTH,
@@ -731,33 +732,6 @@ function clear(session, text) {
 
 // ----- reports -----
 
-/**
- * When a value label is attached or grows, Stata widens the %g, %f or %e
- * format of each variable carrying it to the bytes of its longest text,
- * dropping a - or 0 modifier; it never narrows one, and leaves dates and
- * the binary formats alone. label values widens only the variables it
- * gives the label to anew, not every one that carries it.
- */
-function widenForLabel(session, name, only = null) {
-  const map = session.data.valueLabels.get(name);
-  if (!map) return;
-  let longest = 0;
-  for (const text of map.values())
-    longest = Math.max(longest, byteLength(text));
-  for (const variable of session.data.variables ?? []) {
-    if (variable.valueLabel !== name || (only && !only.has(variable))) continue;
-    const spec = parseFormat(variable.format ?? "");
-    if (
-      spec?.kind !== "number" ||
-      !/^%-?0?\d+\.\d+[gfe]c?$/.test(variable.format)
-    )
-      continue;
-    const width = Math.min(longest, 2045);
-    if (width > spec.width)
-      variable.format = `%${width}.${spec.digits}${spec.style}${spec.commas ? "c" : ""}`;
-  }
-}
-
 // ----- labels and formats -----
 function label(session, text, ctx) {
   const data = session.data;
@@ -773,12 +747,19 @@ function label(session, text, ctx) {
   } else if ((m = /^da(?:ta?)?\s*([\s\S]*)$/.exec(text)))
     data.label = short(unquoteMacro(m[1]));
   else if ((m = /^de(?:f(?:i(?:ne?)?)?)?\s+(\S+)\s+([\s\S]*)$/.exec(text))) {
-    const [body, options = ""] = m[2].split(/,(?=[^"]*$)/),
+    const [body, optionText = null] = m[2].split(/,(?=[^"]*$)/),
       words = macroWords(body);
     if (!isName(m[1]) || words.length % 2) throw invalid();
-    const exists = data.valueLabels.has(m[1]),
-      add = /\b(add|modify)\b/.test(options),
-      replaceAll = /\breplace\b/.test(options);
+    // nofix leaves the formats of the variables carrying the label as they
+    // are; any other option is refused.
+    const options =
+        optionText === null
+          ? {}
+          : session.parse("[, add modify replace nofix]", "," + optionText)
+              .options,
+      exists = data.valueLabels.has(m[1]),
+      add = Boolean(options.add || options.modify),
+      replaceAll = Boolean(options.replace);
     if (exists && !add && !replaceAll)
       throw new StataError(`label ${m[1]} already defined`, 110);
     const map = new Map(
@@ -799,7 +780,7 @@ function label(session, text, ctx) {
     }
     // add may not change a value the label already has, but empty text
     // removes it, under add as under modify.
-    if (exists && !replaceAll && !/\bmodify\b/.test(options))
+    if (exists && !replaceAll && !options.modify)
       for (const [value, text] of pairs)
         if (text !== "" && map.has(value))
           throw new StataError("invalid attempt to modify label", 180);
@@ -809,21 +790,55 @@ function label(session, text, ctx) {
     // label dir lists the most recently defined or modified label first.
     data.valueLabels.delete(m[1]);
     data.valueLabels.set(m[1], map);
-    widenForLabel(session, m[1]);
+    if (!options.nofix) widenForLabel(session, m[1]);
   } else if ((m = /^val(?:u(?:es?)?)?\s+([\s\S]+)$/.exec(text))) {
-    const words = m[1].trim().split(/\s+/),
+    const [head, optionText] = splitAtComma(m[1]),
+      words = head.trim().split(/\s+/).filter(Boolean);
+    // With options, the label name must be given, and . is not a name.
+    if (optionText !== null && (words.length < 2 || words.at(-1) === "."))
+      throw invalid(", invalid name");
+    const { nofix } =
+        optionText === null
+          ? {}
+          : session.parse("[, nofix]", "," + optionText).options,
       target = words.length > 1 ? words.pop() : ".",
       names = session.varlist(words.join(" ")),
       label = target === "." ? "" : target,
       attached = new Set();
-    for (const name of names) {
-      const variable = data.get(name);
-      if (isStringType(variable.type))
-        throw new StataError("may not label strings", 181);
-      if (variable.valueLabel !== label) attached.add(variable);
-      variable.valueLabel = label;
+    // A string variable stops the command, but the variables before it
+    // keep the label, and are widened for it, as in Stata.
+    try {
+      for (const name of names) {
+        const variable = data.get(name);
+        if (isStringType(variable.type))
+          throw new StataError("may not label strings", 181);
+        if (variable.valueLabel !== label) attached.add(variable);
+        variable.valueLabel = label;
+      }
+    } finally {
+      if (label && !nofix) widenForLabel(session, label, attached);
     }
-    if (label) widenForLabel(session, label, attached);
+  } else if ((m = /^copy(?:\s+([\s\S]*))?$/.exec(text))) {
+    // label copy: a new label with another's values and texts. Unlike
+    // label define, it widens no format.
+    const [head, optionText] = splitAtComma(m[1] ?? ""),
+      names = head.trim().split(/\s+/).filter(Boolean);
+    if (names.length < 2) throw invalid("nothing found where name expected");
+    if (names.length > 2) throw new StataError("varlist not allowed", 101);
+    const [from, to] = names;
+    for (const name of names)
+      if (!isName(name)) throw invalid(`${name} invalid name`);
+    const { replace } =
+      optionText === null
+        ? {}
+        : session.parse("[, replace]", "," + optionText).options;
+    if (!data.valueLabels.has(from))
+      throw new StataError(`label ${from} not found`, 111);
+    if (data.valueLabels.has(to) && !replace)
+      throw new StataError(`label ${to} already defined`, 110);
+    if (from === to) throw new StataError("", 950);
+    data.valueLabels.delete(to);
+    data.valueLabels.set(to, new Map(data.valueLabels.get(from)));
   } else if ((m = /^drop\s+([\s\S]+)$/.exec(text))) {
     for (const name of m[1].trim() === "_all"
       ? [...data.valueLabels.keys()]

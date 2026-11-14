@@ -100271,6 +100271,1303 @@
       ]
     },
     {
+      "id": "numlabel-widens-formats",
+      "source": "clear\nset obs 4\ngenerate x = mod(_n,4)+1\nlabel define l 1 \"Strongly agree\" 2 \"Agree\" 3 \"Disagree\" 4 \"Strongly disagree\"\nlabel values x l\ndescribe x\nnumlabel l, add\ndescribe x\nlist x\nnumlabel l, remove\ndescribe x\nlist x\nformat x %-5.0g\nnumlabel l, add mask(\"(#) \")\ndescribe x\nlist x\ngenerate y = _n\nlabel define a 1 \"1. Uno\" 2 \"Dos\" .a \"Missing\"\nlabel define b 1 \"One\" 2 \"Two\"\nlabel values y a\ncapture noisily numlabel, add\ncapture noisily numlabel a, add detail\ncapture noisily numlabel b, add mask(\"[#] \")\nlabel list b\nnumlabel a, add force\nlabel list a\ndescribe y\ncapture noisily numlabel a, add\ncapture noisily numlabel a, remove mask(\"##\")\ncapture noisily numlabel a, add remove\ncapture noisily numlabel a\ncapture noisily numlabel a, add foo\ncapture noisily numlabel zz, add\nnumlabel a b, remove force\nlabel list a\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate x = mod(_n,4)+1", "lines": [] },
+        {
+          "command": "label define l 1 \"Strongly agree\" 2 \"Agree\" 3 \"Disagree\" 4 \"Strongly disagree\"",
+          "lines": []
+        },
+        { "command": "label values x l", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %17.0g     l"
+          ]
+        },
+        { "command": "numlabel l, add", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %20.0g     l"
+          ]
+        },
+        {
+          "command": "list x",
+          "lines": [
+            "     +----------------------+",
+            "     |                    x |",
+            "     |----------------------|",
+            "  1. |             2. Agree |",
+            "  2. |          3. Disagree |",
+            "  3. | 4. Strongly disagree |",
+            "  4. |    1. Strongly agree |",
+            "     +----------------------+"
+          ]
+        },
+        { "command": "numlabel l, remove", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %20.0g     l"
+          ]
+        },
+        {
+          "command": "list x",
+          "lines": [
+            "     +-------------------+",
+            "     |                 x |",
+            "     |-------------------|",
+            "  1. |             Agree |",
+            "  2. |          Disagree |",
+            "  3. | Strongly disagree |",
+            "  4. |    Strongly agree |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "format x %-5.0g", "lines": [] },
+        { "command": "numlabel l, add mask(\"(#) \")", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %21.0g     l"
+          ]
+        },
+        {
+          "command": "list x",
+          "lines": [
+            "     +-----------------------+",
+            "     |                     x |",
+            "     |-----------------------|",
+            "  1. |             (2) Agree |",
+            "  2. |          (3) Disagree |",
+            "  3. | (4) Strongly disagree |",
+            "  4. |    (1) Strongly agree |",
+            "     +-----------------------+"
+          ]
+        },
+        { "command": "generate y = _n", "lines": [] },
+        {
+          "command": "label define a 1 \"1. Uno\" 2 \"Dos\" .a \"Missing\"",
+          "lines": []
+        },
+        { "command": "label define b 1 \"One\" 2 \"Two\"", "lines": [] },
+        { "command": "label values y a", "lines": [] },
+        {
+          "command": "capture noisily numlabel, add",
+          "lines": [
+            "there are value labels that are only partially numlabel-ed",
+            "specify option detail for a list of these value labels",
+            "specify option force to modify value labels anyway"
+          ]
+        },
+        {
+          "command": "capture noisily numlabel a, add detail",
+          "lines": [
+            "The following value labels are only partially numlabel-ed",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> lname = a",
+            "",
+            "  value         label",
+            "          1     1. Uno",
+            "          2     Dos",
+            "         .a     Missing",
+            "",
+            "specify option force to modify value labels anyway"
+          ]
+        },
+        {
+          "command": "capture noisily numlabel b, add mask(\"[#] \")",
+          "lines": []
+        },
+        {
+          "command": "label list b",
+          "lines": ["b:", "           1 [1] One", "           2 [2] Two"]
+        },
+        { "command": "numlabel a, add force", "lines": [] },
+        {
+          "command": "label list a",
+          "lines": [
+            "a:",
+            "           1 1. Uno",
+            "           2 2. Dos",
+            "          .a .a. Missing"
+          ]
+        },
+        {
+          "command": "describe y",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "y               float   %11.0g     a"
+          ]
+        },
+        {
+          "command": "capture noisily numlabel a, add",
+          "lines": ["(no value label to be modified)"]
+        },
+        {
+          "command": "capture noisily numlabel a, remove mask(\"##\")",
+          "lines": ["mask ## should contain 1 substitution char #"]
+        },
+        {
+          "command": "capture noisily numlabel a, add remove",
+          "lines": ["options add and remove must not be both specified"]
+        },
+        {
+          "command": "capture noisily numlabel a",
+          "lines": ["option add or remove should be specified"]
+        },
+        {
+          "command": "capture noisily numlabel a, add foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily numlabel zz, add",
+          "lines": ["value label zz not found"]
+        },
+        { "command": "numlabel a b, remove force", "lines": [] },
+        {
+          "command": "label list a",
+          "lines": [
+            "a:",
+            "           1 Uno",
+            "           2 Dos",
+            "          .a Missing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "label-values-stops-at-string-variable",
+      "source": "clear\nset obs 3\ngenerate q1 = _n\ngenerate q2 = _n\ngenerate str5 q3 = \"a\"\ngenerate q4 = _n\nlabel define l 1 \"A fairly long label one\" 2 \"Two\"\ncapture noisily label values q1-q4 l\ndescribe q1 q2 q4\nlist q1 q2 q4\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate q1 = _n", "lines": [] },
+        { "command": "generate q2 = _n", "lines": [] },
+        { "command": "generate str5 q3 = \"a\"", "lines": [] },
+        { "command": "generate q4 = _n", "lines": [] },
+        {
+          "command": "label define l 1 \"A fairly long label one\" 2 \"Two\"",
+          "lines": []
+        },
+        {
+          "command": "capture noisily label values q1-q4 l",
+          "lines": ["may not label strings"]
+        },
+        {
+          "command": "describe q1 q2 q4",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "q1              float   %23.0g     l",
+            "q2              float   %23.0g     l",
+            "q4              float   %9.0g"
+          ]
+        },
+        {
+          "command": "list q1 q2 q4",
+          "lines": [
+            "     +--------------------------------------------------------+",
+            "     |                      q1                        q2   q4 |",
+            "     |--------------------------------------------------------|",
+            "  1. | A fairly long label one   A fairly long label one    1 |",
+            "  2. |                     Two                       Two    2 |",
+            "  3. |                       3                         3    3 |",
+            "     +--------------------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "label-nofix-option",
+      "source": "clear\nset obs 4\ngenerate y = _n\ngenerate x = _n\ngenerate z = _n\nlabel define m 1 \"Low income household\" 2 \"Middle\"\nlabel values y m, nofix\ndescribe y\nlist y\nlabel define m 3 \"Highest income household bracket\", add nofix\ndescribe y\nlist y\nformat x %-20.0g\ngenerate y2 = _n\nlabel define l 1 \"Seventeen chars!!\" 2 \"B\"\nlabel values x y2 l\nlabel define l 3 \"Third value with a long label\", add nofix\ndescribe x y2\nlist y2\ncapture noisily label define l 4 \"Four\", foo\ncapture noisily label define l 4 \"Four\", add nof\ncapture noisily label values z l, foo\ncapture noisily label values z l nofix\ncapture noisily label values z, nofix\ncapture noisily label values z ., nofix\ncapture noisily label values z l, nofix nofix\nlabel values z l,nofix\ndescribe z\nlabel define l 5 \"Five is also quite long\", modify nofix\ndescribe z\nlabel define l 6 \"another long one here, too\", replace\ndescribe x y2 z\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate z = _n", "lines": [] },
+        {
+          "command": "label define m 1 \"Low income household\" 2 \"Middle\"",
+          "lines": []
+        },
+        { "command": "label values y m, nofix", "lines": [] },
+        {
+          "command": "describe y",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "y               float   %9.0g      m"
+          ]
+        },
+        {
+          "command": "list y",
+          "lines": [
+            "     +-----------+",
+            "     |         y |",
+            "     |-----------|",
+            "  1. | Low incom |",
+            "  2. |    Middle |",
+            "  3. |         3 |",
+            "  4. |         4 |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "label define m 3 \"Highest income household bracket\", add nofix",
+          "lines": []
+        },
+        {
+          "command": "describe y",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "y               float   %9.0g      m"
+          ]
+        },
+        {
+          "command": "list y",
+          "lines": [
+            "     +-----------+",
+            "     |         y |",
+            "     |-----------|",
+            "  1. | Low incom |",
+            "  2. |    Middle |",
+            "  3. | Highest i |",
+            "  4. |         4 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "format x %-20.0g", "lines": [] },
+        { "command": "generate y2 = _n", "lines": [] },
+        {
+          "command": "label define l 1 \"Seventeen chars!!\" 2 \"B\"",
+          "lines": []
+        },
+        { "command": "label values x y2 l", "lines": [] },
+        {
+          "command": "label define l 3 \"Third value with a long label\", add nofix",
+          "lines": []
+        },
+        {
+          "command": "describe x y2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %-20.0g    l",
+            "y2              float   %17.0g     l"
+          ]
+        },
+        {
+          "command": "list y2",
+          "lines": [
+            "     +-------------------+",
+            "     |                y2 |",
+            "     |-------------------|",
+            "  1. | Seventeen chars!! |",
+            "  2. |                 B |",
+            "  3. |  Third value with |",
+            "  4. |                 4 |",
+            "     +-------------------+"
+          ]
+        },
+        {
+          "command": "capture noisily label define l 4 \"Four\", foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily label define l 4 \"Four\", add nof",
+          "lines": ["option nof not allowed"]
+        },
+        {
+          "command": "capture noisily label values z l, foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily label values z l nofix",
+          "lines": ["variable l not found"]
+        },
+        {
+          "command": "capture noisily label values z, nofix",
+          "lines": [", invalid name"]
+        },
+        {
+          "command": "capture noisily label values z ., nofix",
+          "lines": [", invalid name"]
+        },
+        {
+          "command": "capture noisily label values z l, nofix nofix",
+          "lines": ["option nofix not allowed"]
+        },
+        { "command": "label values z l,nofix", "lines": [] },
+        {
+          "command": "describe z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "z               float   %9.0g      l"
+          ]
+        },
+        {
+          "command": "label define l 5 \"Five is also quite long\", modify nofix",
+          "lines": []
+        },
+        {
+          "command": "describe z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "z               float   %9.0g      l"
+          ]
+        },
+        {
+          "command": "label define l 6 \"another long one here, too\", replace",
+          "lines": []
+        },
+        {
+          "command": "describe x y2 z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %26.0g     l",
+            "y2              float   %26.0g     l",
+            "z               float   %26.0g     l"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "label-copy",
+      "source": "clear\nset obs 2\ngenerate x = _n\nlabel define l 1 \"A fairly long label one\" 2 \"Two\"\nlabel define k 1 \"K\"\nlabel values x k\ncapture noisily label copy l k\ncapture noisily label copy l k, foo\ncapture noisily label copy zz k2\ncapture noisily label copy l\ncapture noisily label copy l 1bad\ncapture noisily label copy l k m\ncapture noisily label copy l k, replace replace\nlabel copy l k, replace\ndescribe x\nlabel list k\nlabel copy k k3\nlabel list k3\nlist x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "label define l 1 \"A fairly long label one\" 2 \"Two\"",
+          "lines": []
+        },
+        { "command": "label define k 1 \"K\"", "lines": [] },
+        { "command": "label values x k", "lines": [] },
+        {
+          "command": "capture noisily label copy l k",
+          "lines": ["label k already defined"]
+        },
+        {
+          "command": "capture noisily label copy l k, foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily label copy zz k2",
+          "lines": ["label zz not found"]
+        },
+        {
+          "command": "capture noisily label copy l",
+          "lines": ["nothing found where name expected"]
+        },
+        {
+          "command": "capture noisily label copy l 1bad",
+          "lines": ["1bad invalid name"]
+        },
+        {
+          "command": "capture noisily label copy l k m",
+          "lines": ["varlist not allowed"]
+        },
+        {
+          "command": "capture noisily label copy l k, replace replace",
+          "lines": ["option replace not allowed"]
+        },
+        { "command": "label copy l k, replace", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %9.0g      k"
+          ]
+        },
+        {
+          "command": "label list k",
+          "lines": [
+            "k:",
+            "           1 A fairly long label one",
+            "           2 Two"
+          ]
+        },
+        { "command": "label copy k k3", "lines": [] },
+        {
+          "command": "label list k3",
+          "lines": [
+            "k3:",
+            "           1 A fairly long label one",
+            "           2 Two"
+          ]
+        },
+        {
+          "command": "list x",
+          "lines": [
+            "     +----------+",
+            "     |        x |",
+            "     |----------|",
+            "  1. | A fairly |",
+            "  2. |      Two |",
+            "     +----------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "value-labels-lose-blanks-at-both-ends",
+      "source": "clear\nset obs 5\ngenerate x = _n\nlabel define l 1 \"  lead\" 2 \"trail   \" 3 \"  both  \" 4 \"mid  dle\"\nlabel values x l\nlist x\nlist x, clean\nlist x in 1/2, display\nlist x, string(4)\ngenerate str8 s = \"  ab\"\nreplace s = \"cd  \" in 2\nlist s\nformat x %-9.0g\nlist x\nformat x %td\nlist x\nformat x %4.0g\nlist x\nlabel define l 1 \"   Indented label\" 2 \"Plain\", replace\nformat x %9.0g\nlist x, string(3)\nformat x %8.0g\nlist x, string(3)\nlist x, string(6)\nformat x %-20.0g\nlist x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "label define l 1 \"  lead\" 2 \"trail   \" 3 \"  both  \" 4 \"mid  dle\"",
+          "lines": []
+        },
+        { "command": "label values x l", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +----------+",
+            "     |        x |",
+            "     |----------|",
+            "  1. |     lead |",
+            "  2. |    trail |",
+            "  3. |     both |",
+            "  4. | mid  dle |",
+            "  5. |        5 |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "list x, clean",
+          "lines": [
+            "              x",
+            "  1.       lead",
+            "  2.      trail",
+            "  3.       both",
+            "  4.   mid  dle",
+            "  5.          5"
+          ]
+        },
+        {
+          "command": "list x in 1/2, display",
+          "lines": [
+            "     +-------+",
+            "  1. |     x |",
+            "     |  lead |",
+            "     +-------+",
+            "",
+            "     +-------+",
+            "  2. |     x |",
+            "     | trail |",
+            "     +-------+"
+          ]
+        },
+        {
+          "command": "list x, string(4)",
+          "lines": [
+            "     +--------+",
+            "     | x      |",
+            "     |--------|",
+            "  1. |   lead |",
+            "  2. |  trail |",
+            "  3. |   both |",
+            "  4. | mid .. |",
+            "  5. |      5 |",
+            "     +--------+"
+          ]
+        },
+        { "command": "generate str8 s = \"  ab\"", "lines": [] },
+        {
+          "command": "replace s = \"cd  \" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "list s",
+          "lines": [
+            "     +------+",
+            "     |    s |",
+            "     |------|",
+            "  1. |   ab |",
+            "  2. | cd   |",
+            "  3. |   ab |",
+            "  4. |   ab |",
+            "  5. |   ab |",
+            "     +------+"
+          ]
+        },
+        { "command": "format x %-9.0g", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +----------+",
+            "     | x        |",
+            "     |----------|",
+            "  1. | lead     |",
+            "  2. | trail    |",
+            "  3. | both     |",
+            "  4. | mid  dle |",
+            "  5. | 5        |",
+            "     +----------+"
+          ]
+        },
+        { "command": "format x %td", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +-----------+",
+            "     |         x |",
+            "     |-----------|",
+            "  1. |      lead |",
+            "  2. |     trail |",
+            "  3. |      both |",
+            "  4. |  mid  dle |",
+            "  5. | 06jan1960 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "format x %4.0g", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +------+",
+            "     |    x |",
+            "     |------|",
+            "  1. |   le |",
+            "  2. | trai |",
+            "  3. |   bo |",
+            "  4. |  mid |",
+            "  5. |    5 |",
+            "     +------+"
+          ]
+        },
+        {
+          "command": "label define l 1 \"   Indented label\" 2 \"Plain\", replace",
+          "lines": []
+        },
+        { "command": "format x %9.0g", "lines": [] },
+        {
+          "command": "list x, string(3)",
+          "lines": [
+            "     +-------+",
+            "     | x     |",
+            "     |-------|",
+            "  1. | Ind.. |",
+            "  2. | Plain |",
+            "  3. |     3 |",
+            "  4. |     4 |",
+            "  5. |     5 |",
+            "     +-------+"
+          ]
+        },
+        { "command": "format x %8.0g", "lines": [] },
+        {
+          "command": "list x, string(3)",
+          "lines": [
+            "     +-------+",
+            "     |     x |",
+            "     |-------|",
+            "  1. | Inden |",
+            "  2. | Plain |",
+            "  3. |     3 |",
+            "  4. |     4 |",
+            "  5. |     5 |",
+            "     +-------+"
+          ]
+        },
+        {
+          "command": "list x, string(6)",
+          "lines": [
+            "     +-------+",
+            "     |     x |",
+            "     |-------|",
+            "  1. | Inden |",
+            "  2. | Plain |",
+            "  3. |     3 |",
+            "  4. |     4 |",
+            "  5. |     5 |",
+            "     +-------+"
+          ]
+        },
+        { "command": "format x %-20.0g", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +----------------+",
+            "     | x              |",
+            "     |----------------|",
+            "  1. | Indented label |",
+            "  2. | Plain          |",
+            "  3. | 3              |",
+            "  4. | 4              |",
+            "  5. | 5              |",
+            "     +----------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "by-headings-cut-labels-to-format",
+      "source": "clear\nset obs 5\ngenerate x = _n\ngenerate q = _n\nlabel define l 1 \"A fairly long label one\" 2 \"Two\" 3 \"  lead\" 4 \"trail   \"\nlabel values x l\nformat x %3.0g\nlist x\nsort x\nby x: count\nformat x %5.0g\nby x: count\nformat x %5.2f\nby x: summarize q\nformat x %-9.0g\nby x: count\nformat x %td\nby x: count\ngenerate double d = _n\nlabel values d l\nformat d %4.0g\nby d, sort: count\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate q = _n", "lines": [] },
+        {
+          "command": "label define l 1 \"A fairly long label one\" 2 \"Two\" 3 \"  lead\" 4 \"trail   \"",
+          "lines": []
+        },
+        { "command": "label values x l", "lines": [] },
+        { "command": "format x %3.0g", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +---------+",
+            "     |       x |",
+            "     |---------|",
+            "  1. |     A f |",
+            "  2. |     Two |",
+            "  3. |       l |",
+            "  4. |     tra |",
+            "  5. | 5.0e+00 |",
+            "     +---------+"
+          ]
+        },
+        { "command": "sort x", "lines": [] },
+        {
+          "command": "by x: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = A f",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = Two",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = l",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = tra",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = 5.0e+00",
+            "  1"
+          ]
+        },
+        { "command": "format x %5.0g", "lines": [] },
+        {
+          "command": "by x: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = A fai",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = Two",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = lea",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = trail",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = 5",
+            "  1"
+          ]
+        },
+        { "command": "format x %5.2f", "lines": [] },
+        {
+          "command": "by x: summarize q",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = A fai",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           q |          1           1           .          1          1",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = Two",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           q |          1           2           .          2          2",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = lea",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           q |          1           3           .          3          3",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = trail",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           q |          1           4           .          4          4",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = 5.00",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           q |          1           5           .          5          5"
+          ]
+        },
+        { "command": "format x %-9.0g", "lines": [] },
+        {
+          "command": "by x: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = A fairly long label one",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = Two",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = lead",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = trail",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = 5",
+            "  1"
+          ]
+        },
+        { "command": "format x %td", "lines": [] },
+        {
+          "command": "by x: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = A fairly long label one",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = Two",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = lead",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = trail",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> x = 06jan1960",
+            "  1"
+          ]
+        },
+        { "command": "generate double d = _n", "lines": [] },
+        { "command": "label values d l", "lines": [] },
+        { "command": "format d %4.0g", "lines": [] },
+        {
+          "command": "by d, sort: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> d = A fa",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> d = Two",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> d = le",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> d = trai",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> d = 5",
+            "  1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "list-display-wrapped-at-linesize",
+      "source": "clear\nset obs 2\ngenerate id = _n\ngenerate str12 v1 = \"value1_\" + string(_n) + \"xxxx\"\ngenerate str12 v2 = \"value2_\" + string(_n) + \"xxxx\"\ngenerate str12 v3 = \"value3_\" + string(_n) + \"xxxx\"\ngenerate str12 v4 = \"value4_\" + string(_n) + \"xxxx\"\ngenerate str12 v5 = \"value5_\" + string(_n) + \"xxxx\"\ngenerate str12 v6 = \"value6_\" + string(_n) + \"xxxx\"\ngenerate str12 v7 = \"value7_\" + string(_n) + \"xxxx\"\ngenerate str12 v8 = \"value8_\" + string(_n) + \"xxxx\"\ngenerate str12 v9 = \"value9_\" + string(_n) + \"xxxx\"\ngenerate str12 v10 = \"value10_\" + string(_n) + \"xxxx\"\ngenerate str12 v11 = \"value11_\" + string(_n) + \"xxxx\"\ngenerate str12 v12 = \"value12_\" + string(_n) + \"xxxx\"\nset linesize 79\nlist, display linesize(200)\nlist in 1, display linesize(120)\nlist in 1, separator(0) linesize(150)\nlist in 1, display noobs linesize(100)\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate str12 v1 = \"value1_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v2 = \"value2_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v3 = \"value3_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v4 = \"value4_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v5 = \"value5_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v6 = \"value6_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v7 = \"value7_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v8 = \"value8_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v9 = \"value9_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v10 = \"value10_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v11 = \"value11_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        {
+          "command": "generate str12 v12 = \"value12_\" + string(_n) + \"xxxx\"",
+          "lines": []
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "list, display linesize(200)",
+          "lines": [
+            "     +-------------------------------------------------------------------------",
+            "> -----------------------------------------------------------------------------",
+            "> ----------------------------------+",
+            "  1. | id |           v1 |           v2 |           v3 |           v4 |",
+            ">    v5 |           v6 |           v7 |           v8 |           v9 |",
+            "> v10 |          v11 |          v12 |",
+            "     |  1 | value1_1xxxx | value2_1xxxx | value3_1xxxx | value4_1xxxx | value5_",
+            "> 1xxxx | value6_1xxxx | value7_1xxxx | value8_1xxxx | value9_1xxxx | value10_1",
+            "> xxx | value11_1xxx | value12_1xxx |",
+            "     +-------------------------------------------------------------------------",
+            "> -----------------------------------------------------------------------------",
+            "> ----------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------------",
+            "> -----------------------------------------------------------------------------",
+            "> ----------------------------------+",
+            "  2. | id |           v1 |           v2 |           v3 |           v4 |",
+            ">    v5 |           v6 |           v7 |           v8 |           v9 |",
+            "> v10 |          v11 |          v12 |",
+            "     |  2 | value1_2xxxx | value2_2xxxx | value3_2xxxx | value4_2xxxx | value5_",
+            "> 2xxxx | value6_2xxxx | value7_2xxxx | value8_2xxxx | value9_2xxxx | value10_2",
+            "> xxx | value11_2xxx | value12_2xxx |",
+            "     +-------------------------------------------------------------------------",
+            "> -----------------------------------------------------------------------------",
+            "> ----------------------------------+"
+          ]
+        },
+        {
+          "command": "list in 1, display linesize(120)",
+          "lines": [
+            "     +-------------------------------------------------------------------------",
+            "> ------------------------------------+",
+            "  1. | id |           v1 |           v2 |           v3 |           v4 |",
+            ">    v5 |           v6 |           v7 |",
+            "     |  1 | value1_1xxxx | value2_1xxxx | value3_1xxxx | value4_1xxxx | value5_",
+            "> 1xxxx | value6_1xxxx | value7_1xxxx |",
+            "     |-------------------------------------------------------------------------",
+            "> ------------------------------------|",
+            "     |              v8     |              v9     |             v10     |",
+            ">       v11     |             v12     |",
+            "     |    value8_1xxxx     |    value9_1xxxx     |    value10_1xxx     |    val",
+            "> ue11_1xxx     |    value12_1xxx     |",
+            "     +-------------------------------------------------------------------------",
+            "> ------------------------------------+"
+          ]
+        },
+        {
+          "command": "list in 1, separator(0) linesize(150)",
+          "lines": [
+            "     +-------------------------------------------------------------------------",
+            "> ------------------------------------------------------------------+",
+            "  1. | id |           v1 |           v2 |           v3 |           v4 |",
+            ">    v5 |           v6 |           v7 |           v8 |           v9 |",
+            "     |  1 | value1_1xxxx | value2_1xxxx | value3_1xxxx | value4_1xxxx | value5_",
+            "> 1xxxx | value6_1xxxx | value7_1xxxx | value8_1xxxx | value9_1xxxx |",
+            "     |-------------------------------------------------------------------------",
+            "> ------------------------------------------------------------------|",
+            "     |                         v10                 |                          v",
+            "> 11                 |                          v12                 |",
+            "     |                value10_1xxx                 |                 value11_1x",
+            "> xx                 |                 value12_1xxx                 |",
+            "     +-------------------------------------------------------------------------",
+            "> ------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list in 1, display noobs linesize(100)",
+          "lines": [
+            "  +----------------------------------------------------------------------------",
+            "> ------------------+",
+            "  | id |           v1 |           v2 |           v3 |           v4 |",
+            "> v5 |           v6 |",
+            "  |  1 | value1_1xxxx | value2_1xxxx | value3_1xxxx | value4_1xxxx | value5_1xx",
+            "> xx | value6_1xxxx |",
+            "  |----------------------------------------------------------------------------",
+            "> ------------------|",
+            "  |           v7 |           v8  |           v9  |          v10  |          v11",
+            ">   |          v12  |",
+            "  | value7_1xxxx | value8_1xxxx  | value9_1xxxx  | value10_1xxx  | value11_1xxx",
+            ">   | value12_1xxx  |",
+            "  +----------------------------------------------------------------------------",
+            "> ------------------+"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "tab1-tab2-headings-wrapped",
+      "source": "clear\nset obs 12\ngenerate id = _n\ngenerate grp = mod(_n,2)\ngenerate region = mod(_n,3)+1\ngenerate income = _n * 1000 + 0.5\nlocal c income > 2000 & income < 9000 & id != 4 & id != 5 & id != 7\nset linesize 79\ntab1 grp region if `c'\ntab2 grp region if `c'\ntab2 grp region if id > 2\ntab2 grp region in 2/7\ntab2 grp region id if id > 9 in 8/12\ntab1 grp region if id > 2 in 1/7\nset linesize 60\ntab2 grp region if `c'\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate grp = mod(_n,2)", "lines": [] },
+        { "command": "generate region = mod(_n,3)+1", "lines": [] },
+        { "command": "generate income = _n * 1000 + 0.5", "lines": [] },
+        {
+          "command": "local c income > 2000 & income < 9000 & id != 4 & id != 5 & id != 7",
+          "lines": []
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "tab1 grp region if `c'",
+          "lines": [
+            "-> tabulation of grp if income > 2000 & income < 9000 & id != 4 & id != 5 & id",
+            "> != 7",
+            "",
+            "        grp |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          3       75.00       75.00",
+            "          1 |          1       25.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          4      100.00",
+            "",
+            "-> tabulation of region if income > 2000 & income < 9000 & id != 4 & id != 5 &",
+            "> id != 7",
+            "",
+            "     region |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          2       50.00       50.00",
+            "          3 |          2       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          4      100.00"
+          ]
+        },
+        {
+          "command": "tab2 grp region if `c'",
+          "lines": [
+            "-> tabulation of grp by region if income > 2000 & income < 9000 & id != 4 & id",
+            "> != 5 & id != 7",
+            "",
+            "           |        region",
+            "       grp |         1          3 |     Total",
+            "-----------+----------------------+----------",
+            "         0 |         1          2 |         3",
+            "         1 |         1          0 |         1",
+            "-----------+----------------------+----------",
+            "     Total |         2          2 |         4"
+          ]
+        },
+        {
+          "command": "tab2 grp region if id > 2",
+          "lines": [
+            "-> tabulation of grp by region if id > 2",
+            "",
+            "           |              region",
+            "       grp |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         0 |         2          2          1 |         5",
+            "         1 |         2          1          2 |         5",
+            "-----------+---------------------------------+----------",
+            "     Total |         4          3          3 |        10"
+          ]
+        },
+        {
+          "command": "tab2 grp region in 2/7",
+          "lines": [
+            "-> tabulation of grp by region  in 2/7",
+            "",
+            "           |              region",
+            "       grp |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         0 |         1          1          1 |         3",
+            "         1 |         1          1          1 |         3",
+            "-----------+---------------------------------+----------",
+            "     Total |         2          2          2 |         6"
+          ]
+        },
+        {
+          "command": "tab2 grp region id if id > 9 in 8/12",
+          "lines": [
+            "-> tabulation of grp by region if id > 9  in 8/12",
+            "",
+            "           |              region",
+            "       grp |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         0 |         1          1          0 |         2",
+            "         1 |         0          0          1 |         1",
+            "-----------+---------------------------------+----------",
+            "     Total |         1          1          1 |         3",
+            "",
+            "-> tabulation of grp by id if id > 9  in 8/12",
+            "",
+            "           |                id",
+            "       grp |        10         11         12 |     Total",
+            "-----------+---------------------------------+----------",
+            "         0 |         1          0          1 |         2",
+            "         1 |         0          1          0 |         1",
+            "-----------+---------------------------------+----------",
+            "     Total |         1          1          1 |         3",
+            "",
+            "-> tabulation of region by id if id > 9  in 8/12",
+            "",
+            "           |                id",
+            "    region |        10         11         12 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |         0          0          1 |         1",
+            "         2 |         1          0          0 |         1",
+            "         3 |         0          1          0 |         1",
+            "-----------+---------------------------------+----------",
+            "     Total |         1          1          1 |         3"
+          ]
+        },
+        {
+          "command": "tab1 grp region if id > 2 in 1/7",
+          "lines": [
+            "-> tabulation of grp if id > 2  in 1/7",
+            "",
+            "        grp |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |          2       40.00       40.00",
+            "          1 |          3       60.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          5      100.00",
+            "",
+            "-> tabulation of region if id > 2  in 1/7",
+            "",
+            "     region |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          2       40.00       40.00",
+            "          2 |          2       40.00       80.00",
+            "          3 |          1       20.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          5      100.00"
+          ]
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "tab2 grp region if `c'",
+          "lines": [
+            "-> tabulation of grp by region if income > 2000 & income < 9",
+            "> 000 & id != 4 & id != 5 & id != 7",
+            "",
+            "           |        region",
+            "       grp |         1          3 |     Total",
+            "-----------+----------------------+----------",
+            "         0 |         1          2 |         3",
+            "         1 |         1          0 |         1",
+            "-----------+----------------------+----------",
+            "     Total |         2          2 |         4"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "narrow-g-formats",
+      "source": "clear\nset obs 3\ngenerate x = _n * 3\ngenerate double y = _n + 0.5\ngenerate z = _n * 50\nreplace z = .a in 3\nformat x %3.0g\nformat y %3.0g\nlist x y\nformat x %2.0g\nformat y %1.0g\nlist x y\nformat x %3.1g\nformat y %2.1g\nformat z %3.2g\nlist x y z\nformat x %-3.1g\nformat y %-3.0g\nlist x y\nformat x %4.0g\nlist x\nformat z %3.0g\nlist z\ndisplay \"[\" %3.0g 3 \"]\"\ndisplay \"[\" %3.0g 0 \"]\"\ndisplay \"[\" %3.0g -1.5 \"]\"\ndisplay \"[\" %-3.0g 0.25 \"]\"\ndisplay \"[\" %2.1g 12.5 \"]\"\ndisplay \"[\" %3.2g 1234 \"]\"\ndisplay \"[\" %-2.1g -15 \"]\"\ndisplay \"[\" %3.0gc 999 \"]\"\ndisplay \"[\" %03.0g 7 \"]\"\ndisplay \"[\" %3.0g . \"]\"\ndisplay \"[\" %2.1g . \"]\"\ndisplay \"[\" %-2.1g .a \"]\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate x = _n * 3", "lines": [] },
+        { "command": "generate double y = _n + 0.5", "lines": [] },
+        { "command": "generate z = _n * 50", "lines": [] },
+        {
+          "command": "replace z = .a in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "format x %3.0g", "lines": [] },
+        { "command": "format y %3.0g", "lines": [] },
+        {
+          "command": "list x y",
+          "lines": [
+            "     +-------------------+",
+            "     |       x         y |",
+            "     |-------------------|",
+            "  1. | 3.0e+00   1.5e+00 |",
+            "  2. | 6.0e+00   2.5e+00 |",
+            "  3. | 9.0e+00   3.5e+00 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "format x %2.0g", "lines": [] },
+        { "command": "format y %1.0g", "lines": [] },
+        {
+          "command": "list x y",
+          "lines": [
+            "     +-------------------+",
+            "     |       x         y |",
+            "     |-------------------|",
+            "  1. | 3.0e+00   1.5e+00 |",
+            "  2. | 6.0e+00   2.5e+00 |",
+            "  3. | 9.0e+00   3.5e+00 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "format x %3.1g", "lines": [] },
+        { "command": "format y %2.1g", "lines": [] },
+        { "command": "format z %3.2g", "lines": [] },
+        {
+          "command": "list x y z",
+          "lines": [
+            "     +-------------------+",
+            "     | x     y         z |",
+            "     |-------------------|",
+            "  1. | 3   1.5        50 |",
+            "  2. | 6   2.5   1.0e+02 |",
+            "  3. | 9   3.5        .a |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "format x %-3.1g", "lines": [] },
+        { "command": "format y %-3.0g", "lines": [] },
+        {
+          "command": "list x y",
+          "lines": [
+            "     +-------------+",
+            "     | x   y       |",
+            "     |-------------|",
+            "  1. | 3   1.5e+00 |",
+            "  2. | 6   2.5e+00 |",
+            "  3. | 9   3.5e+00 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "format x %4.0g", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +---+",
+            "     | x |",
+            "     |---|",
+            "  1. | 3 |",
+            "  2. | 6 |",
+            "  3. | 9 |",
+            "     +---+"
+          ]
+        },
+        { "command": "format z %3.0g", "lines": [] },
+        {
+          "command": "list z",
+          "lines": [
+            "     +---------+",
+            "     |       z |",
+            "     |---------|",
+            "  1. | 5.0e+01 |",
+            "  2. | 1.0e+02 |",
+            "  3. |      .a |",
+            "     +---------+"
+          ]
+        },
+        { "command": "display \"[\" %3.0g 3 \"]\"", "lines": ["[ 3.0e+00]"] },
+        { "command": "display \"[\" %3.0g 0 \"]\"", "lines": ["[ 0.0e+00]"] },
+        {
+          "command": "display \"[\" %3.0g -1.5 \"]\"",
+          "lines": ["[-1.5e+00]"]
+        },
+        {
+          "command": "display \"[\" %-3.0g 0.25 \"]\"",
+          "lines": ["[2.5e-01]"]
+        },
+        { "command": "display \"[\" %2.1g 12.5 \"]\"", "lines": ["[  13]"] },
+        {
+          "command": "display \"[\" %3.2g 1234 \"]\"",
+          "lines": ["[ 1.2e+03]"]
+        },
+        { "command": "display \"[\" %-2.1g -15 \"]\"", "lines": ["[-15 ]"] },
+        {
+          "command": "display \"[\" %3.0gc 999 \"]\"",
+          "lines": ["[ 1.0e+03]"]
+        },
+        { "command": "display \"[\" %03.0g 7 \"]\"", "lines": ["[ 7.0e+00]"] },
+        { "command": "display \"[\" %3.0g . \"]\"", "lines": ["[  .]"] },
+        { "command": "display \"[\" %2.1g . \"]\"", "lines": ["[ .]"] },
+        { "command": "display \"[\" %-2.1g .a \"]\"", "lines": ["[.a]"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

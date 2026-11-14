@@ -240,6 +240,14 @@ function exponential(value, { width, digits }) {
 }
 
 export function formatNumber(value, spec) {
+  // A %g format narrower than four columns is laid out as %4.dg, except
+  // that one with no digits shows every number, zero too, in scientific
+  // notation with one decimal.
+  if (spec.style === "g" && spec.width < 4 && !isMissing(value)) {
+    if (!spec.digits)
+      return formatNumber(value, { ...spec, style: "e", digits: 1 });
+    spec = { ...spec, width: 4 };
+  }
   if (isMissing(value)) return pad(missingName(value), spec.width, spec.left);
   capped = false;
   const negative = value < 0 || Object.is(value, -0),
