@@ -8,6 +8,8 @@ import { toCSV } from "./datasets.js";
 import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
+import { applyFormat } from "./runtime/format.js";
+import { isMissing } from "./runtime/values.js";
 
 const library = Object.fromEntries(
   Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
@@ -32,7 +34,12 @@ function looksLikeText(bytes, stored) {
 }
 
 export function createConsoleSession() {
-  let session, interactive;
+  let session,
+    interactive,
+    // Each run and reset changes the stamp, so a browser view made before
+    // it is made again.
+    stamp = 0,
+    view = null;
   // Files the student added stay available when the session is cleared.
   const added = new Map();
   // A text file is kept as text, or as its bytes with the text decoded from
@@ -55,9 +62,17 @@ export function createConsoleSession() {
         valueLabel: valueLabel ?? "",
       }),
     ),
+    // The first values of each value label, for the Variables list.
+    labels: Object.fromEntries(
+      [...session.data.valueLabels].map(([name, map]) => [
+        name,
+        { count: map.size, values: [...map].slice(0, 12) },
+      ]),
+    ),
   });
   const reset = (dataset = "") => {
     session = new Session();
+    stamp++;
     interactive = session.frame();
     session.library = library;
     // Results as Stata's log shows them: a loop echoed once with its lines
@@ -169,15 +184,113 @@ export function createConsoleSession() {
       };
     },
     /**
+     * A page of the data in memory for the data browser. `where` is what
+     * followed browse or edit: a varlist, if and in. The rows can be put in
+     * the order of one column (the data stay as they are) and limited to
+     * those where a shown value contains `find`. Values are shown under
+     * their display format, or as their value label when `labels` is on.
+     */
+    peek({
+      where = "",
+      from = 0,
+      count = 100,
+      order = null,
+      find = "",
+      labels = true,
+    } = {}) {
+      const data = session.data,
+        parsed = session.parse("[varlist] [if] [in]", where),
+        names = parsed.varlist.length ? parsed.varlist : data.names,
+        columns = names.map((name) => data.get(name)),
+        key = JSON.stringify([stamp, where, order, find, labels]);
+      const text = (variable, i) => {
+        const value = variable.data[i];
+        if (typeof value === "string") return value;
+        const named =
+          labels && variable.valueLabel
+            ? data.valueLabels.get(variable.valueLabel)?.get(value)
+            : undefined;
+        if (named !== undefined) return named;
+        try {
+          return applyFormat(value, variable.format).trim();
+        } catch {
+          return String(value);
+        }
+      };
+      if (view?.key !== key) {
+        let rows = session.rows(parsed, null);
+        const wanted = find.trim().toLowerCase();
+        if (wanted)
+          rows = rows.filter((i) =>
+            columns.some((column) =>
+              text(column, i).toLowerCase().includes(wanted),
+            ),
+          );
+        const by = order && data.has(order.name) && data.get(order.name).data;
+        if (by) {
+          const sign = order.descending ? -1 : 1;
+          rows.sort((a, b) => {
+            const x = by[a],
+              y = by[b];
+            return (x < y ? -sign : x > y ? sign : 0) || a - b;
+          });
+        }
+        view = { key, rows };
+      }
+      const rows = view.rows,
+        start = Math.max(0, Math.min(from, Math.max(0, rows.length - 1)));
+      return {
+        observations: data.n,
+        shown: rows.length,
+        from: start,
+        columns: columns.map(({ name, type, format, label, valueLabel }) => ({
+          name,
+          type,
+          format,
+          label,
+          valueLabel: valueLabel ?? "",
+        })),
+        rows: rows.slice(start, start + count).map((i) => ({
+          obs: i + 1,
+          cells: columns.map((column) => text(column, i)),
+          raw: columns.map((column) => {
+            const value = column.data[i];
+            return typeof value === "string" || !isMissing(value)
+              ? value
+              : null;
+          }),
+        })),
+      };
+    },
+    /**
      * Runs commands as Stata's Command window does: locals set by one are
      * there for the next. A do-file ({ doFile: true }) has locals of its own,
-     * as it has in Stata.
+     * as it has in Stata. `progress`, when given, hears now and then which
+     * line has run and how many commands, so that a long run shows where
+     * it is.
      */
-    run(source, { doFile = false } = {}) {
-      const { output, rc } = session.run(
-        source,
-        doFile ? undefined : interactive,
-      );
+    run(source, { doFile = false, progress = null } = {}) {
+      stamp++;
+      if (progress) {
+        let commands = 0,
+          last = 0;
+        session.record = function (...args) {
+          Session.prototype.record.apply(this, args);
+          commands++;
+          const now = Date.now();
+          if (now - last < 120) return;
+          last = now;
+          progress({ line: args[5] ?? this.line ?? 0, commands });
+        };
+      }
+      let ran;
+      try {
+        ran = session.run(source, doFile ? undefined : interactive);
+      } finally {
+        delete session.record;
+        stamp++;
+      }
+      const { output, rc } = ran;
       // A byte that is not UTF-8 (text from an old file, or cut out of a
       // character) is shown as U+FFFD, where Stata prints the raw byte.
       for (const block of output)

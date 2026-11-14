@@ -14,8 +14,13 @@ async function answer(data) {
     );
     return giveFile(session, data.name, data.as, bytes);
   }
+  if (kind === "peek") return session.peek(data.request);
+  // A long run says now and then where it is.
   return kind === "run"
-    ? session.run(source, { doFile: data.doFile })
+    ? session.run(source, {
+        doFile: data.doFile,
+        progress: (progress) => self.postMessage({ id, progress }),
+      })
     : kind === "file"
       ? session.addFile(data.name, data.text)
       : kind === "data"

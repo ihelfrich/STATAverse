@@ -1,6 +1,7 @@
 // Ols, the fox who sits on the Results window. He watches the pointer,
 // reacts to a run, explains a return code when a command fails, and gives a
 // tip when selected. He is decoration with one useful job, and can be hidden.
+import { RC_HINTS as HINTS } from "./console-hints.js";
 
 const TIPS = [
   "Press Up at the command line to get your last command back.",
@@ -20,31 +21,6 @@ const TIPS = [
   "margins after a model gives predictions; marginsplot draws them.",
   "set seed before anything random, so the same numbers come back next time.",
 ];
-// What a return code usually means, in a sentence a beginner can act on.
-const HINTS = {
-  100: "A list of variables was needed and none was given.",
-  101: "That command does not take factor or time-series notation here. Make the variable with generate first.",
-  102: "Too few variables were given for that command.",
-  103: "Too many variables were given for that command.",
-  109: "A string was used where a number was needed, or the other way round.",
-  110: "That name is already taken. Use replace to change a variable, or drop it first.",
-  111: "No variable has that name. Check the spelling and the capitals against the Variables list.",
-  119: "That statistic belongs after a different kind of model.",
-  132: "A bracket or a quote is opened and never closed.",
-  133: "That function does not exist here. Check its spelling.",
-  198: "Stata could not read that line. Look for a missing comma, a stray bracket or a misspelt option.",
-  199: "That is not a command here. Look it up in the list under What runs here.",
-  301: "That needs a model first. Run regress, logit or another estimator, then try again.",
-  321: "That needs a model first. Run an estimator, then try again.",
-  459: "The data are not arranged as that command requires.",
-  601: "No file or dataset has that name. sysuse dir lists the datasets.",
-  2000: "No observations were left to use. An if condition or missing values may have removed them all.",
-  2001: "There are too few observations to estimate that.",
-  4: "The data in memory would be lost. Add the clear option if that is what you want.",
-  9: "An assert was false: the data are not what the do-file expected.",
-  5: "The data are not sorted as needed. Use sort, or bysort in place of by.",
-};
-
 const ART = `<svg viewBox="0 0 84 76" width="84" height="76" aria-hidden="true" focusable="false">
 <g class="fox-tail"><path d="M58 60c14 3 22-6 20-19-1-7-6-10-9-8 4 6 2 14-6 15-5 1-8 4-8 8z" fill="#e2702a"/><path d="M78 41c-1-7-6-10-9-8 3 4 3 9 0 12 4 1 8-1 9-4z" fill="#fff3e2"/></g>
 <ellipse cx="40" cy="60" rx="19" ry="14" fill="#e2702a"/>
@@ -115,12 +91,15 @@ export function createFox({ host, says, still }) {
     running: () => mood("running", true),
     done: () => mood("done"),
     idle: () => mood("idle", true),
-    /** A failed command: he looks worried and says what the code means. */
-    failed(rc) {
+    /**
+     * A failed command: he looks worried and says what went wrong, in the
+     * words of the hint under it when there is one.
+     */
+    failed(rc, hint = HINTS[rc]) {
       mood("error", true);
       say(
-        HINTS[rc]
-          ? `r(${rc}): ${HINTS[rc]}`
+        hint
+          ? `r(${rc}): ${hint}`
           : `That stopped with return code ${rc}. The message above it says why.`,
       );
     },

@@ -149,6 +149,13 @@
           </details>
         </div>
         <p id="console-status" role="status">Loading the interpreter…</p>
+        <p class="console-progress" id="console-progress" hidden>
+          <progress
+            id="console-progress-bar"
+            aria-label="Run progress"
+          ></progress>
+          <span id="console-progress-text"></span>
+        </p>
         <noscript><p>The console requires JavaScript.</p></noscript>
         <div class="console-tabs" id="console-tabs-bar" hidden>
           <div
@@ -206,6 +213,24 @@
       <section class="console-results" aria-labelledby="results-title">
         <div class="console-bar">
           <h2 id="results-title">Results</h2>
+          <div class="console-keep" role="group" aria-label="Keep the results">
+            <button
+              type="button"
+              class="quiet-button"
+              id="console-copy-all"
+              hidden
+            >
+              Copy all
+            </button>
+            <button
+              type="button"
+              class="quiet-button"
+              id="console-save-log"
+              hidden
+            >
+              Download
+            </button>
+          </div>
           <p class="fox-says" id="fox-says" role="status"></p>
           <div class="fox-seat" id="fox-seat"></div>
         </div>
@@ -238,6 +263,21 @@
             <h2 id="variables-title">Variables</h2>
             <span id="console-memory">No data in memory.</span>
           </summary>
+          <p class="console-find" id="console-variable-tools" hidden>
+            <label for="console-variable-filter">Find a variable</label>
+            <input
+              id="console-variable-filter"
+              type="search"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              placeholder="name or label"
+            />
+            <span id="console-variable-found" role="status"></span>
+            <button type="button" class="quiet-button" id="console-browse">
+              Browse the data
+            </button>
+          </p>
           <div
             class="console-scroll"
             tabindex="0"
@@ -246,19 +286,99 @@
           >
             <table id="console-variable-table" hidden>
               <caption>
-                Select a name to use it.
+                Select a name to use it. Select a heading to sort by it.
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Label</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Format</th>
-                  <th scope="col">Value label</th>
+                  <th scope="col" data-key="name" aria-sort="none">
+                    <button type="button" class="console-sort">Name</button>
+                  </th>
+                  <th scope="col" data-key="label" aria-sort="none">
+                    <button type="button" class="console-sort">Label</button>
+                  </th>
+                  <th scope="col" data-key="type" aria-sort="none">
+                    <button type="button" class="console-sort">Type</button>
+                  </th>
+                  <th scope="col" data-key="format" aria-sort="none">
+                    <button type="button" class="console-sort">Format</button>
+                  </th>
+                  <th scope="col" data-key="valueLabel" aria-sort="none">
+                    <button type="button" class="console-sort">
+                      Value label
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
+          </div>
+        </details>
+        <details class="console-drawer" id="drawer-browse">
+          <summary>
+            <h2 id="browse-title">Browse</h2>
+            <span id="browse-summary"></span>
+          </summary>
+          <div class="console-browse">
+            <p class="console-find browse-tools">
+              <label for="browse-find">Find</label>
+              <input
+                id="browse-find"
+                type="search"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                placeholder="a value in any column"
+              />
+              <button
+                type="button"
+                class="console-switch"
+                id="browse-labels"
+                aria-pressed="true"
+              >
+                Value labels
+              </button>
+              <button
+                type="button"
+                class="console-switch"
+                id="browse-edit"
+                aria-pressed="false"
+              >
+                Edit
+              </button>
+              <span id="browse-where"></span>
+              <button type="button" class="quiet-button" id="browse-all" hidden>
+                Show all
+              </button>
+            </p>
+            <div
+              class="console-scroll browse-scroll"
+              tabindex="0"
+              role="group"
+              aria-labelledby="browse-title"
+            >
+              <table id="browse-table" hidden>
+                <caption>
+                  Select a heading to sort the view by it; the data in memory
+                  keep their order. With Edit on, select a value to change it.
+                </caption>
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p class="browse-pages">
+              <button type="button" class="quiet-button" id="browse-prev">
+                Previous 100
+              </button>
+              <span id="browse-range" role="status"></span>
+              <button type="button" class="quiet-button" id="browse-next">
+                Next 100
+              </button>
+              <label
+                >Go to row
+                <input id="browse-go" type="number" min="1" inputmode="numeric"
+              /></label>
+            </p>
+            <p id="browse-note" role="status"></p>
           </div>
         </details>
         <details class="console-drawer" id="drawer-data">
@@ -302,9 +422,14 @@
               spellcheck="false"
               autocapitalize="off"
               autocomplete="off"
-              placeholder="for example, margins"
+              placeholder="a name, or what it does"
             />
             <span id="console-found" role="status"></span>
+          </p>
+          <p class="console-help-note">
+            Select a command for what it does, how to write it and Stata's own
+            help. <code>help</code> and a command's name at the command line
+            does the same.
           </p>
           <ul id="console-commands"></ul>
         </details>
@@ -334,8 +459,8 @@
             </p>
             <p>
               Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the
-              selected lines. Up and Down at the command line recall earlier
-              commands.
+              selected lines. Ctrl or ⌘ + . stops a run, as Break does in Stata.
+              Up and Down at the command line recall earlier commands.
             </p>
           </div>
         </details>

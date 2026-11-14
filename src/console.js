@@ -25,6 +25,9 @@ import {
   refusal,
 } from "./console-files.js";
 import { picture, typeOf } from "./console-picture.js";
+import { adviseRecord, commandParts, resolveCommand } from "./console-hints.js";
+import { HELP, helpUrl } from "./console-help.js";
+import { mountBrowser } from "./console-browse.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
@@ -137,9 +140,11 @@ function ask(message, progress) {
               ? local.addBinary(message.name, message.bytes)
               : message.kind === "remove"
                 ? local.removeFile(message.name)
-                : message.kind === "export"
-                  ? local.exportData()
-                  : local.reset(message.dataset),
+                : message.kind === "peek"
+                  ? local.peek(message.request)
+                  : message.kind === "export"
+                    ? local.exportData()
+                    : local.reset(message.dataset),
       );
     } catch (error) {
       return Promise.reject(error);
@@ -447,17 +452,45 @@ function selectedLines() {
 
 // ----- the variables -----
 let known = null,
-  opened = false;
+  opened = false,
+  // The data in memory as last reported, for the hints under an error.
+  memoryNow = { variables: [] },
+  // How the Variables list is ordered: by a column, or as in the data.
+  variableOrder = null;
 function showVariables(memory) {
+  memoryNow = memory;
   const table = $("console-variable-table"),
     body = table.querySelector("tbody"),
     before = known;
   known = new Set(memory.variables.map((v) => v.name));
   body.textContent = "";
-  for (const variable of memory.variables) {
+  const rows = memory.variables.map((variable, k) => ({ ...variable, k }));
+  if (variableOrder) {
+    const { key, descending } = variableOrder,
+      sign = descending ? -1 : 1;
+    rows.sort(
+      (a, b) =>
+        sign *
+          String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "en", {
+            numeric: true,
+          }) || a.k - b.k,
+    );
+  }
+  for (const th of table.querySelectorAll("th[data-key]"))
+    th.setAttribute(
+      "aria-sort",
+      variableOrder?.key === th.dataset.key
+        ? variableOrder.descending
+          ? "descending"
+          : "ascending"
+        : "none",
+    );
+  for (const variable of rows) {
     const row = document.createElement("tr"),
       name = document.createElement("td"),
       insert = document.createElement("button");
+    row.dataset.search =
+      `${variable.name} ${variable.label} ${variable.valueLabel}`.toLowerCase();
     insert.type = "button";
     insert.className = "console-name";
     insert.textContent = variable.name;
@@ -475,19 +508,49 @@ function showVariables(memory) {
     // A variable this run created is marked for a moment.
     if (before && !before.has(variable.name)) row.className = "is-new";
     // In the order of Stata's Variables window.
-    for (const text of [
-      variable.label,
-      variable.type,
-      variable.format,
-      variable.valueLabel ?? "",
-    ]) {
+    for (const text of [variable.label, variable.type, variable.format]) {
       const cell = document.createElement("td");
       cell.textContent = text;
       row.append(cell);
     }
+    // A value label shows what its numbers stand for, on request, in a
+    // row of its own under the variable.
+    const labelCell = document.createElement("td"),
+      pairs = memory.labels?.[variable.valueLabel];
+    row.append(labelCell);
     body.append(row);
+    if (variable.valueLabel && pairs?.values.length) {
+      const toggle = document.createElement("button"),
+        values = document.createElement("tr"),
+        cell = document.createElement("td");
+      toggle.type = "button";
+      toggle.className = "console-label-toggle";
+      toggle.textContent = variable.valueLabel;
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.title = `What the values of ${variable.valueLabel} stand for`;
+      values.className = "console-label-row";
+      values.hidden = true;
+      values.dataset.search = row.dataset.search;
+      cell.colSpan = 5;
+      cell.textContent =
+        `${variable.valueLabel}: ` +
+        pairs.values.map(([value, text]) => `${value} = ${text}`).join("; ") +
+        (pairs.count > pairs.values.length
+          ? `; and ${pairs.count - pairs.values.length} more`
+          : "");
+      values.append(cell);
+      toggle.addEventListener("click", () => {
+        const open = toggle.getAttribute("aria-expanded") !== "true";
+        toggle.setAttribute("aria-expanded", String(open));
+        values.hidden = !open;
+      });
+      labelCell.append(toggle);
+      body.append(values);
+    } else labelCell.textContent = variable.valueLabel ?? "";
   }
   table.hidden = !memory.variables.length;
+  $("console-variable-tools").hidden = !memory.variables.length;
+  filterVariables();
   // The list opens by itself the first time there is something in it.
   if (memory.variables.length && !opened) {
     opened = true;
@@ -502,10 +565,55 @@ function showVariables(memory) {
   $("console-files").textContent = memory.files.length
     ? memory.files.join(", ")
     : "none";
+  $("browse-summary").textContent = memory.variables.length
+    ? `Sort, search and edit the ${memory.observations.toLocaleString("en-US")} observations`
+    : "";
   $("console-memory").textContent = memory.variables.length
     ? `${memory.observations.toLocaleString("en-US")} observations, ${memory.variables.length} variables${memory.sortedBy.length ? `, sorted by ${memory.sortedBy.join(" ")}` : ""}.`
     : "No data in memory.";
 }
+
+/** Shows the variables whose name or labels hold what is typed. */
+function filterVariables() {
+  const wanted = $("console-variable-filter").value.trim().toLowerCase(),
+    rows = [
+      ...document.querySelectorAll(
+        "#console-variable-table tbody tr:not(.console-label-row)",
+      ),
+    ];
+  let shown = 0;
+  for (const row of rows) {
+    row.hidden = !!wanted && !row.dataset.search.includes(wanted);
+    // A value label's own row goes with its variable.
+    const values = row.nextElementSibling;
+    if (values?.classList.contains("console-label-row"))
+      values.hidden =
+        row.hidden ||
+        row
+          .querySelector(".console-label-toggle")
+          ?.getAttribute("aria-expanded") !== "true";
+    if (!row.hidden) shown++;
+  }
+  $("console-variable-found").textContent = !wanted
+    ? ""
+    : shown
+      ? `${shown} of ${rows.length} variables.`
+      : "No variable matches.";
+}
+$("console-variable-filter").addEventListener("input", filterVariables);
+for (const th of document.querySelectorAll(
+  "#console-variable-table th[data-key]",
+))
+  th.querySelector("button").addEventListener("click", () => {
+    const key = th.dataset.key;
+    variableOrder =
+      variableOrder?.key !== key
+        ? { key, descending: false }
+        : variableOrder.descending
+          ? null
+          : { key, descending: true };
+    showVariables(memoryNow);
+  });
 
 // ----- the results -----
 function append(text, className) {
@@ -562,17 +670,143 @@ function graphOf(graph) {
   figure.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   return figure;
 }
+/** A record as Stata's log has it: the command, then what it printed. */
+const recordText = (record) =>
+  [`. ${record.command}`, ...(record.echo ?? []), ...record.lines].join("\n") +
+  "\n";
+/** A short name for a command, for the labels of its buttons. */
+const brief = (command) =>
+  command.length > 40 ? `${command.slice(0, 38)}…` : command;
+function toolButton(text, label, act) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "console-tool";
+  button.textContent = text;
+  // The name a screen reader gives begins with the words on the button.
+  if (label) button.setAttribute("aria-label", label);
+  button.addEventListener("click", act);
+  return button;
+}
+/** A command's entry in the help: what it does, how to write it, a link. */
+function helpCard(name) {
+  const card = document.createElement("span"),
+    [summary, syntax] = HELP[name] ?? [],
+    link = document.createElement("a");
+  card.className = "console-help-card";
+  if (summary) {
+    const what = document.createElement("span"),
+      how = document.createElement("code");
+    what.className = "console-help-what";
+    what.textContent = summary;
+    how.textContent = syntax;
+    card.append(what, how);
+  }
+  link.href = helpUrl(name);
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = `Stata's help for ${name}`;
+  card.append(link);
+  return card;
+}
+/** Opens the Commands list on one command's help. */
+function showHelp(name) {
+  const drawer = $("drawer-commands"),
+    filter = $("console-filter");
+  drawer.open = true;
+  filter.value = name;
+  filter.dispatchEvent(new Event("input"));
+  const item = items[names.indexOf(name)];
+  if (!item) return;
+  const button = item.querySelector("button");
+  if (button.getAttribute("aria-expanded") !== "true") button.click();
+  item.scrollIntoView({ block: "center" });
+  focusSoon(button);
+}
+/**
+ * Focuses an element in a drawer that is opening: its content can take
+ * the focus only once the opening has begun, so this tries for a moment.
+ */
+function focusSoon(element, tries = 20) {
+  element.focus({ preventScroll: true });
+  if (document.activeElement !== element && tries > 0)
+    setTimeout(() => focusSoon(element, tries - 1), 30);
+}
+/** The plain hint under a failed command, with its help and a fix. */
+function hintNode(record) {
+  const advice = adviseRecord(record, {
+    commands: COMMANDS,
+    variables: memoryNow.variables,
+  });
+  if (!advice) return null;
+  const hint = document.createElement("span"),
+    label = document.createElement("strong");
+  hint.className = "console-hint";
+  hint.setAttribute("role", "note");
+  label.textContent = "Hint";
+  hint.append(label, " ", advice.text);
+  if (advice.fix)
+    hint.append(
+      " ",
+      toolButton(
+        `Try ${advice.fix}`,
+        `Try ${advice.fix} (puts it at the command line)`,
+        () => {
+          commandLine.value = advice.fix;
+          commandLine.focus();
+        },
+      ),
+    );
+  if (advice.help && names.includes(advice.help))
+    hint.append(
+      " ",
+      toolButton(`help ${advice.help}`, "", () => showHelp(advice.help)),
+    );
+  return hint;
+}
+/** The command help names, or "" when it is not a help command. */
+function helpAsked(record) {
+  const { word, rest } = commandParts(record.command);
+  if (record.rc || resolveCommand(word, COMMANDS) !== "help") return "";
+  return rest.trim().split(/\s+/)[0] ?? "";
+}
 /** One command and what it printed, as it appears in the Results window. */
 function recordNode(record) {
   const block = document.createElement("span"),
-    command = document.createElement("span");
+    command = document.createElement("span"),
+    tools = document.createElement("span"),
+    graphs = record.graphs ?? (record.graph ? [record.graph] : []);
   block.className = "console-record";
+  block.text = recordText(record);
   command.className = "console-command";
   // A loop is echoed as Stata echoes it: its lines, numbered, once.
   command.textContent = [`. ${record.command}`, ...(record.echo ?? [])].join(
     "\n",
   );
-  block.append(command, "\n");
+  // Copy what one command printed, or save its graph; shown on pointing
+  // or focus, and always on a touch screen.
+  tools.className = "console-tools";
+  tools.append(
+    toolButton("Copy", `Copy the results of ${brief(record.command)}`, () =>
+      copyText(block.text, "The command and its results were copied."),
+    ),
+  );
+  graphs.forEach((graph, k) =>
+    tools.append(
+      toolButton(
+        graphs.length > 1 ? `Save graph ${k + 1}` : "Save graph",
+        `${graphs.length > 1 ? `Save graph ${k + 1}` : "Save graph"} of ${brief(record.command)} as an SVG file`,
+        () => {
+          hand(
+            new TextEncoder().encode(graph.svg),
+            `graph${k ? k + 1 : ""}.svg`,
+            "image/svg+xml",
+          );
+          status.textContent = "Saved the graph as an SVG file.";
+        },
+      ),
+    ),
+  );
+  block.append(command, tools, "\n");
   if (record.lines.length) {
     const lines = linesOf(record.lines.join("\n") + "\n", !!record.rc);
     lines.classList.add("console-lines");
@@ -580,8 +814,25 @@ function recordNode(record) {
     lines.style.setProperty("--rows", Math.min(record.lines.length, 14));
     block.append(lines);
   }
-  for (const graph of record.graphs ?? (record.graph ? [record.graph] : []))
-    block.append(graphOf(graph), "\n");
+  if (record.rc) {
+    const hint = hintNode(record);
+    if (hint) block.append(hint);
+  }
+  // help shows this site's entry for the command, and Stata's own help.
+  const asked = helpAsked(record);
+  if (asked) {
+    const name = resolveCommand(asked, COMMANDS);
+    if (name) block.append(helpCard(name), "\n");
+    else {
+      const hint = hintNode({
+        command: asked,
+        lines: [`command ${asked} is unrecognized`],
+        rc: 199,
+      });
+      if (hint) block.append(hint);
+    }
+  }
+  for (const graph of graphs) block.append(graphOf(graph), "\n");
   block.append("\n");
   return block;
 }
@@ -630,6 +881,16 @@ function show(records, origin) {
       block.mark = mark;
       block.file = origin.file;
       block.classList.add("has-line");
+      // The keyboard's way back to the line, as a click on the command is.
+      block
+        .querySelector(".console-tools")
+        ?.append(
+          toolButton(
+            "Go to line",
+            `Go to line of ${brief(record.command)} in the do-file`,
+            () => backTo(block),
+          ),
+        );
     }
     output.append(block);
     blocks.push(block);
@@ -653,6 +914,7 @@ function show(records, origin) {
       "(earlier results were removed to keep the page responsive)\n\n",
     );
   }
+  offerKeeping();
   // New results that fit are shown whole; longer ones start at their top.
   const first = blocks.find((block) => block.isConnected);
   // A run that stopped ends at its error, so that is what is shown.
@@ -677,25 +939,95 @@ function busy(running) {
     "#console-datasets button, #console-own button",
   ))
     button.disabled = running;
+  browser.setBusy(running);
   offerSelection();
   stop.hidden = !running || !worker;
   status.dataset.state = running ? "running" : "idle";
   isRunning = running;
+  showProgress(running);
   if (!running) for (const done of idle.splice(0)) done();
 }
+// ----- how far a long run has got -----
+// A run that lasts more than a moment shows the line it has reached, how
+// many commands have run and how long it has taken, with how to stop it.
+// The text is not announced as it changes; the status line says Running.
+const progress = {
+  started: 0,
+  line: 0,
+  commands: 0,
+  lines: 0,
+  timer: null,
+};
+function showProgress(running) {
+  const box = $("console-progress");
+  clearInterval(progress.timer);
+  if (!running) {
+    box.hidden = true;
+    return;
+  }
+  Object.assign(progress, { started: performance.now(), line: 0, commands: 0 });
+  progress.timer = setInterval(drawProgress, 250);
+}
+function drawProgress() {
+  const seconds = (performance.now() - progress.started) / 1000;
+  if (seconds < 0.6) return;
+  const box = $("console-progress"),
+    bar = $("console-progress-bar");
+  box.hidden = false;
+  if (progress.lines > 1 && progress.line) {
+    bar.max = progress.lines;
+    bar.value = Math.min(progress.line, progress.lines);
+  } else bar.removeAttribute("value");
+  const where = progress.line
+    ? progress.lines > 1
+      ? `line ${progress.line} of ${progress.lines}, `
+      : ""
+    : "";
+  $("console-progress-text").textContent =
+    `${where ? `At ${where}` : ""}${progress.commands ? `${progress.commands.toLocaleString("en-US")} command${progress.commands === 1 ? "" : "s"} run, ` : ""}${seconds.toFixed(1)} s.${worker ? " Stop, or Ctrl or ⌘ + ., ends the run." : ""}`.replace(
+      /^./,
+      (c) => c.toUpperCase(),
+    );
+}
+
 // Whether a run is going, and what waits for it to end.
 let isRunning = false;
 const idle = [];
 const whenIdle = () =>
   isRunning ? new Promise((resolve) => idle.push(resolve)) : Promise.resolve();
 
+/**
+ * browse, edit and help print a note where the runtime has no editor or
+ * help files; the Console opens its browser or shows its help instead, so
+ * the note is left out, and Results show what Stata's do.
+ */
+const NOTES =
+  /^\((browse|edit) opens Stata's Data Editor|^\(Stata's help files are not included/;
+function quietNotes(record) {
+  const { word, rest } = commandParts(record.command),
+    name = resolveCommand(word, COMMANDS);
+  if (record.rc || !["browse", "edit", "help"].includes(name)) return record;
+  return {
+    ...record,
+    lines: record.lines.filter((line) => !NOTES.test(line)),
+    opens: name,
+    where: rest.trim(),
+  };
+}
 /** Runs text in the session and shows what it printed; null after a fault. */
 async function perform(text, origin) {
   let result;
   try {
     // What the command line runs keeps its locals for the next command;
     // the do-file, a selection of it and the map's steps run as do-files.
-    result = await ask({ kind: "run", source: text, doFile: origin != null });
+    progress.lines = origin?.file ? text.split("\n").length : 0;
+    result = await ask(
+      { kind: "run", source: text, doFile: origin != null },
+      ({ line, commands }) => {
+        progress.line = line;
+        progress.commands = commands;
+      },
+    );
   } catch (error) {
     if (error.stopped) return null;
     // Anything that is not a Stata error is a fault in the interpreter.
@@ -716,8 +1048,16 @@ async function perform(text, origin) {
     busy(false);
     return null;
   }
-  show(result.output, origin);
+  memoryNow = result.memory;
+  const records = result.output.map(quietNotes);
+  show(records, origin);
   showVariables(result.memory);
+  // browse and edit open the data browser, as they open Stata's editor.
+  const opened = records.findLast(
+    (record) => !record.rc && /^(browse|edit)$/.test(record.opens ?? ""),
+  );
+  if (opened) browser.open(opened.where, opened.opens === "edit");
+  else browser.refresh();
   if (result.made?.length) await keepMade(result.made);
   return result;
 }
@@ -741,8 +1081,18 @@ function finish(rc, commands, started, output = []) {
   }
   busy(false);
   status.dataset.state = rc ? "error" : "done";
-  if (rc) fox.failed(rc);
-  else fox.done();
+  if (rc) {
+    const last = output.findLast((record) => record.rc);
+    fox.failed(
+      rc,
+      last
+        ? adviseRecord(last, {
+            commands: COMMANDS,
+            variables: memoryNow.variables,
+          })?.text
+        : undefined,
+    );
+  } else fox.done();
   // On a narrow screen the results are below the editor; go to them.
   if (!mapping && window.matchMedia("(max-width: 900px)").matches)
     $("results-title").scrollIntoView({ block: "start" });
@@ -928,6 +1278,22 @@ const map = mountMap({
   }),
   layout = document.querySelector(".console-layout");
 let mapping = false;
+// ----- the data browser: browse and edit -----
+const browser = mountBrowser({
+  drawer: $("drawer-browse"),
+  ask,
+  async run(command) {
+    ranTyped.push(command);
+    await execute(command, "command");
+  },
+  onOpen() {
+    $("drawer-browse").scrollIntoView({ block: "nearest" });
+  },
+});
+$("console-browse").addEventListener("click", () => {
+  browser.open("", false);
+  $("drawer-browse").scrollIntoView({ block: "start" });
+});
 function setMode(toMap) {
   mapping = toMap;
   layout.classList.toggle("is-mapping", toMap);
@@ -1024,6 +1390,51 @@ insert.addEventListener("change", () => {
   status.textContent = `Inserted "${item[0]}". Change the names to your own.`;
 });
 
+// ----- copying the results -----
+/** Puts text on the clipboard, with a fallback for browsers that refuse. */
+async function copyText(text, done) {
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.append(area);
+    area.select();
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    area.remove();
+  }
+  status.textContent = copied
+    ? done
+    : "This browser did not allow copying. Select the text in Results and copy it.";
+}
+/** Every record in the Results window, as one log. */
+const allResults = () =>
+  [...output.querySelectorAll(".console-record")]
+    .map((block) => block.text ?? "")
+    .join("\n");
+function offerKeeping() {
+  const any = !!output.querySelector(".console-record");
+  $("console-copy-all").hidden = !any;
+  $("console-save-log").hidden = !any;
+}
+$("console-copy-all").addEventListener("click", () =>
+  copyText(allResults(), "All the results were copied."),
+);
+$("console-save-log").addEventListener("click", () => {
+  hand(new TextEncoder().encode(allResults()), "results.log", "text/plain");
+  status.textContent =
+    "Downloaded results.log: every command in Results and what it printed.";
+});
+
 // ----- the whole project as a folder to run in Stata -----
 function hand(bytes, name, type) {
   const link = document.createElement("a"),
@@ -1052,28 +1463,63 @@ $("console-download").addEventListener("click", async () => {
 });
 
 // ----- what runs here, with a filter -----
+// Each name opens its entry: what it does, how to write it, Stata's help.
 const names = [...new Set(COMMANDS.map((command) => command.name))].sort(),
   list = $("console-commands"),
   items = names.map((name) => {
     const item = document.createElement("li"),
+      button = document.createElement("button"),
       code = document.createElement("code");
+    button.type = "button";
+    button.className = "console-help-name";
+    button.setAttribute("aria-expanded", "false");
     code.textContent = name;
-    item.append(code);
+    button.append(code);
+    button.addEventListener("click", () => {
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(open));
+      item.classList.toggle("is-open", open);
+      if (open && !item.querySelector(".console-help-card"))
+        item.append(helpCard(name));
+    });
+    item.dataset.search = `${name} ${HELP[name]?.[0] ?? ""}`.toLowerCase();
+    item.append(button);
     list.append(item);
     return item;
   });
 $("console-filter").addEventListener("input", (event) => {
   const wanted = event.target.value.trim().toLowerCase();
-  let shown = 0;
+  // Names first; when no name holds what is typed, what the commands do.
+  const byName = names.filter((name) => name.includes(wanted)),
+    byUse = byName.length
+      ? []
+      : names.filter((name, k) => items[k].dataset.search.includes(wanted));
+  const shown = new Set(byName.length ? byName : byUse);
   items.forEach((item, k) => {
-    item.hidden = !!wanted && !names[k].includes(wanted);
-    if (!item.hidden) shown++;
+    item.hidden = !!wanted && !shown.has(names[k]);
   });
+  const advice =
+    wanted && !byName.length
+      ? adviseRecord(
+          {
+            command: wanted,
+            lines: [`command ${wanted} is unrecognized`],
+            rc: 199,
+          },
+          { commands: COMMANDS },
+        )
+      : null;
   $("console-found").textContent = !wanted
     ? ""
-    : shown
-      ? `${shown} of ${names.length} commands match.`
-      : `No command here is called ${wanted}. It may be written differently, or not be available yet.`;
+    : byName.length
+      ? `${byName.length} of ${names.length} commands match.`
+      : `No command here is called ${wanted}.${
+          byUse.length
+            ? ` ${byUse.length === 1 ? "This one does" : `These ${byUse.length} do`} what you describe.`
+            : advice?.suggest.length
+              ? ` ${advice.text.replace(" The Commands list shows what runs here.", "")}`
+              : " It may be written differently, or not be available yet."
+        }`;
 });
 
 // ----- the colours of the Results window -----
@@ -1115,8 +1561,21 @@ stop.addEventListener("click", async () => {
   );
   busy(false);
 });
+// Ctrl or ⌘ + . stops a run, as Break does in Stata for Mac.
+document.addEventListener("keydown", (event) => {
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    event.key === "." &&
+    isRunning &&
+    !stop.hidden
+  ) {
+    event.preventDefault();
+    stop.click();
+  }
+});
 reset.addEventListener("click", async () => {
   output.textContent = "";
+  offerKeeping();
   for (const file of project.files) {
     marksOf(file).forEach(forget);
     marks.delete(file);
@@ -1190,12 +1649,16 @@ output.addEventListener("click", (event) => {
     if (block.dataset.step) map.reveal(Number(block.dataset.step));
     return;
   }
+  backTo(block);
+});
+/** Goes from a block of Results to the line of the do-file it came from. */
+function backTo(block) {
   const line = lineOf(block),
     k = project.files.indexOf(block.file);
-  if (!line || k < 0) return;
+  if (!line || k < 0 || mapping) return;
   if (k !== project.active) openFile(k);
   goTo(line);
-});
+}
 
 // ----- the command line under the results -----
 const history = [],
