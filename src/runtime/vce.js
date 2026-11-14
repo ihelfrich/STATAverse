@@ -114,7 +114,7 @@ export function sandwich(V, scores, weights, cluster, rows) {
 }
 
 /** The line Stata prints above a table of clustered standard errors. */
-export const clusterNote = (clusters, name, count) =>
+export const clusterNote = (clusters, name, count, width = 78) =>
   `(Std. err. adjusted for ${count(clusters)} clusters in ${name})`.padStart(
-    78,
+    width,
   );

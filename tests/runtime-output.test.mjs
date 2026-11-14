@@ -139,6 +139,7 @@ for (const c of fixture.cases)
             // last digits of the estimates: both match Stata to rounding.
             "glm-unconverged-log-link",
             "glm-cloglog-large-statistics",
+            "margins-factor-interactions-logit",
           ].includes(c.id),
         )
       )

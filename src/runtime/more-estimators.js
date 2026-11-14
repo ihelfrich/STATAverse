@@ -14,6 +14,7 @@ import {
   invertSymmetric,
   quadratic,
   tableWidth,
+  abbreviate,
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
@@ -30,52 +31,147 @@ export function firstStage(session, iv, parsed, ctx) {
   ctx.out("");
   ctx.out("First-stage regressions");
   ctx.out("-----------------------");
+  const clustered = /^cluster /.test(iv.vce ?? "");
   for (const name of iv.endogenous) {
     const model = fit(
-        session,
-        {
-          anything: [name, ...iv.exogenous, ...iv.instruments].join(" "),
-          options: { level: 95 },
-          // The first stage uses the observations of the main equation.
-          only: new Set(iv.rows),
-        },
-        null,
-      ),
-      side = (label, value) =>
-        `${" ".repeat(56)}${label.padEnd(14)}=${value.padStart(7)}`;
+      session,
+      {
+        anything: [name, iv.texts.exogenous, iv.texts.instruments]
+          .filter(Boolean)
+          .join(" "),
+        // The variance of the main equation, robust or clustered too.
+        options: { level: 95, vce: iv.vce },
+        // The first stage uses the observations of the main equation.
+        only: new Set(iv.rows),
+      },
+      null,
+    );
+    // A robust or clustered first stage counts each factor's base level
+    // among the coefficients in its small-sample factor N/(N - k), as
+    // Stata's does; how it counts the base cells of an interaction of
+    // factors is not known, so that is refused.
+    if (iv.vce) {
+      if (
+        model.columns.some(
+          (c) => c.term.components.filter((p) => p.factor).length > 1,
+        )
+      )
+        throw new StataError(
+          `option first is not available yet with vce(${iv.vce.split(" ")[0]}) and an interaction of factor variables; type regress ${name} ${iv.texts.exogenous} ${iv.texts.instruments}, vce(${iv.vce}) for the first stage`,
+          198,
+        );
+      const bases = model.columns.filter((c) => c.base && c.term.factor).length;
+      if (bases) {
+        const scale = model.dfResidual / (model.dfResidual - bases);
+        model.V = model.V.map((row) => row.map((v) => v * scale));
+        model.F /= scale;
+      }
+    }
+    // Clustered, the first stage keeps the residual degrees of freedom of
+    // the regression and tests as many coefficients as the variance
+    // allows, which fewer clusters than coefficients limit.
+    let df1 = model.df_m;
+    if (clustered) {
+      model.df_r = model.dfResidual;
+      const at = model.names
+          .map((n, k) => (n === "_cons" ? -1 : k))
+          .filter((k) => k >= 0),
+        V = at.map((r) => at.map((c) => model.V[r][c])),
+        kept = sweptColumns(V),
+        inverse = invertSymmetric(kept.map((r) => kept.map((c) => V[r][c])));
+      df1 = kept.length;
+      model.F = inverse
+        ? quadratic(
+            kept.map((k) => model.b[at[k]]),
+            inverse,
+          ) / df1
+        : MISSING;
+    }
+    const side = clustered
+      ? (label, value) =>
+          `${" ".repeat(54)}${label.padEnd(16)}=${value.padStart(7)}`
+      : (label, value) =>
+          `${" ".repeat(56)}${label.padEnd(14)}=${value.padStart(7)}`;
     ctx.out("");
     ctx.out(side("Number of obs", count(model.N)));
+    if (clustered) ctx.out(side("No. of clusters", count(model.clusters)));
     ctx.out(
-      side(
-        `F(${model.df_m}, ${model.df_r})`,
-        applyFormat(model.F, "%7.2f").trim(),
-      ),
+      side(`F(${df1}, ${model.df_r})`, applyFormat(model.F, "%7.2f").trim()),
     );
-    ctx.out(
-      side("Prob > F", four(Ftail(model.df_m, model.df_r, model.F)).trim()),
-    );
+    ctx.out(side("Prob > F", four(Ftail(df1, model.df_r, model.F)).trim()));
     ctx.out(side("R-squared", four(model.r2).trim()));
     ctx.out(side("Adj R-squared", four(model.r2_a).trim()));
     ctx.out(side("Root MSE", applyFormat(model.rmse, "%7.0g").trim()));
     ctx.out("");
-    // Stata prints the first stage at 95% whatever level() says.
-    coefficientHeader(model, 95).forEach(ctx.out);
-    coefficientRows(session, model, 95).forEach(ctx.out);
-    ctx.out(RULE);
+    // Stata prints the first stage at 95% whatever level() says, in a
+    // table as wide as its labels need.
+    const width = tableWidth(session, model);
+    coefficientHeader(model, 95, model.depvar, width).forEach(ctx.out);
+    coefficientRows(session, model, 95, width).forEach(ctx.out);
+    ctx.out("-".repeat(66 + width));
     ctx.out("");
+  }
+}
+
+/**
+ * The columns a sweep of a symmetric matrix keeps when it takes the
+ * largest remaining diagonal first, as Stata inverts a singular variance
+ * in part: indices in order.
+ */
+export function sweptColumns(V) {
+  const n = V.length,
+    M = V.map((row) => row.slice()),
+    done = new Array(n).fill(false),
+    kept = [];
+  for (;;) {
+    let k = -1;
+    for (let i = 0; i < n; i++)
+      if (!done[i] && (k < 0 || M[i][i] > M[k][k])) k = i;
+    if (k < 0 || !(M[k][k] > 1e-10 * V[k][k])) break;
+    done[k] = true;
+    kept.push(k);
+    const d = M[k][k];
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++)
+        if (i !== k && j !== k) M[i][j] -= (M[i][k] * M[k][j]) / d;
+    for (let i = 0; i < n; i++)
+      if (i !== k) {
+        M[i][k] /= d;
+        M[k][i] /= d;
+      }
+  }
+  return kept.sort((a, b) => a - b);
+}
+
+/**
+ * Stata's estat firststage makes a variable for each factor level or
+ * interaction among the instruments, over the whole dataset, and lets the
+ * messages of generate through: one for each such instrument whose
+ * variables have missing values anywhere.
+ */
+function generatedNotes(session, model, ctx) {
+  for (const c of model.iv.columns.instruments) {
+    if (c.term.variable) continue;
+    let missing = 0;
+    for (let i = 0; i < session.data.n; i++)
+      if (c.term.variables.some((v) => isMissing(v.data[i]))) missing++;
+    if (missing)
+      ctx.out(
+        `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
+      );
   }
 }
 
 function ivFrame(session, model) {
   const iv = model.iv,
-    column = (name) => iv.rows.map((i) => session.data.get(name).data[i]);
+    column = (c) => iv.rows.map((i) => c.value(i));
   return {
     iv,
     n: iv.rows.length,
-    y: column(iv.dep),
-    endogenous: iv.endogenous.map(column),
-    exogenous: iv.exogenous.map(column),
-    instruments: iv.instruments.map(column),
+    y: iv.rows.map((i) => session.data.get(iv.dep).data[i]),
+    endogenous: iv.columns.endogenous.map(column),
+    exogenous: iv.columns.exogenous.map(column),
+    instruments: iv.columns.instruments.map(column),
   };
 }
 function unadjusted(model, what) {
@@ -142,7 +238,8 @@ function overidGmm(session, model, ctx) {
   const J = model.iv.J,
     p = chi2tail(df, J);
   ctx.out("");
-  ctx.out(`  Test of overidentifying restriction${df > 1 ? "s" : ""}:`);
+  // Stata says restriction, however many there are.
+  ctx.out("  Test of overidentifying restriction:");
   ctx.out("");
   ctx.out(`  Hansen's J chi2(${df}) = ${six(J)} (p = ${four(p)})`);
   ctx.out("");
@@ -182,19 +279,25 @@ function endogenousGmm(session, model, ctx) {
 
 function firststage(session, model, ctx) {
   const f = ivFrame(session, model);
+  if (model.iv.columns.endogenous.some((c) => !c.term.variable))
+    throw new StataError(
+      "estat firststage after a factor-variable endogenous regressor is not available yet",
+      198,
+    );
   if (model.vce !== "unadjusted") {
     if (model.iv.estimator === "liml")
       throw new StataError(
         "estat firststage after a robust ivregress liml is not available yet",
         198,
       );
-    return firststageRobust(f, ctx, session);
+    return firststageRobust(f, ctx, session, model);
   }
   if (f.endogenous.length > 1)
     throw new StataError(
       "estat firststage with more than one endogenous regressor is not available yet",
       198,
     );
+  generatedNotes(session, model, ctx);
   const full = project([...f.exogenous, ...f.instruments], f.endogenous[0]),
     restricted = project(f.exogenous, f.endogenous[0]),
     df = f.n - full.rank - 1,
@@ -222,7 +325,7 @@ function firststage(session, model, ctx) {
     "  -------------+------------------------------------------------------------",
   );
   ctx.out(
-    `${f.iv.endogenous[0].padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
+    `${abbreviate(f.iv.endogenous[0], 12).padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
   );
   ctx.out(wide);
   ctx.out("");
@@ -255,12 +358,13 @@ function firststage(session, model, ctx) {
 }
 
 /** The summary table when the variance is robust: a robust F. */
-function firststageRobust(f, ctx, session) {
+function firststageRobust(f, ctx, session, model) {
   if (f.endogenous.length > 1)
     throw new StataError(
       "estat firststage with more than one endogenous regressor is not available yet",
       198,
     );
+  generatedNotes(session, model, ctx);
   const y = f.endogenous[0],
     full = project([...f.exogenous, ...f.instruments], y),
     restricted = project(f.exogenous, y),
@@ -302,7 +406,7 @@ function firststageRobust(f, ctx, session) {
     "  -------------+------------------------------------------------------------",
   );
   ctx.out(
-    `${f.iv.endogenous[0].padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
+    `${abbreviate(f.iv.endogenous[0], 12).padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
   );
   ctx.out(wide);
   ctx.out("");
@@ -324,7 +428,8 @@ function endogenous(session, model, ctx) {
     ),
     before = project(x, f.y),
     after = project([...x, ...v], f.y),
-    df = f.endogenous.length,
+    // Stata counts a factor's base level among the endogenous regressors.
+    df = model.iv.endogenousCount ?? f.endogenous.length,
     dfResidual = f.n - x.length - 1 - df,
     durbin = (f.n * (before.rss - after.rss)) / before.rss,
     wu = (before.rss - after.rss) / df / (after.rss / dfResidual),
@@ -358,12 +463,14 @@ function overid(session, model, ctx) {
     ctx.out("no overidentifying restrictions");
     throw new StataError("", 498);
   }
+  if (model.iv.estimator === "liml")
+    return overidLiml(session, model, f, df, ctx);
   const x = [...f.endogenous, ...f.exogenous],
     e = f.y.map(
       (value, i) =>
         value -
-        x.reduce((t, column, k) => t + column[i] * model.b[k], 0) -
-        model.b[x.length],
+        x.reduce((t, column, k) => t + column[i] * model.iv.b[k], 0) -
+        model.iv.b[x.length],
     ),
     z = [...f.exogenous, ...f.instruments],
     fitted = project(z, e),
@@ -388,6 +495,37 @@ function overid(session, model, ctx) {
     basmann,
     p_sargan: pSargan,
     sargan,
+  };
+}
+
+/**
+ * After LIML, Stata tests the overidentifying restrictions with kappa:
+ * Anderson and Rubin's N(kappa - 1) and Basmann's (kappa - 1)(N - L)/df,
+ * L counting the instruments, exogenous regressors and the constant.
+ */
+function overidLiml(session, model, f, df, ctx) {
+  const kappa = model.iv.kappa,
+    L = f.exogenous.length + f.instruments.length + 1,
+    ar = f.n * (kappa - 1),
+    basmann = ((kappa - 1) * (f.n - L)) / df,
+    pAr = chi2tail(df, ar),
+    pBasmann = Ftail(df, f.n - L, basmann),
+    line = (label, value, p) =>
+      `${label.padEnd(25)}= ${six(value).padStart(8)}  (p = ${four(p)})`;
+  ctx.out("");
+  ctx.out("  Tests of overidentifying restrictions:");
+  ctx.out("");
+  ctx.out(line(`  Anderson-Rubin chi2(${df})`, ar, pAr));
+  ctx.out(line(`  Basmann F(${df}, ${f.n - L})`, basmann, pBasmann));
+  ctx.out("");
+  session.results.r = {
+    basmann_df_d: f.n - L,
+    basmann_df_n: df,
+    p_basmann: pBasmann,
+    basmann,
+    ar_df: df,
+    p_ar: pAr,
+    ar,
   };
 }
 
