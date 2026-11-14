@@ -33,7 +33,7 @@ export function expandVarlist(text, names) {
         "factor-variable and time-series operators not allowed",
         101,
       );
-    else if (!/^[\p{L}_*?~][\p{L}\p{M}\p{Nd}_*?~-]*$/u.test(word))
+    else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(word))
       throw new StataError(`${word} invalid name`, 198);
     else if (word.includes("-")) {
       const ends = word.split("-");

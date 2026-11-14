@@ -1,15 +1,20 @@
 // Reads and writes Stata's .dta file format, so that a student's own
 // dataset can be used here and a project built here can be run in Stata.
-// Written files are format 118 (Stata 14 and later). Formats 105 to 115
+// Written files are format 118 (Stata 14 and later), or 119 (Stata 15 MP
+// and later) when there are more than 32,767 variables. Formats 105 to 115
 // (Stata 5 to 12, but for 112, a test release) and 117, 118 and 119
 // (Stata 13 and later) are read,
 // with their long strings (strL), notes and characteristics.
-import { MISSING, isMissing } from "./runtime/values.js";
+import {
+  MISSING,
+  decodeBytes,
+  encodeText,
+  isMissing,
+} from "./runtime/values.js";
 import { StataError } from "./runtime/errors.js";
 import { characteristicsOf } from "./runtime/store.js";
 
 const STEP = 2 ** 1011,
-  encoder = new TextEncoder(),
   decoder = new TextDecoder(),
   NUMERIC = {
     65526: "double",
@@ -47,15 +52,15 @@ class Writer {
     this.length += array.length;
   }
   text(value) {
-    this.bytes(encoder.encode(value));
+    this.bytes(encodeText(value));
   }
   /** Text in a field of fixed size, cut at a character and padded with 0. */
   field(value, size) {
     const out = new Uint8Array(size);
-    let encoded = encoder.encode(value);
+    let encoded = encodeText(value);
     while (encoded.length > size - 1) {
       value = value.slice(0, -1);
-      encoded = encoder.encode(value);
+      encoded = encodeText(value);
     }
     out.set(encoded);
     this.bytes(out);
@@ -99,6 +104,8 @@ export function writeDta(data, now = new Date()) {
   const variables = data.variables,
     k = variables.length,
     n = data.n,
+    // Format 118 counts variables in 2 bytes; 119 in 4.
+    wide = k > 32767,
     w = new Writer(),
     offsets = new Array(14).fill(0),
     section = (index, tag) => {
@@ -106,12 +113,14 @@ export function writeDta(data, now = new Date()) {
       w.text(tag);
     };
   section(0, "<stata_dta>");
-  w.text("<header><release>118</release><byteorder>LSF</byteorder><K>");
-  w.integer(k, 2);
+  w.text(
+    `<header><release>${wide ? 119 : 118}</release><byteorder>LSF</byteorder><K>`,
+  );
+  w.integer(k, wide ? 4 : 2);
   w.text("</K><N>");
   w.integer(n, 8);
   w.text("</N><label>");
-  const label = encoder.encode((data.label ?? "").slice(0, 80));
+  const label = encodeText((data.label ?? "").slice(0, 80));
   w.integer(label.length, 2);
   w.bytes(label);
   w.text("</label><timestamp>");
@@ -134,7 +143,7 @@ export function writeDta(data, now = new Date()) {
   const sorted = (data.sortedBy ?? [])
     .map((name) => variables.findIndex((v) => v.name === name) + 1)
     .filter(Boolean);
-  for (let j = 0; j <= k; j++) w.integer(sorted[j] ?? 0, 2);
+  for (let j = 0; j <= k; j++) w.integer(sorted[j] ?? 0, wide ? 4 : 2);
   w.text("</sortlist>");
   section(5, "<formats>");
   for (const v of variables) w.field(v.format ?? "", 57);
@@ -147,7 +156,7 @@ export function writeDta(data, now = new Date()) {
   w.text("</variable_labels>");
   section(8, "<characteristics>");
   for (const [owner, name, text] of characteristics(data)) {
-    const encoded = encoder.encode(text);
+    const encoded = encodeText(text);
     w.text("<ch>");
     w.integer(129 * 2 + encoded.length + 1, 4);
     w.field(owner, 129);
@@ -178,16 +187,21 @@ export function writeDta(data, now = new Date()) {
         else if (v.type === "int") view.setInt16(at, stored, true);
         else view.setInt32(at, stored, true);
       } else if (v.type === "strL") {
-        // Format 118 packs v in 2 bytes and o in 6; (0, 0) is the empty string.
+        // Format 118 packs v in 2 bytes and o in 6, format 119 v in 3 and
+        // o in 5; (0, 0) is the empty string.
         const text = String(value ?? "");
         if (text) {
-          view.setUint16(at, j + 1, true);
-          view.setUint32(at + 2, (i + 1) % 2 ** 32, true);
-          view.setUint16(at + 6, Math.floor((i + 1) / 2 ** 32), true);
+          const v = wide ? 3 : 2;
+          view.setUint16(at, (j + 1) & 0xffff, true);
+          if (wide) view.setUint8(at + 2, (j + 1) >>> 16);
+          view.setUint32(at + v, (i + 1) % 2 ** 32, true);
+          const high = Math.floor((i + 1) / 2 ** 32);
+          if (wide) view.setUint8(at + 7, high);
+          else view.setUint16(at + 6, high, true);
           long.push([j + 1, i + 1, text]);
         }
       } else {
-        let encoded = encoder.encode(String(value ?? ""));
+        let encoded = encodeText(String(value ?? ""));
         if (encoded.length > widths[j]) encoded = encoded.slice(0, widths[j]);
         block.set(encoded, at);
       }
@@ -200,7 +214,7 @@ export function writeDta(data, now = new Date()) {
     // Type 130 is text stored with a closing null, counted in its length;
     // text holding a null byte is binary (129), stored as it is.
     const binary = text.includes("\0"),
-      encoded = encoder.encode(text);
+      encoded = encodeText(text);
     w.text("GSO");
     w.integer(v, 4);
     w.integer(o, 8);
@@ -222,7 +236,7 @@ export function writeDta(data, now = new Date()) {
             (Number.isInteger(value) && Math.abs(value) <= 2147483620),
         )
         .sort((a, b) => a[0] - b[0]),
-      texts = pairs.map(([, text]) => encoder.encode(`${text}\0`)),
+      texts = pairs.map(([, text]) => encodeText(`${text}\0`)),
       length = texts.reduce((sum, text) => sum + text.length, 0);
     w.text("<lbl>");
     w.integer(8 + 8 * pairs.length + length, 4);
@@ -256,8 +270,8 @@ export function writeDta(data, now = new Date()) {
 
 /** A file that cannot be read as a dataset: r(610), as Stata gives. */
 class DtaError extends StataError {
-  constructor(message) {
-    super(message, 610);
+  constructor(message, code = 610) {
+    super(message, code);
   }
 }
 
@@ -282,9 +296,9 @@ function checkSize(n, types) {
 
 /** Text from bytes, quickly when it is short plain ASCII. */
 function decodeText(bytes) {
-  if (bytes.length > 64) return decoder.decode(bytes);
+  if (bytes.length > 64) return decodeBytes(bytes);
   for (let i = 0; i < bytes.length; i++)
-    if (bytes[i] > 127) return decoder.decode(bytes);
+    if (bytes[i] > 127) return decodeBytes(bytes);
   return String.fromCharCode(...bytes);
 }
 
@@ -417,10 +431,10 @@ function readData(r, n, types, { extended, strl }) {
 }
 
 /** One value-label table: its values, the offsets of its texts, the texts. */
-function readLabelTable(r, length, extended) {
+function readLabelTable(r, length, extended, partial = false) {
   const start = r.at,
-    end = start + length;
-  r.need(length);
+    end = partial ? Math.min(start + length, r.bytes.length) : start + length;
+  if (!partial) r.need(length);
   const count = r.integer(4);
   r.integer(4);
   const offsets = Array.from({ length: count }, () => r.integer(4)),
@@ -443,31 +457,20 @@ function readLabelTable(r, length, extended) {
 }
 
 /**
- * Notes are the characteristics named note1, note2, ... (note0 counts
- * them); they go to the notes, and every characteristic, notes included,
- * keeps its place among the characteristics. Stata lists a variable's
- * characteristics newest first and a file holds them in that order, so each
- * one read goes in front of those before it, as it does in Stata.
+ * The characteristics, notes among them (note1, note2, ... with note0 the
+ * number of the last), each kept under the name and number it has in the
+ * file. Stata lists characteristics newest first and a file holds them in
+ * that order, so each one read goes in front of those before it, as it does
+ * in Stata.
  */
 function attach(result, entries) {
-  const found = new Map(),
-    chars = new Map();
+  const chars = new Map();
   for (const [owner, name, text] of entries) {
-    const note = /^note(\d+)$/.exec(name);
-    if (note && note[1] !== "0" && text !== "") {
-      if (!found.has(owner)) found.set(owner, []);
-      found.get(owner).push([Number(note[1]), text]);
-    }
+    if (text === "") continue;
     const before = chars.get(owner) ?? new Map();
     before.delete(name);
     chars.set(owner, new Map([[name, text], ...before]));
   }
-  result.notes = new Map(
-    [...found].map(([owner, list]) => [
-      owner,
-      list.sort((a, b) => a[0] - b[0]).map(([, text]) => text),
-    ]),
-  );
   result.chars = chars;
   return result;
 }
@@ -579,10 +582,27 @@ function readTagged(bytes, head) {
     let text = bytes.subarray(r.at, r.at + size);
     // Text (type 130) is stored with a closing null byte.
     if (!binary && text.at(-1) === 0) text = text.subarray(0, -1);
-    strings.set(`${v},${o}`, decoder.decode(text));
+    // As Stata does, a text said to belong to a variable or observation the
+    // file does not have makes the file corrupt.
+    if (v < 1 || v > k || o < 1 || o > n)
+      throw new DtaError(
+        ".dta file corrupt: the header of one of its long strings (strL) is invalid",
+        612,
+      );
+    strings.set(`${v},${o}`, decodeBytes(text));
     r.at += size;
   }
-  for (const [j, i, key] of references) columns[j][i] = strings.get(key) ?? "";
+  // A reference with no text to go with it is no empty string: Stata
+  // refuses the file, and so does this page, rather than lose the text.
+  for (const [j, i, key] of references) {
+    const text = strings.get(key);
+    if (text === undefined)
+      throw new DtaError(
+        `.dta file corrupt: the long string (strL) of variable ${names[j]} in observation ${i + 1} refers to text the file does not hold${/^0,|,0$/.test(key) ? " (to observation or variable 0)" : ""}`,
+        688,
+      );
+    columns[j][i] = text;
+  }
   r.tag("</strls><value_labels>");
   const valueLabels = new Map();
   while (r.peek("<lbl>")) {
@@ -669,11 +689,20 @@ function readOld(bytes) {
   const { columns } = readData(r, n, types, { extended: release >= 113 }),
     valueLabels = new Map();
   // Value labels in format 105 have an older layout and are passed over.
-  while (release >= 108 && r.at < bytes.length) {
+  // As Stata does, a table cut short by the end of the file is read as far
+  // as it goes, and bytes after the last table that do not make one (such
+  // as padding) are passed over.
+  while (release >= 108 && bytes.length - r.at >= 4 + nameSize + 3 + 8) {
     const length = r.integer(4),
       name = r.field(nameSize);
     r.at += 3;
-    valueLabels.set(name, readLabelTable(r, length, release >= 113));
+    if (!length) break;
+    try {
+      valueLabels.set(name, readLabelTable(r, length, release >= 113, true));
+    } catch (error) {
+      if (error instanceof DtaError) break;
+      throw error;
+    }
   }
   return attach(
     dataset(n, label, order, names, types, columns, {

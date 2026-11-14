@@ -327,15 +327,25 @@ test("the sort order ends at the first zero in the sortlist", () => {
 test("notes and characteristics are written back with the data", () => {
   const s = using(fixture("course118.dta"));
   shown(s, 'notes wage: Measured hourly\nchar wage[unit] "dollars"');
-  const back = readDta(s.exportData().bytes);
-  assert.deepEqual(
-    [...back.notes],
-    [
-      ["_dta", ["Simulated for testing", "Second dataset note"]],
-      ["income", ["Top-coded at 1,000,000"]],
-      ["wage", ["Measured hourly"]],
-    ],
-  );
+  const back = readDta(s.exportData().bytes),
+    notes = (data, owner) =>
+      [...(data.chars.get(owner) ?? [])]
+        .filter(([name]) => /^note\d+$/.test(name))
+        .sort(),
+    note = (k, text) => [`note${k}`, text];
+  assert.deepEqual(notes(back, "_dta"), [
+    note(0, "2"),
+    note(1, "Simulated for testing"),
+    note(2, "Second dataset note"),
+  ]);
+  assert.deepEqual(notes(back, "income"), [
+    note(0, "1"),
+    note(1, "Top-coded at 1,000,000"),
+  ]);
+  assert.deepEqual(notes(back, "wage"), [
+    note(0, "1"),
+    note(1, "Measured hourly"),
+  ]);
   assert.equal(back.chars.get("wage").get("unit"), "dollars");
   assert.equal(back.chars.get("_dta").get("author"), "Test builder");
   // Stata 19 read the exported file and listed its characteristics so,
@@ -358,7 +368,11 @@ test("notes and characteristics are written back with the data", () => {
   // They follow a variable that is renamed and leave with one dropped.
   shown(s, "rename income earnings\ndrop wage");
   const after = readDta(s.exportData().bytes);
-  assert.deepEqual([...after.notes.keys()], ["_dta", "earnings"]);
+  assert.deepEqual([...after.chars.keys()], ["_dta", "earnings"]);
+  assert.equal(
+    after.chars.get("earnings").get("note1"),
+    "Top-coded at 1,000,000",
+  );
   assert.equal(
     after.chars.get("earnings").get("source"),
     "Simulated tax records",
@@ -432,4 +446,311 @@ test("Unicode variable names can be used in commands", () => {
      +---------------------+
 `),
   );
+});
+
+// The tests below use files saved by Stata 19 from simulated data:
+// notes118.dta (and notes115.dta, by saveold, version(12)) hold notes 1 and
+// 3 of _dta, note 2 having been dropped, two notes on income and
+// characteristics; latin115.dta and latin117.dta (saveold, version(12) and
+// version(13)) hold country names in Latin-1, as a file from Stata 13 or
+// earlier on Windows does; binary118.dta holds a strL of the bytes 00 FF 7A
+// in observation 6; havenstrl119.dta was written by R's haven
+// (write_dta(..., version = 15)), which gives a format-119 file 118-style
+// strL references. The expected text is what Stata 19 printed for the same
+// commands.
+
+// Text here keeps each byte that is not UTF-8 as a code unit U+DC80 to
+// U+DCFF, and shows it as U+FFFD, where Stata's log has the raw byte.
+const raw = (b) => String.fromCharCode(0xdc00 + b),
+  REPLACEMENT = String.fromCharCode(0xfffd);
+
+test("notes keep their numbers: a gap left by notes drop stays a gap", () => {
+  for (const name of ["notes118.dta", "notes115.dta"]) {
+    const s = using(fixture(name));
+    assert.equal(
+      shown(s, "notes"),
+      block(`
+_dta:
+  1.  First note
+  3.  Third note
+
+income:
+  1.  inc A
+  2.  inc B
+`),
+    );
+    assert.equal(
+      shown(s, "char list"),
+      block(`
+  _dta[note1]:                First note
+  _dta[note0]:                3
+  _dta[note3]:                Third note
+  _dta[author]:               Instructor
+  income[note1]:              inc A
+  income[note0]:              2
+  income[note2]:              inc B
+  income[source]:             IRS
+  income[unit]:               USD
+`),
+    );
+    assert.equal(shown(s, `display "[\`: char _dta[note0]']"`), "[3]");
+    assert.equal(
+      shown(s, `display "[\`: char _dta[]']"`),
+      "[note1 note0 note3 author]",
+    );
+  }
+  // note0 says how far the notes go: note5 is past it; with note1 deleted
+  // only note 3 is left.
+  const s = using(fixture("notes118.dta"));
+  shown(s, 'char _dta[note5] "manual five"');
+  assert.equal(
+    shown(s, "notes _dta"),
+    "_dta:\n  1.  First note\n  3.  Third note",
+  );
+  shown(s, "char _dta[note1]");
+  assert.equal(shown(s, "notes _dta"), "_dta:\n  3.  Third note");
+  // Written back, the notes keep their numbers: Stata 19 read the export
+  // and listed notes 1 and 3, with note0 3.
+  const back = readDta(using(fixture("notes118.dta")).exportData().bytes);
+  assert.deepEqual(
+    ["note0", "note1", "note2", "note3"].map((k) =>
+      back.chars.get("_dta").get(k),
+    ),
+    ["3", "First note", undefined, "Third note"],
+  );
+});
+
+test("notes subcommands work on a file's notes", () => {
+  const s = using(fixture("notes118.dta"));
+  assert.equal(shown(s, "notes drop income in 1"), "  (1 note dropped)");
+  assert.equal(shown(s, "notes _dta: Added later"), "");
+  assert.equal(
+    shown(s, "notes list _dta in 2/4"),
+    "_dta:\n  3.  Third note\n  4.  Added later",
+  );
+  assert.equal(
+    shown(s, "notes replace _dta in 1 : Replaced first"),
+    "  (note 1 for _dta replaced)",
+  );
+  assert.equal(shown(s, "notes search Third"), "_dta:\n  3.  Third note");
+  assert.equal(shown(s, "notes renumber _dta"), "");
+  assert.equal(
+    shown(s, "notes"),
+    block(`
+_dta:
+  1.  Replaced first
+  2.  Third note
+  3.  Added later
+
+income:
+  2.  inc B
+`),
+  );
+  assert.equal(
+    shown(s, "char list _dta[]"),
+    block(`
+  _dta[note3]:                Added later
+  _dta[note2]:                Third note
+  _dta[note1]:                Replaced first
+  _dta[note0]:                3
+  _dta[author]:               Instructor
+`),
+  );
+});
+
+test("collapse keeps the dataset's notes; drop _all clears them", () => {
+  let s = using(fixture("notes118.dta"));
+  shown(s, "collapse (mean) income, by(id)");
+  assert.equal(shown(s, "notes"), "_dta:\n  1.  First note\n  3.  Third note");
+  assert.equal(
+    shown(s, "char list"),
+    block(`
+  _dta[note1]:                First note
+  _dta[note0]:                3
+  _dta[note3]:                Third note
+  _dta[author]:               Instructor
+`),
+  );
+  s = using(fixture("notes118.dta"));
+  shown(s, "drop _all");
+  assert.equal(shown(s, "notes"), "");
+  assert.equal(shown(s, "char list"), "");
+});
+
+test("locals typed one command at a time are kept, as in Stata's Command window", () => {
+  const s = using(fixture("notes118.dta"));
+  shown(s, "local u : char income[unit]");
+  shown(s, "local v : char _dta[author]");
+  shown(s, "local z : char income[]");
+  assert.equal(shown(s, `display "[\`u'] [\`v']"`), "[USD] [Instructor]");
+  assert.equal(shown(s, `display "[\`z']"`), "[note1 note0 note2 source unit]");
+  // A do-file has locals of its own.
+  assert.equal(
+    s.run(`display "[\`u']"`, { doFile: true }).output[0].lines.join(),
+    "[]",
+  );
+});
+
+test("text from Stata 13 and earlier keeps its bytes (Latin-1, say)", () => {
+  for (const name of ["latin115.dta", "latin117.dta"]) {
+    const s = using(fixture(name));
+    shown(
+      s,
+      "gen n = strlen(country)\ngen c3 = substr(country, 1, 3)\ngen n3 = strlen(c3)\ngen u = ustrlen(country)",
+    );
+    assert.equal(
+      shown(s, "list n c3 n3 u"),
+      block(`
+     +--------------------+
+     |  n    c3   n3    u |
+     |--------------------|
+  1. | 13   C${REPLACEMENT}t    3   13 |
+  2. |  6   Esp    3    6 |
+  3. |  4   Cha    3    4 |
+     +--------------------+
+`),
+    );
+    assert.equal(shown(s, 'count if country == "Chad"'), "  1");
+    // Written back, the byte F4 (ô in Latin-1) is still F4: Stata 19 read
+    // the export and gave tobytes(country[1]) = \d067\d244\d116...
+    const back = readDta(s.exportData().bytes),
+      country = back.variables.find((v) => v.name === "country");
+    assert.equal(country.data[0], `C${raw(0xf4)}te d'Ivoire`);
+    assert.equal(
+      back.variables.find((v) => v.name === "c3").data[0],
+      `C${raw(0xf4)}t`,
+    );
+    const bytes = s.exportData().bytes;
+    assert.ok(
+      Buffer.from(bytes).includes(Buffer.from([0x43, 0xf4, 0x74, 0x65])),
+    );
+  }
+});
+
+test("a binary strL keeps its bytes and shows a null byte as \\0", () => {
+  const s = using(fixture("binary118.dta"));
+  shown(s, "gen la = strlen(a)");
+  assert.equal(
+    shown(s, "list id la if id >= 5"),
+    block(`
+     +---------+
+     | id   la |
+     |---------|
+  5. |  5   20 |
+  6. |  6    3 |
+  7. |  7    0 |
+  8. |  8    0 |
+     +---------+
+`),
+  );
+  assert.equal(
+    shown(s, "list id a if id == 6"),
+    block(`
+     +-----------+
+     | id      a |
+     |-----------|
+  6. |  6   \\0${REPLACEMENT}z |
+     +-----------+
+`),
+  );
+  // The fixture strl118.dta holds \0, \1 and abc in observation 5.
+  assert.equal(
+    shown(using(fixture("strl118.dta")), "tabulate essay in 5/6"),
+    block(`
+         essay |      Freq.     Percent        Cum.
+---------------+-----------------------------------
+        \\0\u0001abc |          1       50.00       50.00
+Short answer 2 |          1       50.00      100.00
+---------------+-----------------------------------
+         Total |          2      100.00
+`),
+  );
+  const bytes = Buffer.from(s.exportData().bytes),
+    at = bytes.indexOf(Buffer.from([0, 0xff, 0x7a]));
+  assert.ok(at > bytes.indexOf("<strls>"));
+});
+
+test("a strL reference with no text, or a strL with an invalid header, is refused", () => {
+  // Stata 19: ".dta file corrupt ... attempt to crosslink a strl to
+  // observation or variable 0", r(688).
+  assert.throws(() => readDta(fixture("havenstrl119.dta")), {
+    code: 688,
+    message: /strL.*observation or variable 0/,
+  });
+  // The first text said to belong to observation 1,001 of 8: Stata 19
+  // gives ".dta file corrupt / GSO header invalid.", r(612).
+  const broken = fixture("binary118.dta"),
+    at = Buffer.from(broken).indexOf("<strls>GSO") + 7,
+    view = new DataView(broken.buffer, broken.byteOffset);
+  view.setBigUint64(at + 7, view.getBigUint64(at + 7, true) + 1000n, true);
+  assert.throws(() => readDta(broken), { code: 612 });
+});
+
+test("bytes after the value labels of a format 113 to 115 file are passed over", () => {
+  const original = fixture("latin115.dta"),
+    labels = (bytes) => shown(using(bytes), "label list");
+  // Stata 19 loads the file with 16 zero bytes or a newline appended as it
+  // loads the file itself.
+  for (const extra of [new Uint8Array(16), Uint8Array.of(10)]) {
+    const padded = new Uint8Array(original.length + extra.length);
+    padded.set(original);
+    padded.set(extra, original.length);
+    assert.equal(labels(padded), labels(original));
+  }
+  // Cut 3 bytes short, the last label keeps what is left, as in Stata 19.
+  assert.equal(
+    labels(original.subarray(0, original.length - 3)),
+    `yl:\n           1 ${REPLACEMENT}le`,
+  );
+});
+
+test("more than 32,767 variables are written as format 119", () => {
+  // Stata 19 read such an export of a 33,001-variable file and listed it
+  // as it listed the file itself.
+  const k = 33001,
+    variables = Array.from({ length: k }, (_, j) => ({
+      name: `v${j + 1}`,
+      type: j === k - 1 ? "strL" : "byte",
+      format: j === k - 1 ? "%9s" : "%8.0g",
+      label: "",
+      valueLabel: "",
+      data: j === k - 1 ? ["row 1", "q".repeat(2500)] : [j % 100, 1],
+    })),
+    bytes = writeDta({
+      n: 2,
+      variables,
+      sortedBy: ["v3", "v2"],
+      label: "",
+      valueLabels: new Map(),
+      chars: new Map(),
+    });
+  assert.match(
+    new TextDecoder().decode(bytes.subarray(0, 60)),
+    /<release>119</,
+  );
+  const back = readDta(bytes);
+  assert.equal(back.variables.length, k);
+  assert.deepEqual(back.sortedBy, ["v3", "v2"]);
+  assert.deepEqual([...back.variables[32999].data], [99, 1]);
+  assert.deepEqual(back.variables[k - 1].data, ["row 1", "q".repeat(2500)]);
+});
+
+test("names may hold any character outside ASCII after the first", () => {
+  const s = createConsoleSession();
+  shown(
+    s,
+    "set obs 4\ngen co₂ = _n*400 + mod(_n,2)\ngen temp°c = 20+_n\ngen r² = _n/10\ngen a·b = 1\ngen a😀 = 1",
+  );
+  assert.equal(
+    shown(s, "summarize co₂ temp°c r²"),
+    block(`
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         co₂ |          4      1000.5    516.1398        401       1600
+      temp°c |          4        22.5    1.290994         21         24
+          r² |          4         .25    .1290994         .1         .4
+`),
+  );
+  assert.equal(s.run("gen ½a = 1").output[0].lines[0], "½a invalid name");
+  assert.equal(shown(s, "notes co₂: ppm\nnotes co₂"), "co₂:\n  1.  ppm");
 });

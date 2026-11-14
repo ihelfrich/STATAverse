@@ -1563,6 +1563,9 @@ function collapse(session, text, ctx) {
   const result = new data.constructor();
   result.defaultType = data.defaultType;
   result.valueLabels = data.valueLabels;
+  // The dataset's notes and characteristics stay; the variables' go.
+  if (data.chars?.has("_dta"))
+    result.chars.set("_dta", new Map(data.chars.get("_dta")));
   result.n = order.length;
   // The by variables keep the order they had in the data, whatever order
   // by() lists them in; the statistics follow.

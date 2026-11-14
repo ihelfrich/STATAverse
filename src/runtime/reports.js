@@ -11,9 +11,12 @@ import { clauses, optionItems, splitAtComma } from "./syntax.js";
 import {
   MISSING,
   byteLength,
+  displayWidth,
   isMissing,
   isStringType,
   missingName,
+  padDisplay,
+  shownText,
 } from "./values.js";
 
 const g9 = (value, width) => applyFormat(value, "%9.0g").trim().padStart(width);
@@ -73,7 +76,7 @@ export const present = (column, rows) => {
 };
 /** A value as list and tabulate show it: its label, or its format. */
 export function labelled(session, variable, value, useLabels = true) {
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return shownText(value);
   const map = useLabels
     ? session.data.valueLabels.get(variable.valueLabel)
     : null;
@@ -192,9 +195,10 @@ export function summarize(session, text, ctx) {
       );
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
       ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
-    const label = (
-      name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name
-    ).padStart(12);
+    const label = padDisplay(
+      name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name,
+      12,
+    );
     ctx.out(
       analytic
         ? m.n
@@ -286,7 +290,7 @@ function wrap(text, width) {
       lines[lines.length - 1] += " " + word;
     else lines.push(word);
   }
-  return lines.map((line) => line.slice(0, width).padStart(width));
+  return lines.map((line) => padDisplay(line.slice(0, width), width));
 }
 
 // Fills lines of at most `width` characters with words, as the headings of
@@ -499,7 +503,7 @@ export function tabulate(session, text, ctx) {
         : session.data.valueLabels.get(variables[k].valueLabel)?.get(value),
     show = (k, value) =>
       typeof value === "string"
-        ? value
+        ? shownText(value)
         : (label(k, value) ?? tableNumber(value, variables[k].format)),
     // A string or label widens its column; a number shown wider than nine
     // characters overflows its column without widening it, as in Stata.
@@ -543,8 +547,14 @@ export function tabulate(session, text, ctx) {
       width = Math.max(
         11,
         greatest(
+          // A string widens it by its bytes (a null byte shown as \0), a
+          // label by the columns it takes; both are aligned by columns.
           entries.map(([value], k) =>
-            textual(0, value) ? shown[k].length : Math.min(9, shown[k].length),
+            typeof value === "string"
+              ? byteLength(value.replace(/\0/g, "\\0"))
+              : textual(0, value)
+                ? displayWidth(shown[k])
+                : Math.min(9, shown[k].length),
           ),
         ),
       ),
@@ -590,7 +600,7 @@ export function tabulate(session, text, ctx) {
       const percent = (100 * n) / keep.length;
       running += percent;
       ctx.out(
-        `${shown[k].padStart(width)} |${count(n).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
+        `${padDisplay(shown[k], width)} |${count(n).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
       );
     });
     ctx.out(rule);
@@ -901,7 +911,10 @@ export function list(session, text, ctx) {
     // abbrev() shortens it, never below five characters. A temporary
     // variable's heading, which Stata's subvarname gives it, is cut instead.
     headers = variables.map((v, k) => {
-      const room = Math.max(limit, greatest(cells.map((row) => row[k].length)));
+      const room = Math.max(
+        limit,
+        greatest(cells.map((row) => displayWidth(row[k]))),
+      );
       if (v.header !== undefined) return v.header.slice(0, room);
       const w = Math.max(room, 5);
       return v.name.length > w
@@ -909,7 +922,10 @@ export function list(session, text, ctx) {
         : v.name;
     }),
     widths = variables.map((v, k) =>
-      Math.max(headers[k].length, greatest(cells.map((row) => row[k].length))),
+      Math.max(
+        displayWidth(headers[k]),
+        greatest(cells.map((row) => displayWidth(row[k]))),
+      ),
     ),
     // Under by:, observations are numbered within their group.
     first = ctx.group ? ctx.group.start : 0,
@@ -917,7 +933,7 @@ export function list(session, text, ctx) {
       parsed.options.noobs ? "  " : `${String(i - first + 1).padStart(3)}. `,
     margin = parsed.options.noobs ? "  " : "     ",
     line = (items) =>
-      items.map((item, k) => item.padStart(widths[k])).join("   ");
+      items.map((item, k) => padDisplay(item, widths[k])).join("   ");
   ctx.out("");
   if (parsed.options.clean) {
     // Without observation numbers the rows start one column further in.

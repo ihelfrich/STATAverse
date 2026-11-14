@@ -811,13 +811,11 @@ function swapVariable(data, name, values, options) {
   let temporary = "__swap";
   while (data.has(temporary)) temporary += "_";
   data.generate(temporary, values, options);
-  const notes = data.notes.get(name),
-    chars = data.chars.get(name);
+  const chars = data.chars.get(name);
   data.drop([name]);
   data.rename(temporary, name);
   data.order(position);
   data.get(name).label = label;
-  if (notes) data.notes.set(name, notes);
   if (chars) data.chars.set(name, chars);
 }
 function targets(parsed, action) {

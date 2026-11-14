@@ -93,7 +93,7 @@ function tokenize(source) {
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
     } else if (
-      (m = /^([LFD])(\d*)\.([\p{L}_][\p{L}\p{M}\p{Nd}_]*)/u.exec(rest))
+      (m = /^([LFD])(\d*)\.([\p{L}_][\w\u0080-\u{10FFFF}]*)/u.exec(rest))
     ) {
       // L.x, F2.x and D.x: lag, lead and difference under xtset or tsset.
       push(
@@ -102,7 +102,7 @@ function tokenize(source) {
         i,
       );
       i += m[0].length;
-    } else if ((m = /^[\p{L}_][\p{L}\p{M}\p{Nd}_]*/u.exec(rest))) {
+    } else if ((m = /^[\p{L}_][\w\u0080-\u{10FFFF}]*/u.exec(rest))) {
       push("name", m[0], i);
       i += m[0].length;
     } else if (

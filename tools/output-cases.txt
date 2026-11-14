@@ -4733,3 +4733,88 @@ summarize grö*
 rename ñ_count número
 tabulate número if größe > 2
 count if número >= 2 & größe < 4
+=== notes-numbers-and-subcommands
+clear
+set obs 3
+generate id = _n
+generate income = _n * 1000
+notes: First note
+notes: Second note
+notes: Third note
+notes income: inc A
+notes income: inc B
+notes drop _dta in 2
+char _dta[author] "Instructor"
+notes
+char list
+display "`: char _dta[note0]'"
+display "`: char _dta[]'"
+char _dta[note5] "manual five"
+notes _dta
+char _dta[note5]
+notes drop income in 1
+notes _dta: Added later
+notes list _dta in 2/4
+notes _dta in 4
+notes _dta in 1/l
+capture noisily notes _dta in 3/2
+capture noisily notes _dta in x
+notes replace _dta in 1 : Replaced first
+notes replace _dta in 2 : No such note
+notes search Third
+notes search nothing
+notes renumber _dta
+notes
+char list _dta[]
+notes income _dta
+notes _all
+notes:
+capture noisily notes drop
+notes drop _dta in 1/2
+char list _dta[]
+notes: a   b.  First. Second sentence?  Yes
+set linesize 60
+notes: This is a rather long note that keeps going and going well past the right edge of a sixty column screen to see where it wraps
+notes _dta
+set linesize 200
+char _dta[y1] "a" "b"
+char _dta[y2] `"a "q" b"'
+char _dta[y3]   a   b
+capture noisily char _dta[y4] "a
+char list _dta[y1]
+char list _dta[y2]
+char list _dta[y3]
+char list _dta[nonexist]
+local u : char income[]
+display "[`u']"
+collapse (mean) income, by(id)
+notes
+char list
+drop _all
+notes
+char list
+=== unicode-name-characters
+clear
+set obs 4
+generate co₂ = _n * 400 + mod(_n * 37, 11) * 90
+generate temp°c = 20 + _n
+generate r² = _n / 10
+generate a·b = 1
+generate a😀 = 1
+capture noisily generate ½a = 1
+generate 名前 = _n
+label define kl 1 "klein" 2 "mittel" 3 "groß" 4 "名前名前名前"
+label values 名前 kl
+summarize co₂ temp°c r² 名前
+regress co₂ temp°c
+list co₂ 名前 r²
+tabulate 名前
+notes co₂: Gemessen in ppm
+notes co₂
+generate s = "ünïcödé ✓ übër" in 1
+replace s = "名前名前名前" in 2
+replace s = "a" in 3
+tabulate s
+list s 名前
+collapse (mean) co₂, by(名前)
+list

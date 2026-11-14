@@ -5,8 +5,8 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import { count, labelled, moments } from "./reports.js";
-import { MISSING, isMissing, isStringType } from "./values.js";
-import { characteristicsOf } from "./store.js";
+import { MISSING, displayWidth, isMissing, isStringType } from "./values.js";
+import { characteristicsOf, defineCharacteristic } from "./store.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -305,7 +305,6 @@ function clonevar(session, text, ctx) {
 const note = (message) => (_session, _text, ctx) => ctx.out(message);
 const quiet = () => {};
 
-/** notes: text attached to the dataset or to a variable. */
 /**
  * timer on|off|clear|list [#]: wall-clock timers 1 to 100. Each keeps its
  * running total, how many times it was stopped, and when it was started.
@@ -349,54 +348,256 @@ function timer(session, text, ctx) {
     }
   } else throw new StataError("invalid syntax", 198);
 }
+/**
+ * A note as Stata's notes command shows it, in an SMCL paragraph: its
+ * number, then its words, wrapped to the line size and indented under the
+ * first word. A word that ends a sentence and was followed by two spaces or
+ * more keeps two; other runs of spaces become one.
+ */
+function noteLines(number, text, linesize) {
+  const k = String(number).length,
+    rest = " ".repeat(k > 3 ? 7 : 6),
+    lines = [];
+  let line = " ".repeat(Math.max(3 - k, 0)),
+    gap = "";
+  for (const [, word, space] of `${number}.\n${text}`.matchAll(/(\S+)(\s*)/g)) {
+    if (gap && displayWidth(line + gap + word) > linesize) {
+      lines.push(line);
+      line = rest + word;
+    } else line += gap + word;
+    gap =
+      /[.?!:]$/.test(word) && (space.length > 1 || space.includes("\n"))
+        ? "  "
+        : " ";
+  }
+  lines.push(line);
+  return lines;
+}
+
+/**
+ * notes: text attached to the dataset (_dta) or to a variable, kept as the
+ * characteristics note1, note2, ... with note0 the number of the last. Each
+ * subcommand does what Stata's notes.ado does: notes [list] [evarlist] [in
+ * #[/#]], notes [evarname]: text, notes drop evarlist [in #[/#]], notes
+ * search text, notes replace evarname in # : text, notes renumber evarname.
+ */
 function notes(session, text, ctx) {
-  const store = (session.data.notes ??= new Map()),
-    add = /^\s*(?:([A-Za-z_]\w*)\s*)?:\s*([\s\S]+)$/.exec(text),
-    list = (names) => {
-      for (const name of names) {
-        const items = store.get(name);
-        if (!items?.length) continue;
-        ctx.out("");
-        ctx.out(`${name}:`);
-        items.forEach((item, k) =>
-          ctx.out(`${String(k + 1).padStart(3)}.  ${item}`),
+  const data = session.data,
+    linesize = session.settings.linesize ?? 80,
+    get = (owner, k) => data.chars?.get(owner)?.get(`note${k}`) ?? "",
+    set = (owner, k, value) =>
+      defineCharacteristic(data, owner, `note${k}`, value),
+    // note0, as a number when it is one.
+    last = (owner) => {
+      const n = get(owner, 0).trim();
+      return n !== "" && Number.isFinite(Number(n)) ? Number(n) : null;
+    },
+    varname = (word) => {
+      const names = session.varlist(word);
+      if (names.length > 1)
+        throw new StataError("too many variables specified", 103);
+      return names[0];
+    },
+    show = (owner, k) => {
+      for (const line of noteLines(k, get(owner, k), linesize)) ctx.out(line);
+    },
+    // The word TS becomes the date and time, as Stata's $S_DATE $S_TIME.
+    stamp = () => {
+      const now = new Date(),
+        month = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[
+          now.getMonth()
+        ];
+      return `${String(now.getDate()).padStart(2)} ${month} ${now.getFullYear()} ${now.toTimeString().slice(0, 5)}`;
+    },
+    withStamp = (note) =>
+      note.replace(/(^| )TS(?= |$)/g, (_, before) => before + stamp()),
+    trimmed = text.trim(),
+    first = /^(:|[^\s:]+)\s*([\s\S]*)$/.exec(trimmed) ?? ["", "", ""],
+    [, one, after] = first;
+  // notes [evarlist] [in #[/#]]: the owners and the range of numbers.
+  const parse = (source) => {
+    const padded = ` ${source.trim()} `,
+      at = padded.indexOf(" in "),
+      raw = (at < 0 ? padded : padded.slice(0, at)).trim(),
+      range = at < 0 ? "" : padded.slice(at + 4).trim();
+    let owners;
+    if (!raw) owners = ["_dta", ...data.names];
+    else {
+      const words = raw.split(/\s+/),
+        others = words.filter((word) => word !== "_dta");
+      owners = others.length ? session.varlist(others.join(" ")) : [];
+      if (others.length < words.length || raw === "_all") owners.push("_dta");
+    }
+    if (!range) return { listed: Boolean(raw), owners, from: 1, to: 9999 };
+    const element = (word) => {
+      if (/^[fF]$/.test(word)) return 1;
+      if (/^[lL]$/.test(word)) return 10000;
+      const k = Number(word);
+      if (/^[+-]?\d+$/.test(word) && k >= 1 && k <= 9999) return k;
+      throw new StataError(`${word}:  invalid range element`, 198);
+    };
+    const parts = range.split(/\s*(\/)\s*|\s+/).filter(Boolean),
+      from = element(parts[0]);
+    if (parts.length === 1)
+      return { listed: Boolean(raw), owners, from, to: from };
+    if (parts[1] === "/" && parts.length === 3) {
+      const to = element(parts[2]);
+      if (from <= to) return { listed: Boolean(raw), owners, from, to };
+    }
+    throw new StataError(`in ${range}:  invalid`, 198);
+  };
+  const list = (source) => {
+    const { owners, from, to } = parse(source);
+    for (const owner of owners) {
+      const n = last(owner);
+      if (n === null) continue;
+      const top = Math.min(n, to),
+        shown = [];
+      for (let k = from; k <= top; k++) if (get(owner, k) !== "") shown.push(k);
+      if (!shown.length) continue;
+      ctx.out("");
+      ctx.out(`${owner}:`);
+      shown.forEach((k) => show(owner, k));
+    }
+  };
+  const add = (owner, note) => {
+    note = note.trim();
+    if (!note) return ctx.out("  (no note added)");
+    const n = last(owner);
+    let next = 1;
+    if (n !== null && Number.isInteger(n)) {
+      if (n >= 9999) throw new StataError("too many notes", 103);
+      next = n + 1;
+    }
+    set(owner, 0, String(next));
+    set(owner, next, withStamp(note));
+  };
+  if (!trimmed) return list("");
+  if (one.length <= 4 && "list".startsWith(one)) return list(after);
+  if (one === ":") return add("_dta", after);
+  if (one === "drop") {
+    const { listed, owners, from, to } = parse(after);
+    if (!listed) throw new StataError("invalid syntax", 198);
+    let dropped = 0;
+    for (const owner of owners) {
+      const n = last(owner);
+      if (n === null) continue;
+      const top = Math.min(to, n);
+      let k = from === 10000 ? top : from;
+      while (k <= top && get(owner, k) === "") k++;
+      if (k > top) continue;
+      for (; k <= top; k++)
+        if (get(owner, k) !== "") {
+          set(owner, k, "");
+          dropped++;
+        }
+      let left = n;
+      while (left >= 1 && get(owner, left) === "") left--;
+      set(owner, 0, left >= 1 ? String(left) : "");
+    }
+    ctx.out(`  (${dropped} note${dropped === 1 ? "" : "s"} dropped)`);
+    return;
+  }
+  if (one === "search") {
+    const words = after.match(/"[^"]*"|`"[\s\S]*?"'|\S+/g) ?? [],
+      find = (words[0] ?? "").replace(/^`?"([\s\S]*)"'?$/, "$1");
+    if (!find) throw new StataError("something required", 100);
+    if (words.length > 1) throw new StataError("invalid syntax", 198);
+    let found = false;
+    for (const owner of ["_dta", ...data.names]) {
+      const n = last(owner);
+      if (n === null) continue;
+      let header = false;
+      for (let k = 1; k <= n; k++)
+        if (get(owner, k).includes(find)) {
+          if (!header) {
+            ctx.out("");
+            ctx.out(`${owner}:`);
+            header = true;
+          }
+          show(owner, k);
+          found = true;
+        }
+    }
+    if (!found) ctx.out(`${find}: not found`);
+    return;
+  }
+  if (one === "replace") {
+    const m = /^(\S+)\s+(\S+)\s+([^\s:]+)\s*:([\s\S]*)$/.exec(after);
+    if (!m || m[2] !== "in") throw new StataError("invalid syntax", 198);
+    if (!/^[+-]?\d+$/.test(m[3])) throw new StataError("", 198);
+    let owner = m[1];
+    if (owner !== "_dta") {
+      try {
+        owner = varname(owner);
+      } catch (error) {
+        if (error instanceof StataError) {
+          ctx.out(error.message);
+          throw new StataError("", 198);
+        }
+        throw error;
+      }
+    }
+    const k = Number(m[3]),
+      note = m[4].trim();
+    if (!note || get(owner, k) === "") return ctx.out("  (no note replaced)");
+    set(owner, k, withStamp(note));
+    ctx.out(`  (note ${k} for ${m[1]} replaced)`);
+    return;
+  }
+  if (one === "renumber") {
+    const [who, ...extra] = after.split(/\s+/).filter(Boolean);
+    if (!who)
+      throw new StataError("nothing found where varname or _dta expected", 198);
+    if (extra.length)
+      throw new StataError(
+        `${extra.join(" ")} found where nothing expected`,
+        198,
+      );
+    let owner = "_dta";
+    if (who !== "_dta") {
+      try {
+        owner = varname(who);
+      } catch (error) {
+        if (!(error instanceof StataError)) throw error;
+        throw new StataError(
+          `${who} found where varname or _dta expected`,
+          111,
         );
       }
-      ctx.out("");
-    };
-  if (add) {
-    const name = add[1] ? session.varlist(add[1])[0] : "_dta";
-    if (!store.has(name)) store.set(name, []);
-    store.get(name).push(add[2].trim().replace(/ {2,}/g, " "));
-    // As in Stata, note0 (the count) is updated, then the new note is
-    // defined; each becomes the newest characteristic.
-    const chars = (session.data.chars ??= new Map()),
-      own = chars.get(name) ?? new Map(),
-      last = `note${store.get(name).length}`;
-    own.delete("note0");
-    own.delete(last);
-    chars.set(name, new Map([[last, ""], ["note0", ""], ...own]));
+    }
+    const n = last(owner);
+    if (n === null || n <= 0) return;
+    const kept = [];
+    for (let k = 1; k <= n; k++) {
+      if (get(owner, k) !== "") kept.push(get(owner, k));
+      set(owner, k, "");
+    }
+    set(owner, 0, String(kept.length));
+    kept.forEach((note, j) => set(owner, j + 1, note));
     return;
   }
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words[0] === "drop") {
-    for (const name of words[1] === "_all" || words.length === 1
-      ? [...store.keys()]
-      : words
-          .slice(1)
-          .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w))))
-      store.delete(name);
+  // The programmer's subcommands: notes _count, _fetch and _dir.
+  if (one === "_count" || one === "_fetch" || one === "_dir") {
+    const m = /^(\w+)\s*:\s*(\S*)\s*(\S*)\s*$/.exec(after);
+    if (!m) throw new StataError("invalid syntax", 198);
+    const owner = m[2] === "_dta" || one === "_dir" ? m[2] : varname(m[2]);
+    let value;
+    if (one === "_count") value = get(owner, 0) || "0";
+    else if (one === "_fetch") value = get(owner, m[3]);
+    else
+      value = [
+        ...(get("_dta", 0) && get("_dta", 0) !== "0" ? ["_dta"] : []),
+        ...data.names
+          .filter((name) => get(name, 0) && get(name, 0) !== "0")
+          .sort(),
+      ].join(" ");
+    ctx.frame.locals.set(m[1], value);
     return;
   }
-  const names =
-    words.length && words[0] !== "list" && words[0] !== "_all"
-      ? words.flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w)))
-      : words.length > 1 && words[0] === "list"
-        ? words
-            .slice(1)
-            .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w)))
-        : ["_dta", ...session.data.names];
-  list(names);
+  const colon = /^:\s*([\s\S]*)$/.exec(after);
+  if (colon) return add(one === "_dta" ? "_dta" : varname(one), colon[1]);
+  list(trimmed);
 }
 
 /**
@@ -408,7 +609,6 @@ function notes(session, text, ctx) {
 function char(session, text, ctx) {
   const data = session.data,
     chars = (data.chars ??= new Map()),
-    notes = (data.notes ??= new Map()),
     owner = (word) => {
       if (word === "_dta") return word;
       if (/[*?~\s-]/.test(word))
@@ -447,8 +647,11 @@ function char(session, text, ctx) {
     }
     if (/\s/.test(word)) throw new StataError("invalid syntax", 198);
     const [who, name] = target(word, true);
-    for (const [key, value] of characteristicsOf(data, who))
-      if (!name || key === name) show(who, key, value);
+    // A characteristic that is not defined is listed with no text.
+    if (name) show(who, name, chars.get(who)?.get(name) ?? "");
+    else
+      for (const [key, value] of characteristicsOf(data, who))
+        show(who, key, value);
     return;
   }
   if (verb === "rename") {
@@ -476,10 +679,8 @@ function char(session, text, ctx) {
           ([key]) => !theirsMoved.some(([name]) => name === key),
         ),
       ]);
-    if (notes.has(from)) notes.set(to, notes.get(from));
     chars.set(to, moved);
     chars.delete(from);
-    notes.delete(from);
     return;
   }
   // char [define] evarname[charname] [text]
@@ -489,33 +690,25 @@ function char(session, text, ctx) {
         : text,
     d = /^\s*(\S+?\[[^\]]*\])\s?([\s\S]*)$/.exec(rest);
   if (!d) throw new StataError("invalid syntax", 198);
-  const [who, name] = target(d[1], false),
-    value = unquote(d[2].trim()),
-    own = chars.get(who) ?? new Map(),
-    note = /^note(\d+)$/.exec(name);
-  own.delete(name);
-  if (value !== "") chars.set(who, new Map([[name, value], ...own]));
-  else chars.set(who, own);
-  if (note && note[1] !== "0") {
-    const list = notes.get(who) ?? [],
-      k = Number(note[1]);
-    while (list.length < k) list.push("");
-    list[k - 1] = value;
-    while (list.length && list.at(-1) === "") list.pop();
-    if (list.length) notes.set(who, list);
-    else notes.delete(who);
-  }
+  const [who, name] = target(d[1], false);
+  defineCharacteristic(data, who, name, charText(d[2].trim()));
 }
-/** Text written in double quotes or compound quotes, without them. */
-function unquote(text) {
-  if (text.startsWith('`"') && text.endsWith("\"'")) return text.slice(2, -2);
-  if (
-    text.length >= 2 &&
-    text.startsWith('"') &&
-    text.endsWith('"') &&
-    text.indexOf('"', 1) === text.length - 1
-  )
+/**
+ * The text of char define: the outer double quotes or compound quotes, when
+ * it starts with them, are taken off, and only those; an opening quote
+ * without its closing one is an error.
+ */
+function charText(text) {
+  if (text.startsWith('`"')) {
+    if (text.length < 4 || !text.endsWith("\"'"))
+      throw new StataError("invalid syntax", 198);
+    return text.slice(2, -2);
+  }
+  if (text.startsWith('"')) {
+    if (text.length < 2 || !text.endsWith('"'))
+      throw new StataError("invalid syntax", 198);
     return text.slice(1, -1);
+  }
   return text;
 }
 

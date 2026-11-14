@@ -237,7 +237,7 @@ export function clauses(head, expAllowed = true) {
     }
   }
   const word =
-    /(?<![\p{L}\p{M}\p{Nd}_.])(if|in|using)(?![\p{L}\p{M}\p{Nd}_])/gu;
+    /(?<![\w\u0080-\u{10FFFF}.])(if|in|using)(?![\w\u0080-\u{10FFFF}])/gu;
   for (let m; (m = word.exec(head));)
     if (flags[m.index])
       found.push({ kind: m[1], at: m.index, after: m.index + m[1].length });

@@ -723,6 +723,10 @@ export function coefficientRows(session, model, level, width) {
     (k) => {
       const se = Math.sqrt(model.V[k][k]),
         t = model.b[k] / se;
+      // A standard error of zero (a perfect fit) is shown as missing, and
+      // so is everything computed from it, as Stata shows them.
+      if (!(se > 0))
+        return `${g(model.b[k]).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
       return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
     },
     width,

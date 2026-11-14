@@ -8,7 +8,7 @@ self.onmessage = ({ data }) => {
   try {
     const result =
       kind === "run"
-        ? session.run(source)
+        ? session.run(source, { doFile: data.doFile })
         : kind === "file"
           ? session.addFile(data.name, data.text)
           : kind === "data"

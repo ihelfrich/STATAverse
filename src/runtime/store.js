@@ -38,42 +38,30 @@ const descending = (a, b) =>
 
 /**
  * The characteristics of _dta or of a variable as Stata lists them, newest
- * first, as [name, text] pairs. Notes are the characteristics note1, note2,
- * ... with note0 counting them; their text comes from data.notes, which the
- * notes command keeps, and their place from data.chars when it has one.
+ * first, as [name, text] pairs. Notes are characteristics too: note1, note2,
+ * ... hold the notes and note0 the number of the last one, which a gap left
+ * by a dropped note does not change.
  */
 export function characteristicsOf(data, owner) {
-  const notes = (data.notes?.get(owner) ?? []).filter((note) => note !== ""),
-    count = notes.length,
-    text = (k) => (k ? notes[k - 1] : String(count)),
-    out = [],
-    seen = new Set();
-  for (const [name, value] of data.chars?.get(owner) ?? []) {
-    const note = /^note(\d+)$/.exec(name);
-    if (!note) {
-      if (value !== "") out.push([name, value]);
-      continue;
-    }
-    const k = Number(note[1]);
-    if (count && k <= count && !seen.has(k)) {
-      out.push([`note${k}`, text(k)]);
-      seen.add(k);
-    }
-  }
-  // Notes not placed yet come first, as the newest: noteN, note0, note1, ...
-  const order = count
-    ? [count, 0, ...Array.from({ length: count - 1 }, (_, k) => k + 1)]
-    : [];
-  const first = order
-    .filter((k) => !seen.has(k))
-    .map((k) => [`note${k}`, text(k)]);
-  return [...first, ...out];
+  return [...(data.chars?.get(owner) ?? [])];
 }
 
-const copyNotes = (from) => ({
-  notes: new Map(
-    [...(from.notes ?? [])].map(([name, list]) => [name, [...list]]),
-  ),
+/**
+ * Defines a characteristic, or deletes it when the text is empty. A new or
+ * changed one becomes the newest; one given the text it has keeps its
+ * place, as in Stata.
+ */
+export function defineCharacteristic(data, owner, name, text) {
+  const chars = (data.chars ??= new Map()),
+    own = chars.get(owner) ?? new Map();
+  if (own.get(name) === text) return;
+  own.delete(name);
+  if (text !== "") chars.set(owner, new Map([[name, text], ...own]));
+  else if (own.size) chars.set(owner, own);
+  else chars.delete(owner);
+}
+
+const copyChars = (from) => ({
   chars: new Map(
     [...(from.chars ?? [])].map(([name, map]) => [name, new Map(map)]),
   ),
@@ -88,9 +76,8 @@ export class Dataset {
     this.label = "";
     // Value labels: label name to a Map from number to text.
     this.valueLabels = new Map();
-    // Notes (name to a list of texts) and characteristics (name to a Map
-    // from characteristic to text), for _dta and each variable.
-    this.notes = new Map();
+    // Characteristics, notes among them: owner (_dta or a variable) to a
+    // Map from characteristic to text, newest first.
     this.chars = new Map();
   }
 
@@ -291,12 +278,13 @@ export class Dataset {
     for (const name of names) this.get(name);
     for (const name of names) this.unsortFrom(name);
     this.variables = this.variables.filter((v) => !names.includes(v.name));
-    for (const name of names) {
-      this.notes?.delete(name);
-      this.chars?.delete(name);
+    for (const name of names) this.chars?.delete(name);
+    // Stata has no observations without variables, and dropping the last
+    // variable clears the dataset's characteristics and notes too.
+    if (!this.variables.length) {
+      this.n = 0;
+      this.chars?.clear();
     }
-    // Stata has no observations without variables.
-    if (!this.variables.length) this.n = 0;
   }
   keep(names) {
     for (const name of names) this.get(name);
@@ -311,11 +299,10 @@ export class Dataset {
     variable.name = to;
     this.sortedBy = this.sortedBy.map((name) => (name === from ? to : name));
     // Its notes and characteristics go with it.
-    for (const store of [this.notes, this.chars])
-      if (store?.has(from)) {
-        store.set(to, store.get(from));
-        store.delete(from);
-      }
+    if (this.chars?.has(from)) {
+      this.chars.set(to, this.chars.get(from));
+      this.chars.delete(from);
+    }
   }
   /** Moves the listed variables to the front, in the order given. */
   order(names) {
@@ -342,7 +329,7 @@ export class Dataset {
       valueLabels: new Map(
         [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
-      ...copyNotes(this),
+      ...copyChars(this),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
     };
   }
@@ -353,7 +340,7 @@ export class Dataset {
       valueLabels: new Map(
         [...snapshot.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
-      ...copyNotes(snapshot),
+      ...copyChars(snapshot),
       variables: snapshot.variables.map((v) => ({
         ...v,
         data: v.data.slice(),
