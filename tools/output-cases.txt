@@ -13307,3 +13307,564 @@ scatter v5 v1, xlabel(10(3)0)
 scatter v5 v1, xlabel(0(-25)100)
 scatter v5 v1, ylabel(-5(5)-20)
 scatter v5 v1, xlabel(100(30)-20)
+=== files-delimited-rows-count-empty-lines-and-separators
+clear
+input str30 line
+"Report generated 2024"
+""
+"region,sales,units"
+"East,1200.50,10"
+"West,980,"
+""
+"North,NA,7"
+end
+export delimited using f6blank.csv, replace novarnames delimiter(tab)
+import delimited using f6blank.csv, clear varnames(3)
+list
+describe
+import delimited using f6blank.csv, clear rowrange(3:5)
+list
+import delimited using f6blank.csv, clear varnames(3) rowrange(5)
+list
+import delimited using f6blank.csv, clear varnames(3) rowrange(3:5)
+describe
+list
+import delimited using f6blank.csv, clear varnames(2) emptylines(include)
+list
+import delimited using f6blank.csv, clear rowrange(2:4) emptylines(include)
+list
+import delimited using f6blank.csv, clear rowrange(6:6)
+list
+import delimited using f6blank.csv, clear varnames(1) rowrange(3:5)
+describe
+clear
+input str30 line
+"a,b"
+""
+""
+"1,2"
+end
+export delimited using f6two.csv, replace novarnames delimiter(tab)
+import delimited using f6two.csv, clear rowrange(2:3)
+list
+import delimited using f6two.csv, clear varnames(2)
+describe
+clear
+input str30 line
+"ville;revenu"
+"Paris;35 123,50"
+"Lyon;29 800,25"
+"Nice;980,00"
+end
+export delimited using f6espace.csv, replace novarnames delimiter(tab)
+import delimited using f6espace.csv, clear delimiters(";") decimalseparator(,) groupseparator(" ")
+describe
+list
+import delimited using f6espace.csv, clear delimiters(";") decimalseparator(" , ") groupseparator(" ")
+list
+capture noisily import delimited using f6espace.csv, clear delimiters(";") decimalseparator(,) groupseparator(..)
+capture noisily import delimited using f6espace.csv, clear delimiters(";") decimalseparator(,,) groupseparator(.)
+=== files-sasxport5-extended-missing-labels
+clear
+set obs 6
+generate id = _n
+generate byte sex = cond(_n <= 2, 1, cond(_n <= 4, 2, .a))
+label define f6sexlbl 1 "Male" 2 "Female" .a "Refused"
+label values sex f6sexlbl
+export sasxport5 f6survey.xpt, replace
+capture noisily import sasxport5 f6survey.xpt, clear
+display _rc
+describe
+label list
+import sasxport5 f6survey.xpt, clear novallabels
+describe
+capture noisily export sasxport5 f6back.xpt, replace
+display _rc
+export sasxport5 f6back.xpt, replace vallabfile(none)
+capture noisily export sasxport5 id using f6back.xpt, replace
+display _rc
+label define f6zz 3 "c" 1 "a" .z "zed" .b "bee"
+generate byte q = cond(_n == 1, 3, cond(_n == 2, .b, 1))
+label values q f6zz
+export sasxport5 q using f6q.xpt, replace
+capture noisily import sasxport5 f6q.xpt, clear
+display _rc
+clear
+set obs 2
+generate byte q = _n * 2 - 1
+label define f6ok 3 "c" 1 "a"
+label values q f6ok
+export sasxport5 f6ok.xpt, replace
+import sasxport5 f6ok.xpt, clear
+label list
+list
+=== files-infix-and-infile
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+"  3 21F2.75Physics"
+""
+"  5  xF -1e1Art"
+" 61,0 F 1,5Law extra text"
+"  7"
+end
+export delimited using f6fix.dat, replace novarnames delimiter(tab)
+infix id 1-3 age 4-5 str sex 6 gpa 7-10 str major 11-20 using f6fix.dat, clear
+describe
+list
+infix int id 1-3 byte age 4-5 str1 sex 6 double gpa 7-10 str3 major 11-20 using f6fix.dat, clear
+describe
+infix id 1-3 age 4-5 using f6fix.dat in 2/3, clear
+list
+infix id 1-3 age 4-5 using f6fix.dat if age > 19, clear
+list
+capture noisily infix id 1-3 age 4-5 using f6fix.dat
+capture noisily infix id 1-3 age 4-5 using f6fix, clear
+capture noisily infix id 3-1 using f6fix.dat, clear
+capture noisily infix id 1-3, clear
+infix 2 lines 1: id 1-3 2: age 1-2 using f6fix.dat, clear
+list
+capture noisily infix id 1-3 id 4-5 using f6fix.dat, clear
+infix str20 s 1-50 using f6fix.dat, clear
+describe
+capture noisily infix 1x 1-3 using f6fix.dat, clear
+capture noisily infix id 1-3 using f6fix.dat, clear foo
+clear
+input str40 line
+"1 Ann 3.5"
+"2 Bob 3.9"
+"3,Cal,2.75"
+"4 Dee .a"
+""
+"5   Ed 1e1 6"
+"Fay x 7 Gus"
+end
+export delimited using f6free.raw, replace novarnames delimiter(tab)
+infile id str10 name gpa using f6free.raw, clear
+describe
+list
+infile id str2 name gpa using f6free, clear
+list
+infile id name gpa using f6free.raw in 2/4, clear
+list
+infile id str10 name gpa using f6free.raw in 6/9, clear
+infile id str10 name gpa using f6free.raw if gpa > 3, clear
+list
+infile int id str name double gpa using f6free.raw, clear
+describe
+infile id str10 name gpa using f6free.raw, clear byvariable(2)
+list
+capture noisily infile id str10 name gpa using f6free.raw in 0/3, clear
+capture noisily infile id str10 name gpa using f6free.raw in 3/2, clear
+infile x1-x3 using f6free.raw, clear
+describe, simple
+clear
+input str40 line
+"infile dictionary using f6fix.dat {"
+"* columns 1 to 5"
+"  _column(1) int id %3f"
+"  _column(4) byte age %2f"
+"  _skip(1) str4 code %4s"
+"}"
+end
+export delimited using f6dict.dct, replace novarnames delimiter(tab)
+infile using f6dict.dct, clear
+describe
+list
+infile using f6dict in 5/7, clear
+list
+clear
+input str40 line
+"infix dictionary using f6fix.dat {"
+"  id 1-3"
+"  str sex 6"
+"}"
+end
+export delimited using f6idict.dct, replace novarnames delimiter(tab)
+infix using f6idict.dct, clear
+list
+=== files-r6-infile-free-empty-lines
+clear
+input str20 line
+"1 Ann 3.5"
+""
+"2 Bob 4"
+"   "
+"3 Cal 5"
+end
+export delimited using r6em.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6em.raw, clear
+list
+clear
+input str20 line
+"1 Ann 3.5"
+""
+"2,Bob,4"
+"3 Cal 5"
+end
+export delimited using r6c2.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6c2.raw, clear
+list
+clear
+input str20 line
+"1,Ann,3.5"
+""
+"2 Bob 4"
+"3 Cal 5"
+end
+export delimited using r6c1.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6c1.raw, clear
+list
+clear
+input str20 line
+"1 A 3"
+"2,B,4"
+""
+""
+"3 C 5"
+end
+export delimited using r6cm.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6cm.raw, clear
+list
+clear
+input str20 line
+",1 A 3"
+"2 B 4"
+end
+export delimited using r6lead.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6lead.raw, clear
+list
+clear
+input str20 line
+"1 A 3"
+"2 B 4,"
+end
+export delimited using r6trail.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6trail.raw, clear
+list
+=== files-r6-infile-dictionary-decimals-and-records
+clear
+input str40 line
+"infile dictionary {"
+"  a %5.2f"
+"  b %5.2g"
+"  c %5.2e"
+"  d %5.1f"
+"  e %6.2f"
+"  f %4.0f"
+"}"
+"  123  123  123 -123 1.5e2  12 "
+"  1 2    7 . 12   .5   1  "
+end
+export delimited using r6dec.dct, replace novarnames delimiter(tab)
+infile using r6dec.dct, clear
+format a-f %12.4f
+list
+clear
+input str40 line
+"infile dictionary {"
+"  a %5.2f"
+"  b %3.1f"
+"}"
+"  .a  12"
+" 1e2 1."
+"  1,5 -12"
+end
+export delimited using r6nums.dct, replace novarnames delimiter(tab)
+infile using r6nums.dct, clear
+list
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+"  3 21F2.75Physics"
+end
+export delimited using r6data.dat, replace novarnames delimiter(tab)
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"_lrecl(20)"
+"  id %3f"
+"}"
+end
+export delimited using r6lrecl.dct, replace novarnames delimiter(tab)
+infile using r6lrecl.dct, clear
+list
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"_lrecl(4)"
+"  id %3f"
+"  age %3f"
+"}"
+end
+export delimited using r6lrecl4.dct, replace novarnames delimiter(tab)
+infile using r6lrecl4.dct, clear
+list
+clear
+input str40 line
+"infile dictionary {"
+"_firstlineoffile(2)"
+"  id %3f"
+"  age %3f"
+"}"
+"skip me"
+"  1 20"
+"  2 19"
+end
+export delimited using r6first.dct, replace novarnames delimiter(tab)
+infile using r6first.dct, clear
+list
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"_firstline(2)"
+"  id %3f"
+"}"
+end
+export delimited using r6first2.dct, replace novarnames delimiter(tab)
+infile using r6first2.dct, clear
+list
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"  int major %5s"
+"}"
+end
+export delimited using r6mis.dct, replace novarnames delimiter(tab)
+infile using r6mis.dct, clear
+list
+=== files-r6-infile-infix-dictionary-errors
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+"  3 21F2.75Physics"
+end
+export delimited using r6derr.dat, replace novarnames delimiter(tab)
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"_col(1) int id %3f"
+"_col(7) str1 sex %1s"
+"}"
+end
+export delimited using r6col.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6col.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  id %3f"
+"  age %2f"
+"  ?bad %2f"
+"  x %2f"
+"}"
+end
+export delimited using r6mid.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6mid.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  id %3f"
+"* c"
+"  id %2f"
+"}"
+end
+export delimited using r6dup.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6dup.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  1x %3f"
+"}"
+end
+export delimited using r6num.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6num.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  str3 id %3.1f"
+"  age %3.1s"
+"}"
+end
+export delimited using r6sdec.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6sdec.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary {"
+"// a comment"
+"  id %3f"
+"}"
+"  1"
+end
+export delimited using r6cmt.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6cmt.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"_lrecl(20)"
+"  id 1-3"
+"}"
+end
+export delimited using r6ixl.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixl.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"  ?x 4-5"
+"}"
+end
+export delimited using r6ixq.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixq.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"  id 4-5"
+"}"
+end
+export delimited using r6ixd.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixd.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"  age 4-x"
+"}"
+end
+export delimited using r6ixm.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixm.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"/"
+"  age 4-5"
+"}"
+end
+export delimited using r6ixs.dct, replace novarnames delimiter(tab)
+infix using r6ixs.dct, clear
+list
+infix id 1-3 / age 4-5 using r6derr.dat, clear
+list
+capture noisily infix id using r6derr.dat, clear
+display _rc
+capture noisily infix id 1-3 age using r6derr.dat, clear
+display _rc
+=== files-r6-infile-infix-clear-first
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+end
+export delimited using r6dclr.dat, replace novarnames delimiter(tab)
+clear
+label define r6yn 1 "yes"
+set obs 2
+generate keepme = 1
+capture noisily infix id 1-3 using r6nothere.dat, clear
+display _rc
+describe, short
+label list
+infix id 1-3 using r6dclr.dat
+list
+set obs 3
+capture noisily infix id 1-3 id 4-5 using r6dclr.dat, clear
+describe, short
+generate x = 1
+capture noisily infile id id using r6dclr.dat, clear
+describe, short
+generate x = 1
+capture noisily infile id using r6dclr.dat, clear foo
+display _rc
+describe, short
+generate x = 1
+infix id 1-3 using r6dclr.dat, clear
+label list
+=== files-r6-sasxport5-label-names-and-widths
+clear
+set obs 2
+generate byte educ = _n
+generate byte empl = 2 - _n
+label define education_level 1 "High school" 2 "College"
+label define education_other 0 "No" 1 "Yes"
+label values educ education_level
+label values empl education_other
+capture noisily export sasxport5 r6c.xpt, replace
+display _rc
+export sasxport5 r6c.xpt, replace rename
+import sasxport5 r6c.xpt, clear
+describe
+label list
+clear
+set obs 2
+generate byte q = _n
+label define r6big 1 "a label that is quite long indeed, more than forty characters long" 2 "short"
+label values q r6big
+export sasxport5 r6e.xpt, replace
+import sasxport5 r6e.xpt, clear
+label list
+clear
+set obs 4
+generate id = _n
+generate byte sex = cond(_n <= 2, 1, 2)
+label values sex r6nolbl
+capture noisily export sasxport5 r6a.xpt, replace vallabfile(sascode)
+display _rc
+capture noisily export sasxport5 r6a.xpt, replace vallabfile(both)
+display _rc
+=== files-r6-delimited-columns-separators
+clear
+input str20 line
+"a,b"
+"1,2,3,4"
+"5,6"
+"7,8"
+end
+export delimited using r6wide.csv, replace novarnames delimiter(tab)
+import delimited using r6wide.csv, clear varnames(1) rowrange(3:4)
+list
+clear
+input str20 line
+"a,b"
+"1,2,3"
+""
+"5,6"
+"7,8"
+"9,10,11,12,13"
+end
+export delimited using r6wide2.csv, replace novarnames delimiter(tab)
+import delimited using r6wide2.csv, clear varnames(1) rowrange(4:5)
+list
+clear
+input str20 line
+"a;b"
+"x;1.234.567"
+"y;2.5"
+end
+export delimited using r6same.csv, replace novarnames delimiter(tab)
+import delimited using r6same.csv, clear delimiters(";") groupseparator(.)
+describe
+list
+clear
+input str20 line
+"a;b"
+"x;1x234"
+"y;2"
+end
+export delimited using r6letters.csv, replace novarnames delimiter(tab)
+import delimited using r6letters.csv, clear delimiters(";") groupseparator(x)
+describe
+list

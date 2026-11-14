@@ -26,6 +26,8 @@ import {
 } from "./values.js";
 
 const QUOTE = 34;
+// A record that is not an empty line.
+const full = (record) => record.fields.length > 0;
 // Stata trims spaces and tabs, not every character JavaScript calls space
 // (a byte-order mark among them).
 const blank = (text) => text.replace(/^[ \t]+|[ \t]+$/g, "");
@@ -35,8 +37,9 @@ const blank = (text) => text.replace(/^[ \t]+|[ \t]+$/g, "");
  * under bindquotes(loose), Stata's default, a quote left open at the end of
  * a line ends there (and is reported), under strict it carries the field on
  * to the next line, and under nobind quotes are ordinary characters.
- * Returns the records, each { fields, line }, and the lines on which a
- * quote was left open.
+ * Returns the records, each { fields, line, end } with the lines on which
+ * it starts and ends, and the lines on which a quote was left open. Under
+ * emptylines(include) an empty line is a record with no fields.
  */
 function splitRecords(text, cfg) {
   const {
@@ -84,10 +87,11 @@ function splitRecords(text, cfg) {
   };
   const finish = (end) => {
     if (end === recordStart && !fields.length) {
-      if (emptyLines === "include") records.push({ fields: [], line });
+      if (emptyLines === "include")
+        records.push({ fields: [], line, end: line });
     } else {
       fields.push(field(end));
-      records.push({ fields, line: recordLine });
+      records.push({ fields, line: recordLine, end: line });
     }
     fields = [];
   };
@@ -138,7 +142,8 @@ function splitRecords(text, cfg) {
   }
   if (quoted && bind === "loose") unmatched.push(line);
   if (start < n || fields.length || parts.length || recordStart < n) finish(n);
-  else if (n && emptyLines === "include") records.push({ fields: [], line });
+  else if (n && emptyLines === "include")
+    records.push({ fields: [], line, end: line });
   return { records, unmatched };
 }
 
@@ -208,6 +213,9 @@ function numberOf(cell, cfg) {
   if (t.length === 2 && t[0] === "." && t[1] >= "a" && t[1] <= "z")
     return missingValue(t[1]);
   if (cfg.nan && t === "NaN") return MISSING;
+  // A group separator that is a letter, or the decimal separator itself,
+  // leaves Stata 19 reading no cell as a number.
+  if (cfg.noNumbers) return undefined;
   if (cfg.group) t = t.split(cfg.group).join("");
   if (cfg.decimal !== ".") {
     if (t.includes(".")) return undefined;
@@ -319,7 +327,7 @@ function wrapNote(text, width) {
 }
 const hasExtension = (name) => /\.[^./\\]*$/.test(name);
 /** The file, with the extension appended when the name has none. */
-function storedFile(session, typed, extension) {
+export function storedFile(session, typed, extension) {
   const files = (session.files ??= new Map()),
     wanted = hasExtension(typed) ? typed : typed + extension,
     // Names are found whatever their case, as Stata finds them on macOS.
@@ -467,10 +475,20 @@ function columnsOption(text, option) {
 }
 const chosen = (set, k) => set === "all" || (set !== null && set.has(k));
 
+/**
+ * decimalseparator() and groupseparator(): spaces and tabs around the
+ * character are dropped, and nothing left (a space alone among them) is no
+ * separator, as in Stata 19, which reads 35 123,50 under groupseparator(" ")
+ * as text. Returns null for none.
+ */
 function separatorOption(text, option) {
-  const char = escapes(unquote(text.trim()));
+  const char = escapes(blank(unquote(text.trim())));
+  if (char === "") return null;
   if ([...char].length !== 1)
-    throw new StataError(`${option}() must be one character`, 198);
+    throw new StataError(
+      `option ${option}() may contain only one character.`,
+      198,
+    );
   return char;
 }
 function localeSeparators(text) {
@@ -563,20 +581,29 @@ function importDelimited(session, text, ctx) {
     numbers = columnsOption(o.numericcols, "numericcols"),
     locale =
       o.parselocale !== undefined ? localeSeparators(o.parselocale) : null,
+    // Stata checks groupseparator() before decimalseparator().
+    group =
+      o.groupseparator !== undefined
+        ? separatorOption(o.groupseparator, "groupseparator")
+        : null,
+    decimal =
+      o.decimalseparator !== undefined
+        ? separatorOption(o.decimalseparator, "decimalseparator")
+        : null,
     cell = {
       nan: true,
       decimal:
         o.decimalseparator !== undefined
-          ? separatorOption(o.decimalseparator, "decimalseparator")
+          ? (decimal ?? ".")
           : (locale?.decimal ?? "."),
       group:
-        o.groupseparator !== undefined
-          ? separatorOption(o.groupseparator, "groupseparator")
-          : (locale?.group ?? ""),
+        o.groupseparator !== undefined ? (group ?? "") : (locale?.group ?? ""),
     },
     delimiters =
       o.delimiters !== undefined ? delimiterOption(o.delimiters) : null,
     { stored } = storedFile(session, fileName(typedFile), ".csv");
+  if (cell.group && (cell.group === cell.decimal || /\p{L}/u.test(cell.group)))
+    cell.noNumbers = true;
   if (!o.clear && (session.data.variables.length || session.data.n))
     throw new StataError("no; data in memory would be lost", 4);
 
@@ -624,19 +651,47 @@ function importDelimited(session, text, ctx) {
       ...split,
       bind,
       strip,
-      emptyLines,
+      // Empty lines are kept here so that rows can be numbered by line.
+      emptyLines: "include",
       maxQuoted,
       linesize: session.settings.linesize,
     });
+  // Rows are numbered by the lines of the file, empty lines included, but
+  // under emptylines(skip) an empty line is neither kept nor an end to
+  // rowrange(): Stata 19 starts at the first record that ends on or after
+  // the start row and stops after the first kept record that ends on or
+  // after the end row, so a,b / (empty) / (empty) / 1,2 read with
+  // rowrange(2:3) keeps 1,2.
+  const kept = emptyLines === "include" ? records : records.filter(full),
+    fields = kept.map((r) => r.fields),
+    inRange = [];
+  let stop = Infinity;
+  for (const [k, record] of kept.entries()) {
+    if (record.end < rows[0]) continue;
+    inRange.push(k);
+    if (record.end >= rows[1]) {
+      stop = record.end;
+      break;
+    }
+  }
+  // A quote left open is reported on the rows read; one left open on the
+  // rows rowrange() passes over is reported once, on the first row read,
+  // and not at all when that row is an empty one emptylines(include) keeps.
+  const firstRead = kept[inRange[0]],
+    notes = new Set(
+      unmatched.some((line) => line < rows[0]) && firstRead?.fields.length
+        ? [Math.max(firstRead.line, rows[0])]
+        : [],
+    );
   for (const line of unmatched)
+    if (line >= rows[0] && line <= stop) notes.add(line);
+  for (const line of notes)
     wrapped(
       `Note: Unmatched quote while processing row ${line}; this can be due to a formatting problem in the file or because a quoted data element spans multiple lines. You should carefully inspect your data after importing. Consider using option bindquote(strict) if quoted data spans multiple lines or option bindquote(nobind) if quotes are not used for binding data.`,
       session.settings.linesize,
     ).forEach((text) => ctx.out(text));
 
-  const fields = records.map((r) => r.fields),
-    last = Math.min(rows[1], fields.length),
-    body = (from) => fields.slice(from - 1, last);
+  const after = (k) => inRange.filter((j) => j > k).map((j) => fields[j]);
   const widest = (rowsOf) => {
     let width = 0;
     for (const row of rowsOf) if (row.length > width) width = row.length;
@@ -646,28 +701,32 @@ function importDelimited(session, text, ctx) {
     data,
     typed = null,
     namesRow = false;
-  if (varnames === "nonames") data = body(rows[0]);
+  if (varnames === "nonames") data = after(-1);
   else if (varnames) {
-    // With a names row given, every row below it sets the types, even rows
-    // that rowrange() leaves out. So does the names row itself when it is
-    // not the first row and holds only numbers (Stata 19 types 1,2.5 over
-    // 3,4 as byte and float, but 1,smithj,71.5 over 2,doe,80 as byte).
-    const at = Number(varnames);
-    header = fields[at - 1] ?? null;
-    data = header ? body(Math.max(rows[0], at + 1)) : [];
-    typed = header ? body(at + 1) : [];
+    // varnames(#) names the variables from the first record that ends on
+    // or after row # (an empty row is passed over unless emptylines(include)
+    // keeps it). Every row from it to the end of rowrange() sets the
+    // types, even rows above the start row. So does the names row itself
+    // when it is not the first row and holds only numbers (Stata 19 types
+    // 1,2.5 over 3,4 as byte and float, but 1,smithj,71.5 over 2,doe,80 as
+    // byte).
+    const at = Number(varnames),
+      k = kept.findIndex((record) => record.end >= at);
+    header = k < 0 ? null : fields[k];
+    data = header ? after(k) : [];
+    typed = header ? fields.slice(k + 1, (inRange.at(-1) ?? k) + 1) : [];
     namesRow =
       at > 1 && !!header?.every((text) => numberOf(text, cell) !== undefined);
   } else {
     // The first row names the variables when some column that colrange()
     // keeps has text there and numbers (or nothing) below it.
-    const below = body(Math.max(rows[0], 2)),
+    const below = after(0),
       first = fields[0] ?? [],
-      kept = Math.min(cols[1], Math.max(first.length, widest(below))),
+      width = Math.min(cols[1], Math.max(first.length, widest(below))),
       names = first.some(
         (text, k) =>
           k >= cols[0] - 1 &&
-          k < kept &&
+          k < width &&
           blank(text) !== "" &&
           numberOf(text, cell) === undefined &&
           below.every((row) => numberOf(row[k] ?? "", cell) !== undefined),
@@ -675,9 +734,15 @@ function importDelimited(session, text, ctx) {
     if (names && fields.length) {
       header = first;
       data = below;
-    } else data = body(rows[0]);
+    } else data = after(-1);
   }
-  const width = Math.max(widest(data), header?.length ?? 0),
+  // Under varnames(#), the rows from the names row to the end of
+  // rowrange() count for the number of variables, as they do for types.
+  const width = Math.max(
+      widest(data),
+      header?.length ?? 0,
+      typed ? widest(typed) : 0,
+    ),
     from = cols[0] - 1,
     to = Math.min(cols[1], width),
     columns = [];
