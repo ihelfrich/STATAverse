@@ -31,7 +31,7 @@ import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
-import { DATA_COMMANDS, remade, settle } from "./data-commands.js";
+import { DATA_COMMANDS, fold, remade, settle } from "./data-commands.js";
 import { describe } from "./data-utilities.js";
 import {
   count,
@@ -460,6 +460,16 @@ function dropKeep(keep) {
     const names = session.parse("varlist", text).varlist;
     if (keep) data.keep(names);
     else data.drop(names);
+    // With no variables left the data are no file's: no name, label, time
+    // stamp, notes or change, as after clear, but the value labels stay.
+    // The same dataset is emptied, as a command that runs this one (such as
+    // simulate) holds it.
+    if (!data.variables.length) {
+      Object.assign(data, { n: 0, sortedBy: [], label: "" });
+      delete data.notes;
+      delete data.chars;
+      settle(data, "", "");
+    }
   };
 }
 
@@ -754,9 +764,10 @@ function labelList(session, text, ctx) {
       present = entries.map(([value]) => value).filter((v) => !isMissing(v));
     ctx.out(`${name}:`);
     for (const [value, text] of entries)
-      ctx.out(
+      fold(
         `${(isMissing(value) ? missingName(value) : String(value)).padStart(12)} ${text}`,
-      );
+        session.settings.linesize ?? 80,
+      ).forEach((line) => ctx.out(line));
     // A label of extended missing values only has a missing minimum and
     // maximum; an empty label has 0.
     const none = entries.length ? MISSING : 0;
@@ -1804,6 +1815,7 @@ export const COMMANDS = [
       filename: data.filename,
       filedate: data.filedate,
       clean: data.clean,
+      dirty: Boolean(data.dirty),
       notes: data.notes && structuredClone(data.notes),
       chars: data.chars && structuredClone(data.chars),
     });
@@ -1817,6 +1829,7 @@ export const COMMANDS = [
     session.data.restore(saved);
     for (const key of ["notes", "chars"])
       if (saved[key]) session.data[key] = structuredClone(saved[key]);
+      else delete session.data[key];
     if (!/\bpreserve\b/.test(options)) session.preserved.pop();
   }),
   command("version", 4, (session, text) => {

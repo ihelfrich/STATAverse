@@ -18,7 +18,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createConsoleSession } from "../src/console-session.js";
-import { Session } from "../src/runtime/session.js";
 import { readDta } from "../src/console-dta.js";
 
 const bytes = new Uint8Array(
@@ -232,51 +231,6 @@ test("use errors leave no data, as in Stata", () => {
   ]);
 });
 
-// The file reader is to put a file's notes in the data's notes; this test
-// supplies them as it will. Stata 19's output for a file with a note on _dta
-// and one on income.
-test("describe marks the notes a file carries", () => {
-  const session = new Session();
-  session.settings.linesize = 80;
-  const data = readDta(bytes);
-  data.notes = new Map([
-    ["_dta", ["Collected in fall"]],
-    ["wage", ["Top-coded"]],
-  ]);
-  session.files = new Map([["describe.dta", data]]);
-  const out = session.run(
-    "use describe.dta, clear\ndescribe\ndescribe, short\nnotes wage: second",
-  ).output;
-  const lines = (k) =>
-    out[k].lines.flatMap((l) => l.split("\n")).filter((l) => l.trim());
-  assert.deepEqual(lines(1).slice(0, 4), [
-    "Contains data from describe.dta",
-    " Observations:            12                  Describe test file",
-    `    Variables:             6                  ${STAMP}`,
-    "                                              (_dta has notes)",
-  ]);
-  assert.ok(
-    lines(1).includes(
-      "wage            float   %9.0g               * Hourly wage",
-    ),
-  );
-  assert.equal(
-    lines(1).at(-3),
-    "                                            * indicated variables have notes",
-  );
-  // describe, short does not mention notes, and the data are unchanged.
-  assert.deepEqual(lines(2), [
-    "Contains data from describe.dta",
-    " Observations:            12                  Describe test file",
-    `    Variables:             6                  ${STAMP}`,
-    "Sorted by: region  id",
-  ]);
-  // The file's notes are not changed by a note added in memory.
-  assert.deepEqual(session.files.get("describe.dta").notes.get("wage"), [
-    "Top-coded",
-  ]);
-});
-
 // Names from a spreadsheet's header are often long; Stata 19 shortened them
 // as here after import delimited of a three-column CSV file.
 test("describe shortens long names read from a CSV header", () => {
@@ -306,4 +260,256 @@ test("describe shortens long names read from a CSV header", () => {
   ]);
   assert.deepEqual(out[3].lines, ["abcde~123456  averyveryv~e  score"]);
   assert.deepEqual(out[4].lines, ["1[]"]);
+});
+
+// Two more files that Stata 19 saved from simulated data (under version 17):
+//   describe-stale-sortlist.dta: set obs 3, a = b = _n, sort b a, save one
+//     file; then clear, set obs 6, g = mod(_n, 2), v = _n, save this file.
+//     Its sortlist reads 0 | 1 | 0: Stata ends the list at the first 0 and
+//     leaves bytes of the earlier sorted dataset after it.
+//   describe-notes.dta: 8 observations of int id, byte female, double
+//     income (labelled) and str5 city; label data "Course survey 2024";
+//     note: Collected in fall 2024; note income: Top-coded at 1,000,000;
+//     char income[source] simulated.
+// The expected text and values are what Stata 19 gave for the same commands.
+const fixture = (name) =>
+  new Uint8Array(
+    fs.readFileSync(new URL(`./fixtures/userdata/${name}`, import.meta.url)),
+  );
+const STAMP2 = "13 Nov 2026 18:22";
+function withFiles(...names) {
+  const s = createConsoleSession();
+  for (const name of names) s.addData(name, fixture(`describe-${name}`));
+  s.run("set linesize 80");
+  return s;
+}
+
+test("a file's sort order ends at the first 0 of its sortlist", () => {
+  assert.deepEqual(
+    readDta(fixture("describe-stale-sortlist.dta")).sortedBy,
+    [],
+  );
+  const out = run(
+    withFiles("stale-sortlist.dta"),
+    [
+      "use stale-sortlist.dta, clear",
+      "describe, short",
+      "capture noisily by g: generate n = _n",
+      "use stale-sortlist.dta, clear",
+      "by g, sort: generate m = _n",
+      "list g m, noobs clean",
+    ].join("\n"),
+  );
+  assert.equal(out[1].lines.at(-1), "Sorted by:");
+  assert.deepEqual(out[2].lines, ["not sorted"]);
+  assert.deepEqual(out[5].lines, [
+    "    g   m",
+    "    0   1",
+    "    0   2",
+    "    0   3",
+    "    1   1",
+    "    1   2",
+    "    1   3",
+  ]);
+});
+
+test("notes stored in a file are read, listed, marked and dropped", () => {
+  const data = readDta(fixture("describe-notes.dta"));
+  assert.deepEqual(data.notes.get("_dta"), ["Collected in fall 2024"]);
+  assert.equal(data.chars.get("income").get("source"), "simulated");
+  const out = run(
+    withFiles("notes.dta"),
+    [
+      "use notes.dta, clear",
+      "describe",
+      "notes",
+      "display c(changed)",
+      "notes drop _all",
+      "display c(changed)",
+    ].join("\n"),
+  );
+  assert.deepEqual(out[1].lines, [
+    "Contains data from notes.dta",
+    " Observations:             8                  Course survey 2024",
+    `    Variables:             4                  ${STAMP2}`,
+    "                                              (_dta has notes)",
+    RULE,
+    "Variable      Storage   Display    Value",
+    "    name         type    format    label      Variable label",
+    RULE,
+    "id              int     %8.0g",
+    "female          byte    %8.0g",
+    "income          double  %10.0g              * Household income, dollars",
+    "city            str5    %9s",
+    "                                            * indicated variables have notes",
+    RULE,
+    "Sorted by:",
+  ]);
+  assert.deepEqual(out[2].lines, [
+    "_dta:",
+    "  1.  Collected in fall 2024",
+    "",
+    "income:",
+    "  1.  Top-coded at 1,000,000",
+  ]);
+  assert.deepEqual(out[3].lines, ["0"]);
+  assert.deepEqual(out[4].lines, ["  (2 notes dropped)"]);
+  assert.deepEqual(out[5].lines, ["1"]);
+});
+
+test("notes and characteristics go into an exported file", () => {
+  const s = withFiles("notes.dta");
+  s.run("use notes.dta, clear\nnotes female: added here\ndrop city");
+  const back = readDta(s.exportData().bytes);
+  assert.deepEqual([...back.notes].sort(), [
+    ["_dta", ["Collected in fall 2024"]],
+    ["female", ["added here"]],
+    ["income", ["Top-coded at 1,000,000"]],
+  ]);
+  assert.equal(back.chars.get("income").get("source"), "simulated");
+});
+
+// Stata's c(changed) is set by any change and cleared only by use, save or
+// clear; sorting and ordering are not changes.
+test("the data stay changed once changed, until use or save", () => {
+  const out = run(
+    withFiles("notes.dta"),
+    [
+      "use notes.dta, clear",
+      "generate x = 1",
+      "drop x",
+      "display c(changed)",
+      "capture noisily use notes.dta",
+      "use notes.dta, clear",
+      "rename id ident",
+      "rename ident id",
+      "display c(changed)",
+      "use notes.dta, clear",
+      "generate tmp = income",
+      "replace income = 0",
+      "replace income = tmp",
+      "drop tmp",
+      "display c(changed)",
+      "use notes.dta, clear",
+      "sort income",
+      "replace income = income",
+      "order city",
+      "display c(changed)",
+      "preserve",
+      "generate z = 1",
+      "restore",
+      "display c(changed)",
+      "generate z = 1",
+      "preserve",
+      "drop z",
+      "restore",
+      "display c(changed)",
+      "preserve",
+      "use notes.dta, clear",
+      "display c(changed)",
+      "restore",
+      "display c(changed)",
+      "save copy.dta",
+      "display c(changed)",
+    ].join("\n"),
+  );
+  const shown = out
+    .filter((o) => /^display/.test(o.command))
+    .map((o) => o.lines[0]);
+  assert.deepEqual(shown, ["1", "1", "1", "0", "0", "1", "0", "1", "0"]);
+  assert.deepEqual(out[4].lines, [
+    "no; dataset in memory has changed since last saved",
+  ]);
+});
+
+test("dropping every variable forgets the file, as clear does", () => {
+  const out = run(
+    withFiles("notes.dta"),
+    [
+      "use notes.dta, clear",
+      'label define yn 0 "no" 1 "yes"',
+      "drop _all",
+      'display c(changed) "|" c(filename) "|" c(filedate)',
+      "describe",
+      "label list",
+      "use notes.dta, clear",
+      "drop id female income",
+      'display c(changed) "|" c(filename)',
+      "drop city",
+      'display c(changed) "|" c(filename) "|" c(filedate)',
+      "describe, replace",
+      "describe, short",
+      "use notes.dta, clear",
+      "drop in 1/l",
+      'display c(changed) "|" c(filename) "|" c(filedate)',
+    ].join("\n"),
+  );
+  assert.deepEqual(out[3].lines, ["0||"]);
+  assert.deepEqual(out[4].lines, [
+    "Contains data",
+    " Observations:             0",
+    "    Variables:             0",
+    "Sorted by:",
+  ]);
+  assert.deepEqual(out[5].lines, [
+    "yn:",
+    "           0 no",
+    "           1 yes",
+  ]);
+  assert.deepEqual(out[8].lines, ["1|notes.dta"]);
+  assert.deepEqual(out[10].lines, ["0||"]);
+  assert.equal(out[11].rc, 0);
+  assert.deepEqual(out[12].lines, [
+    "Contains data",
+    " Observations:             0                  describe <unnamed>",
+    "    Variables:             7",
+    "Sorted by:",
+    "     Note: Dataset has changed since last saved.",
+  ]);
+  assert.deepEqual(out[15].lines, [`1|notes.dta|${STAMP2}`]);
+});
+
+test("use checks its observation numbers as Stata does", () => {
+  const out = run(
+    withFiles("notes.dta"),
+    [
+      "use notes.dta, clear",
+      "capture noisily use notes.dta in -5/l, clear",
+      'display _rc "|" _N "|" c(filename)',
+      "capture noisily use notes.dta in 0, clear",
+      "capture noisily use notes.dta in 2/-1, clear",
+      "capture noisily use notes.dta in 5/3, clear",
+      "capture noisily use notes.dta in L/F, clear",
+      'display _rc "|" _N "|" c(filename)',
+      "capture noisily use notes.dta in 41, clear",
+      'display _rc "|" _N "|" c(filename)',
+    ].join("\n"),
+  );
+  assert.deepEqual(out[1].lines, ["'-5' invalid observation number"]);
+  assert.deepEqual(out[2].lines, ["198|8|notes.dta"]);
+  assert.deepEqual(out[3].lines, ["'0' invalid observation number"]);
+  assert.deepEqual(out[4].lines, ["'-1' invalid observation number"]);
+  assert.deepEqual(out[5].lines, ["observation numbers out of range"]);
+  assert.deepEqual(out[6].lines, ["observation numbers out of range"]);
+  assert.deepEqual(out[7].lines, ["198|8|notes.dta"]);
+  assert.deepEqual(out[8].lines, [
+    "(Course survey 2024)",
+    "observation numbers out of range",
+  ]);
+  assert.deepEqual(out[9].lines, ["198|0|"]);
+});
+
+test("a file's time stamp is folded at a narrow linesize", () => {
+  const out = run(
+    withFiles("notes.dta"),
+    "set linesize 60\nuse notes.dta, clear\ndescribe, short",
+  );
+  assert.deepEqual(out[2].lines, [
+    "Contains data from notes.dta",
+    " Observations:             8                  Course",
+    "                                                survey 2024",
+    "    Variables:             4                  13 Nov 2026 18",
+    "> :22",
+    "Sorted by:",
+  ]);
 });

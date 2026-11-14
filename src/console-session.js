@@ -68,7 +68,16 @@ export function createConsoleSession() {
     },
     /** The data in memory as the bytes of a .dta file. */
     exportData() {
-      return { bytes: writeDta(session.data.snapshot()), memory: memory() };
+      const data = session.data;
+      return {
+        // The file keeps the dataset's notes and characteristics.
+        bytes: writeDta({
+          ...data.snapshot(),
+          notes: data.notes,
+          chars: data.chars,
+        }),
+        memory: memory(),
+      };
     },
     run(source) {
       const { output, rc } = session.run(source);

@@ -371,12 +371,16 @@ function notes(session, text, ctx) {
   }
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (words[0] === "drop") {
+    let dropped = 0;
     for (const name of words[1] === "_all" || words.length === 1
       ? [...store.keys()]
       : words
           .slice(1)
-          .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w))))
+          .flatMap((w) => (w === "_dta" ? ["_dta"] : session.varlist(w)))) {
+      dropped += store.get(name)?.length ?? 0;
       store.delete(name);
+    }
+    ctx.out(`  (${dropped} note${dropped === 1 ? "" : "s"} dropped)`);
     return;
   }
   const names =

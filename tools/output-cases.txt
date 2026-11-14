@@ -4831,3 +4831,230 @@ capture noisily save save_empty, replace
 capture noisily save save_empty, replace emptyok
 set obs 2
 capture noisily save save_empty2, replace
+=== describe-label-wrap
+clear
+set obs 1
+generate v = 1
+generate w = 2
+label data "aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm"
+set linesize 80
+describe, short
+set linesize 200
+label data "abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"
+set linesize 80
+describe, short
+set linesize 200
+label data "abcdefghij abcdefghijabcdefghijabcdefghijabcdefghij"
+set linesize 80
+describe, short
+set linesize 200
+label data "  lead  and   gaps that go on long enough to need a wrap here"
+set linesize 80
+describe, short
+set linesize 200
+label data "  padded label  "
+label variable v "  padded var  "
+label variable w "   three  inner   spaces   "
+set linesize 80
+describe
+set linesize 200
+label variable v "  aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn ooo"
+label variable w "Averyveryveryverylongwordthatgoeson and then some more words follow here ok"
+notes w: a note
+set linesize 80
+describe
+set linesize 75
+describe
+set linesize 200
+label data "A very long dataset label that has many words in it and keeps going until eighty"
+set linesize 70
+describe
+set linesize 100
+describe
+set linesize 200
+=== describe-narrow-linesize
+clear
+set obs 1
+generate v = 1
+generate averyveryverylongname = 2
+label data "A very long dataset label that has many words in it and keeps going until eighty"
+label variable v "This is a very long variable label that goes on and on past the edge of the scre"
+label variable averyveryverylongname "Short"
+label define averyverylongvaluelabelname 1 "one"
+label define shortlbl 1 "one"
+label define mediumlabelnm 1 "one"
+set linesize 60
+describe
+label values v averyverylongvaluelabelname
+label values averyveryverylongname mediumlabelnm
+describe
+label values v shortlbl
+describe, numbers
+set linesize 50
+describe
+describe, numbers
+set linesize 55
+describe
+set linesize 66
+describe
+set linesize 68
+describe
+set linesize 200
+=== describe-numbers-abbreviations
+clear
+set obs 1
+generate income_2019_q1_adjusted = 1
+generate income_2019_q2_adjusted = 1
+generate income_2019_q1_adjustee = 1
+generate id = 1
+generate income = 1
+generate income_2019 = 1
+set linesize 80
+describe, numbers
+describe, simple
+describe
+clear
+set obs 1
+generate abcdefghijklmnopqrstuvwxyz = 1
+generate abcdefghijklmZopqrstuvwxyz = 1
+generate abcdefghiYklmnopqrstuvwxyz = 1
+generate abcdefghijklmnopqrstuvwxyQ = 1
+describe, numbers
+describe, simple
+describe
+clear
+set obs 1
+generate abcdefghijklmnopqrstuvwxyz0123 = 1
+generate abcdefghijZlmnopqrstuvwxyz0123 = 1
+generate abcdefghijklmnopqrstuvwxyz0124 = 1
+generate abcdefghijklmnopqrstuvwxyz012345 = 1
+generate abcdefghijklmnoZqrstuvwxyz012345 = 1
+describe, numbers
+describe, simple
+describe
+clear
+set obs 1
+generate abcdefghijklmnop = 1
+generate abcdefghijklZnop = 1
+generate abcdefgYijklmnop = 1
+generate aaaaaaaaaaaa1 = 1
+generate aaaaaaaaaaaa2 = 1
+generate aaaaaaaaaaab1 = 1
+describe, numbers
+describe, simple
+set linesize 200
+=== changed-flag-sticky
+clear
+set obs 4
+generate int id = _n
+generate double income = 1000 * _n
+generate str3 city = "c" + string(_n)
+label data "Changed flag file"
+notes: A dataset note
+notes income: An income note
+save changed_flag, replace
+use changed_flag, clear
+display c(changed)
+generate x = 1
+drop x
+display c(changed)
+capture noisily use changed_flag
+use changed_flag, clear
+rename id ident
+rename ident id
+display c(changed)
+use changed_flag, clear
+generate tmp = income
+replace income = 0
+replace income = tmp
+drop tmp
+display c(changed)
+use changed_flag, clear
+sort income
+replace income = income
+order city
+display c(changed)
+preserve
+generate z = 1
+restore
+display c(changed)
+generate z = 1
+preserve
+drop z
+restore
+display c(changed)
+preserve
+use changed_flag, clear
+display c(changed)
+restore
+display c(changed)
+use changed_flag, clear
+notes
+notes drop _all
+display c(changed)
+use changed_flag, clear
+notes drop income
+notes drop _all
+notes drop _all
+use changed_flag, clear
+label define yn 0 "no" 1 "yes"
+drop _all
+display c(changed) "|" c(filename) "|" c(filedate) "|" _N "|" c(k)
+describe
+label list
+notes
+set obs 2
+display c(changed)
+use changed_flag, clear
+drop id income
+display c(changed) "|" c(filename)
+drop city
+display c(changed) "|" c(filename) "|" c(filedate)
+describe, replace
+describe
+display c(changed)
+use changed_flag, clear
+drop in 1/l
+display c(changed) "|" c(filename)
+=== use-in-invalid
+clear
+set obs 5
+generate q = _n
+label data "Use in test file"
+save use_in_test, replace
+set obs 7
+generate y = 1
+use use_in_test, clear
+capture noisily use use_in_test in -2/l, clear
+display _rc "|" _N "|" c(k)
+capture noisily use use_in_test in 0, clear
+display _rc "|" _N "|" c(k)
+capture noisily use use_in_test in 0/3, clear
+capture noisily use use_in_test in 2/-1, clear
+capture noisily use use_in_test in -1, clear
+capture noisily use use_in_test in 4/3, clear
+display _rc "|" _N "|" c(k)
+capture noisily use use_in_test in L/F, clear
+capture noisily use q in -2 using use_in_test, clear
+generate z = 1
+capture noisily use use_in_test in 0
+display _rc "|" _N "|" c(k)
+capture noisily use use_in_test in 41, clear
+display _rc "|" _N "|" c(k)
+use use_in_test in 2/l, clear
+display _N
+=== output-fold-long-lines
+clear
+set obs 1
+generate v = 1
+set linesize 80
+label data "A very long dataset label that has many words in it and keeps going until eighty"
+label define long 1 "This is a value label text that is rather long, longer than eighty characters to see wrapping" 2 "short"
+label values v long
+save fold_test, replace
+use fold_test, clear
+label list long
+set linesize 60
+use fold_test, clear
+label list long
+set linesize 200

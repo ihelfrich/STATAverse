@@ -130,6 +130,26 @@ export function writeDta(data, now = new Date()) {
   for (const v of variables) w.field(v.label ?? "", 321);
   w.text("</variable_labels>");
   section(8, "<characteristics>");
+  // Notes are written as Stata keeps them: note0 holds their count.
+  const characteristic = (owner, name, value) => {
+    const text = encoder.encode(`${value}\0`);
+    w.text("<ch>");
+    w.integer(258 + text.length, 4);
+    w.field(owner, 129);
+    w.field(name, 129);
+    w.bytes(text);
+    w.text("</ch>");
+  };
+  const kept = (owner) =>
+    owner === "_dta" || variables.some((v) => v.name === owner);
+  for (const [owner, list] of data.notes ?? []) {
+    if (!kept(owner) || !list?.length) continue;
+    characteristic(owner, "note0", list.length);
+    list.forEach((text, j) => characteristic(owner, `note${j + 1}`, text));
+  }
+  for (const [owner, map] of data.chars ?? [])
+    if (kept(owner))
+      for (const [name, value] of map) characteristic(owner, name, value);
   w.text("</characteristics>");
   section(9, "<data>");
   const widths = variables.map((v) => widthOf(v.type)),
@@ -286,12 +306,36 @@ export function readDta(bytes) {
   tag("</value_label_names><variable_labels>");
   const labels = codes.map(() => field(wide ? 321 : 81));
   tag("</variable_labels><characteristics>");
-  // Characteristics are notes and settings; they are passed over.
+  // Characteristics: each is a variable's (or _dta's) name, the
+  // characteristic's name and its text. Notes are the characteristics
+  // note1, note2, ... with their count in note0.
+  const notes = new Map(),
+    chars = new Map();
   while (decoder.decode(bytes.subarray(at, at + 4)) === "<ch>") {
     at += 4;
-    const size = integer(4);
-    at += size + 5;
+    const size = integer(4),
+      end = at + size,
+      owner = field(wide ? 129 : 33),
+      name = field(wide ? 129 : 33),
+      text = field(end - at),
+      note = /^note(\d+)$/.exec(name);
+    if (note) {
+      if (note[1] !== "0") {
+        if (!notes.has(owner)) notes.set(owner, []);
+        notes.get(owner).push([Number(note[1]), text]);
+      }
+    } else {
+      if (!chars.has(owner)) chars.set(owner, new Map());
+      chars.get(owner).set(name, text);
+    }
+    at = end;
+    tag("</ch>");
   }
+  for (const [owner, list] of notes)
+    notes.set(
+      owner,
+      list.sort((a, b) => a[0] - b[0]).map(([, text]) => text),
+    );
   tag("</characteristics><data>");
   if (codes.includes(32768))
     throw new DtaError(
@@ -362,7 +406,13 @@ export function readDta(bytes) {
     n,
     label,
     timestamp,
-    sortedBy: order.filter((j) => j > 0 && j <= k).map((j) => names[j - 1]),
+    // The list ends at its first 0; Stata leaves old bytes after it.
+    sortedBy: order
+      .slice(0, order.includes(0) ? order.indexOf(0) : k)
+      .filter((j) => j > 0 && j <= k)
+      .map((j) => names[j - 1]),
+    ...(notes.size ? { notes } : {}),
+    ...(chars.size ? { chars } : {}),
     valueLabels,
     variables: names.map((name, j) => ({
       name,

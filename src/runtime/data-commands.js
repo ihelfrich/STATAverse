@@ -36,9 +36,12 @@ const files = (session) => (session.files ??= new Map());
 
 // Stata marks the data as changed when their contents, labels, notes or
 // characteristics change, but not when the observations or the variables are
-// only put in another order. The fingerprint is therefore a hash of each
-// observation (its values taken in the order of the variable names) with the
-// observations' hashes sorted, beside the dataset's descriptions.
+// only put in another order, and the mark stays until use, save or clear:
+// data changed and changed back are still changed. After each command the
+// fingerprint of the data is compared with the one they had when read or
+// saved; once it differs, the data are marked. The fingerprint is a hash of
+// each observation (its values taken in the order of the variable names)
+// with the observations' hashes sorted, beside the dataset's descriptions.
 const bits = new Float64Array(1),
   words = new Uint32Array(bits.buffer);
 const mix = (h, x, prime) => {
@@ -104,8 +107,14 @@ let empty;
  * or, for data made in the session, from no data at all.
  */
 export function changed(session) {
+  const data = session.data;
+  if (data.dirty) return true;
   empty ??= fingerprint(new Dataset());
-  return fingerprint(session.data) !== (session.data.clean ?? empty);
+  return fingerprint(data) !== (data.clean ?? empty);
+}
+/** Run after each command: marks the data once they have changed. */
+export function markChanged(session) {
+  if (!session.data.dirty && changed(session)) session.data.dirty = true;
 }
 /**
  * Puts data a command has remade in memory. They are still the data of the
@@ -121,6 +130,20 @@ export function settle(data, name, stamp) {
   data.filename = name;
   data.filedate = stamp ?? "";
   data.clean = fingerprint(data);
+  data.dirty = false;
+}
+/**
+ * A line of output as Stata shows it when it is longer than the linesize:
+ * cut at the linesize, the rest on lines that start with "> ".
+ */
+export function fold(line, linesize) {
+  const chars = [...line],
+    width = Math.max(linesize, 3);
+  if (chars.length <= width) return [line];
+  const lines = [chars.slice(0, width).join("")];
+  for (let at = width; at < chars.length; at += width - 2)
+    lines.push("> " + chars.slice(at, at + width - 2).join(""));
+  return lines;
 }
 // The time stamp Stata writes into a dataset: 13 Nov 2026 17:08.
 const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
@@ -197,12 +220,25 @@ function save(session, text, ctx) {
  */
 function use(session, text, ctx) {
   const [head] = splitAtComma(text),
-    form = applySyntax(
+    // Observation numbers are checked before the file is opened: use takes
+    // none below 1 (no counting from the end) and no range that runs
+    // backward. Whether they lie in the file is known once it is open.
+    range = /(?:^|\s)in\s+(-?\w+)(?:\s*\/\s*(-?\w+))?/.exec(
+      head.replace(/`"[\s\S]*?"'|"[^"]*"/g, '""'),
+    );
+  if (range) {
+    const bound = (word) =>
+      /^[fF]$/.test(word) ? 1 : /^[lL]$/.test(word) ? Infinity : Number(word);
+    for (const word of [range[1], range[2]])
+      if (word !== undefined && /^-?\d+$/.test(word) && Number(word) < 1)
+        throw invalid(`'${word}' invalid observation number`);
+    if (range[2] !== undefined && bound(range[1]) > bound(range[2]))
+      throw invalid("observation numbers out of range");
+  }
+  const form = applySyntax(
       "[anything] [if] [in] [using/] [, clear NOLabel]",
       text,
-      {
-        n: Number.MAX_SAFE_INTEGER,
-      },
+      { n: Number.MAX_SAFE_INTEGER },
     ),
     name = fileName(form.using ?? form.anything),
     data = load(session, name);
@@ -211,7 +247,8 @@ function use(session, text, ctx) {
       "no; dataset in memory has changed since last saved",
       4,
     );
-  if (data.label) ctx.out(`(${data.label})`);
+  if (data.label)
+    fold(`(${data.label})`, session.settings.linesize ?? 80).forEach(ctx.out);
   const cleared = new Dataset({ defaultType: session.data.defaultType });
   session.data = data;
   try {

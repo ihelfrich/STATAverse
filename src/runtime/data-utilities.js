@@ -3,7 +3,7 @@
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
 import { count, percentile } from "./reports.js";
-import { changed, fileName, load } from "./data-commands.js";
+import { changed, fileName, fold, load } from "./data-commands.js";
 import { Dataset } from "./store.js";
 import { expandVarlist } from "./varlist.js";
 import { MISSING, inferType, isMissing, isStringType } from "./values.js";
@@ -371,7 +371,10 @@ export function abbreviateName(name, width) {
 }
 /**
  * The abbreviation describe shows: abbrev()'s, with the end lengthened until
- * it names no other variable of the dataset.
+ * it names no other variable of the dataset. When no such end will do, the
+ * first character, ~, the part of the name from where it last parts from
+ * another name, ~ and the last character (i~2_ad~d); then the start of the
+ * name and ~; and when none will do, the start of the name and "..".
  */
 export function uniqueName(name, width, names) {
   const short = abbreviateName(name, width);
@@ -379,45 +382,97 @@ export function uniqueName(name, width, names) {
   const at = short.indexOf("~");
   let front = short.slice(0, at),
     tail = short.slice(at + 1);
-  const clash = () =>
-    names.some(
-      (other) =>
-        other !== name &&
-        other.length >= front.length + tail.length &&
-        other.startsWith(front) &&
-        other.endsWith(tail),
-    );
+  const others = names.filter((other) => other !== name),
+    clash = () =>
+      others.some(
+        (other) =>
+          other.length >= front.length + tail.length &&
+          other.startsWith(front) &&
+          other.endsWith(tail),
+      );
+  if (!clash()) return `${front}~${tail}`;
+  // abbrev()'s end of digits names another variable: try the last
+  // character, and then longer ends.
+  front = name.slice(0, width - 2);
+  tail = name.slice(-1);
   while (front.length > 1 && clash()) {
     front = front.slice(0, -1);
     tail = name.slice(name.length - tail.length - 1);
   }
-  return `${front}~${tail}`;
-}
-/** Words in lines of the first width and then the rest, as Stata wraps. */
-function wrap(text, first, rest) {
-  const lines = [];
-  let line = "",
-    width = Math.max(first, 1);
-  const next = () => {
-    lines.push(line);
-    line = "";
-    width = Math.max(rest, 1);
-  };
-  for (let word of text.split(" ").filter(Boolean)) {
-    if (line && line.length + 1 + word.length <= width) {
-      line += " " + word;
-      continue;
-    }
-    if (line) next();
-    while (word.length > width) {
-      line = word.slice(0, width);
-      word = word.slice(width);
-      next();
-    }
-    line = word;
+  if (!clash()) return `${front}~${tail}`;
+  const parts = (other) => {
+      let k = 0;
+      while (k < name.length && name[k] === other[k]) k++;
+      return k;
+    },
+    from = greatest(others.map(parts)),
+    middle = name.slice(from, from + width - 4);
+  if (from >= 1 && from + width - 4 <= name.length - 1) {
+    const pattern = (other) =>
+      other[0] === name[0] &&
+      other.at(-1) === name.at(-1) &&
+      other.indexOf(middle, 1) >= 1 &&
+      other.indexOf(middle, 1) + middle.length <= other.length - 1;
+    if (!others.some(pattern)) return `${name[0]}~${middle}~${name.at(-1)}`;
   }
-  lines.push(line);
+  const start = name.slice(0, width - 1);
+  return others.some((other) => other.startsWith(start))
+    ? `${name.slice(0, width - 2)}..`
+    : `${start}~`;
+}
+/**
+ * A dataset label in lines of the width: whole when it fits, otherwise cut
+ * at the last space that leaves a line no wider, or at the width when a
+ * line has no space, with the spaces at the ends of the lines dropped.
+ */
+function wrapLabel(text, width) {
+  width = Math.max(width, 1);
+  if (text.length <= width) return [text];
+  const lines = [];
+  let rest = text.trimStart();
+  while (rest.length > width) {
+    const cut = rest.lastIndexOf(" ", width);
+    if (cut > 0) {
+      lines.push(rest.slice(0, cut).trimEnd());
+      rest = rest.slice(cut + 1).trimStart();
+    } else {
+      lines.push(rest.slice(0, width));
+      rest = rest.slice(width);
+    }
+  }
+  if (rest) lines.push(rest);
   return lines;
+}
+/**
+ * A row of describe as Stata sets it: words filled to the linesize, each
+ * later line indented by hang, runs of spaces as one. The lead is glued to
+ * the first word unless loose. A word longer than the rest of its line is
+ * cut at the linesize and goes on, after "> ", on the next.
+ */
+function paragraph(lead, text, linesize, hang, loose = false) {
+  const words = text.split(/ +/),
+    lines = [],
+    indent = " ".repeat(hang);
+  if (words.length > 1 && words.at(-1) === "") words.pop();
+  let line = "";
+  const put = (word) => {
+    line += word;
+    while (line.length > linesize) {
+      lines.push(line.slice(0, linesize));
+      line = `${indent}> ${line.slice(linesize)}`;
+    }
+  };
+  if (loose) line = lead;
+  else put(lead + words.shift());
+  for (const word of words)
+    if (line.length + 1 + word.length <= linesize) line += " " + word;
+    else {
+      lines.push(line);
+      line = indent;
+      put(word);
+    }
+  lines.push(line);
+  return lines.map((each) => each.trimEnd());
 }
 /** Names in columns, read down each column, as describe, simple prints them. */
 function columns(ctx, names, linesize) {
@@ -486,7 +541,8 @@ function describeReplace(session, data, names) {
     "Variable label",
   ].forEach((label, k) => (result.variables[k].label = label));
   result.label = `describe ${data.filename || "<unnamed>"}`;
-  result.sortedBy = ["position"];
+  // Sorted by position, unless there is nothing to sort.
+  result.sortedBy = result.n ? ["position"] : [];
   session.data = result;
 }
 
@@ -503,7 +559,10 @@ export function describe(session, text, ctx) {
     ),
     o = parsed.options,
     using = parsed.using !== undefined,
-    linesize = session.settings.linesize ?? 80;
+    linesize = session.settings.linesize ?? 80,
+    print = ctx.out;
+  // A line wider than the linesize goes on after "> ".
+  ctx = { ...ctx, out: (line) => fold(line, linesize).forEach(print) };
   if (o.simple && Object.keys(o).length > 1)
     throw new StataError("simple may not be combined with other options", 198);
   if (o.numbers && o.fullnames)
@@ -573,7 +632,11 @@ export function describe(session, text, ctx) {
 
   const rule = "-".repeat(linesize),
     gap = " ".repeat(18),
-    label = data.label ? wrap(data.label, linesize - 46, linesize - 48) : [""],
+    // The dataset label wraps at the linesize less 48, or at 32 with using
+    // whatever the linesize, and lines too wide for that are folded.
+    label = data.label
+      ? wrapLabel(data.label, using ? 32 : linesize - 48)
+      : [""],
     more = label.slice(1).map((line) => " ".repeat(48) + line),
     stamp = data.filedate ?? "",
     sorted = `Sorted by: ${data.sortedBy.join("  ")}`.trimEnd();
@@ -617,8 +680,10 @@ export function describe(session, text, ctx) {
     ctx.out("    name         type    format    label      Variable label");
   }
   ctx.out(rule);
-  // The variable label starts in column 47, one further with numbers.
-  const start = o.numbers ? 47 : 46;
+  // The variable label starts in column 47 (one further with numbers), and
+  // goes on in column 49, or nearer the left at a linesize under 68 so that
+  // its lines are at least 20 wide.
+  const hang = Math.max(0, Math.min(48, linesize - 20));
   for (const v of variables) {
     let front;
     if (o.numbers)
@@ -631,18 +696,23 @@ export function describe(session, text, ctx) {
         o.fullnames ? v.name : uniqueName(v.name, 15, data.names)
       ).padEnd(16);
     // A value label's name longer than eight characters takes the rest of
-    // the line, and the variable label starts the next.
+    // the line, and the variable label starts the next. A note's * stands
+    // apart from the label; without it the label holds to its column.
     const format =
         v.format.length > 10 ? v.format.slice(0, 3) + ".." : v.format,
       line = front + v.type.padEnd(8) + format.padEnd(11),
-      mark = !using && hasNotes(data, v.name) ? "*" : " ",
-      long = v.valueLabel.length > 8,
-      lines = wrap(v.label, linesize - (long ? 46 : start), linesize - 48);
-    if (long) ctx.out(line + v.valueLabel);
-    ctx.out(
-      `${long ? " ".repeat(44) : line + v.valueLabel.padEnd(9)}${mark} ${lines[0]}`.trimEnd(),
-    );
-    lines.slice(1).forEach((rest) => ctx.out(" ".repeat(48) + rest));
+      mark = !using && hasNotes(data, v.name),
+      long = v.valueLabel.length > 8;
+    if (long)
+      paragraph(line + v.valueLabel, "", linesize, hang).forEach(ctx.out);
+    const lead = long ? " ".repeat(44) : line + v.valueLabel.padEnd(9);
+    paragraph(
+      mark ? `${lead}*` : `${lead}  `,
+      v.label,
+      linesize,
+      hang,
+      mark,
+    ).forEach(ctx.out);
   }
   if (!whole) return;
   if (!using && variables.some((v) => hasNotes(data, v.name)))
