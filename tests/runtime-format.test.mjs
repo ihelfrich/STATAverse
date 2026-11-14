@@ -34,7 +34,14 @@ function actual(c) {
   }
 }
 
-for (const kind of ["number", "string", "date", "function", "display"])
+for (const kind of [
+  "number",
+  "string",
+  "date",
+  "binary",
+  "function",
+  "display",
+])
   test(`${kind} formatting matches native Stata`, () => {
     const failures = [];
     let compared = 0;

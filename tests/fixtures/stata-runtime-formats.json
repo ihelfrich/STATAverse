@@ -11937,6 +11937,7196 @@
     { "kind": "date", "value": "133", "format": "%th", "text": "2026h2" },
     { "kind": "date", "value": "0", "format": "%tw", "text": " 1960w1" },
     { "kind": "date", "value": "0", "format": "%th", "text": "1960h1" },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tc",
+      "text": "01jan1960 00:00:01"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tC",
+      "text": "01jan1960 00:00:01"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%-tc",
+      "text": "01jan1960 00:00:01"
+    },
+    { "kind": "date", "value": "1000", "format": "%20tc", "rc": 120 },
+    { "kind": "date", "value": "1000", "format": "%tcHH:MM", "text": "00:00" },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "00:00:01.000"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "00:00:01.00"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHH:MM:SS.s",
+      "text": "00:00:01.0"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHh:MM_am",
+      "text": "12:00 am"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tchh:MMa.m.",
+      "text": "12:00a.m."
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tchH:MMAM",
+      "text": " 0:00AM"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHH:MMA.M.",
+      "text": "00:00A.M."
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcDAYNAME_dd",
+      "text": " Friday    1"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcDayname_dd",
+      "text": "    Friday 1"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "1960-01-01 00:00:01"
+    },
+    { "kind": "date", "value": "1000", "format": "%tcMM", "text": "00" },
+    { "kind": "date", "value": "1000", "format": "%tcss", "text": " 1" },
+    { "kind": "date", "value": "1000", "format": "%tcmm", "text": " 0" },
+    { "kind": "date", "value": "1000", "format": "%tc+HH+", "text": "00" },
+    { "kind": "date", "value": "1000", "format": "%tcJJJ", "text": "001" },
+    { "kind": "date", "value": "1000", "format": "%tcWW", "text": "01" },
+    { "kind": "date", "value": "1000", "format": "%tccc", "text": "19" },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcdd_mon_yy",
+      "text": " 1 jan 60"
+    },
+    { "kind": "date", "value": "1000", "format": "%tcq", "text": "1" },
+    { "kind": "date", "value": "1000", "format": "%tch", "text": "1" },
+    { "kind": "date", "value": "1000", "format": "%tc.sss", "text": ".000" },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcSS.sssss",
+      "text": " 01.0001"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHHMMSS",
+      "text": "000001"
+    },
+    { "kind": "date", "value": "1000", "format": "%tcSSam", "text": "01am" },
+    { "kind": "date", "value": "1000", "format": "%tcda", "text": " fr" },
+    { "kind": "date", "value": "1000", "format": "%tcDa", "text": " Fr" },
+    { "kind": "date", "value": "1000", "format": "%tcDAY", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcMonth",
+      "text": "  January"
+    },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 00:00:01:1"
+    },
+    { "kind": "date", "value": "1000", "format": "%tcSS,sss", "rc": 120 },
+    { "kind": "date", "value": "1000", "format": "%tcHHH", "rc": 120 },
+    { "kind": "date", "value": "1000", "format": "%tcDDDD", "text": "0101" },
+    { "kind": "date", "value": "1000", "format": "%tcM", "text": "  January" },
+    { "kind": "date", "value": "1000", "format": "%tcS", "rc": 120 },
+    { "kind": "date", "value": "1000", "format": "%tc.ssss", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "00:00:01.000"
+    },
+    { "kind": "date", "value": "1000", "format": "%tCss", "text": " 1" },
+    {
+      "kind": "date",
+      "value": "1000",
+      "format": "%tC_DDmonCCYY",
+      "text": " 01jan1960"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tc",
+      "text": "31dec1959 23:59:59"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tC",
+      "text": "31dec1959 23:59:59"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%-tc",
+      "text": "31dec1959 23:59:59"
+    },
+    { "kind": "date", "value": "-1", "format": "%20tc", "rc": 120 },
+    { "kind": "date", "value": "-1", "format": "%tcHH:MM", "text": "23:59" },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "23:59:59.999"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "23:59:59.99"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcHH:MM:SS.s",
+      "text": "23:59:59.9"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcHh:MM_am",
+      "text": "11:59 pm"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tchh:MMa.m.",
+      "text": "11:59p.m."
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tchH:MMAM",
+      "text": "23:59PM"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcHH:MMA.M.",
+      "text": "23:59P.M."
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcDAYNAME",
+      "text": " Thursday"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcDAYNAME_dd",
+      "text": "Thursday  31"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcDayname_dd",
+      "text": " Thursday 31"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "1959-12-31 23:59:59"
+    },
+    { "kind": "date", "value": "-1", "format": "%tcMM", "text": "59" },
+    { "kind": "date", "value": "-1", "format": "%tcss", "text": "59" },
+    { "kind": "date", "value": "-1", "format": "%tcmm", "text": "59" },
+    { "kind": "date", "value": "-1", "format": "%tc+HH+", "text": "23" },
+    { "kind": "date", "value": "-1", "format": "%tcJJJ", "text": "365" },
+    { "kind": "date", "value": "-1", "format": "%tcWW", "text": "52" },
+    { "kind": "date", "value": "-1", "format": "%tccc", "text": "19" },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcdd_mon_yy",
+      "text": "31 dec 59"
+    },
+    { "kind": "date", "value": "-1", "format": "%tcq", "text": "4" },
+    { "kind": "date", "value": "-1", "format": "%tch", "text": "2" },
+    { "kind": "date", "value": "-1", "format": "%tc.sss", "text": ".999" },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcSS.sssss",
+      "text": "59.99959"
+    },
+    { "kind": "date", "value": "-1", "format": "%tcHHMMSS", "text": "235959" },
+    { "kind": "date", "value": "-1", "format": "%tcSSam", "text": "59pm" },
+    { "kind": "date", "value": "-1", "format": "%tcda", "text": " th" },
+    { "kind": "date", "value": "-1", "format": "%tcDa", "text": " Th" },
+    { "kind": "date", "value": "-1", "format": "%tcDAY", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcMonth",
+      "text": " December"
+    },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "23:59:59:59"
+    },
+    { "kind": "date", "value": "-1", "format": "%tcSS,sss", "rc": 120 },
+    { "kind": "date", "value": "-1", "format": "%tcHHH", "rc": 120 },
+    { "kind": "date", "value": "-1", "format": "%tcDDDD", "text": "3131" },
+    { "kind": "date", "value": "-1", "format": "%tcM", "text": " December" },
+    { "kind": "date", "value": "-1", "format": "%tcS", "rc": 120 },
+    { "kind": "date", "value": "-1", "format": "%tc.ssss", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "23:59:59.999"
+    },
+    { "kind": "date", "value": "-1", "format": "%tCss", "text": "59" },
+    {
+      "kind": "date",
+      "value": "-1",
+      "format": "%tC_DDmonCCYY",
+      "text": " 31dec1959"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tc",
+      "text": "15mar2024 13:45:07"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tC",
+      "text": "15mar2024 13:44:40"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%-tc",
+      "text": "15mar2024 13:45:07"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHH:MM",
+      "text": "13:45"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "13:45:07.123"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "13:45:07.12"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHH:MM:SS.s",
+      "text": "13:45:07.1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHh:MM_am",
+      "text": "01:45 pm"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tchh:MMa.m.",
+      "text": " 1:45p.m."
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tchH:MMAM",
+      "text": "13:45PM"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHH:MMA.M.",
+      "text": "13:45P.M."
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcDAYNAME_dd",
+      "text": "Friday    15"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcDayname_dd",
+      "text": "   Friday 15"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "2024-03-15 13:45:07"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcMM",
+      "text": "45"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcss",
+      "text": " 7"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcmm",
+      "text": "45"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tc+HH+",
+      "text": "13"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcJJJ",
+      "text": "075"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcWW",
+      "text": "11"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tccc",
+      "text": "20"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcdd_mon_yy",
+      "text": "15 mar 24"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcq",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tch",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tc.sss",
+      "text": ".123"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcSS.sssss",
+      "text": " 07.1237"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHHMMSS",
+      "text": "134507"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcSSam",
+      "text": "07pm"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcda",
+      "text": " fr"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcDa",
+      "text": " Fr"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcMonth",
+      "text": "    March"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 13:45:07:7"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcDDDD",
+      "text": "1515"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcM",
+      "text": "    March"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tcS",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "13:44:40.123"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tCss",
+      "text": "40"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 13:45:07.123)",
+      "format": "%tC_DDmonCCYY",
+      "text": " 15mar2024"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tc",
+      "text": "15mar2024 00:05:09"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tC",
+      "text": "15mar2024 00:04:42"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%-tc",
+      "text": "15mar2024 00:05:09"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHH:MM",
+      "text": "00:05"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "00:05:09.987"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "00:05:09.98"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHH:MM:SS.s",
+      "text": "00:05:09.9"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHh:MM_am",
+      "text": "12:05 am"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tchh:MMa.m.",
+      "text": "12:05a.m."
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tchH:MMAM",
+      "text": " 0:05AM"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHH:MMA.M.",
+      "text": "00:05A.M."
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcDAYNAME_dd",
+      "text": "Friday    15"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcDayname_dd",
+      "text": "   Friday 15"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "2024-03-15 00:05:09"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcMM",
+      "text": "05"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcss",
+      "text": " 9"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcmm",
+      "text": " 5"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tc+HH+",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcJJJ",
+      "text": "075"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcWW",
+      "text": "11"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tccc",
+      "text": "20"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcdd_mon_yy",
+      "text": "15 mar 24"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcq",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tch",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tc.sss",
+      "text": ".987"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcSS.sssss",
+      "text": " 09.9879"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHHMMSS",
+      "text": "000509"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcSSam",
+      "text": "09am"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcda",
+      "text": " fr"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcDa",
+      "text": " Fr"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcMonth",
+      "text": "    March"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 00:05:09:9"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcDDDD",
+      "text": "1515"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcM",
+      "text": "    March"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tcS",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "00:04:42.987"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tCss",
+      "text": "42"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 00:05:09.987)",
+      "format": "%tC_DDmonCCYY",
+      "text": " 15mar2024"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tc",
+      "text": "15mar2024 12:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tC",
+      "text": "15mar2024 11:59:33"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%-tc",
+      "text": "15mar2024 12:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHH:MM",
+      "text": "12:00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "12:00:00.000"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "12:00:00.00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHH:MM:SS.s",
+      "text": "12:00:00.0"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHh:MM_am",
+      "text": "12:00 pm"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tchh:MMa.m.",
+      "text": "12:00p.m."
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tchH:MMAM",
+      "text": "12:00PM"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHH:MMA.M.",
+      "text": "12:00P.M."
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcDAYNAME_dd",
+      "text": "Friday    15"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcDayname_dd",
+      "text": "   Friday 15"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "2024-03-15 12:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcMM",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcss",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcmm",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tc+HH+",
+      "text": "12"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcJJJ",
+      "text": "075"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcWW",
+      "text": "11"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tccc",
+      "text": "20"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcdd_mon_yy",
+      "text": "15 mar 24"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcq",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tch",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tc.sss",
+      "text": ".000"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcSS.sssss",
+      "text": " 00.0000"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHHMMSS",
+      "text": "120000"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcSSam",
+      "text": "00pm"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcda",
+      "text": " fr"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcDa",
+      "text": " Fr"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcMonth",
+      "text": "    March"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 12:00:00:0"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcDDDD",
+      "text": "1515"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcM",
+      "text": "    March"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tcS",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "11:59:33.000"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tCss",
+      "text": "33"
+    },
+    {
+      "kind": "date",
+      "value": "tc(15mar2024 12:00:00)",
+      "format": "%tC_DDmonCCYY",
+      "text": " 15mar2024"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tc",
+      "text": "01jan1960 00:00:01"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tC",
+      "text": "01jan1960 00:00:01"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%-tc",
+      "text": "01jan1960 00:00:01"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%20tc", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHH:MM",
+      "text": "00:00"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "00:00:01.000"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "00:00:01.00"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHH:MM:SS.s",
+      "text": "00:00:01.0"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHh:MM_am",
+      "text": "12:00 am"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tchh:MMa.m.",
+      "text": "12:00a.m."
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tchH:MMAM",
+      "text": " 0:00AM"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHH:MMA.M.",
+      "text": "00:00A.M."
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcDAYNAME_dd",
+      "text": " Friday    1"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcDayname_dd",
+      "text": "    Friday 1"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "1960-01-01 00:00:01"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%tcMM", "text": "00" },
+    { "kind": "date", "value": "1000.7", "format": "%tcss", "text": " 1" },
+    { "kind": "date", "value": "1000.7", "format": "%tcmm", "text": " 0" },
+    { "kind": "date", "value": "1000.7", "format": "%tc+HH+", "text": "00" },
+    { "kind": "date", "value": "1000.7", "format": "%tcJJJ", "text": "001" },
+    { "kind": "date", "value": "1000.7", "format": "%tcWW", "text": "01" },
+    { "kind": "date", "value": "1000.7", "format": "%tccc", "text": "19" },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcdd_mon_yy",
+      "text": " 1 jan 60"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%tcq", "text": "1" },
+    { "kind": "date", "value": "1000.7", "format": "%tch", "text": "1" },
+    { "kind": "date", "value": "1000.7", "format": "%tc.sss", "text": ".000" },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcSS.sssss",
+      "text": " 01.0001"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHHMMSS",
+      "text": "000001"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%tcSSam", "text": "01am" },
+    { "kind": "date", "value": "1000.7", "format": "%tcda", "text": " fr" },
+    { "kind": "date", "value": "1000.7", "format": "%tcDa", "text": " Fr" },
+    { "kind": "date", "value": "1000.7", "format": "%tcDAY", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcMonth",
+      "text": "  January"
+    },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 00:00:01:1"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%tcSS,sss", "rc": 120 },
+    { "kind": "date", "value": "1000.7", "format": "%tcHHH", "rc": 120 },
+    { "kind": "date", "value": "1000.7", "format": "%tcDDDD", "text": "0101" },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tcM",
+      "text": "  January"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%tcS", "rc": 120 },
+    { "kind": "date", "value": "1000.7", "format": "%tc.ssss", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "00:00:01.000"
+    },
+    { "kind": "date", "value": "1000.7", "format": "%tCss", "text": " 1" },
+    {
+      "kind": "date",
+      "value": "1000.7",
+      "format": "%tC_DDmonCCYY",
+      "text": " 01jan1960"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tc",
+      "text": "31dec1959 23:59:58"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tC",
+      "text": "31dec1959 23:59:58"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%-tc",
+      "text": "31dec1959 23:59:58"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%20tc", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHH:MM",
+      "text": "23:59"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "23:59:58.999"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "23:59:58.99"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHH:MM:SS.s",
+      "text": "23:59:58.9"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHh:MM_am",
+      "text": "11:59 pm"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tchh:MMa.m.",
+      "text": "11:59p.m."
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tchH:MMAM",
+      "text": "23:59PM"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHH:MMA.M.",
+      "text": "23:59P.M."
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcDAYNAME",
+      "text": " Thursday"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcDAYNAME_dd",
+      "text": "Thursday  31"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcDayname_dd",
+      "text": " Thursday 31"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "1959-12-31 23:59:58"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%tcMM", "text": "59" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcss", "text": "58" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcmm", "text": "59" },
+    { "kind": "date", "value": "-1000.2", "format": "%tc+HH+", "text": "23" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcJJJ", "text": "365" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcWW", "text": "52" },
+    { "kind": "date", "value": "-1000.2", "format": "%tccc", "text": "19" },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcdd_mon_yy",
+      "text": "31 dec 59"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%tcq", "text": "4" },
+    { "kind": "date", "value": "-1000.2", "format": "%tch", "text": "2" },
+    { "kind": "date", "value": "-1000.2", "format": "%tc.sss", "text": ".999" },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcSS.sssss",
+      "text": "58.99958"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHHMMSS",
+      "text": "235958"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%tcSSam", "text": "58pm" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcda", "text": " th" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcDa", "text": " Th" },
+    { "kind": "date", "value": "-1000.2", "format": "%tcDAY", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcMonth",
+      "text": " December"
+    },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "23:59:58:58"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%tcSS,sss", "rc": 120 },
+    { "kind": "date", "value": "-1000.2", "format": "%tcHHH", "rc": 120 },
+    { "kind": "date", "value": "-1000.2", "format": "%tcDDDD", "text": "3131" },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tcM",
+      "text": " December"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%tcS", "rc": 120 },
+    { "kind": "date", "value": "-1000.2", "format": "%tc.ssss", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "23:59:58.999"
+    },
+    { "kind": "date", "value": "-1000.2", "format": "%tCss", "text": "58" },
+    {
+      "kind": "date",
+      "value": "-1000.2",
+      "format": "%tC_DDmonCCYY",
+      "text": " 31dec1959"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tc",
+      "text": "31dec9999 23:59:59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tC",
+      "text": "31dec9999 23:59:32"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%-tc",
+      "text": "31dec9999 23:59:59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHH:MM",
+      "text": "23:59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "23:59:59.999"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "23:59:59.99"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHH:MM:SS.s",
+      "text": "23:59:59.9"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHh:MM_am",
+      "text": "11:59 pm"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tchh:MMa.m.",
+      "text": "11:59p.m."
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tchH:MMAM",
+      "text": "23:59PM"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHH:MMA.M.",
+      "text": "23:59P.M."
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcDAYNAME_dd",
+      "text": "Friday    31"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcDayname_dd",
+      "text": "   Friday 31"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "9999-12-31 23:59:59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcMM",
+      "text": "59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcss",
+      "text": "59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcmm",
+      "text": "59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tc+HH+",
+      "text": "23"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcJJJ",
+      "text": "365"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcWW",
+      "text": "52"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tccc",
+      "text": "99"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcdd_mon_yy",
+      "text": "31 dec 99"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcq",
+      "text": "4"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tch",
+      "text": "2"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tc.sss",
+      "text": ".999"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcSS.sssss",
+      "text": "59.99959"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHHMMSS",
+      "text": "235959"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcSSam",
+      "text": "59pm"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcda",
+      "text": " fr"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcDa",
+      "text": " Fr"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcMonth",
+      "text": " December"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "23:59:59:59"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcDDDD",
+      "text": "3131"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tcM",
+      "text": " December"
+    },
+    { "kind": "date", "value": "253717919999999", "format": "%tcS", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "23:59:32.999"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tCss",
+      "text": "32"
+    },
+    {
+      "kind": "date",
+      "value": "253717919999999",
+      "format": "%tC_DDmonCCYY",
+      "text": " 31dec9999"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tc",
+      "text": "       2.53718e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tC",
+      "text": "31dec9999 23:59:33"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%-tc",
+      "text": "2.53718e+14       "
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHH:MM",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHH:MM:SS.sss",
+      "text": " 2.53718e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHH:MM:SS.ss",
+      "text": " 2.5372e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHH:MM:SS.s",
+      "text": " 2.537e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHh:MM_am",
+      "text": " 2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tchh:MMa.m.",
+      "text": " 2.54e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tchH:MMAM",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHH:MMA.M.",
+      "text": " 2.54e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcDAYNAME",
+      "text": " 2.54e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcDAYNAME_dd",
+      "text": " 2.53718e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcDayname_dd",
+      "text": " 2.53718e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "        2.53718e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcMM",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcss",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcmm",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tc+HH+",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcJJJ",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcWW",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tccc",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcdd_mon_yy",
+      "text": " 2.54e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcq",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tch",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tc.sss",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcSS.sssss",
+      "text": " 2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHHMMSS",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcSSam",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcda",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcDa",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcMonth",
+      "text": " 2.54e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 2.5372e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcDDDD",
+      "text": "2.5e+14"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tcM",
+      "text": " 2.54e+14"
+    },
+    { "kind": "date", "value": "253717920000000", "format": "%tcS", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "23:59:33.000"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tCss",
+      "text": "33"
+    },
+    {
+      "kind": "date",
+      "value": "253717920000000",
+      "format": "%tC_DDmonCCYY",
+      "text": " 31dec9999"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tc",
+      "text": "01jan0100 00:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tC",
+      "text": "01jan0100 00:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%-tc",
+      "text": "01jan0100 00:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHH:MM",
+      "text": "00:00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "00:00:00.000"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "00:00:00.00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHH:MM:SS.s",
+      "text": "00:00:00.0"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHh:MM_am",
+      "text": "12:00 am"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tchh:MMa.m.",
+      "text": "12:00a.m."
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tchH:MMAM",
+      "text": " 0:00AM"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHH:MMA.M.",
+      "text": "00:00A.M."
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcDAYNAME",
+      "text": "   Friday"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcDAYNAME_dd",
+      "text": " Friday    1"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcDayname_dd",
+      "text": "    Friday 1"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "0100-01-01 00:00:00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcMM",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcss",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcmm",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tc+HH+",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcJJJ",
+      "text": "001"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcWW",
+      "text": "01"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tccc",
+      "text": " 1"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcdd_mon_yy",
+      "text": "  1 jan 0"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcq",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tch",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tc.sss",
+      "text": ".000"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcSS.sssss",
+      "text": " 00.0000"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHHMMSS",
+      "text": "000000"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcSSam",
+      "text": "00am"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcda",
+      "text": " fr"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcDa",
+      "text": " Fr"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcMonth",
+      "text": "  January"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHH:MM:SS:ss",
+      "text": " 00:00:00:0"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcDDDD",
+      "text": "0101"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tcM",
+      "text": "  January"
+    },
+    { "kind": "date", "value": "-58695840000000", "format": "%tcS", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "00:00:00.000"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tCss",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000000",
+      "format": "%tC_DDmonCCYY",
+      "text": " 01jan0100"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tc",
+      "text": "      -5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tC",
+      "text": "      -5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%-tc",
+      "text": "-5.86958e+13      "
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHH:MM",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "-5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "-5.8696e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHH:MM:SS.s",
+      "text": "-5.870e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHh:MM_am",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tchh:MMa.m.",
+      "text": "-5.87e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tchH:MMAM",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHH:MMA.M.",
+      "text": "-5.87e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcDAYNAME",
+      "text": "-5.87e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcDAYNAME_dd",
+      "text": "-5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcDayname_dd",
+      "text": "-5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "       -5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcMM",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcss",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcmm",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tc+HH+",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcJJJ",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcWW",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tccc",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcdd_mon_yy",
+      "text": "-5.87e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcq",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tch",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tc.sss",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcSS.sssss",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHHMMSS",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcSSam",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcda",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcDa",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcMonth",
+      "text": "-5.87e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "-5.8696e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcDDDD",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tcM",
+      "text": "-5.87e+13"
+    },
+    { "kind": "date", "value": "-58695840000001", "format": "%tcS", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "-5.86958e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tCss",
+      "text": "-5.9e+13"
+    },
+    {
+      "kind": "date",
+      "value": "-58695840000001",
+      "format": "%tC_DDmonCCYY",
+      "text": "-5.870e+13"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tc",
+      "text": "01jan2017 00:00:26"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tC",
+      "text": "31dec2016 23:59:60"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%-tc",
+      "text": "01jan2017 00:00:26"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%20tc",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHH:MM",
+      "text": "00:00"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "00:00:26.500"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "00:00:26.50"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHH:MM:SS.s",
+      "text": "00:00:26.5"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHh:MM_am",
+      "text": "12:00 am"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tchh:MMa.m.",
+      "text": "12:00a.m."
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tchH:MMAM",
+      "text": " 0:00AM"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHH:MMA.M.",
+      "text": "00:00A.M."
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcDAYNAME",
+      "text": "   Sunday"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcDAYNAME_dd",
+      "text": " Sunday    1"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcDayname_dd",
+      "text": "    Sunday 1"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "2017-01-01 00:00:26"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcMM",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcss",
+      "text": "26"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcmm",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tc+HH+",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcJJJ",
+      "text": "001"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcWW",
+      "text": "01"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tccc",
+      "text": "20"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcdd_mon_yy",
+      "text": " 1 jan 17"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcq",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tch",
+      "text": "1"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tc.sss",
+      "text": ".500"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcSS.sssss",
+      "text": "26.50026"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHHMMSS",
+      "text": "000026"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcSSam",
+      "text": "26am"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcda",
+      "text": " su"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcDa",
+      "text": " Su"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcDAY",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcMonth",
+      "text": "  January"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "00:00:26:26"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcSS,sss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcHHH",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcDDDD",
+      "text": "0101"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcM",
+      "text": "  January"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tcS",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tc.ssss",
+      "rc": 120
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "23:59:60.500"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tCss",
+      "text": "60"
+    },
+    {
+      "kind": "date",
+      "value": "tC(31dec2016 23:59:60.5)",
+      "format": "%tC_DDmonCCYY",
+      "text": " 31dec2016"
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tc",
+      "text": "                 ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tC",
+      "text": "                 ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%-tc",
+      "text": ".                 "
+    },
+    { "kind": "date", "value": ".", "format": "%20tc", "rc": 120 },
+    { "kind": "date", "value": ".", "format": "%tcHH:MM", "text": "    ." },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "           ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "          ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcHH:MM:SS.s",
+      "text": "         ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcHh:MM_am",
+      "text": "       ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tchh:MMa.m.",
+      "text": "        ."
+    },
+    { "kind": "date", "value": ".", "format": "%tchH:MMAM", "text": "      ." },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcHH:MMA.M.",
+      "text": "        ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcDAYNAME",
+      "text": "        ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcDAYNAME_dd",
+      "text": "           ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcDayname_dd",
+      "text": "           ."
+    },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "                  ."
+    },
+    { "kind": "date", "value": ".", "format": "%tcMM", "text": " ." },
+    { "kind": "date", "value": ".", "format": "%tcss", "text": " ." },
+    { "kind": "date", "value": ".", "format": "%tcmm", "text": " ." },
+    { "kind": "date", "value": ".", "format": "%tc+HH+", "text": " ." },
+    { "kind": "date", "value": ".", "format": "%tcJJJ", "text": "  ." },
+    { "kind": "date", "value": ".", "format": "%tcWW", "text": " ." },
+    { "kind": "date", "value": ".", "format": "%tccc", "text": " ." },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcdd_mon_yy",
+      "text": "        ."
+    },
+    { "kind": "date", "value": ".", "format": "%tcq", "text": "." },
+    { "kind": "date", "value": ".", "format": "%tch", "text": "." },
+    { "kind": "date", "value": ".", "format": "%tc.sss", "text": "   ." },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcSS.sssss",
+      "text": "       ."
+    },
+    { "kind": "date", "value": ".", "format": "%tcHHMMSS", "text": "     ." },
+    { "kind": "date", "value": ".", "format": "%tcSSam", "text": "   ." },
+    { "kind": "date", "value": ".", "format": "%tcda", "text": "  ." },
+    { "kind": "date", "value": ".", "format": "%tcDa", "text": "  ." },
+    { "kind": "date", "value": ".", "format": "%tcDAY", "rc": 120 },
+    { "kind": "date", "value": ".", "format": "%tcMonth", "text": "        ." },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "          ."
+    },
+    { "kind": "date", "value": ".", "format": "%tcSS,sss", "rc": 120 },
+    { "kind": "date", "value": ".", "format": "%tcHHH", "rc": 120 },
+    { "kind": "date", "value": ".", "format": "%tcDDDD", "text": "   ." },
+    { "kind": "date", "value": ".", "format": "%tcM", "text": "        ." },
+    { "kind": "date", "value": ".", "format": "%tcS", "rc": 120 },
+    { "kind": "date", "value": ".", "format": "%tc.ssss", "rc": 120 },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "           ."
+    },
+    { "kind": "date", "value": ".", "format": "%tCss", "text": " ." },
+    {
+      "kind": "date",
+      "value": ".",
+      "format": "%tC_DDmonCCYY",
+      "text": "         ."
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tc",
+      "text": "                .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tC",
+      "text": "                .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%-tc",
+      "text": ".a                "
+    },
+    { "kind": "date", "value": ".a", "format": "%20tc", "rc": 120 },
+    { "kind": "date", "value": ".a", "format": "%tcHH:MM", "text": "   .a" },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcHH:MM:SS.sss",
+      "text": "          .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcHH:MM:SS.ss",
+      "text": "         .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcHH:MM:SS.s",
+      "text": "        .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcHh:MM_am",
+      "text": "      .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tchh:MMa.m.",
+      "text": "       .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tchH:MMAM",
+      "text": "     .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcHH:MMA.M.",
+      "text": "       .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcDAYNAME",
+      "text": "       .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcDAYNAME_dd",
+      "text": "          .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcDayname_dd",
+      "text": "          .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcCCYY-NN-DD_HH:MM:SS",
+      "text": "                 .a"
+    },
+    { "kind": "date", "value": ".a", "format": "%tcMM", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tcss", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tcmm", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tc+HH+", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tcJJJ", "text": " .a" },
+    { "kind": "date", "value": ".a", "format": "%tcWW", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tccc", "text": ".a" },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcdd_mon_yy",
+      "text": "       .a"
+    },
+    { "kind": "date", "value": ".a", "format": "%tcq", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tch", "text": ".a" },
+    { "kind": "date", "value": ".a", "format": "%tc.sss", "text": "  .a" },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcSS.sssss",
+      "text": "      .a"
+    },
+    { "kind": "date", "value": ".a", "format": "%tcHHMMSS", "text": "    .a" },
+    { "kind": "date", "value": ".a", "format": "%tcSSam", "text": "  .a" },
+    { "kind": "date", "value": ".a", "format": "%tcda", "text": " .a" },
+    { "kind": "date", "value": ".a", "format": "%tcDa", "text": " .a" },
+    { "kind": "date", "value": ".a", "format": "%tcDAY", "rc": 120 },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcMonth",
+      "text": "       .a"
+    },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tcHH:MM:SS:ss",
+      "text": "         .a"
+    },
+    { "kind": "date", "value": ".a", "format": "%tcSS,sss", "rc": 120 },
+    { "kind": "date", "value": ".a", "format": "%tcHHH", "rc": 120 },
+    { "kind": "date", "value": ".a", "format": "%tcDDDD", "text": "  .a" },
+    { "kind": "date", "value": ".a", "format": "%tcM", "text": "       .a" },
+    { "kind": "date", "value": ".a", "format": "%tcS", "rc": 120 },
+    { "kind": "date", "value": ".a", "format": "%tc.ssss", "rc": 120 },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tCHH:MM:SS.sss",
+      "text": "          .a"
+    },
+    { "kind": "date", "value": ".a", "format": "%tCss", "text": ".a" },
+    {
+      "kind": "date",
+      "value": ".a",
+      "format": "%tC_DDmonCCYY",
+      "text": "        .a"
+    },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tda", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twa", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tma", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdb", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twb", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmb", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdc",
+      "text": "20"
+    },
+    { "kind": "date", "value": "3476", "format": "%twc", "text": "20" },
+    { "kind": "date", "value": "3476", "format": "%tmc", "text": "22" },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdd",
+      "text": " 5"
+    },
+    { "kind": "date", "value": "3476", "format": "%twd", "text": " 5" },
+    { "kind": "date", "value": "3476", "format": "%tmd", "text": " 1" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tde", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twe", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tme", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdf", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twf", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmf", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdg", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twg", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmg", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdh", "text": "1" },
+    { "kind": "date", "value": "3476", "format": "%twh", "text": "2" },
+    { "kind": "date", "value": "3476", "format": "%tmh", "text": "2" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdi", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twi", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmi", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdj",
+      "text": " 65"
+    },
+    { "kind": "date", "value": "3476", "format": "%twj", "text": "309" },
+    { "kind": "date", "value": "3476", "format": "%tmj", "text": "244" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdk", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twk", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmk", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdl",
+      "text": "mar"
+    },
+    { "kind": "date", "value": "3476", "format": "%twl", "text": "nov" },
+    { "kind": "date", "value": "3476", "format": "%tml", "text": "sep" },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdm",
+      "text": "Mar"
+    },
+    { "kind": "date", "value": "3476", "format": "%twm", "text": "Nov" },
+    { "kind": "date", "value": "3476", "format": "%tmm", "text": "Sep" },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdn",
+      "text": " 3"
+    },
+    { "kind": "date", "value": "3476", "format": "%twn", "text": "11" },
+    { "kind": "date", "value": "3476", "format": "%tmn", "text": " 9" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdo", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%two", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmo", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdp", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twp", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmp", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdq", "text": "1" },
+    { "kind": "date", "value": "3476", "format": "%twq", "text": "4" },
+    { "kind": "date", "value": "3476", "format": "%tmq", "text": "3" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdr", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twr", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmr", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tds", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tws", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tms", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdt", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twt", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmt", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdu", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twu", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmu", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdv", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twv", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmv", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdw",
+      "text": "10"
+    },
+    { "kind": "date", "value": "3476", "format": "%tww", "text": "45" },
+    { "kind": "date", "value": "3476", "format": "%tmw", "text": "35" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdx", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twx", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmx", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdy",
+      "text": "24"
+    },
+    { "kind": "date", "value": "3476", "format": "%twy", "text": "26" },
+    { "kind": "date", "value": "3476", "format": "%tmy", "text": "49" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdz", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twz", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmz", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdA", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twA", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmA", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdB", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twB", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmB", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdC",
+      "text": "20"
+    },
+    { "kind": "date", "value": "3476", "format": "%twC", "text": "20" },
+    { "kind": "date", "value": "3476", "format": "%tmC", "text": "22" },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdD",
+      "text": "05"
+    },
+    { "kind": "date", "value": "3476", "format": "%twD", "text": "05" },
+    { "kind": "date", "value": "3476", "format": "%tmD", "text": "01" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdE", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twE", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmE", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdF", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twF", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmF", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdG", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twG", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmG", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdH", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twH", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmH", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdI", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twI", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmI", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdJ",
+      "text": "065"
+    },
+    { "kind": "date", "value": "3476", "format": "%twJ", "text": "309" },
+    { "kind": "date", "value": "3476", "format": "%tmJ", "text": "244" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdK", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twK", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmK", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdL",
+      "text": "    march"
+    },
+    { "kind": "date", "value": "3476", "format": "%twL", "text": " november" },
+    { "kind": "date", "value": "3476", "format": "%tmL", "text": "september" },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdM",
+      "text": "    March"
+    },
+    { "kind": "date", "value": "3476", "format": "%twM", "text": " November" },
+    { "kind": "date", "value": "3476", "format": "%tmM", "text": "September" },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdN",
+      "text": "03"
+    },
+    { "kind": "date", "value": "3476", "format": "%twN", "text": "11" },
+    { "kind": "date", "value": "3476", "format": "%tmN", "text": "09" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdO", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twO", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmO", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdP", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twP", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmP", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdQ", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twQ", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmQ", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdR", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twR", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmR", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdS", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twS", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmS", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdT", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twT", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmT", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdU", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twU", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmU", "rc": 120 },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdV", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twV", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmV", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdW",
+      "text": "10"
+    },
+    { "kind": "date", "value": "3476", "format": "%twW", "text": "45" },
+    { "kind": "date", "value": "3476", "format": "%tmW", "text": "35" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdX", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twX", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmX", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdY",
+      "text": "24"
+    },
+    { "kind": "date", "value": "3476", "format": "%twY", "text": "26" },
+    { "kind": "date", "value": "3476", "format": "%tmY", "text": "49" },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tdZ", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%twZ", "rc": 120 },
+    { "kind": "date", "value": "3476", "format": "%tmZ", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdHH",
+      "text": "00"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdhh",
+      "text": "12"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdmm",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%td.sss",
+      "text": ".000"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdam",
+      "text": "am"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdHh",
+      "text": "12"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdhH",
+      "text": " 0"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdDAYNAME_dd",
+      "text": " Tuesday   5"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdDAYNAME!x",
+      "text": "Tuesday  x"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdcc",
+      "text": "20"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tdc",
+      "text": "20"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%dD/N/Y",
+      "text": "05/03/24"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%dM_d,_cY",
+      "text": "     March 5, 2024"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%-tdDayname_dd",
+      "text": "Tuesday 5   "
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tqMon",
+      "text": "Jan"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tq",
+      "text": "7820q1"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%th",
+      "text": "2.3e+04"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tyDD-mon",
+      "text": "2.3e+04"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%ty",
+      "text": "2.3e+04"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tw",
+      "text": "2410w41"
+    },
+    {
+      "kind": "date",
+      "value": "td(05mar2024)",
+      "format": "%tmNN/DD/CCYY",
+      "text": "05/01/3913"
+    },
+    { "kind": "date", "value": "td(05mar2024)", "format": "%tb", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdHH",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdhh",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdmm",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%td.sss",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdam",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdHh",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdhH",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdDAYNAME_dd",
+      "text": "     -679351"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdDAYNAME!x",
+      "text": "   -679351"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdcc",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tdc",
+      "text": "-6.8e+05"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%dD/N/Y",
+      "text": " -679351"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%dM_d,_cY",
+      "text": "           -679351"
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%-tdDayname_dd",
+      "text": "-679351     "
+    },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tqMon",
+      "text": "-6.8e+05"
+    },
+    { "kind": "date", "value": "-679351", "format": "%tq", "text": "-6.8e+05" },
+    { "kind": "date", "value": "-679351", "format": "%th", "text": "-6.8e+05" },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tyDD-mon",
+      "text": "-6.8e+05"
+    },
+    { "kind": "date", "value": "-679351", "format": "%ty", "text": "-6.8e+05" },
+    { "kind": "date", "value": "-679351", "format": "%tw", "text": "-6.8e+05" },
+    {
+      "kind": "date",
+      "value": "-679351",
+      "format": "%tmNN/DD/CCYY",
+      "text": "   -679351"
+    },
+    { "kind": "date", "value": "-679351", "format": "%tb", "rc": 120 },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdHH",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdhh",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdmm",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%td.sss",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdam",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdHh",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdhH",
+      "text": "2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdDAYNAME_dd",
+      "text": "     2936550"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdDAYNAME!x",
+      "text": "   2936550"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tdcc",
+      "text": "2.9e+06"
+    },
+    { "kind": "date", "value": "2936550", "format": "%tdc", "text": "2.9e+06" },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%dD/N/Y",
+      "text": " 2.9e+06"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%dM_d,_cY",
+      "text": "           2936550"
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%-tdDayname_dd",
+      "text": "2936550     "
+    },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tqMon",
+      "text": "2.9e+06"
+    },
+    { "kind": "date", "value": "2936550", "format": "%tq", "text": "2.9e+06" },
+    { "kind": "date", "value": "2936550", "format": "%th", "text": "2.9e+06" },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tyDD-mon",
+      "text": "2.9e+06"
+    },
+    { "kind": "date", "value": "2936550", "format": "%ty", "text": "2.9e+06" },
+    { "kind": "date", "value": "2936550", "format": "%tw", "text": "2.9e+06" },
+    {
+      "kind": "date",
+      "value": "2936550",
+      "format": "%tmNN/DD/CCYY",
+      "text": "   2936550"
+    },
+    { "kind": "date", "value": "2936550", "format": "%tb", "rc": 120 },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdHH", "text": "00" },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdhh", "text": "12" },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdmm", "text": " 0" },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%td.sss",
+      "text": ".000"
+    },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdam", "text": "am" },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdHh", "text": "12" },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdhH", "text": " 0" },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tdDAYNAME_dd",
+      "text": "Thursday  15"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tdDAYNAME!x",
+      "text": "Thursday x"
+    },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdcc", "text": "19" },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tdc", "text": "19" },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%dD/N/Y",
+      "text": "15/09/60"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%dM_d,_cY",
+      "text": "September 15, 1960"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%-tdDayname_dd",
+      "text": "Thursday 15 "
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tqMon",
+      "text": "Jul"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tq",
+      "text": "2024q3"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%th",
+      "text": "2089h1"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tyDD-mon",
+      "text": "01-jan"
+    },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%ty", "text": "0258" },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tw",
+      "text": "1964w51"
+    },
+    {
+      "kind": "date",
+      "value": "tq(2024q3)",
+      "format": "%tmNN/DD/CCYY",
+      "text": "07/01/1981"
+    },
+    { "kind": "date", "value": "tq(2024q3)", "format": "%tb", "rc": 120 },
+    { "kind": "date", "value": "0.5", "format": "%tdHH", "text": "00" },
+    { "kind": "date", "value": "0.5", "format": "%tdhh", "text": "12" },
+    { "kind": "date", "value": "0.5", "format": "%tdmm", "text": " 0" },
+    { "kind": "date", "value": "0.5", "format": "%td.sss", "text": ".000" },
+    { "kind": "date", "value": "0.5", "format": "%tdam", "text": "am" },
+    { "kind": "date", "value": "0.5", "format": "%tdHh", "text": "12" },
+    { "kind": "date", "value": "0.5", "format": "%tdhH", "text": " 0" },
+    {
+      "kind": "date",
+      "value": "0.5",
+      "format": "%tdDAYNAME_dd",
+      "text": " Friday    1"
+    },
+    {
+      "kind": "date",
+      "value": "0.5",
+      "format": "%tdDAYNAME!x",
+      "text": "Friday   x"
+    },
+    { "kind": "date", "value": "0.5", "format": "%tdcc", "text": "19" },
+    { "kind": "date", "value": "0.5", "format": "%tdc", "text": "19" },
+    { "kind": "date", "value": "0.5", "format": "%dD/N/Y", "text": "01/01/60" },
+    {
+      "kind": "date",
+      "value": "0.5",
+      "format": "%dM_d,_cY",
+      "text": "   January 1, 1960"
+    },
+    {
+      "kind": "date",
+      "value": "0.5",
+      "format": "%-tdDayname_dd",
+      "text": "Friday 1    "
+    },
+    { "kind": "date", "value": "0.5", "format": "%tqMon", "text": "Jan" },
+    { "kind": "date", "value": "0.5", "format": "%tq", "text": "1960q1" },
+    { "kind": "date", "value": "0.5", "format": "%th", "text": "1960h1" },
+    { "kind": "date", "value": "0.5", "format": "%tyDD-mon", "text": "    .5" },
+    { "kind": "date", "value": "0.5", "format": "%ty", "text": "  .5" },
+    { "kind": "date", "value": "0.5", "format": "%tw", "text": " 1960w1" },
+    {
+      "kind": "date",
+      "value": "0.5",
+      "format": "%tmNN/DD/CCYY",
+      "text": "01/01/1960"
+    },
+    { "kind": "date", "value": "0.5", "format": "%tb", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1.5",
+      "format": "%21x",
+      "text": "+1.8000000000000X+000"
+    },
+    { "kind": "binary", "value": "1.5", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1.5",
+      "format": "%-21x",
+      "text": "1.50000000000000e+00 "
+    },
+    {
+      "kind": "binary",
+      "value": "1.5",
+      "format": "%021x",
+      "text": " 1.50000000000000e+00"
+    },
+    {
+      "kind": "binary",
+      "value": "1.5",
+      "format": "%16H",
+      "text": "3ff8000000000000"
+    },
+    {
+      "kind": "binary",
+      "value": "1.5",
+      "format": "%16L",
+      "text": "000000000000f83f"
+    },
+    { "kind": "binary", "value": "1.5", "format": "%8H", "text": "3fc00000" },
+    { "kind": "binary", "value": "1.5", "format": "%8L", "text": "0000c03f" },
+    {
+      "kind": "binary",
+      "value": "1.5",
+      "format": "%-16H",
+      "text": "1.500000000e+00 "
+    },
+    { "kind": "binary", "value": "1.5", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "1.5", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "1.5", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": "1.5", "format": "%-8L", "text": "1.5e+00 " },
+    { "kind": "binary", "value": "1.5", "format": "%08H", "text": " 1.5e+00" },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%21x",
+      "text": "+1.48e5604189375X+002"
+    },
+    { "kind": "binary", "value": "5.139", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%-21x",
+      "text": "5.13900000000000e+00 "
+    },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%021x",
+      "text": " 5.13900000000000e+00"
+    },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%16H",
+      "text": "40148e5604189375"
+    },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%16L",
+      "text": "75931804568e1440"
+    },
+    { "kind": "binary", "value": "5.139", "format": "%8H", "text": "40a472b0" },
+    { "kind": "binary", "value": "5.139", "format": "%8L", "text": "b072a440" },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%-16H",
+      "text": "5.139000000e+00 "
+    },
+    { "kind": "binary", "value": "5.139", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "5.139", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "5.139", "format": "%16h", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%-8L",
+      "text": "5.1e+00 "
+    },
+    {
+      "kind": "binary",
+      "value": "5.139",
+      "format": "%08H",
+      "text": " 5.1e+00"
+    },
+    {
+      "kind": "binary",
+      "value": "0",
+      "format": "%21x",
+      "text": "+0.0000000000000X-3ff"
+    },
+    { "kind": "binary", "value": "0", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "0",
+      "format": "%-21x",
+      "text": "0.00000000000000e+00 "
+    },
+    {
+      "kind": "binary",
+      "value": "0",
+      "format": "%021x",
+      "text": " 0.00000000000000e+00"
+    },
+    {
+      "kind": "binary",
+      "value": "0",
+      "format": "%16H",
+      "text": "0000000000000000"
+    },
+    {
+      "kind": "binary",
+      "value": "0",
+      "format": "%16L",
+      "text": "0000000000000000"
+    },
+    { "kind": "binary", "value": "0", "format": "%8H", "text": "00000000" },
+    { "kind": "binary", "value": "0", "format": "%8L", "text": "00000000" },
+    {
+      "kind": "binary",
+      "value": "0",
+      "format": "%-16H",
+      "text": "0.000000000e+00 "
+    },
+    { "kind": "binary", "value": "0", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "0", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "0", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": "0", "format": "%-8L", "text": "0.0e+00 " },
+    { "kind": "binary", "value": "0", "format": "%08H", "text": " 0.0e+00" },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%21x",
+      "text": "+0.012688b70e62bX-3ff"
+    },
+    { "kind": "binary", "value": "1e-310", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%-21x",
+      "text": "1.0000000000000e-310 "
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%021x",
+      "text": " 1.0000000000000e-310"
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%16H",
+      "text": "000012688b70e62b"
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%16L",
+      "text": "2be6708b68120000"
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%8H",
+      "text": "00000000"
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%8L",
+      "text": "00000000"
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%-16H",
+      "text": "1.00000000e-310 "
+    },
+    { "kind": "binary", "value": "1e-310", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "1e-310", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "1e-310", "format": "%16h", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%-8L",
+      "text": "1.e-310 "
+    },
+    {
+      "kind": "binary",
+      "value": "1e-310",
+      "format": "%08H",
+      "text": " 1.e-310"
+    },
+    {
+      "kind": "binary",
+      "value": ".",
+      "format": "%21x",
+      "text": "+1.0000000000000X+3ff"
+    },
+    { "kind": "binary", "value": ".", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": ".",
+      "format": "%-21x",
+      "text": ".                    "
+    },
+    {
+      "kind": "binary",
+      "value": ".",
+      "format": "%021x",
+      "text": "                    ."
+    },
+    {
+      "kind": "binary",
+      "value": ".",
+      "format": "%16H",
+      "text": "7fe0000000000000"
+    },
+    {
+      "kind": "binary",
+      "value": ".",
+      "format": "%16L",
+      "text": "000000000000e07f"
+    },
+    { "kind": "binary", "value": ".", "format": "%8H", "text": "7f800000" },
+    { "kind": "binary", "value": ".", "format": "%8L", "text": "0000807f" },
+    {
+      "kind": "binary",
+      "value": ".",
+      "format": "%-16H",
+      "text": ".               "
+    },
+    { "kind": "binary", "value": ".", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": ".", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": ".", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": ".", "format": "%-8L", "text": ".       " },
+    { "kind": "binary", "value": ".", "format": "%08H", "text": "       ." },
+    {
+      "kind": "binary",
+      "value": ".a",
+      "format": "%21x",
+      "text": "+1.0010000000000X+3ff"
+    },
+    { "kind": "binary", "value": ".a", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": ".a",
+      "format": "%-21x",
+      "text": ".a                   "
+    },
+    {
+      "kind": "binary",
+      "value": ".a",
+      "format": "%021x",
+      "text": "                   .a"
+    },
+    {
+      "kind": "binary",
+      "value": ".a",
+      "format": "%16H",
+      "text": "7fe0010000000000"
+    },
+    {
+      "kind": "binary",
+      "value": ".a",
+      "format": "%16L",
+      "text": "000000000001e07f"
+    },
+    { "kind": "binary", "value": ".a", "format": "%8H", "text": "7f800000" },
+    { "kind": "binary", "value": ".a", "format": "%8L", "text": "0000807f" },
+    {
+      "kind": "binary",
+      "value": ".a",
+      "format": "%-16H",
+      "text": ".a              "
+    },
+    { "kind": "binary", "value": ".a", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": ".a", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": ".a", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": ".a", "format": "%-8L", "text": ".a      " },
+    { "kind": "binary", "value": ".a", "format": "%08H", "text": "      .a" },
+    {
+      "kind": "binary",
+      "value": ".z",
+      "format": "%21x",
+      "text": "+1.01a0000000000X+3ff"
+    },
+    { "kind": "binary", "value": ".z", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": ".z",
+      "format": "%-21x",
+      "text": ".z                   "
+    },
+    {
+      "kind": "binary",
+      "value": ".z",
+      "format": "%021x",
+      "text": "                   .z"
+    },
+    {
+      "kind": "binary",
+      "value": ".z",
+      "format": "%16H",
+      "text": "7fe01a0000000000"
+    },
+    {
+      "kind": "binary",
+      "value": ".z",
+      "format": "%16L",
+      "text": "00000000001ae07f"
+    },
+    { "kind": "binary", "value": ".z", "format": "%8H", "text": "7f800000" },
+    { "kind": "binary", "value": ".z", "format": "%8L", "text": "0000807f" },
+    {
+      "kind": "binary",
+      "value": ".z",
+      "format": "%-16H",
+      "text": ".z              "
+    },
+    { "kind": "binary", "value": ".z", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": ".z", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": ".z", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": ".z", "format": "%-8L", "text": ".z      " },
+    { "kind": "binary", "value": ".z", "format": "%08H", "text": "      .z" },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%21x",
+      "text": "+1.7e43c8800759cX+3e4"
+    },
+    { "kind": "binary", "value": "1e300", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%-21x",
+      "text": "1.0000000000000e+300 "
+    },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%021x",
+      "text": " 1.0000000000000e+300"
+    },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%16H",
+      "text": "7e37e43c8800759c"
+    },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%16L",
+      "text": "9c7500883ce4377e"
+    },
+    { "kind": "binary", "value": "1e300", "format": "%8H", "text": "7f800000" },
+    { "kind": "binary", "value": "1e300", "format": "%8L", "text": "0000807f" },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%-16H",
+      "text": "1.00000000e+300 "
+    },
+    { "kind": "binary", "value": "1e300", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "1e300", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "1e300", "format": "%16h", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%-8L",
+      "text": "1.e+300 "
+    },
+    {
+      "kind": "binary",
+      "value": "1e300",
+      "format": "%08H",
+      "text": " 1.e+300"
+    },
+    {
+      "kind": "binary",
+      "value": "-2.5",
+      "format": "%21x",
+      "text": "-1.4000000000000X+001"
+    },
+    { "kind": "binary", "value": "-2.5", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "-2.5",
+      "format": "%-21x",
+      "text": "-2.50000000000000e+00"
+    },
+    {
+      "kind": "binary",
+      "value": "-2.5",
+      "format": "%021x",
+      "text": "-2.50000000000000e+00"
+    },
+    {
+      "kind": "binary",
+      "value": "-2.5",
+      "format": "%16H",
+      "text": "c004000000000000"
+    },
+    {
+      "kind": "binary",
+      "value": "-2.5",
+      "format": "%16L",
+      "text": "00000000000004c0"
+    },
+    { "kind": "binary", "value": "-2.5", "format": "%8H", "text": "c0200000" },
+    { "kind": "binary", "value": "-2.5", "format": "%8L", "text": "000020c0" },
+    {
+      "kind": "binary",
+      "value": "-2.5",
+      "format": "%-16H",
+      "text": "-2.500000000e+00"
+    },
+    { "kind": "binary", "value": "-2.5", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "-2.5", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "-2.5", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": "-2.5", "format": "%-8L", "text": "-2.5e+00" },
+    { "kind": "binary", "value": "-2.5", "format": "%08H", "text": "-2.5e+00" },
+    {
+      "kind": "binary",
+      "value": "0.1",
+      "format": "%21x",
+      "text": "+1.999999999999aX-004"
+    },
+    { "kind": "binary", "value": "0.1", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "0.1",
+      "format": "%-21x",
+      "text": "1.00000000000000e-01 "
+    },
+    {
+      "kind": "binary",
+      "value": "0.1",
+      "format": "%021x",
+      "text": " 1.00000000000000e-01"
+    },
+    {
+      "kind": "binary",
+      "value": "0.1",
+      "format": "%16H",
+      "text": "3fb999999999999a"
+    },
+    {
+      "kind": "binary",
+      "value": "0.1",
+      "format": "%16L",
+      "text": "9a9999999999b93f"
+    },
+    { "kind": "binary", "value": "0.1", "format": "%8H", "text": "3dcccccd" },
+    { "kind": "binary", "value": "0.1", "format": "%8L", "text": "cdcccc3d" },
+    {
+      "kind": "binary",
+      "value": "0.1",
+      "format": "%-16H",
+      "text": "1.000000000e-01 "
+    },
+    { "kind": "binary", "value": "0.1", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "0.1", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "0.1", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": "0.1", "format": "%-8L", "text": "1.0e-01 " },
+    { "kind": "binary", "value": "0.1", "format": "%08H", "text": " 1.0e-01" },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%21x",
+      "text": "+1.0000010000000X+018"
+    },
+    { "kind": "binary", "value": "16777217", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%-21x",
+      "text": "1.67772170000000e+07 "
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%021x",
+      "text": " 1.67772170000000e+07"
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%16H",
+      "text": "4170000010000000"
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%16L",
+      "text": "0000001000007041"
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%8H",
+      "text": "4b800000"
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%8L",
+      "text": "0000804b"
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%-16H",
+      "text": "1.677721700e+07 "
+    },
+    { "kind": "binary", "value": "16777217", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "16777217", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "16777217", "format": "%16h", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%-8L",
+      "text": "1.7e+07 "
+    },
+    {
+      "kind": "binary",
+      "value": "16777217",
+      "format": "%08H",
+      "text": " 1.7e+07"
+    },
+    {
+      "kind": "binary",
+      "value": "1e40",
+      "format": "%21x",
+      "text": "+1.d6329f1c35ca5X+084"
+    },
+    { "kind": "binary", "value": "1e40", "format": "%20x", "rc": 120 },
+    {
+      "kind": "binary",
+      "value": "1e40",
+      "format": "%-21x",
+      "text": "1.00000000000000e+40 "
+    },
+    {
+      "kind": "binary",
+      "value": "1e40",
+      "format": "%021x",
+      "text": " 1.00000000000000e+40"
+    },
+    {
+      "kind": "binary",
+      "value": "1e40",
+      "format": "%16H",
+      "text": "483d6329f1c35ca5"
+    },
+    {
+      "kind": "binary",
+      "value": "1e40",
+      "format": "%16L",
+      "text": "a55cc3f129633d48"
+    },
+    { "kind": "binary", "value": "1e40", "format": "%8H", "text": "7f800000" },
+    { "kind": "binary", "value": "1e40", "format": "%8L", "text": "0000807f" },
+    {
+      "kind": "binary",
+      "value": "1e40",
+      "format": "%-16H",
+      "text": "1.000000000e+40 "
+    },
+    { "kind": "binary", "value": "1e40", "format": "%17H", "rc": 120 },
+    { "kind": "binary", "value": "1e40", "format": "%21X", "rc": 120 },
+    { "kind": "binary", "value": "1e40", "format": "%16h", "rc": 120 },
+    { "kind": "binary", "value": "1e40", "format": "%-8L", "text": "1.0e+40 " },
+    { "kind": "binary", "value": "1e40", "format": "%08H", "text": " 1.0e+40" },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2023-12-01 08:00:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2017036800000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.1\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507100"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.12\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507120"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.1234\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.9999\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 PM\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 p.m.\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 P.M.\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 12:45:07 am\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026082707000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 12:45:07 pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026125907000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07 pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 a.m.\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026086307000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 am.\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026086307000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "2026080000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"14:22\",\"hm\"), \"%21.0g\")",
+      "text": "51720000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"14:22:05\",\"hms\"), \"%21.0g\")",
+      "text": "51725000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"14:22\",\"hms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"01dec2006 14:22\",\"DMYhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"01-12-2006 14.22\",\"DMYhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1dec2006 14:22\",\"DMYhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"01dec06 14:22\",\"DM20Yhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"01-12-06 14.22\",\"DM20Yhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"December 1, 2006 14:22\",\"MDYhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2006 Dec 01 14:22\",\"YMDhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"20061201 1422\",\"YMDhm\"), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"20060125110215\",\"YMDhms\"), \"%21.0g\")",
+      "text": "1453806135000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"Fri Dec 01 14:22:43 CST 2006\",\"#MDhms#Y\"), \"%21.0g\")",
+      "text": "1480602163000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"Fri Dec 01 14:22:43 CST 2006 patient 42\",\"#MDhms#Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"Fri Dec 01 14:22:43 CST 2006 patient 42\",\"#MDhms#Y#\"), \"%21.0g\")",
+      "text": "1480602163000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"Fri Dec 01 14:22:43 CST 2006\",\"# MD hms # Y\"), \"%21.0g\")",
+      "text": "1480602163000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1-1-2010 at 15:23:17\",\"MDY#hms\"), \"%21.0g\")",
+      "text": "1577978597000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1-1-2010 at 3:23:17 PM\",\"MDY#hms\"), \"%21.0g\")",
+      "text": "1577978597000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"01-12-06 14:22\",\"DMYhm\",2020), \"%21.0g\")",
+      "text": "1480602120000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15-06-98 11:01\",\"DMYhm\",2020), \"%21.0g\")",
+      "text": "1213527660000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"27:62:90\",\"hms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"24:00:00\",\"hms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"23:59:60\",\"hms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"31dec2016 23:59:60\",\"DMYhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"31dec2005 23:59:59\",\"DMYhms\"), \"%21.0g\")",
+      "text": "1451692799000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-02-30 10:00\",\"YMDhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"YMDhmsx\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"YMDhmm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"ymdhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15T13:45:00Z\",\"YMDhms#\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15T13:45:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024/3/5 7:05\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2025241500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"3/5/2024 7:05:09\",\"MDYhms\"), \"%21.0g\")",
+      "text": "2025241509000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"05.03.2024 07:05\",\"DMYhm\"), \"%21.0g\")",
+      "text": "2025241500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"DMYhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"13:45:00 2024-03-15\",\"hmsYMD\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13\",\"YMDh\"), \"%21.0g\")",
+      "text": "2026126800000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\" 2024-03-15 13:45 \",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15  13:45\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00.5\",\"YMDhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129505000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-3-5 1:2:3\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2025219723000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"202403151345\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2403151345\",\"YMDhm\",2050), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"240315 1345\",\"20YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1345\",\"hm\"), \"%21.0g\")",
+      "text": "49500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"134507\",\"hms\"), \"%21.0g\")",
+      "text": "49507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"13457\",\"hms\"), \"%21.0g\")",
+      "text": "49507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"YMDhms\",2050), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"Mar 15 2024 1:45PM\",\"MDYhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"March 15, 2024, 1:45 p.m.\",\"MDYhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15 mar 2024 13h45\",\"DMYhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07,123\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"0099-01-01 00:00\",\"YMDhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"0100-01-01 00:00\",\"YMDhm\"), \"%21.0g\")",
+      "text": "-58695840000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"9999-12-31 23:59:59.999\",\"YMDhms\"), \"%21.0g\")",
+      "text": "253717919999999"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"10000-01-01 00:00\",\"YMDhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00 +0100\",\"YMDhms#\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"YMD#\"), \"%21.0g\")",
+      "text": "2026080000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:00\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 -13:45:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-13-15 13:45:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15mar2024\",\"DMY\"), \"%21.0g\")",
+      "text": "2026080000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"mar2024\",\"MY\"), \"%21.0g\")",
+      "text": "2024870400000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024\",\"Y\"), \"%21.0g\")",
+      "text": "2019686400000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15\",\"D\"), \"%21.0g\")",
+      "text": "1209600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"13\",\"h\"), \"%21.0g\")",
+      "text": "46800000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2024-03-15 13:45:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129527000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"31dec2016 23:59:60\",\"DMYhms\"), \"%21.0g\")",
+      "text": "1798848026000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\"), \"%21.0g\")",
+      "text": "1798848026500"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"30dec2016 23:59:60\",\"DMYhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"01jan1972 00:00:00\",\"DMYhms\"), \"%21.0g\")",
+      "text": "378691200000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"30jun1972 23:59:60\",\"DMYhms\"), \"%21.0g\")",
+      "text": "394416000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"01jul1972 00:00:00\",\"DMYhms\"), \"%21.0g\")",
+      "text": "394416001000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"14:22\",\"hm\"), \"%21.0g\")",
+      "text": "51720000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(Clock(\"31dec2016 23:59:60\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1798848000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1798848000500"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(Clock(\"01jan2017 00:00:00\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1798848000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(Clock(\"31dec2016 23:59:59\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1798847999000"
+    },
+    { "kind": "function", "value": "string(cofC(0), \"%21.0g\")", "text": "0" },
+    {
+      "kind": "function",
+      "value": "string(cofC(-1), \"%21.0g\")",
+      "text": "-1"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(253717919999999), \"%21.0g\")",
+      "text": "253717919972999"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(253717920026999), \"%21.0g\")",
+      "text": "253717919999999"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(253717920027000), \"%21.0g\")",
+      "text": "253717920000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(253717920027001), \"%21.0g\")",
+      "text": "253717920000001"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(clock(\"01jan2017 00:00:00\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1798848027000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(clock(\"31dec2016 23:59:59.999\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1798848025999"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(253717919999999), \"%21.0g\")",
+      "text": "253717920026999"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(253717920000000), \"%21.0g\")",
+      "text": "253717920027000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(-58695840000000), \"%21.0g\")",
+      "text": "-58695840000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(-58695840000001), \"%21.0g\")",
+      "text": "-58695840000001"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofc(1.5), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofC(1.5), \"%21.0g\")",
+      "text": "1"
+    },
+    { "kind": "function", "value": "string(Cofc(.), \"%21.0g\")", "text": "." },
+    {
+      "kind": "function",
+      "value": "string(Cofc(.a), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(cofd(td(15mar2024)), \"%21.0g\")",
+      "text": "2026080000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofd(td(15mar2024)), \"%21.0g\")",
+      "text": "2026080027000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofd(2936549), \"%21.0g\")",
+      "text": "253717833600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofd(2936550), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(cofd(-679350), \"%21.0g\")",
+      "text": "-58695840000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(cofd(-679351), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(cofd(1.5), \"%21.0g\")",
+      "text": "129600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cofd(1.5), \"%21.0g\")",
+      "text": "129600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofc(clock(\"2024-03-15 13:45:00\",\"YMDhms\")), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofc(-1), \"%21.0g\")",
+      "text": "-1"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofc(1.5), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofc(253717919999999), \"%21.0g\")",
+      "text": "2936549"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofc(253717920000000), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dofc(-58695840000001), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dofC(Clock(\"31dec2016 23:59:60\",\"DMYhms\")), \"%21.0g\")",
+      "text": "20819"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofC(Clock(\"01jan2017 00:00:00\",\"DMYhms\")), \"%21.0g\")",
+      "text": "20820"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofC(-1), \"%21.0g\")",
+      "text": "-1"
+    },
+    {
+      "kind": "function",
+      "value": "string(hh(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\")), \"%21.0g\")",
+      "text": "13"
+    },
+    {
+      "kind": "function",
+      "value": "string(mm(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\")), \"%21.0g\")",
+      "text": "45"
+    },
+    {
+      "kind": "function",
+      "value": "string(ss(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\")), \"%21.0g\")",
+      "text": "7.12300000000000022"
+    },
+    { "kind": "function", "value": "string(hh(-1), \"%21.0g\")", "text": "23" },
+    { "kind": "function", "value": "string(mm(-1), \"%21.0g\")", "text": "59" },
+    {
+      "kind": "function",
+      "value": "string(ss(-1), \"%21.0g\")",
+      "text": "59.99900000000000233"
+    },
+    {
+      "kind": "function",
+      "value": "string(ss(1500.5), \"%21.0g\")",
+      "text": "1.5"
+    },
+    {
+      "kind": "function",
+      "value": "string(ss(-1500.5), \"%21.0g\")",
+      "text": "58.49900000000000233"
+    },
+    {
+      "kind": "function",
+      "value": "string(hh(253717919999999), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(hh(253717920000000), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(hh(-58695840000001), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(hhC(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\")), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(mmC(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\")), \"%21.0g\")",
+      "text": "59"
+    },
+    {
+      "kind": "function",
+      "value": "string(ssC(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\")), \"%21.0g\")",
+      "text": "60.5"
+    },
+    {
+      "kind": "function",
+      "value": "string(ssC(Clock(\"01jan2017 00:00:01.25\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1.25"
+    },
+    {
+      "kind": "function",
+      "value": "string(hhC(-1), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),13,45,7.123), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),13,45,7.1234), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),24,0,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),23,60,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),23,59,60), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),23,59,59.999), \"%21.0g\")",
+      "text": "2026166399999"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),23,59,59.9999), \"%21.0g\")",
+      "text": "2026166399999"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),-1,0,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),1.5,0,0), \"%21.0g\")",
+      "text": "2026083600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),1,2.5,0), \"%21.0g\")",
+      "text": "2026083720000"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(td(15mar2024),1,2,-1), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(15.5,1,2,3), \"%21.0g\")",
+      "text": "1299723000"
+    },
+    {
+      "kind": "function",
+      "value": "string(dhms(2936550,0,0,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(hms(13,45,7.123), \"%21.0g\")",
+      "text": "49507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(hms(13,45,7), \"%21.0g\")",
+      "text": "49507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(hms(24,0,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(hms(0,0,0), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(hms(1.9,0,0), \"%21.0g\")",
+      "text": "3600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(hms(.,0,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Chms(13,45,7), \"%21.0g\")",
+      "text": "49507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cdhms(td(31dec2016),23,59,60), \"%21.0g\")",
+      "text": "1798848026000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cdhms(td(30dec2016),23,59,60), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Cdhms(td(31dec2016),23,59,60.5), \"%21.0g\")",
+      "text": "1798848026500"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cdhms(td(31dec2016),23,59,61), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Cmdyhms(12,31,2016,23,59,60), \"%21.0g\")",
+      "text": "1798848026000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Cmdyhms(12,31,2016,23,59,59), \"%21.0g\")",
+      "text": "1798848025000"
+    },
+    {
+      "kind": "function",
+      "value": "string(mdyhms(3,15,2024,13,45,7.123), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(mdyhms(2,30,2024,13,45,7), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(mdyhms(3,15,2024,13,45,60), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(mdyhms(3,15,99,13,45,0), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(mdyhms(3,15,2024.5,13,45,0), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(msofhours(1), \"%21.0g\")",
+      "text": "3600000"
+    },
+    {
+      "kind": "function",
+      "value": "string(msofhours(1.5), \"%21.0g\")",
+      "text": "5400000"
+    },
+    {
+      "kind": "function",
+      "value": "string(msofhours(-2), \"%21.0g\")",
+      "text": "-7200000"
+    },
+    {
+      "kind": "function",
+      "value": "string(msofminutes(2.5), \"%21.0g\")",
+      "text": "150000"
+    },
+    {
+      "kind": "function",
+      "value": "string(msofseconds(3.25), \"%21.0g\")",
+      "text": "3250"
+    },
+    {
+      "kind": "function",
+      "value": "string(hours(5400000), \"%21.0g\")",
+      "text": "1.5"
+    },
+    {
+      "kind": "function",
+      "value": "string(minutes(90000), \"%21.0g\")",
+      "text": "1.5"
+    },
+    {
+      "kind": "function",
+      "value": "string(seconds(1500), \"%21.0g\")",
+      "text": "1.5"
+    },
+    {
+      "kind": "function",
+      "value": "string(hours(.), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(msofhours(.a), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(tc(15mar2024 13:45:07.123), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(tC(15mar2024 13:45:07.123), \"%21.0g\")",
+      "text": "2026129534123"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapsecond(Clock(\"31dec2016 23:59:60\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapsecond(Clock(\"31dec2016 23:59:59\",\"DMYhms\")), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapsecond(Clock(\"31dec2016 23:59:60.999\",\"DMYhms\")), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapsecond(.), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(2024), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(1900), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(2000), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(2023), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(99), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(2024.5), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(isleapyear(10000), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dmy(15,3,2024), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(dmy(29,2,2023), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(dofw(tw(2024w10)), \"%21.0g\")",
+      "text": "23439"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofw(tw(2024w52)), \"%21.0g\")",
+      "text": "23733"
+    },
+    {
+      "kind": "function",
+      "value": "string(dofw(-1), \"%21.0g\")",
+      "text": "-8"
+    },
+    { "kind": "function", "value": "string(dofw(0), \"%21.0g\")", "text": "0" },
+    {
+      "kind": "function",
+      "value": "string(dofw(1.5), \"%21.0g\")",
+      "text": "7"
+    },
+    {
+      "kind": "function",
+      "value": "string(daysinmonth(td(15feb2024)), \"%21.0g\")",
+      "text": "29"
+    },
+    {
+      "kind": "function",
+      "value": "string(daysinmonth(td(15feb2023)), \"%21.0g\")",
+      "text": "28"
+    },
+    {
+      "kind": "function",
+      "value": "string(daysinmonth(td(15apr2023)), \"%21.0g\")",
+      "text": "30"
+    },
+    {
+      "kind": "function",
+      "value": "string(firstdayofmonth(td(15feb2024)), \"%21.0g\")",
+      "text": "23407"
+    },
+    {
+      "kind": "function",
+      "value": "string(lastdayofmonth(td(15feb2024)), \"%21.0g\")",
+      "text": "23435"
+    },
+    {
+      "kind": "function",
+      "value": "string(lastdayofmonth(td(15dec2024)), \"%21.0g\")",
+      "text": "23741"
+    },
+    {
+      "kind": "function",
+      "value": "string(firstdowofmonth(3,2024,1), \"%21.0g\")",
+      "text": "23439"
+    },
+    {
+      "kind": "function",
+      "value": "string(firstweekdayofmonth(3,2024,\"mo\"), \"%21.0g\")",
+      "text": "23439"
+    },
+    {
+      "kind": "function",
+      "value": "string(firstweekdayofmonth(3,2024,\"Monday\"), \"%21.0g\")",
+      "text": "23439"
+    },
+    {
+      "kind": "function",
+      "value": "string(firstweekdayofmonth(3,2024,\"m\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(firstweekdayofmonth(3,2024,7), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(firstweekdayofmonth(3,2024,\"sun\"), \"%21.0g\")",
+      "text": "23438"
+    },
+    {
+      "kind": "function",
+      "value": "string(lastdowofmonth(3,2024,5), \"%21.0g\")",
+      "text": "23464"
+    },
+    {
+      "kind": "function",
+      "value": "string(lastweekdayofmonth(2,2024,\"th\"), \"%21.0g\")",
+      "text": "23435"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextweekday(td(15mar2024),5), \"%21.0g\")",
+      "text": "23457"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextweekday(td(15mar2024),\"fr\"), \"%21.0g\")",
+      "text": "23457"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextdow(td(15mar2024),0), \"%21.0g\")",
+      "text": "23452"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousweekday(td(15mar2024),5), \"%21.0g\")",
+      "text": "23443"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousdow(td(15mar2024),1), \"%21.0g\")",
+      "text": "23446"
+    },
+    {
+      "kind": "function",
+      "value": "string(dayssinceweekday(td(15mar2024),5), \"%21.0g\")",
+      "text": "7"
+    },
+    {
+      "kind": "function",
+      "value": "string(dayssinceweekday(td(15mar2024),4), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(dayssincedow(td(15mar2024),6), \"%21.0g\")",
+      "text": "6"
+    },
+    {
+      "kind": "function",
+      "value": "string(daysuntilweekday(td(15mar2024),5), \"%21.0g\")",
+      "text": "7"
+    },
+    {
+      "kind": "function",
+      "value": "string(daysuntilweekday(td(15mar2024),6), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(daysuntildow(td(15mar2024),4), \"%21.0g\")",
+      "text": "6"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(29feb2000),td(28feb2023)), \"%21.0g\")",
+      "text": "22"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(29feb2000),td(01mar2023)), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(29feb2000),td(28feb2023),\"28feb\"), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(29feb2000),td(28feb2023),\"feb28\"), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(29feb2000),td(28feb2023),\"MAR1\"), \"%21.0g\")",
+      "text": "22"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(29feb2000),td(28feb2023),\"xx\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(15mar2000),td(14mar2024)), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(15mar2000),td(15mar2024)), \"%21.0g\")",
+      "text": "24"
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(15mar2000),td(14mar1999)), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(age(td(15mar2000),td(15mar2000)), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(age_frac(td(15mar2000),td(14mar2024)), \"%21.0g\")",
+      "text": "23.99726775956284186"
+    },
+    {
+      "kind": "function",
+      "value": "string(age_frac(td(15mar2000),td(15sep2024)), \"%21.0g\")",
+      "text": "24.50410958904109648"
+    },
+    {
+      "kind": "function",
+      "value": "string(age_frac(td(29feb2000),td(28feb2023)), \"%21.0g\")",
+      "text": "22.99726027397260353"
+    },
+    {
+      "kind": "function",
+      "value": "string(age_frac(td(29feb2000),td(28feb2023),\"28feb\"), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(age_frac(td(15mar2000),td(15mar2000)), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(birthday(td(29feb2000),2023), \"%21.0g\")",
+      "text": "23070"
+    },
+    {
+      "kind": "function",
+      "value": "string(birthday(td(29feb2000),2023,\"28feb\"), \"%21.0g\")",
+      "text": "23069"
+    },
+    {
+      "kind": "function",
+      "value": "string(birthday(td(29feb2000),2024), \"%21.0g\")",
+      "text": "23435"
+    },
+    {
+      "kind": "function",
+      "value": "string(birthday(td(15mar2000),2030), \"%21.0g\")",
+      "text": "25641"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextbirthday(td(15mar2000),td(14mar2024)), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextbirthday(td(15mar2000),td(15mar2024)), \"%21.0g\")",
+      "text": "23815"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextbirthday(td(29feb2000),td(15mar2024)), \"%21.0g\")",
+      "text": "23801"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousbirthday(td(15mar2000),td(15mar2024)), \"%21.0g\")",
+      "text": "23084"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousbirthday(td(15mar2000),td(16mar2024)), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousbirthday(td(29feb2000),td(15mar2023),\"28feb\"), \"%21.0g\")",
+      "text": "23069"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextleapyear(2024), \"%21.0g\")",
+      "text": "2028"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextleapyear(2023), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(nextleapyear(1896), \"%21.0g\")",
+      "text": "1904"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousleapyear(2024), \"%21.0g\")",
+      "text": "2020"
+    },
+    {
+      "kind": "function",
+      "value": "string(previousleapyear(2001), \"%21.0g\")",
+      "text": "2000"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"y\"), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"year\"), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"m\"), \"%21.0g\")",
+      "text": "287"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"mon\"), \"%21.0g\")",
+      "text": "287"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"month\"), \"%21.0g\")",
+      "text": "287"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"d\"), \"%21.0g\")",
+      "text": "8765"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"day\"), \"%21.0g\")",
+      "text": "8765"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(14mar2024),td(15mar2000),\"y\"), \"%21.0g\")",
+      "text": "-23"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(31jan2024),td(29feb2024),\"m\"), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(31jan2024),td(28feb2024),\"m\"), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(31jan2024),td(01mar2024),\"m\"), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(29feb2024),td(28feb2025),\"y\"), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(29feb2024),td(28feb2025),\"y\",\"28feb\"), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"Y\"), \"%21.0g\")",
+      "text": "23"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff(td(15mar2000),td(14mar2024),\"w\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff_frac(td(15mar2000),td(14mar2024),\"y\"), \"%21.0g\")",
+      "text": "23.99726775956284186"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff_frac(td(15mar2000),td(14mar2024),\"m\"), \"%21.0g\")",
+      "text": "287.9655172413793025"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff_frac(td(15mar2000),td(14mar2024),\"d\"), \"%21.0g\")",
+      "text": "8765"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff_frac(td(31jan2024),td(29feb2024),\"m\"), \"%21.0g\")",
+      "text": ".9666666666666666741"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff_frac(td(14mar2024),td(15mar2000),\"y\"), \"%21.0g\")",
+      "text": "-23.99726775956284186"
+    },
+    {
+      "kind": "function",
+      "value": "string(datediff_frac(td(15mar2000),td(30apr2000),\"m\"), \"%21.0g\")",
+      "text": "1.5"
+    },
+    {
+      "kind": "function",
+      "value": "string(datepart(td(15mar2024),\"y\"), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(datepart(td(15mar2024),\"mon\"), \"%21.0g\")",
+      "text": "3"
+    },
+    {
+      "kind": "function",
+      "value": "string(datepart(td(15mar2024),\"d\"), \"%21.0g\")",
+      "text": "15"
+    },
+    {
+      "kind": "function",
+      "value": "string(datepart(td(15mar2024),\"q\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"d\"), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"h\"), \"%21.0g\")",
+      "text": "22"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"min\"), \"%21.0g\")",
+      "text": "1335"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"m\"), \"%21.0g\")",
+      "text": "1335"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"s\"), \"%21.0g\")",
+      "text": "80100"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"ms\"), \"%21.0g\")",
+      "text": "80100000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"2024-03-16 12:00:00\",\"YMDhms\"),clock(\"2024-03-15 13:45:00\",\"YMDhms\"),\"h\"), \"%21.0g\")",
+      "text": "-23"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(1,2,\"x\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff_frac(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"d\"), \"%21.0g\")",
+      "text": ".9270833333333333703"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff_frac(clock(\"2024-03-15 13:45:00\",\"YMDhms\"),clock(\"2024-03-16 12:00:00\",\"YMDhms\"),\"hour\"), \"%21.0g\")",
+      "text": "22.25"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clockdiff(Clock(\"31dec2016 23:59:59\",\"DMYhms\"),Clock(\"01jan2017 00:00:00\",\"DMYhms\"),\"s\"), \"%21.0g\")",
+      "text": "2"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockdiff(clock(\"31dec2016 23:59:59\",\"DMYhms\"),clock(\"01jan2017 00:00:00\",\"DMYhms\"),\"s\"), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clockdiff_frac(Clock(\"31dec2016 23:59:59\",\"DMYhms\"),Clock(\"01jan2017 00:00:00\",\"DMYhms\"),\"min\"), \"%21.0g\")",
+      "text": ".0327868852459016411"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"y\"), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"mon\"), \"%21.0g\")",
+      "text": "3"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"d\"), \"%21.0g\")",
+      "text": "15"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"h\"), \"%21.0g\")",
+      "text": "13"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"min\"), \"%21.0g\")",
+      "text": "45"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"s\"), \"%21.0g\")",
+      "text": "7"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"ms\"), \"%21.0g\")",
+      "text": "123"
+    },
+    {
+      "kind": "function",
+      "value": "string(clockpart(clock(\"2024-03-15 13:45:07.123\",\"YMDhms\"),\"m\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clockpart(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\"),\"s\"), \"%21.0g\")",
+      "text": "60"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clockpart(Clock(\"31dec2016 23:59:60.5\",\"DMYhms\"),\"ms\"), \"%21.0g\")",
+      "text": "500"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024-03\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"3/2024\",\"MY\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"mar 2024\",\"MY\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"March 2024\",\"MY\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"3/24\",\"MY\",2050), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"3/24\",\"M20Y\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m13\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024-03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024q3\",\"YQ\"), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024 Q3\",\"YQ\"), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"3 2024\",\"QY\"), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024q5\",\"YQ\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"24q3\",\"YQ\",2050), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(halfyearly(\"2024h2\",\"YH\"), \"%21.0g\")",
+      "text": "129"
+    },
+    {
+      "kind": "function",
+      "value": "string(halfyearly(\"2 2024\",\"HY\"), \"%21.0g\")",
+      "text": "129"
+    },
+    {
+      "kind": "function",
+      "value": "string(halfyearly(\"2024h3\",\"YH\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w10\",\"YW\"), \"%21.0g\")",
+      "text": "3337"
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"10 2024\",\"WY\"), \"%21.0g\")",
+      "text": "3337"
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w53\",\"YW\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w52\",\"YW\"), \"%21.0g\")",
+      "text": "3379"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"2024\",\"Y\"), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"24\",\"Y\",2050), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"24\",\"20Y\"), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"2024 x\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"2024\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 13:45\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 13:45\",\"YMDhm\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YMD#\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15mar2024\",\"DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Fri Mar 15 2024\",\"#MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"20240315\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"240315\",\"20YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2403\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"mar 2024\",\"MY\"), \"%21.0g\")",
+      "text": "23436"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024\",\"Y\"), \"%21.0g\")",
+      "text": "23376"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03\",\"YM\"), \"%21.0g\")",
+      "text": "23436"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15 3\",\"DM\"), \"%21.0g\")",
+      "text": "74"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"3/15/2024 1:45pm\",\"MDYhm\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-02-29\",\"YMD\"), \"%21.0g\")",
+      "text": "23435"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2023-02-29\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"0099-01-01\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"99-01-01\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1-1-1\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"01012024\",\"DMY\"), \"%21.0g\")",
+      "text": "23376"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1012024\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024.03.15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15/03/2024\",\"DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024 March 15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"March 15 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Mar. 15, 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15th March 2024\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YDM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"MDY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-3-15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-003-15\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"02024-03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-015\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15x\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"x2024-03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024--03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"Y M D\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YYMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(daily(\"2024-03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(yh(2024,2), \"%21.0g\")",
+      "text": "129"
+    },
+    {
+      "kind": "function",
+      "value": "string(tw(2024w10), \"%21.0g\")",
+      "text": "3337"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"20240315\",\"YMD\",2050), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"240315\",\"YMD\",2050), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"240315\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"135\",\"hm\"), \"%21.0g\")",
+      "text": "47100000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1\",\"hm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"12345\",\"hms\"), \"%21.0g\")",
+      "text": "45245000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1234567\",\"hms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"123\",\"hms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024315\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"202431\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024 0315\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"20240315 13\",\"YMDh\"), \"%21.0g\")",
+      "text": "2026126800000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024031513\",\"YMDh\"), \"%21.0g\")",
+      "text": "2026126800000"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"3152024\",\"MDY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"03152024\",\"MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"152024\",\"MY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"32024\",\"MY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"0115\",\"hm\"), \"%21.0g\")",
+      "text": "4500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"11\",\"hm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-0315\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"202403 15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1/1/5\",\"MDY\",2050), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1/1/005\",\"MDY\",2050), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1/1/2005\",\"MD20Y\"), \"%21.0g\")",
+      "text": "16437"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1/1/05\",\"MD20Y\"), \"%21.0g\")",
+      "text": "16437"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1/1/5\",\"MD20Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15032024\",\"DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1532024\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Mar152024\",\"MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15Mar24\",\"DMY\",2050), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024Mar15\",\"YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"March152024\",\"MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Sept 15 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "23634"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Septem 15 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "23634"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Septembers 15 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Ma 15 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Ju 15 2024\",\"MDY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15 3 2024\",\"DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15 3 2024\",\"D M Y\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024 15 3\",\"YDM\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"3 15\",\"MD\"), \"%21.0g\")",
+      "text": "74"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 1:2:3\",\"YMD##\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 1:2:3\",\"YMD###\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 1:2:3\",\"YMD####\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Fri, 15 Mar 2024\",\"#DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Fri, 15 Mar 2024\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"#YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"x 2024-03-15\",\"#YMD\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 x\",\"YMD#\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15 x y\",\"YMD#\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 pm x\",\"YMDhms#\"), \"%21.0g\")",
+      "text": "2026086307000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 pm 1:45:07\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"pm 2024-03-15 1:45:07\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 pm\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1 pm\",\"YMDh\"), \"%21.0g\")",
+      "text": "2026126800000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 p m\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 pM\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 a\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07 am pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 0:45:07 am\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026082707000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 0:45:07 pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026125907000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07 .5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07. 5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:.5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129505000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.5.5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45.5\",\"YMDhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13.45.07.123\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024.03.15.13.45.07.123\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507123"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.050\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507050"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.05\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507050"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 134507.5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07\",\"MDYhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07\",\"YMDsmh\"), \"%21.0g\")",
+      "text": "2026107913000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"07:45:13 2024-03-15\",\"smhYMD\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07\",\"YMDhs\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"13:45:07\",\"ms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07\",\"YMDms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15\",\"DMY\",2050), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15-03-24 1:45\",\"DMYhm\",2050), \"%21.0g\")",
+      "text": "2026086300000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15-03-24 1:45\",\"DMYhm\",.), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15-03-24 1:45\",\"DMYhm\",1924), \"%21.0g\")",
+      "text": "-1129673700000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"15-03-24 1:45\",\"DMYhm\",2023.7), \"%21.0g\")",
+      "text": "-1129673700000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"31dec2016 23:59:60\",\"DMYhms\",2050), \"%21.0g\")",
+      "text": "1798848026000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 23:59:60.999\",\"YMDhms\"), \"%21.0g\")",
+      "text": "1798848026999"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 23:59:61\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 24:00:00\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024 3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3x\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024x3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024q3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024M3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"202403\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"032024\",\"MY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024-mar\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"mar-24\",\"MY\",2050), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"Y M\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"MY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"m3 2024\",\"MY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024q3\",\"QY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"q3 2024\",\"QY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024-3\",\"YQ\"), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"20243\",\"YQ\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024m3\",\"YQ\"), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(quarterly(\"2024Q3\",\"yq\"), \"%21.0g\")",
+      "text": "258"
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w1\",\"YW\"), \"%21.0g\")",
+      "text": "3328"
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024-W10\",\"YW\"), \"%21.0g\")",
+      "text": "3337"
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w0\",\"YW\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(halfyearly(\"2024h0\",\"YH\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(halfyearly(\"2024H1\",\"YH\"), \"%21.0g\")",
+      "text": "128"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\" 2024 \",\"Y\"), \"%21.0g\")",
+      "text": "2024"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"2024y\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"y2024\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"0099\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"99\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"99\",\"Y\",2050), \"%21.0g\")",
+      "text": "1999"
+    },
+    {
+      "kind": "function",
+      "value": "string(yearly(\"10000\",\"Y\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w10\",\"YWx\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YMD\", 2050.5), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YMD\", .), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"YMD hm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"YMD#hm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 x 13:45\",\"YMD#hm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"h m Y M D\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15.3.2024\",\"DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15. 3. 2024\",\"DMY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15. März 2024\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"15 mars 2024\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"ymd\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YmD\"), \"%21.0g\")",
+      "text": "23390"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"YMDHm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45\",\"YMDhM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"202403\",\"YM\"), \"%21.0g\")",
+      "text": "23436"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"032024\",\"MY\"), \"%21.0g\")",
+      "text": "23436"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024 3\",\"YM\"), \"%21.0g\")",
+      "text": "23436"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"ym\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(weekly(\"2024w10\",\"yw\"), \"%21.0g\")",
+      "text": "3337"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024mar\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024 sept\",\"YM\"), \"%21.0g\")",
+      "text": "776"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024 se\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"3x2024\",\"MY\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\" 2024m3 \",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m03\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m003\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"24m3\",\"20YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"20YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"24m3\",\"YM\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"M\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\",\"YMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024,3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024.3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024 - 3\",\"YM\"), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"2024m3\", \"YM\", 2050), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(monthly(\"24m3\", \"YM\", 2050), \"%21.0g\")",
+      "text": "770"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45 am\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45 pm\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 00:45 am\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026082700000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 12:00 pm\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026123200000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 12:00 am\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026080000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 P.m.\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 pm.\",\"YMDhm\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 p.m\",\"YMDhm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 pm\",\"YMDhm#\"), \"%21.0g\")",
+      "text": "2026086300000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 x pm\",\"YMDhm#\"), \"%21.0g\")",
+      "text": "2026086300000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 pm 1:45 x\",\"YMDhm#\"), \"%21.0g\")",
+      "text": "2026129500000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45pm\",\"YMD#\"), \"%21.0g\")",
+      "text": "2026080000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"pm 2024-03-15\",\"YMD\"), \"%21.0g\")",
+      "text": "2026123200000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 pm\",\"YMD\"), \"%21.0g\")",
+      "text": "2026123200000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45 pm\",\"YMD#m\"), \"%21.0g\")",
+      "text": "2026125900000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 x 1:45\",\"YMD#hm\"), \"%21.0g\")",
+      "text": "2026086300000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 pm 1:45\",\"YMD#hm\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"3/15/2024 pm\",\"MDY\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"3/15/2024 1pm\",\"MDYh\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07..5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.x\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.5 pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 1:45:07.5pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.5\",\"YMDsmh\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"07.5:45:13 2024-03-15\",\"smhYMD\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07 . 5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.  5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.-5\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507500"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.0005\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"2024-03-15 13:45:07.000\",\"YMDhms\"), \"%21.0g\")",
+      "text": "2026129507000"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1960-01-01 00:00:00.001\",\"YMDhms\"), \"%21.0g\")",
+      "text": "1"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"1959-12-31 23:59:59.999\",\"YMDhms\"), \"%21.0g\")",
+      "text": "-1"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"Jan 1 1960\",\"MDY\"), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"jAN 1 1960\",\"MDY\"), \"%21.0g\")",
+      "text": "0"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"1 1 1960 extra\",\"DMY\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YMD#\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YMD #\"), \"%21.0g\")",
+      "text": "23450"
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"YM#D\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(date(\"2024-03-15\",\"Y#D\"), \"%21.0g\")",
+      "text": "23390"
+    },
+    {
+      "kind": "function",
+      "value": "string(clock(\"31dec2016 23:59:60\",\"DMYhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 23:59:60\",\"YMDhms#\"), \"%21.0g\")",
+      "text": "1798848026000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 11:59:60 pm\",\"YMDhms\"), \"%21.0g\")",
+      "text": "1798848026000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-06-30 23:59:60\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"1972-06-30 23:59:60\",\"YMDhms\"), \"%21.0g\")",
+      "text": "394416000000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"1971-12-31 23:59:60\",\"YMDhms\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"1972-12-31 23:59:60\",\"YMDhms\"), \"%21.0g\")",
+      "text": "410313601000"
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 23:59:60\",\"YMD\"), \"%21.0g\")",
+      "text": "."
+    },
+    {
+      "kind": "function",
+      "value": "string(Clock(\"2016-12-31 23:59:60\",\"YMDhm#\"), \"%21.0g\")",
+      "text": "1798847966000"
+    },
     { "kind": "function", "value": "string(3.5)", "text": "3.5" },
     { "kind": "function", "value": "string(1/3)", "text": ".3333333" },
     { "kind": "function", "value": "string(100000000)", "text": "1.00e+08" },

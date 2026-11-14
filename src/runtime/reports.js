@@ -4,7 +4,12 @@
 // installed Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import {
+  applyFormat,
+  displayWidth,
+  parseFormat,
+  truncateColumns,
+} from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
 import { clauses, optionItems, splitAtComma } from "./syntax.js";
@@ -71,18 +76,20 @@ export const present = (column, rows) => {
   for (const i of rows) if (!isMissing(column[i])) out.push(column[i]);
   return out;
 };
-/** A value as list and tabulate show it: its label, or its format. */
+/**
+ * A value as list shows it: its label, or its format. %21x and the binary
+ * formats show a missing value's bits as well.
+ */
 export function labelled(session, variable, value, useLabels = true) {
   if (typeof value === "string") return value;
   const map = useLabels
     ? session.data.valueLabels.get(variable.valueLabel)
     : null;
-  return (
-    map?.get(value) ??
-    (isMissing(value)
-      ? missingName(value)
-      : applyFormat(value, variable.format).trim())
-  );
+  if (map?.has(value)) return map.get(value);
+  const spec = parseFormat(variable.format ?? "%9.0g");
+  return isMissing(value) && spec?.kind !== "hex" && spec?.kind !== "binary"
+    ? missingName(value)
+    : applyFormat(value, variable.format).trim();
 }
 const scope = (session, parsed, ctx) =>
   session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null);
@@ -115,7 +122,9 @@ export function weightedRows(session, parsed, rows) {
   }
   return { rows: used, weights: all };
 }
-function weightedMoments(variable, rows, weights) {
+// The variance divides by n - 1 with analytic weights, which sum to n, and
+// by the sum of the weights less one with importance weights.
+function weightedMoments(variable, rows, weights, importance = false) {
   if (isStringType(variable.type)) return moments([]);
   const use = rows.filter((i) => !isMissing(variable.data[i])),
     n = use.length,
@@ -130,7 +139,7 @@ function weightedMoments(variable, rows, weights) {
             0,
           ) /
             sumW) *
-          (n / (n - 1))
+          (importance ? sumW / (sumW - 1) : n / (n - 1))
         : MISSING,
     values = use.map((i) => variable.data[i]);
   return {
@@ -147,9 +156,37 @@ function weightedMoments(variable, rows, weights) {
 
 const SUMMARY_RULE =
   "-------------+---------------------------------------------------------";
+/**
+ * The formats summarize shows a variable's statistics in. With format, a
+ * date format shows the levels (mean, minimum, maximum, percentiles) and
+ * %9.0g the spreads; a %f or %g format is used at width 9 for both; any
+ * other format gives %9.0g. Recorded from Stata 19.
+ */
+function summaryFormats(variable, wanted) {
+  const plain = { level: "%9.0g", spread: "%9.0g" };
+  if (!wanted) return plain;
+  const spec = parseFormat(variable.format);
+  if (spec?.kind === "date") return { level: variable.format, spread: "%9.0g" };
+  if (spec?.kind !== "number" || spec.style === "e") return plain;
+  const format = `%9.${Math.min(spec.digits, 9)}${spec.style}${spec.commas ? "c" : ""}`;
+  return { level: format, spread: format };
+}
+/**
+ * A statistic in a column of the given width: right-aligned in the last
+ * nine, and pushing the line on when its format shows it wider. A date
+ * format keeps its whole width, as when a %tc value outside the calendar
+ * is shown as a number.
+ */
+const statistic = (value, format, width) => {
+  const shown = applyFormat(value, format);
+  return (
+    " ".repeat(Math.max(0, width - 9)) +
+    (parseFormat(format)?.kind === "date" ? shown : shown.trim()).padStart(9)
+  );
+};
 export function summarize(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) | Format]",
+      "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
       text,
     ),
     weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
@@ -176,15 +213,24 @@ export function summarize(session, text, ctx) {
     const variable = session.data.get(name),
       values = isStringType(variable.type) ? [] : present(variable.data, rows),
       m = analytic
-        ? weightedMoments(variable, rows, weighted.weights)
+        ? weightedMoments(
+            variable,
+            rows,
+            weighted.weights,
+            parsed.weight.type === "iweight",
+          )
         : moments(values);
     last = { values, m };
+    const formats = summaryFormats(variable, parsed.options.format),
+      level = (value, width) => statistic(value, formats.level, width),
+      spread = (value, width) => statistic(value, formats.spread, width);
     if (parsed.options.detail)
       return detail(
         ctx,
         variable,
         values,
         m,
+        formats,
         // The smallest and largest are observations, not weighted copies.
         isStringType(variable.type)
           ? []
@@ -198,10 +244,10 @@ export function summarize(session, text, ctx) {
     ctx.out(
       analytic
         ? m.n
-          ? `${label} |${count(m.n).padStart(8)}${g9(m.sumW, 12)}${g9(m.mean, 12)}${g9(m.sd, 11)}${g9(m.min, 11)}${g9(m.max, 11)}`
+          ? `${label} |${count(m.n).padStart(8)}${applyFormat(m.sumW, "%11.0g").trim().padStart(12)}${level(m.mean, 12)}${spread(m.sd, 11)}${level(m.min, 11)}${level(m.max, 11)}`
           : `${label} |${"0".padStart(8)}${"0".padStart(12)}`
         : m.n
-          ? `${label} |${count(m.n).padStart(11)}${g9(m.mean, 12)}${g9(m.sd, 12)}${g9(m.min, 11)}${g9(m.max, 11)}`
+          ? `${label} |${count(m.n).padStart(11)}${level(m.mean, 12)}${spread(m.sd, 12)}${level(m.min, 11)}${level(m.max, 11)}`
           : `${label} |${"0".padStart(11)}`,
     );
   });
@@ -238,18 +284,21 @@ export function summarize(session, text, ctx) {
     });
   }
 }
-function detail(ctx, variable, values, m, observed = values) {
+function detail(ctx, variable, values, m, formats, observed = values) {
   const sorted = [...values].sort((a, b) => a - b),
     ends = [...observed].sort((a, b) => a - b),
     title = variable.label || variable.name,
-    p = (q) => g9(percentile(sorted, q), 13),
+    p = (q) => statistic(percentile(sorted, q), formats.level, 13),
     // The four smallest and four largest; fewer than four leaves gaps.
     end = (k) =>
-      g9(
+      statistic(
         k >= 0 ? (ends[k] ?? MISSING) : (ends[ends.length + k] ?? MISSING),
+        formats.level,
         15,
       ),
     side = (label, value) => "       " + label.padEnd(11) + value.padStart(12),
+    level = (value) => statistic(value, formats.level, 12),
+    spread = (value) => statistic(value, formats.spread, 12),
     central = (power) =>
       values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
     m2 = m.n ? central(2) : 0;
@@ -266,15 +315,15 @@ function detail(ctx, variable, values, m, observed = values) {
   ctx.out(`10%${p(10)}${end(2)}${side("Obs", count(m.n))}`);
   ctx.out(`25%${p(25)}${end(3)}${side("Sum of wgt.", count(m.n))}`);
   ctx.out("");
-  ctx.out(`50%${p(50)}${" ".repeat(15)}${side("Mean", g9(m.mean, 0))}`);
-  ctx.out(`${"Largest".padStart(31)}${side("Std. dev.", g9(m.sd, 0))}`);
+  ctx.out(`50%${p(50)}${" ".repeat(15)}${side("Mean", level(m.mean))}`);
+  ctx.out(`${"Largest".padStart(31)}${side("Std. dev.", spread(m.sd))}`);
   ctx.out(`75%${p(75)}${end(-4)}`);
-  ctx.out(`90%${p(90)}${end(-3)}${side("Variance", g9(m.variance, 0))}`);
+  ctx.out(`90%${p(90)}${end(-3)}${side("Variance", spread(m.variance))}`);
   ctx.out(
-    `95%${p(95)}${end(-2)}${side("Skewness", g9(m2 ? central(3) / m2 ** 1.5 : MISSING, 0))}`,
+    `95%${p(95)}${end(-2)}${side("Skewness", spread(m2 ? central(3) / m2 ** 1.5 : MISSING))}`,
   );
   ctx.out(
-    `99%${p(99)}${end(-1)}${side("Kurtosis", g9(m2 ? central(4) / m2 ** 2 : MISSING, 0))}`,
+    `99%${p(99)}${end(-1)}${side("Kurtosis", spread(m2 ? central(4) / m2 ** 2 : MISSING))}`,
   );
 }
 
@@ -320,10 +369,12 @@ function wrapWords(text, width) {
  * with at most two decimals (two for %#.0f); Stata leaves a nonzero number
  * between -1 and 1 in %f however wide it is. A date wider than nine
  * characters is shown as %td, any other time format as its first seven
- * characters and "..". Recorded from Stata 19.
+ * characters and "..". %21x and the binary formats are ignored. Recorded
+ * from Stata 19.
  */
 function tableNumber(value, format) {
   if (isMissing(value)) return missingName(value);
+  if (/^%[-0]?(?:21x|(?:16|8)[HL])$/.test(format ?? "")) format = "%9.0g";
   const spec = /^%-?0?\d*(?:\.(\d+))?([efg])(c?)$/.exec(format ?? "%9.0g");
   if (spec) {
     const decimals = Number(spec[1] ?? 0);
@@ -918,75 +969,255 @@ export function tabulate(session, text, ctx) {
   }
 }
 
+/**
+ * list, in Stata's two layouts. A table has a column a variable; when it is
+ * wider than the line, each observation is shown in display layout instead:
+ * a box of blocks, each block a row of headings over a row of values, the
+ * blocks packed greedily into the line and widened to the widest. Columns
+ * are measured in display columns (two for CJK characters). A string wider
+ * than the line allows, or than string(), is cut and ends in "..", and its
+ * column turns to the left. The rules were read off Stata 19's output.
+ */
 export function list(session, text, ctx) {
+  if (/(?:^|[\s,])head(?:e(?:r)?)?\s*\(/i.test(splitAtComma(text)[1] ?? ""))
+    throw new StataError(
+      "option header() is not available in the browser yet",
+      198,
+      "header(#), which repeats the headings every # observations, is not available; list shows them once.",
+    );
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) | Divider noHeader STRing(integer 0) Table Display]",
+      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCOMPress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
       text,
     ),
+    options = parsed.options,
     rows = scope(session, parsed, ctx),
     variables = parsed.varlist.map((name) => session.data.get(name));
-  const limit = parsed.options.abbreviate;
+  const optionText = splitAtComma(text)[1] ?? "",
+    // An explicit compress, without abbreviate(), shortens each name to its
+    // column, and so to five characters at least.
+    limit =
+      /(?:^|[\s,])comp(?:r(?:e(?:ss?)?)?)?(?=$|[\s,])/i.test(optionText) &&
+      !/(?:^|[\s,])ab(?:b(?:r(?:e(?:v(?:i(?:a(?:te?)?)?)?)?)?)?)?\s*\(/i.test(
+        optionText,
+      )
+        ? 1
+        : options.abbreviate;
   if (limit < 1 || limit > 129)
     throw new StataError("abbreviate() must be between 1 and 129", 198);
+  if (options.string < 0 || options.string > 100000)
+    throw new StataError("string() must be between 1 and 100000", 198);
+  if (options.compress === false)
+    throw new StataError(
+      "option nocompress is not available in the browser yet",
+      198,
+      "nocompress and fast size each column by its display format; list sizes them by the values shown.",
+    );
+  if (options.clean && options.display)
+    throw new StataError(
+      "may not specify both -clean- and -display- options",
+      198,
+    );
+  if (options.table && options.display)
+    throw new StataError(
+      "may not specify both -table- and -display- options",
+      198,
+    );
+  const lineGiven = /(?:^|[\s,])line(?:s(?:i(?:ze?)?)?)?\s*\(/i.test(
+    optionText,
+  );
+  if (lineGiven && (options.linesize < 30 || options.linesize > 255))
+    throw new StataError("linesize() must be between 30 and 255", 198);
   if (!rows.length) return;
-  const cells = rows.map((i) =>
-      variables.map((v) =>
-        labelled(session, v, v.data[i], parsed.options.label !== false),
+  const linesize = options.linesize || session.settings.linesize || 80,
+    noobs = options.noobs,
+    margin = noobs ? "  " : "     ",
+    boxed = !options.clean,
+    // The widest value a boxed list shows whole.
+    room = linesize - (noobs ? 6 : 9),
+    columns = variables.map((v) => {
+      const labels =
+          options.label !== false && session.data.valueLabels.get(v.valueLabel),
+        string = isStringType(v.type),
+        cells = rows.map((i) => {
+          const value = v.data[i];
+          return {
+            text: labelled(session, v, value, options.label !== false),
+            textual: string || (labels && labels.has(value)),
+          };
+        });
+      return { v, string, cells };
+    });
+  // string(#) and the line cut long strings and labels.
+  for (const column of columns) {
+    let cut = false;
+    const keep = (text, most) => {
+      cut = true;
+      return truncateColumns(text, most) + "..";
+    };
+    // A cut text takes the columns of the cut, and "..", even when a wide
+    // character at the cut leaves one of them blank.
+    for (const cell of column.cells) {
+      if (!cell.textual) continue;
+      if (options.string && displayWidth(cell.text) > options.string + 2) {
+        cell.text = keep(cell.text, options.string);
+        cell.columns = options.string + 2;
+      }
+      if (boxed && (cell.columns ?? displayWidth(cell.text)) > room) {
+        cell.text = keep(cell.text, room - 2);
+        cell.columns = room;
+      }
+    }
+    column.cut = cut;
+    // A left-justified format, string or numeric (labels included), puts
+    // the heading and the values on the left.
+    const leftFormat = /^%-/.test(column.v.format ?? "");
+    column.left = cut || leftFormat;
+    column.valuesLeft = leftFormat || (column.string && column.left);
+  }
+  // A name longer than abbreviate(), and than its column, is shortened as
+  // abbrev() shortens it, never below five characters. A temporary
+  // variable's heading, which Stata's subvarname gives it, is cut instead.
+  for (const column of columns) {
+    const { v } = column,
+      widest = greatest(
+        column.cells.map((cell) => cell.columns ?? displayWidth(cell.text)),
       ),
-    ),
-    // A name longer than abbreviate(), and than its column, is shortened as
-    // abbrev() shortens it, never below five characters. A temporary
-    // variable's heading, which Stata's subvarname gives it, is cut instead.
-    headers = variables.map((v, k) => {
-      const room = Math.max(limit, greatest(cells.map((row) => row[k].length)));
-      if (v.header !== undefined) return v.header.slice(0, room);
-      const w = Math.max(room, 5);
-      return v.name.length > w
-        ? `${v.name.slice(0, w - 2)}~${v.name.at(-1)}`
-        : v.name;
-    }),
-    widths = variables.map((v, k) =>
-      Math.max(headers[k].length, greatest(cells.map((row) => row[k].length))),
-    ),
+      space = Math.max(limit, widest);
+    if (v.header !== undefined) column.header = v.header.slice(0, space);
+    else {
+      const w = Math.max(space, 5);
+      column.header =
+        v.name.length > w
+          ? `${v.name.slice(0, w - 2)}~${v.name.at(-1)}`
+          : v.name;
+    }
+    column.width = Math.max(displayWidth(column.header), widest);
+  }
+  const fit = (text, width, left) => {
+      const blanks = " ".repeat(Math.max(0, width - displayWidth(text)));
+      return left ? text + blanks : blanks + text;
+    },
+    heading = (c) => fit(c.header, c.width, c.left),
+    value = (c, k) => fit(c.cells[k].text, c.width, c.valuesLeft),
     // Under by:, observations are numbered within their group.
     first = ctx.group ? ctx.group.start : 0,
-    number = (i) =>
-      parsed.options.noobs ? "  " : `${String(i - first + 1).padStart(3)}. `,
-    margin = parsed.options.noobs ? "  " : "     ",
-    line = (items) =>
-      items.map((item, k) => item.padStart(widths[k])).join("   ");
-  ctx.out("");
-  if (parsed.options.clean) {
+    number = (i) => `${String(i - first + 1).padStart(3)}. `,
+    natural = (list) =>
+      list.reduce((total, c) => total + c.width, 0) + 3 * (list.length - 1) + 2;
+  if (options.clean) {
     // Without observation numbers the rows start one column further in.
-    const indent = parsed.options.noobs ? " " : "    ";
-    ctx.out(`${indent}   ${line(headers)}`);
-    cells.forEach((row, k) =>
+    const line = (items) => items.join("   ");
+    if (options.header !== false) ctx.out("");
+    if (options.header !== false)
+      ctx.out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
+    rows.forEach((i, k) =>
       ctx.out(
-        `${parsed.options.noobs ? " " : number(rows[k]).trimEnd()}   ${line(row)}`,
+        `${noobs ? " " : number(i).trimEnd()}   ${line(columns.map((c) => value(c, k)))}`,
       ),
     );
     return;
   }
-  const inner =
-    widths.reduce((total, w) => total + w, 0) + 3 * (widths.length - 1) + 2;
-  ctx.out(`${margin}+${"-".repeat(inner)}+`);
-  ctx.out(`${margin}| ${line(headers)} |`);
-  ctx.out(`${margin}|${"-".repeat(inner)}|`);
-  const sepby = parsed.options.sepby
-    ? parsed.options.sepby.map((name) => session.data.get(name).data)
-    : null;
-  cells.forEach((row, k) => {
-    if (
-      k &&
-      (sepby
-        ? sepby.some((column) => column[rows[k]] !== column[rows[k - 1]])
-        : parsed.options.separator && k % parsed.options.separator === 0)
-    )
-      ctx.out(`${margin}|${"-".repeat(inner)}|`);
-    ctx.out(`${number(rows[k])}| ${line(row)} |`);
-  });
-  ctx.out(`${margin}+${"-".repeat(inner)}+`);
+  const inner = natural(columns),
+    table =
+      options.table ||
+      (!options.display && margin.length + inner + 2 <= linesize);
+  if (table) {
+    const gap = options.divider ? " | " : "   ",
+      line = (items) => items.join(gap),
+      rule = options.divider
+        ? `|${columns.map((c) => "-".repeat(c.width + 2)).join("+")}|`
+        : `|${"-".repeat(inner)}|`;
+    // Without headings there is no blank line before the table.
+    if (options.header !== false) ctx.out("");
+    ctx.out(`${margin}+${"-".repeat(inner)}+`);
+    if (options.header !== false) {
+      ctx.out(`${margin}| ${line(columns.map(heading))} |`);
+      ctx.out(`${margin}${rule}`);
+    }
+    const sepby = options.sepby
+      ? options.sepby.map((name) => session.data.get(name).data)
+      : null;
+    rows.forEach((i, k) => {
+      if (
+        k &&
+        (sepby
+          ? sepby.some((column) => column[i] !== column[rows[k - 1]])
+          : options.separator > 0 && k % options.separator === 0)
+      )
+        ctx.out(`${margin}${rule}`);
+      ctx.out(
+        `${noobs ? margin : number(i)}| ${line(columns.map((c) => value(c, k)))} |`,
+      );
+    });
+    ctx.out(`${margin}+${"-".repeat(inner)}+`);
+    ctx.out("");
+    return;
+  }
+  // Display layout: blocks of columns no wider than the line allows.
+  const most = linesize - margin.length - 2,
+    blocks = [];
+  for (const column of columns) {
+    const block = blocks.at(-1);
+    if (block && natural([...block, column]) <= most) block.push(column);
+    else blocks.push([column]);
+  }
+  const box = greatest(blocks.map(natural)),
+    // Each block is widened to the box: the extra columns are shared out,
+    // the last ones taking one more, and each cell's share split around it.
+    layouts = blocks.map((block) => {
+      const extra = box - natural(block),
+        base = Math.floor(extra / block.length),
+        more = extra % block.length;
+      return block.map((c, j) => {
+        const e = base + (j >= block.length - more ? 1 : 0);
+        return { c, before: Math.floor(e / 2), after: Math.ceil(e / 2) };
+      });
+    }),
+    row = (layout, cell) =>
+      `| ${layout
+        .map(
+          ({ c, before, after }) =>
+            " ".repeat(before) + cell(c) + " ".repeat(after),
+        )
+        .join(" | ")} |`,
+    // Where a column boundary of one block meets one of the next, the rule
+    // between them has a +.
+    boundaries = layouts.map((layout) => {
+      const at = new Set();
+      let position = 1;
+      layout.slice(0, -1).forEach(({ c, before, after }) => {
+        position += before + c.width + after + 3;
+        at.add(position - 1);
+      });
+      return at;
+    }),
+    rules = layouts.map((_, b) =>
+      b
+        ? `|${[...Array(box)]
+            .map((_, k) =>
+              boundaries[b - 1].has(k + 1) && boundaries[b].has(k + 1)
+                ? "+"
+                : "-",
+            )
+            .join("")}|`
+        : "",
+    );
   ctx.out("");
+  rows.forEach((i, k) => {
+    ctx.out(`${margin}+${"-".repeat(box)}+`);
+    let lead = noobs ? margin : number(i);
+    layouts.forEach((layout, b) => {
+      if (b) ctx.out(margin + rules[b]);
+      if (options.header !== false) {
+        ctx.out(lead + row(layout, heading));
+        lead = margin;
+      }
+      ctx.out(lead + row(layout, (c) => value(c, k)));
+      lead = margin;
+    });
+    ctx.out(`${margin}+${"-".repeat(box)}+`);
+    ctx.out("");
+  });
 }
 
 export function describe(session, text, ctx) {
