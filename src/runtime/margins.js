@@ -12,6 +12,7 @@ import { draw, titleOf } from "./graphics.js";
 import { count, labelled } from "./reports.js";
 import { MISSING, isMissing } from "./values.js";
 import { outcomeMargins } from "./outcome-margins.js";
+import { zColumn } from "./models.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 // For each link: the mean, its derivative and second derivative in x'b.
@@ -127,7 +128,11 @@ function margins(session, text, ctx) {
     options = parsed.options,
     level = options.level,
     rows = model.sample,
-    n = rows.length,
+    // Frequency weights count as that many observations.
+    n = model.wtype === "fweight" ? model.N : rows.length,
+    // Weights, one per row of the sample, weight every average.
+    weightOf = model.weights ? (r) => model.weights[r] : () => 1,
+    total = model.weights ? model.weights.reduce((t, v) => t + v, 0) : n,
     k = model.names.length,
     // Every variable that enters the model, in order of first appearance.
     variables = [
@@ -157,12 +162,15 @@ function margins(session, text, ctx) {
     columnMeans = model.names.map((name, j) =>
       name === "_cons"
         ? 1
-        : rows.reduce((t, i) => t + model.columns[j].value(i), 0) / n,
+        : rows.reduce(
+            (t, i, r) => t + weightOf(r) * model.columns[j].value(i),
+            0,
+          ) / total,
     ),
     variableMeans = new Map(
       variables.map((v) => [
         v.name,
-        rows.reduce((t, i) => t + v.data[i], 0) / n,
+        rows.reduce((t, i, r) => t + weightOf(r) * v.data[i], 0) / total,
       ]),
     );
   // When the fit omitted a coefficient or left a level with no
@@ -208,11 +216,12 @@ function margins(session, text, ctx) {
     let value = 0,
       estimable = true;
     const gradient = new Array(k).fill(0);
-    for (const i of rows) {
+    for (const [at, i] of rows.entries()) {
       const r = row(i, fixed),
-        [v, dv] = each(r, xb(r), i);
-      value += v / n;
-      dv.forEach((d, j) => (gradient[j] += d / n));
+        [v, dv] = each(r, xb(r), i),
+        share = weightOf(at) / total;
+      value += v * share;
+      dv.forEach((d, j) => (gradient[j] += d * share));
       if (estimable && nulls.length) estimable = inRowSpace(r, nulls);
     }
     return estimable
@@ -545,7 +554,8 @@ function margins(session, text, ctx) {
       }[model.vce] ?? "OLS";
   ctx.out("");
   // Number of obs ends at column 78, however wide the count.
-  const observations = `Number of obs = ${count(n)}`;
+  // %10.0fc: a count too long for commas is printed without them.
+  const observations = `Number of obs = ${applyFormat(n, "%10.0fc").trim()}`;
   ctx.out(`${title.padEnd(78 - observations.length)}${observations}`);
   ctx.out(`Model VCE: ${vce}`);
   ctx.out("");
@@ -734,7 +744,7 @@ function margins(session, text, ctx) {
       const se = Math.sqrt(quadratic(result.gradient, model.V)),
         z = result.value / se;
       ctx.out(
-        `${lines.at(-1)}|${g(result.value).padStart(11)}${g(se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(tail(z), "%8.3f")}${g(result.value - critical * se).padStart(13)}${g(result.value + critical * se).padStart(12)}`,
+        `${lines.at(-1)}|${g(result.value).padStart(11)}${g(se).padStart(11)}${zColumn(z)}${applyFormat(tail(z), "%8.3f")}${g(result.value - critical * se).padStart(13)}${g(result.value + critical * se).padStart(12)}`,
       );
       result.se = se;
     }

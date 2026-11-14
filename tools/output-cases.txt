@@ -11730,3 +11730,339 @@ svy, subpop(sub2): mean income
 svy, subpop(sub2): mean age
 svy, subpop(sub2): regress income age
 svy, subpop(sub2): proportion educ
+=== weighted-binary-count-models
+clear
+set seed 4207
+set obs 300
+generate x1 = runiform() * 4
+generate x2 = invnormal(runiform())
+generate g = 1 + floor(runiform() * 4)
+generate d = runiform() < invlogit(-1 + .5 * x1 - .4 * x2)
+generate n = floor(-ln(runiform()) * exp(.2 + .3 * x1))
+generate fw = 1 + floor(runiform() * 3)
+generate pw = .5 + runiform() * 2
+generate cl = 1 + floor(runiform() * 25)
+logit d x1 x2 [fweight=fw]
+logit d x1 x2 [pweight=pw]
+logit d x1 x2 [iweight=pw]
+capture noisily logit d x1 x2 [aweight=pw]
+logit d x1 x2 [pweight=pw], vce(cluster cl)
+logit d x1 x2 [fw=fw], robust nolog
+logit d x1 x2 [fw=fw], vce(cluster cl) nolog
+logit d x1 x2 [iw=pw], robust nolog
+logit d x1 x2 [iw=pw], vce(cluster cl) nolog
+logit d x1 x2 [pweight=pw], or nolog
+logistic d x1 x2 [pweight=pw]
+logit d x1 x2 [w=fw], nolog
+logit d x1 x2 [pweight=pw], noconstant nolog
+probit d x1 i.g [fweight=fw]
+probit d x1 i.g [pweight=pw]
+probit d x1 i.g [iweight=pw]
+probit d x1 i.g [pw=pw], vce(cluster cl)
+probit d x1 x2 [pweight=pw] if g < 3, nolog
+capture noisily probit d x1 [aw=pw]
+poisson n x1 x2 [fweight=fw]
+poisson n x1 x2 [pweight=pw], irr
+poisson n x1 x2 [iweight=pw]
+poisson n x1 x2 [pweight=pw], vce(cluster cl)
+poisson n x1 x2 [fweight=fw], vce(robust) nolog
+poisson n x1 x2 [iweight=pw], noconstant nolog
+poisson n x1 x2 [pweight=pw], noconstant nolog
+capture noisily poisson n x1 [aw=pw]
+=== weighted-models-postestimation
+clear
+set seed 4207
+set obs 300
+generate x1 = runiform() * 4
+generate x2 = invnormal(runiform())
+generate g = 1 + floor(runiform() * 4)
+generate d = runiform() < invlogit(-1 + .5 * x1 - .4 * x2)
+generate n = floor(-ln(runiform()) * exp(.2 + .3 * x1))
+generate fw = 1 + floor(runiform() * 3)
+generate pw = .5 + runiform() * 2
+generate cl = 1 + floor(runiform() * 25)
+quietly logit d x1 x2 [pweight=pw]
+estat ic
+capture noisily estat classification
+capture noisily estat gof
+margins
+margins, dydx(x1)
+capture noisily predict r, residuals
+estimates store a
+quietly logit d x1 [pweight=pw]
+capture noisily lrtest a
+quietly logit d x1 x2 [iweight=pw]
+estat ic
+capture noisily estat classification
+estat gof
+margins
+capture noisily predict r2, residuals
+estimates store b
+quietly logit d x1 [iweight=pw]
+lrtest b
+quietly logit d x1 x2 [fweight=fw]
+estat ic
+estat classification
+estat gof
+margins
+predict r, residuals
+summarize r
+quietly poisson n x1 x2 [pweight=pw]
+estat gof
+estat ic
+margins
+quietly poisson n x1 x2 [iweight=pw]
+estat gof
+quietly poisson n x1 x2 [fweight=fw]
+estat gof
+logit d x1 i.g [pw=pw], nolog
+margins g
+margins, dydx(*)
+margins, atmeans
+logit d x1 i.g [iw=pw], nolog
+margins g
+logit d i.g [iw=pw], nolog
+estat gof
+probit d x1 x2 [pw=pw], vce(cluster cl) nolog
+margins, dydx(*)
+=== weighted-models-samples-and-refusals
+clear
+set seed 4207
+set obs 300
+generate x1 = runiform() * 4
+generate x2 = invnormal(runiform())
+generate g = 1 + floor(runiform() * 4)
+generate d = runiform() < invlogit(-1 + .5 * x1 - .4 * x2)
+generate n = floor(-ln(runiform()) * exp(.2 + .3 * x1))
+generate fw = 1 + floor(runiform() * 3)
+generate pw = .5 + runiform() * 2
+generate iw = pw - 1
+capture noisily bootstrap, reps(5) nodots: logit d x1 [pw=pw]
+capture noisily bootstrap, reps(5) nodots: poisson n x1 [fw=fw]
+capture noisily logit d x1 [pw=pw], vce(bootstrap)
+jackknife, nodots: logit d x1 [pw=pw]
+jackknife, nodots: poisson n x1 [pw=pw]
+logit d x1 [iw=iw], nolog
+poisson n x1 [iw=iw], nolog
+capture noisily logit d x1 [iw=-pw]
+replace pw = 0 in 1/5
+replace fw = 0 in 6/8
+replace pw = . in 9
+logit d x1 x2 [pweight=pw], nolog
+logit d x1 x2 [fweight=fw], nolog
+generate z = 0
+replace z = 1 in 1/3
+logit d x1 z [pw=pw*(1-z)], nolog
+replace pw = -1 in 10
+capture noisily logit d x1 x2 [pweight=pw]
+logit d x1 x2 [iweight=pw], nolog
+replace fw = 1.5 in 11
+capture noisily logit d x1 x2 [fweight=fw]
+capture noisily logit d x1 x2 [w=fw]
+capture noisily logit d x1 x2 [fweight=pw*0]
+capture noisily logit d x1 x2 [pweight=pw*0]
+replace fw = 2 in 11
+generate byte hi = x1 > 3.9
+replace d = 1 if hi
+logit d x1 hi [fw=fw]
+logit d x1 hi [pw=abs(pw)]
+=== weighted-population-frequency-weights
+clear
+input str12 state y x pop
+"A" 1 0.5 39500000
+"A" 0 0.5 29100000
+"B" 1 1.5 21500000
+"B" 0 1.5 19300000
+"C" 1 2.5 13000000
+"C" 0 2.5 12800000
+"D" 1 3.0 11700000
+"D" 0 3.0 10700000
+end
+logit y x [fw=pop]
+display e(N)
+probit y x [fw=pop], nolog
+poisson y x [fw=pop], nolog
+logit y x [fw=pop], vce(robust) nolog
+estat ic
+margins
+estat classification
+clear
+set seed 5
+set obs 40
+generate x = runiform()*3
+generate y = runiform() < invlogit(-1 + x)
+generate pop = 1000 + floor(runiform()*500000)
+logit y x [fw=pop], nolog
+display %12.6f _b[x] " " %12.6f _b[_cons] " " %15.4f e(ll)
+logit y x [iw=pop], nolog
+display %12.6f _b[x] " " %12.6f _b[_cons] " " %15.4f e(ll)
+generate double big = pop*700
+logit y x [fw=big], nolog
+logit y x [fw=big*100], nolog
+=== weighted-models-levels-strings-and-variance
+clear
+set seed 66
+set obs 300
+generate x = invnormal(runiform())
+generate g = 1 + floor(runiform()*4)
+generate y = runiform() < invlogit(.2 + .8*x - .2*g)
+generate c = floor(-ln(runiform())*exp(.2+.4*x))
+generate pw = .3 + runiform()*2
+generate fw = 1 + floor(runiform()*4)
+generate pw1 = cond(g == 1, 0, pw)
+logit y x i.g [pw=pw1], nolog
+probit y x i.g [fw=(g != 1)], nolog
+poisson c x i.g [iw=pw1], nolog
+generate fw0 = cond(g == 2, 0, fw)
+logit y x i.g [fw=fw0] if g < 4, nolog
+generate pwm = cond(g == 2, ., pw)
+poisson c x i.g [pw=pwm], nolog
+generate str3 sw = "1"
+generate str5 s = "a"
+capture noisily probit y x [iw=sw]
+capture noisily poisson c x [fw=sw]
+capture noisily logit y x [pw=sw]
+capture noisily logit y x [pw=s]
+capture noisily logit y x [pw=pw], vce(oim)
+capture noisily probit y x [pw=pw], vce(opg)
+capture noisily poisson c x [pw=pw], vce(oim)
+logit y x [fw=fw], vce(oim) nolog
+logit y x [iw=pw], vce(oim) nolog
+=== weighted-wide-statistics-and-few-clusters
+clear
+set seed 8
+set obs 200
+generate x = runiform()*3
+generate y = runiform() < invlogit(-1 + x)
+generate c = floor(-ln(runiform())*exp(.3*x))
+generate f = 1 + floor(runiform()*20000)
+logit y x [fw=f], nolog
+probit y x [iw=f], nolog
+poisson c x [fw=f], nolog
+generate double f700 = f*700
+logit y x [fw=f700], nolog
+generate double f1500 = f*1500
+logit y x [fw=f1500], nolog
+generate double f70000 = f*70000
+logit y x [fw=f70000], nolog
+clear
+set seed 991
+set obs 2000
+generate age = 18 + floor(runiform()*60)
+generate educ = 1 + floor(runiform()*4)
+generate wt = 50 + runiform()*400
+generate employed = runiform() < invlogit(-2 + .04*age + .3*educ)
+generate kids = floor(-ln(runiform()) * exp(-1 + .01*age))
+generate region = 1 + floor(runiform()*4)
+generate r5 = 1 + floor(runiform()*5)
+generate r6 = 1 + floor(runiform()*6)
+replace wt = . in 1/5
+replace age = . in 6/8
+logit employed age i.educ [pweight=wt], vce(cluster region) nolog
+display e(rank) " " e(df_m) " " e(chi2) " " e(p)
+logit employed age i.educ [fw=round(wt/100)], vce(cluster region) nolog
+logit employed age i.educ, vce(cluster region) nolog
+probit employed age i.educ, vce(cluster r5) nolog
+display e(rank) " " e(df_m) " " e(chi2)
+poisson kids age i.educ, vce(cluster region) nolog
+logit employed age i.educ i.r6, vce(cluster r6) nolog
+display e(rank) " " e(df_m) " " e(chi2)
+logit employed age i.educ, vce(cluster r6) nolog
+display e(rank) " " e(df_m)
+logit employed age i.educ, vce(cluster region) nocons nolog
+display e(rank) " " e(df_m)
+estat ic
+=== estat-gof-hosmer-lemeshow
+clear
+set seed 77
+set obs 200
+generate x = runiform()*3
+generate g = 1 + floor(runiform()*4)
+generate y = runiform() < invlogit(-1 + x)
+generate c = floor(-ln(runiform())*exp(.4*x))
+generate fw = 1 + floor(runiform()*4)
+generate pw = .2 + runiform()*3
+quietly logit y x
+estat gof, group(10)
+return list
+quietly logit y x [iw=pw]
+estat gof, group(10)
+estat gof
+estat gof, group(4)
+quietly logit y x [fw=fw]
+estat gof, group(10)
+estat gof
+estat classification
+quietly logit y i.g
+estat gof, group(10)
+estat gof, group(3)
+quietly probit y x g
+estat gof, group(7) outsample
+estat gof, outsample
+capture noisily estat gof, group(-1)
+capture noisily estat gof, group(500)
+clear
+set seed 1234
+set obs 157
+generate x = round(runiform()*3, .5)
+generate z = floor(runiform()*5)
+generate y = runiform() < invlogit(-1 + x - .3*z)
+generate fw = 1 + floor(runiform()*6)
+generate iw = .1 + runiform()*2
+quietly logit y x z
+quietly estat gof, group(2)
+display "u 2 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [fw=fw]
+quietly estat gof, group(2)
+display "f 2 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [iw=iw]
+quietly estat gof, group(2)
+display "i 2 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z
+quietly estat gof, group(9)
+display "u 9 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [fw=fw]
+quietly estat gof, group(9)
+display "f 9 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [iw=iw]
+quietly estat gof, group(9)
+display "i 9 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z
+quietly estat gof, group(20)
+display "u 20 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [fw=fw]
+quietly estat gof, group(20)
+display "f 20 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [iw=iw]
+quietly estat gof, group(20)
+display "i 20 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z
+quietly estat gof, group(40)
+display "u 40 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [fw=fw]
+quietly estat gof, group(40)
+display "f 40 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+quietly logit y x z [iw=iw]
+quietly estat gof, group(40)
+display "i 40 " r(m) " " %12.6f r(chi2) " " r(df) " " r(N)
+probit y x [fw=fw], nolog
+estat gof, group(15)
+=== resampling-exponentiated-coefficients
+clear
+set seed 31
+set obs 60
+generate x = invnormal(runiform())
+generate y = runiform() < invlogit(.3 + x)
+generate c = floor(-ln(runiform())*exp(.2+.4*x))
+generate g = 1 + floor(runiform()*3)
+generate pw = .5 + runiform()
+replace pw = . in 4
+jackknife, nodots: poisson c x [pw=pw], irr
+jackknife, nodots: poisson c x, irr
+jackknife, nodots: logit y x i.g, or
+jackknife, nodots: logistic y x
+jackknife, nodots: logit y x [pw=pw], or
+set seed 1
+bootstrap, reps(5) nodots: logit y x, or
+set seed 1
+bootstrap, reps(5) nodots: poisson c x, irr

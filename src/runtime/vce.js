@@ -35,7 +35,8 @@ export function readVce(session, options, plain, { multiway = true } = {}) {
  * and a variance Stata has but this command here lacks with a hint.
  */
 export function refuseVce(text, plain, multiway) {
-  const [type, ...more] = text.split(/\s+/);
+  // vce(bootstrap, reps(50)) names its type before a comma.
+  const [type, ...more] = text.split(/[\s,]+/);
   if (CLUSTER.test(`${type} x`)) {
     if (!more.length)
       throw new StataError(

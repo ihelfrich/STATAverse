@@ -34,7 +34,7 @@ const nullLikelihood = (model) =>
     : (model.ll_0 ?? MISSING);
 
 export function lrtest(session, text, ctx) {
-  const [head] = splitAtComma(text),
+  const [head, options] = splitAtComma(text),
     names = head.trim().split(/\s+/).filter(Boolean);
   if (!names.length || names.length > 2)
     throw new StataError("lrtest takes one or two stored models", 198);
@@ -46,6 +46,16 @@ export function lrtest(session, text, ctx) {
         "lrtest needs models fitted by maximum likelihood",
         498,
       );
+  // A robust variance, which sampling weights imply, makes the log
+  // likelihood a pseudolikelihood; Stata refuses unless told to force.
+  if (
+    [a, b].some((model) => /^(robust|cluster)$/.test(model.vce)) &&
+    !/\bforce\b/.test(options ?? "")
+  )
+    throw new StataError(
+      "LR test likely invalid for models with robust VCE",
+      498,
+    );
   if (a.N !== b.N)
     throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
   const [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
