@@ -59,6 +59,16 @@ const NOT_DRAWN = [
   "xcommon",
   "iscale",
   "imargin",
+  // graph box's boxes and medians, a fit's interval drawn another way,
+  // histogram turned on its side, and the looks of histogram's curves.
+  "box",
+  "medtype",
+  "medline",
+  "medmarker",
+  "ciplot",
+  "horizontal",
+  "normopts",
+  "kdenopts",
 ];
 /**
  * Parses a graph command's options against its declaration. When one is
@@ -244,7 +254,7 @@ function parseDeclared(session, declaration, text) {
         );
     if (name)
       throw new StataError(
-        `option ${name}() is not drawn on this page; remove it to draw the graph. Graphs here draw titles, notes, axis labels and lines, colours, marker sizes and labels, and legends.`,
+        `option ${name}${givenWithArgument(text, m[1]) ? "()" : ""} is not drawn on this page; remove it to draw the graph. Graphs here draw titles, notes, axis labels and lines, colours, marker sizes and labels, and legends.`,
         198,
       );
     // An option Stata does not know, given with an argument, is named with
@@ -783,6 +793,19 @@ function labelRule(text) {
       values = parseNumlist(first);
     } catch {
       throw new StataError(`invalid label specifier, :  ${text}:`, 198);
+    }
+    // A rule a(b)c that rises draws one label more than the numlist when c
+    // lies more than half a step past its last value: 0(3)11 labels 0 3 6
+    // 9 12, as Stata labels it, where 0(3)10 stops at 9.
+    const signed = String.raw`[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?`,
+      stepped = new RegExp(`^(${signed})\\((${signed})\\)(${signed})$`).exec(
+        first,
+      );
+    if (stepped) {
+      const [a, b, c] = stepped.slice(1, 4).map(Number),
+        steps = (c - a) / b;
+      if (b > 0 && steps - Math.floor(steps + 1e-9) > 0.5 + 1e-9)
+        values.push(Number((a + values.length * b).toPrecision(15)));
     }
     spec.rule = { values };
   }

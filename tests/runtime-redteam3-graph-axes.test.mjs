@@ -34,12 +34,15 @@ function refused(s, command) {
 const texts = (svg) =>
   [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
 // The labels of the y axis (set against the right) and of the x axis (the
-// numbers centred below the plot) of a graph or of its first panel.
+// numbers centred below the plot) of a graph, or of the panels of by() that
+// Stata labels them in: y in the first panel, at the left, and x in the
+// last, which has no panel below it.
 const first = (svg) => svg.split(/(?=<svg x=)/)[1] ?? svg;
+const last = (svg) => svg.split(/(?=<svg x=)/).at(-1);
 const yLabels = (svg) =>
   [...first(svg).matchAll(/text-anchor="end">([^<]*)</g)].map((m) => m[1]);
 const xLabels = (svg) =>
-  [...first(svg).matchAll(/y="[\d.]+" text-anchor="middle">([^<]*)</g)]
+  [...last(svg).matchAll(/y="[\d.]+" text-anchor="middle">([^<]*)</g)]
     .map((m) => m[1])
     .filter((t) => /^-?[\d.,]+$/.test(t));
 const count = (svg, text) => texts(svg).filter((t) => t === text).length;

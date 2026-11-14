@@ -82,8 +82,12 @@ function kdensity(session, text, ctx) {
       `varname [if] [in] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal LColor(string) COLor(string) ${LOOKS}]`,
       text,
     ),
-    options = parsed.options,
-    variable = numeric(session, parsed.varlist[0]),
+    options = parsed.options;
+  // kdensity has no by() in Stata, which says so before anything else,
+  // with or without nograph.
+  if (options.by !== undefined)
+    throw new StataError("option by() not allowed", 191);
+  const variable = numeric(session, parsed.varlist[0]),
     values = session
       .rows(parsed, null)
       .map((i) => variable.data[i])
@@ -163,13 +167,22 @@ function kdensity(session, text, ctx) {
       label: "Normal density",
     });
   }
+  // Stata notes the kernel and the bandwidth below the graph, the
+  // bandwidth in %6.4f (or %10.3e when it rounds to 0); note() replaces it.
+  const looks = drawnLooks(options),
+    rounded = Math.round(bandwidth / 0.0001) * 0.0001,
+    shown =
+      bandwidth === 0
+        ? "0"
+        : applyFormat(bandwidth, rounded === 0 ? "%10.3e" : "%6.4f");
   ctx.graph({
     svg: draw({
-      ...drawnLooks(options),
+      ...looks,
       layers,
       xTitle: options.xtitle ?? titleOf(variable),
       yTitle: options.ytitle ?? "Density",
       title: options.title ?? "Kernel density estimate",
+      note: looks.note ?? `kernel = ${kernel}, bandwidth = ${shown}`,
     }),
     description: `Kernel density estimate of ${titleOf(variable)}: ${kernel} kernel, bandwidth ${g(bandwidth)}, ${values.length} observations.`,
   });
@@ -202,9 +215,16 @@ function lowessCommand(session, text, ctx) {
     store(session, options.generate, out, "");
   }
   if (options.nograph) return;
+  // As Stata draws it: no legend unless legend() asks for one, the
+  // bandwidth noted below the graph (note() replaces it), and the title
+  // named for the smoother that mean and noweight make.
+  const looks = drawnLooks(options);
   ctx.graph({
     svg: draw({
-      ...drawnLooks(options),
+      ...looks,
+      legend:
+        looks.legend.on || looks.legend.order ? looks.legend : { off: true },
+      note: looks.note ?? `bandwidth = ${g(options.bwidth)}`,
       layers: [
         {
           kind: "scatter",
@@ -216,12 +236,15 @@ function lowessCommand(session, text, ctx) {
           points: rows
             .map((i, k) => [x.data[i], smooth[k]])
             .sort((a, b) => a[0] - b[0]),
-          label: "lowess",
+          label: `lowess: ${titleOf(y)}`,
         },
       ],
       xTitle: options.xtitle ?? titleOf(x),
       yTitle: options.ytitle ?? titleOf(y),
-      title: options.title ?? "Lowess smoother",
+      // Stata titles noweight's smooth a lowess smoother too.
+      title:
+        options.title ??
+        (options.mean ? "Running mean smoother" : "Lowess smoother"),
     }),
     description: `Lowess smoother of ${titleOf(y)} on ${titleOf(x)}, bandwidth ${g(options.bwidth)}, ${rows.length} points.`,
   });
@@ -271,6 +294,11 @@ function statisticOf(text) {
         ),
     };
   }
+  if (name === "asis")
+    throw new StataError(
+      "(asis) is not drawn on this page; graph bar draws statistics of the groups, such as (mean) or (sum)",
+      198,
+    );
   if (NOT_DRAWN.test(name))
     throw new StataError(
       `(${name}) is not drawn on this page; graph bar draws mean, median, p1 to p99, sum, count, percent, min, max and sd`,
@@ -1101,9 +1129,15 @@ function graphBox(session, text, ctx) {
       points: [],
       label: names[s],
     }));
+  // Stata notes that outside values are left out, unless note() says
+  // otherwise.
+  const looks = drawnLooks(options);
   ctx.graph({
     svg: draw({
-      ...drawnLooks(options),
+      ...looks,
+      note:
+        looks.note ??
+        (options.nooutsides ? "excludes outside values" : undefined),
       layers,
       xTitle: "",
       yTitle:

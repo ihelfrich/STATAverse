@@ -9,6 +9,7 @@ import { applyFormat } from "./format.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { compileExpression } from "./expression.js";
 import { isMissing, isStringType } from "./values.js";
+import { weightedRows } from "./reports.js";
 import {
   LOOKS,
   PLOT_LOOKS,
@@ -43,11 +44,15 @@ export const PLOT_SPANS = {
   width: WIDTH - PLOT.left - PLOT.right,
   height: HEIGHT - PLOT.top - PLOT.bottom,
 };
+// A text with two spaces together keeps them, as Stata's SVG keeps them,
+// by writing each of its spaces as a no-break space.
 const escape = (text) =>
-  String(text).replace(
-    /[&<>"]/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
-  );
+  String(text)
+    .replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    )
+    .replace(/^.*  .*$/s, (all) => all.replace(/ /g, " "));
 const g = (value) => applyFormat(value, "%9.0g").trim();
 // blabel(bar) writes heights in %8.0g whatever the variable's format, as
 // Stata does: 20.742 and 1.2e+06 where %9.0g gives 20.74197 and 1234568.
@@ -59,15 +64,21 @@ const long = (value) => applyFormat(value, "%10.0g").trim();
 // Stata gives them: .057 for .0570313, 10.92 for 10.920413.
 const HEIGHT_FORMAT = "%6.4g";
 /**
- * The x values a histogram's axis is labelled over: the middle of its
- * first bar, or its left edge when start() was given (histogram always
- * gives it), to the middle of its last, as Stata labels it.
+ * The x values a histogram's axis is labelled over: the middles of the
+ * bars that have any observations, as Stata labels it, and the start of
+ * the first bin when start() was given (histogram always gives it). Stata
+ * keeps that start in the variable of the bars' middles after them, so it
+ * counts only when the dataset has a row to spare for it: when there are
+ * fewer bars with observations than rows.
  */
-function histogramSpan(bars, fromStart) {
-  const middle = (bar) => (bar.x0 + bar.x1) / 2;
-  return bars.length
-    ? [fromStart ? bars[0].x0 : middle(bars[0]), middle(bars.at(-1))]
-    : [];
+function histogramSpan(bars, fromStart, rows) {
+  const middle = (bar) => (bar.x0 + bar.x1) / 2,
+    filled = bars.filter((bar) => bar.height !== 0);
+  if (!filled.length) return [];
+  return [
+    fromStart && filled.length < rows ? bars[0].x0 : middle(filled[0]),
+    middle(filled.at(-1)),
+  ];
 }
 
 /**
@@ -180,20 +191,24 @@ function extents(layers) {
           : along(l, 0);
   return {
     tickXs: layers.flatMap((l) =>
-      l.tickSpan && l.bars.length ? l.tickSpan : xsOf(l),
+      l.tickSpan && (l.bars?.length || l.points.length) ? l.tickSpan : xsOf(l),
     ),
     xs: layers.flatMap(xsOf),
+    // twoway bar and area rise from their base() (from 0, or the edge of
+    // the plot nearest it, when none is given): the y axis reaches a
+    // base() that was given, but Stata labels it over the data alone.
     ys: layers.flatMap((l) =>
       l.bars
-        ? [0, ...l.bars.map((b) => b.height)]
+        ? l.twoway
+          ? l.bars.map((b) => b.height)
+          : [0, ...l.bars.map((b) => b.height)]
         : l.boxes
           ? l.boxes.flatMap((b) => [b.lower, b.upper, ...b.outside])
           : l.kind === "band"
             ? l.points.flatMap((p) => [p[1], p[2]])
-            : l.kind === "area"
-              ? [0, ...along(l, 1)]
-              : along(l, 1),
+            : along(l, 1),
     ),
+    rangeYs: layers.flatMap((l) => (l.base === undefined ? [] : [l.base])),
   };
 }
 
@@ -294,11 +309,14 @@ function tile(
     caption,
     styles = {},
     legend = null,
+    places = null,
   },
 ) {
-  if (!cols && !rows) cols = Math.ceil(Math.sqrt(svgs.length));
-  if (!cols) cols = Math.ceil(svgs.length / rows);
-  rows = Math.ceil(svgs.length / cols);
+  if (!places) {
+    if (!cols && !rows) cols = Math.ceil(Math.sqrt(svgs.length));
+    if (!cols) cols = Math.ceil(svgs.length / rows);
+    rows = Math.ceil(svgs.length / cols);
+  }
   // by()'s one legend for all the panels, { layers, legend }, in a row
   // below the axis title.
   const key = legend ? legendParts(legend.layers, legend.legend, 0, 0) : [],
@@ -320,8 +338,11 @@ function tile(
       placedText(subtitle, styles.subtitle, "middle", title ? 44 : 22, 13),
     );
   svgs.forEach((svg, k) => {
-    const x = left + (k % cols) * cellW + (cellW - w) / 2,
-      y = top + Math.floor(k / cols) * cellH + (cellH - h) / 2;
+    // places, when given, put each in its row and column (by()'s holes()
+    // and colfirst); otherwise they fill the rows in turn.
+    const at = places?.[k] ?? { row: Math.floor(k / cols), col: k % cols },
+      x = left + at.col * cellW + (cellW - w) / 2,
+      y = top + at.row * cellH + (cellH - h) / 2;
     parts.push(
       svg.replace(
         /^<svg /,
@@ -376,9 +397,23 @@ function byOption(session, text) {
       "by() with more than one variable is not available here",
       198,
     );
+  // Stata's suboptions that only change the panels' look are refused by
+  // name; those that ask for what is drawn anyway are allowed.
+  let items = [];
+  try {
+    items = optionItems(rest ?? "");
+  } catch {
+    // parseGraph says what is wrong
+  }
+  for (const item of items)
+    if (/^(compact|i[xy](tick|label|title))$/.test(item.name))
+      throw new StataError(
+        `by(…, ${item.name}) is not drawn on this page; by() draws total, missing, rows(), cols(), holes(), colfirst, rescale, xrescale, yrescale, ixaxes, iyaxes, noedgelabel, legend() and the titles`,
+        198,
+      );
   const options = parseGraph(
     session,
-    "[, TOTal Cols(string) Rows(string) LEGend(string) TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis)]",
+    "[, TOTal MISSing Cols(string) Rows(string) holes(numlist) colfirst rescale xrescale yrescale ixaxes iyaxes noedgelabel edgelabel norescale noxrescale noyrescale noixaxes noiyaxes noixtick noiytick noixlabel noiylabel noixtitle noiytitle LEGend(string) TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis)]",
     rest ? "," + rest : "",
   ).options;
   // rows() is checked before cols(), each a positive integer, as Stata
@@ -438,17 +473,32 @@ function byGroups(session, by, sample) {
   const data = by.variable.data,
     rows = sample ?? Array.from({ length: session.data.n }, (_, i) => i),
     found = new Map();
+  const missing = (v) => (typeof v === "string" ? v === "" : isMissing(v));
   for (const i of rows) {
     const v = data[i];
-    if (typeof v === "string" ? v === "" : isMissing(v)) continue;
+    // by(…, missing) gives the rows whose by-variable is missing panels
+    // of their own, after the others, labelled (missing).
+    if (missing(v) && !by.options.missing) continue;
     if (!found.has(v)) found.set(v, new Set());
     found.get(v).add(i);
   }
   if (!found.size) throw new StataError("nothing to graph", 198);
   const groups = [...found.keys()]
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .sort((a, b) =>
+      missing(a) !== missing(b)
+        ? missing(a)
+          ? 1
+          : -1
+        : a < b
+          ? -1
+          : a > b
+            ? 1
+            : 0,
+    )
     .map((value) => ({
-      label: labelOf(session, by.variable, value),
+      label: missing(value)
+        ? "(missing)"
+        : labelOf(session, by.variable, value),
       rows: found.get(value),
     }));
   if (by.options.total)
@@ -520,6 +570,35 @@ function drawablePanels(session, groups, build, out) {
   return panels;
 }
 /**
+ * Where the n panels of by() go: { cols, rows, places, bottom }, places
+ * the { row, col } of each panel in turn. The panels fill the rows (the
+ * columns with colfirst), skipping the positions holes() names, counted
+ * from 1 in the same order; with neither cols() nor rows() there are as
+ * many columns as the square root of the positions used, rounded up.
+ */
+function byLayout(n, { cols, rows, holes, colfirst }) {
+  const skipped = new Set(holes ?? []),
+    positions = [];
+  for (let p = 1; positions.length < n; p++)
+    if (!skipped.has(p)) positions.push(p);
+  const used = positions.at(-1) ?? 0;
+  if (!cols && !rows) cols = Math.ceil(Math.sqrt(used));
+  if (!cols) cols = Math.ceil(used / rows);
+  if (!rows || !colfirst) rows = Math.ceil(used / cols);
+  if (colfirst) cols = Math.max(cols, Math.ceil(used / rows));
+  const places = positions.map((p) =>
+    colfirst
+      ? { row: (p - 1) % rows, col: Math.floor((p - 1) / rows) }
+      : { row: Math.floor((p - 1) / cols), col: (p - 1) % cols },
+  );
+  return {
+    cols,
+    rows: Math.max(rows, ...places.map((q) => q.row + 1)),
+    places,
+    bottom: Math.max(...places.map((q) => q.row)),
+  };
+}
+/**
  * Draws the panels of by(), each { label, layers }, on common axes. The
  * graph's title(), subtitle(), note() and caption() are drawn in every
  * panel, a subtitle in place of the group's name; by()'s own are the whole
@@ -534,14 +613,49 @@ function byPanels(
   panels,
   { xTitle, yTitle, yFromZero, looks = {}, legendLayers },
 ) {
-  const { tickXs, ys } = extents(panels.flatMap((p) => p.layers)),
-    xRange = tickXs.length ? [least(tickXs), greatest(tickXs)] : undefined,
-    yRange = ys.length ? [yFromZero ? 0 : least(ys), greatest(ys)] : undefined,
+  const o = by.options,
+    ends = (values) =>
+      values.length ? [least(values), greatest(values)] : undefined,
+    // The panels share their axes, which cover the data of them all,
+    // unless rescale, xrescale or yrescale gives each its own.
+    scaleOf = (layers) => {
+      const { tickXs, xs, ys, rangeYs } = extents(layers),
+        yRange = ends(ys);
+      if (yRange && yFromZero) yRange[0] = 0;
+      return {
+        xRange: ends(tickXs),
+        yRange,
+        xSpan: ends(xs),
+        ySpan: ends([...ys, ...rangeYs]),
+      };
+    },
+    common = scaleOf(panels.flatMap((p) => p.layers)),
+    ownX = o.rescale || o.xrescale,
+    ownY = o.rescale || o.yrescale,
+    layout = byLayout(panels.length, o),
     styles = looks.styles ?? {},
     overall = by.looks;
   return tile(
-    panels.map((p) =>
-      draw({
+    panels.map((p, k) => {
+      const own = ownX || ownY ? scaleOf(p.layers) : common,
+        { xRange, xSpan } = ownX ? own : common,
+        { yRange, ySpan } = ownY ? own : common,
+        at = layout.places[k],
+        // As Stata labels the panels: y in the leftmost panel of each row,
+        // x in each panel with none below it (with noedgelabel, only in
+        // the bottom row), and both in every panel with ixaxes and iyaxes
+        // or when that axis is rescaled.
+        axes = {
+          y:
+            !!(o.iyaxes || ownY) ||
+            !layout.places.some((q) => q.row === at.row && q.col < at.col),
+          x:
+            !!(o.ixaxes || ownX) ||
+            (o.noedgelabel
+              ? at.row === layout.bottom
+              : !layout.places.some((q) => q.col === at.col && q.row > at.row)),
+        };
+      return draw({
         layers: p.layers.length ? p.layers : [{ points: [], label: "" }],
         xTitle: "",
         yTitle: "",
@@ -558,6 +672,9 @@ function byPanels(
         },
         xRange,
         yRange,
+        xSpan,
+        ySpan,
+        axes,
         xLines: looks.xLines,
         yLines: looks.yLines,
         xTicks: looks.xTicks,
@@ -567,11 +684,12 @@ function byPanels(
         // Smaller panels get fewer labels: Stata asks for about four.
         tickCount: 4,
         panel: true,
-      }),
-    ),
+      });
+    }),
     {
-      cols: by.options.cols,
-      rows: by.options.rows,
+      cols: layout.cols,
+      rows: layout.rows,
+      places: layout.places,
       title: overall.title,
       subtitle: overall.subtitle,
       xTitle,
@@ -619,8 +737,11 @@ export function draw({
   allowEmpty = false,
   tickCount = 5,
   panel = false,
+  axes = { x: true, y: true },
+  xSpan,
+  ySpan,
 }) {
-  const { xs, ys, tickXs } = extents(layers);
+  const { xs, ys, tickXs, rangeYs } = extents(layers);
   // Drawn with nothing on it, as in Stata: a twoway graph with no data
   // (allowEmpty), or a graph bar whose every statistic is missing, which
   // gives both ranges. An axis with no values and no range has no labels.
@@ -680,15 +801,17 @@ export function draw({
     yt = axisTicks(yTicks, yRange, ys),
     // An axis covers its data and its labels: a categorical one (graph bar
     // and box) its categories' range; one with neither, 0 to 1.
+    // The panels of by() share the span of all their data (xSpan and
+    // ySpan), unless rescaled.
     [x0, x1] = axisRange(
       xLabels ? [] : xt.map((t) => t.at),
       xLabels ? xRange : null,
-      xs,
+      xSpan ?? xs,
     ),
     [y0, y1] = axisRange(
       yt.map((t) => t.at),
       null,
-      ys,
+      ySpan ?? [...ys, ...rangeYs],
     ),
     w = WIDTH - P.left - P.right,
     h = HEIGHT - P.top - P.bottom,
@@ -711,7 +834,14 @@ export function draw({
             `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${n(py(tick.at))}" y2="${n(py(tick.at))}" stroke="#e6e6e6"/>`,
           ]
         : []),
-      `<text x="${P.left - 8}" y="${n(py(tick.at) + 4)}" text-anchor="end">${escape(labelText(tick, yFormat))}</text>`,
+      // A panel of by() inside the grid has no labels or line of its own,
+      // as in Stata: only the leftmost in a row labels y, and only one
+      // with no panel below it labels x.
+      ...(axes.y
+        ? [
+            `<text x="${P.left - 8}" y="${n(py(tick.at) + 4)}" text-anchor="end">${escape(labelText(tick, yFormat))}</text>`,
+          ]
+        : []),
     );
   for (const tick of xLabels ??
     xt.map((t) => ({ at: t.at, text: labelText(t, xFormat) })))
@@ -723,17 +853,25 @@ export function draw({
         : []),
       // The labels of the groups of an outer over() are a second row,
       // under the labels of the categories, without ticks.
-      ...(tick.row
+      ...(tick.row || !axes.x
         ? []
         : [
             `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${P.top + h}" y2="${P.top + h + 5}" stroke="#333333"/>`,
           ]),
-      `<text x="${n(px(tick.at))}" y="${P.top + h + 20 + (tick.row ? 18 : 0)}" text-anchor="middle"${tick.row ? ' font-size="13"' : ""}>${escape(tick.text)}</text>`,
+      ...(axes.x
+        ? [
+            `<text x="${n(px(tick.at))}" y="${P.top + h + 20 + (tick.row ? 18 : 0)}" text-anchor="middle"${tick.row ? ' font-size="13"' : ""}>${escape(tick.text)}</text>`,
+          ]
+        : []),
     );
-  parts.push(
-    `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${P.top + h}" y2="${P.top + h}" stroke="#333333"/>`,
-    `<line x1="${P.left}" x2="${P.left}" y1="${P.top}" y2="${P.top + h}" stroke="#333333"/>`,
-  );
+  if (axes.x)
+    parts.push(
+      `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${P.top + h}" y2="${P.top + h}" stroke="#333333"/>`,
+    );
+  if (axes.y)
+    parts.push(
+      `<line x1="${P.left}" x2="${P.left}" y1="${P.top}" y2="${P.top + h}" stroke="#333333"/>`,
+    );
   // xline() and yline(), where they fall inside the plot.
   for (const v of xLines)
     if (v >= x0 && v <= x1)
@@ -764,11 +902,15 @@ export function draw({
         layer.color?.opacity === undefined
           ? ""
           : ` stroke-opacity="${layer.color.opacity}"`;
+    // Bars and areas rise from their base, 0 unless base() gave another,
+    // or from the edge of the plot when the base lies beyond it, as Stata
+    // draws twoway bar and area.
+    const base = py(Math.min(y1, Math.max(y0, layer.base ?? 0)));
     if (layer.bars)
       for (const bar of layer.bars) {
-        // A bar rises from 0, or below 0 hangs down from it.
+        // A bar rises from its base, or below it hangs down from it.
         parts.push(
-          `<rect x="${n(px(bar.x0))}" y="${n(Math.min(py(bar.height), py(0)))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(Math.abs(py(0) - py(bar.height)))}" fill="${color}" fill-opacity="${opacity(0.75)}"${edge}/>`,
+          `<rect x="${n(px(bar.x0))}" y="${n(Math.min(py(bar.height), base))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(Math.abs(base - py(bar.height)))}" fill="${color}" fill-opacity="${opacity(0.75)}"${edge}/>`,
         );
         // blabel(bar): the bar's height written past its end, above a bar
         // that rises and below one that hangs down.
@@ -810,9 +952,9 @@ export function draw({
       if (layer.points.length)
         parts.push(
           `<polygon fill="${color}" fill-opacity="${opacity(0.5)}"${edge} points="${[
-            `${n(px(layer.points[0][0]))},${n(py(0))}`,
+            `${n(px(layer.points[0][0]))},${n(base)}`,
             ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
-            `${n(px(layer.points.at(-1)[0]))},${n(py(0))}`,
+            `${n(px(layer.points.at(-1)[0]))},${n(base)}`,
           ].join(" ")}"/>`,
         );
     } else if (layer.kind === "segments")
@@ -1013,6 +1155,10 @@ function functionPlot(session, text) {
       `[, ${OWN.function} ${PLOT_LOOKS} ${LOOKS}]`,
       optionText ? "," + optionText : "",
     ).options,
+    // y = f(x) names the curve y, as does f(x) alone; z = f(x) names it z,
+    // and the legend and the y axis's title say so.
+    named = /^\s*(\w+)\s*=(?!=)/.exec(head),
+    name = named?.[1] ?? "y",
     expression = head.replace(/^\s*\w+\s*=(?!=)/, "").trim(),
     scalars = new Map(session.scalars).set("x", 0),
     compiled = compileExpression(expression, {
@@ -1053,8 +1199,11 @@ function functionPlot(session, text) {
       stroke: widthOf(options.lwidth),
       dashes: patternOf(options.lpattern),
       points,
-      label: expression,
-      y: { name: "y", label: "y" },
+      // The x axis covers all of range(), though the curve is drawn only
+      // where it is defined.
+      span: { xs: [low, high] },
+      label: name,
+      y: { name, label: name },
       x: axis,
       // Stata makes both variables as doubles, labelled in %10.0g.
       xFormat: "%10.0g",
@@ -1131,8 +1280,11 @@ export function histogramBars(values, options, text, note, float = true) {
     note(`(start=${long(start)}, width=${long(width)})`);
     start -= width / 2;
   } else {
-    if (options.width) {
-      width = options.width;
+    // A variable with one value has bins of width 1, unless width() gives
+    // another, and so one bin, whatever bin() asks for, as in Stata.
+    const fixed = options.width || (high === low ? 1 : 0);
+    if (fixed) {
+      width = fixed;
       bins = Math.max(1, Math.ceil((high - start) / width - 1e-9));
     } else {
       // Stata's default number of bins: min(sqrt(N), 10 log10(N)).
@@ -1176,7 +1328,7 @@ export function histogramBars(values, options, text, note, float = true) {
     bars = counts.map((c, k) => ({
       x0: start + k * width,
       x1: start + (k + 1) * width,
-      height: scale(c),
+      height: float ? Math.fround(scale(c)) : scale(c),
     }));
   return { bars, bins, width, start, yTitle, curveScale, n };
 }
@@ -1289,7 +1441,11 @@ function univariateLayers(session, kind, text, parsed) {
         label: made.yTitle,
         y: { name: made.yTitle, label: made.yTitle },
         x: axis,
-        tickSpan: histogramSpan(made.bars, /\bstart\(/.test(text)),
+        tickSpan: histogramSpan(
+          made.bars,
+          /\bstart\(/.test(text),
+          session.data.n,
+        ),
         xFormat: variable.format,
         yFormat: HEIGHT_FORMAT,
       },
@@ -1343,13 +1499,26 @@ function plot(session, kind, text, note = () => {}) {
     return univariatePlot(session, kind, text);
   const parsed = parseGraph(
       session,
-      `varlist(numeric min=2) [if] [in] [, ${OWN.points} ${PLOT_LOOKS} ${LOOKS}]`,
+      `varlist(numeric min=2) [if] [in] ${kind === "scatter" ? "[aweight fweight pweight]" : ""} [, ${OWN.points} ${PLOT_LOOKS} ${LOOKS}]`,
       text,
     ),
     variables = parsed.varlist.map((name) => session.data.get(name)),
     x = variables.at(-1),
     rows = session.rows(parsed, null),
     layers = [];
+  // Stata sizes the markers of a weighted scatter by their weights, which
+  // this page does not draw.
+  if (parsed.weight)
+    throw new StataError(
+      `scatter with [${parsed.weight.type}] is not drawn on this page: Stata sizes each marker by its weight; leave out the weight`,
+      198,
+    );
+  // base() is an option of bar and area only, and barwidth() of bar, as
+  // in Stata.
+  if (parsed.options.base !== undefined && kind !== "bar" && kind !== "area")
+    throw new StataError("option base() not allowed", 198);
+  if (parsed.options.barwidth && kind !== "bar")
+    throw new StataError("option barwidth() not allowed", 198);
   for (const y of variables.slice(0, -1)) {
     let points = rows
       .filter((i) => !isMissing(x.data[i]) && !isMissing(y.data[i]))
@@ -1370,7 +1539,16 @@ function plot(session, kind, text, note = () => {}) {
           y,
           x,
         });
-      layers.push({ kind: "line", points: [], label: y.name, y, x });
+      // Named by its variable in the legend and as the y axis's title,
+      // which another plot of that variable does not share.
+      layers.push({
+        kind: "line",
+        points: [],
+        label: y.name,
+        titled: true,
+        y,
+        x,
+      });
       continue;
     }
     if (kind === "lfit") {
@@ -1461,7 +1639,9 @@ function plot(session, kind, text, note = () => {}) {
         .filter((i) => !isMissing(x.data[i]) && !isMissing(y.data[i]))
         .map((i) => markerLabel(session, variable, variable.data[i]));
     }
-    if (parsed.options.sort || kind !== "scatter") {
+    // Stata joins the points of line, connected and area in the order of
+    // the data unless sort is given.
+    if (parsed.options.sort) {
       const order = points
         .map((_, k) => k)
         .sort((a, b) => points[a][0] - points[b][0]);
@@ -1469,16 +1649,20 @@ function plot(session, kind, text, note = () => {}) {
       if (labels) labels = order.map((k) => labels[k]);
     }
     if (kind === "bar") {
-      const gaps = points.slice(1).map((p, k) => p[0] - points[k][0]),
-        width =
-          parsed.options.barwidth ||
-          0.8 * Math.min(1, least(gaps.filter((gap) => gap > 0)));
+      // Bars are barwidth() wide, 1 unless given, in units of x; the x
+      // axis is labelled over the values of x and reaches the bars' edges.
+      const width = parsed.options.barwidth || 1;
       layers.push({
         bars: points.map((p) => ({
           x0: p[0] - width / 2,
           x1: p[0] + width / 2,
           height: p[1],
         })),
+        twoway: true,
+        base: parsed.options.base,
+        tickSpan: points.length
+          ? [least(points.map((p) => p[0])), greatest(points.map((p) => p[0]))]
+          : undefined,
         points,
         label: titleOf(y),
         y,
@@ -1498,6 +1682,7 @@ function plot(session, kind, text, note = () => {}) {
       points,
       labels,
       label: titleOf(y),
+      ...(kind === "area" ? { base: parsed.options.base } : {}),
       span: { xs: span(x), ys: span(y) },
       y,
       x,
@@ -1566,7 +1751,8 @@ function plotKind(word) {
 
 // The options of each kind of twoway plot, beside the drawn looks.
 const OWN = {
-  points: "SORT BWidth(real 0.8) MEAN NOWeight Level(cilevel) BARWidth(real 0)",
+  points:
+    "SORT BWidth(real 0.8) MEAN NOWeight Level(cilevel) BARWidth(real 0) BASE(real)",
   function: "RAnge(string) N(integer 300)",
   univariate:
     "BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent BWidth(real 0) Kernel(string) N(integer 0)",
@@ -1668,6 +1854,9 @@ function plotsInParentheses(head) {
  * parentheses, (scatter y x) (lfit y x) if female == 0.
  */
 function twowayParts(text, single) {
+  // scatter y x || lfit y x overlays the plots as twoway does.
+  if (single && closing(text, 0, true) < text.length)
+    return twowayParts(`${single} ${text}`);
   if (single)
     return {
       specs: [`${single} ${text}`],
@@ -1693,6 +1882,15 @@ function twowayParts(text, single) {
     .split("||")
     .map((piece) => piece.trim())
     .filter(Boolean);
+  // A || with only options after it, as in scatter y x || lfit y x ||,
+  // by(g), gives the graph's options and none of the last plot's.
+  if (pieces.length > 1 && pieces.at(-1).startsWith(","))
+    return {
+      specs: pieces.slice(0, -1),
+      optionText: pieces.at(-1).slice(1),
+      grouped: true,
+      sample: "",
+    };
   // Options after the last plot may belong to it (range(), sort) or to the
   // graph (title()); each reader allows the other's.
   return {
@@ -1826,16 +2024,22 @@ function twoway(session, text, ctx, single) {
           )
         : within(session, kept, () => build(ctx.out)),
       first = layers[0],
-      // A plot Stata makes the y values of (a fit, lowess, kdensity) is
-      // titled as its legend names it, Fitted values or kdensity wage.
-      xTitle = options.xtitle ?? first.xTitle ?? titleOf(first.x),
+      // An axis is titled when every plot gives it the same title, and
+      // left without one when they differ, as Stata titles it. A plot
+      // Stata makes the y values of (a fit, lowess, kdensity) is titled as
+      // its legend names it, Fitted values or kdensity wage, as is the band
+      // of a fit's interval, 95% CI.
+      shared = (titles) =>
+        titles.every((t) => t === titles[0]) ? titles[0] : "",
+      xTitle =
+        options.xtitle ?? shared(layers.map((l) => l.xTitle ?? titleOf(l.x))),
       yTitle =
         options.ytitle ??
-        (layers.length === 1
-          ? first.titled
-            ? first.label
-            : titleOf(first.y)
-          : ""),
+        shared(
+          layers.map((l) =>
+            l.titled || l.kind === "band" ? l.label : titleOf(l.y),
+          ),
+        ),
       count =
         layers.reduce(
           (t, l) => t + (l.kind === "scatter" ? l.points.length : 0),
@@ -1882,13 +2086,16 @@ function twoway(session, text, ctx, single) {
 function histogram(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varname [if] [in] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity COLor(string) ${LOOKS} | ADDLabels]`,
+      `varname [if] [in] [fweight] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity COLor(string) ${LOOKS} | ADDLabels]`,
       text,
     ),
     options = parsed.options,
     variable = numeric(session, parsed.varlist[0]),
     rows = session.rows(parsed, null),
-    values = rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
+    // A frequency weight counts each value as often as it says.
+    values = weightedRows(session, parsed, rows)
+      .rows.map((i) => variable.data[i])
+      .filter((v) => !isMissing(v)),
     n = values.length;
   binsCombined(options);
   // Stata leaves r(N) = 0 behind when if and in leave no rows.
@@ -1899,7 +2106,7 @@ function histogram(session, text, ctx) {
   binsInRange(options);
   const by = byOption(session, options.by);
   if (!n) return emptyHistogram(session, options, variable, by, ctx);
-  if (by) return histogramBy(session, parsed, variable, values, by, ctx);
+  if (by) return histogramBy(session, parsed, text, variable, values, by, ctx);
   const { bars, bins, width, start, yTitle, curveScale } = histogramBars(
       values,
       options,
@@ -1915,7 +2122,7 @@ function histogram(session, text, ctx) {
         ...barColours(colourOf(options.color, "color", 2), 0.9),
         points: [],
         label: yTitle,
-        tickSpan: histogramSpan(bars, true),
+        tickSpan: histogramSpan(bars, true, session.data.n),
         xFormat: variable.format,
         yFormat: HEIGHT_FORMAT,
       },
@@ -2028,10 +2235,32 @@ function emptyHistogram(session, options, variable, by, ctx) {
 }
 
 /**
- * histogram, by(): the bins of the whole sample, the bars of each panel
- * from its own rows. Stata prints no bin line for a graph by groups.
+ * A number passed from one of Stata's programs to another as text: a
+ * macro holds 16 digits, and a numlist option keeps at most 13 of them in
+ * at most 14 characters (35.79999923706, .0000123456789), as recorded
+ * from Stata 19.
  */
-function histogramBy(session, parsed, variable, values, by, ctx) {
+function passedOn(value) {
+  const macro = Number(value.toPrecision(16));
+  for (let digits = 13; digits > 0; digits--) {
+    const text = String(Number(macro.toPrecision(digits))).replace(
+      /^(-?)0\./,
+      "$1.",
+    );
+    if (text.length <= 14) return Number(text);
+  }
+  return macro;
+}
+/**
+ * histogram, by(), as Stata's histogram draws it: the whole sample's first
+ * bin and width (for discrete, half a width below the smallest value) are
+ * handed to twoway histogram as text, which bins each panel's own rows
+ * afresh from that start up to the panel's largest value, and draws a bar
+ * for each bin that has any. Each panel's axis reaches from half a bin
+ * below the start to the end of its last bar. Stata prints no bin line for
+ * a graph by groups.
+ */
+function histogramBy(session, parsed, text, variable, values, by, ctx) {
   const options = parsed.options;
   if (options.normal || options.kdensity)
     throw new StataError(
@@ -2041,51 +2270,63 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
   const looks = looksOf(options),
     // The panels are the groups among the rows that pass if and in, though
     // the bins are those of all of them; Total is the groups together.
-    groups = byGroups(session, by, session.rows(parsed, null));
+    groups = byGroups(session, by, session.rows(parsed, null)),
+    stored = session.data.defaultType === "double" ? (v) => v : Math.fround;
   const whole = histogramBars(
       values,
       options,
-      "",
+      text,
       () => {},
       session.data.defaultType !== "double",
     ),
-    { width, start, yTitle } = whole,
+    { yTitle } = whole,
+    width = passedOn(whole.width),
+    start = passedOn(
+      options.discrete ? least(values) - whole.width / 2 : whole.start,
+    ),
     build = () => {
-      const own = session
-        .rows(parsed, null)
-        .map((i) => variable.data[i])
+      const own = weightedRows(session, parsed, session.rows(parsed, null))
+        .rows.map((i) => variable.data[i])
         .filter((v) => !isMissing(v));
       if (!own.length) return [];
       const n = own.length,
-        counts = new Array(whole.bins).fill(0);
-      for (const v of own)
-        counts[
-          Math.min(
-            whole.bins - 1,
-            Math.max(0, Math.floor((v - start) / width + 1e-9)),
-          )
-        ]++;
+        bins = Math.max(1, Math.ceil((greatest(own) - start) / width)),
+        counts = new Map();
+      for (const v of own) {
+        let k = Math.floor((v - start) / width);
+        if (k < 0) k = 0;
+        if (k === bins) k = bins - 1;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
       const scale = options.frequency
-        ? (c) => c
-        : options.percent
-          ? (c) => (100 * c) / n
-          : options.fraction
-            ? (c) => c / n
-            : (c) => c / n / width;
-      const bars = counts.map((c, k) => ({
-        x0: start + k * width,
-        x1: start + (k + 1) * width,
-        height: scale(c),
-      }));
+          ? (c) => c
+          : options.percent
+            ? (c) => (100 * c) / n
+            : options.fraction
+              ? (c) => c / n
+              : (c) => c / n / width,
+        bars = [...counts.keys()]
+          .sort((a, b) => a - b)
+          .map((k) => ({
+            x0: start + k * width,
+            x1: start + (k + 1) * width,
+            // Stata keeps the heights in a variable of the default type,
+            // float unless set type double: .05 is held as .0500000007,
+            // which its axis then reaches past.
+            height: stored(scale(counts.get(k))),
+          }));
       return [
         {
           bars,
           ...barColours(colourOf(options.color, "color", 2), 0.9),
           points: [],
           label: yTitle,
-          // The panels' axis is labelled over the bars' edges, which
-          // matches most of what Stata draws with by(); it bins each panel
-          // a little differently, which is not followed here.
+          // The start, a bar's middle with no bar, when there is a row
+          // to keep it in, as histogramSpan says.
+          tickSpan: [
+            bars.length < session.data.n ? start - width / 2 : bars[0].x0,
+            bars.at(-1).x1,
+          ],
           xFormat: variable.format,
           yFormat: HEIGHT_FORMAT,
         },
