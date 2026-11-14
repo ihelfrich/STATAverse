@@ -6940,3 +6940,62 @@ generate byte y = 1 + (lat > -3) + (lat > 4)
 ologit y x
 oprobit y x, nolog
 ologit y x, or nolog
+=== convergence-large-samples
+clear
+set seed 20261113
+set obs 15000
+generate long id = _n
+generate byte educ = 1 + floor(runiform() * 4)
+label define edlbl 1 "Less than HS" 2 "High school" 3 "Some college" 4 "BA+"
+label values educ edlbl
+generate int age = 20 + floor(runiform() * 46)
+generate double income = round(20000 + 8000 * educ + 300 * age + 9000 * invnormal(runiform()), 0.01)
+generate byte employed = runiform() < invlogit(-1 + 0.5 * educ + 0.02 * age)
+generate float hours = cond(employed, round(20 + 20 * runiform(), 1), 0)
+generate byte satisf = 1 + floor(5 * runiform())
+generate int kids = floor(-ln(runiform()) * 1.2)
+generate double share = runiform() ^ (1 + 0.3 * educ)
+ologit satisf age i.educ
+oprobit satisf age i.educ, nolog
+tobit hours age, ll(0)
+tobit hours age i.educ, ll(0)
+glm employed age i.educ, family(binomial) link(logit)
+glm employed age i.educ, family(binomial) link(probit)
+glm employed age i.educ, family(binomial) link(cloglog)
+glm kids age i.educ, family(poisson)
+glm share age i.educ, family(binomial)
+glm income age i.educ
+cloglog employed age i.educ
+display e(k) " " e(rank) " " e(df_m)
+=== glm-cloglog-stata-steps
+clear
+set seed 99
+set obs 400
+generate x1 = invnormal(runiform())
+generate x2 = 2 * x1
+generate g = 1 + floor(runiform() * 3)
+generate d = runiform() < invlogit(0.5 * x1)
+generate n = floor(-ln(runiform()) * exp(0.3 * x1))
+generate r = n + 0.5
+generate p = runiform()
+generate neg = x1
+generate big = 1 + d
+glm d x1 x2, family(binomial)
+glm d x1 i.g, family(binomial) nolog
+glm d x1 i.g, family(binomial) baselevels
+glm d x1, family(binomial) noconstant
+glm r x1 i.g, family(poisson)
+glm p x1, family(binomial) link(probit)
+capture noisily glm neg x1, family(poisson)
+capture noisily glm big x1, family(binomial)
+glm n x1 x2 i.g, family(poisson) link(log) level(90)
+cloglog d x1 x2 i.g
+cloglog d x1, noconstant
+display e(chi2) " " e(df_m) " " "`e(chi2type)'"
+cloglog d x1 i.g, nolog baselevels
+generate dd = d
+replace dd = 1 if g == 3
+glm dd x1 i.g, family(binomial)
+display e(N) " " e(deviance) " " e(deviance_p) " " e(k)
+cloglog dd x1 i.g
+display e(ll_0) " " e(chi2)

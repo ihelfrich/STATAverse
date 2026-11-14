@@ -168,7 +168,7 @@ function waldChi2(model) {
  * rules applied and the notes, each followed by a blank line as Stata
  * prints them; a complete separation throws after printing the notes.
  */
-function perfectPrediction(columns, sample, outcome, ctx, lead) {
+export function perfectPrediction(columns, sample, outcome, ctx, lead) {
   const keep = sample.map(() => true),
     rules = [],
     notes = [],
@@ -251,7 +251,7 @@ function perfectPrediction(columns, sample, outcome, ctx, lead) {
  * predictors themselves are left out. A factor level with no observations
  * left is marked empty, so the table shows it as (empty).
  */
-function recheckCollinearity(columns, sample, constant) {
+export function recheckCollinearity(columns, sample, constant) {
   const basis = [],
     independent = (vector) => {
       let rest = vector;

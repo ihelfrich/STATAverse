@@ -2,8 +2,8 @@
 // parameters: tobit, ologit, oprobit, mlogit and nbreg. Each supplies its log
 // likelihood, gradient and analytic Hessian to maximizeNR, which takes
 // Stata's own Newton steps from Stata's starting values, so that the fit
-// stops where Stata's stops. (maximize, which differences the gradient for
-// its Hessian, serves glm.)
+// stops where Stata's stops. glm and cloglog use it, and the helpers
+// below, too.
 // vce(robust), vce(cluster) and sampling weights give the sandwich variance
 // from each model's scores.
 import { greatest } from "./extremes.js";
@@ -27,7 +27,7 @@ import { clusterNote, noCluster, readVce, sandwich } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 // The rules of a coefficient table whose first column is w wide.
-const rule = (w) => "-".repeat(66 + w),
+export const rule = (w) => "-".repeat(66 + w),
   split = (w) => `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
 
 /** Wraps a note to the line size, later lines indented under the first. */
@@ -43,82 +43,8 @@ function wrapped(session, ctx, text, indent = 6) {
   ctx.out(line);
 }
 
-/**
- * Maximises objective(theta) -> { value, gradient } by Newton's method.
- * Returns the estimates, the log likelihood at each iteration and the
- * inverse of the negative Hessian. scales[k], when given, is the size of
- * the regressor that parameter k multiplies, at least 1; the difference
- * step shrinks with it, so that a coefficient on x^2 is differenced as
- * finely, relative to its curvature, as one on x.
- */
-export function maximize(objective, start, scales) {
-  const size = start.length,
-    hessian = (theta) => {
-      // Central differences of the analytic gradient.
-      const h = Array.from({ length: size }, () => new Array(size).fill(0));
-      for (let k = 0; k < size; k++) {
-        const step = 1e-5 * (Math.abs(theta[k]) + 1 / (scales?.[k] ?? 1)),
-          up = theta.slice(),
-          down = theta.slice();
-        up[k] += step;
-        down[k] -= step;
-        const a = objective(up).gradient,
-          b = objective(down).gradient;
-        for (let j = 0; j < size; j++) h[j][k] = (a[j] - b[j]) / (2 * step);
-      }
-      // Symmetrised and negated: the observed information.
-      return h.map((row, r) => row.map((_, c) => -(h[r][c] + h[c][r]) / 2));
-    };
-  let theta = start.slice(),
-    current = objective(theta);
-  const log = [current.value];
-  for (let iteration = 1; iteration <= 200; iteration++) {
-    // Where the surface is not concave the Hessian is made so by adding to
-    // its diagonal, which shortens the step toward the gradient.
-    const raw = hessian(theta);
-    let information = invertSymmetric(raw);
-    for (let ridge = 1e-4; !information && ridge < 1e12; ridge *= 10)
-      information = invertSymmetric(
-        raw.map((r, a) =>
-          r.map((v, c) => (a === c ? v + ridge * (Math.abs(v) + 1) : v)),
-        ),
-      );
-    if (!information)
-      throw new StataError(
-        "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
-        430,
-      );
-    let step = information.map((row) =>
-        row.reduce((t, v, k) => t + v * current.gradient[k], 0),
-      ),
-      next,
-      trial;
-    for (let halve = 0; halve < 30; halve++) {
-      next = theta.map((v, k) => v + step[k]);
-      trial = objective(next);
-      if (Number.isFinite(trial.value) && trial.value >= current.value - 1e-12)
-        break;
-      step = step.map((v) => v / 2);
-    }
-    const change =
-      Math.abs(trial.value - current.value) /
-      Math.max(1e-300, Math.abs(current.value));
-    theta = next;
-    current = trial;
-    log.push(current.value);
-    if (change < 1e-12 && greatest(current.gradient.map(Math.abs)) < 1e-6)
-      break;
-    if (iteration === 200)
-      throw new StataError("convergence not achieved", 430);
-  }
-  const V = invertSymmetric(hessian(theta));
-  if (!V)
-    throw new StataError("the variance matrix is not positive definite", 430);
-  return { theta, ll: current.value, V, log };
-}
-
 /** A fit's coefficients as termRows and tableWidth take a model's. */
-function tableModel(f) {
+export function tableModel(f) {
   const constant = f.names.includes("_cons");
   return {
     names: [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
@@ -135,7 +61,7 @@ function tableModel(f) {
  * the bar for f.names[j]; an omitted or base coefficient shows
  * omittedValue, which is one in a table of odds or rate ratios.
  */
-function layoutRows(session, f, baseLevels, cell, w, omittedValue = 0) {
+export function layoutRows(session, f, baseLevels, cell, w, omittedValue = 0) {
   return termRows(
     session,
     { ...tableModel(f), baseLevels },
@@ -151,7 +77,7 @@ function layoutRows(session, f, baseLevels, cell, w, omittedValue = 0) {
  * the cut points of ologit and oprobit are; base cells of interactions are
  * then omitted as they would be beside a constant.
  */
-function frame(
+export function frame(
   session,
   parsed,
   constant,
@@ -214,7 +140,7 @@ function frame(
     names: [...active.map((c) => c.name), ...(constant ? ["_cons"] : [])],
   };
 }
-const dot = (row, theta, offset = 0) =>
+export const dot = (row, theta, offset = 0) =>
   row.reduce((t, v, k) => t + v * theta[offset + k], 0);
 /** Splits a double into halves whose products are exact (Veltkamp). */
 const veltkamp = (a) => {
@@ -230,7 +156,7 @@ const veltkamp = (a) => {
  * line search, and its "(backed up)" notes, follow from that. add(x, w)
  * adds w*x, the product's own rounding error included.
  */
-function quadSum() {
+export function quadSum() {
   const vector = quadVector(1);
   return {
     add: (x, w = 1) => vector.add(0, x, w),
@@ -283,7 +209,7 @@ const noLog = (text) => /\bnolog\b/.test(splitAtComma(text)[1] ?? "");
  * An iteration log and the blank line after it; a fit that ran out of
  * iterations ends with Stata's warning that convergence was not achieved.
  */
-function iterations(
+export function iterations(
   ctx,
   text,
   log,
@@ -326,11 +252,11 @@ function determinedNote(ctx, determined) {
     );
 }
 /** Stops a fit that did not converge, after its table, as Stata does. */
-function unconverged(fit) {
+export function unconverged(fit) {
   if (!fit.converged) throw new StataError("convergence not achieved", 430);
 }
 /** One row of a coefficient table tested against the normal or t. */
-function row(label, b, se, level, df, transform) {
+export function row(label, b, se, level, df, transform) {
   // A coefficient with no variance shows only its value.
   if (!(se > 0))
     return `${label}|${g(transform ? Math.exp(b) : b).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
@@ -348,7 +274,7 @@ const plainRow = (label, value, se, low, high) =>
 const heading = (depvar, level, first, t, w, robust = false) =>
   `${abbreviate(depvar, w).padStart(w)} | ${first.padStart(10).padEnd(11)}  ${robust ? "std" : "Std"}. err.      ${t ? "t    P>|t|" : "z    P>|z|"}     [${g(level)}% conf. interval]`;
 /** The rule and column heads of a table, with Robust above a robust one. */
-const tableHead = (ctx, depvar, level, first, t, robust, w) => {
+export const tableHead = (ctx, depvar, level, first, t, robust, w) => {
   ctx.out(rule(w));
   if (robust) ctx.out(`${" ".repeat(w + 1)}|${" ".repeat(15)}Robust`);
   ctx.out(heading(depvar, level, first, t, w, robust));
@@ -1472,7 +1398,7 @@ const lnFactorial = (n) => {
 };
 
 /** Weighted least squares of y on the rows of x, or null if singular. */
-function leastSquares(x, y, w) {
+export function leastSquares(x, y, w) {
   // The cross products in quad precision, as Stata forms them.
   const k = x[0].length,
     xtx = quadVector(k * k),
@@ -1618,10 +1544,12 @@ export function generalizedInverse(a) {
  * forward and one that does not is halved, a region that is not concave is
  * crossed by Marquardt's adjustment, and convergence is declared when the
  * parameters (1e-6) or the log likelihood (1e-7) settle and g'inv(H)g is
- * below 1e-5. Returns the estimates, the log likelihood at each iteration
- * and the generalised inverse of the information.
+ * below 1e-5. limit is ml's iterate(), 300 unless a caller asks for fewer
+ * steps, as cloglog's logit for its starting values does. Returns the
+ * estimates, the log likelihood at each iteration and the generalised
+ * inverse of the information.
  */
-export function maximizeNR(evaluate, start) {
+export function maximizeNR(evaluate, start, limit = 300) {
   const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1),
     times = (m, v) => m.map((row) => row.reduce((t, x, k) => t + x * v[k], 0)),
     // Concave unless a column the inverse dropped has curvature.
@@ -1637,10 +1565,10 @@ export function maximizeNR(evaluate, start) {
     // had to be halved six times or more.
     notes = [""];
   for (let iteration = 1; ; iteration++) {
-    // After 300 steps Stata stops, notes whether the surface is concave
+    // After limit steps Stata stops, notes whether the surface is concave
     // there, and reports what it has; the caller says convergence was not
     // achieved.
-    if (iteration > 300) {
+    if (iteration > limit) {
       const V = generalizedInverse(current.information);
       if (!concave(current.information, V))
         notes[iteration - 1] = "not concave";

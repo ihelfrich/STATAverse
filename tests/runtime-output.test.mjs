@@ -98,7 +98,6 @@ for (const c of fixture.cases)
             "nonlinear-more",
             "more-postestimation",
             "count-quantile",
-            "glm-models",
             "margins-more",
             "margins-outcomes",
             "predict-defaults",

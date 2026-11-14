@@ -1,77 +1,132 @@
 // glm for the Gaussian, binomial and Poisson families with the identity,
 // logit, probit, complementary log-log and log links, and cloglog as its
-// own command. Fitted by the general likelihood maximiser, so standard
+// own command. Both are fitted as Stata fits them: glm by ml's Newton
+// steps from one IRLS step (glm.ado), with glim_lf's analytic observed
+// information, and cloglog by clog_lf from the estimates of three logit
+// iterations; the Gaussian identity model is least squares. Standard
 // errors come from the observed information, as Stata's default does.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { chi2tail } from "./distributions.js";
+import { chi2tail, lngamma } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
-import { RULE, design } from "./estimation.js";
-import { maximize } from "./likelihood.js";
+import {
+  abbreviate,
+  baseLevelsAsked,
+  invertSymmetric,
+  tableWidth,
+} from "./estimation.js";
+import {
+  dot,
+  frame,
+  iterations,
+  layoutRows,
+  leastSquares,
+  maximizeNR,
+  quadSum,
+  row,
+  rule,
+  split,
+  tableHead,
+  tableModel,
+  unconverged,
+} from "./likelihood.js";
+import { perfectPrediction, recheckCollinearity } from "./models.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
-import { isMissing } from "./values.js";
+import { MISSING, isMissing } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
-const SPLIT =
-  "-------------+----------------------------------------------------------------";
-const lnFactorial = (n) => {
-  let total = 0;
-  for (let k = 2; k <= n; k++) total += Math.log(k);
-  return total;
-};
-// Each link gives the mean and its derivative with respect to the index.
+// glim_mu keeps a fitted mean this far inside its family's range.
+const EPS = 1e-8;
+// Each link as glim_l01 to glim_l08 give it: the index from a mean, the
+// mean from an index, and the first and second derivatives of the mean in
+// the index, both taken from the (bounded) mean as glim_lf takes them.
 const LINKS = {
-  identity: { title: "Identity", text: "g(u) = u", mean: (e) => [e, 1] },
+  identity: {
+    title: "Identity",
+    text: "g(u) = u",
+    eta: (u) => u,
+    mu: (e) => e,
+    d1: () => 1,
+    d2: () => 0,
+  },
   log: {
     title: "Log",
     text: "g(u) = ln(u)",
-    mean: (e) => [Math.exp(e), Math.exp(e)],
+    eta: (u) => Math.log(u),
+    mu: (e) => Math.exp(e),
+    d1: (u) => u,
+    d2: (u) => u,
   },
   logit: {
     title: "Logit",
     text: "g(u) = ln(u/(1-u))",
-    mean: (e) => {
-      const p = 1 / (1 + Math.exp(-e));
-      return [p, p * (1 - p)];
-    },
+    eta: (u) => Math.log(u / (1 - u)),
+    mu: (e) => 1 / (1 + Math.exp(-e)),
+    d1: (u) => u * (1 - u),
+    d2: (u) => u * (1 - u) * (1 - 2 * u),
   },
   probit: {
     title: "Probit",
     text: "g(u) = invnorm(u)",
-    mean: (e) => [normal(e), density(e)],
+    eta: (u) => invnormal(u),
+    mu: (e) => normal(e),
+    d1: (u) => density(invnormal(u)),
+    d2: (u) => -invnormal(u) * density(invnormal(u)),
   },
   cloglog: {
     title: "Complementary log–log",
     text: "g(u) = ln(-ln(1-u))",
-    mean: (e) => {
-      const p = -Math.expm1(-Math.exp(e));
-      return [p, Math.exp(e - Math.exp(e))];
-    },
+    eta: (u) => Math.log(-Math.log1p(-u)),
+    mu: (e) => -Math.expm1(-Math.exp(e)),
+    d1: (u) => (u - 1) * Math.log1p(-u),
+    d2: (u) => (u - 1) * Math.log1p(-u) * (1 + Math.log1p(-u)),
   },
 };
+// Each family as glim_v1 to glim_v3 give it: the variance and its
+// derivative, the log likelihood and deviance of one observation, and
+// where the mean is kept.
 const FAMILIES = {
   gaussian: {
     title: "Gaussian",
     variance: "V(u) = 1",
     link: "identity",
     v: () => 1,
+    dv: () => 0,
+    bound: (u) => u,
   },
   binomial: {
     title: "Bernoulli",
     variance: "V(u) = u*(1-u)",
     link: "logit",
     v: (u) => u * (1 - u),
-    ll: (y, u) => (y ? Math.log(u) : Math.log1p(-u)),
-    deviance: (y, u) => -2 * (y ? Math.log(u) : Math.log1p(-u)),
+    dv: (u) => 1 - 2 * u,
+    ll: (y, u) =>
+      y === 0
+        ? Math.log1p(-u)
+        : y === 1
+          ? Math.log(u)
+          : -lngamma(y + 1) -
+            lngamma(2 - y) +
+            y * Math.log(u) +
+            (1 - y) * Math.log1p(-u),
+    deviance: (y, u) =>
+      y > 0 && y < 1
+        ? 2 * y * Math.log(y / u) + 2 * (1 - y) * Math.log((1 - y) / (1 - u))
+        : y === 0
+          ? -2 * Math.log1p(-u)
+          : -2 * Math.log(u),
+    bound: (u) => (u <= EPS ? EPS : u >= 1 - EPS ? 1 - EPS : u),
   },
   poisson: {
     title: "Poisson",
     variance: "V(u) = u",
     link: "log",
     v: (u) => u,
-    ll: (y, u) => y * Math.log(u) - u - lnFactorial(y),
-    deviance: (y, u) => 2 * ((y ? y * Math.log(y / u) : 0) - (y - u)),
+    dv: () => 1,
+    ll: (y, u) => -u + y * Math.log(u) - lngamma(y + 1),
+    deviance: (y, u) => (y === 0 ? 2 * u : 2 * (y * Math.log(y / u) - (y - u))),
+    bound: (u) => (u <= EPS ? EPS : u),
   },
 };
 const match = (table, word, what) => {
@@ -82,120 +137,218 @@ const match = (table, word, what) => {
   return key;
 };
 
-/** Fits a family and link; returns estimates, variance and fit statistics. */
-function fitGlm(session, parsed, familyName, linkName) {
-  const family = FAMILIES[familyName],
-    link = LINKS[linkName],
-    constant = parsed.options.constant !== false,
-    { dependent, columns, sample } = design(
-      session,
-      parsed.anything,
-      session.rows(parsed, null),
-      constant,
-    ),
-    active = columns.filter((c) => !c.base),
-    n = sample.length;
-  if (!n) throw new StataError("no observations", 2000);
-  const raw = sample.map((i) => dependent.data[i]),
-    y = familyName === "binomial" ? raw.map((v) => Number(v !== 0)) : raw,
-    x = sample.map((i) => [
+/**
+ * The sums of a fit's log likelihood, gradient and observed information,
+ * term(i, xb, todo) giving one observation's [value, score, weight].
+ */
+function sums(x, term) {
+  const k = x[0].length;
+  return (theta, todo) => {
+    const total = quadSum(),
+      gradient = new Array(k).fill(0),
+      information = Array.from({ length: k }, () => new Array(k).fill(0));
+    for (let i = 0; i < x.length; i++) {
+      const r = x[i],
+        [value, score, weight] = term(i, dot(r, theta), todo);
+      if (!Number.isFinite(value)) return { value: NaN, gradient, information };
+      total.add(value);
+      if (!todo) continue;
+      for (let a = 0; a < k; a++) {
+        gradient[a] += score * r[a];
+        const wa = weight * r[a],
+          line = information[a];
+        for (let c = 0; c <= a; c++) line[c] += wa * r[c];
+      }
+    }
+    for (let a = 0; a < k; a++)
+      for (let c = 0; c < a; c++) information[c][a] = information[a][c];
+    return { value: total.value, gradient, information };
+  };
+}
+
+/**
+ * A binary outcome's design after Stata's search for perfect predictors
+ * (_rmcoll with the logit option, which glm runs for a 0/1 binomial
+ * outcome and cloglog runs through logit): the observations a predictor
+ * explains are set aside, it and any column now collinear are omitted, and
+ * the notes are kept to print before the iteration log. f is frame()'s.
+ */
+function separated(f, outcome, constant, ctx) {
+  const found = perfectPrediction(f.columns, f.sample, outcome, ctx, false);
+  if (!found.rules.length) return f;
+  for (const rule of found.rules) rule.column.perfect = true;
+  const kept = f.sample.filter((_, j) => found.keep[j]);
+  recheckCollinearity(f.columns, kept, constant);
+  for (const c of f.columns) c.omitted = !!c.collinear || !!c.perfect;
+  const active = f.columns.filter((c) => !c.base && !c.omitted),
+    at = [
+      ...f.columns.map((c) => active.indexOf(c)),
+      ...(constant ? [active.length] : []),
+    ];
+  return {
+    ...f,
+    perfect: found.notes,
+    active,
+    sample: kept,
+    at,
+    place: (theta, V) => ({
+      b: at.map((j) => (j >= 0 ? theta[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+      estimable: at.map((j) => j >= 0),
+    }),
+    notes: (ctx) => {
+      const omitted = f.columns.filter((c) => c.collinear && !c.perfect);
+      for (const c of omitted)
+        ctx.out(`note: ${c.name} omitted because of collinearity.`);
+      return omitted.length;
+    },
+    y: kept.map((i) => f.dependent.data[i]),
+    x: kept.map((i) => [
       ...active.map((c) => c.value(i)),
       ...(constant ? [1] : []),
     ]),
+    // The whole sample with the columns that remain, which glm.ado still
+    // uses for its starting values and its deviance, and cloglog.ado for
+    // the shares in its constant-only likelihood.
+    whole: {
+      y: f.y,
+      x: f.sample.map((i) => [
+        ...active.map((c) => c.value(i)),
+        ...(constant ? [1] : []),
+      ]),
+    },
+  };
+}
+
+/**
+ * Fits a family and link; returns estimates, variance and fit statistics.
+ * notes collects what Stata says of the outcome before the iteration log.
+ */
+function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
+  const link = LINKS[linkName],
+    constant = parsed.options.constant !== false;
+  let f = frame(session, parsed, constant),
+    family = FAMILIES[familyName];
+  const name = f.dependent.name;
+  if (!f.x[0].length) throw new StataError("too few variables specified", 102);
+  if (familyName !== "gaussian") {
+    const y = f.y;
+    if (y.some((v) => v < 0))
+      throw new StataError(
+        `dependent variable ${name} has negative values`,
+        499,
+      );
+    if (familyName === "binomial" && y.some((v) => v > 1))
+      throw new StataError(`${name} > 1 in some cases`, 499);
+    if (y.some((v) => !Number.isInteger(v)))
+      notes.push(`note: ${name} has noninteger values`);
+    // A proportion between 0 and 1 is a binomial outcome of one trial.
+    if (familyName === "binomial" && y.some((v) => v !== 0 && v !== 1))
+      family = { ...family, title: "Binomial", variance: "V(u) = u*(1-u/1)" };
+    else if (familyName === "binomial") f = separated(f, y, constant, ctx);
+  }
+  const { x, y } = f,
+    n = y.length,
     k = x[0].length,
-    dot = (row, theta) => row.reduce((t, v, j) => t + v * theta[j], 0);
-  if (familyName === "poisson" && y.some((v) => v < 0))
-    throw new StataError(`${dependent.name} must be nonnegative`, 459);
-  if (familyName === "binomial" && y.every((v) => v === y[0]))
-    throw new StataError("outcome does not vary", 2000);
-  let theta, V, ll, log;
+    whole = f.whole ?? f;
+  let theta, V, ll, log, logNotes, converged;
   if (familyName === "gaussian") {
     if (linkName !== "identity")
       throw new StataError("family(gaussian) takes link(identity) here", 198);
-    // Least squares, by maximising the concentrated likelihood's kernel.
-    const result = maximize((b) => {
-      const gradient = new Array(k).fill(0);
-      let value = 0;
-      x.forEach((row, i) => {
-        const e = y[i] - dot(row, b);
-        value -= 0.5 * e * e;
-        row.forEach((v, j) => (gradient[j] += e * v));
-      });
-      return { value, gradient };
-    }, new Array(k).fill(0));
-    theta = result.theta;
-    const rss = x.reduce((t, row, i) => t + (y[i] - dot(row, theta)) ** 2, 0),
+    // Least squares, which glm.ado reports without iterating.
+    const xtx = Array.from({ length: k }, () => new Array(k).fill(0));
+    for (const r of x)
+      for (let a = 0; a < k; a++)
+        for (let c = 0; c < k; c++) xtx[a][c] += r[a] * r[c];
+    const inverse = invertSymmetric(xtx);
+    theta = inverse && leastSquares(x, y, null);
+    if (!theta)
+      throw new StataError(
+        "the model could not be fitted: the regressors are collinear",
+        430,
+      );
+    const rss = x.reduce((t, r, i) => t + (y[i] - dot(r, theta)) ** 2, 0),
       scale = rss / (n - k);
-    V = result.V.map((r) => r.map((v) => v * scale));
+    V = inverse.map((r) => r.map((v) => v * scale));
     ll = -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1);
     log = [ll];
+    logNotes = [""];
+    converged = true;
   } else {
+    // glm.ado's starting values: one IRLS step from a mean between each
+    // outcome and the mean outcome (for the binomial, between it and 1/2).
+    // Perfect predictors set aside, its regression still takes every
+    // observation of the sample.
     const mean = y.reduce((a, b) => a + b, 0) / n,
-      start = new Array(k).fill(0);
-    if (constant)
-      start[k - 1] =
-        linkName === "log"
-          ? Math.log(mean)
-          : linkName === "logit"
-            ? Math.log(mean / (1 - mean))
-            : linkName === "probit"
-              ? invnormal(mean)
-              : Math.log(-Math.log(1 - mean));
-    const result = maximize((b) => {
-      const gradient = new Array(k).fill(0);
-      let value = 0;
-      for (let i = 0; i < n; i++) {
-        const [u, du] = link.mean(dot(x[i], b));
-        if (!(u > 0) || (familyName === "binomial" && !(u < 1)))
-          return { value: -Infinity, gradient };
-        value += family.ll(y[i], u);
-        const d = ((y[i] - u) / family.v(u)) * du;
-        x[i].forEach((v, j) => (gradient[j] += d * v));
-      }
-      return { value, gradient };
-    }, start);
-    ({ theta, V, ll, log } = result);
+      z = whole.y.map(() => 0),
+      w = whole.y.map(() => 0);
+    whole.y.forEach((v, i) => {
+      const u = familyName === "binomial" ? (v + 0.5) / 2 : (v + mean) / 2,
+        e = link.eta(u),
+        d = link.d1(u);
+      z[i] = e + (v - u) / d;
+      w[i] = (d * d) / family.v(u);
+    });
+    const start = leastSquares(whole.x, z, w) ?? new Array(k).fill(0),
+      // glim_lf: the log likelihood, its score and the observed
+      // information in the index, with the mean kept inside its range.
+      fit = maximizeNR(
+        sums(x, (i, xb, todo) => {
+          const u = family.bound(link.mu(xb)),
+            value = family.ll(y[i], u);
+          if (!todo) return [value];
+          const d1 = link.d1(u),
+            v = family.v(u),
+            t1 = (d1 * d1) / v;
+          return [
+            value,
+            ((y[i] - u) / v) * d1,
+            t1 - (u - y[i]) * ((t1 / v) * family.dv(u) - link.d2(u) / v),
+          ];
+        }),
+        start,
+      );
+    ({ theta, V, ll, log, converged } = fit);
+    logNotes = fit.notes;
   }
-  const fitted = x.map((row) => link.mean(dot(row, theta))[0]),
+  // The deviance and Pearson statistic are summed, as glm.ado sums them,
+  // over the whole sample, observations a perfect predictor set aside
+  // included.
+  const fitted = whole.x.map((r) => family.bound(link.mu(dot(r, theta)))),
+    observed = whole.y,
     deviance =
       familyName === "gaussian"
-        ? fitted.reduce((t, u, i) => t + (y[i] - u) ** 2, 0)
-        : fitted.reduce((t, u, i) => t + family.deviance(y[i], u), 0),
-    pearson = fitted.reduce((t, u, i) => t + (y[i] - u) ** 2 / family.v(u), 0),
-    names = [...columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
-    used = [...active.map((c) => c.name), ...(constant ? ["_cons"] : [])],
-    position = new Map(used.map((name, j) => [name, j]));
+        ? fitted.reduce((t, u, i) => t + (observed[i] - u) ** 2, 0)
+        : fitted.reduce((t, u, i) => t + family.deviance(observed[i], u), 0),
+    pearson = fitted.reduce(
+      (t, u, i) => t + (observed[i] - u) ** 2 / family.v(u),
+      0,
+    ),
+    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])];
   return {
+    f,
     family,
     link,
     y,
     n,
     k,
     theta,
-    used,
+    V,
     ll,
     log,
+    logNotes,
+    converged,
     deviance,
     pearson,
     model: {
       command: "glm",
       title: "Generalized linear models",
       dist: "z",
-      depvar: dependent.name,
+      depvar: name,
       names,
-      b: names.map((name) =>
-        position.has(name) ? theta[position.get(name)] : 0,
-      ),
-      V: names.map((r) =>
-        names.map((c) =>
-          position.has(r) && position.has(c)
-            ? V[position.get(r)][position.get(c)]
-            : 0,
-        ),
-      ),
-      columns,
+      ...f.place(theta, V),
+      columns: f.columns,
       constant,
-      estimable: names.map((name) => position.has(name)),
       N: n,
       df_m: k - (constant ? 1 : 0),
       rank: k,
@@ -203,43 +356,78 @@ function fitGlm(session, parsed, familyName, linkName) {
       vce: "oim",
       kind: "glm",
       link: linkName,
-      sample,
+      sample: f.sample,
     },
-    V,
   };
 }
-function coefficientTable(ctx, fitted, level, oim) {
-  const critical = invnormal(1 - (1 - level / 100) / 2);
-  ctx.out(RULE);
-  if (oim) ctx.out("             |                 OIM");
-  ctx.out(
-    `${fitted.model.depvar.padStart(12)} | Coefficient  ${oim ? "std" : "Std"}. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(SPLIT);
-  fitted.used.forEach((name, j) => {
-    const b = fitted.theta[j],
-      se = Math.sqrt(fitted.V[j][j]),
-      z = b / se;
+
+/** A coefficient table, with OIM above the standard errors if asked. */
+function coefficientTable(session, ctx, fitted, options, oim) {
+  const { f, model } = fitted,
+    w = tableWidth(session, tableModel(f), [model.depvar]);
+  if (oim) {
+    ctx.out(rule(w));
+    ctx.out(`${" ".repeat(w + 1)}|${" ".repeat(17)}OIM`);
     ctx.out(
-      `${name.padStart(12)} |${g(b).padStart(11)}${g(se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(b - critical * se).padStart(13)}${g(b + critical * se).padStart(12)}`,
+      `${abbreviate(model.depvar, w).padStart(w)} | Coefficient  std. err.      z    P>|z|     [${g(options.level)}% conf. interval]`,
     );
-  });
-  ctx.out(RULE);
-  ctx.out("");
+    ctx.out(split(w));
+  } else
+    tableHead(ctx, model.depvar, options.level, "Coefficient", false, false, w);
+  layoutRows(
+    session,
+    f,
+    baseLevelsAsked(options),
+    (j) =>
+      row(
+        "",
+        fitted.theta[j],
+        Math.sqrt(fitted.V[j][j]),
+        options.level,
+        0,
+      ).slice(1),
+    w,
+  ).forEach(ctx.out);
+  ctx.out(rule(w));
 }
-const iterationLog = (ctx, text, log) => {
-  if (/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) return;
-  log.forEach((value, j) =>
-    ctx.out(
-      `Iteration ${j}:  Log likelihood = ${g(value, "%10.0g").padStart(10)}`,
-    ),
+
+/** The Wald statistic that the coefficients at `at` are all zero. */
+function wald(theta, V, at) {
+  const inverse =
+    at.length && invertSymmetric(at.map((r) => at.map((c) => V[r][c])));
+  if (!inverse) return MISSING;
+  return at.reduce(
+    (t, r, a) =>
+      t + theta[r] * at.reduce((u, c, b) => u + inverse[a][b] * theta[c], 0),
+    0,
   );
+}
+
+/**
+ * What glm and cloglog print before their header: the notes, a blank line
+ * and the iteration log. Without a log, a fit that did not converge says
+ * so before the blank line.
+ */
+function opening(ctx, text, fitted, notes) {
+  (fitted.f.perfect ?? []).forEach(ctx.out);
+  fitted.f.notes(ctx);
+  notes.forEach(ctx.out);
+  if (!fitted.converged && /\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
+    ctx.out("convergence not achieved");
   ctx.out("");
-};
+  iterations(
+    ctx,
+    text,
+    fitted.log,
+    "Log likelihood",
+    fitted.logNotes,
+    fitted.converged,
+  );
+}
 
 function glm(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Family(string) Link(string) Level(cilevel) noLOg noCONStant | Robust VCE(string) EForm SCale(string) OFFset(varname) EXPosure(varname) IRLS]",
+      "anything [if] [in] [, Family(string) Link(string) Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels | Robust VCE(string) EForm SCale(string) OFFset(varname) EXPosure(varname) IRLS]",
       text,
     ),
     options = parsed.options,
@@ -254,7 +442,8 @@ function glm(session, text, ctx) {
     linkName = options.link
       ? match(LINKS, options.link.trim().toLowerCase(), "link")
       : FAMILIES[familyName].link,
-    fitted = fitGlm(session, parsed, familyName, linkName),
+    notes = [],
+    fitted = fitGlm(session, parsed, familyName, linkName, notes, ctx),
     { n, k, deviance, pearson, ll } = fitted,
     df = n - k,
     scale = familyName === "gaussian" ? deviance / df : 1,
@@ -265,7 +454,7 @@ function glm(session, text, ctx) {
   session.estimates = fitted.model;
   session.results.e = {
     N: n,
-    df_m: k - 1,
+    df_m: fitted.model.df_m,
     df: df,
     deviance,
     deviance_p: pearson,
@@ -276,13 +465,14 @@ function glm(session, text, ctx) {
     aic,
     bic,
     rank: k,
-    k,
+    // Every coefficient, base levels and omitted ones included.
+    k: fitted.model.names.length,
     cmd: "glm",
     depvar: fitted.model.depvar,
     vce: "oim",
+    converged: fitted.converged ? 1 : 0,
   };
-  ctx.out("");
-  iterationLog(ctx, text, fitted.log);
+  opening(ctx, text, fitted, notes);
   ctx.out(
     `${"Generalized linear models".padEnd(50)}${right("Number of obs", count(n))}`,
   );
@@ -309,30 +499,129 @@ function glm(session, text, ctx) {
     `${`Log likelihood   = ${long(ll)}`.padEnd(50)}${right("BIC", g(bic))}`,
   );
   ctx.out("");
-  coefficientTable(ctx, fitted, options.level, true);
+  coefficientTable(session, ctx, fitted, options, true);
+  unconverged(fitted);
+  ctx.out("");
+}
+
+/**
+ * cloglog as cloglog.ado fits it: the estimates of three iterations of
+ * logit start clog_lf, whose log likelihood, score and negative Hessian
+ * are taken here as it takes them.
+ */
+function fitCloglog(session, parsed, ctx) {
+  const constant = parsed.options.constant !== false,
+    whole = frame(session, parsed, constant),
+    outcome = whole.y.map((v) => Number(v !== 0));
+  if (!whole.x[0].length)
+    throw new StataError("too few variables specified", 102);
+  if (outcome.every((v) => v === outcome[0]))
+    throw new StataError("outcome does not vary", 2000);
+  const f = separated(whole, outcome, constant, ctx),
+    x = f.x,
+    y = f.y.map((v) => Number(v !== 0)),
+    n = y.length,
+    k = x[0].length;
+  const ones = y.reduce((a, b) => a + b, 0),
+    // logit, iter(3), from the constant-only model.
+    logit = new Array(k).fill(0);
+  if (constant) logit[k - 1] = Math.log(ones / (n - ones));
+  const begun = f.active.length
+      ? maximizeNR(
+          sums(x, (i, xb, todo) => {
+            const p = 1 / (1 + Math.exp(-xb)),
+              value = y[i]
+                ? -Math.log1p(Math.exp(-xb))
+                : -Math.log1p(Math.exp(xb));
+            return todo ? [value, y[i] - p, p * (1 - p)] : [value];
+          }),
+          logit,
+          3,
+        ).theta
+      : logit,
+    fit = maximizeNR(
+      sums(x, (i, z, todo) => {
+        const e = Math.exp(z),
+          value = y[i]
+            ? z > 100
+              ? 0
+              : z < -12
+                ? z - (e / 2) * (-Math.expm1(z) / 4)
+                : Math.log1p(-Math.exp(-e))
+            : -e;
+        if (!todo) return [value];
+        const p = -Math.expm1(-e),
+          score = y[i] ? Math.exp(z - e) / p : -e;
+        return [
+          value,
+          score,
+          y[i] ? -(score / p) * (-Math.expm1(z) - Math.exp(-e)) : e,
+        ];
+      }),
+      begun,
+    ),
+    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])];
+  return {
+    f,
+    y,
+    n,
+    k,
+    theta: fit.theta,
+    V: fit.V,
+    ll: fit.ll,
+    log: fit.log,
+    logNotes: fit.notes,
+    converged: fit.converged,
+    model: {
+      command: "cloglog",
+      title: "Complementary log–log regression",
+      dist: "z",
+      depvar: f.dependent.name,
+      names,
+      ...f.place(fit.theta, fit.V),
+      columns: f.columns,
+      constant,
+      N: n,
+      df_m: f.active.length,
+      rank: k,
+      ll: fit.ll,
+      vce: "oim",
+      kind: "cloglog",
+      link: "cloglog",
+      sample: f.sample,
+    },
+  };
 }
 
 function cloglog(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Level(cilevel) noLOg noCONStant | Robust VCE(string) EForm OFFset(varname)]",
+      "anything [if] [in] [, Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels | Robust VCE(string) EForm OFFset(varname)]",
       text,
     ),
-    fitted = fitGlm(session, parsed, "binomial", "cloglog"),
+    fitted = fitCloglog(session, parsed, ctx),
     { n, y, ll } = fitted,
     zeros = y.filter((v) => !v).length,
-    // The constant-only model has a closed form: the share of ones.
-    share = (n - zeros) / n,
-    ll0 = (n - zeros) * Math.log(share) + zeros * Math.log(1 - share),
+    constant = fitted.model.constant,
+    // The constant-only model has a closed form: the share of ones, which
+    // cloglog.ado counts before perfect predictors set observations aside.
+    all = (fitted.f.whole ?? fitted.f).y,
+    share = all.filter((v) => v !== 0).length / all.length,
+    ll0 = constant
+      ? (n - zeros) * Math.log(share) + zeros * Math.log(1 - share)
+      : MISSING,
     dfModel = fitted.model.df_m,
-    chi2 = 2 * (ll - ll0),
-    p = chi2tail(dfModel, chi2),
+    // Without a constant there is no constant-only model, and ml tests
+    // the coefficients by Wald instead.
+    chi2 = constant
+      ? 2 * (ll - ll0)
+      : wald(
+          fitted.theta,
+          fitted.V,
+          fitted.f.active.map((_, j) => j),
+        ),
+    p = isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
     right = (label, value) => `${label.padEnd(18)}=${value.padStart(11)}`;
-  Object.assign(fitted.model, {
-    command: "cloglog",
-    title: "Complementary log–log regression",
-    kind: "cloglog",
-    ll_0: ll0,
-  });
+  if (constant) fitted.model.ll_0 = ll0;
   session.estimates = fitted.model;
   session.results.e = {
     N: n,
@@ -340,17 +629,18 @@ function cloglog(session, text, ctx) {
     N_s: n - zeros,
     df_m: dfModel,
     ll,
-    ll_0: ll0,
+    ...(constant ? { ll_0: ll0 } : {}),
     chi2,
     p,
+    chi2type: constant ? "LR" : "Wald",
     rank: fitted.k,
-    k: fitted.k,
+    k: fitted.model.names.length,
     cmd: "cloglog",
     depvar: fitted.model.depvar,
     vce: "oim",
+    converged: fitted.converged ? 1 : 0,
   };
-  ctx.out("");
-  iterationLog(ctx, text, fitted.log);
+  opening(ctx, text, fitted, []);
   ctx.out(
     `${"Complementary log–log regression".padEnd(48)}${right("Number of obs", count(n))}`,
   );
@@ -358,14 +648,15 @@ function cloglog(session, text, ctx) {
   ctx.out(`${" ".repeat(48)}${right("Nonzero outcomes", count(n - zeros))}`);
   ctx.out("");
   ctx.out(
-    `${" ".repeat(48)}${right(`LR chi2(${dfModel})`, applyFormat(chi2, "%9.2f").trim())}`,
+    `${" ".repeat(48)}${right(`${constant ? "LR" : "Wald"} chi2(${dfModel})`, applyFormat(chi2, "%9.2f").trim())}`,
   );
   ctx.out(
     `${`Log likelihood = ${g(ll, "%10.0g")}`.padEnd(48)}${right("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
   );
   ctx.out("");
-  coefficientTable(ctx, fitted, parsed.options.level, false);
-  if (isMissing(chi2)) return;
+  coefficientTable(session, ctx, fitted, parsed.options, false);
+  unconverged(fitted);
+  ctx.out("");
 }
 
 export const GLM_COMMANDS = [
