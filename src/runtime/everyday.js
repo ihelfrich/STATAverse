@@ -244,6 +244,10 @@ function ciProportions(session, text, ctx) {
   ctx.out(rule);
   let last = null,
     oneSided = false;
+  // An interval clipped at 0 or 1 is marked * or **, and footnoted, as
+  // ci_14_0.ado marks it; the name as its footnote writes it.
+  const clipped = { lower: false, upper: false },
+    method = { wald: "Wald", wilson: "Wilson", agresti: "Agresti–Coull" }[type];
   binary.forEach((variable, shown) => {
     if (shown && options.separator && shown % options.separator === 0)
       ctx.out(rule);
@@ -256,48 +260,62 @@ function ciProportions(session, text, ctx) {
       se = n ? Math.sqrt((p * (1 - p)) / n) : MISSING;
     let lb = MISSING,
       ub = MISSING,
-      star = "";
+      star = "",
+      low = false,
+      high = false;
     if (n && type === "exact") {
       if (k === 0) {
         lb = 0;
         ub = 1 - (alpha / 2) ** (1 / n);
-        star = "ub";
+        star = "*";
       } else if (k === n) {
         lb = (alpha / 2) ** (1 / n);
         ub = 1;
-        star = "lb";
+        star = "*";
       } else {
         lb = invibeta(k, n - k + 1, alpha / 2);
         ub = invibeta(k + 1, n - k, 1 - alpha / 2);
       }
     } else if (n && type === "wald") {
-      lb = p - z * se;
-      ub = p + z * se;
+      lb = Math.max(0, p - z * se);
+      ub = Math.min(1, p + z * se);
+      low = lb === 0;
+      high = ub === 1;
     } else if (n && type === "wilson") {
-      const centre = p + (z * z) / (2 * n),
-        spread = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n)),
-        scale = 1 + (z * z) / n;
-      lb = (centre - spread) / scale;
-      ub = (centre + spread) / scale;
+      const centre = (k + (z * z) / 2) / (n + z * z),
+        spread =
+          ((z * Math.sqrt(n)) / (n + z * z)) *
+          Math.sqrt(p * (1 - p) + (z * z) / (4 * n));
+      lb = centre - spread;
+      ub = centre + spread;
+      low = lb < 0;
+      high = ub > 1;
     } else if (n && type === "agresti") {
       const m = n + z * z,
         q = (k + (z * z) / 2) / m,
-        spread = z * Math.sqrt((q * (1 - q)) / m);
-      lb = Math.max(0, q - spread);
-      ub = Math.min(1, q + spread);
+        spread = (z * Math.sqrt(q * (1 - q))) / Math.sqrt(m);
+      lb = q - spread;
+      ub = q + spread;
+      low = lb < 0;
+      high = ub > 1;
     } else if (n && type === "jeffreys") {
       lb = k === 0 ? 0 : invibeta(k + 0.5, n - k + 0.5, alpha / 2);
       ub = k === n ? 1 : invibeta(k + 0.5, n - k + 0.5, 1 - alpha / 2);
     }
     if (star) oneSided = true;
+    if (low) lb = 0;
+    if (high) ub = 1;
+    if (low || high) star = low && high ? "* **" : low ? "*" : "**";
+    clipped.lower ||= low;
+    clipped.upper ||= high;
     const number = (value) => applyFormat(value, "%9.0g");
     let line = `${padDisplay(abbreviateAmong(variable.name, 12, session.data.names), 12)} |`;
     for (const [column, cell] of [
       [16, applyFormat(n, "%10.0fc")],
       [29, number(p)],
       [41, number(se)],
-      [57, number(lb) + (star === "lb" ? "*" : "")],
-      [69, number(ub) + (star === "ub" ? "*" : "")],
+      [57, number(lb)],
+      [69, number(ub) + star],
     ])
       line = line.padEnd(column - 1) + cell;
     ctx.out(line);
@@ -308,6 +326,25 @@ function ciProportions(session, text, ctx) {
     ctx.out(
       `(*) one-sided, ${g(100 - (100 - level) / 2)}% confidence interval`,
     );
+  }
+  if (clipped.lower || clipped.upper) ctx.out("");
+  if (clipped.lower)
+    ctx.out(`(*) The ${method} interval was clipped at the lower endpoint`);
+  if (clipped.upper)
+    ctx.out(`(**) The ${method} interval was clipped at the upper endpoint`);
+  // ci.ado's note when some variables named have more than two levels.
+  const twoLevels = parsed.varlist.filter((name) => {
+    const variable = session.data.get(name),
+      present = new Set(
+        rows
+          .map((i) => variable.data[i])
+          .filter((v) => (isStringType(variable.type) ? true : !isMissing(v))),
+      );
+    return present.size <= 2;
+  });
+  if (twoLevels.length < parsed.varlist.length) {
+    ctx.out("");
+    ctx.out("Note: The results are produced only for binary (0/1) variables.");
   }
   ctx.out("");
   session.results.r = last;

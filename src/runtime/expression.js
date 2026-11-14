@@ -510,6 +510,17 @@ export function compileExpression(source, scope = {}) {
   const or = binaryLevel(["|"], and, logical);
 
   if (!tokens.length) throw invalid("expression is empty");
+  // A closing parenthesis or bracket with nothing of its kind open is
+  // Stata's "too many", whatever else the expression holds: 1], (1+2].
+  const open = [];
+  for (const token of tokens)
+    if (token.type !== "op") continue;
+    else if (token.value === "(" || token.value === "[") open.push(token.value);
+    else if (
+      (token.value === ")" || token.value === "]") &&
+      open.pop() !== (token.value === ")" ? "(" : "[")
+    )
+      throw new StataError("too many ')' or ']'", 132);
   const root = or();
   if (at < tokens.length) {
     const extra = tokens[at];

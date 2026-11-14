@@ -105,6 +105,8 @@ const FACTOR_OPERATOR =
 // A time-series operated variable: L., F., D. and S., each with an order
 // or a numlist in parentheses, combined as in LD.y or L(0/2).x.
 const SERIES_OPERATOR = /^((?:[LFDS](?:\d+|\([^()]*\))?)+)\.([A-Za-z_]\w*)$/i;
+// The indicator of one level of a factor: 2.g.
+const LEVEL_INDICATOR = /^(\d+)\.([A-Za-z_]\w*)$/;
 
 /**
  * The variables a time-series operated term stands for, under tsset or
@@ -233,7 +235,8 @@ function baseLevel(spec, levels, variable, sample) {
  * when given, are the observations whose values give each factor's levels.
  */
 export function design(session, text, rows, constant = true, levelRows) {
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  // Words split at blanks outside parentheses, so that L(1 2).x is one.
+  const tokens = text.trim().match(/(?:[^\s(]|\([^()]*\))+/g) ?? [];
   if (!tokens.length) throw new StataError("varlist required", 100);
   // A string variable is a slip Stata reports two ways: as a factor it is
   // refused by name; otherwise its values are all missing to the fit, which
@@ -345,7 +348,27 @@ export function design(session, text, rows, constant = true, levelRows) {
     } else if (token.includes("#"))
       add(token.split("#").map((part) => component(restore(part), true)));
     else if (FACTOR_OPERATOR.test(written)) add([component(written, false)]);
-    else if (SERIES_OPERATOR.test(written))
+    else if (LEVEL_INDICATOR.test(written)) {
+      // 2.g: the indicator of one level, a column of its own named so.
+      const [, level, name] = LEVEL_INDICATOR.exec(written),
+        variable = numeric(name, true),
+        value = Number(level);
+      add([
+        {
+          variable: {
+            name: `${value}.${variable.name}`,
+            type: "byte",
+            format: "%9.0g",
+            label: "",
+            valueLabel: "",
+            data: Float64Array.from(variable.data, (v) =>
+              isMissing(v) ? MISSING : Number(v === value),
+            ),
+          },
+          factor: false,
+        },
+      ]);
+    } else if (SERIES_OPERATOR.test(written))
       for (const variable of seriesVariables(session, written))
         add([{ variable, factor: false }]);
     else
@@ -1106,9 +1129,12 @@ export function termRows(
         if (b) blank();
         out.push(`${short(groupOf[b].base).padStart(w)} |`);
       }
-      previousPlain = false;
       const k = block.items[0],
         label = block.term.variable.ts?.label ?? "--.";
+      // A group that ends with the variable itself (L.x x) runs on into
+      // what follows; one that ends with an operated row has a blank row
+      // after it.
+      previousPlain = label === "--.";
       return out.push(
         model.estimable[k]
           ? `${label.padStart(w)} |${cells(k)}`
@@ -1290,6 +1316,8 @@ function regress(session, text, ctx) {
     ),
     model = fit(session, parsed, null),
     level = parsed.options.level,
+    // A replay of a clustered fit with beta shows no beta coefficients.
+    noBeta = !!model.clusters && !!parsed.options.beta,
     stat = (label, value, wide, relation = "=") =>
       wide
         ? `${label.padEnd(18)}${relation}${value.padStart(11)}`
@@ -1316,6 +1344,11 @@ function regress(session, text, ctx) {
         wide,
       ),
     ];
+  if (noBeta && !ctx.replaying)
+    throw new StataError(
+      "options vce(cluster clustvar) and beta may not be combined",
+      184,
+    );
   model.baseLevels = baseLevelsAsked(parsed.options);
   session.estimates = model;
   session.results.e = regressResults(session, model, text, parsed);
@@ -1390,7 +1423,7 @@ function regress(session, text, ctx) {
       (k) => {
         const { se, t, p } = coefficientTest(model, k),
           beta =
-            model.names[k] === "_cons"
+            model.names[k] === "_cons" || noBeta
               ? MISSING
               : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
                 sdY;
@@ -1583,7 +1616,7 @@ export function predict(session, text, ctx) {
     return panelPredict(session, early, text, ctx);
   const model = estimates(session),
     parsed = session.parse(
-      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFIts DFBeta(string) | SCores]",
+      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFIts DFBeta(string) COVratio Welsch | SCores]",
       text,
     ),
     options = parsed.options,
@@ -1597,6 +1630,8 @@ export function predict(session, text, ctx) {
       "hat",
       "dfits",
       "dfbeta",
+      "covratio",
+      "welsch",
     ].filter((name) => options[name]),
     chosen = ["xb", "residuals", "stdp", ...extra].filter(
       (name) => options[name],
@@ -1620,6 +1655,16 @@ export function predict(session, text, ctx) {
         `option ${extra[0]} is only available after regress`,
         198,
       );
+    // What a weighted fit cannot give: DFBETAs after any weights, and the
+    // statistics of a left-out observation after analytic weights.
+    if (model.wtype && extra[0] === "dfbeta")
+      throw new StataError("not possible after weighted regression", 398);
+    if (
+      model.wtype &&
+      model.wtype !== "fweight" &&
+      /^(dfits|cooksd|rstudent|rstandard|welsch|stdf|stdr)$/.test(extra[0])
+    )
+      throw new StataError("not possible with weighted data", 135);
     // DFITS and DFBETA(), for the estimation sample.
     if (extra[0] === "dfits" || extra[0] === "dfbeta") {
       let k = null;
@@ -3923,6 +3968,8 @@ function dfbeta(session, text, ctx) {
   ctx.out("");
   ctx.out(`Generating DFBETA variable${wanted.length > 1 ? "s" : ""} ...`);
   ctx.out("");
+  if (model.wtype)
+    throw new StataError("not possible after weighted regression", 398);
   let next = 1;
   for (const k of wanted) {
     const values = influence(session, model, k, "dfbeta()");

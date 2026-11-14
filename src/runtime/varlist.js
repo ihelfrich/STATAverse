@@ -37,9 +37,11 @@ export function expandVarlist(text, names) {
         "factor-variable and time-series operators not allowed",
         101,
       );
-    else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(word))
-      throw new StataError(`${word} invalid name`, 198);
-    else if (word.includes("-")) {
+    else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(word)) {
+      // x] or x@: the character that cannot be in a name is named.
+      const stray = /^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*(.)/u.exec(word);
+      throw new StataError(`${stray ? stray[1] : word} invalid name`, 198);
+    } else if (word.includes("-")) {
       const ends = word.split("-");
       if (ends.length !== 2 || !ends[0] || !ends[1])
         throw new StataError(`${word} invalid name`, 198);

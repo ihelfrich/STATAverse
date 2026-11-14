@@ -416,6 +416,21 @@ function newVariables(text, context) {
     // name:label attaches a value label, which generate handles itself.
     const name = token.split(":")[0];
     if (name === "_all") throw notAllowed("_all");
+    // A name that starts well and then meets a character no name has is
+    // refused by that character, as Stata's parser reads it (y@ is "@
+    // invalid name"); a range (y-z) is not a new name at all.
+    const stray =
+      /^[\p{L}_][\w\u0080-\u{10FFFF}.]*([^\w\u0080-\u{10FFFF}.])/u.exec(name);
+    if (
+      stray &&
+      context.names.includes(name.slice(0, stray.index + stray[0].length - 1))
+    )
+      throw new StataError(
+        `variable ${name.slice(0, stray[0].length - 1)} already defined`,
+        110,
+      );
+    if (stray?.[1] === "-") throw new StataError("invalid syntax", 198);
+    if (stray) throw new StataError(`${stray[1]} invalid name`, 198);
     if (!isName(name) || isReserved(name))
       throw new StataError(`${name} invalid name`, 198);
     if (context.names.includes(name))

@@ -193,15 +193,20 @@ scalar tss = r(Var)*(r(N)-1)`);
   close(s.scalars.get("tss"), 51.4046744663746367, 1e-14);
 });
 
-test("a replay with options refits only when the data are as they were", () => {
+test("a replay with options shows the fit as made, whatever the data now hold", () => {
+  // As Stata replays from its stored results (pass 7, second round): the
+  // data changed, dropped or cleared after the fit leave a replay with
+  // level() or beta as it was.
   const s = new Session();
   s.run(`${DATA}quietly regress y x`);
-  assert.equal(s.run("regress, level(90)").rc, 0);
+  const before = s.run("regress, level(90)");
+  assert.equal(before.rc, 0);
   s.run("replace y = y + x in 1/5");
   const changed = s.run("regress, level(90)");
-  assert.equal(changed.rc, 198);
-  assert.match(changed.output.at(-1).lines.join("\n"), /data have changed/);
-  // The fit shown alone is the one made, whatever the data now hold.
+  assert.equal(changed.rc, 0);
+  assert.deepEqual(changed.output.at(-1).lines, before.output.at(-1).lines);
+  s.run("clear");
+  assert.equal(s.run("regress, beta").rc, 0);
   assert.equal(s.run("regress").rc, 0);
   assert.equal(s.run("regress, robust").rc, 198);
 });

@@ -792,8 +792,19 @@ export function leverageStatistic(session, model, option) {
     cooksd: "Cook's D",
     stdr: "S.E. of the residual",
     stdf: "S.E. of the forecast",
+    covratio: "COVRATIO",
+    welsch: "Welsch distance",
   };
   if (!labels[option]) return null;
+  // COVRATIO and Welsch distance are for the estimation sample, and a
+  // robust fit has neither.
+  const sampleOnly = option === "covratio" || option === "welsch";
+  if (sampleOnly && model.vce !== "ols")
+    throw new StataError(
+      `option ${option} not allowed after robust estimation`,
+      198,
+    );
+  const inSample = sampleOnly ? new Set(model.sample) : null;
   if (model.command !== "regress" || model.vce !== "ols")
     if (option !== "stdf" && option !== "stdr")
       if (model.command !== "regress")
@@ -805,6 +816,7 @@ export function leverageStatistic(session, model, option) {
     n = model.N,
     values = new Array(data.n).fill(MISSING);
   for (let i = 0; i < data.n; i++) {
+    if (inSample && !inSample.has(i)) continue;
     const row = model.names.map((name, j) =>
       name === "_cons" ? 1 : model.columns[j].value(i),
     );
@@ -826,6 +838,13 @@ export function leverageStatistic(session, model, option) {
     else if (option === "rstudent") {
       const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1);
       values[i] = e / Math.sqrt(without * (1 - h));
+    } else if (option === "covratio") {
+      const r2 = (e * e) / (s2 * (1 - h));
+      values[i] = ((n - k - r2) / (n - k - 1)) ** k / (1 - h);
+    } else if (option === "welsch") {
+      const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1),
+        r = e / Math.sqrt(without * (1 - h));
+      values[i] = ((r * Math.sqrt(h)) / (1 - h)) * Math.sqrt(n - 1);
     } else if (option === "cooksd")
       values[i] = ((e * e) / (s2 * (1 - h))) * (h / ((1 - h) * k));
   }

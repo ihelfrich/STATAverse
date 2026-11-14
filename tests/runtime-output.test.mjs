@@ -154,6 +154,9 @@ for (const c of fixture.cases)
             "models6-ordered-margins-factors",
             // logit, or and poisson, irr replay the fit by fitting it again.
             "pass7-debug-replay-likelihood",
+            // logit and logistic fits shown again, alone and stored.
+            "pass7-debug2-replay-logistic",
+            "pass7-debug2-estimates-replay",
           ].includes(c.id),
         )
       )

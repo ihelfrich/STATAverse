@@ -480,6 +480,20 @@ export const FUNCTIONS = {
     }
     return out;
   }),
+  // A name made of the string: each character that may not be in a name
+  // becomes _, a leading digit is prefixed with _ (unless p is 0), and the
+  // name is cut to 32 characters.
+  strtoname: {
+    args: [S, N],
+    min: 1,
+    returns: S,
+    lenient: true,
+    fn: (s, p = 1) => {
+      const name = [...s].map((c) => (/[\p{L}\p{Nd}_]/u.test(c) ? c : "_"));
+      if (p !== 0 && /^[0-9]/.test(name[0] ?? "")) name.unshift("_");
+      return name.slice(0, 32).join("");
+    },
+  },
   strtrim: text((s) => s.replace(/^ +| +$/g, "")),
   strltrim: text((s) => s.replace(/^ +/, "")),
   strrtrim: text((s) => s.replace(/ +$/, "")),

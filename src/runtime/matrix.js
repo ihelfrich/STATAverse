@@ -1,9 +1,11 @@
 // Matrices: matrix define from any matrix expression (e(b), e(V), r()
 // matrices, literals, joins with , and \\, +, -, *, #, /, ', subscripts,
-// inv(), invsym(), cholesky(), diag(), vecdiag(), J(), I(), hadamard() and
-// scalar functions); element assignment; matrix list, drop, dir, rownames,
-// colnames and accum; mkmat; and A[i,j], rowsof(), colsof(), el(), det()
-// and trace() in expressions.
+// inv(), invsym(), cholesky(), diag(), vecdiag(), J(), I(), hadamard(),
+// corr(), vec(), vech(), sweep(), nullmat(), get(_b), get(VCE) and scalar
+// functions); element assignment; matrix list, drop, dir, rownames,
+// colnames and accum (with factor variables and time-series operators);
+// mkmat; and A[i,j], rowsof(), colsof(), el(), det() and trace() in
+// expressions.
 import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat, isFormat } from "./format.js";
@@ -15,7 +17,9 @@ import {
   isStringType,
 } from "./values.js";
 import { evaluateAll } from "./expression.js";
-import { coefficientSpace, stripeName } from "./estimation.js";
+import { FUNCTIONS as SCALAR_FUNCTIONS } from "./functions.js";
+import { coefficientSpace, design, stripeName } from "./estimation.js";
+import { splitAtComma } from "./syntax.js";
 
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
 
@@ -175,7 +179,11 @@ function kronecker(a, b) {
     ),
   };
 }
+// nullmat(A) of a matrix not yet defined is nothing, which a join passes
+// over, so that A = nullmat(A) \ row builds A row by row.
 function joinColumns(a, b) {
+  if (a.empty) return b;
+  if (b.empty) return a;
   if (a.values.length !== b.values.length) throw conformability();
   return {
     rowNames: [...a.rowNames],
@@ -184,6 +192,8 @@ function joinColumns(a, b) {
   };
 }
 function joinRows(a, b) {
+  if (a.empty) return b;
+  if (b.empty) return a;
   if (a.colNames.length !== b.colNames.length) throw conformability();
   return {
     rowNames: [...a.rowNames, ...b.rowNames],
@@ -414,6 +424,61 @@ export function matrixExpression(session, source) {
         ),
       };
     },
+    // corr() of a covariance matrix; vec() and vech() stack the columns
+    // (vech the lower triangle), each row named column:row.
+    corr: ([m]) => {
+      square(m);
+      const v = m.values;
+      if (!v.every((row, i) => row.every((x, j) => x === v[j][i])))
+        throw new StataError("matrix not symmetric", 505);
+      return {
+        rowNames: [...m.rowNames],
+        colNames: [...m.colNames],
+        values: v.map((row, i) =>
+          row.map((x, j) =>
+            [x, v[i][i], v[j][j]].some(isMissing)
+              ? MISSING
+              : i === j
+                ? 1
+                : x / Math.sqrt(v[i][i] * v[j][j]),
+          ),
+        ),
+      };
+    },
+    vec: ([m]) => stacked(m, false),
+    vech: ([m]) => {
+      square(m);
+      return stacked(m, true);
+    },
+    // The sweep operator on row and column k; their names trade places.
+    sweep: ([m, k]) => {
+      square(m);
+      const n = m.values.length,
+        p = Math.trunc(scalarOf(k)) - 1;
+      if (!(p >= 0 && p < n)) throw conformability();
+      const a = m.values,
+        d = a[p][p];
+      if (d === 0)
+        throw new StataError(
+          "sweep(): matrix has zero values on diagonal",
+          508,
+        );
+      const div = (x, y) => (isMissing(x) || isMissing(y) ? MISSING : x / y);
+      const values = a.map((row, i) =>
+        row.map((x, j) => {
+          if (i === p && j === p) return div(1, d);
+          if (i === p) return div(x, d);
+          if (j === p) return times(-1, div(x, d));
+          return add(x, times(-1, div(times(a[i][p], a[p][j]), d)));
+        }),
+      );
+      const R = filled(m),
+        rowNames = [...R.rowNames],
+        colNames = [...R.colNames];
+      rowNames[p] = R.colNames[p];
+      colNames[p] = R.rowNames[p];
+      return { rowNames, colNames, values };
+    },
     hadamard: ([a, b]) => {
       if (
         a.values.length !== b.values.length ||
@@ -437,7 +502,24 @@ export function matrixExpression(session, source) {
     J: 3,
     I: 1,
     hadamard: 2,
+    corr: 1,
+    vec: 1,
+    vech: 1,
+    sweep: 2,
   };
+  function stacked(m, lower) {
+    const R = filled(m),
+      rowNames = [],
+      values = [];
+    R.colNames.forEach((c, j) =>
+      R.values.forEach((row, i) => {
+        if (lower && i < j) return;
+        rowNames.push(`${c}:${R.rowNames[i]}`);
+        values.push([row[j]]);
+      }),
+    );
+    return { rowNames, colNames: [null], values };
+  }
   // A[rows, columns]: numbers, a..b ranges and a... to the end.
   const subscript = (m) => {
     const part = (count, names) => {
@@ -516,6 +598,22 @@ export function matrixExpression(session, source) {
         start = at;
       at += name.length;
       if (text[at] === "(") {
+        // nullmat(A): A, or nothing to join to when A is not yet defined.
+        // get(_b) and get(VCE): the coefficients and their variance.
+        const call = /^(nullmat|get)\(\s*([A-Za-z_]\w*)\s*\)/.exec(
+          text.slice(start),
+        );
+        if (call) {
+          at = start + call[0].length;
+          if (call[1] === "get") {
+            if (call[2] !== "_b" && call[2] !== "VCE")
+              throw new StataError(`matrix ${call[2]} not found`, 111);
+            return fromEstimates(session, "e", call[2] === "_b" ? "b" : "V");
+          }
+          const stored = session.matrices?.get(call[2]);
+          if (stored) return structuredClone(stored);
+          return { empty: call[2], rowNames: [], colNames: [], values: [] };
+        }
         if (Object.hasOwn(FUNCTIONS, name)) {
           const args = argumentsOf();
           if (args.length !== ARITY[name])
@@ -523,6 +621,13 @@ export function matrixExpression(session, source) {
           return FUNCTIONS[name](args);
         }
         // Any other function is a scalar function, as det(A) or sqrt(2).
+        if (
+          !Object.hasOwn(SCALAR_FUNCTIONS, name) &&
+          !/^(rowsof|colsof|el|det|trace|sum|string|strofreal|scalar|r|e|c)$/.test(
+            name,
+          )
+        )
+          throw new StataError(`unknown function ${name}()`, 133);
         return scalarMatrix(session.scalar(callText(start)));
       }
       const value = named(name);
@@ -539,6 +644,16 @@ export function matrixExpression(session, source) {
     while (text[at] === "'") {
       at++;
       value = transpose(value);
+    }
+    // A power is of numbers only, as (1, 2^2) in a literal.
+    if (peek() === "^") {
+      at++;
+      const exponent = postfix();
+      if (!isScalar(value) || !isScalar(exponent)) throw conformability();
+      const x = value.values[0][0],
+        y = exponent.values[0][0],
+        power = isMissing(x) || isMissing(y) ? MISSING : x ** y;
+      return scalarMatrix(Number.isFinite(power) ? power : MISSING);
     }
     return value;
   };
@@ -594,6 +709,8 @@ export function matrixExpression(session, source) {
   const result = rows();
   if (peek() !== undefined)
     throw new StataError(`${text.slice(at).split(/\s/)[0]} invalid name`, 198);
+  if (result.empty)
+    throw new StataError(`matrix ${result.empty} not found`, 111);
   return filled(result);
 }
 
@@ -772,29 +889,48 @@ function matrixCommand(session, text, ctx) {
 function accum(session, text, ctx) {
   const m = /^\s*([A-Za-z_]\w*)\s*=\s*([\s\S]*)$/.exec(text);
   if (!m) throw invalid();
-  const parsed = session.parse(
-      "varlist [if] [in] [fweight] [, noCONStant | DEViations MEans(string)]",
+  // Factor variables and time-series operators make the columns regress
+  // would have, a base level's column all zeros.
+  const operators = /[.#]/.test(
+      splitAtComma(m[2])[0].replace(/\b(if|in)\b[\s\S]*$|\[[^\]]*\]/g, ""),
+    ),
+    parsed = session.parse(
+      `${operators ? "anything" : "varlist"} [if] [in] [fweight] [, noCONStant | DEViations MEans(string)]`,
       m[2],
     ),
     data = session.data,
+    constant = parsed.options.constant !== false,
+    weight = parsed.weight
+      ? evaluateAll(session.compile(parsed.weight.exp), data.n)
+      : null;
+  let names = parsed.varlist,
+    columns,
+    rows = session.rows(parsed, null);
+  if (operators) {
+    const first = /([A-Za-z_]\w*)$/.exec(
+        parsed.anything.trim().split(/[\s#]/)[0],
+      )?.[1],
+      made = design(session, `${first} ${parsed.anything}`, rows, false),
+      inSample = new Set(made.sample);
+    names = made.columns.map((c) => c.name);
+    columns = made.columns.map((c) =>
+      Float64Array.from({ length: data.n }, (_, i) =>
+        !inSample.has(i) ? MISSING : c.base ? 0 : c.value(i),
+      ),
+    );
+  } else
     columns = parsed.varlist.map((name) => {
       const variable = data.get(name);
       if (isStringType(variable.type))
         throw new StataError("type mismatch", 109);
       return variable.data;
-    }),
-    constant = parsed.options.constant !== false,
-    weight = parsed.weight
-      ? evaluateAll(session.compile(parsed.weight.exp), data.n)
-      : null,
-    rows = session
-      .rows(parsed, null)
-      .filter(
-        (i) =>
-          columns.every((column) => !isMissing(column[i])) &&
-          (!weight || (!isMissing(weight[i]) && weight[i] !== 0)),
-      ),
-    k = columns.length + (constant ? 1 : 0),
+    });
+  rows = rows.filter(
+    (i) =>
+      columns.every((column) => !isMissing(column[i])) &&
+      (!weight || (!isMissing(weight[i]) && weight[i] !== 0)),
+  );
+  const k = columns.length + (constant ? 1 : 0),
     values = Array.from({ length: k }, () => new Array(k).fill(0)),
     x = (c, i) => (c < columns.length ? columns[c][i] : 1);
   let n = 0;
@@ -807,7 +943,7 @@ function accum(session, text, ctx) {
   for (let a = 0; a < k; a++)
     for (let b = a + 1; b < k; b++) values[a][b] = values[b][a];
   ctx.out(`(obs=${formatNumber(n)})`);
-  const names = [...parsed.varlist, ...(constant ? ["_cons"] : [])];
+  names = [...names, ...(constant ? ["_cons"] : [])];
   (session.matrices ??= new Map()).delete(m[1]);
   session.matrices.set(m[1], {
     rowNames: [...names],

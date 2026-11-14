@@ -342,9 +342,47 @@ const PREFIX_COMMANDS = new Set([
 // The options a replay takes: those that change how the fit is shown.
 const REPLAY_OPTIONS =
   /^(l(e(v(el?)?)?)?|or|irr|rrr|eform|hr|beta|nohe(a(d(er?)?)?)?|notable|nocnsr(e(p(o(rt?)?)?)?)?|noomit(t(ed?)?)?|vsquish|base(l(e(v(e(ls?)?)?)?)?)?|allbase(l(e(v(e(ls?)?)?)?)?)?|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|nolstretch)$/;
+// Commands that leave the data as an earlier fit saw them, so that the fit
+// need not keep a copy of them yet (see dispatch).
+const KEEP_DATA = new Set([
+  ...READ_ONLY,
+  "estimates",
+  "estat",
+  "test",
+  "testparm",
+  "lincom",
+  "nlcom",
+  "margins",
+  "marginsplot",
+  "predict",
+  "matrix",
+  "scalar",
+  "local",
+  "global",
+  "macro",
+  "ereturn",
+  "return",
+  "tabulate",
+  "describe",
+  "set",
+  "help",
+  "lrtest",
+  "dfbeta",
+]);
+// Options that a replay of regress takes and passes over, as Stata does,
+// and those it refuses though other estimators take them.
+const REPLAY_IGNORED = { regress: /^(nocons(t(a(nt?)?)?)?|first)$/ };
+const REPLAY_REFUSED = {
+  regress: /^(or|irr|rrr|hr|nocnsr(e(p(o(rt?)?)?)?)?)$/,
+};
+// An estimator whose fits another replays: logit shows a logistic fit as
+// coefficients.
+const REPLAYS_ALSO = { logit: "logistic" };
 function replays(session, command, body) {
   const replay = session.estimates?.replay,
-    last = replay?.command === command.name;
+    last =
+      replay?.command === command.name ||
+      (!!replay && REPLAYS_ALSO[command.name] === replay.command);
   // Prefix commands replay themselves, and an estimator typed alone after
   // one of them (svy: regress, then regress) is theirs to show.
   if (PREFIX_COMMANDS.has(command.name)) return false;
@@ -877,6 +915,21 @@ export class Session {
         // (A command run by another may pass an object with push only.)
         start = { at: lines.length ?? 0 },
         replayed = !flags.by && replays(this, command, body);
+      // The fits made from the data as they are (the active one and any
+      // stored since the data last changed) keep one copy of them before
+      // anything can change them, so that a replay with display options
+      // (regress, level(90)) shows the fit as made, as Stata's stored
+      // results do.
+      if (
+        this.fitsOnData?.size &&
+        !replayed &&
+        !KEEP_DATA.has(command.name) &&
+        !REPLAYED.has(command.name)
+      ) {
+        const copy = this.data.snapshot();
+        for (const fit of this.fitsOnData) fit.fitData = copy;
+        this.fitsOnData.clear();
+      }
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
         else if (recall)
@@ -936,9 +989,26 @@ export class Session {
         this.results.e = reordered;
         if (this.meanTotalResults?.e === e) this.meanTotalResults.e = reordered;
       }
+      if (model && model !== before && !model.fitData) {
+        // Only fits that can still be replayed are kept: the active one
+        // and those stored.
+        const fits = (this.fitsOnData ??= new Set()),
+          stored = new Set(
+            [...(this.storedEstimates?.values() ?? [])].map((s) => s.model),
+          );
+        for (const fit of fits) if (!stored.has(fit)) fits.delete(fit);
+        fits.add(model);
+      }
       // What a fit printed, which the command typed alone, and estimates
       // replay, show again.
-      if (model && model !== before && !NO_TABLE.has(command.name))
+      // After xi:, the fit's own command and lines, which the command run
+      // by xi recorded, are the ones replayed, without xi's headings.
+      if (
+        model &&
+        model !== before &&
+        !NO_TABLE.has(command.name) &&
+        !(command.name === "xi" && model.replay)
+      )
         model.replay = {
           command: command.name,
           body,
@@ -986,27 +1056,53 @@ export class Session {
   replay(command, body, ctx, lines) {
     const model = this.estimates,
       { replay } = model,
-      options = splitAtComma(body)[1]?.trim() ?? "";
-    if (!options) {
+      kept = [];
+    for (const option of splitAtComma(body)[1]?.match(
+      /[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g,
+    ) ?? []) {
+      const name = /^\w+/.exec(option)[0],
+        parens = option.includes("(") ? "()" : "";
+      if (REPLAY_IGNORED[command.name]?.test(name)) continue;
+      if (
+        REPLAY_REFUSED[command.name]?.test(name) ||
+        (!REPLAY_OPTIONS.test(name) &&
+          !(command.name === "logistic" && /^coef$/.test(name)))
+      )
+        throw new StataError(`option ${name}${parens} not allowed`, 198);
+      kept.push(option);
+    }
+    const options = kept.join(" ");
+    // Shown as the fit was, unless another estimator's fit is shown its
+    // own way (logit after logistic).
+    if (!options && command.name === replay.command) {
       for (const line of ["", ...replay.lines]) ctx.out(line);
       return;
     }
-    for (const option of options.match(/[A-Za-z_]\w*(\([^)]*\))?/g) ?? []) {
-      const name = /^\w+/.exec(option)[0];
-      if (!REPLAY_OPTIONS.test(name))
-        throw new StataError(`option ${name} not allowed`, 198);
-    }
     const [head, typed] = splitAtComma(replay.body),
       e = this.results.e,
+      data = this.data,
       shown = [];
+    // The fit is made again from the data it was made from.
+    if (model.fitData) {
+      this.data = new Dataset();
+      this.data.restore(model.fitData);
+    }
     try {
-      command.run(this, `${head}, ${typed ?? ""} ${options}`, {
+      // An option asked for again replaces the one typed with the fit.
+      const asked = new Set(kept.map((option) => /^\w+/.exec(option)[0])),
+        before = (typed ?? "")
+          .match(/[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g)
+          ?.filter((option) => !asked.has(/^\w+/.exec(option)[0]))
+          .join(" ");
+      command.run(this, `${head}, ${before ?? ""} ${options}`, {
         ...ctx,
+        replaying: true,
         out: (line) => shown.push(line),
       });
     } finally {
       const refit = this.estimates,
         N = this.results.e?.N;
+      this.data = data;
       this.estimates = model;
       this.results.e = e;
       const same = (a, b) =>
@@ -1014,13 +1110,29 @@ export class Session {
         !b ||
         (a.length === b.length &&
           a.every((x, k) => Math.abs(x - b[k]) <= 1e-9 * (1 + Math.abs(x))));
-      if (refit !== model && (N !== e.N || !same(refit?.b, model.b)))
+      if (
+        refit !== model &&
+        (N !== (model.N ?? e.N) || !same(refit?.b, model.b))
+      )
         throw new StataError(
           "the data have changed since these estimates were made; type the whole command to fit the model again",
           198,
         );
     }
     for (const line of ["", ...fitTable(shown)]) ctx.out(line);
+  }
+
+  /** A fit, stored or active, shown again with display options. */
+  replayModel(model, options, ctx) {
+    const active = this.estimates,
+      e = this.results.e;
+    this.estimates = model;
+    try {
+      this.replay(findCommand(model.replay.command), `, ${options}`, ctx);
+    } finally {
+      this.estimates = active;
+      this.results.e = e;
+    }
   }
 
   byPrefix(text, sort) {

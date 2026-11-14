@@ -1296,7 +1296,18 @@ function scalar(session, text, ctx) {
   m = /^(?:de(?:f(?:i(?:ne?)?)?)?\s+)?([A-Za-z_]\w*)\s*=\s*([\s\S]+)$/.exec(
     text.trim(),
   );
-  if (!m || !isName(m[1])) throw invalid();
+  if (!m) {
+    // Stata's messages for a scalar named badly or without =exp.
+    const rest = text.trim().replace(/^de(?:f(?:i(?:ne?)?)?)?\s+/, ""),
+      name = /^[A-Za-z_]\w*/.exec(rest);
+    if (!name) throw invalid(`${rest.split(/[\s=]/)[0]} invalid name`);
+    const after = rest.slice(name[0].length).trim();
+    if (!after) throw new StataError("=exp required", 100);
+    if (!after.startsWith("="))
+      throw new StataError("varlist not allowed", 101);
+    throw invalid();
+  }
+  if (!isName(m[1])) throw invalid(`${m[1]} invalid name`);
   session.scalars.set(m[1], session.scalar(m[2]));
 }
 /**
@@ -1307,8 +1318,10 @@ function scalar(session, text, ctx) {
  * it, or null when only blanks are left.
  */
 function firstToken(text, parse = "", quotes = false) {
+  // A blank separates tokens and is never one, even in parse().
+  parse = parse.replace(/\s/g, "");
   let i = 0;
-  while (i < text.length && /\s/.test(text[i]) && !parse.includes(text[i])) i++;
+  while (i < text.length && /\s/.test(text[i])) i++;
   if (i >= text.length) return null;
   let j = i;
   if (text[i] === "`" && text[i + 1] === '"') {
@@ -1322,11 +1335,14 @@ function firstToken(text, parse = "", quotes = false) {
       rest: text.slice(j),
     };
   }
+  // With quotes, a quoted token keeps them as compound quotes.
   if (text[i] === '"') {
     j = text.indexOf('"', i + 1);
     j = j < 0 ? text.length : j + 1;
     return {
-      token: quotes ? text.slice(i, j) : text.slice(i + 1, j - 1),
+      token: quotes
+        ? `\`"${text.slice(i + 1, j - 1)}"'`
+        : text.slice(i + 1, j - 1),
       rest: text.slice(j),
     };
   }
@@ -1388,32 +1404,35 @@ function tokenize(session, text, ctx) {
 }
 /**
  * gettoken: the first token of a macro into one macro, and what follows it
- * into another. A macro is named plainly (a local) or as local name or
- * global name.
+ * into another. A macro is named plainly (a local) or as (local) name or
+ * (global) name.
  */
 function gettoken(session, text, ctx) {
   const [head, options] = splitAtComma(text),
     m = /^([\s\S]*?):([\s\S]*)$/.exec(head);
   if (!m) throw invalid();
-  const target = (words) => {
-    if (words.length === 1) return { map: ctx.frame.locals, name: words[0] };
-    if (words.length === 2 && /^(local|global)$/.test(words[0]))
-      return {
-        map: words[0] === "local" ? ctx.frame.locals : session.globals,
-        name: words[1],
-      };
-    throw invalid();
+  const names = (part) => {
+    const found = [];
+    let rest = part.trim();
+    while (rest) {
+      const name =
+        /^(?:\(\s*(local|global)\s*\)\s*)?([A-Za-z_][\w]*|\d+)(?=\s|$)/.exec(
+          rest,
+        );
+      if (!name) throw invalid();
+      found.push({
+        map: name[1] === "global" ? session.globals : ctx.frame.locals,
+        name: name[2],
+      });
+      rest = rest.slice(name[0].length).trim();
+    }
+    return found;
   };
   // Names: one or two targets before the colon, one source after it.
-  const before = m[1].trim().split(/\s+/).filter(Boolean),
-    targets = [];
-  for (let k = 0; k < before.length;) {
-    const take = /^(local|global)$/.test(before[k]) ? 2 : 1;
-    targets.push(target(before.slice(k, k + take)));
-    k += take;
-  }
-  const source = target(m[2].trim().split(/\s+/).filter(Boolean));
-  if (!targets.length || targets.length > 2) throw invalid();
+  const targets = names(m[1]),
+    [source, extra] = names(m[2]);
+  if (!targets.length || targets.length > 2 || !source || extra)
+    throw invalid();
   let parse = " ",
     quotes = false,
     rest = (options ?? "").trim();
@@ -1543,7 +1562,15 @@ function xi(session, text, ctx) {
       const continuous = data.get(session.varlist(other)[0]);
       if (isStringType(continuous.type))
         throw new StataError("type mismatch", 109);
-      const product = `_I${variable.name.slice(0, 3)}X${continuous.name.slice(0, 3)}_`,
+      // As xi.ado names them: three characters of the factor, X, and as
+      // many of the variable as leave room for the longest level (at least
+      // three), the heading abbreviating each name to what the other
+      // leaves of twelve.
+      const digits = Math.max(
+          ...codes.slice(1).map((code) => formatNumber(code).length),
+        ),
+        product = `_I${variable.name.slice(0, 3)}X${continuous.name.slice(0, Math.max(3, 6 - digits))}_`,
+        heading = `i.${abbreviateName(variable.name, continuous.name.length < 6 ? 12 - continuous.name.length : 6)}*${abbreviateName(continuous.name, variable.name.length < 6 ? 12 - variable.name.length : 6)}`,
         products = [];
       codes.slice(1).forEach((code, k) => {
         const dummy = data.get(dummies[k]).data,
@@ -1558,9 +1585,7 @@ function xi(session, text, ctx) {
           `(${variable.name}==${shown(code)})*${continuous.name}`;
         products.push(name);
       });
-      say(
-        `${abbreviateName(term, 15).padEnd(17)} ${`${product}#`.padEnd(19)} (coded as above)`,
-      );
+      say(`${heading.padEnd(17)} ${`${product}#`.padEnd(19)} (coded as above)`);
       replacement = [...dummies, continuous.name, ...products];
     }
     made.set(term, replacement);
