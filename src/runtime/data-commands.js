@@ -328,12 +328,16 @@ function merge(session, text, ctx) {
       result.valueLabels.set(name, new Map(map));
   if (!noMarker) {
     result.generate(marker, all.map(code), { type: "byte" });
+    // Stata defines all five codes, used or not; tabulate sizes its
+    // column from the longest.
     result.valueLabels.set(
       "_merge",
       new Map([
         [1, "Master only (1)"],
         [2, "Using only (2)"],
         [3, "Matched (3)"],
+        [4, "Missing updated (4)"],
+        [5, "Nonmissing conflict (5)"],
       ]),
     );
     Object.assign(result.get(marker), {

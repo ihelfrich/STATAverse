@@ -4681,3 +4681,246 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== tabulate-label-set-width
+clear
+set obs 40
+generate byte female = mod(_n, 2)
+label variable female "Female indicator"
+generate byte region = mod(_n, 4) + 1
+label variable region "Census region"
+label define rl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region rl
+tabulate female region
+label define fl 0 "Male" 1 "Female"
+label values female fl
+tabulate female region
+label define kl 0 "zero" 1 "one" 2 "a very long unused label here"
+generate k = mod(_n, 2)
+label values k kl
+tabulate k
+tabulate k region
+tabulate region k
+tabulate k, summarize(region)
+tabulate k region, summarize(female)
+label define kl 3 "a label of more than forty characters, long and unused", add
+tabulate k
+tabulate k, nolabel
+tabulate k, missing
+label define kl 1 "a label of more than forty characters, long and used here", modify
+tabulate k
+tabulate k region
+label define kl 1 "one" 3 "αβγδεζηθικλμνξοπρστυ", modify
+tabulate k
+tabulate k region
+label define ml 1 "Master only (1)" 2 "Using only (2)" 3 "Matched (3)" 4 "Missing updated (4)" 5 "Nonmissing conflict (5)"
+generate byte m = 1 + 2 * mod(_n, 2)
+label values m ml
+label variable m "Matching result from merge"
+tabulate m
+tabulate m female
+egen grp = group(region k)
+tabulate grp
+label variable k "a long variable label for k that wraps"
+tabulate k
+=== tabulate-analytic-importance-weights
+clear
+set seed 99
+set obs 60
+generate g = 1 + floor(runiform() * 3)
+generate h = 1 + floor(runiform() * 2)
+generate double w = runiform() * 3
+generate y = runiform() * 10 - 5
+replace w = 0 in 1
+replace w = . in 2
+label define gl 1 "North" 2 "South" 3 "East"
+label values g gl
+tabulate g [aweight=w]
+tabulate g h [aweight=w]
+tabulate g h [aweight=w], row column cell
+tabulate g [iweight=w]
+tabulate g h [iweight=w], row
+tabulate g [iweight=w], sort
+capture noisily tabulate g h [aweight=w], chi2
+capture noisily tabulate g h [aweight=w], exact
+capture noisily tabulate g h [aweight=w], V
+capture noisily tabulate g h [iweight=w], chi2
+capture noisily tabulate g [iweight=w], summarize(y)
+tabulate g [aweight=w], summarize(y)
+tabulate g h [aweight=w], summarize(y)
+generate double v = round(w)
+tabulate g [iweight=v], summarize(y)
+tabulate g h [fweight=v], summarize(y)
+tabulate g [aweight=w], generate(dd)
+replace w = -1 in 3
+capture noisily tabulate g [iweight=w]
+=== tabulate-weighted-frequency-digits
+clear
+set seed 7
+set obs 1500
+generate int g = floor(runiform() * 75)
+generate double w = runiform() * 3
+generate h = mod(_n, 2)
+tabulate g [aweight=w]
+tabulate g h [aweight=w]
+tabulate g [iweight=w]
+tabulate g h [iweight=w]
+=== tabulate-nofreq-and-summaries
+clear
+set seed 99
+set obs 60
+generate g = 1 + floor(runiform() * 3)
+generate h = 1 + floor(runiform() * 2)
+generate double w = runiform() * 3
+generate y = runiform() * 10 - 5
+tabulate g h, nofreq
+tabulate g h, nofreq chi2
+tabulate g h, nofreq row
+tabulate g h, nofreq row cell
+tabulate g h, cell nofreq
+tabulate g, nofreq
+tabulate g, summarize(y) nofreq
+tabulate g, summarize(y) nomeans
+tabulate g, summarize(y) nostandard
+tabulate g, summarize(y) nomeans nostandard
+tabulate g [aweight=w], summarize(y) noobs
+tabulate g [aweight=w], summarize(y) nofreq noobs
+tabulate g h, summarize(y) nofreq
+tabulate g h, summarize(y) nomeans nostandard
+tabulate g h [aweight=w], summarize(y) noobs nomeans
+tabulate g, summarize(y) nomeans nostandard nofreq
+tabulate g h, summarize(y) nomeans nostandard nofreq
+capture noisily tabulate g, nomeans nostandard
+capture noisily tabulate g h, nostandard nomeans
+capture noisily tabulate g, noobs
+=== mean-proportion-weights
+clear
+set seed 4321
+set obs 200
+generate g = 1 + floor(runiform() * 3)
+label define gl 1 "North" 2 "South" 3 "Less than high school"
+label values g gl
+generate x = round(runiform() * 100, .01)
+generate y = runiform() * 5
+replace x = . in 5
+generate double w = 0.5 + runiform() * 2
+generate byte fw = 1 + floor(runiform() * 3)
+generate byte e = runiform() < .3
+generate byte longgroupname = g
+mean x [pweight=w]
+mean x y [pweight=w]
+mean x [aweight=w]
+mean x [fweight=fw]
+mean x [iweight=w]
+mean x [pweight=w], over(g)
+mean x [aweight=w], over(g)
+mean x [fweight=fw], over(g)
+mean x [iweight=w], over(g)
+mean x y [pweight=w], over(g)
+mean x, over(g)
+mean x [pweight=w], level(90)
+mean y [pweight=w], over(longgroupname)
+proportion e [pweight=w]
+capture noisily proportion e [aweight=w]
+proportion e [fweight=fw]
+proportion e [iweight=w]
+proportion g [pweight=w]
+proportion g [pweight=w], level(90)
+proportion e
+=== table-labels-and-formats
+clear
+set seed 2026
+set obs 74
+generate byte foreign = runiform() < .3
+label define origin 0 "Domestic" 1 "Foreign"
+label values foreign origin
+label variable foreign "Car origin"
+generate byte rep78 = 1 + floor(runiform() * 5)
+replace rep78 = . if runiform() < .07
+replace rep78 = 3 if foreign & rep78 < 3
+label variable rep78 "Repair record 1978"
+generate price = round(3000 + 9000 * runiform())
+label variable price "Price"
+generate weight = round(1800 + 2500 * runiform(), 10)
+label variable weight "Weight (lbs.)"
+generate mpg = round(12 + 25 * runiform())
+generate double income = 20000 + 100000 * runiform()
+format income %12.2fc
+generate str8 make = cond(foreign, "Euro", "US")
+generate byte two = 1 + (runiform() < .5)
+label variable two "A rather long label for a variable with two values"
+table foreign
+table foreign rep78
+table rep78 foreign
+table (foreign) (rep78), statistic(mean price) nformat(%9.1f)
+table foreign, nformat(%9.1f)
+table foreign, statistic(mean price) nformat(%9.1f mean)
+table foreign, statistic(mean price) statistic(sd price) nformat(%9.1f mean) nformat(%9.3f sd)
+table foreign, statistic(percent) sformat("%s%%" percent)
+table foreign, statistic(mean income) statistic(min income) statistic(max income) statistic(total income)
+table foreign, statistic(frequency) statistic(mean price)
+table foreign, statistic(mean price) statistic(frequency)
+table foreign, statistic(percent) statistic(mean price weight)
+table foreign, statistic(frequency) statistic(mean price weight)
+table foreign, statistic(mean price weight)
+table foreign, statistic(mean price) statistic(mean weight)
+table foreign, statistic(mean price) statistic(sd weight)
+table foreign, statistic(mean price weight) statistic(sd price weight)
+table foreign, statistic(total weight) statistic(total mpg) statistic(mean mpg) statistic(total price)
+table foreign, statistic(count rep78) statistic(mean price)
+table foreign, statistic(count rep78) statistic(mean price) listwise
+table make
+table make foreign
+table make, statistic(count make) statistic(mean make)
+table foreign, statistic(mean weight) statistic(sd price) nformat(%6.2f mean sd)
+table foreign, statistic(mean price) sformat("%s USD")
+table foreign, nformat(%9.2f frequency percent) statistic(frequency) statistic(percent)
+table foreign, nformat(%9.1f mean) nformat(%9.3f mean) statistic(mean price)
+table foreign, statistic(mean price) nformat(%9.1fc)
+table foreign rep78, nototals
+table foreign, nototals statistic(mean price)
+table foreign rep78, totals(foreign)
+table foreign rep78, totals(rep78)
+table foreign rep78, totals(foreign rep78)
+table foreign, totals(foreign)
+table rep78 foreign, missing
+table rep78, statistic(mean mpg) missing
+table foreign rep78, zerocounts
+table foreign rep78, statistic(count price) zerocounts
+table foreign rep78, statistic(percent) zerocounts
+table foreign rep78, statistic(mean price) zerocounts
+table foreign rep78, statistic(percent)
+table foreign two
+table two foreign
+table foreign, title("A title that is quite long") note("note one") note("note two")
+table foreign, statistic(median price) statistic(p25 price) statistic(iqr price) statistic(semean price) statistic(cv price) statistic(range price)
+table foreign, statistic(p12 price) statistic(p21 price) statistic(p22 price) statistic(p33 price) statistic(q1 price) statistic(p50 price)
+table foreign, statistic(skewness price) statistic(kurtosis price) statistic(geomean price) statistic(first price) statistic(lastnm rep78)
+table foreign, statistic(variance price) statistic(proportion) statistic(sumw) statistic(rawtotal price) statistic(rawpercent)
+table rep78 make, statistic(mean price) nformat(%5.0f)
+table foreign if mpg > 20, markvar(used)
+tabulate used
+capture noisily table foreign if price > 100000
+capture noisily table foreign, statistic(bogus price)
+capture noisily table foreign, statistic(mean)
+capture noisily table foreign, statistic(frequency price)
+capture noisily table foreign, nformat(bogus)
+capture noisily table foreign, statistic(mean price) sformat("abc")
+capture noisily table foreign, stars
+capture noisily table foreign, cellwidth(15)
+capture noisily table foreign, contents(mean price) format(%9.1f)
+capture noisily table foreign, center
+capture noisily table foreign, totals(price)
+capture noisily table foreign, statistic(mean price) bogus
+=== tabulate-merge-result
+clear
+set obs 6
+generate id = 2 * _n
+generate s = _n
+tempfile scores
+quietly save `scores'
+clear
+set obs 8
+generate id = _n
+merge 1:1 id using `scores'
+tabulate _merge
+label list _merge

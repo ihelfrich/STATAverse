@@ -91,14 +91,11 @@ test("tab1 leaves _rc for a failed table but returns 0, and passes refusals on",
   assert.equal(last(s, "display _rc"), "0");
   // Stata 19: pweights are refused by tab1's own syntax, r(101).
   assert.equal(s.run("tab1 c [pweight=c]").rc, 101);
-  // Stata tabulates with aweights and iweights; the runtime refuses them,
-  // and tab1 passes the refusal on rather than returning 0.
-  for (const command of [
-    "tab1 c a [aweight=c]",
-    "tabulate c [iweight=c]",
-    "tab1 c, plot",
-    "tabulate c, matcell(m)",
-  ]) {
+  // Stata tabulates with aweights and iweights, and so does the runtime.
+  assert.equal(s.run("tab1 c a [aweight=c]").rc, 0);
+  assert.equal(s.run("tabulate c [iweight=c]").rc, 0);
+  // What the runtime refuses, tab1 passes on rather than returning 0.
+  for (const command of ["tab1 c, plot", "tabulate c, matcell(m)"]) {
     const out = s.run(command);
     assert.equal(out.rc, 198, command);
     assert.match(out.output.at(-1).lines.join("\n"), /not available/, command);

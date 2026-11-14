@@ -32425,6 +32425,2330 @@
       ]
     },
     {
+      "id": "tabulate-label-set-width",
+      "source": "clear\nset obs 40\ngenerate byte female = mod(_n, 2)\nlabel variable female \"Female indicator\"\ngenerate byte region = mod(_n, 4) + 1\nlabel variable region \"Census region\"\nlabel define rl 1 \"Northeast\" 2 \"Midwest\" 3 \"South\" 4 \"West\"\nlabel values region rl\ntabulate female region\nlabel define fl 0 \"Male\" 1 \"Female\"\nlabel values female fl\ntabulate female region\nlabel define kl 0 \"zero\" 1 \"one\" 2 \"a very long unused label here\"\ngenerate k = mod(_n, 2)\nlabel values k kl\ntabulate k\ntabulate k region\ntabulate region k\ntabulate k, summarize(region)\ntabulate k region, summarize(female)\nlabel define kl 3 \"a label of more than forty characters, long and unused\", add\ntabulate k\ntabulate k, nolabel\ntabulate k, missing\nlabel define kl 1 \"a label of more than forty characters, long and used here\", modify\ntabulate k\ntabulate k region\nlabel define kl 1 \"one\" 3 \"αβγδεζηθικλμνξοπρστυ\", modify\ntabulate k\ntabulate k region\nlabel define ml 1 \"Master only (1)\" 2 \"Using only (2)\" 3 \"Matched (3)\" 4 \"Missing updated (4)\" 5 \"Nonmissing conflict (5)\"\ngenerate byte m = 1 + 2 * mod(_n, 2)\nlabel values m ml\nlabel variable m \"Matching result from merge\"\ntabulate m\ntabulate m female\negen grp = group(region k)\ntabulate grp\nlabel variable k \"a long variable label for k that wraps\"\ntabulate k\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate byte female = mod(_n, 2)", "lines": [] },
+        {
+          "command": "label variable female \"Female indicator\"",
+          "lines": []
+        },
+        { "command": "generate byte region = mod(_n, 4) + 1", "lines": [] },
+        { "command": "label variable region \"Census region\"", "lines": [] },
+        {
+          "command": "label define rl 1 \"Northeast\" 2 \"Midwest\" 3 \"South\" 4 \"West\"",
+          "lines": []
+        },
+        { "command": "label values region rl", "lines": [] },
+        {
+          "command": "tabulate female region",
+          "lines": [
+            "    Female |                Census region",
+            " indicator | Northeast    Midwest      South       West |     Total",
+            "-----------+--------------------------------------------+----------",
+            "         0 |        10          0         10          0 |        20",
+            "         1 |         0         10          0         10 |        20",
+            "-----------+--------------------------------------------+----------",
+            "     Total |        10         10         10         10 |        40"
+          ]
+        },
+        { "command": "label define fl 0 \"Male\" 1 \"Female\"", "lines": [] },
+        { "command": "label values female fl", "lines": [] },
+        {
+          "command": "tabulate female region",
+          "lines": [
+            "    Female |                Census region",
+            " indicator | Northeast    Midwest      South       West |     Total",
+            "-----------+--------------------------------------------+----------",
+            "      Male |        10          0         10          0 |        20",
+            "    Female |         0         10          0         10 |        20",
+            "-----------+--------------------------------------------+----------",
+            "     Total |        10         10         10         10 |        40"
+          ]
+        },
+        {
+          "command": "label define kl 0 \"zero\" 1 \"one\" 2 \"a very long unused label here\"",
+          "lines": []
+        },
+        { "command": "generate k = mod(_n, 2)", "lines": [] },
+        { "command": "label values k kl", "lines": [] },
+        {
+          "command": "tabulate k",
+          "lines": [
+            "                            k |      Freq.     Percent        Cum.",
+            "------------------------------+-----------------------------------",
+            "                         zero |         20       50.00       50.00",
+            "                          one |         20       50.00      100.00",
+            "------------------------------+-----------------------------------",
+            "                        Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "tabulate k region",
+          "lines": [
+            "                      |                Census region",
+            "                    k | Northeast    Midwest      South       West |     Total",
+            "----------------------+--------------------------------------------+----------",
+            "                 zero |        10          0         10          0 |        20",
+            "                  one |         0         10          0         10 |        20",
+            "----------------------+--------------------------------------------+----------",
+            "                Total |        10         10         10         10 |        40"
+          ]
+        },
+        {
+          "command": "tabulate region k",
+          "lines": [
+            "    Census |           k",
+            "    region |      zero        one |     Total",
+            "-----------+----------------------+----------",
+            " Northeast |        10          0 |        10",
+            "   Midwest |         0         10 |        10",
+            "     South |        10          0 |        10",
+            "      West |         0         10 |        10",
+            "-----------+----------------------+----------",
+            "     Total |        20         20 |        40"
+          ]
+        },
+        {
+          "command": "tabulate k, summarize(region)",
+          "lines": [
+            "            |      Summary of Census region",
+            "          k |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "       zero |           2   1.0259784          20",
+            "        one |           3   1.0259784          20",
+            "------------+------------------------------------",
+            "      Total |         2.5    1.132277          40"
+          ]
+        },
+        {
+          "command": "tabulate k region, summarize(female)",
+          "lines": [
+            "      Means, Standard Deviations and Frequencies of Female indicator",
+            "",
+            "           |              Census region",
+            "         k | Northeast    Midwest      South       West |     Total",
+            "-----------+--------------------------------------------+----------",
+            "      zero |         0          .          0          . |         0",
+            "           |         0          .          0          . |         0",
+            "           |        10          0         10          0 |        20",
+            "-----------+--------------------------------------------+----------",
+            "       one |         .          1          .          1 |         1",
+            "           |         .          0          .          0 |         0",
+            "           |         0         10          0         10 |        20",
+            "-----------+--------------------------------------------+----------",
+            "     Total |         0          1          0          1 |        .5",
+            "           |         0          0          0          0 | .50636968",
+            "           |        10         10         10         10 |        40"
+          ]
+        },
+        {
+          "command": "label define kl 3 \"a label of more than forty characters, long and unused\", add",
+          "lines": []
+        },
+        {
+          "command": "tabulate k",
+          "lines": [
+            "                                      k |      Freq.     Percent        Cum.",
+            "----------------------------------------+-----------------------------------",
+            "                                   zero |         20       50.00       50.00",
+            "                                    one |         20       50.00      100.00",
+            "----------------------------------------+-----------------------------------",
+            "                                  Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "tabulate k, nolabel",
+          "lines": [
+            "          k |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |         20       50.00       50.00",
+            "          1 |         20       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "tabulate k, missing",
+          "lines": [
+            "                                      k |      Freq.     Percent        Cum.",
+            "----------------------------------------+-----------------------------------",
+            "                                   zero |         20       50.00       50.00",
+            "                                    one |         20       50.00      100.00",
+            "----------------------------------------+-----------------------------------",
+            "                                  Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "label define kl 1 \"a label of more than forty characters, long and used here\", modify",
+          "lines": []
+        },
+        {
+          "command": "tabulate k",
+          "lines": [
+            "                                      k |      Freq.     Percent        Cum.",
+            "----------------------------------------+-----------------------------------",
+            "                                   zero |         20       50.00       50.00",
+            "a label of more than forty characters,  |         20       50.00      100.00",
+            "----------------------------------------+-----------------------------------",
+            "                                  Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "tabulate k region",
+          "lines": [
+            "                      |                Census region",
+            "                    k | Northeast    Midwest      South       West |     Total",
+            "----------------------+--------------------------------------------+----------",
+            "                 zero |        10          0         10          0 |        20",
+            "a label of more than  |         0         10          0         10 |        20",
+            "----------------------+--------------------------------------------+----------",
+            "                Total |        10         10         10         10 |        40"
+          ]
+        },
+        {
+          "command": "label define kl 1 \"one\" 3 \"αβγδεζηθικλμνξοπρστυ\", modify",
+          "lines": []
+        },
+        {
+          "command": "tabulate k",
+          "lines": [
+            "                            k |      Freq.     Percent        Cum.",
+            "------------------------------+-----------------------------------",
+            "                         zero |         20       50.00       50.00",
+            "                          one |         20       50.00      100.00",
+            "------------------------------+-----------------------------------",
+            "                        Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "tabulate k region",
+          "lines": [
+            "                      |                Census region",
+            "                    k | Northeast    Midwest      South       West |     Total",
+            "----------------------+--------------------------------------------+----------",
+            "                 zero |        10          0         10          0 |        20",
+            "                  one |         0         10          0         10 |        20",
+            "----------------------+--------------------------------------------+----------",
+            "                Total |        10         10         10         10 |        40"
+          ]
+        },
+        {
+          "command": "label define ml 1 \"Master only (1)\" 2 \"Using only (2)\" 3 \"Matched (3)\" 4 \"Missing updated (4)\" 5 \"Nonmissing conflict (5)\"",
+          "lines": []
+        },
+        { "command": "generate byte m = 1 + 2 * mod(_n, 2)", "lines": [] },
+        { "command": "label values m ml", "lines": [] },
+        {
+          "command": "label variable m \"Matching result from merge\"",
+          "lines": []
+        },
+        {
+          "command": "tabulate m",
+          "lines": [
+            "   Matching result from |",
+            "                  merge |      Freq.     Percent        Cum.",
+            "------------------------+-----------------------------------",
+            "        Master only (1) |         20       50.00       50.00",
+            "            Matched (3) |         20       50.00      100.00",
+            "------------------------+-----------------------------------",
+            "                  Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "tabulate m female",
+          "lines": [
+            " Matching result from |   Female indicator",
+            "                merge |      Male     Female |     Total",
+            "----------------------+----------------------+----------",
+            "      Master only (1) |        20          0 |        20",
+            "          Matched (3) |         0         20 |        20",
+            "----------------------+----------------------+----------",
+            "                Total |        20         20 |        40"
+          ]
+        },
+        { "command": "egen grp = group(region k)", "lines": [] },
+        {
+          "command": "tabulate grp",
+          "lines": [
+            "group(regio |",
+            "       n k) |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         10       25.00       25.00",
+            "          2 |         10       25.00       50.00",
+            "          3 |         10       25.00       75.00",
+            "          4 |         10       25.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |         40      100.00"
+          ]
+        },
+        {
+          "command": "label variable k \"a long variable label for k that wraps\"",
+          "lines": []
+        },
+        {
+          "command": "tabulate k",
+          "lines": [
+            "  a long variable label for k |",
+            "                   that wraps |      Freq.     Percent        Cum.",
+            "------------------------------+-----------------------------------",
+            "                         zero |         20       50.00       50.00",
+            "                          one |         20       50.00      100.00",
+            "------------------------------+-----------------------------------",
+            "                        Total |         40      100.00"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-analytic-importance-weights",
+      "source": "clear\nset seed 99\nset obs 60\ngenerate g = 1 + floor(runiform() * 3)\ngenerate h = 1 + floor(runiform() * 2)\ngenerate double w = runiform() * 3\ngenerate y = runiform() * 10 - 5\nreplace w = 0 in 1\nreplace w = . in 2\nlabel define gl 1 \"North\" 2 \"South\" 3 \"East\"\nlabel values g gl\ntabulate g [aweight=w]\ntabulate g h [aweight=w]\ntabulate g h [aweight=w], row column cell\ntabulate g [iweight=w]\ntabulate g h [iweight=w], row\ntabulate g [iweight=w], sort\ncapture noisily tabulate g h [aweight=w], chi2\ncapture noisily tabulate g h [aweight=w], exact\ncapture noisily tabulate g h [aweight=w], V\ncapture noisily tabulate g h [iweight=w], chi2\ncapture noisily tabulate g [iweight=w], summarize(y)\ntabulate g [aweight=w], summarize(y)\ntabulate g h [aweight=w], summarize(y)\ngenerate double v = round(w)\ntabulate g [iweight=v], summarize(y)\ntabulate g h [fweight=v], summarize(y)\ntabulate g [aweight=w], generate(dd)\nreplace w = -1 in 3\ncapture noisily tabulate g [iweight=w]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 3)", "lines": [] },
+        { "command": "generate h = 1 + floor(runiform() * 2)", "lines": [] },
+        { "command": "generate double w = runiform() * 3", "lines": [] },
+        { "command": "generate y = runiform() * 10 - 5", "lines": [] },
+        { "command": "replace w = 0 in 1", "lines": ["(1 real change made)"] },
+        {
+          "command": "replace w = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "label define gl 1 \"North\" 2 \"South\" 3 \"East\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "tabulate g [aweight=w]",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "      North | 25.1658219       43.39       43.39",
+            "      South | 15.8587289       27.34       70.73",
+            "       East | 16.9754491       29.27      100.00",
+            "------------+-----------------------------------",
+            "      Total |         58      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h [aweight=w]",
+          "lines": [
+            "           |           h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "     North | 11.513308  13.652514 | 25.165822",
+            "     South | 5.2699016  10.588827 | 15.858729",
+            "      East | 6.7496319 10.2258172 | 16.975449",
+            "-----------+----------------------+----------",
+            "     Total | 23.532842  34.467158 |        58"
+          ]
+        },
+        {
+          "command": "tabulate g h [aweight=w], row column cell",
+          "lines": [
+            "+-------------------+",
+            "| Key               |",
+            "|-------------------|",
+            "|     frequency     |",
+            "|  row percentage   |",
+            "| column percentage |",
+            "|  cell percentage  |",
+            "+-------------------+",
+            "",
+            "           |           h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "     North | 11.513308  13.652514 | 25.165822",
+            "           |     45.75      54.25 |    100.00",
+            "           |     48.92      39.61 |     43.39",
+            "           |     19.85      23.54 |     43.39",
+            "-----------+----------------------+----------",
+            "     South | 5.2699016  10.588827 | 15.858729",
+            "           |     33.23      66.77 |    100.00",
+            "           |     22.39      30.72 |     27.34",
+            "           |      9.09      18.26 |     27.34",
+            "-----------+----------------------+----------",
+            "      East | 6.7496319 10.2258172 | 16.975449",
+            "           |     39.76      60.24 |    100.00",
+            "           |     28.68      29.67 |     29.27",
+            "           |     11.64      17.63 |     29.27",
+            "-----------+----------------------+----------",
+            "     Total | 23.532842  34.467158 |        58",
+            "           |     40.57      59.43 |    100.00",
+            "           |    100.00     100.00 |    100.00",
+            "           |     40.57      59.43 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate g [iweight=w]",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "      North | 41.7140478       43.39       43.39",
+            "      South | 26.2869132       27.34       70.73",
+            "       East | 28.1379522       29.27      100.00",
+            "------------+-----------------------------------",
+            "      Total | 96.1389132      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h [iweight=w], row",
+          "lines": [
+            "+----------------+",
+            "| Key            |",
+            "|----------------|",
+            "|   frequency    |",
+            "| row percentage |",
+            "+----------------+",
+            "",
+            "           |           h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "     North | 19.084085  22.629963 | 41.714048",
+            "           |     45.75      54.25 |    100.00",
+            "-----------+----------------------+----------",
+            "     South |8.73521747  17.551696 | 26.286913",
+            "           |     33.23      66.77 |    100.00",
+            "-----------+----------------------+----------",
+            "      East |  11.18797  16.949982 | 28.137952",
+            "           |     39.76      60.24 |    100.00",
+            "-----------+----------------------+----------",
+            "     Total | 39.007273   57.13164 |96.1389132",
+            "           |     40.57      59.43 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate g [iweight=w], sort",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "      North | 41.7140478       43.39       43.39",
+            "       East | 28.1379522       29.27       72.66",
+            "      South | 26.2869132       27.34      100.00",
+            "------------+-----------------------------------",
+            "      Total | 96.1389132      100.00"
+          ]
+        },
+        {
+          "command": "capture noisily tabulate g h [aweight=w], chi2",
+          "lines": ["chi2 not allowed with aweights"]
+        },
+        {
+          "command": "capture noisily tabulate g h [aweight=w], exact",
+          "lines": ["exact not allowed with aweights"]
+        },
+        {
+          "command": "capture noisily tabulate g h [aweight=w], V",
+          "lines": ["V not allowed with aweights"]
+        },
+        {
+          "command": "capture noisily tabulate g h [iweight=w], chi2",
+          "lines": ["option chi2 not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate g [iweight=w], summarize(y)",
+          "lines": ["may not use noninteger frequency weights"]
+        },
+        {
+          "command": "tabulate g [aweight=w], summarize(y)",
+          "lines": [
+            "            |                  Summary of y",
+            "          g |        Mean   Std. dev.       Freq.         Obs",
+            "------------+------------------------------------------------",
+            "      North |  -.14152823   3.1479023          42          21",
+            "      South |    .1983644   3.0179795          26          18",
+            "       East |   -.5705459   2.5812864          28          19",
+            "------------+------------------------------------------------",
+            "      Total |  -.17415758   2.9198954          96          58"
+          ]
+        },
+        {
+          "command": "tabulate g h [aweight=w], summarize(y)",
+          "lines": [
+            "  Means, Standard Deviations, Frequencies and Number of observations of y",
+            "",
+            "           |          h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "     North | .01063875 -.26985224 |-.14152823",
+            "           | 3.5407553  2.9472239 | 3.1479023",
+            "           | 19.084085  22.629963 | 41.714048",
+            "           |         9         12 |        21",
+            "-----------+----------------------+----------",
+            "     South | .97318747  -.1872535 |  .1983644",
+            "           | 3.7553108  2.6574418 | 3.0179795",
+            "           | 8.7352175  17.551696 | 26.286913",
+            "           |         7         11 |        18",
+            "-----------+----------------------+----------",
+            "      East | .06220473 -.98819798 | -.5705459",
+            "           | 2.6518651  2.5681481 | 2.5812864",
+            "           |  11.18797  16.949982 | 28.137952",
+            "           |        10          9 |        19",
+            "-----------+----------------------+----------",
+            "     Total | .24098018 -.45759758 |-.17415758",
+            "           | 3.2457199  2.6852931 | 2.9198954",
+            "           | 39.007273   57.13164 | 96.138913",
+            "           |        26         32 |        58"
+          ]
+        },
+        {
+          "command": "generate double v = round(w)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "tabulate g [iweight=v], summarize(y)",
+          "lines": [
+            "            |                  Summary of y",
+            "          g |        Mean   Std. dev.       Freq.         Obs",
+            "------------+------------------------------------------------",
+            "      North |  -.23641973   3.0797768          43          43",
+            "      South |   .24071056   2.9222021          26          26",
+            "       East |  -.44350154    2.506601          30          30",
+            "------------+------------------------------------------------",
+            "      Total |  -.17386485   2.8587124          99          99"
+          ]
+        },
+        {
+          "command": "tabulate g h [fweight=v], summarize(y)",
+          "lines": [
+            "  Means, Standard Deviations, Frequencies and Number of observations of y",
+            "",
+            "           |          h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "     North | .00217236 -.42530513 |-.23641973",
+            "           |  3.475006  2.7902875 | 3.0797768",
+            "           |        19         24 |        43",
+            "           |        19         24 |        43",
+            "-----------+----------------------+----------",
+            "     South | 1.6137184 -.36951514 | .24071056",
+            "           | 3.5823258  2.4478834 | 2.9222021",
+            "           |         8         18 |        26",
+            "           |         8         18 |        26",
+            "-----------+----------------------+----------",
+            "      East | .05318836 -.77462814 |-.44350154",
+            "           | 2.5497144   2.494263 |  2.506601",
+            "           |        12         18 |        30",
+            "           |        12         18 |        30",
+            "-----------+----------------------+----------",
+            "     Total | .34844314 -.51336503 |-.17386485",
+            "           | 3.2234197   2.566035 | 2.8587124",
+            "           |        39         60 |        99",
+            "           |        39         60 |        99"
+          ]
+        },
+        {
+          "command": "tabulate g [aweight=w], generate(dd)",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "      North | 25.1658219       43.39       43.39",
+            "      South | 15.8587289       27.34       70.73",
+            "       East | 16.9754491       29.27      100.00",
+            "------------+-----------------------------------",
+            "      Total |         58      100.00"
+          ]
+        },
+        { "command": "replace w = -1 in 3", "lines": ["(1 real change made)"] },
+        {
+          "command": "capture noisily tabulate g [iweight=w]",
+          "lines": ["negative weights encountered"]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-weighted-frequency-digits",
+      "source": "clear\nset seed 7\nset obs 1500\ngenerate int g = floor(runiform() * 75)\ngenerate double w = runiform() * 3\ngenerate h = mod(_n, 2)\ntabulate g [aweight=w]\ntabulate g h [aweight=w]\ntabulate g [iweight=w]\ntabulate g h [iweight=w]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 1500",
+          "lines": ["Number of observations (_N) was 0, now 1,500."]
+        },
+        { "command": "generate int g = floor(runiform() * 75)", "lines": [] },
+        { "command": "generate double w = runiform() * 3", "lines": [] },
+        { "command": "generate h = mod(_n, 2)", "lines": [] },
+        {
+          "command": "tabulate g [aweight=w]",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 | 14.8708111        0.99        0.99",
+            "          1 | 22.4411341        1.50        2.49",
+            "          2 | 26.6558923        1.78        4.26",
+            "          3 |28.35297709        1.89        6.15",
+            "          4 |  21.563225        1.44        7.59",
+            "          5 | 20.4127753        1.36        8.95",
+            "          6 | 18.8112541        1.25       10.21",
+            "          7 |21.79756497        1.45       11.66",
+            "          8 | 10.7512522        0.72       12.38",
+            "          9 | 20.1730018        1.34       13.72",
+            "         10 | 25.7132933        1.71       15.44",
+            "         11 | 15.3051711        1.02       16.46",
+            "         12 | 23.2309924        1.55       18.01",
+            "         13 | 28.4264929        1.90       19.90",
+            "         14 | 13.8660557        0.92       20.82",
+            "         15 |27.32792501        1.82       22.65",
+            "         16 |32.34117183        2.16       24.80",
+            "         17 |22.34020655        1.49       26.29",
+            "         18 | 18.4104331        1.23       27.52",
+            "         19 |  14.117692        0.94       28.46",
+            "         20 |15.20789649        1.01       29.47",
+            "         21 | 8.99739703        0.60       30.07",
+            "         22 |20.64105599        1.38       31.45",
+            "         23 | 12.7287981        0.85       32.30",
+            "         24 | 22.7925647        1.52       33.82",
+            "         25 | 17.9299606        1.20       35.01",
+            "         26 | 19.0865835        1.27       36.29",
+            "         27 | 26.7477747        1.78       38.07",
+            "         28 | 23.8317622        1.59       39.66",
+            "         29 | 12.3639746        0.82       40.48",
+            "         30 | 21.1750185        1.41       41.89",
+            "         31 | 26.0334403        1.74       43.63",
+            "         32 |  26.375402        1.76       45.39",
+            "         33 | 16.2472507        1.08       46.47",
+            "         34 | 14.7033355        0.98       47.45",
+            "         35 | 20.3634601        1.36       48.81",
+            "         36 |  14.249927        0.95       49.76",
+            "         37 | 20.1509322        1.34       51.10",
+            "         38 | 23.7694608        1.58       52.69",
+            "         39 | 20.7233623        1.38       54.07",
+            "         40 | 20.2621785        1.35       55.42",
+            "         41 | 23.6799967        1.58       57.00",
+            "         42 | 21.8024525        1.45       58.45",
+            "         43 | 24.5345537        1.64       60.09",
+            "         44 | 23.6864396        1.58       61.67",
+            "         45 |  16.593956        1.11       62.77",
+            "         46 | 13.7087381        0.91       63.69",
+            "         47 |21.50209491        1.43       65.12",
+            "         48 | 22.1245382        1.47       66.59",
+            "         49 | 15.8796933        1.06       67.65",
+            "         50 | 20.0768808        1.34       68.99",
+            "         51 | 15.0289697        1.00       69.99",
+            "         52 | 15.8549722        1.06       71.05",
+            "         53 | 13.6925195        0.91       71.96",
+            "         54 | 17.5308872        1.17       73.13",
+            "         55 | 13.1036652        0.87       74.01",
+            "         56 | 18.3869644        1.23       75.23",
+            "         57 | 22.2272099        1.48       76.71",
+            "         58 | 25.6704189        1.71       78.43",
+            "         59 | 15.4773121        1.03       79.46",
+            "         60 | 16.3612717        1.09       80.55",
+            "         61 | 23.1491503        1.54       82.09",
+            "         62 | 21.9068336        1.46       83.55",
+            "         63 | 26.7722315        1.78       85.34",
+            "         64 | 9.69311297        0.65       85.98",
+            "         65 |18.60633088        1.24       87.22",
+            "         66 | 19.6842248        1.31       88.54",
+            "         67 | 18.7645347        1.25       89.79",
+            "         68 |13.97585753        0.93       90.72",
+            "         69 | 25.5024976        1.70       92.42",
+            "         70 | 16.3242342        1.09       93.51",
+            "         71 | 26.5220234        1.77       95.27",
+            "         72 | 23.5313524        1.57       96.84",
+            "         73 |21.72731211        1.45       98.29",
+            "         74 | 25.6259119        1.71      100.00",
+            "------------+-----------------------------------",
+            "      Total |      1,500      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h [aweight=w]",
+          "lines": [
+            "           |           h",
+            "         g |         0          1 |     Total",
+            "-----------+----------------------+----------",
+            "         0 | 8.1110398  6.7597713 | 14.870811",
+            "         1 | 12.554782  9.8863517 | 22.441134",
+            "         2 | 12.893266  13.762626 | 26.655892",
+            "         3 | 15.054709  13.298268 | 28.352977",
+            "         4 | 12.100817  9.4624082 | 21.563225",
+            "         5 | 10.445215  9.9675599 | 20.412775",
+            "         6 | 11.137992  7.6732625 | 18.811254",
+            "         7 | 15.571055  6.2265101 | 21.797565",
+            "         8 | 6.8923895  3.8588627 | 10.751252",
+            "         9 | 9.3835412  10.789461 | 20.173002",
+            "        10 | 12.770702  12.942592 | 25.713293",
+            "        11 | 6.0666037  9.2385674 |15.3051711",
+            "        12 | 9.7712063 13.4597861 | 23.230992",
+            "        13 | 13.081678  15.344815 | 28.426493",
+            "        14 | 3.4470784  10.418977 | 13.866056",
+            "        15 | 10.087631  17.240294 | 27.327925",
+            "        16 | 10.384254  21.956918 | 32.341172",
+            "        17 | 13.764664  8.5755429 | 22.340207",
+            "        18 | 9.8528892  8.5575439 | 18.410433",
+            "        19 | 5.5657915  8.5519006 | 14.117692",
+            "        20 |  6.680889  8.5270075 | 15.207896",
+            "        21 | 6.1770193  2.8203777 |  8.997397",
+            "        22 | 15.581731  5.0593251 | 20.641056",
+            "        23 | 6.7232865  6.0055116 | 12.728798",
+            "        24 | 12.743833  10.048732 | 22.792565",
+            "        25 | 15.650022  2.2799388 | 17.929961",
+            "        26 | 8.8655958  10.220988 | 19.086583",
+            "        27 |  11.74469  15.003084 |26.7477747",
+            "        28 | 8.0020976  15.829665 | 23.831762",
+            "        29 |6.92350233  5.4404723 | 12.363975",
+            "        30 |12.0920341  9.0829844 | 21.175018",
+            "        31 | 12.812171 13.2212691 |26.0334403",
+            "        32 | 5.4552714 20.9201306 | 26.375402",
+            "        33 | 13.526799 2.72045193 | 16.247251",
+            "        34 |  6.769611  7.9337245 | 14.703335",
+            "        35 | 11.753725  8.6097348 |  20.36346",
+            "        36 | 12.159432  2.0904948 | 14.249927",
+            "        37 | 9.5820593  10.568873 |20.1509322",
+            "        38 | 11.603079  12.166382 | 23.769461",
+            "        39 | 10.203793   10.51957 | 20.723362",
+            "        40 | 12.461204 7.80097414 | 20.262179",
+            "        41 | 10.574212  13.105785 | 23.679997",
+            "        42 | 13.579367  8.2230857 | 21.802452",
+            "        43 | 10.448929  14.085625 | 24.534554",
+            "        44 | 13.847598  9.8388418 |  23.68644",
+            "        45 | 7.8404203  8.7535357 | 16.593956",
+            "        46 |  3.479263  10.229475 | 13.708738",
+            "        47 | 15.638893  5.8632021 | 21.502095",
+            "        48 | 9.5534713  12.571067 |22.1245382",
+            "        49 | 5.0436422  10.836051 | 15.879693",
+            "        50 | 6.5807261  13.496155 | 20.076881",
+            "        51 | 9.4005237 5.62844601 |  15.02897",
+            "        52 | 9.1339095  6.7210628 | 15.854972",
+            "        53 | 6.1824151  7.5101044 |  13.69252",
+            "        54 | 5.7763152  11.754572 | 17.530887",
+            "        55 | 3.6255581  9.4781071 | 13.103665",
+            "        56 | 5.0154296  13.371535 | 18.386964",
+            "        57 | 7.2772749  14.949935 |  22.22721",
+            "        58 | 15.848866  9.8215532 | 25.670419",
+            "        59 | 9.5714677  5.9058444 | 15.477312",
+            "        60 | 5.5311063  10.830165 | 16.361272",
+            "        61 | 12.024946  11.124204 |  23.14915",
+            "        62 | 9.2035292  12.703304 |21.9068336",
+            "        63 | 12.335299  14.436933 | 26.772231",
+            "        64 | 4.1566813  5.5364317 |  9.693113",
+            "        65 |11.9532071  6.6531238 | 18.606331",
+            "        66 | 11.543812  8.1404133 | 19.684225",
+            "        67 | 11.915646  6.8488884 | 18.764535",
+            "        68 | 8.3561131  5.6197444 | 13.975858",
+            "        69 |11.7801439  13.722354 | 25.502498",
+            "        70 | 7.5183494 8.80588481 | 16.324234",
+            "        71 |15.6566269 10.8653965 |26.5220234",
+            "        72 | 12.956289  10.575064 | 23.531352",
+            "        73 | 12.271772  9.4555403 | 21.727312",
+            "        74 | 8.6920115    16.9339 | 25.625912",
+            "-----------+----------------------+----------",
+            "     Total | 750.76296  749.23704 |     1,500"
+          ]
+        },
+        {
+          "command": "tabulate g [iweight=w]",
+          "lines": [
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 | 22.3158545        0.99        0.99",
+            "          1 | 33.6762455        1.50        2.49",
+            "          2 |40.00111436        1.78        4.26",
+            "          3 | 42.5478415        1.89        6.15",
+            "          4 | 32.3588128        1.44        7.59",
+            "          5 | 30.6323927        1.36        8.95",
+            "          6 | 28.2290729        1.25       10.21",
+            "          7 | 32.7104747        1.45       11.66",
+            "          8 | 16.1338462        0.72       12.38",
+            "          9 |  30.272577        1.34       13.72",
+            "         10 | 38.5866049        1.71       15.44",
+            "         11 | 22.9676761        1.02       16.46",
+            "         12 | 34.8615448        1.55       18.01",
+            "         13 | 42.6581628        1.90       19.90",
+            "         14 | 20.8080702        0.92       20.82",
+            "         15 |  41.009599        1.82       22.65",
+            "         16 | 48.5327184        2.16       24.80",
+            "         17 | 33.5247887        1.49       26.29",
+            "         18 | 27.6275816        1.23       27.52",
+            "         19 | 21.1856879        0.94       28.46",
+            "         20 | 22.8217011        1.01       29.47",
+            "         21 |13.50192685        0.60       30.07",
+            "         22 | 30.9749616        1.38       31.45",
+            "         23 | 19.1014468        0.85       32.30",
+            "         24 | 34.2036191        1.52       33.82",
+            "         25 | 26.9065615        1.20       35.01",
+            "         26 |28.64224542        1.27       36.29",
+            "         27 | 40.1389975        1.78       38.07",
+            "         28 | 35.7630889        1.59       39.66",
+            "         29 | 18.5539752        0.82       40.48",
+            "         30 | 31.7762514        1.41       41.89",
+            "         31 |  39.067033        1.74       43.63",
+            "         32 | 39.5801971        1.76       45.39",
+            "         33 |24.38140608        1.08       46.47",
+            "         34 | 22.0645326        0.98       47.45",
+            "         35 |30.55838789        1.36       48.81",
+            "         36 |  21.384126        0.95       49.76",
+            "         37 | 30.2394583        1.34       51.10",
+            "         38 | 35.6695965        1.58       52.69",
+            "         39 | 31.0984745        1.38       54.07",
+            "         40 | 30.4063999        1.35       55.42",
+            "         41 | 35.5353423        1.58       57.00",
+            "         42 | 32.7178091        1.45       58.45",
+            "         43 | 36.8177316        1.64       60.09",
+            "         44 | 35.5450108        1.58       61.67",
+            "         45 | 24.9016887        1.11       62.77",
+            "         46 |  20.571992        0.91       63.69",
+            "         47 | 32.2670781        1.43       65.12",
+            "         48 |33.20114642        1.47       66.59",
+            "         49 | 23.8298317        1.06       67.65",
+            "         50 | 30.1283333        1.34       68.99",
+            "         51 |  22.553195        1.00       69.99",
+            "         52 | 23.7927341        1.06       71.05",
+            "         53 | 20.5476535        0.91       71.96",
+            "         54 | 26.3076928        1.17       73.13",
+            "         55 |19.66399036        0.87       74.01",
+            "         56 | 27.5923634        1.23       75.23",
+            "         57 | 33.3552206        1.48       76.71",
+            "         58 | 38.5222656        1.71       78.43",
+            "         59 | 23.2259991        1.03       79.46",
+            "         60 | 24.5525115        1.09       80.55",
+            "         61 | 34.7387286        1.54       82.09",
+            "         62 | 32.8744484        1.46       83.55",
+            "         63 | 40.1756985        1.78       85.34",
+            "         64 | 14.5459517        0.65       85.98",
+            "         65 | 27.9215553        1.24       87.22",
+            "         66 | 29.5390947        1.31       88.54",
+            "         67 | 28.1589634        1.25       89.79",
+            "         68 |20.97284418        0.93       90.72",
+            "         69 | 38.2702748        1.70       92.42",
+            "         70 | 24.4969312        1.09       93.51",
+            "         71 | 39.8002243        1.77       95.27",
+            "         72 | 35.3122795        1.57       96.84",
+            "         73 | 32.6050498        1.45       98.29",
+            "         74 | 38.4554763        1.71      100.00",
+            "------------+-----------------------------------",
+            "      Total | 2,250.9722      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h [iweight=w]",
+          "lines": [
+            "           |           h",
+            "         g |         0          1 |     Total",
+            "-----------+----------------------+----------",
+            "         0 | 12.171816  10.144038 | 22.315855",
+            "         1 | 18.840311  14.835935 | 33.676246",
+            "         2 | 19.348255  20.652859 | 40.001114",
+            "         3 | 22.591821  19.956021 | 42.547841",
+            "         4 | 18.159068  14.199745 | 32.358813",
+            "         5 | 15.674593 14.9577999 | 30.632393",
+            "         6 | 16.714206  11.514867 | 28.229073",
+            "         7 | 23.366674  9.3438006 | 32.710475",
+            "         8 | 10.343051   5.790795 | 16.133846",
+            "         9 | 14.081393  16.191184 | 30.272577",
+            "        10 | 19.164329  19.422276 | 38.586605",
+            "        11 | 9.1038374  13.863839 | 22.967676",
+            "        12 | 14.663142  20.198403 | 34.861545",
+            "        13 | 19.630995  23.027168 |42.6581628",
+            "        14 | 5.1728517 15.6352185 |  20.80807",
+            "        15 | 15.137985  25.871614 | 41.009599",
+            "        16 | 15.583111  32.949607 | 48.532718",
+            "        17 | 20.655917 12.8688722 | 33.524789",
+            "        18 |  14.78572  12.841862 | 27.627582",
+            "        19 | 8.3522944  12.833393 | 21.185688",
+            "        20 | 10.025663  12.796038 | 22.821701",
+            "        21 | 9.2695324  4.2323944 | 13.501927",
+            "        22 | 23.382695 7.59226669 | 30.974962",
+            "        23 | 10.089287  9.0121596 | 19.101447",
+            "        24 | 19.124009   15.07961 | 34.203619",
+            "        25 | 23.485176  3.4213858 | 26.906562",
+            "        26 |13.3041396  15.338106 | 28.642245",
+            "        27 | 17.624647   22.51435 | 40.138998",
+            "        28 | 12.008333  23.754756 | 35.763089",
+            "        29 | 10.389741  8.1642345 | 18.553975",
+            "        30 | 18.145888 13.6303633 | 31.776251",
+            "        31 |  19.22656  19.840472 | 39.067033",
+            "        32 | 8.1864427  31.393754 | 39.580197",
+            "        33 | 20.298965   4.082441 | 24.381406",
+            "        34 |10.1588039  11.905729 | 22.064533",
+            "        35 | 17.638206  12.920182 | 30.558388",
+            "        36 | 18.247029  3.1370971 | 21.384126",
+            "        37 | 14.379299  15.860159 | 30.239458",
+            "        38 | 17.412139  18.257457 | 35.669596",
+            "        39 | 15.312302  15.786172 | 31.098474",
+            "        40 | 18.699883  11.706517 |   30.4064",
+            "        41 | 15.868171  19.667171 | 35.535342",
+            "        42 | 20.377851  12.339958 | 32.717809",
+            "        43 | 15.680165  21.137566 | 36.817732",
+            "        44 | 20.780371 14.7646394 | 35.545011",
+            "        45 | 11.765712  13.135977 |24.9016887",
+            "        46 | 5.2211495  15.350842 | 20.571992",
+            "        47 | 23.468475  8.7986031 | 32.267078",
+            "        48 | 14.336399  18.864748 | 33.201146",
+            "        49 | 7.5687321    16.2611 | 23.829832",
+            "        50 | 9.8753542  20.252979 | 30.128333",
+            "        51 | 14.106878  8.4463169 | 22.553195",
+            "        52 | 13.706784   10.08595 |23.7927341",
+            "        53 | 9.2776295  11.270024 | 20.547654",
+            "        54 | 8.6682165  17.639476 | 26.307693",
+            "        55 | 5.4406868  14.223304 |  19.66399",
+            "        56 |  7.526395  20.065968 | 27.592363",
+            "        57 | 10.920629  22.434592 | 33.355221",
+            "        58 |  23.78357  14.738695 | 38.522266",
+            "        59 | 14.363405 8.86259417 | 23.225999",
+            "        60 | 8.3002442  16.252267 | 24.552511",
+            "        61 | 18.045213  16.693516 | 34.738729",
+            "        62 | 13.811259   19.06319 | 32.874448",
+            "        63 | 18.510943  21.664756 | 40.175699",
+            "        64 | 6.2377159  8.3082358 | 14.545952",
+            "        65 | 17.937558  9.9839976 | 27.921555",
+            "        66 | 17.323199  12.215896 | 29.539095",
+            "        67 | 17.881192  10.277771 | 28.158963",
+            "        68 |12.5395853  8.4332589 | 20.972844",
+            "        69 | 17.677851  20.592424 |38.2702748",
+            "        70 | 11.282397  13.214534 | 24.496931",
+            "        71 | 23.495088  16.305137 | 39.800224",
+            "        72 |  19.44283  15.869449 | 35.312279",
+            "        73 | 18.415611  14.189439 |  32.60505",
+            "        74 | 13.043651  25.411826 | 38.455476",
+            "-----------+----------------------+----------",
+            "     Total | 1,126.631  1,124.341 | 2,250.972"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-nofreq-and-summaries",
+      "source": "clear\nset seed 99\nset obs 60\ngenerate g = 1 + floor(runiform() * 3)\ngenerate h = 1 + floor(runiform() * 2)\ngenerate double w = runiform() * 3\ngenerate y = runiform() * 10 - 5\ntabulate g h, nofreq\ntabulate g h, nofreq chi2\ntabulate g h, nofreq row\ntabulate g h, nofreq row cell\ntabulate g h, cell nofreq\ntabulate g, nofreq\ntabulate g, summarize(y) nofreq\ntabulate g, summarize(y) nomeans\ntabulate g, summarize(y) nostandard\ntabulate g, summarize(y) nomeans nostandard\ntabulate g [aweight=w], summarize(y) noobs\ntabulate g [aweight=w], summarize(y) nofreq noobs\ntabulate g h, summarize(y) nofreq\ntabulate g h, summarize(y) nomeans nostandard\ntabulate g h [aweight=w], summarize(y) noobs nomeans\ntabulate g, summarize(y) nomeans nostandard nofreq\ntabulate g h, summarize(y) nomeans nostandard nofreq\ncapture noisily tabulate g, nomeans nostandard\ncapture noisily tabulate g h, nostandard nomeans\ncapture noisily tabulate g, noobs\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 3)", "lines": [] },
+        { "command": "generate h = 1 + floor(runiform() * 2)", "lines": [] },
+        { "command": "generate double w = runiform() * 3", "lines": [] },
+        { "command": "generate y = runiform() * 10 - 5", "lines": [] },
+        { "command": "tabulate g h, nofreq", "lines": [] },
+        {
+          "command": "tabulate g h, nofreq chi2",
+          "lines": ["          Pearson chi2(2) =   0.3053   Pr = 0.858"]
+        },
+        {
+          "command": "tabulate g h, nofreq row",
+          "lines": [
+            "           |           h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |     42.86      57.14 |    100.00",
+            "         2 |     42.11      57.89 |    100.00",
+            "         3 |     50.00      50.00 |    100.00",
+            "-----------+----------------------+----------",
+            "     Total |     45.00      55.00 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h, nofreq row cell",
+          "lines": [
+            "+-----------------+",
+            "| Key             |",
+            "|-----------------|",
+            "| row percentage  |",
+            "| cell percentage |",
+            "+-----------------+",
+            "",
+            "           |           h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |     42.86      57.14 |    100.00",
+            "           |     15.00      20.00 |     35.00",
+            "-----------+----------------------+----------",
+            "         2 |     42.11      57.89 |    100.00",
+            "           |     13.33      18.33 |     31.67",
+            "-----------+----------------------+----------",
+            "         3 |     50.00      50.00 |    100.00",
+            "           |     16.67      16.67 |     33.33",
+            "-----------+----------------------+----------",
+            "     Total |     45.00      55.00 |    100.00",
+            "           |     45.00      55.00 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h, cell nofreq",
+          "lines": [
+            "           |           h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |     15.00      20.00 |     35.00",
+            "         2 |     13.33      18.33 |     31.67",
+            "         3 |     16.67      16.67 |     33.33",
+            "-----------+----------------------+----------",
+            "     Total |     45.00      55.00 |    100.00"
+          ]
+        },
+        { "command": "tabulate g, nofreq", "lines": [] },
+        {
+          "command": "tabulate g, summarize(y) nofreq",
+          "lines": [
+            "            |      Summary of y",
+            "          g |        Mean   Std. dev.",
+            "------------+------------------------",
+            "          1 |   .21605565   3.1576556",
+            "          2 |   .52277941   3.0633743",
+            "          3 |  -.37012948   3.1040731",
+            "------------+------------------------",
+            "      Total |    .1177898   3.0794095"
+          ]
+        },
+        {
+          "command": "tabulate g, summarize(y) nomeans",
+          "lines": [
+            "            |      Summary of y",
+            "          g |   Std. dev.       Freq.",
+            "------------+------------------------",
+            "          1 |   3.1576556          21",
+            "          2 |   3.0633743          19",
+            "          3 |   3.1040731          20",
+            "------------+------------------------",
+            "      Total |   3.0794095          60"
+          ]
+        },
+        {
+          "command": "tabulate g, summarize(y) nostandard",
+          "lines": [
+            "            |      Summary of y",
+            "          g |        Mean       Freq.",
+            "------------+------------------------",
+            "          1 |   .21605565          21",
+            "          2 |   .52277941          19",
+            "          3 |  -.37012948          20",
+            "------------+------------------------",
+            "      Total |    .1177898          60"
+          ]
+        },
+        {
+          "command": "tabulate g, summarize(y) nomeans nostandard",
+          "lines": [
+            "            | Summary of",
+            "            |      y",
+            "          g |       Freq.",
+            "------------+------------",
+            "          1 |          21",
+            "          2 |          19",
+            "          3 |          20",
+            "------------+------------",
+            "      Total |          60"
+          ]
+        },
+        {
+          "command": "tabulate g [aweight=w], summarize(y) noobs",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |  -.14152823   3.1479023          42",
+            "          2 |   .55851353   3.0663743          29",
+            "          3 |   -.5553823   2.5740481          28",
+            "------------+------------------------------------",
+            "      Total |  -.05375304   2.9520501          99"
+          ]
+        },
+        {
+          "command": "tabulate g [aweight=w], summarize(y) nofreq noobs",
+          "lines": [
+            "            |      Summary of y",
+            "          g |        Mean   Std. dev.",
+            "------------+------------------------",
+            "          1 |  -.14152823   3.1479023",
+            "          2 |   .55851353   3.0663743",
+            "          3 |   -.5553823   2.5740481",
+            "------------+------------------------",
+            "      Total |  -.05375304   2.9520501"
+          ]
+        },
+        {
+          "command": "tabulate g h, summarize(y) nofreq",
+          "lines": [
+            "                    Means and Standard Deviations of y",
+            "",
+            "           |          h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 | .07745601  .32000537 | .21605565",
+            "           |  3.436325   3.084368 | 3.1576556",
+            "-----------+----------------------+----------",
+            "         2 | .02352771  .88587155 | .52277941",
+            "           | 3.6791764   2.659288 | 3.0633743",
+            "-----------+----------------------+----------",
+            "         3 | .34060099   -1.08086 |-.37012948",
+            "           | 3.1653312  3.0330307 | 3.1040731",
+            "-----------+----------------------+----------",
+            "     Total | .15893836  .08412279 |  .1177898",
+            "           | 3.2812484  2.9552313 | 3.0794095"
+          ]
+        },
+        {
+          "command": "tabulate g h, summarize(y) nomeans nostandard",
+          "lines": [
+            "                             Frequencies of y",
+            "",
+            "           |          h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 |         9         12 |        21",
+            "         2 |         8         11 |        19",
+            "         3 |        10         10 |        20",
+            "-----------+----------------------+----------",
+            "     Total |        27         33 |        60"
+          ]
+        },
+        {
+          "command": "tabulate g h [aweight=w], summarize(y) noobs nomeans",
+          "lines": [
+            "                 Standard Deviations and Frequencies of y",
+            "",
+            "           |          h",
+            "         g |         1          2 |     Total",
+            "-----------+----------------------+----------",
+            "         1 | 3.5407553  2.9472239 | 3.1479023",
+            "           | 19.084085  22.629963 | 41.714048",
+            "-----------+----------------------+----------",
+            "         2 | 3.4732021  2.6574418 | 3.0663743",
+            "           | 11.658337  17.551696 | 29.210032",
+            "-----------+----------------------+----------",
+            "         3 | 2.6518651  2.5519466 | 2.5740481",
+            "           |  11.18797  17.165375 | 28.353346",
+            "-----------+----------------------+----------",
+            "     Total | 3.2615244  2.6814892 | 2.9520501",
+            "           | 41.930392  57.347033 | 99.277426"
+          ]
+        },
+        {
+          "command": "tabulate g, summarize(y) nomeans nostandard nofreq",
+          "lines": []
+        },
+        {
+          "command": "tabulate g h, summarize(y) nomeans nostandard nofreq",
+          "lines": []
+        },
+        {
+          "command": "capture noisily tabulate g, nomeans nostandard",
+          "lines": ["option nomeans not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate g h, nostandard nomeans",
+          "lines": ["option nostandard not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate g, noobs",
+          "lines": ["option noobs not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "mean-proportion-weights",
+      "source": "clear\nset seed 4321\nset obs 200\ngenerate g = 1 + floor(runiform() * 3)\nlabel define gl 1 \"North\" 2 \"South\" 3 \"Less than high school\"\nlabel values g gl\ngenerate x = round(runiform() * 100, .01)\ngenerate y = runiform() * 5\nreplace x = . in 5\ngenerate double w = 0.5 + runiform() * 2\ngenerate byte fw = 1 + floor(runiform() * 3)\ngenerate byte e = runiform() < .3\ngenerate byte longgroupname = g\nmean x [pweight=w]\nmean x y [pweight=w]\nmean x [aweight=w]\nmean x [fweight=fw]\nmean x [iweight=w]\nmean x [pweight=w], over(g)\nmean x [aweight=w], over(g)\nmean x [fweight=fw], over(g)\nmean x [iweight=w], over(g)\nmean x y [pweight=w], over(g)\nmean x, over(g)\nmean x [pweight=w], level(90)\nmean y [pweight=w], over(longgroupname)\nproportion e [pweight=w]\ncapture noisily proportion e [aweight=w]\nproportion e [fweight=fw]\nproportion e [iweight=w]\nproportion g [pweight=w]\nproportion g [pweight=w], level(90)\nproportion e\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4321", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 3)", "lines": [] },
+        {
+          "command": "label define gl 1 \"North\" 2 \"South\" 3 \"Less than high school\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "generate x = round(runiform() * 100, .01)", "lines": [] },
+        { "command": "generate y = runiform() * 5", "lines": [] },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate double w = 0.5 + runiform() * 2", "lines": [] },
+        {
+          "command": "generate byte fw = 1 + floor(runiform() * 3)",
+          "lines": []
+        },
+        { "command": "generate byte e = runiform() < .3", "lines": [] },
+        { "command": "generate byte longgroupname = g", "lines": [] },
+        {
+          "command": "mean x [pweight=w]",
+          "lines": [
+            "Mean estimation                            Number of obs = 199",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           x |   53.91409    2.15832      49.65784    58.17033",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x y [pweight=w]",
+          "lines": [
+            "Mean estimation                            Number of obs = 199",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           x |   53.91409    2.15832      49.65784    58.17033",
+            "           y |   2.517311   .1051977      2.309859    2.724763",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [aweight=w]",
+          "lines": [
+            "Mean estimation                            Number of obs = 199",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           x |   53.91409   2.027726      49.91538     57.9128",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [fweight=fw]",
+          "lines": [
+            "Mean estimation                            Number of obs = 403",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           x |   53.02459    1.44317      50.18749    55.86169",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [iweight=w]",
+          "lines": [
+            "Mean estimation                            Number of obs = 310",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           x |   53.91409   1.624308      50.71797    57.11021",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [pweight=w], over(g)",
+          "lines": [
+            "Mean estimation                                      Number of obs = 199",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.x@g |",
+            "                North  |   52.24277   4.074887      44.20702    60.27851",
+            "                South  |   50.86699   3.522069      43.92141    57.81258",
+            "Less than high school  |   58.80397   3.549131      51.80502    65.80292",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [aweight=w], over(g)",
+          "lines": [
+            "Mean estimation                                      Number of obs = 199",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.x@g |",
+            "                North  |   52.24277   3.920163      44.51214     59.9734",
+            "                South  |   50.86699    3.28895      44.38113    57.35286",
+            "Less than high school  |   58.80397   3.385153      52.12839    65.47955",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [fweight=fw], over(g)",
+          "lines": [
+            "Mean estimation                                      Number of obs = 403",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.x@g |",
+            "                North  |   50.70224   2.920228      44.96142    56.44307",
+            "                South  |   51.73823   2.232751       47.3489    56.12755",
+            "Less than high school  |   56.29804    2.46326      51.45556    61.14052",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [iweight=w], over(g)",
+          "lines": [
+            "Mean estimation                                      Number of obs = 310",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.x@g |",
+            "                North  |   52.24277   3.074519      46.19309    58.29244",
+            "                South  |   50.86699   2.643276      45.66587    56.06812",
+            "Less than high school  |   58.80397   2.733714      53.42489    64.18305",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x y [pweight=w], over(g)",
+          "lines": [
+            "Mean estimation                                      Number of obs = 199",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.x@g |",
+            "                North  |   52.24277   4.074887      44.20702    60.27851",
+            "                South  |   50.86699   3.522069      43.92141    57.81258",
+            "Less than high school  |   58.80397   3.549131      51.80502    65.80292",
+            "                       |",
+            "                 c.y@g |",
+            "                North  |   2.344091   .2013008      1.947122    2.741059",
+            "                South  |    2.52603   .1676503       2.19542    2.856639",
+            "Less than high school  |   2.652887   .1789204      2.300053    3.005721",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x, over(g)",
+          "lines": [
+            "Mean estimation                                      Number of obs = 199",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.x@g |",
+            "                North  |   51.79833   4.014572      43.88153    59.71514",
+            "                South  |   53.28338   3.258686      46.85719    59.70956",
+            "Less than high school  |   56.56603   3.508411      49.64738    63.48468",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean x [pweight=w], level(90)",
+          "lines": [
+            "Mean estimation                            Number of obs = 199",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           x |   53.91409    2.15832      50.34728     57.4809",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y [pweight=w], over(longgroupname)",
+          "lines": [
+            "Mean estimation                                 Number of obs = 200",
+            "",
+            "-------------------------------------------------------------------",
+            "                  |       Mean   Std. err.     [95% conf. interval]",
+            "------------------+------------------------------------------------",
+            "c.y@longgroupname |",
+            "               1  |   2.329534   .1972548      1.940556    2.718512",
+            "               2  |    2.52603   .1676482      2.195435    2.856624",
+            "               3  |   2.652887   .1789181      2.300068    3.005706",
+            "-------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion e [pweight=w]",
+          "lines": [
+            "Proportion estimation                      Number of obs = 200",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           e |",
+            "          0  |   .6781365   .0352423      .6051143    .7433819",
+            "          1  |   .3218635   .0352423      .2566181    .3948857",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily proportion e [aweight=w]",
+          "lines": ["aweights not allowed"]
+        },
+        {
+          "command": "proportion e [fweight=fw]",
+          "lines": [
+            "Proportion estimation                      Number of obs = 405",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           e |",
+            "          0  |   .6765432   .0232449      .6292762    .7204608",
+            "          1  |   .3234568   .0232449      .2795392    .3707238",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion e [iweight=w]",
+          "lines": [
+            "Proportion estimation                      Number of obs = 312",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           e |",
+            "          0  |   .6781365   .0264681       .624013    .7278666",
+            "          1  |   .3218635   .0264681      .2721334     .375987",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g [pweight=w]",
+          "lines": [
+            "Proportion estimation                                Number of obs = 200",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |                                   Logit",
+            "                       | Proportion   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                     g |",
+            "                North  |   .2861718   .0345777      .2230743    .3588727",
+            "                South  |   .3808697   .0365736      .3118022    .4551188",
+            "Less than high school  |   .3329585   .0355149      .2669477    .4062463",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g [pweight=w], level(90)",
+          "lines": [
+            "Proportion estimation                                Number of obs = 200",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |                                   Logit",
+            "                       | Proportion   Std. err.     [90% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                     g |",
+            "                North  |   .2861718   .0345777      .2325846    .3465302",
+            "                South  |   .3808697   .0365736      .3225305    .4428633",
+            "Less than high school  |   .3329585   .0355149      .2770608    .3939877",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion e",
+          "lines": [
+            "Proportion estimation                      Number of obs = 200",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           e |",
+            "          0  |        .67   .0332491      .6014815    .7319872",
+            "          1  |        .33   .0332491      .2680128    .3985185",
+            "--------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-labels-and-formats",
+      "source": "clear\nset seed 2026\nset obs 74\ngenerate byte foreign = runiform() < .3\nlabel define origin 0 \"Domestic\" 1 \"Foreign\"\nlabel values foreign origin\nlabel variable foreign \"Car origin\"\ngenerate byte rep78 = 1 + floor(runiform() * 5)\nreplace rep78 = . if runiform() < .07\nreplace rep78 = 3 if foreign & rep78 < 3\nlabel variable rep78 \"Repair record 1978\"\ngenerate price = round(3000 + 9000 * runiform())\nlabel variable price \"Price\"\ngenerate weight = round(1800 + 2500 * runiform(), 10)\nlabel variable weight \"Weight (lbs.)\"\ngenerate mpg = round(12 + 25 * runiform())\ngenerate double income = 20000 + 100000 * runiform()\nformat income %12.2fc\ngenerate str8 make = cond(foreign, \"Euro\", \"US\")\ngenerate byte two = 1 + (runiform() < .5)\nlabel variable two \"A rather long label for a variable with two values\"\ntable foreign\ntable foreign rep78\ntable rep78 foreign\ntable (foreign) (rep78), statistic(mean price) nformat(%9.1f)\ntable foreign, nformat(%9.1f)\ntable foreign, statistic(mean price) nformat(%9.1f mean)\ntable foreign, statistic(mean price) statistic(sd price) nformat(%9.1f mean) nformat(%9.3f sd)\ntable foreign, statistic(percent) sformat(\"%s%%\" percent)\ntable foreign, statistic(mean income) statistic(min income) statistic(max income) statistic(total income)\ntable foreign, statistic(frequency) statistic(mean price)\ntable foreign, statistic(mean price) statistic(frequency)\ntable foreign, statistic(percent) statistic(mean price weight)\ntable foreign, statistic(frequency) statistic(mean price weight)\ntable foreign, statistic(mean price weight)\ntable foreign, statistic(mean price) statistic(mean weight)\ntable foreign, statistic(mean price) statistic(sd weight)\ntable foreign, statistic(mean price weight) statistic(sd price weight)\ntable foreign, statistic(total weight) statistic(total mpg) statistic(mean mpg) statistic(total price)\ntable foreign, statistic(count rep78) statistic(mean price)\ntable foreign, statistic(count rep78) statistic(mean price) listwise\ntable make\ntable make foreign\ntable make, statistic(count make) statistic(mean make)\ntable foreign, statistic(mean weight) statistic(sd price) nformat(%6.2f mean sd)\ntable foreign, statistic(mean price) sformat(\"%s USD\")\ntable foreign, nformat(%9.2f frequency percent) statistic(frequency) statistic(percent)\ntable foreign, nformat(%9.1f mean) nformat(%9.3f mean) statistic(mean price)\ntable foreign, statistic(mean price) nformat(%9.1fc)\ntable foreign rep78, nototals\ntable foreign, nototals statistic(mean price)\ntable foreign rep78, totals(foreign)\ntable foreign rep78, totals(rep78)\ntable foreign rep78, totals(foreign rep78)\ntable foreign, totals(foreign)\ntable rep78 foreign, missing\ntable rep78, statistic(mean mpg) missing\ntable foreign rep78, zerocounts\ntable foreign rep78, statistic(count price) zerocounts\ntable foreign rep78, statistic(percent) zerocounts\ntable foreign rep78, statistic(mean price) zerocounts\ntable foreign rep78, statistic(percent)\ntable foreign two\ntable two foreign\ntable foreign, title(\"A title that is quite long\") note(\"note one\") note(\"note two\")\ntable foreign, statistic(median price) statistic(p25 price) statistic(iqr price) statistic(semean price) statistic(cv price) statistic(range price)\ntable foreign, statistic(p12 price) statistic(p21 price) statistic(p22 price) statistic(p33 price) statistic(q1 price) statistic(p50 price)\ntable foreign, statistic(skewness price) statistic(kurtosis price) statistic(geomean price) statistic(first price) statistic(lastnm rep78)\ntable foreign, statistic(variance price) statistic(proportion) statistic(sumw) statistic(rawtotal price) statistic(rawpercent)\ntable rep78 make, statistic(mean price) nformat(%5.0f)\ntable foreign if mpg > 20, markvar(used)\ntabulate used\ncapture noisily table foreign if price > 100000\ncapture noisily table foreign, statistic(bogus price)\ncapture noisily table foreign, statistic(mean)\ncapture noisily table foreign, statistic(frequency price)\ncapture noisily table foreign, nformat(bogus)\ncapture noisily table foreign, statistic(mean price) sformat(\"abc\")\ncapture noisily table foreign, stars\ncapture noisily table foreign, cellwidth(15)\ncapture noisily table foreign, contents(mean price) format(%9.1f)\ncapture noisily table foreign, center\ncapture noisily table foreign, totals(price)\ncapture noisily table foreign, statistic(mean price) bogus\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2026", "lines": [] },
+        {
+          "command": "set obs 74",
+          "lines": ["Number of observations (_N) was 0, now 74."]
+        },
+        { "command": "generate byte foreign = runiform() < .3", "lines": [] },
+        {
+          "command": "label define origin 0 \"Domestic\" 1 \"Foreign\"",
+          "lines": []
+        },
+        { "command": "label values foreign origin", "lines": [] },
+        { "command": "label variable foreign \"Car origin\"", "lines": [] },
+        {
+          "command": "generate byte rep78 = 1 + floor(runiform() * 5)",
+          "lines": []
+        },
+        {
+          "command": "replace rep78 = . if runiform() < .07",
+          "lines": ["(4 real changes made, 4 to missing)"]
+        },
+        {
+          "command": "replace rep78 = 3 if foreign & rep78 < 3",
+          "lines": ["(10 real changes made)"]
+        },
+        {
+          "command": "label variable rep78 \"Repair record 1978\"",
+          "lines": []
+        },
+        {
+          "command": "generate price = round(3000 + 9000 * runiform())",
+          "lines": []
+        },
+        { "command": "label variable price \"Price\"", "lines": [] },
+        {
+          "command": "generate weight = round(1800 + 2500 * runiform(), 10)",
+          "lines": []
+        },
+        { "command": "label variable weight \"Weight (lbs.)\"", "lines": [] },
+        {
+          "command": "generate mpg = round(12 + 25 * runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double income = 20000 + 100000 * runiform()",
+          "lines": []
+        },
+        { "command": "format income %12.2fc", "lines": [] },
+        {
+          "command": "generate str8 make = cond(foreign, \"Euro\", \"US\")",
+          "lines": []
+        },
+        { "command": "generate byte two = 1 + (runiform() < .5)", "lines": [] },
+        {
+          "command": "label variable two \"A rather long label for a variable with two values\"",
+          "lines": []
+        },
+        {
+          "command": "table foreign",
+          "lines": [
+            "-----------------------",
+            "           |  Frequency",
+            "-----------+-----------",
+            "Car origin |",
+            "  Domestic |         53",
+            "  Foreign  |         21",
+            "  Total    |         74",
+            "-----------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78",
+          "lines": [
+            "------------------------------------------",
+            "           |       Repair record 1978",
+            "           |  1    2    3   4    5   Total",
+            "-----------+------------------------------",
+            "Car origin |",
+            "  Domestic |  9   11   13   5   13      51",
+            "  Foreign  |           13   3    3      19",
+            "  Total    |  9   11   26   8   16      70",
+            "------------------------------------------"
+          ]
+        },
+        {
+          "command": "table rep78 foreign",
+          "lines": [
+            "------------------------------------------------",
+            "                   |          Car origin",
+            "                   |  Domestic   Foreign   Total",
+            "-------------------+----------------------------",
+            "Repair record 1978 |",
+            "  1                |         9                 9",
+            "  2                |        11                11",
+            "  3                |        13        13      26",
+            "  4                |         5         3       8",
+            "  5                |        13         3      16",
+            "  Total            |        51        19      70",
+            "------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table (foreign) (rep78), statistic(mean price) nformat(%9.1f)",
+          "lines": [
+            "-----------------------------------------------------------------",
+            "           |                   Repair record 1978",
+            "           |       1        2        3        4        5    Total",
+            "-----------+-----------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  7685.6   6649.1   7941.9   7017.6   7516.2   7418.7",
+            "  Foreign  |                    8151.2   5444.0   7264.7   7583.8",
+            "  Total    |  7685.6   6649.1   8046.6   6427.5   7469.1   7463.5",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, nformat(%9.1f)",
+          "lines": [
+            "-----------------------",
+            "           |  Frequency",
+            "-----------+-----------",
+            "Car origin |",
+            "  Domestic |       53.0",
+            "  Foreign  |       21.0",
+            "  Total    |       74.0",
+            "-----------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) nformat(%9.1f mean)",
+          "lines": [
+            "--------------------",
+            "           |    Mean",
+            "-----------+--------",
+            "Car origin |",
+            "  Domestic |  7437.9",
+            "  Foreign  |  7481.0",
+            "  Total    |  7450.2",
+            "--------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) statistic(sd price) nformat(%9.1f mean) nformat(%9.3f sd)",
+          "lines": [
+            "-----------------------------------------",
+            "           |    Mean   Standard deviation",
+            "-----------+-----------------------------",
+            "Car origin |",
+            "  Domestic |  7437.9             2529.139",
+            "  Foreign  |  7481.0             2747.739",
+            "  Total    |  7450.2             2573.973",
+            "-----------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(percent) sformat(\"%s%%\" percent)",
+          "lines": [
+            "---------------------",
+            "           |  Percent",
+            "-----------+---------",
+            "Car origin |",
+            "  Domestic |   71.62%",
+            "  Foreign  |   28.38%",
+            "  Total    |  100.00%",
+            "---------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean income) statistic(min income) statistic(max income) statistic(total income)",
+          "lines": [
+            "------------------------------------------------------------------",
+            "           |      Mean   Minimum value   Maximum value       Total",
+            "-----------+------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  73931.79        22572.41        119845.1   3,918,385",
+            "  Foreign  |  66151.29        20126.72        118891.6   1,389,177",
+            "  Total    |  71723.81        20126.72        119845.1   5,307,562",
+            "------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(frequency) statistic(mean price)",
+          "lines": [
+            "----------------------------------",
+            "           |  Frequency       Mean",
+            "-----------+----------------------",
+            "Car origin |",
+            "  Domestic |         53   7437.943",
+            "  Foreign  |         21   7481.048",
+            "  Total    |         74   7450.176",
+            "----------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) statistic(frequency)",
+          "lines": [
+            "----------------------------------",
+            "           |      Mean   Frequency",
+            "-----------+----------------------",
+            "Car origin |",
+            "  Domestic |  7437.943          53",
+            "  Foreign  |  7481.048          21",
+            "  Total    |  7450.176          74",
+            "----------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(percent) statistic(mean price weight)",
+          "lines": [
+            "------------------------------------------------",
+            "           |  Percent             Mean",
+            "           |               Price   Weight (lbs.)",
+            "-----------+------------------------------------",
+            "Car origin |",
+            "  Domestic |    71.62   7437.943        2980.189",
+            "  Foreign  |    28.38   7481.048        3150.952",
+            "  Total    |   100.00   7450.176        3028.649",
+            "------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(frequency) statistic(mean price weight)",
+          "lines": [
+            "--------------------------------------------------",
+            "           |  Frequency             Mean",
+            "           |                 Price   Weight (lbs.)",
+            "-----------+--------------------------------------",
+            "Car origin |",
+            "  Domestic |         53   7437.943        2980.189",
+            "  Foreign  |         21   7481.048        3150.952",
+            "  Total    |         74   7450.176        3028.649",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price weight)",
+          "lines": [
+            "--------------------------------------",
+            "           |     Price   Weight (lbs.)",
+            "-----------+--------------------------",
+            "Car origin |",
+            "  Domestic |  7437.943        2980.189",
+            "  Foreign  |  7481.048        3150.952",
+            "  Total    |  7450.176        3028.649",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) statistic(mean weight)",
+          "lines": [
+            "--------------------------------------",
+            "           |     Price   Weight (lbs.)",
+            "-----------+--------------------------",
+            "Car origin |",
+            "  Domestic |  7437.943        2980.189",
+            "  Foreign  |  7481.048        3150.952",
+            "  Total    |  7450.176        3028.649",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) statistic(sd weight)",
+          "lines": [
+            "-------------------------------------------",
+            "           |      Mean   Standard deviation",
+            "           |     Price        Weight (lbs.)",
+            "-----------+-------------------------------",
+            "Car origin |",
+            "  Domestic |  7437.943             737.6795",
+            "  Foreign  |  7481.048             682.4361",
+            "  Total    |  7450.176             721.9633",
+            "-------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price weight) statistic(sd price weight)",
+          "lines": [
+            "-----------------------------------------------------------------",
+            "           |            Mean                Standard deviation",
+            "           |     Price   Weight (lbs.)      Price   Weight (lbs.)",
+            "-----------+-----------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  7437.943        2980.189   2529.139        737.6795",
+            "  Foreign  |  7481.048        3150.952   2747.739        682.4361",
+            "  Total    |  7450.176        3028.649   2573.973        721.9633",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(total weight) statistic(total mpg) statistic(mean mpg) statistic(total price)",
+          "lines": [
+            "--------------------------------------------------------",
+            "           |               Total                    Mean",
+            "           |  Weight (lbs.)     mpg     Price        mpg",
+            "-----------+--------------------------------------------",
+            "Car origin |",
+            "  Domestic |        157,950   1,306   394,211   24.64151",
+            "  Foreign  |         66,170     491   157,102   23.38095",
+            "  Total    |        224,120   1,797   551,313   24.28378",
+            "--------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(count rep78) statistic(mean price)",
+          "lines": [
+            "----------------------------------------------------",
+            "           |  Number of nonmissing values       Mean",
+            "           |           Repair record 1978      Price",
+            "-----------+----------------------------------------",
+            "Car origin |",
+            "  Domestic |                           51   7437.943",
+            "  Foreign  |                           19   7481.048",
+            "  Total    |                           70   7450.176",
+            "----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(count rep78) statistic(mean price) listwise",
+          "lines": [
+            "----------------------------------------------------",
+            "           |  Number of nonmissing values       Mean",
+            "           |           Repair record 1978      Price",
+            "-----------+----------------------------------------",
+            "Car origin |",
+            "  Domestic |                           51   7418.706",
+            "  Foreign  |                           19   7583.789",
+            "  Total    |                           70   7463.514",
+            "----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table make",
+          "lines": [
+            "--------------------",
+            "        |  Frequency",
+            "--------+-----------",
+            "make    |",
+            "  Euro  |         21",
+            "  US    |         53",
+            "  Total |         74",
+            "--------------------"
+          ]
+        },
+        {
+          "command": "table make foreign",
+          "lines": [
+            "-------------------------------------",
+            "        |          Car origin",
+            "        |  Domestic   Foreign   Total",
+            "--------+----------------------------",
+            "make    |",
+            "  Euro  |                  21      21",
+            "  US    |        53                53",
+            "  Total |        53        21      74",
+            "-------------------------------------"
+          ]
+        },
+        {
+          "command": "table make, statistic(count make) statistic(mean make)",
+          "lines": [
+            "---------------------------------------------",
+            "        |  Number of nonmissing values   Mean",
+            "--------+------------------------------------",
+            "make    |",
+            "  Euro  |                            0      .",
+            "  US    |                            0      .",
+            "  Total |                            0      .",
+            "---------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean weight) statistic(sd price) nformat(%6.2f mean sd)",
+          "lines": [
+            "------------------------------------------------",
+            "           |           Mean   Standard deviation",
+            "           |  Weight (lbs.)                Price",
+            "-----------+------------------------------------",
+            "Car origin |",
+            "  Domestic |        2980.19              2529.14",
+            "  Foreign  |        3150.95              2747.74",
+            "  Total    |        3028.65              2573.97",
+            "------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) sformat(\"%s USD\")",
+          "lines": [
+            "--------------------------",
+            "           |          Mean",
+            "-----------+--------------",
+            "Car origin |",
+            "  Domestic |  7437.943 USD",
+            "  Foreign  |  7481.048 USD",
+            "  Total    |  7450.176 USD",
+            "--------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, nformat(%9.2f frequency percent) statistic(frequency) statistic(percent)",
+          "lines": [
+            "---------------------------------",
+            "           |  Frequency   Percent",
+            "-----------+---------------------",
+            "Car origin |",
+            "  Domestic |      53.00     71.62",
+            "  Foreign  |      21.00     28.38",
+            "  Total    |      74.00    100.00",
+            "---------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, nformat(%9.1f mean) nformat(%9.3f mean) statistic(mean price)",
+          "lines": [
+            "----------------------",
+            "           |      Mean",
+            "-----------+----------",
+            "Car origin |",
+            "  Domestic |  7437.943",
+            "  Foreign  |  7481.048",
+            "  Total    |  7450.176",
+            "----------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(mean price) nformat(%9.1fc)",
+          "lines": [
+            "---------------------",
+            "           |     Mean",
+            "-----------+---------",
+            "Car origin |",
+            "  Domestic |  7,437.9",
+            "  Foreign  |  7,481.0",
+            "  Total    |  7,450.2",
+            "---------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, nototals",
+          "lines": [
+            "----------------------------------------",
+            "           |      Repair record 1978",
+            "           |    1     2     3    4     5",
+            "-----------+----------------------------",
+            "Car origin |",
+            "  Domestic |    9    11    13    5    13",
+            "  Foreign  |               13    3     3",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, nototals statistic(mean price)",
+          "lines": [
+            "----------------------",
+            "           |      Mean",
+            "-----------+----------",
+            "Car origin |",
+            "  Domestic |  7437.943",
+            "  Foreign  |  7481.048",
+            "----------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, totals(foreign)",
+          "lines": [
+            "------------------------------------------",
+            "           |       Repair record 1978",
+            "           |  1    2    3   4    5   Total",
+            "-----------+------------------------------",
+            "Car origin |",
+            "  Domestic |  9   11   13   5   13      51",
+            "  Foreign  |           13   3    3      19",
+            "------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, totals(rep78)",
+          "lines": [
+            "----------------------------------------",
+            "           |      Repair record 1978",
+            "           |    1     2     3    4     5",
+            "-----------+----------------------------",
+            "Car origin |",
+            "  Domestic |    9    11    13    5    13",
+            "  Foreign  |               13    3     3",
+            "  Total    |    9    11    26    8    16",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, totals(foreign rep78)",
+          "lines": [
+            "------------------------------------------",
+            "           |       Repair record 1978",
+            "           |  1    2    3   4    5   Total",
+            "-----------+------------------------------",
+            "Car origin |",
+            "  Domestic |  9   11   13   5   13      51",
+            "  Foreign  |           13   3    3      19",
+            "  Total    |  9   11   26   8   16",
+            "------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, totals(foreign)",
+          "lines": [
+            "-----------------------",
+            "           |  Frequency",
+            "-----------+-----------",
+            "Car origin |",
+            "  Domestic |         53",
+            "  Foreign  |         21",
+            "-----------------------"
+          ]
+        },
+        {
+          "command": "table rep78 foreign, missing",
+          "lines": [
+            "------------------------------------------------",
+            "                   |          Car origin",
+            "                   |  Domestic   Foreign   Total",
+            "-------------------+----------------------------",
+            "Repair record 1978 |",
+            "  1                |         9                 9",
+            "  2                |        11                11",
+            "  3                |        13        13      26",
+            "  4                |         5         3       8",
+            "  5                |        13         3      16",
+            "  .                |         2         2       4",
+            "  Total            |        53        21      74",
+            "------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table rep78, statistic(mean mpg) missing",
+          "lines": [
+            "------------------------------",
+            "                   |      Mean",
+            "-------------------+----------",
+            "Repair record 1978 |",
+            "  1                |  25.88889",
+            "  2                |  25.90909",
+            "  3                |  24.73077",
+            "  4                |    20.875",
+            "  5                |   22.1875",
+            "  .                |      28.5",
+            "  Total            |  24.28378",
+            "------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, zerocounts",
+          "lines": [
+            "------------------------------------------",
+            "           |       Repair record 1978",
+            "           |  1    2    3   4    5   Total",
+            "-----------+------------------------------",
+            "Car origin |",
+            "  Domestic |  9   11   13   5   13      51",
+            "  Foreign  |  0    0   13   3    3      19",
+            "  Total    |  9   11   26   8   16      70",
+            "------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, statistic(count price) zerocounts",
+          "lines": [
+            "------------------------------------------",
+            "           |       Repair record 1978",
+            "           |  1    2    3   4    5   Total",
+            "-----------+------------------------------",
+            "Car origin |",
+            "  Domestic |  9   11   13   5   13      51",
+            "  Foreign  |  0    0   13   3    3      19",
+            "  Total    |  9   11   26   8   16      70",
+            "------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, statistic(percent) zerocounts",
+          "lines": [
+            "------------------------------------------------------------",
+            "           |                Repair record 1978",
+            "           |      1       2       3       4       5    Total",
+            "-----------+------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  12.86   15.71   18.57    7.14   18.57    72.86",
+            "  Foreign  |                  18.57    4.29    4.29    27.14",
+            "  Total    |  12.86   15.71   37.14   11.43   22.86   100.00",
+            "------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, statistic(mean price) zerocounts",
+          "lines": [
+            "---------------------------------------------------------------------------",
+            "           |                        Repair record 1978",
+            "           |         1          2          3        4          5      Total",
+            "-----------+---------------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  7685.556   6649.091   7941.923   7017.6   7516.231   7418.706",
+            "  Foreign  |                        8151.231     5444   7264.667   7583.789",
+            "  Total    |  7685.556   6649.091   8046.577   6427.5   7469.063   7463.514",
+            "---------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign rep78, statistic(percent)",
+          "lines": [
+            "------------------------------------------------------------",
+            "           |                Repair record 1978",
+            "           |      1       2       3       4       5    Total",
+            "-----------+------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  12.86   15.71   18.57    7.14   18.57    72.86",
+            "  Foreign  |                  18.57    4.29    4.29    27.14",
+            "  Total    |  12.86   15.71   37.14   11.43   22.86   100.00",
+            "------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign two",
+          "lines": [
+            "--------------------------------------------------------------------",
+            "           |    A rather long label for a variable with two values",
+            "           |                1                 2                Total",
+            "-----------+--------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |               22                31                   53",
+            "  Foreign  |               10                11                   21",
+            "  Total    |               32                42                   74",
+            "--------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table two foreign",
+          "lines": [
+            "--------------------------------------------------------------------------------",
+            "                                                   |          Car origin",
+            "                                                   |  Domestic   Foreign   Total",
+            "---------------------------------------------------+----------------------------",
+            "A rather long label for a variable with two values |",
+            "  1                                                |        22        10      32",
+            "  2                                                |        31        11      42",
+            "  Total                                            |        53        21      74",
+            "--------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, title(\"A title that is quite long\") note(\"note one\") note(\"note two\")",
+          "lines": [
+            "A title that is quite long",
+            "-----------------------",
+            "           |  Frequency",
+            "-----------+-----------",
+            "Car origin |",
+            "  Domestic |         53",
+            "  Foreign  |         21",
+            "  Total    |         74",
+            "-----------------------",
+            "note one",
+            "note two"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(median price) statistic(p25 price) statistic(iqr price) statistic(semean price) statistic(cv price) statistic(range price)",
+          "lines": [
+            "----------------------------------------------------------------------------------------------------------------------------",
+            "           |  Median   25th percentile   Interquartile range   Standard error of the mean   Coefficient of variation   Range",
+            "-----------+----------------------------------------------------------------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |    7634              5118                  4598                      347.404                   .3400321    8896",
+            "  Foreign  |    6928              5685                  3941                     599.6057                   .3672933    8528",
+            "  Total    |  7596.5              5118                  4598                     299.2183                   .3454916    8896",
+            "----------------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(p12 price) statistic(p21 price) statistic(p22 price) statistic(p33 price) statistic(q1 price) statistic(p50 price)",
+          "lines": [
+            "----------------------------------------------------------------------------------------------------------------------",
+            "           |  12th percentile   21st percentile   22nd percentile   33rd percentile   First quartile   50th percentile",
+            "-----------+----------------------------------------------------------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |             4323              5077              5077              5563             5118              7634",
+            "  Foreign  |             3701              4481              4481              6082             5685              6928",
+            "  Total    |             3962              5072              5077              5776             5118            7596.5",
+            "----------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(skewness price) statistic(kurtosis price) statistic(geomean price) statistic(first price) statistic(lastnm rep78)",
+          "lines": [
+            "-----------------------------------------------------------------------------------------",
+            "           |   Skewness   Kurtosis   Geometric mean   First value   Last nonmissing value",
+            "           |      Price      Price            Price         Price      Repair record 1978",
+            "-----------+-----------------------------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |  -.0171288    1.86644             6975          7559                       2",
+            "  Foreign  |  -.1222046    1.66254          6940.09          6082                       5",
+            "  Total    |  -.0501234   1.802273         6965.075          7559                       2",
+            "-----------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign, statistic(variance price) statistic(proportion) statistic(sumw) statistic(rawtotal price) statistic(rawpercent)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------",
+            "           |  Variance   Proportion   Sum of weights   Unweighted total   Unweighted percent",
+            "           |     Price                                            Price",
+            "-----------+--------------------------------------------------------------------------------",
+            "Car origin |",
+            "  Domestic |   6396545        .7162               53            394,211                71.62",
+            "  Foreign  |   7550068        .2838               21            157,102                28.38",
+            "  Total    |   6625338            1               74            551,313               100.00",
+            "--------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "table rep78 make, statistic(mean price) nformat(%5.0f)",
+          "lines": [
+            "-----------------------------------------",
+            "                   |          make",
+            "                   |  Euro     US   Total",
+            "-------------------+---------------------",
+            "Repair record 1978 |",
+            "  1                |         7686    7686",
+            "  2                |         6649    6649",
+            "  3                |  8151   7942    8047",
+            "  4                |  5444   7018    6428",
+            "  5                |  7265   7516    7469",
+            "  Total            |  7584   7419    7464",
+            "-----------------------------------------"
+          ]
+        },
+        {
+          "command": "table foreign if mpg > 20, markvar(used)",
+          "lines": [
+            "-----------------------",
+            "           |  Frequency",
+            "-----------+-----------",
+            "Car origin |",
+            "  Domestic |         37",
+            "  Foreign  |         14",
+            "  Total    |         51",
+            "-----------------------"
+          ]
+        },
+        {
+          "command": "tabulate used",
+          "lines": [
+            "       used |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |         23       31.08       31.08",
+            "          1 |         51       68.92      100.00",
+            "------------+-----------------------------------",
+            "      Total |         74      100.00"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign if price > 100000",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily table foreign, statistic(bogus price)",
+          "lines": [
+            "statistic bogus not recognized",
+            "error in option statistic())"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, statistic(mean)",
+          "lines": ["statistic mean incorrectly specified; varlist required"]
+        },
+        {
+          "command": "capture noisily table foreign, statistic(frequency price)",
+          "lines": [
+            "statistic frequency incorrectly specified; varlist not allowed"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, nformat(bogus)",
+          "lines": [
+            "'bogus' found where numeric format expected",
+            "in option nformat()"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, statistic(mean price) sformat(\"abc\")",
+          "lines": [
+            "option sformat() incorrectly specified; abc does not conform to the Mata printf() format requirement for a single string argument"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, stars",
+          "lines": ["option stars not allowed"]
+        },
+        {
+          "command": "capture noisily table foreign, cellwidth(15)",
+          "lines": [
+            "option cellwidth() not allowed since Stata 17; see help table for updated syntax"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, contents(mean price) format(%9.1f)",
+          "lines": [
+            "option contents() not allowed since Stata 17; see help table for updated syntax"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, center",
+          "lines": [
+            "option center not allowed since Stata 17; see help table for updated syntax"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, totals(price)",
+          "lines": [
+            "option totals() incorrectly specified; price found where foreign expected"
+          ]
+        },
+        {
+          "command": "capture noisily table foreign, statistic(mean price) bogus",
+          "lines": ["option bogus not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "tabulate-merge-result",
+      "source": "clear\nset obs 6\ngenerate id = 2 * _n\ngenerate s = _n\ntempfile scores\nquietly save `scores'\nclear\nset obs 8\ngenerate id = _n\nmerge 1:1 id using `scores'\ntabulate _merge\nlabel list _merge\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate id = 2 * _n", "lines": [] },
+        { "command": "generate s = _n", "lines": [] },
+        { "command": "tempfile scores", "lines": [] },
+        { "command": "quietly save `scores'", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "merge 1:1 id using `scores'",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             6",
+            "        from master                         4  (_merge==1)",
+            "        from using                          2  (_merge==2)",
+            "",
+            "    Matched                                 4  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "tabulate _merge",
+          "lines": [
+            "   Matching result from |",
+            "                  merge |      Freq.     Percent        Cum.",
+            "------------------------+-----------------------------------",
+            "        Master only (1) |          4       40.00       40.00",
+            "         Using only (2) |          2       20.00       60.00",
+            "            Matched (3) |          4       40.00      100.00",
+            "------------------------+-----------------------------------",
+            "                  Total |         10      100.00"
+          ]
+        },
+        {
+          "command": "label list _merge",
+          "lines": [
+            "_merge:",
+            "           1 Master only (1)",
+            "           2 Using only (2)",
+            "           3 Matched (3)",
+            "           4 Missing updated (4)",
+            "           5 Nonmissing conflict (5)"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

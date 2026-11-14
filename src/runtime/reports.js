@@ -278,21 +278,11 @@ function detail(ctx, variable, values, m, observed = values) {
   );
 }
 
-// A heading wider than its column wraps onto several right-aligned lines.
-function wrap(text, width) {
-  const lines = [];
-  for (const word of text.split(" ")) {
-    if (lines.length && (lines.at(-1) + " " + word).length <= width)
-      lines[lines.length - 1] += " " + word;
-    else lines.push(word);
-  }
-  return lines.map((line) => line.slice(0, width).padStart(width));
-}
-
 // Fills lines of at most `width` characters with words, as the headings of
-// a two-way table do; a word longer than a line is cut into pieces of the
-// line's width, and its last piece continues the next line.
+// tabulate do; a word longer than a line is cut into pieces of the line's
+// width, and its last piece continues the next line.
 function wrapWords(text, width) {
+  if (width < 1) return [text];
   const lines = [];
   let line = null;
   for (const word of text.split(" ")) {
@@ -355,18 +345,107 @@ const andList = (items) =>
     : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 
 /**
+ * A sum without rounding error (Shewchuk's partials, as Python's fsum),
+ * as Stata adds up weights: a total of fractional weights then agrees with
+ * Stata's to the last digit.
+ */
+function exactSum(values) {
+  const partials = [];
+  for (let x of values) {
+    let used = 0;
+    for (let y of partials) {
+      if (Math.abs(x) < Math.abs(y)) [x, y] = [y, x];
+      const high = x + y,
+        low = y - (high - x);
+      if (low) partials[used++] = low;
+      x = high;
+    }
+    partials.length = used;
+    partials.push(x);
+  }
+  return partials.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * A weighted frequency as tabulate prints it: in %#.0gc, # being the width
+ * of its column (11 one way, 10 in a two-way cell), except that a number
+ * within a twentieth of a unit of the next decimal place of a number with
+ * one more decimal is shown with that decimal, wider than its column.
+ * Recorded from Stata 19 on 450 random aweighted counts.
+ */
+function weightedFrequency(value, width) {
+  const shown = applyFormat(value, `%${width}.0gc`).trim();
+  if (!shown.includes(".") || /e/.test(shown)) return shown;
+  const decimals = width - 2 - shown.split(".")[0].length,
+    strip = (text) => text.replace(/\.?0+$/, ""),
+    commas = (text) => {
+      const [whole, part] = text.split(".");
+      return (
+        whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (part ? "." + part : "")
+      );
+    };
+  if (decimals < 0 || commas(strip(value.toFixed(decimals))) !== shown)
+    return shown;
+  return Number(value.toFixed(decimals + 2)) ===
+    Number(value.toFixed(decimals + 1))
+    ? commas(strip(value.toFixed(decimals + 1)))
+    : shown;
+}
+
+/**
+ * The mean, standard deviation, sum of weights and number of observations
+ * of tabulate's summarize() option. Analytic weights give the weighted mean
+ * and the standard deviation summarize gives; without them each observation
+ * counts once (a frequency weight has already repeated it).
+ */
+function cellSummary(values, weights) {
+  if (!weights) {
+    const m = moments(values);
+    return {
+      mean: m.mean,
+      sd: m.n > 1 ? m.sd : m.n ? 0 : MISSING,
+      freq: m.n,
+      n: m.n,
+    };
+  }
+  const n = values.length;
+  if (!n) return { mean: MISSING, sd: MISSING, freq: 0, n: 0 };
+  let sumW = 0,
+    sum = 0,
+    ss = 0;
+  values.forEach((v, k) => {
+    sumW += weights[k];
+    sum += weights[k] * v;
+  });
+  const mean = sum / sumW;
+  values.forEach((v, k) => (ss += weights[k] * (v - mean) ** 2));
+  return {
+    mean,
+    sd: n > 1 ? Math.sqrt((ss / sumW) * (n / (n - 1))) : 0,
+    freq: sumW,
+    n,
+  };
+}
+
+/**
  * The two-way table of tabulate's summarize() option: the mean, standard
  * deviation and frequency of the summarized variable in each cell (and the
- * number of observations, with weights) in %10.0g, in panels. The
- * layout was recorded from Stata 19: the title is centred in 75 characters
- * and moves "of variable" to a second line when it is longer; the column
- * title wraps at 10 characters a column, less one, and is centred in 10.
+ * number of observations, with weights) in %10.0g, in panels; nomeans,
+ * nostandard, nofreq and noobs leave one out. The layout was recorded from
+ * Stata 19: the title is centred in 75 characters and moves "of variable"
+ * to a second line when it is longer; the column title wraps at 10
+ * characters a column, less one, and is centred in 10.
  */
 function twoWaySummaries(ctx, table) {
   const { target, groups, values, size, stub, rowShown, columnShown } = table,
-    names = ["Means", "Standard Deviations", "Frequencies"];
-  if (table.weighted) names.push("Number of observations");
-  const what = andList(names),
+    names = [
+      ["mean", "Means"],
+      ["sd", "Standard Deviations"],
+      ["freq", "Frequencies"],
+      ["n", "Number of observations"],
+    ].filter(([key]) => table.statistics.includes(key));
+  if (!names.length) return;
+  const what = andList(names.map(([, name]) => name)),
     of = `of ${target.label || target.name}`,
     centred = (line) =>
       " ".repeat(Math.max(0, Math.floor((75 - line.length) / 2))) + line;
@@ -376,26 +455,25 @@ function twoWaySummaries(ctx, table) {
   ctx.out("");
   // Each cell's values, then each row's and column's, then all of them.
   const cell = Array.from({ length: size[0] + 1 }, () =>
-    Array.from({ length: size[1] + 1 }, () => []),
+    Array.from({ length: size[1] + 1 }, () => ({ values: [], weights: [] })),
   );
   values.forEach((value, j) => {
     const r = groups[0][j],
       c = groups[1][j];
-    cell[r][c].push(value);
-    cell[r][size[1]].push(value);
-    cell[size[0]][c].push(value);
-    cell[size[0]][size[1]].push(value);
+    for (const [a, b] of [
+      [r, c],
+      [r, size[1]],
+      [size[0], c],
+      [size[0], size[1]],
+    ]) {
+      cell[a][b].values.push(value);
+      if (table.weights) cell[a][b].weights.push(table.weights[j]);
+    }
   });
   const g = (value) => applyFormat(value, "%10.0g").trim(),
-    stats = (list) => {
-      const m = moments(list),
-        out = [
-          g(m.mean),
-          g(m.n > 1 ? m.sd : m.n ? 0 : MISSING),
-          g(m.n),
-          g(m.n),
-        ];
-      return out.slice(0, names.length);
+    stats = (item) => {
+      const m = cellSummary(item.values, table.weights && item.weights);
+      return names.map(([key]) => g(m[key]));
     },
     blank = " ".repeat(stub);
   for (let from = 0; from < size[1]; from += table.perPanel) {
@@ -432,7 +510,7 @@ function twoWaySummaries(ctx, table) {
       );
     };
     for (let r = 0; r < size[0]; r++) {
-      if (r) ctx.out(rule);
+      if (r && names.length > 1) ctx.out(rule);
       block(r, rowShown[r]);
     }
     ctx.out(rule);
@@ -459,18 +537,30 @@ export function tabulate(session, text, ctx) {
       : head;
   }
   const parsed = session.parse(
-    "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact | NOFreq LRchi2 Gamma TAUb EXPected NOMeans NOStandard NOObs plot MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ALL CCHi2 CLRchi2 NOKey Wrap FIRSTonly]",
+    "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact NOFreq NOMeans NOStandard NOObs | LRchi2 Gamma TAUb EXPected plot MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ALL CCHi2 CLRchi2 NOKey Wrap FIRSTonly]",
     text,
   );
-  // Stata takes aweights and iweights, which give fractional frequencies in
-  // a format of their own; they are refused here, not counted as fweights.
-  // V (Cramér's V) was taken out above, since the parser ignores case.
+  const options = parsed.options;
+  // With summarize(), an iweight is taken as a frequency weight. Analytic
+  // weights rule out the tests; importance weights rule them out as
+  // options. Recorded from Stata 19.
+  if (parsed.weight?.type === "iweight" && options.summarize)
+    parsed.weight = { ...parsed.weight, type: "fweight" };
   if (parsed.weight && parsed.weight.type !== "fweight")
-    throw new StataError(
-      `tabulate with ${parsed.weight.type}s is not available yet; fweights are`,
-      198,
-    );
-  const rows = weightedRows(session, parsed, scope(session, parsed, ctx)).rows,
+    for (const [option, on] of [
+      ["chi2", options.chi2],
+      ["exact", options.exact],
+      ["V", cramer],
+    ])
+      if (on)
+        throw parsed.weight.type === "aweight"
+          ? new StataError(`${option} not allowed with aweights`, 406)
+          : new StataError(`option ${option} not allowed`, 198);
+  const used = weightedRows(session, parsed, scope(session, parsed, ctx)),
+    rows = used.rows,
+    // An analytic or importance weight of each observation; null when
+    // each observation counts once.
+    raw = used.weights,
     variables = parsed.varlist.map((name) => session.data.get(name)),
     // With summarize(), Stata leaves out the observations in which the
     // summarized variable is missing; a string variable leaves none.
@@ -506,6 +596,15 @@ export function tabulate(session, text, ctx) {
     textual = (k, value) =>
       typeof value === "string" || label(k, value) !== undefined,
     title = (k) => variables[k].label || variables[k].name,
+    // The longest label of a variable's whole value label, used in the
+    // table or not, as measure() measures it.
+    labelSetWidth = (k, measure) => {
+      const set =
+        options.nolabel || isStringType(variables[k].type)
+          ? null
+          : session.data.valueLabels.get(variables[k].valueLabel);
+      return set?.size ? greatest([...set.values()].map(measure)) : 0;
+    },
     data = session.data;
   if (variables.length === 2) {
     if (parsed.options.generate)
@@ -519,6 +618,19 @@ export function tabulate(session, text, ctx) {
       if (cramer) throw new StataError("option V not allowed", 198);
     }
   } else if (cramer) throw new StataError("option V not allowed", 198);
+  // nomeans, nostandard and noobs belong to summarize(); Stata names the
+  // first one typed.
+  if (!target && (options.nomeans || options.nostandard || options.noobs)) {
+    const first = optionItems(splitAtComma(text)[1] ?? "")
+      .map((item) => item.name.toLowerCase())
+      .map((name) =>
+        ["nomeans", "nostandard", "noobs"].find(
+          (full) => name.length >= 4 && full.startsWith(name),
+        ),
+      )
+      .find(Boolean);
+    throw new StataError(`option ${first} not allowed`, 198);
+  }
   if (!keep.length) {
     ctx.out("no observations");
     // A one-way table posts r(N) = r(r) = 0; a two-way one leaves r() empty.
@@ -533,15 +645,46 @@ export function tabulate(session, text, ctx) {
   )
     throw new StataError("too many values", 134);
   ctx.out("");
+  // An analytic weight is rescaled to add up to the number of observations;
+  // an importance weight is counted as it is.
+  // Weights are added up without rounding error, as Stata adds them.
+  const scale =
+      raw && parsed.weight.type === "aweight"
+        ? keep.length / exactSum(keep.map((i) => raw[i]))
+        : 1,
+    weightOf = raw ? (i) => raw[i] * scale : () => 1,
+    // The frequencies of a table, in the width of their column.
+    frequency = (n, width) =>
+      raw ? weightedFrequency(n, width) : count(n).padStart(width),
+    // The weights of the observations of each value of a variable, added up.
+    sums = (k) => {
+      const lists = new Map(levels[k].map((value) => [value, []]));
+      for (const i of keep) lists.get(variables[k].data[i]).push(weightOf(i));
+      return new Map(
+        [...lists].map(([value, list]) => [value, exactSum(list)]),
+      );
+    },
+    total = raw ? exactSum(keep.map(weightOf)) : keep.length;
   if (variables.length === 1) {
-    const counts = new Map(levels[0].map((value) => [value, 0]));
-    for (const i of keep)
-      counts.set(variables[0].data[i], counts.get(variables[0].data[i]) + 1);
+    const counts = sums(0);
     let entries = [...counts];
-    if (parsed.options.sort) entries = entries.sort((a, b) => b[1] - a[1]);
-    const shown = entries.map(([value]) => show(0, value)),
+    if (options.sort) entries = entries.sort((a, b) => b[1] - a[1]);
+    const // A value label is cut at 39 characters, and the longest label of
+      // the whole value label, used or not, widens the column (not in a
+      // table of summaries).
+      shown = entries.map(([value]) =>
+        label(0, value) === undefined
+          ? show(0, value)
+          : show(0, value).slice(0, 39),
+      ),
       width = Math.max(
         11,
+        target
+          ? 0
+          : Math.min(
+              39,
+              labelSetWidth(0, (text) => text.length),
+            ),
         greatest(
           entries.map(([value], k) =>
             textual(0, value) ? shown[k].length : Math.min(9, shown[k].length),
@@ -549,58 +692,91 @@ export function tabulate(session, text, ctx) {
         ),
       ),
       rule = "-".repeat(width + 1) + "+" + "-".repeat(35),
-      heading = wrap(title(0), width);
+      heading = wrapWords(title(0), width).map((line) => line.padStart(width));
     if (target) {
-      const of = `Summary of ${target.label || target.name}`,
-        wideRule = rule + "-",
-        line = (label, values) => {
-          const m = moments(values);
-          return `${label.padStart(width)} |${g10(m.mean)}${g10(m.n > 1 ? m.sd : m.n ? 0 : MISSING)}${count(m.n).padStart(12)}`;
-        },
-        within = (value) =>
-          present(
-            target.data,
-            keep.filter((i) => variables[0].data[i] === value),
+      // The weighted columns: each statistic in 12 characters, the title
+      // wrapped and centred over them.
+      const columns = [
+          ["mean", "        Mean", !options.nomeans],
+          ["sd", "   Std. dev.", !options.nostandard],
+          ["freq", "       Freq.", !options.nofreq],
+          ["n", "         Obs", parsed.weight && !options.noobs],
+        ].filter((item) => item[2]),
+        span = 12 * columns.length,
+        caption = wrapWords(
+          `Summary of ${target.label || target.name}`,
+          span - 1,
+        ).map(
+          (text) =>
+            " ".repeat(Math.max(0, Math.ceil((span - text.length) / 2))) + text,
+        ),
+        wideRule = "-".repeat(width + 1) + "+" + "-".repeat(span),
+        line = (label, list) => {
+          const m = cellSummary(
+            list.map((i) => target.data[i]),
+            parsed.weight?.type === "aweight" ? list.map((i) => raw[i]) : null,
           );
-      ctx.out(
-        `${" ".repeat(width)} |${" ".repeat(Math.max(0, Math.ceil((36 - of.length) / 2)))}${of}`,
-      );
+          return `${label.padStart(width)} |${columns
+            .map(([key]) =>
+              key === "mean" || key === "sd"
+                ? g10(m[key])
+                : key === "freq" && parsed.weight?.type === "aweight"
+                  ? applyFormat(m.freq, "%12.0fc")
+                  : count(m[key]).padStart(12),
+            )
+            .join("")}`;
+        };
+      // With every statistic left out Stata prints nothing.
+      if (!columns.length) {
+        session.results.r = {};
+        return;
+      }
+      caption.forEach((text) => ctx.out(`${" ".repeat(width)} |${text}`));
       heading.slice(0, -1).forEach((text) => ctx.out(`${text} |`));
-      ctx.out(`${heading.at(-1)} |        Mean   Std. dev.       Freq.`);
+      ctx.out(`${heading.at(-1)} |${columns.map((item) => item[1]).join("")}`);
       ctx.out(wideRule);
-      entries.forEach(([value], k) => ctx.out(line(shown[k], within(value))));
+      entries.forEach(([value], k) =>
+        ctx.out(
+          line(
+            shown[k],
+            keep.filter((i) => variables[0].data[i] === value),
+          ),
+        ),
+      );
       ctx.out(wideRule);
-      const all = present(target.data, keep);
-      ctx.out(line("Total", all));
+      ctx.out(line("Total", keep));
       ctx.out("");
       // Stata leaves nothing in r() after a table of summaries.
       session.results.r = {};
       return;
     }
-    heading.forEach((line, k) =>
-      ctx.out(
-        `${line} |${k === heading.length - 1 ? "      Freq.     Percent        Cum." : ""}`,
-      ),
-    );
-    ctx.out(rule);
-    // The cumulative column adds up the percentages, as Stata does: an
-    // exact tie such as 60.125 then rounds to even, as printf rounds it.
-    let running = 0;
-    entries.forEach(([, n], k) => {
-      const percent = (100 * n) / keep.length;
-      running += percent;
-      ctx.out(
-        `${shown[k].padStart(width)} |${count(n).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
+    // nofreq leaves a one-way table out altogether.
+    if (!options.nofreq) {
+      heading.forEach((line, k) =>
+        ctx.out(
+          `${line} |${k === heading.length - 1 ? "      Freq.     Percent        Cum." : ""}`,
+        ),
       );
-    });
-    ctx.out(rule);
-    ctx.out(
-      `${"Total".padStart(width)} |${count(keep.length).padStart(11)}${applyFormat(100, "%12.2f")}`,
-    );
-    ctx.out("");
-    if (parsed.options.generate) {
+      ctx.out(rule);
+      // The cumulative column adds up the percentages, as Stata does: an
+      // exact tie such as 60.125 then rounds to even, as printf rounds it.
+      let running = 0;
+      entries.forEach(([, n], k) => {
+        const percent = (100 * n) / total;
+        running += percent;
+        ctx.out(
+          `${shown[k].padStart(width)} |${frequency(n, 11).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
+        );
+      });
+      ctx.out(rule);
+      ctx.out(
+        `${"Total".padStart(width)} |${frequency(total, 11).padStart(11)}${applyFormat(100, "%12.2f")}`,
+      );
+      ctx.out("");
+    }
+    if (options.generate) {
       const source = variables[0],
-        stem = parsed.options.generate,
+        stem = options.generate,
         kept = new Set(keep),
         sorted = [...data.sortedBy];
       levels[0].forEach((value, k) => {
@@ -621,14 +797,25 @@ export function tabulate(session, text, ctx) {
       });
       data.sortedBy = sorted;
     }
-    session.results.r = { N: keep.length, r: entries.length };
+    // With importance weights r(N) is the sum of the weights.
+    session.results.r = {
+      N: parsed.weight?.type === "iweight" ? total : keep.length,
+      r: entries.length,
+    };
     return;
   }
-  const table = levels[0].map(() => levels[1].map(() => 0));
+  const cellWeights = levels[0].map(() => levels[1].map(() => [])),
+    rowIndex = new Map(levels[0].map((value, j) => [value, j])),
+    columnIndex = new Map(levels[1].map((value, j) => [value, j]));
   for (const i of keep)
-    table[levels[0].indexOf(variables[0].data[i])][
-      levels[1].indexOf(variables[1].data[i])
-    ]++;
+    cellWeights[rowIndex.get(variables[0].data[i])][
+      columnIndex.get(variables[1].data[i])
+    ].push(weightOf(i));
+  const table = cellWeights.map((row) =>
+      row.map((list) => (raw ? exactSum(list) : list.length)),
+    ),
+    rowSums = sums(0),
+    columnSums = sums(1);
   // Stata shows a row value in up to 21 characters (a string longer than
   // that as its first 19 and ".."; a value label cut at 21) and a column
   // value in up to 9 (a string as its first 7 and ".."). A table of
@@ -653,12 +840,14 @@ export function tabulate(session, text, ctx) {
     // The row stub is as wide as a str# row variable's storage width, or
     // otherwise as the longest row string or label in bytes (not
     // characters), between 10 and 21 characters (40 for a table of
-    // summaries, whose labels never widen it).
+    // summaries, whose labels never widen it). The longest label of the
+    // row variable's whole value label counts, used or not.
     storage = /^str(\d+)$/.exec(variables[0].type ?? ""),
     stub = Math.min(
       widest,
       Math.max(
         10,
+        target ? 0 : labelSetWidth(0, byteLength),
         storage
           ? Number(storage[1])
           : greatest(
@@ -685,22 +874,34 @@ export function tabulate(session, text, ctx) {
         .map((item) => "  " + item.trimStart().padStart(9))
         .join("")
         .slice(1),
+    // A weighted frequency fills its cell of ten characters.
+    counts = (items) =>
+      raw
+        ? items
+            .map((n) => " " + frequency(n, 10).padStart(10))
+            .join("")
+            .slice(1)
+        : cells(items.map((n) => count(n))),
     rowHeading = wrapWords(title(0), stub).map((line) => line.padStart(stub)),
-    rowTotal = table.map((row) => row.reduce((a, b) => a + b, 0)),
-    columnTotal = levels[1].map((_, k) =>
-      table.reduce((t, row) => t + row[k], 0),
-    ),
-    total = keep.length,
+    rowTotal = levels[0].map((value) => rowSums.get(value)),
+    columnTotal = levels[1].map((value) => columnSums.get(value)),
     percent = (n, of) => applyFormat((100 * n) / of, "%10.2f"),
     kinds = [
       ["row", "row percentage"],
       ["column", "column percentage"],
       ["cell", "cell percentage"],
-    ].filter(([option]) => parsed.options[option]);
+    ].filter(([option]) => options[option]);
   if (target) {
     twoWaySummaries(ctx, {
       target,
-      weighted: Boolean(parsed.weight),
+      statistics: [
+        !options.nomeans && "mean",
+        !options.nostandard && "sd",
+        !options.nofreq && "freq",
+        parsed.weight && !options.noobs && "n",
+      ],
+      weights:
+        parsed.weight?.type === "aweight" ? keep.map((i) => raw[i]) : null,
       groups: levels.map((list, k) => {
         const index = new Map(list.map((value, j) => [value, j]));
         return keep.map((i) => index.get(variables[k].data[i]));
@@ -718,9 +919,16 @@ export function tabulate(session, text, ctx) {
     session.results.r = {};
     return;
   }
-  if (kinds.length) {
-    const entries = ["frequency", ...kinds.map(([, text]) => text)],
-      inner = greatest(entries.map((item) => item.length)) + 2,
+  // The lines of each row: its frequencies (unless nofreq) and its
+  // percentages; with more than one, a key explains them and a rule
+  // separates the rows. With none, Stata prints no table at all.
+  const entries = [
+    ...(options.nofreq ? [] : [["frequency", "frequency"]]),
+    ...kinds,
+  ];
+  if (entries.length > 1) {
+    const names = entries.map(([, text]) => text),
+      inner = greatest(names.map((item) => item.length)) + 2,
       centre = (item) => {
         const left = Math.floor((inner - item.length) / 2);
         return " ".repeat(left) + item + " ".repeat(inner - item.length - left);
@@ -728,13 +936,16 @@ export function tabulate(session, text, ctx) {
     ctx.out(`+${"-".repeat(inner)}+`);
     ctx.out(`| ${"Key".padEnd(inner - 1)}|`);
     ctx.out(`|${"-".repeat(inner)}|`);
-    entries.forEach((item) => ctx.out(`|${centre(item)}|`));
+    names.forEach((item) => ctx.out(`|${centre(item)}|`));
     ctx.out(`+${"-".repeat(inner)}+`);
     ctx.out("");
   }
   const blank = " ".repeat(stub),
-    percentLines = (row, r, columns) =>
-      kinds.map(([option]) => {
+    rowLines = (row, r, columns, name) =>
+      entries.map(([option], line) => {
+        const lead = line ? blank : name.padStart(stub);
+        if (option === "frequency")
+          return `${lead} |${counts(columns.map((c) => row[c]))} |${frequency(r === null ? total : rowTotal[r], 10).padStart(10)}`;
         const of = (k) =>
           option === "row"
             ? r === null
@@ -743,18 +954,16 @@ export function tabulate(session, text, ctx) {
             : option === "column"
               ? columnTotal[k]
               : total;
-        return `${blank} |${cells(columns.map((k) => percent(row[k], of(k))))} |${percent(
-          option === "column"
-            ? r === null
-              ? total
-              : rowTotal[r]
-            : r === null
-              ? total
-              : rowTotal[r],
+        return `${lead} |${cells(columns.map((k) => percent(row[k], of(k))))} |${percent(
+          r === null ? total : rowTotal[r],
           option === "row" ? (r === null ? total : rowTotal[r]) : total,
         ).padStart(10)}`;
       });
-  for (let from = 0; from < levels[1].length; from += perPanel) {
+  for (
+    let from = 0;
+    entries.length && from < levels[1].length;
+    from += perPanel
+  ) {
     const columns = levels[1].map((_, k) => k).slice(from, from + perPanel),
       span = 11 * columns.length,
       rule = `${"-".repeat(stub + 1)}+${"-".repeat(span)}+----------`,
@@ -776,21 +985,15 @@ export function tabulate(session, text, ctx) {
     }
     ctx.out(rule);
     table.forEach((row, r) => {
-      if (r && kinds.length) ctx.out(rule);
-      ctx.out(
-        `${rowShown[r].padStart(stub)} |${cells(columns.map((c) => count(row[c])))} |${count(rowTotal[r]).padStart(10)}`,
-      );
-      percentLines(row, r, columns).forEach(ctx.out);
+      if (r && entries.length > 1) ctx.out(rule);
+      rowLines(row, r, columns, rowShown[r]).forEach(ctx.out);
     });
     ctx.out(rule);
-    ctx.out(
-      `${"Total".padStart(stub)} |${cells(columns.map((c) => count(columnTotal[c])))} |${count(total).padStart(10)}`,
-    );
-    percentLines(columnTotal, null, columns).forEach(ctx.out);
+    rowLines(columnTotal, null, columns, "Total").forEach(ctx.out);
     ctx.out("");
   }
   session.results.r = {
-    N: keep.length,
+    N: parsed.weight?.type === "iweight" ? total : keep.length,
     r: levels[0].length,
     c: levels[1].length,
   };
