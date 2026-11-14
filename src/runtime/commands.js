@@ -2923,21 +2923,22 @@ const command = (name, minimum, run, byable = false) => ({
 // A command under by: runs once per group, with a heading for each.
 
 // Estimators that bring their own predict (arima, var) answer it first;
-// any other model goes on to the predict of MODEL_COMMANDS.
-const modelPredict = MODEL_COMMANDS.find((c) => c.name === "predict");
+// any other model goes on to mixed's predict, which answers after mixed
+// and hands the rest to the predict of MODEL_COMMANDS.
+const mixedPredict = MIXED_COMMANDS.find((c) => c.name === "predict");
 const ownPredict = {
-  ...modelPredict,
+  ...mixedPredict,
   run: (session, text, ctx) =>
     (typeof session.estimates?.ownPredict === "function"
       ? session.estimates.ownPredict
-      : modelPredict.run)(session, text, ctx),
+      : mixedPredict.run)(session, text, ctx),
 };
 
 export const COMMANDS = [
+  ownPredict,
   // Before MODEL_COMMANDS: predict and estat after mixed are its own, and
   // hand any other model on.
   ...MIXED_COMMANDS,
-  ownPredict,
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,

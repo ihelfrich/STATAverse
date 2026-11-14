@@ -165,10 +165,13 @@ function statistic(model, e, name) {
  * levels, whether it names a base level, and the name without its b and o
  * marks, by which models are matched.
  */
-function nameTerm(session, name, terms, labelled) {
+function nameTerm(session, name, terms, labelled, seriesBases = null) {
   // A variable under time-series operators (L.x, L2.y, LD.z, and arima's
-  // L.ar) sits in a group headed by its name, a row for each operator.
-  const operated = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/.exec(name);
+  // L.ar) sits in a group headed by its name, a row for each operator; the
+  // variable itself, beside its lags, is the group's --. row.
+  const operated =
+    /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/.exec(name) ??
+    (seriesBases?.has(name) ? [name, "--", name] : null);
   if (operated) {
     const [, ops, base] = operated,
       key = `ts:${base}`;
@@ -188,7 +191,8 @@ function nameTerm(session, name, terms, labelled) {
       term: terms.get(key),
       levels: [],
       base: false,
-      tsLabel: /^[LFDS]$/.test(ops) ? `${ops}1.` : `${ops}.`,
+      tsLabel:
+        ops === "--" ? "--." : /^[LFDS]$/.test(ops) ? `${ops}1.` : `${ops}.`,
     };
   }
   const parts = name.split("#").map((part) => {
@@ -309,6 +313,16 @@ export function estimatesTable(session, text, ctx) {
         panels.set(equation, { equation, rows: new Map() });
       return panels.get(equation);
     };
+  // Variables that some model uses under a time-series operator.
+  const seriesBases = new Set(
+    entries.flatMap(({ model }) =>
+      coefficientSpace(model)
+        .entries.map(
+          (e) => /^(?:[LFDS]\d*)+\.([A-Za-z_]\w*)$/.exec(e.name)?.[1],
+        )
+        .filter(Boolean),
+    ),
+  );
   entries.forEach(({ model }, m) => {
     const space = coefficientSpace(model);
     space.entries.forEach((e, i) => {
@@ -317,7 +331,7 @@ export function estimatesTable(session, text, ctx) {
         read =
           equation === "/"
             ? { key: e.name, levels: [], base: false }
-            : nameTerm(session, e.name, terms, labelled),
+            : nameTerm(session, e.name, terms, labelled, seriesBases),
         column =
           e.index >= 0 && !model.equations
             ? model.columns?.[e.index]

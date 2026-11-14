@@ -1284,6 +1284,9 @@ export function termRows(
         row(`${cut(pieces.at(-1))}  `.padStart(w + 1), k);
       } else row(`${cut(text)}  `.padStart(w + 1), k);
     }
+    // A series group that ends with the variable itself (L.x x) runs on
+    // into what follows, with no blank row.
+    if (model.columns[shown.at(-1)]?.tsLabel === "--.") previousPlain = true;
   });
   return out;
 }

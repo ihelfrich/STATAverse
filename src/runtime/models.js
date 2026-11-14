@@ -2318,8 +2318,9 @@ function estimatesCommand(session, text, ctx) {
         throw new StataError(`estimation result ${key} not found`, 111);
     for (const key of names) {
       const model = key === null ? session.estimates : stored.get(key)?.model;
-      if (!model?.replay) throw new StataError("last estimates not found", 301);
-      let lines = model.replay.lines;
+      if (!model?.shownFit)
+        throw new StataError("last estimates not found", 301);
+      let lines = model.shownFit.lines;
       if (options) {
         lines = [];
         session.replayModel(model, options, {

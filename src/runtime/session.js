@@ -384,7 +384,7 @@ const REPLAY_REFUSED = {
 // coefficients.
 const REPLAYS_ALSO = { logit: "logistic" };
 function replays(session, command, body) {
-  const replay = session.estimates?.replay,
+  const replay = session.estimates?.shownFit,
     last =
       replay?.command === command.name ||
       (!!replay && REPLAYS_ALSO[command.name] === replay.command);
@@ -392,7 +392,9 @@ function replays(session, command, body) {
   // one of them (svy: regress, then regress) is theirs to show.
   if (PREFIX_COMMANDS.has(command.name)) return false;
   if (PREFIX_COMMANDS.has(replay?.command)) return false;
-  if (!last && !REPLAYED.has(command.name)) return false;
+  // Only the estimators this replay was written for; the others (mixed,
+  // streg, teffects, arima, xtlogit, ...) replay themselves.
+  if (!REPLAYED.has(command.name) && !REPLAYS_ALSO[command.name]) return false;
   // Typed alone or with options only; a prefix such as bootstrap, ...: is
   // not a replay.
   if (/:/.test(body)) return false;
@@ -1021,9 +1023,9 @@ export class Session {
         model &&
         model !== before &&
         !NO_TABLE.has(command.name) &&
-        !(command.name === "xi" && model.replay)
+        !(command.name === "xi" && model.shownFit)
       )
-        model.replay = {
+        model.shownFit = {
           command: command.name,
           body,
           lines: Array.isArray(lines) ? fitTable(lines.slice(start.at)) : [],
@@ -1069,7 +1071,7 @@ export class Session {
    */
   replay(command, body, ctx, lines) {
     const model = this.estimates,
-      { replay } = model,
+      { shownFit: replay } = model,
       kept = [];
     for (const option of splitAtComma(body)[1]?.match(
       /[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g,
@@ -1142,7 +1144,7 @@ export class Session {
       e = this.results.e;
     this.estimates = model;
     try {
-      this.replay(findCommand(model.replay.command), `, ${options}`, ctx);
+      this.replay(findCommand(model.shownFit.command), `, ${options}`, ctx);
     } finally {
       this.estimates = active;
       this.results.e = e;

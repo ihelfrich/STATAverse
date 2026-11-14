@@ -56,7 +56,8 @@ test("a community package names what runs here in its place", () => {
   assert.ok(advice.suggest.length);
   for (const name of advice.suggest) assert.ok(names.includes(name), name);
   assert.match(advise("reghdfe y x, absorb(id)").text, /areg/);
-  assert.match(advise("xi: regress y i.g").text, /Factor variables/);
+  // xi runs here now, so it is not advised away.
+  assert.ok(names.includes("xi"));
 });
 
 test("the common mistakes of a first session have particular hints", () => {

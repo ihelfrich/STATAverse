@@ -57,11 +57,6 @@ const ELSEWHERE = {
   ftools: ["a community package", []],
   gtools: ["a community package", []],
   sum2docx: ["a community package", ["tabstat"]],
-  xi: [
-    "an older official command",
-    [],
-    "Factor variables do its work: regress y i.group runs without xi:.",
-  ],
 };
 
 /** The edit distance between two words, adjacent swaps counting once. */
