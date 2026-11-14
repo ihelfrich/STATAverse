@@ -50169,6 +50169,3621 @@
       ]
     },
     {
+      "id": "svy-design-and-summaries",
+      "source": "clear\nset seed 2041\nset obs 600\ngenerate strat = 1 + floor((_n-1)/200)\ngenerate psu = 1 + floor((_n-1)/20)\ngenerate fpc = 40 + 10*strat\ngenerate w = 1 + 4*runiform()\ngenerate x = invnormal(runiform())\ngenerate g = 1 + floor(3*runiform())\ngenerate y = 2 + 0.5*x + g + invnormal(runiform())\ngenerate b = runiform() < invlogit(-0.3 + 0.8*x)\ngenerate c = floor(3*runiform()*exp(0.3*x))\ngenerate o = 1 + (y>3) + (y>4.5)\nsvyset psu [pweight=w], strata(strat) fpc(fpc)\nsvyset\nsvydescribe\nsvy: mean y\nsvy: mean y x\nsvy: proportion g\nsvy: ratio y/x\nsvy: total y\nsvy: tabulate g\nsvy: tabulate g b\nsvy: mean y, over(g)\nsvy: total y, over(g)\nsvy, level(90): mean y\nsvy: mean y x, level(90)\nsvy: proportion g b, citype(wald)\nsvy, noheader: mean y\nsvy, dof(10): mean y\nsvy linearized: mean y\nsvy: mean y in 1/300\nsvy: ratio (r1: y/x) (y/g)\nsvy: mean y x\nlincom y - x\ntest y = x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2041", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/200)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/20)", "lines": [] },
+        { "command": "generate fpc = 40 + 10*strat", "lines": [] },
+        { "command": "generate w = 1 + 4*runiform()", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "generate y = 2 + 0.5*x + g + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate b = runiform() < invlogit(-0.3 + 0.8*x)",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(3*runiform()*exp(0.3*x))",
+          "lines": []
+        },
+        { "command": "generate o = 1 + (y>3) + (y>4.5)", "lines": [] },
+        {
+          "command": "svyset psu [pweight=w], strata(strat) fpc(fpc)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svyset",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svydescribe",
+          "lines": [
+            "Survey: Describing stage 1 sampling units",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc",
+            "",
+            "                                    Number of obs per unit",
+            " Stratum   # units     # obs       Min      Mean       Max",
+            "----------------------------------------------------------",
+            "       1        10       200        20      20.0        20",
+            "       2        10       200        20      20.0        20",
+            "       3        10       200        20      20.0        20",
+            "----------------------------------------------------------",
+            "       3        30       600        20      20.0        20"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "           x |  -.0375175    .033209     -.1056568    .0306217",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: proportion g",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized            Logit",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "          1  |   .3581378    .020455      .3173376    .4011016",
+            "          2  |   .3211057   .0213176      .2790174     .366317",
+            "          3  |   .3207565   .0168453      .2872169    .3562552",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: ratio y/x",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "",
+            "Survey: Ratio estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |  -104.4396    93.0275     -295.3162     86.4371",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: total y",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Survey: Total estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   7098.707   148.6018      6793.802    7403.613",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: tabulate g",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "----------------------",
+            "        g | proportion",
+            "----------+-----------",
+            "        1 |      .3581",
+            "        2 |      .3211",
+            "        3 |      .3208",
+            "          |",
+            "    Total |          1",
+            "----------------------",
+            "Key: proportion = Cell proportion"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 |  .187  .1711  .3581",
+            "        2 | .1932   .128  .3211",
+            "        3 | .1947  .1261  .3208",
+            "          |",
+            "    Total | .5749  .4251      1",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.8085",
+            "    Design-based  F(1.97, 53.08)  =    1.9005     P = 0.1602"
+          ]
+        },
+        {
+          "command": "svy: mean y, over(g)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "          1  |   3.012727   .0919351      2.824091    3.201362",
+            "          2  |   3.863025   .0891362      3.680133    4.045917",
+            "          3  |   4.984796   .0746114      4.831706    5.137886",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: total y, over(g)",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Survey: Total estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "          1  |   1954.743   137.9025      1671.791    2237.696",
+            "          2  |    2247.27   153.3822      1932.556    2561.984",
+            "          3  |   2896.694   159.7968      2568.818     3224.57",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, level(90): mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.806248    4.030385",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: mean y x, level(90)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.806248    4.030385",
+            "           x |  -.0375175    .033209     -.0940821     .019047",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: proportion g b, citype(wald)",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized            Normal",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "          1  |   .3581378    .020455      .3161676    .4001081",
+            "          2  |   .3211057   .0213176      .2773656    .3648458",
+            "          3  |   .3207565   .0168453      .2861928    .3553202",
+            "             |",
+            "           b |",
+            "          0  |   .5748826   .0174031      .5391743    .6105909",
+            "          1  |   .4251174   .0174031      .3894091    .4608257",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, noheader: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, dof(10): mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         10",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.771715    4.064918",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy linearized: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: mean y in 1/300",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =        300",
+            "Number of PSUs   = 15             Population size = 903.851459",
+            "                                  Design df       =         13",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.965372   .0798291      3.792912    4.137832",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: ratio (r1: y/x) (y/g)",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "",
+            "Survey: Ratio estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "           r1: y/x",
+            "     _ratio_2: y/g",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "          r1 |  -104.4396    93.0275     -295.3162     86.4371",
+            "    _ratio_2 |   1.996474   .0326231      1.929537    2.063411",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "           x |  -.0375175    .033209     -.1056568    .0306217",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom y - x",
+          "lines": [
+            " ( 1)  y - x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        Mean | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   3.955834   .0633946    62.40   0.000     3.825759    4.085909",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test y = x",
+          "lines": [
+            "Adjusted Wald test",
+            "",
+            " ( 1)  y - x = 0",
+            "",
+            "       F(  1,    27) = 3893.78",
+            "            Prob > F =    0.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-regress-and-postestimation",
+      "source": "clear\nset seed 2041\nset obs 600\ngenerate strat = 1 + floor((_n-1)/200)\ngenerate psu = 1 + floor((_n-1)/20)\ngenerate fpc = 40 + 10*strat\ngenerate w = 1 + 4*runiform()\ngenerate x = invnormal(runiform())\ngenerate g = 1 + floor(3*runiform())\ngenerate y = 2 + 0.5*x + g + invnormal(runiform())\nlabel define gl 1 \"first group\" 2 \"second group of units\" 3 \"third\"\nsvyset psu [pweight=w], strata(strat) fpc(fpc)\nsvy: regress y x i.g\ntest x\ntest 2.g 3.g\nlincom x + 2.g\nestimates store m1\npredict s1, stdp\nsummarize s1\nnlcom _b[x]/_b[2.g]\ntestnl _b[x] = _b[2.g]\ncapture noisily lrtest m1 .\ncapture noisily estat ic\nestat vce\nsvy: regress y x if g > 1\nsvy: regress y x, noconstant\nlabel values g gl\nsvy: regress y x i.g\nsvy: mean y, over(g)\nsvy: proportion g\nset linesize 80\nsvy: mean y\nsvy: regress y x\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2041", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/200)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/20)", "lines": [] },
+        { "command": "generate fpc = 40 + 10*strat", "lines": [] },
+        { "command": "generate w = 1 + 4*runiform()", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "generate y = 2 + 0.5*x + g + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "label define gl 1 \"first group\" 2 \"second group of units\" 3 \"third\"",
+          "lines": []
+        },
+        {
+          "command": "svyset psu [pweight=w], strata(strat) fpc(fpc)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svy: regress y x i.g",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(3, 25)        =     193.90",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.4527",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .5409049   .0465645    11.62   0.000     .4453624    .6364473",
+            "             |",
+            "           g |",
+            "          2  |   .9139678   .0986444     9.27   0.000     .7115663    1.116369",
+            "          3  |   2.021686    .098214    20.58   0.000     1.820168    2.223205",
+            "             |",
+            "       _cons |   2.996661   .0756899    39.59   0.000     2.841358    3.151963",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test x",
+          "lines": [
+            "Adjusted Wald test",
+            "",
+            " ( 1)  x = 0",
+            "",
+            "       F(  1,    27) =  134.94",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test 2.g 3.g",
+          "lines": [
+            "Adjusted Wald test",
+            "",
+            " ( 1)  2.g = 0",
+            " ( 2)  3.g = 0",
+            "",
+            "       F(  2,    26) =  204.31",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom x + 2.g",
+          "lines": [
+            " ( 1)  x + 2.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   1.454873   .1031078    14.11   0.000     1.243313    1.666433",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store m1", "lines": [] },
+        { "command": "predict s1, stdp", "lines": [] },
+        {
+          "command": "summarize s1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s1 |        600    .0895886    .0145687   .0737581   .2085969"
+          ]
+        },
+        {
+          "command": "nlcom _b[x]/_b[2.g]",
+          "lines": [
+            "       _nl_1: _b[x]/_b[2.g]",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _nl_1 |   .5918204   .0870279     6.80   0.000     .4212488     .762392",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "testnl _b[x] = _b[2.g]",
+          "lines": [
+            "  (1)  _b[x] = _b[2.g]",
+            "",
+            "               chi2(1) =       10.57",
+            "           Prob > chi2 =        0.0011"
+          ]
+        },
+        {
+          "command": "capture noisily lrtest m1 .",
+          "lines": ["lrtest is not appropriate with survey estimation results"]
+        },
+        {
+          "command": "capture noisily estat ic",
+          "lines": ["command estat ic is not supported after svy estimation"]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                      2.          3.",
+            "        e(V) |          x           g           g       _cons",
+            "-------------+-----------------------------------------------",
+            "           x |  .00216825",
+            "         2.g | -.00063387   .00973072",
+            "         3.g | -.00053742   .00402777     .009646",
+            "       _cons |  .00079123  -.00416626  -.00480401   .00572896"
+          ]
+        },
+        {
+          "command": "svy: regress y x if g > 1",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        387",
+            "Number of PSUs   = 30                             Population size = 1,162.8443",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      41.80",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.1174",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4986504   .0771228     6.47   0.000     .3404075    .6568934",
+            "       _cons |   4.461016   .0672423    66.34   0.000     4.323046    4.598986",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: regress y x, noconstant",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =       3.76",
+            "                                                  Prob > F        =     0.0630",
+            "                                                  R-squared       =     0.0065",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3493972   .1802096     1.94   0.063    -.0203623    .7191568",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "svy: regress y x i.g",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(3, 25)        =     193.90",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.4527",
+            "",
+            "----------------------------------------------------------------------------------------",
+            "                       |             Linearized",
+            "                     y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-----------------------+----------------------------------------------------------------",
+            "                     x |   .5409049   .0465645    11.62   0.000     .4453624    .6364473",
+            "                       |",
+            "                     g |",
+            "second group of units  |   .9139678   .0986444     9.27   0.000     .7115663    1.116369",
+            "                third  |   2.021686    .098214    20.58   0.000     1.820168    2.223205",
+            "                       |",
+            "                 _cons |   2.996661   .0756899    39.59   0.000     2.841358    3.151963",
+            "----------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: mean y, over(g)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3                       Number of obs   =        600",
+            "Number of PSUs   = 30                       Population size = 1,811.6729",
+            "                                            Design df       =         27",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |             Linearized",
+            "                       |       Mean   std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                 c.y@g |",
+            "          first group  |   3.012727   .0919351      2.824091    3.201362",
+            "second group of units  |   3.863025   .0891362      3.680133    4.045917",
+            "                third  |   4.984796   .0746114      4.831706    5.137886",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: proportion g",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =  3                       Number of obs   =        600",
+            "Number of PSUs   = 30                       Population size = 1,811.6729",
+            "                                            Design df       =         27",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |             Linearized            Logit",
+            "                       | Proportion   std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                     g |",
+            "          first group  |   .3581378    .020455      .3173376    .4011016",
+            "second group of units  |   .3211057   .0213176      .2790174     .366317",
+            "                third  |   .3207565   .0168453      .2872169    .3562552",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      93.68",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.1167",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .5079016    .052476     9.68   0.000     .4002298    .6155734",
+            "       _cons |   3.937372   .0626889    62.81   0.000     3.808745    4.065999",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "svy-likelihood-models",
+      "source": "clear\nset seed 2041\nset obs 600\ngenerate strat = 1 + floor((_n-1)/200)\ngenerate psu = 1 + floor((_n-1)/20)\ngenerate fpc = 40 + 10*strat\ngenerate w = 1 + 4*runiform()\ngenerate x = invnormal(runiform())\ngenerate g = 1 + floor(3*runiform())\ngenerate y = 2 + 0.5*x + g + invnormal(runiform())\ngenerate b = runiform() < invlogit(-0.3 + 0.8*x)\ngenerate c = floor(3*runiform()*exp(0.3*x))\ngenerate o = 1 + (y>3) + (y>4.5)\nsvyset psu [pweight=w], strata(strat) fpc(fpc)\nsvy: logit b x\nsvy: logit b x, or\nsvy: logistic b x\nsvy: logit b x i.g\ntest 2.g 3.g\npredict p1\npredict xb1, xb\nsummarize p1 xb1\ncapture noisily estat classification\nsvy: probit b x\nsvy: probit b c.x##i.g\nsvy: poisson c x\nsvy: poisson c x, irr\nsvy: ologit o x\nsvy: ologit o x i.g, or\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2041", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/200)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/20)", "lines": [] },
+        { "command": "generate fpc = 40 + 10*strat", "lines": [] },
+        { "command": "generate w = 1 + 4*runiform()", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "generate y = 2 + 0.5*x + g + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate b = runiform() < invlogit(-0.3 + 0.8*x)",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(3*runiform()*exp(0.3*x))",
+          "lines": []
+        },
+        { "command": "generate o = 1 + (y>3) + (y>4.5)", "lines": [] },
+        {
+          "command": "svyset psu [pweight=w], strata(strat) fpc(fpc)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svy: logit b x",
+          "lines": [
+            "(running logit on estimation sample)",
+            "",
+            "Survey: Logistic regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      85.17",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7770223   .0841971     9.23   0.000     .6042642    .9497805",
+            "       _cons |  -.3105133    .083962    -3.70   0.001     -.482789   -.1382375",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: logit b x, or",
+          "lines": [
+            "(running logit on estimation sample)",
+            "",
+            "Survey: Logistic regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      85.17",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Odds ratio   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.174986   .1831275     9.23   0.000     1.829905    2.585142",
+            "       _cons |   .7330706   .0615501    -3.70   0.001       .61706    .8708918",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        {
+          "command": "svy: logistic b x",
+          "lines": [
+            "(running logistic on estimation sample)",
+            "",
+            "Survey: Logistic regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      85.17",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Odds ratio   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.174986   .1831275     9.23   0.000     1.829905    2.585142",
+            "       _cons |   .7330706   .0615501    -3.70   0.001       .61706    .8708918",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds."
+          ]
+        },
+        {
+          "command": "svy: logit b x i.g",
+          "lines": [
+            "(running logit on estimation sample)",
+            "",
+            "Survey: Logistic regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(3, 25)        =      28.31",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7733402   .0820729     9.42   0.000     .6049405    .9417398",
+            "             |",
+            "           g |",
+            "          2  |  -.2694828   .2297119    -1.17   0.251    -.7408126     .201847",
+            "          3  |  -.3177411   .2150669    -1.48   0.151    -.7590219    .1235396",
+            "             |",
+            "       _cons |  -.1219564   .1696024    -0.72   0.478    -.4699517     .226039",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 2.g 3.g",
+          "lines": [
+            "Adjusted Wald test",
+            "",
+            " ( 1)  [b]2.g = 0",
+            " ( 2)  [b]3.g = 0",
+            "",
+            "       F(  2,    26) =    1.13",
+            "            Prob > F =    0.3391"
+          ]
+        },
+        { "command": "predict p1", "lines": ["(option pr assumed; Pr(b))"] },
+        { "command": "predict xb1, xb", "lines": [] },
+        {
+          "command": "summarize p1 xb1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          p1 |        600    .4239254    .1685229    .056593   .9446117",
+            "         xb1 |        600   -.3448333     .772022  -2.813613   2.836405"
+          ]
+        },
+        {
+          "command": "capture noisily estat classification",
+          "lines": [
+            "command estat classification is not supported after svy estimation"
+          ]
+        },
+        {
+          "command": "svy: probit b x",
+          "lines": [
+            "(running probit on estimation sample)",
+            "",
+            "Survey: Probit regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      94.43",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4709885   .0484669     9.72   0.000     .3715427    .5704343",
+            "       _cons |  -.1899246   .0511846    -3.71   0.001    -.2949467   -.0849025",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: probit b c.x##i.g",
+          "lines": [
+            "(running probit on estimation sample)",
+            "",
+            "Survey: Probit regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(5, 23)        =      15.81",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    .304167   .0855869     3.55   0.001     .1285572    .4797768",
+            "             |",
+            "           g |",
+            "          2  |  -.1852286   .1348443    -1.37   0.181    -.4619061     .091449",
+            "          3  |     -.2143   .1340758    -1.60   0.122    -.4894007    .0608008",
+            "             |",
+            "       g#c.x |",
+            "          2  |   .2868191   .1437355     2.00   0.056    -.0081019    .5817401",
+            "          3  |   .3103255   .1746132     1.78   0.087    -.0479513    .6686023",
+            "             |",
+            "       _cons |  -.0650379   .0966336    -0.67   0.507    -.2633137    .1332379",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: poisson c x",
+          "lines": [
+            "(running poisson on estimation sample)",
+            "",
+            "Survey: Poisson regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =     130.00",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           c | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4246871   .0372477    11.40   0.000     .3482612     .501113",
+            "       _cons |  -.1063579   .0407948    -2.61   0.015     -.190062   -.0226538",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: poisson c x, irr",
+          "lines": [
+            "(running poisson on estimation sample)",
+            "",
+            "Survey: Poisson regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =     130.00",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           c |        IRR   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.529112   .0569558    11.40   0.000     1.416602    1.650557",
+            "       _cons |   .8991028   .0366787    -2.61   0.015     .8269079    .9776008",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline incidence rate."
+          ]
+        },
+        {
+          "command": "svy: ologit o x",
+          "lines": [
+            "(running ologit on estimation sample)",
+            "",
+            "Survey: Ordered logistic regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      58.62",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           o | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .5652739   .0738274     7.66   0.000     .4137926    .7167553",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -1.065619   .1021607                     -1.275235   -.8560023",
+            "       /cut2 |   .7092706   .0886602                      .5273548    .8911863",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: ologit o x i.g, or",
+          "lines": [
+            "(running ologit on estimation sample)",
+            "",
+            "Survey: Ordered logistic regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "                                                  F(3, 25)        =      55.51",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           o | Odds ratio   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.201536    .180952     9.60   0.000     1.859873    2.605963",
+            "             |",
+            "           g |",
+            "          2  |   3.951583   .8186902     6.63   0.000      2.58317    6.044901",
+            "          3  |   24.50441   7.120962    11.01   0.000      13.4987    44.48329",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.0173354   .1581806                     -.3418951    .3072244",
+            "       /cut2 |   2.384832   .1863579                      2.002458    2.767207",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to odds ratios."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-subpopulations",
+      "source": "clear\nset seed 2041\nset obs 600\ngenerate strat = 1 + floor((_n-1)/200)\ngenerate psu = 1 + floor((_n-1)/20)\ngenerate fpc = 40 + 10*strat\ngenerate w = 1 + 4*runiform()\ngenerate x = invnormal(runiform())\ngenerate g = 1 + floor(3*runiform())\ngenerate y = 2 + 0.5*x + g + invnormal(runiform())\ngenerate b = runiform() < invlogit(-0.3 + 0.8*x)\ngenerate c = floor(3*runiform()*exp(0.3*x))\ngenerate o = 1 + (y>3) + (y>4.5)\ngenerate sub = runiform() < .6\nreplace sub = 0 if g == 3 & strat == 1\nsvyset psu [pweight=w], strata(strat) fpc(fpc)\nsvy, subpop(sub): mean y\nsvy, subpop(sub): regress y x\nsvy, subpop(sub): proportion g\nsvy, subpop(if g < 3): proportion g\nsvy, subpop(if g < 3): mean y, over(g)\nsvy, subpop(if g==2): mean y\nsvy, subpop(sub): tabulate g b\nreplace x = . in 5\nsvy, subpop(sub): mean y x\nreplace sub = . in 7\nsvy, subpop(sub): mean y\nreplace x = . if sub == 0 & _n < 40\nsvy, subpop(sub): mean y x\nsvyset psu [pweight=w]\nsvy: mean y\nsvyset\nsvyset _n\nsvy: mean y\nsvyset psu, strata(strat) fpc(fpc)\nsvy: mean y\ngenerate rate = 10/fpc\nsvyset psu [pw=w], strata(strat) fpc(rate)\nsvy: mean y\nsvydescribe\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2041", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/200)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/20)", "lines": [] },
+        { "command": "generate fpc = 40 + 10*strat", "lines": [] },
+        { "command": "generate w = 1 + 4*runiform()", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "generate y = 2 + 0.5*x + g + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate b = runiform() < invlogit(-0.3 + 0.8*x)",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(3*runiform()*exp(0.3*x))",
+          "lines": []
+        },
+        { "command": "generate o = 1 + (y>3) + (y>4.5)", "lines": [] },
+        { "command": "generate sub = runiform() < .6", "lines": [] },
+        {
+          "command": "replace sub = 0 if g == 3 & strat == 1",
+          "lines": ["(30 real changes made)"]
+        },
+        {
+          "command": "svyset psu [pweight=w], strata(strat) fpc(fpc)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svy, subpop(sub): mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        321",
+            "                                  Subpop. size    =  976.99744",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.787237   .0792869      3.624554     3.94992",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(sub): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30                             Subpop. no. obs =        321",
+            "                                                  Subpop. size    =  976.99744",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =      76.36",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.1422",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .5579219   .0638459     8.74   0.000     .4269211    .6889228",
+            "       _cons |   3.823432   .0822889    46.46   0.000     3.654589    3.992275",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(sub): proportion g",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        321",
+            "                                  Subpop. size    =  976.99744",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized            Logit",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "          1  |   .4031462    .028091       .347077     .461866",
+            "          2  |   .3581566   .0273004      .3042697    .4158822",
+            "          3  |   .2386972   .0205703      .1990732    .2834172",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(if g < 3): proportion g",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        407",
+            "                                  Subpop. size    =  1,230.567",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized            Logit",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "          1  |   .5272599   .0281914      .4693092    .5844851",
+            "          2  |   .4727401   .0281914      .4155149    .5306908",
+            "          3  |          0  (no observations)",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(if g < 3): mean y, over(g)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        407",
+            "                                  Subpop. size    =  1,230.567",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "          1  |   3.012727   .0919351      2.824091    3.201362",
+            "          2  |   3.863025   .0891362      3.680133    4.045917",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(if g==2): mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        194",
+            "                                  Subpop. size    = 581.738426",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.863025   .0891362      3.680133    4.045917",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(sub): tabulate g b",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "Subpop. no. PSUs = 30                             Subpop. no. obs =        321",
+            "                                                  Subpop. size    =  976.99744",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | .2143  .1889  .4031",
+            "        2 | .1974  .1608  .3582",
+            "        3 | .1498  .0889  .2387",
+            "          |",
+            "    Total | .5615  .4385      1",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.5213",
+            "    Design-based  F(1.89, 51.02)  =    0.7280     P = 0.4805"
+          ]
+        },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "svy, subpop(sub): mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        599",
+            "Number of PSUs   = 30             Population size =   1,807.71",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        320",
+            "                                  Subpop. size    = 973.034548",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.791431   .0796867      3.627927    3.954934",
+            "           x |  -.0608475   .0467298     -.1567292    .0350342",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "replace sub = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "svy, subpop(sub): mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3              Number of obs   =       599",
+            "Number of PSUs   = 30              Population size = 1,808.014",
+            "Subpop. no. PSUs = 30              Subpop. no. obs =       321",
+            "                                   Subpop. size    = 976.99744",
+            "                                   Design df       =        27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.787237   .0792869      3.624554     3.94992",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "replace x = . if sub == 0 & _n < 40",
+          "lines": ["(18 real changes made, 18 to missing)"]
+        },
+        {
+          "command": "svy, subpop(sub): mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        598",
+            "Number of PSUs   = 30             Population size = 1,804.0511",
+            "Subpop. no. PSUs = 30             Subpop. no. obs =        320",
+            "                                  Subpop. size    = 973.034548",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.791431   .0796867      3.627927    3.954934",
+            "           x |  -.0608475   .0467298     -.1567292    .0350342",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svyset psu [pweight=w]",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  1             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         29",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0717622      3.771546    4.065087",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svyset",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset _n",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: <observations>",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =   1                   Number of obs   = 600",
+            "Number of PSUs   = 600                   Population size = 600",
+            "                                         Design df       = 599",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.939501   .0585411       3.82453    4.054471",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svyset psu, strata(strat) fpc(fpc)",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3                    Number of obs   = 600",
+            "Number of PSUs   = 30                    Population size = 600",
+            "                                         Design df       =  27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.939501   .0582548      3.819972     4.05903",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate rate = 10/fpc", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat) fpc(rate)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: rate"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        600",
+            "Number of PSUs   = 30             Population size = 1,811.6729",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   3.918316   .0657956      3.783315    4.053318",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svydescribe",
+          "lines": [
+            "Survey: Describing stage 1 sampling units",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: rate",
+            "",
+            "                                    Number of obs per unit",
+            " Stratum   # units     # obs       Min      Mean       Max",
+            "----------------------------------------------------------",
+            "       1        10       200        20      20.0        20",
+            "       2        10       200        20      20.0        20",
+            "       3        10       200        20      20.0        20",
+            "----------------------------------------------------------",
+            "       3        30       600        20      20.0        20"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-strata-without-subpopulation",
+      "source": "clear\nset seed 99\nset obs 300\ngenerate strat = 1 + floor((_n-1)/100)\ngenerate psu = 1 + floor((_n-1)/10)\ngenerate w = 20000 + 90000*runiform()\ngenerate y = runiform() * 10\ngenerate x = runiform()\ngenerate sub = runiform() < .5\nreplace sub = 0 if strat == 3\ngenerate averylongvariablename = y + x\nsvyset psu [pw=w], strata(strat)\nsvy: mean y averylongvariablename\nsvy: total y\nsvy: regress y x\nsvy, subpop(sub): mean y\nsvy, subpop(sub): regress y x\nreplace x = . in 205\nsvy, subpop(sub): mean y x\nsvy: ratio (r1: y/x) (y/averylongvariablename)\nsvy: proportion sub, citype(wald)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/100)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/10)", "lines": [] },
+        { "command": "generate w = 20000 + 90000*runiform()", "lines": [] },
+        { "command": "generate y = runiform() * 10", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate sub = runiform() < .5", "lines": [] },
+        {
+          "command": "replace sub = 0 if strat == 3",
+          "lines": ["(49 real changes made)"]
+        },
+        { "command": "generate averylongvariablename = y + x", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y averylongvariablename",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  3                      Number of obs   =        300",
+            "Number of PSUs   = 30                      Population size = 20,395,167",
+            "                                           Design df       =         27",
+            "",
+            "-----------------------------------------------------------------------",
+            "                      |             Linearized",
+            "                      |       Mean   std. err.     [95% conf. interval]",
+            "----------------------+------------------------------------------------",
+            "                    y |   5.160428   .1558082      4.840736    5.480121",
+            "averylongvariablename |   5.635004   .1601874      5.306327    5.963681",
+            "-----------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: total y",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Survey: Total estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        300",
+            "Number of PSUs   = 30             Population size = 20,395,167",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   1.05e+08    3577343      9.79e+07    1.13e+08",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  3                             Number of obs   =        300",
+            "Number of PSUs   = 30                             Population size = 20,395,167",
+            "                                                  Design df       =         27",
+            "                                                  F(1, 27)        =       0.00",
+            "                                                  Prob > F        =     0.9923",
+            "                                                  R-squared       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0075059    .771353     0.01   0.992     -1.57518    1.590192",
+            "       _cons |   5.156866   .3668256    14.06   0.000     4.404202     5.90953",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy, subpop(sub): mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =        200",
+            "Number of PSUs   = 20             Population size = 13,297,631",
+            "Subpop. no. PSUs = 20             Subpop. no. obs =         92",
+            "                                  Subpop. size    =  6,392,356",
+            "                                  Design df       =         18",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   5.117377   .3536054       4.37448    5.860275",
+            "--------------------------------------------------------------",
+            "Note: 1 stratum omitted because it contains no subpopulation",
+            "      members."
+          ]
+        },
+        {
+          "command": "svy, subpop(sub): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 13,297,631",
+            "Subpop. no. PSUs = 20                             Subpop. no. obs =         92",
+            "                                                  Subpop. size    =  6,392,356",
+            "                                                  Design df       =         18",
+            "                                                  F(1, 18)        =       0.02",
+            "                                                  Prob > F        =     0.8858",
+            "                                                  R-squared       =     0.0006",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.2560367   1.757306    -0.15   0.886       -3.948    3.435927",
+            "       _cons |   5.245662    .854363     6.14   0.000     3.450712    7.040612",
+            "------------------------------------------------------------------------------",
+            "Note: 1 stratum omitted because it contains no subpopulation members."
+          ]
+        },
+        {
+          "command": "replace x = . in 205",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "svy, subpop(sub): mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =        200",
+            "Number of PSUs   = 20             Population size = 13,297,631",
+            "Subpop. no. PSUs = 20             Subpop. no. obs =         92",
+            "                                  Subpop. size    =  6,392,356",
+            "                                  Design df       =         18",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   5.117377   .3536054       4.37448    5.860275",
+            "           x |   .5010414   .0218746      .4550846    .5469982",
+            "--------------------------------------------------------------",
+            "Note: 1 stratum omitted because it contains no subpopulation",
+            "      members."
+          ]
+        },
+        {
+          "command": "svy: ratio (r1: y/x) (y/averylongvariablename)",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "",
+            "Survey: Ratio estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        299",
+            "Number of PSUs   = 30             Population size = 20,330,617",
+            "                                  Design df       =         27",
+            "",
+            "           r1: y/x",
+            "     _ratio_2: y/averylongvariablename",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "          r1 |   10.81155   .4545842       9.87882    11.74428",
+            "    _ratio_2 |   .9153371   .0032584      .9086515    .9220227",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: proportion sub, citype(wald)",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =  3             Number of obs   =        300",
+            "Number of PSUs   = 30             Population size = 20,395,167",
+            "                                  Design df       =         27",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized            Normal",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "         sub |",
+            "          0  |    .686575   .0156484       .654467    .7186829",
+            "          1  |    .313425   .0156484      .2813171     .345533",
+            "--------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-single-units",
+      "source": "clear\nset seed 77\nset obs 130\ngenerate strat = 1 + floor((_n-1)/40)\ngenerate psu = 1 + floor((_n-1)/10)\ngenerate w = 1 + runiform()\ngenerate y = runiform() * 10\ngenerate x = runiform()\ngenerate g = 1 + floor(2*runiform())\ngenerate h = 1 + floor(3*runiform())\ngenerate x2 = 2*x\nsvyset psu [pw=w], strata(strat)\nsvydescribe\nsvy: mean y\nsvy: regress y x\nsvy: regress y x x2\nsvy: tabulate g\nsvy: tabulate g h\nsvyset psu [pw=w], strata(strat) singleunit(certainty)\nsvy: mean y\nsvy: regress y x\nsvy: tabulate g h\nsvy, subpop(if h < 3): tabulate g h\nsvy: mean y if g == 1, over(h)\nsvyset psu [pw=w], strata(strat) singleunit(scaled)\nsvy: mean y\nsvy: regress y x\nsvyset psu [pw=w], strata(strat) singleunit(centered)\nsvy: mean y\nsvy: regress y x\nsvy: tabulate g h\nreplace w = 0 in 1/3\nsvy: mean y\nsvyset psu [pw=w], strata(strat) dof(5)\nsvy: mean y\nsvy: regress y x\nsvyset psu || _n\nreplace psu = . in 130\nsvyset psu [pw=w], strata(strat)\nsvydescribe\nsvydescribe y x\nsvy: mean y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 130",
+          "lines": ["Number of observations (_N) was 0, now 130."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/40)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/10)", "lines": [] },
+        { "command": "generate w = 1 + runiform()", "lines": [] },
+        { "command": "generate y = runiform() * 10", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate g = 1 + floor(2*runiform())", "lines": [] },
+        { "command": "generate h = 1 + floor(3*runiform())", "lines": [] },
+        { "command": "generate x2 = 2*x", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svydescribe",
+          "lines": [
+            "Survey: Describing stage 1 sampling units",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>",
+            "",
+            "                                    Number of obs per unit",
+            " Stratum   # units     # obs       Min      Mean       Max",
+            "----------------------------------------------------------",
+            "       1         4        40        10      10.0        10",
+            "       2         4        40        10      10.0        10",
+            "       3         4        40        10      10.0        10",
+            "       4         1*       10        10      10.0        10",
+            "----------------------------------------------------------",
+            "       4        13       130        10      10.0        10"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4             Number of obs   =        130",
+            "Number of PSUs   = 13             Population size = 194.513079",
+            "                                  Design df       =          9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |    5.12119          .             .           .",
+            "--------------------------------------------------------------",
+            "Note: Missing standard error because of stratum with single",
+            "      sampling unit."
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "                                                  F(0, 9)         =          .",
+            "                                                  Prob > F        =          .",
+            "                                                  R-squared       =     0.0096",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9542956          .        .       .            .           .",
+            "       _cons |   4.584473          .        .       .            .           .",
+            "------------------------------------------------------------------------------",
+            "Note: Missing standard errors because of stratum with single sampling unit."
+          ]
+        },
+        {
+          "command": "svy: regress y x x2",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "                                                  F(0, 9)         =          .",
+            "                                                  Prob > F        =          .",
+            "                                                  R-squared       =     0.0096",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          0  (omitted)",
+            "          x2 |   .4771478          .        .       .            .           .",
+            "       _cons |   4.584473          .        .       .            .           .",
+            "------------------------------------------------------------------------------",
+            "Note: Missing standard errors because of stratum with single sampling unit."
+          ]
+        },
+        {
+          "command": "svy: tabulate g",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "",
+            "----------------------",
+            "        g | proportion",
+            "----------+-----------",
+            "        1 |      .4822",
+            "        2 |      .5178",
+            "          |",
+            "    Total |          1",
+            "----------------------",
+            "Key: proportion = Cell proportion"
+          ]
+        },
+        {
+          "command": "svy: tabulate g h",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "",
+            "--------------------------------------",
+            "          |             h",
+            "        g |     1      2      3  Total",
+            "----------+---------------------------",
+            "        1 | .1663  .1188  .1971  .4822",
+            "        2 | .1528  .1627  .2023  .5178",
+            "          |",
+            "    Total | .3191  .2815  .3994      1",
+            "--------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    0.8117",
+            "    Design-based  F(., .)         =         .     P =      .",
+            "",
+            "Note: Missing test statistics because of stratum with single sampling unit."
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(strat) singleunit(certainty)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: certainty",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4             Number of obs   =        130",
+            "Number of PSUs   = 13             Population size = 194.513079",
+            "                                  Design df       =          9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |    5.12119   .2714867      4.507044    5.735336",
+            "--------------------------------------------------------------",
+            "Note: Strata with single sampling unit treated as certainty",
+            "      units."
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "                                                  F(1, 9)         =       2.35",
+            "                                                  Prob > F        =     0.1599",
+            "                                                  R-squared       =     0.0096",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9542956   .6229436     1.53   0.160    -.4549007    2.363492",
+            "       _cons |   4.584473   .3544849    12.93   0.000     3.782572    5.386374",
+            "------------------------------------------------------------------------------",
+            "Note: Strata with single sampling unit treated as certainty units."
+          ]
+        },
+        {
+          "command": "svy: tabulate g h",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "",
+            "--------------------------------------",
+            "          |             h",
+            "        g |     1      2      3  Total",
+            "----------+---------------------------",
+            "        1 | .1663  .1188  .1971  .4822",
+            "        2 | .1528  .1627  .2023  .5178",
+            "          |",
+            "    Total | .3191  .2815  .3994      1",
+            "--------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    0.8117",
+            "    Design-based  F(1.89, 16.97)  =    0.2427     P = 0.7747",
+            "",
+            "Note: Strata with single sampling unit treated as certainty units."
+          ]
+        },
+        {
+          "command": "svy, subpop(if h < 3): tabulate g h",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "Subpop. no. PSUs = 13                             Subpop. no. obs =         79",
+            "                                                  Subpop. size    = 116.818321",
+            "                                                  Design df       =          9",
+            "",
+            "--------------------------------------",
+            "          |             h",
+            "        g |     1      2      3  Total",
+            "----------+---------------------------",
+            "        1 |  .277  .1978      0  .4747",
+            "        2 | .2544  .2709      0  .5253",
+            "          |",
+            "    Total | .5313  .4687      0      1",
+            "--------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Table contains a zero in the marginals.",
+            "  Statistics cannot be computed."
+          ]
+        },
+        {
+          "command": "svy: mean y if g == 1, over(h)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4             Number of obs   =         61",
+            "Number of PSUs   = 13             Population size = 93.7976218",
+            "                                  Design df       =          9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@h |",
+            "          1  |   5.526694   .5343281       4.31796    6.735428",
+            "          2  |   5.595926   .6565668      4.110669    7.081183",
+            "          3  |    5.80651   .5020677      4.670754    6.942266",
+            "--------------------------------------------------------------",
+            "Note: Strata with single sampling unit treated as certainty",
+            "      units."
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(strat) singleunit(scaled)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: scaled",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4             Number of obs   =        130",
+            "Number of PSUs   = 13             Population size = 194.513079",
+            "                                  Design df       =          9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |    5.12119   .3134859      4.412036    5.830344",
+            "--------------------------------------------------------------",
+            "Note: Variance scaled to handle strata with a single sampling",
+            "      unit."
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "                                                  F(1, 9)         =       1.76",
+            "                                                  Prob > F        =     0.2173",
+            "                                                  R-squared       =     0.0096",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9542956   .7193133     1.33   0.217    -.6729041    2.581495",
+            "       _cons |   4.584473   .4093239    11.20   0.000     3.658518    5.510428",
+            "------------------------------------------------------------------------------",
+            "Note: Variance scaled to handle strata with a single sampling unit."
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(strat) singleunit(centered)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: centered",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4             Number of obs   =        130",
+            "Number of PSUs   = 13             Population size = 194.513079",
+            "                                  Design df       =          9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |    5.12119   .2717945      4.506348    5.736032",
+            "--------------------------------------------------------------",
+            "Note: Strata with single sampling unit centered at overall",
+            "      mean."
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "                                                  F(1, 9)         =       2.33",
+            "                                                  Prob > F        =     0.1613",
+            "                                                  R-squared       =     0.0096",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9542956   .6252469     1.53   0.161    -.4601112    2.368702",
+            "       _cons |   4.584473   .3572173    12.83   0.000     3.776391    5.392555",
+            "------------------------------------------------------------------------------",
+            "Note: Strata with single sampling unit centered at overall mean."
+          ]
+        },
+        {
+          "command": "svy: tabulate g h",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  4                             Number of obs   =        130",
+            "Number of PSUs   = 13                             Population size = 194.513079",
+            "                                                  Design df       =          9",
+            "",
+            "--------------------------------------",
+            "          |             h",
+            "        g |     1      2      3  Total",
+            "----------+---------------------------",
+            "        1 | .1663  .1188  .1971  .4822",
+            "        2 | .1528  .1627  .2023  .5178",
+            "          |",
+            "    Total | .3191  .2815  .3994      1",
+            "--------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    0.8117",
+            "    Design-based  F(1.90, 17.06)  =    0.2383     P = 0.7792",
+            "",
+            "Note: Strata with single sampling unit centered at overall mean."
+          ]
+        },
+        {
+          "command": "replace w = 0 in 1/3",
+          "lines": ["(3 real changes made)"]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4              Number of obs   =       130",
+            "Number of PSUs   = 13              Population size = 190.58979",
+            "                                   Design df       =         9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   5.154872   .2832591      4.514095    5.795648",
+            "--------------------------------------------------------------",
+            "Note: Strata with single sampling unit centered at overall",
+            "      mean."
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(strat) dof(5)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "       Design df: 5",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4              Number of obs   =       130",
+            "Number of PSUs   = 13              Population size = 190.58979",
+            "                                   Design df       =         5",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   5.154872          .             .           .",
+            "--------------------------------------------------------------",
+            "Note: Missing standard error because of stratum with single",
+            "      sampling unit."
+          ]
+        },
+        {
+          "command": "svy: regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  4                              Number of obs   =       130",
+            "Number of PSUs   = 13                              Population size = 190.58979",
+            "                                                   Design df       =         5",
+            "                                                   F(0, 5)         =         .",
+            "                                                   Prob > F        =         .",
+            "                                                   R-squared       =    0.0125",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.085624          .        .       .            .           .",
+            "       _cons |   4.550566          .        .       .            .           .",
+            "------------------------------------------------------------------------------",
+            "Note: Missing standard errors because of stratum with single sampling unit."
+          ]
+        },
+        {
+          "command": "svyset psu || _n",
+          "lines": [
+            "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "",
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "replace psu = . in 130",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(strat)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svydescribe",
+          "lines": [
+            "Survey: Describing stage 1 sampling units",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>",
+            "",
+            "                                    Number of obs per unit",
+            " Stratum   # units     # obs       Min      Mean       Max",
+            "----------------------------------------------------------",
+            "       1         4        40        10      10.0        10",
+            "       2         4        40        10      10.0        10",
+            "       3         4        40        10      10.0        10",
+            "       4         1*        9         9       9.0         9",
+            "----------------------------------------------------------",
+            "       4        13       129         9       9.9        10",
+            "",
+            "                           1 = # obs with missing values in the",
+            "                    --------   survey characteristics",
+            "                         130"
+          ]
+        },
+        {
+          "command": "svydescribe y x",
+          "lines": [
+            "Survey: Describing stage 1 sampling units",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>",
+            "",
+            "                              Number of obs with",
+            "             Number of units  complete   missing       # obs per included unit",
+            " Stratum  included   omitted      data      data       Min      Mean       Max",
+            "------------------------------------------------------------------------------",
+            "       1         4         0        40         0        10      10.0        10",
+            "       2         4         0        40         0        10      10.0        10",
+            "       3         4         0        40         0        10      10.0        10",
+            "       4         1*        0         9         0         9       9.0         9",
+            "------------------------------------------------------------------------------",
+            "       4        13         0       129         0         9       9.9        10",
+            "                              ------------------",
+            "                                        129",
+            "                                          1 = # obs with missing values in the",
+            "                                   --------   survey characteristics",
+            "                                        130"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  4             Number of obs   =        129",
+            "Number of PSUs   = 13             Population size = 189.182922",
+            "                                  Design df       =          9",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   5.126961          .             .           .",
+            "--------------------------------------------------------------",
+            "Note: Missing standard error because of stratum with single",
+            "      sampling unit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-tabulate-layout",
+      "source": "clear\nset seed 11\nset obs 200\ngenerate strat = 1 + floor((_n-1)/100)\ngenerate psu = 1 + floor((_n-1)/10)\ngenerate w = 1 + runiform()\nreplace w = 0.0001 in 7\ngenerate rowvariablelongname = 1 + floor(3*runiform())\nreplace rowvariablelongname = 9 in 7\ngenerate c = floor(2*runiform())\ngenerate str8 s = cond(c==1, \"yes\", \"no\")\ngenerate colvariable_name_long = 10 + floor(3*runiform())\nlabel define cl 10 \"a\" 11 \"a much longer label\" 12 \"mid label\"\nlabel values colvariable_name_long cl\ngenerate averylongvariablename = c\nsvyset psu [pw=w], strata(strat)\nsvy: tabulate rowvariablelongname\nsvy: tabulate rowvariablelongname c\nsvy: tabulate s\nsvy: tabulate c colvariable_name_long\nsvy: tabulate colvariable_name_long c\nsvy: tabulate colvariable_name_long averylongvariablename\nsvy: tabulate colvariable_name_long c, nolabel\nsvy, subpop(c): tabulate rowvariablelongname s\ngenerate z = c\nsvy: tabulate c z\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 11", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/100)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/10)", "lines": [] },
+        { "command": "generate w = 1 + runiform()", "lines": [] },
+        {
+          "command": "replace w = 0.0001 in 7",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "generate rowvariablelongname = 1 + floor(3*runiform())",
+          "lines": []
+        },
+        {
+          "command": "replace rowvariablelongname = 9 in 7",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate c = floor(2*runiform())", "lines": [] },
+        {
+          "command": "generate str8 s = cond(c==1, \"yes\", \"no\")",
+          "lines": []
+        },
+        {
+          "command": "generate colvariable_name_long = 10 + floor(3*runiform())",
+          "lines": []
+        },
+        {
+          "command": "label define cl 10 \"a\" 11 \"a much longer label\" 12 \"mid label\"",
+          "lines": []
+        },
+        { "command": "label values colvariable_name_long cl", "lines": [] },
+        { "command": "generate averylongvariablename = c", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: tabulate rowvariablelongname",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "----------------------",
+            "rowvariab |",
+            "lelongnam |",
+            "e         | proportion",
+            "----------+-----------",
+            "        1 |      .3311",
+            "        2 |      .3032",
+            "        3 |      .3658",
+            "        9 |    3.4e-07",
+            "          |",
+            "    Total |          1",
+            "----------------------",
+            "Key: proportion = Cell proportion"
+          ]
+        },
+        {
+          "command": "svy: tabulate rowvariablelongname c",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "-------------------------------------",
+            "rowvariab |",
+            "lelongnam |             c",
+            "e         |       0        1    Total",
+            "----------+--------------------------",
+            "        1 |   .1407    .1903    .3311",
+            "        2 |   .1395    .1637    .3032",
+            "        3 |   .1699    .1958    .3658",
+            "        9 |       0  3.4e-07  3.4e-07",
+            "          |",
+            "    Total |   .4501    .5499        1",
+            "-------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(3)         =    0.2539",
+            "    Design-based  F(1.83, 32.89)  =    0.1144     P = 0.8755"
+          ]
+        },
+        {
+          "command": "svy: tabulate s",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "----------------------",
+            "        s | proportion",
+            "----------+-----------",
+            "       no |      .4501",
+            "      yes |      .5499",
+            "          |",
+            "    Total |          1",
+            "----------------------",
+            "Key: proportion = Cell proportion"
+          ]
+        },
+        {
+          "command": "svy: tabulate c colvariable_name_long",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "--------------------------------------------------",
+            "          |         colvariable_name_long",
+            "        c |        a  a much l  mid labe     Total",
+            "----------+---------------------------------------",
+            "        0 |    .1691     .1369     .1442     .4501",
+            "        1 |    .1635     .1955      .191     .5499",
+            "          |",
+            "    Total |    .3326     .3323     .3351         1",
+            "--------------------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    1.4175",
+            "    Design-based  F(1.96, 35.23)  =    0.6622     P = 0.5189"
+          ]
+        },
+        {
+          "command": "svy: tabulate colvariable_name_long c",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "-------------------------------",
+            "colvariab |",
+            "le_name_l |          c",
+            "ong       |     0      1  Total",
+            "----------+--------------------",
+            "        a | .1691  .1635  .3326",
+            " a much l | .1369  .1955  .3323",
+            " mid labe | .1442   .191  .3351",
+            "          |",
+            "    Total | .4501  .5499      1",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    1.4175",
+            "    Design-based  F(1.96, 35.23)  =    0.6622     P = 0.5189"
+          ]
+        },
+        {
+          "command": "svy: tabulate colvariable_name_long averylongvariablename",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "-------------------------------",
+            "colvariab |averylongvariablenam",
+            "le_name_l |          e",
+            "ong       |     0      1  Total",
+            "----------+--------------------",
+            "        a | .1691  .1635  .3326",
+            " a much l | .1369  .1955  .3323",
+            " mid labe | .1442   .191  .3351",
+            "          |",
+            "    Total | .4501  .5499      1",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    1.4175",
+            "    Design-based  F(1.96, 35.23)  =    0.6622     P = 0.5189"
+          ]
+        },
+        {
+          "command": "svy: tabulate colvariable_name_long c, nolabel",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "-------------------------------",
+            "colvariab |",
+            "le_name_l |          c",
+            "ong       |     0      1  Total",
+            "----------+--------------------",
+            "       10 | .1691  .1635  .3326",
+            "       11 | .1369  .1955  .3323",
+            "       12 | .1442   .191  .3351",
+            "          |",
+            "    Total | .4501  .5499      1",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    1.4175",
+            "    Design-based  F(1.96, 35.23)  =    0.6622     P = 0.5189"
+          ]
+        },
+        {
+          "command": "svy, subpop(c): tabulate rowvariablelongname s",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "Subpop. no. PSUs = 20                             Subpop. no. obs =        109",
+            "                                                  Subpop. size    =  162.47122",
+            "                                                  Design df       =         18",
+            "",
+            "-------------------------------------",
+            "rowvariab |",
+            "lelongnam |             s",
+            "e         |      no      yes    Total",
+            "----------+--------------------------",
+            "        1 |       0    .3461    .3461",
+            "        2 |       0    .2977    .2977",
+            "        3 |       0    .3562    .3562",
+            "        9 |       0  6.2e-07  6.2e-07",
+            "          |",
+            "    Total |       0        1        1",
+            "-------------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Table contains a zero in the marginals.",
+            "  Statistics cannot be computed."
+          ]
+        },
+        { "command": "generate z = c", "lines": [] },
+        {
+          "command": "svy: tabulate c z",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 295.472859",
+            "                                                  Design df       =         18",
+            "",
+            "-------------------------------",
+            "          |          z",
+            "        c |     0      1  Total",
+            "----------+--------------------",
+            "        0 | .4501      0  .4501",
+            "        1 |     0  .5499  .5499",
+            "          |",
+            "    Total | .4501  .5499      1",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(1)         =  200.0000",
+            "    Design-based  F(1, 18)        =  1.35e+04     P = 0.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-design-errors",
+      "source": "clear\nset seed 5\nset obs 60\ngenerate strat = 1 + floor((_n-1)/30)\ngenerate psu = 1 + floor((_n-1)/5)\ngenerate w = 1 + runiform()\ngenerate y = runiform()\ngenerate x = runiform()\ngenerate sub = runiform() < .5\ngenerate str5 s = cond(sub, \"alpha\", \"beta\")\ncapture noisily svy: mean y\nsvyset\ngenerate fv = 20 + _n\nsvyset psu [pw=w], strata(strat) fpc(fv)\ncapture noisily svy: mean y\ngenerate f2 = 3\nsvyset psu [pw=w], strata(strat) fpc(f2)\ncapture noisily svy: mean y\ngenerate f3 = cond(strat==1, .5, 40)\nsvyset psu [pw=w], strata(strat) fpc(f3)\nsvy: mean y\nsvyset psu [pw=w], strata(strat)\ncapture noisily svy: summarize y\nsvy: mean y, over(sub)\ncapture noisily predict p\nreplace x = . if sub == 0 & _n < 12\nsvy, subpop(sub): mean y x\nreplace w = -1 in 3\ncapture noisily svy: mean y\nreplace w = 1 in 3\nsvy: regress y x, noconstant\ncapture noisily svy: mean y if x > .5, vce(linearized)\ncapture noisily svy: proportion s\ncapture noisily svy: mean s\ncapture noisily svyset psu [aw=w]\ncapture noisily svyset psu [pw=w*2]\nsvyset, clear\nsvyset\ncapture noisily svy: tabulate y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/30)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/5)", "lines": [] },
+        { "command": "generate w = 1 + runiform()", "lines": [] },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate sub = runiform() < .5", "lines": [] },
+        {
+          "command": "generate str5 s = cond(sub, \"alpha\", \"beta\")",
+          "lines": []
+        },
+        {
+          "command": "capture noisily svy: mean y",
+          "lines": ["data not set up for svy, use svyset"]
+        },
+        { "command": "svyset", "lines": ["no survey characteristics are set"] },
+        { "command": "generate fv = 20 + _n", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat) fpc(fv)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fv"
+          ]
+        },
+        {
+          "command": "capture noisily svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "fpc for all observations within a stratum must be the same"
+          ]
+        },
+        { "command": "generate f2 = 3", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat) fpc(f2)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: f2"
+          ]
+        },
+        {
+          "command": "capture noisily svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "fpc must be <= 1 if a rate, or >= no. sampled units per stratum if unit totals"
+          ]
+        },
+        { "command": "generate f3 = cond(strat==1, .5, 40)", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat) fpc(f3)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: f3"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =         60",
+            "Number of PSUs   = 12             Population size = 88.0502933",
+            "                                  Design df       =         10",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   .4486869   .0266583      .3892885    .5080853",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(strat)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "capture noisily svy: summarize y",
+          "lines": [
+            "summarize is not supported by svy with vce(linearized); see help svy estimation for a list of Stata estimation commands that are supported by svy"
+          ]
+        },
+        {
+          "command": "svy: mean y, over(sub)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =         60",
+            "Number of PSUs   = 12             Population size = 88.0502933",
+            "                                  Design df       =         10",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "     c.y@sub |",
+            "          0  |   .4129594   .0609436      .2771687    .5487501",
+            "          1  |   .4908079   .0365452      .4093801    .5722357",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily predict p",
+          "lines": ["predict is not allowed after svy:mean"]
+        },
+        {
+          "command": "replace x = . if sub == 0 & _n < 12",
+          "lines": ["(7 real changes made, 7 to missing)"]
+        },
+        {
+          "command": "svy, subpop(sub): mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =         60",
+            "Number of PSUs   = 12             Population size = 88.0502933",
+            "Subpop. no. PSUs = 12             Subpop. no. obs =         28",
+            "                                  Subpop. size    = 40.4094275",
+            "                                  Design df       =         10",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   .4908079   .0365452      .4093801    .5722357",
+            "           x |   .3959533   .0468125      .2916486    .5002579",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "replace w = -1 in 3", "lines": ["(1 real change made)"] },
+        {
+          "command": "capture noisily svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "negative weights encountered"
+          ]
+        },
+        { "command": "replace w = 1 in 3", "lines": ["(1 real change made)"] },
+        {
+          "command": "svy: regress y x, noconstant",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  2                             Number of obs   =         53",
+            "Number of PSUs   = 12                             Population size = 77.5929041",
+            "                                                  Design df       =         10",
+            "                                                  F(1, 10)        =      46.13",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.5309",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7325583   .1078594     6.79   0.000     .4922326    .9728841",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily svy: mean y if x > .5, vce(linearized)",
+          "lines": ["option vce() of mean is not allowed with the svy prefix"]
+        },
+        {
+          "command": "capture noisily svy: proportion s",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "s:  string variables may not be used as factor variables"
+          ]
+        },
+        {
+          "command": "capture noisily svy: mean s",
+          "lines": [
+            "(running mean on estimation sample)",
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu [aw=w]",
+          "lines": ["aweights not allowed"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w*2]",
+          "lines": ["variable w*2 not found"]
+        },
+        { "command": "svyset, clear", "lines": [] },
+        { "command": "svyset", "lines": ["no survey characteristics are set"] },
+        {
+          "command": "capture noisily svy: tabulate y",
+          "lines": ["data not set up for svy, use svyset"]
+        }
+      ]
+    },
+    {
+      "id": "svy-collinear-columns",
+      "source": "clear\nset seed 78\nset obs 200\ngenerate strat = 1 + floor((_n-1)/100)\ngenerate psu = 1 + floor((_n-1)/10)\ngenerate w = 1 + runiform()\ngenerate y = runiform() * 10\ngenerate x = runiform()\ngenerate b = runiform() < x\ngenerate x2 = 2*x\ngenerate g = 1 + floor(3*runiform())\ngenerate d2 = g == 2\nsvyset psu [pw=w], strata(strat)\nsvy: regress y x x2\nsvy: regress y x2 x\nsvy: logit b x x2\nsvy: logit b x i.g d2\nsvy: ologit g x x2\nsvy: poisson g x x2\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 78", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/100)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/10)", "lines": [] },
+        { "command": "generate w = 1 + runiform()", "lines": [] },
+        { "command": "generate y = runiform() * 10", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate b = runiform() < x", "lines": [] },
+        { "command": "generate x2 = 2*x", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        { "command": "generate d2 = g == 2", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(strat)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: regress y x x2",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 298.259255",
+            "                                                  Design df       =         18",
+            "                                                  F(1, 18)        =       2.50",
+            "                                                  Prob > F        =     0.1315",
+            "                                                  R-squared       =     0.0109",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          0  (omitted)",
+            "          x2 |  -.5382679   .3406601    -1.58   0.132    -1.253968    .1774324",
+            "       _cons |   5.429079   .2806669    19.34   0.000     4.839419    6.018738",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: regress y x2 x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 298.259255",
+            "                                                  Design df       =         18",
+            "                                                  F(1, 18)        =       2.50",
+            "                                                  Prob > F        =     0.1315",
+            "                                                  R-squared       =     0.0109",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x2 |  -.5382679   .3406601    -1.58   0.132    -1.253968    .1774324",
+            "           x |          0  (omitted)",
+            "       _cons |   5.429079   .2806669    19.34   0.000     4.839419    6.018738",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: logit b x x2",
+          "lines": [
+            "(running logit on estimation sample)",
+            "",
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Survey: Logistic regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 298.259255",
+            "                                                  Design df       =         18",
+            "                                                  F(1, 18)        =      38.87",
+            "                                                  Prob > F        =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   4.623771   .7416585     6.23   0.000     3.065604    6.181937",
+            "          x2 |          0  (omitted)",
+            "       _cons |   -1.95375   .3385879    -5.77   0.000    -2.665097   -1.242403",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: logit b x i.g d2",
+          "lines": [
+            "(running logit on estimation sample)",
+            "",
+            "note: d2 omitted because of collinearity.",
+            "",
+            "Survey: Logistic regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 298.259255",
+            "                                                  Design df       =         18",
+            "                                                  F(3, 16)        =      12.89",
+            "                                                  Prob > F        =     0.0002",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           b | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    4.69437   .7645094     6.14   0.000     3.088195    6.300544",
+            "             |",
+            "           g |",
+            "          2  |   .5064639   .3789384     1.34   0.198    -.2896562    1.302584",
+            "          3  |   .3471901   .4222339     0.82   0.422    -.5398904    1.234271",
+            "             |",
+            "          d2 |          0  (omitted)",
+            "       _cons |  -2.283333   .3775142    -6.05   0.000    -3.076461   -1.490205",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: ologit g x x2",
+          "lines": [
+            "(running ologit on estimation sample)",
+            "",
+            "Survey: Ordered logistic regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 298.259255",
+            "                                                  Design df       =         18",
+            "                                                  F(1, 18)        =       0.03",
+            "                                                  Prob > F        =     0.8599",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           g | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    .095034   .5307212     0.18   0.860     -1.01997    1.210038",
+            "          x2 |          0  (omitted)",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.8578143   .3199688                     -1.530044   -.1855848",
+            "       /cut2 |   .5227264   .3416818                     -.1951203    1.240573",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: poisson g x x2",
+          "lines": [
+            "(running poisson on estimation sample)",
+            "",
+            "Survey: Poisson regression",
+            "",
+            "Number of strata =  2                             Number of obs   =        200",
+            "Number of PSUs   = 20                             Population size = 298.259255",
+            "                                                  Design df       =         18",
+            "                                                  F(1, 18)        =       0.03",
+            "                                                  Prob > F        =     0.8563",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "           g | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    .020654   .1124524     0.18   0.856    -.2155997    .2569078",
+            "          x2 |          0  (omitted)",
+            "       _cons |   .7294398   .0685477    10.64   0.000     .5854265     .873453",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-sampling-unit-per-observation",
+      "source": "clear\nset seed 12345\nset obs 5000\ngenerate id = _n\ngenerate age = 18 + int(runiform()*50)\ngenerate educ = 1 + int(runiform()*4)\ngenerate wt = 0.5 + runiform()*2\ngenerate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())\nsvyset id [pweight=wt]\nsvy: mean income\nsvy: regress income age i.educ\nsvy: proportion educ\nsvy: tabulate educ\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 5000",
+          "lines": ["Number of observations (_N) was 0, now 5,000."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate age = 18 + int(runiform()*50)", "lines": [] },
+        { "command": "generate educ = 1 + int(runiform()*4)", "lines": [] },
+        { "command": "generate wt = 0.5 + runiform()*2", "lines": [] },
+        {
+          "command": "generate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "svyset id [pweight=wt]",
+          "lines": [
+            "Sampling weights: wt",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: id",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svy: mean income",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =     1          Number of obs   =      5,000",
+            "Number of PSUs   = 5,000          Population size = 7,555.6439",
+            "                                  Design df       =      4,999",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   37772.65   139.9869      37498.21    38047.08",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: regress income age i.educ",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Survey: Linear regression",
+            "",
+            "Number of strata =     1                          Number of obs   =      5,000",
+            "Number of PSUs   = 5,000                          Population size = 7,555.6439",
+            "                                                  Design df       =      4,999",
+            "                                                  F(4, 4996)      =     400.96",
+            "                                                  Prob > F        =     0.0000",
+            "                                                  R-squared       =     0.2674",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Linearized",
+            "      income | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         age |   295.7429   8.204756    36.05   0.000      279.658    311.8278",
+            "             |",
+            "        educ |",
+            "          2  |   1895.594   341.7212     5.55   0.000     1225.671    2565.518",
+            "          3  |   3559.319   332.1323    10.72   0.000     2908.194    4210.444",
+            "          4  |   5773.791   339.8375    16.99   0.000      5107.56    6440.021",
+            "             |",
+            "       _cons |   22406.68    420.629    53.27   0.000     21582.07     23231.3",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: proportion educ",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Survey: Proportion estimation",
+            "",
+            "Number of strata =     1          Number of obs   =      5,000",
+            "Number of PSUs   = 5,000          Population size = 7,555.6439",
+            "                                  Design df       =      4,999",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized            Logit",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "        educ |",
+            "          1  |   .2492073   .0065548      .2365795    .2622776",
+            "          2  |   .2450303   .0065185      .2324773    .2580333",
+            "          3  |   .2536706   .0065724      .2410031      .26677",
+            "          4  |   .2520917   .0065558      .2394579    .2651596",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svy: tabulate educ",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =     1                          Number of obs   =      5,000",
+            "Number of PSUs   = 5,000                          Population size = 7,555.6439",
+            "                                                  Design df       =      4,999",
+            "",
+            "----------------------",
+            "     educ | proportion",
+            "----------+-----------",
+            "        1 |      .2492",
+            "        2 |       .245",
+            "        3 |      .2537",
+            "        4 |      .2521",
+            "          |",
+            "    Total |          1",
+            "----------------------",
+            "Key: proportion = Cell proportion"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "svy-tabulate-items",
+      "source": "clear\nset seed 2041\nset obs 600\ngenerate strat = 1 + floor((_n-1)/200)\ngenerate psu = 1 + floor((_n-1)/20)\ngenerate fpc = 40 + 10*strat\ngenerate w = 1 + 4*runiform()\ngenerate x = invnormal(runiform())\ngenerate g = 1 + floor(3*runiform())\ngenerate b = runiform() < invlogit(-0.3 + 0.8*x)\nsvyset psu [pweight=w], strata(strat) fpc(fpc)\nsvy: tabulate g b, row\nsvy: tabulate g b, column\nsvy: tabulate g b, count\nsvy: tabulate g b, percent\nsvy: tabulate g b, row percent\nsvy: tabulate g b, obs\nsvy: tabulate g, count\nsvy: tabulate g, percent\nsvy: tabulate g, nomarginals\nsvy: tabulate g b, format(%7.4f)\nsvy: tabulate g b, count format(%9.0fc)\nsvy: tabulate g b, nomarginals\nsvy: tabulate g b, row column\ndisplay e(F_Pear) \" \" e(df1_Pear) \" \" e(df2_Pear) \" \" e(p_Pear) \" \" e(cun_Pear)\ndisplay e(N) \" \" e(N_strata) \" \" e(N_psu) \" \" e(N_pop) \" \" e(df_r) \" \" e(r) \" \" e(c)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2041", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate strat = 1 + floor((_n-1)/200)", "lines": [] },
+        { "command": "generate psu = 1 + floor((_n-1)/20)", "lines": [] },
+        { "command": "generate fpc = 40 + 10*strat", "lines": [] },
+        { "command": "generate w = 1 + 4*runiform()", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "generate b = runiform() < invlogit(-0.3 + 0.8*x)",
+          "lines": []
+        },
+        {
+          "command": "svyset psu [pweight=w], strata(strat) fpc(fpc)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: strat",
+            " Sampling unit 1: psu",
+            "           FPC 1: fpc"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, row",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | .5959  .4041      1",
+            "        2 |  .543   .457      1",
+            "        3 | .6348  .3652      1",
+            "          |",
+            "    Total | .5914  .4086      1",
+            "-------------------------------",
+            "Key: Row proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, column",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | .3609  .3542  .3581",
+            "        2 | .2948  .3591  .3211",
+            "        3 | .3443  .2867  .3208",
+            "          |",
+            "    Total |     1      1      1",
+            "-------------------------------",
+            "Key: Column proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, count",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | 386.6  262.2  648.8",
+            "        2 | 315.9  265.9  581.7",
+            "        3 | 368.9  212.2  581.1",
+            "          |",
+            "    Total |  1071  740.3   1812",
+            "-------------------------------",
+            "Key: Weighted count",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, percent",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | 21.34  14.47  35.81",
+            "        2 | 17.44  14.67  32.11",
+            "        3 | 20.36  11.72  32.08",
+            "          |",
+            "    Total | 59.14  40.86    100",
+            "-------------------------------",
+            "Key: Cell percentage",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, row percent",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | 59.59  40.41    100",
+            "        2 |  54.3   45.7    100",
+            "        3 | 63.48  36.52    100",
+            "          |",
+            "    Total | 59.14  40.86    100",
+            "-------------------------------",
+            "Key: Row percentage",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, obs",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | .2134  .1447  .3581",
+            "          |   129     84    213",
+            "          |",
+            "        2 | .1744  .1467  .3211",
+            "          |   106     88    194",
+            "          |",
+            "        3 | .2036  .1172  .3208",
+            "          |   123     70    193",
+            "          |",
+            "    Total | .5914  .4086      1",
+            "          |   358    242    600",
+            "-------------------------------",
+            "Key: Cell proportion",
+            "     Number of observations",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g, count",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "----------------------",
+            "        g |      count",
+            "----------+-----------",
+            "        1 |      648.8",
+            "        2 |      581.7",
+            "        3 |      581.1",
+            "          |",
+            "    Total |       1812",
+            "----------------------",
+            "Key:    count = Weighted count"
+          ]
+        },
+        {
+          "command": "svy: tabulate g, percent",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "----------------------",
+            "        g | percentage",
+            "----------+-----------",
+            "        1 |      35.81",
+            "        2 |      32.11",
+            "        3 |      32.08",
+            "          |",
+            "    Total |        100",
+            "----------------------",
+            "Key: percentage = Cell percentage"
+          ]
+        },
+        {
+          "command": "svy: tabulate g, nomarginals",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "----------------------",
+            "        g | proportion",
+            "----------+-----------",
+            "        1 |      .3581",
+            "        2 |      .3211",
+            "        3 |      .3208",
+            "----------------------",
+            "Key: proportion = Cell proportion"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, format(%7.4f)",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "----------------------------------",
+            "          |           b",
+            "        g |      0       1   Total",
+            "----------+-----------------------",
+            "        1 | 0.2134  0.1447  0.3581",
+            "        2 | 0.1744  0.1467  0.3211",
+            "        3 | 0.2036  0.1172  0.3208",
+            "          |",
+            "    Total | 0.5914  0.4086  1.0000",
+            "----------------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, count format(%9.0fc)",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 |   387    262    649",
+            "        2 |   316    266    582",
+            "        3 |   369    212    581",
+            "          |",
+            "    Total | 1,071    740  1,812",
+            "-------------------------------",
+            "Key: Weighted count",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, nomarginals",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "------------------------",
+            "          |      b",
+            "        g |     0      1",
+            "----------+-------------",
+            "        1 | .2134  .1447",
+            "        2 | .1744  .1467",
+            "        3 | .2036  .1172",
+            "------------------------",
+            "Key: Cell proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "svy: tabulate g b, row column",
+          "lines": [
+            "(running tabulate on estimation sample)",
+            "",
+            "Number of strata =  3                             Number of obs   =        600",
+            "Number of PSUs   = 30                             Population size = 1,811.6729",
+            "                                                  Design df       =         27",
+            "",
+            "-------------------------------",
+            "          |          b",
+            "        g |     0      1  Total",
+            "----------+--------------------",
+            "        1 | .5959  .4041      1",
+            "          | .3609  .3542  .3581",
+            "          |",
+            "        2 |  .543   .457      1",
+            "          | .2948  .3591  .3211",
+            "          |",
+            "        3 | .6348  .3652      1",
+            "          | .3443  .2867  .3208",
+            "          |",
+            "    Total | .5914  .4086      1",
+            "          |     1      1      1",
+            "-------------------------------",
+            "Key: Row proportion",
+            "     Column proportion",
+            "",
+            "  Pearson:",
+            "    Uncorrected   chi2(2)         =    3.3829",
+            "    Design-based  F(1.96, 52.95)  =    2.0696     P = 0.1372"
+          ]
+        },
+        {
+          "command": "display e(F_Pear) \" \" e(df1_Pear) \" \" e(df2_Pear) \" \" e(p_Pear) \" \" e(cun_Pear)",
+          "lines": ["2.0695741 1.9610975 52.949633 .13720097 3.3829191"]
+        },
+        {
+          "command": "display e(N) \" \" e(N_strata) \" \" e(N_psu) \" \" e(N_pop) \" \" e(df_r) \" \" e(r) \" \" e(c)",
+          "lines": ["600 3 30 1811.6729 27 3 2"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

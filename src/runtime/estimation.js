@@ -1221,7 +1221,9 @@ export function coefficientSpace(model) {
         (model.dist === "z" &&
           !unnamed.includes(model.kind) &&
           !unnamed.includes(model.command)) ||
-        !!model.auxiliary;
+        !!model.auxiliary ||
+        // svy: logit and the like, which report t.
+        !!model.namedEquation;
     model.names.forEach((name, index) =>
       entries.push({
         equation: tagged ? model.depvar : null,
@@ -2323,6 +2325,13 @@ export function waldTest(session, model, fresh, tail, ctx) {
       : fresh;
   model.testConstraints = constraints;
   ctx.out("");
+  // After svy, the F statistic is adjusted for the design's degrees of
+  // freedom, as Stata's test does unless told nosvyadjust.
+  const svyAdjust = !!model.svy && options.df === undefined;
+  if (svyAdjust) {
+    ctx.out("Adjusted Wald test");
+    ctx.out("");
+  }
   constraints.forEach((c, k) =>
     constraintLines(session, k, c.text).forEach((line) => ctx.out(line)),
   );
@@ -2370,9 +2379,14 @@ export function waldTest(session, model, fresh, tail, ctx) {
         rows.map((k) => difference[k]),
         inverse,
       );
+      if (svyAdjust) {
+        const F = ((dfR - q + 1) * w) / (dfR * q);
+        return [F, Ftail(q, dfR - q + 1, F), q];
+      }
       return fTest ? [w / q, Ftail(q, dfR, w / q), q] : [w, chi2tail(q, w), q];
     },
-    [statistic, p, q] = wald(kept);
+    [statistic, p, q] = wald(kept),
+    dfShown = svyAdjust && q ? dfR - q + 1 : dfR;
   // mtest: each constraint tested on its own, with p-values adjusted for
   // the number of them.
   const single = options.method ? constraints.map((_, k) => wald([k])) : [],
@@ -2403,7 +2417,7 @@ export function waldTest(session, model, fresh, tail, ctx) {
   } else if (fTest) {
     // Stata writes the denominator degrees of freedom as %6.0f.
     ctx.out(
-      `       F(${String(q).padStart(3)},${applyFormat(dfR, "%6.0f")}) =${applyFormat(statistic, "%8.2f")}`,
+      `       F(${String(q).padStart(3)},${applyFormat(dfShown, "%6.0f")}) =${applyFormat(statistic, "%8.2f")}`,
     );
     ctx.out(`            Prob > F =${applyFormat(p, "%10.4f")}`);
   } else {
@@ -2421,7 +2435,7 @@ export function waldTest(session, model, fresh, tail, ctx) {
     session.results.r = {
       p,
       df: q,
-      ...(fTest ? { F: statistic, df_r: dfR } : { chi2: statistic }),
+      ...(fTest ? { F: statistic, df_r: dfShown } : { chi2: statistic }),
       drop: dropped.length ? 1 : 0,
       ...Object.fromEntries(droppedResults),
     };
@@ -2432,7 +2446,7 @@ export function waldTest(session, model, fresh, tail, ctx) {
     ...Object.fromEntries(droppedResults.reverse()),
     drop: dropped.length ? 1 : 0,
     ...(fTest
-      ? { df_r: dfR, F: statistic, df: q, p }
+      ? { df_r: dfShown, F: statistic, df: q, p }
       : { chi2: statistic, df: q, p }),
     ...(options.method
       ? {

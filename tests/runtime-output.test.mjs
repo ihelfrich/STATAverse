@@ -124,6 +124,9 @@ for (const c of fixture.cases)
             "table-unlabelled-levels-and-one-level-factors",
             "constraint-lines-wrapped",
             "table-width-xtreg-and-resampling",
+            // svy: logit, probit, poisson and ologit, fitted by ml.
+            "svy-likelihood-models",
+            "svy-collinear-columns",
           ].includes(c.id),
         )
       )

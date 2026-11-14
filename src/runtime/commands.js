@@ -32,6 +32,7 @@ import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
 import { DATA_COMMANDS } from "./data-commands.js";
+import { GUARDED_AFTER_SVY, SVY_COMMANDS, guardAfterSvy } from "./svy.js";
 import {
   count,
   countCommand,
@@ -1720,6 +1721,7 @@ const command = (name, minimum, run, byable = false) => ({
 export const COMMANDS = [
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
+  ...SVY_COMMANDS,
   ...PANEL_COMMANDS,
   ...UTILITY_COMMANDS,
   ...EVERYDAY_COMMANDS,
@@ -1899,6 +1901,19 @@ export const COMMANDS = [
     }
   }),
 ];
+// Post-estimation commands that do not yet take a survey design into
+// account stop after a svy estimate rather than report as if the data were
+// a simple random sample.
+COMMANDS.forEach((c, k) => {
+  if (!GUARDED_AFTER_SVY.has(c.name)) return;
+  COMMANDS[k] = {
+    ...c,
+    run: (session, text, ctx) => {
+      guardAfterSvy(session, c.name, text);
+      return c.run(session, text, ctx);
+    },
+  };
+});
 function findCommandName(session, word) {
   const name = /^[A-Za-z_]\w*(?=,?$)/.exec(word)?.[0];
   if (!name) return false;
