@@ -127,6 +127,11 @@ for (const c of fixture.cases)
             "weighted-binary-count-models",
             "weighted-models-postestimation",
             "weighted-models-samples-and-refusals",
+            "weighted-population-frequency-weights",
+            "weighted-models-levels-strings-and-variance",
+            "weighted-wide-statistics-and-few-clusters",
+            "estat-gof-hosmer-lemeshow",
+            "resampling-exponentiated-coefficients",
           ].includes(c.id),
         )
       )

@@ -208,3 +208,232 @@ test("jackknife after frequency or importance weights is refused, not approximat
     assert.match(result.output.at(-1).lines.join("\n"), /not available yet/);
   }
 });
+
+// ----- Second round: what a tester found with the weights above -----
+// Recorded from Stata 19 MP (version 17, set processors 1). The printed
+// tables are compared in tests/runtime-output.test.mjs (cases
+// weighted-population-frequency-weights,
+// weighted-models-levels-strings-and-variance,
+// weighted-wide-statistics-and-few-clusters, estat-gof-hosmer-lemeshow and
+// resampling-exponentiated-coefficients).
+
+const POPULATION = [
+  "clear",
+  "input str12 state y x pop",
+  '"A" 1 0.5 39500000',
+  '"A" 0 0.5 29100000',
+  '"B" 1 1.5 21500000',
+  '"B" 0 1.5 19300000',
+  '"C" 1 2.5 13000000',
+  '"C" 0 2.5 12800000',
+  '"D" 1 3.0 11700000',
+  '"D" 0 3.0 10700000',
+  "end",
+].join("\n");
+
+const fitted = (s, command) => {
+  const result = s.run(command);
+  assert.equal(result.rc, 0, result.output.at(-1)?.lines.join("\n"));
+  const model = s.estimates,
+    at = (name) => model.names.indexOf(name);
+  return {
+    b: (name) => model.b[at(name)],
+    se: (name) => Math.sqrt(model.V[at(name)][at(name)]),
+    e: s.results.e,
+  };
+};
+
+test("frequency weights of population size multiply, not repeat, observations", () => {
+  // A plain RangeError (Invalid array length) used to escape here: the
+  // 157,600,000 frequencies were laid out as arrays.
+  const s = new Session();
+  s.run(POPULATION);
+  const logit = fitted(s, "logit y x [fw=pop]");
+  close(logit.b("x"), -0.110246127363336, "_b[x]");
+  close(logit.se("x"), 0.0001672182583678562, "_se[x]");
+  close(logit.b("_cons"), 0.334956848082459957, "_b[_cons]");
+  close(logit.se("_cons"), 0.0002904928033877531, "_se[_cons]");
+  assert.equal(logit.e.N, 157600000);
+  close(logit.e.ll, -108417477.8695460409, "e(ll)");
+  close(logit.e.ll_0, -108635033.3738761991, "e(ll_0)");
+  close(logit.e.chi2, 435111.0086603164673, "e(chi2)");
+  const poisson = fitted(s, "poisson y x [fw=pop]");
+  close(poisson.b("x"), -0.0508637953247630809, "poisson _b[x]");
+  close(poisson.se("x"), 0.0001141684444254112, "poisson _se[x]");
+  close(poisson.e.ll, -137809057.6296392977, "poisson e(ll)");
+  // Each frequency stands for an observation of its own under robust, and
+  // the observations of a cluster add their weighted scores.
+  const robust = fitted(s, "logit y x [fw=pop], vce(robust)");
+  close(robust.se("x"), 0.0001671080114441066, "robust _se[x]");
+  close(robust.se("_cons"), 0.0002901201010054984, "robust _se[_cons]");
+  close(robust.e.chi2, 435243.34895946295, "robust e(chi2)");
+  const clustered = fitted(s, "logit y x [fw=pop], vce(cluster state)");
+  close(clustered.se("x"), 0.0289328299472425207, "cluster _se[x]");
+  close(clustered.se("_cons"), 0.0419820974279162609, "cluster _se[_cons]");
+  assert.equal(clustered.e.N_clust, 4);
+  close(clustered.e.chi2, 14.51927251817801157, "cluster e(chi2)");
+});
+
+test("frequency weights reach the importance-weight estimates to full precision", () => {
+  // Stata 19 gives the same digits for [fw=pop] and [iw=pop]; repeating
+  // the observations lost them in the sixth digit.
+  const s = new Session();
+  s.run(
+    [
+      "clear",
+      "set seed 5",
+      "set obs 40",
+      "generate x = runiform()*3",
+      "generate g = 1 + floor(runiform()*3)",
+      "generate y = runiform() < invlogit(-1 + x)",
+      "generate c = floor(-ln(runiform())*exp(.5*x))",
+      "generate pop = 1000 + floor(runiform()*500000)",
+    ].join("\n"),
+  );
+  for (const w of ["fw", "iw"]) {
+    const fit = fitted(s, `logit y x [${w}=pop]`);
+    close(fit.b("x"), 1.88862170914424, `[${w}] _b[x]`);
+    close(fit.b("_cons"), -1.97368219212841, `[${w}] _b[_cons]`);
+    close(fit.e.ll, -4635357.56974777, `[${w}] e(ll)`);
+  }
+});
+
+test("a string weight is a type mismatch, and sampling weights keep their variance", () => {
+  const s = new Session();
+  s.run(SETUP);
+  s.run('generate str3 sw = "1"\ngenerate str5 s = "a"');
+  const code = (command) =>
+    Number(
+      s
+        .run(`capture ${command}\ndisplay _rc`)
+        .output.at(-1)
+        .lines.join("")
+        .trim(),
+    );
+  // Stata 19: type mismatch r(109) for every weight type.
+  for (const command of [
+    "probit d x1 [iw=sw]",
+    "poisson n x1 [fw=sw]",
+    "logit d x1 [pw=sw]",
+    "logit d x1 [pw=s]",
+  ])
+    assert.equal(code(command), 109, command);
+  // Stata 19: "pweights not allowed with option vce(oim)" r(198) after
+  // logit and probit; poisson fits with the conventional variance.
+  assert.equal(code("logit d x1 [pw=pw], vce(oim)"), 198);
+  assert.equal(code("probit d x1 [pw=pw], vce(opg)"), 198);
+  const t = new Session();
+  t.run(
+    [
+      "clear",
+      "set seed 12",
+      "set obs 40",
+      "generate x = invnormal(runiform())",
+      "generate z = invnormal(runiform())",
+      "generate w = invnormal(runiform())",
+      "generate y = runiform() < invlogit(.5 + x)",
+      "generate cl = 1 + floor(runiform()*3)",
+      "generate c = floor(-ln(runiform())*exp(.4*x))",
+      "generate pw = .5 + runiform()",
+    ].join("\n"),
+  );
+  const oim = fitted(t, "poisson c x [pw=pw], vce(oim)");
+  close(oim.b("x"), 0.3754209644686795633, "_b[x]");
+  close(oim.se("x"), 0.1999002658171235292, "_se[x]");
+  close(oim.se("_cons"), 0.1922398033445286147, "_se[_cons]");
+  close(oim.e.ll, -54.0581206726262522, "e(ll)");
+  close(oim.e.chi2, 3.527039300812918388, "e(chi2)");
+  assert.equal(oim.e.vce, "oim");
+  assert.equal(oim.e.chi2type, "Wald");
+  // Three clusters leave a variance of rank two: e(rank) 2, the model
+  // test missing, its degrees of freedom one less for the constant.
+  const few = fitted(t, "logit y x z w, vce(cluster cl)");
+  assert.equal(few.e.rank, 2);
+  assert.equal(few.e.df_m, 1);
+  assert.ok(isMissing(few.e.chi2) && isMissing(few.e.p));
+  close(few.se("x"), 0.4194745208639207301, "_se[x]");
+  const nocons = fitted(t, "poisson c x z w, vce(cluster cl) nocons");
+  assert.equal(nocons.e.rank, 2);
+  assert.equal(nocons.e.df_m, 2);
+  assert.ok(isMissing(nocons.e.chi2));
+});
+
+test("a factor level that only zero weights have is not in the model", () => {
+  // Stata 19: the base is the lowest level left (2.g), with no note and no
+  // row for level 1.
+  const s = new Session();
+  s.run(
+    [
+      "clear",
+      "set seed 66",
+      "set obs 300",
+      "generate x = invnormal(runiform())",
+      "generate g = 1 + floor(runiform()*4)",
+      "generate y = runiform() < invlogit(.2 + .8*x - .2*g)",
+      "generate pw = .3 + runiform()*2",
+      "generate pw1 = cond(g == 1, 0, pw)",
+    ].join("\n"),
+  );
+  const fit = fitted(s, "logit y x i.g [pw=pw1]");
+  assert.deepEqual(s.estimates.names, ["x", "2b.g", "3.g", "4.g", "_cons"]);
+  close(fit.b("x"), 0.5511955811596915833, "_b[x]");
+  close(fit.se("x"), 0.1745701309012188951, "_se[x]");
+  close(fit.b("3.g"), 0.0328007109241936976, "_b[3.g]");
+  close(fit.se("3.g"), 0.3577505007457875141, "_se[3.g]");
+  close(fit.b("4.g"), -0.1247958347915335137, "_b[4.g]");
+  close(fit.b("_cons"), -0.5738960824968442065, "_b[_cons]");
+  assert.equal(fit.e.N, 235);
+  assert.equal(fit.e.rank, 4);
+});
+
+test("estat gof, group() is the Hosmer-Lemeshow test, ties and weights included", () => {
+  const s = new Session();
+  s.run(
+    [
+      "clear",
+      "set seed 1234",
+      "set obs 157",
+      "generate x = round(runiform()*3, .5)",
+      "generate z = floor(runiform()*5)",
+      "generate y = runiform() < invlogit(-1 + x - .3*z)",
+      "generate fw = 1 + floor(runiform()*6)",
+      "generate iw = .1 + runiform()*2",
+    ].join("\n"),
+  );
+  // [model, groups asked, r(m), r(chi2), r(df), r(N)] from Stata 19.
+  const expected = [
+    ["logit y x z", 2, 2, 0.081735, 0, 157],
+    ["logit y x z [fw=fw]", 2, 2, 1.052066, 0, 580],
+    ["logit y x z [iw=iw]", 2, 2, 0.507294, 0, 157],
+    ["probit y x [fw=fw]", 2, 2, 0.100464, 0, 580],
+    ["logit y x z", 7, 7, 3.941526, 5, 157],
+    ["logit y x z [fw=fw]", 7, 7, 4.835415, 5, 580],
+    ["logit y x z [iw=iw]", 7, 7, 9.487007, 5, 157],
+    ["probit y x [fw=fw]", 7, 6, 11.032632, 4, 580],
+    ["logit y x z", 12, 12, 4.324044, 10, 157],
+    ["logit y x z [fw=fw]", 12, 12, 15.308795, 10, 580],
+    ["logit y x z [iw=iw]", 12, 12, 8.638184, 10, 157],
+    ["probit y x [fw=fw]", 12, 6, 11.032632, 4, 580],
+    ["logit y x z", 40, 29, 12.851493, 27, 157],
+    ["logit y x z [fw=fw]", 40, 28, 77.205242, 26, 580],
+    ["logit y x z [iw=iw]", 40, 24, 17.169917, 22, 157],
+    ["probit y x [fw=fw]", 40, 7, 15.959597, 5, 580],
+  ];
+  for (const [model, group, m, chi2, df, N] of expected) {
+    const what = `${model}, group(${group})`,
+      result = s.run(`quietly ${model}\nquietly estat gof, group(${group})`);
+    assert.equal(result.rc, 0, what);
+    const r = s.results.r;
+    assert.equal(r.m, m, `${what}: r(m)`);
+    assert.equal(r.df, df, `${what}: r(df)`);
+    assert.equal(r.N, N, `${what}: r(N)`);
+    assert.ok(Math.abs(r.chi2 - chi2) < 5e-6, `${what}: r(chi2) ${r.chi2}`);
+  }
+  // The listing and the other samples are refused, not ignored.
+  for (const options of ["group(10) table", "all", "table"]) {
+    const result = s.run(`estat gof, ${options}`);
+    assert.equal(result.rc, 198, options);
+    assert.match(result.output.at(-1).lines.join("\n"), /not available yet/);
+  }
+  assert.equal(s.run("estat classification, cutoff(.3)").rc, 198);
+});

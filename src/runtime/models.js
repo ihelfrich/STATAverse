@@ -41,9 +41,47 @@ const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const density = (z) => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
 
 function lnfactorial(n) {
+  // Counts of millions would take millions of steps on every evaluation
+  // of the likelihood; Stirling's series is exact to double precision.
+  if (n > 1000) {
+    const x = n + 1;
+    return (
+      (x - 0.5) * Math.log(x) -
+      x +
+      0.5 * Math.log(2 * Math.PI) +
+      1 / (12 * x) -
+      1 / (360 * x ** 3)
+    );
+  }
   let total = 0;
   for (let k = 2; k <= n; k++) total += Math.log(k);
   return total;
+}
+/**
+ * The rank of a symmetric nonnegative definite matrix, by sweeping its
+ * largest remaining diagonal element while one is left that is not
+ * rounding error relative to where it began.
+ */
+function rankOf(V) {
+  const a = V.map((row) => row.slice()),
+    left = new Set(V.keys());
+  let rank = 0;
+  for (;;) {
+    let pivot = -1;
+    for (const j of left)
+      if (
+        V[j][j] > 0 &&
+        a[j][j] > 1e-10 * V[j][j] &&
+        (pivot < 0 || a[j][j] > a[pivot][pivot])
+      )
+        pivot = j;
+    if (pivot < 0) return rank;
+    rank++;
+    left.delete(pivot);
+    for (const i of left)
+      for (const k of left)
+        a[i][k] -= (a[i][pivot] * a[pivot][k]) / a[pivot][pivot];
+  }
 }
 const FAMILIES = {
   logit: {
@@ -121,7 +159,7 @@ function zTable(session, model, level, transform, named = true) {
         const b = model.b[k],
           se = Math.sqrt(model.V[k][k]),
           z = b / se;
-        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${zColumn(z)}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
       },
       w,
       // A coefficient fixed at zero is an odds ratio (or rate ratio) of one.
@@ -131,6 +169,20 @@ function zTable(session, model, level, transform, named = true) {
   lines.push(rule);
   if (transform && model.constant) lines.push(transform[2]);
   return lines;
+}
+
+/**
+ * The z statistic as the coefficient table prints it, nine wide: two
+ * decimals while its size fits seven characters, and from 10,000 on one
+ * significant decimal with an exponent, as 1.2e+04 or -7.1e+04.
+ */
+export function zColumn(z) {
+  if (isMissing(z) || !(Math.abs(z) >= 9999.995))
+    return applyFormat(z, "%9.2f");
+  const [mantissa, exponent] = z.toExponential(1).split("e");
+  return `${mantissa}e${exponent[0]}${exponent.slice(1).padStart(2, "0")}`.padStart(
+    9,
+  );
 }
 
 function waldChi2(model) {
@@ -297,35 +349,47 @@ function maximumLikelihood(kind) {
         "weights not allowed with bootstrap estimation",
         101,
       );
-    const rows = session.rows(parsed, null),
-      constant = options.constant !== false,
-      { robust, cluster } = readVce(session, options, /^oim$/, {
+    const wtype = parsed.weight?.type ?? null;
+    // Sampling weights carry their own variance. logit and probit will
+    // not set it aside for the conventional one; poisson will.
+    const plainVce = /^\s*(oim|opg)\s*$/.exec(options.vce ?? "");
+    if (wtype === "pweight" && plainVce && family.binary)
+      throw new StataError(
+        `pweights not allowed with option vce(${plainVce[1]})`,
+        198,
+      );
+    const compiled = wtype ? session.compile(parsed.weight.exp) : null;
+    if (compiled && compiled.type !== "numeric")
+      throw new StataError("type mismatch", 109);
+    const { robust, cluster } = readVce(session, options, /^oim$/, {
         multiway: false,
       }),
+      // Each observation's weight. Observations whose weight is missing or
+      // zero are left out before the model is laid out, as are those with
+      // no cluster, so a factor level they alone have is not a level of
+      // the model, and its lowest level left is the base.
+      weightOf = compiled ? evaluateAll(compiled, session.data.n) : null,
+      rows = session
+        .rows(parsed, null)
+        .filter(
+          (i) =>
+            (!weightOf || (!isMissing(weightOf[i]) && weightOf[i] !== 0)) &&
+            (!cluster || !noCluster(cluster, i)),
+        ),
+      constant = options.constant !== false,
       {
         dependent,
         columns,
         sample: complete,
       } = design(session, parsed.anything, rows, constant),
-      logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? ""),
-      wtype = parsed.weight?.type ?? null,
-      // Each observation's weight. Observations whose weight is missing or
-      // zero are left out, as are those with no cluster.
-      weightOf = wtype
-        ? evaluateAll(session.compile(parsed.weight.exp), session.data.n)
-        : null;
+      logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? "");
     // [w=exp] is a frequency weight, and Stata says so.
     if (
       wtype === "fweight" &&
       /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0])
     )
       ctx.out("(frequency weights assumed)");
-    const clustered = cluster
-      ? complete.filter((i) => !noCluster(cluster, i))
-      : complete;
-    let sample = weightOf
-        ? clustered.filter((i) => !isMissing(weightOf[i]) && weightOf[i] !== 0)
-        : clustered,
+    let sample = complete,
       n = sample.length,
       perfect = { rules: [], notes: [] };
     if (weightOf) {
@@ -337,9 +401,6 @@ function maximumLikelihood(kind) {
       // Importance weights may be negative; the others may not.
       if (wtype !== "iweight" && sample.some((i) => weightOf[i] < 0))
         throw new StataError("negative weights encountered", 402);
-      // Collinearity is judged over the observations the weights leave.
-      if (n && n < clustered.length)
-        recheckCollinearity(columns, sample, constant);
     }
     if (!n) throw new StataError("no observations", 2000);
     let y = sample.map((i) => dependent.data[i]);
@@ -371,21 +432,19 @@ function maximumLikelihood(kind) {
         `${dependent.name} must be a nonnegative count`,
         459,
       );
-    // A frequency weight stands for that many identical observations, so
-    // the sample repeats each observation that many times (after perfect
-    // predictors, whose notes count observations, not frequencies).
-    // Sampling and importance weights multiply each observation's
-    // contribution to the likelihood, its score and its information.
+    // Every weight multiplies its observation's contribution to the
+    // likelihood, its score and its information. A frequency weight stands
+    // for that many identical observations, so they count that many times
+    // in the number of observations (after perfect predictors, whose notes
+    // count observations, not frequencies); repeating them instead would
+    // allocate the whole population and lose digits in the sums.
     let w = null;
-    if (wtype === "fweight") {
-      y = sample.flatMap((i, j) => new Array(weightOf[i]).fill(y[j]));
-      sample = sample.flatMap((i) => new Array(weightOf[i]).fill(i));
-      n = sample.length;
-    } else if (wtype) {
+    if (wtype) {
       w = sample.map((i) => weightOf[i]);
+      const total = w.reduce((t, v) => t + v, 0);
       // Importance weights that sum to nothing leave nothing to fit.
-      if (!(w.reduce((t, v) => t + v, 0) > 0))
-        throw new StataError("insufficient observations", 2001);
+      if (!(total > 0)) throw new StataError("insufficient observations", 2001);
+      if (wtype === "fweight") n = total;
     }
     const weightAt = w ? (i) => w[i] : () => 1;
     // A variable collinear with those before it is omitted, as Stata's
@@ -420,9 +479,10 @@ function maximumLikelihood(kind) {
         );
     let b = new Array(size).fill(0);
     if (constant) b[size - 1] = start;
-    // Sampling weights make the variance robust. poisson then reports no
-    // constant-only model, and so no pseudo R2.
-    const sandwich = robust || wtype === "pweight",
+    // Sampling weights make the variance robust unless poisson was asked
+    // for vce(oim). poisson with them reports no constant-only model, and
+    // so no pseudo R2.
+    const sandwich = robust || (wtype === "pweight" && !plainVce),
       ll0 =
         constant && !(kind === "poisson" && wtype === "pweight")
           ? logLikelihood(b)
@@ -501,13 +561,15 @@ function maximumLikelihood(kind) {
       clusters = null;
     if (sandwich) {
       // Each observation is its own cluster unless one was named; the
-      // correction is G / (G - 1) with G the number of clusters. A
-      // frequency-weighted observation counts as that many observations;
-      // the score of a sampling or importance weighted one is multiplied
-      // by its weight.
-      const scoreOf = (i) => {
+      // correction is G / (G - 1) with G the number of clusters. The score
+      // of a weighted observation is multiplied by its weight. A
+      // frequency-weighted observation on its own stands for that many
+      // clusters, each with the unweighted score: its part of the middle
+      // is its weight times the outer product, and each counts in G.
+      const apart = wtype === "fweight" && !cluster,
+        scoreOf = (i) => {
           const s =
-            weightAt(i) *
+            (apart ? Math.sqrt(w[i]) : weightAt(i)) *
             family.score(
               y[i],
               x[i].reduce((t, v, k) => t + v * b[k], 0),
@@ -515,12 +577,13 @@ function maximumLikelihood(kind) {
           return x[i].map((v) => v * s);
         },
         own = { data: sample.map((_, i) => i) },
-        { meat, clusters: G } = clusterMeat(
+        { meat, clusters: counted } = clusterMeat(
           cluster ?? own,
           cluster ? sample : own.data,
           scoreOf,
           size,
         ),
+        G = apart ? n : counted,
         bm = information.map((row) =>
           meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
         );
@@ -533,6 +596,11 @@ function maximumLikelihood(kind) {
         ),
       );
     }
+    // A robust variance from fewer clusters than coefficients (or whose
+    // clusters leave some direction unmeasured) is singular. Stata then
+    // gives the rank of the variance as e(rank), one less (for the
+    // constant) as the model's degrees of freedom, and no model test.
+    const rank = sandwich ? rankOf(V) : size;
     const names = [
         ...columns.map((c) => c.name),
         ...(constant ? ["_cons"] : []),
@@ -555,8 +623,10 @@ function maximumLikelihood(kind) {
       constant,
       estimable: at.map((j) => j >= 0),
       N: n,
-      df_m: active.length,
-      rank: size,
+      df_m:
+        rank < size ? Math.max(0, rank - (constant ? 1 : 0)) : active.length,
+      rank,
+      singular: rank < size,
       ll,
       ll_0: ll0,
       vce: cluster ? "cluster" : sandwich ? "robust" : "oim",
@@ -578,7 +648,11 @@ function maximumLikelihood(kind) {
     // A model without a constant has no constant-only model to compare
     // with, so its test is a Wald test, as with a robust variance.
     const wald = sandwich || isMissing(ll0),
-      chi2 = wald ? waldChi2(model) : 2 * (ll - ll0),
+      chi2 = wald
+        ? model.singular
+          ? MISSING
+          : waldChi2(model)
+        : 2 * (ll - ll0),
       p = isMissing(chi2) ? MISSING : chi2tail(model.df_m, chi2),
       r2 = isMissing(ll0) ? MISSING : 1 - ll / ll0,
       transform =
@@ -586,18 +660,26 @@ function maximumLikelihood(kind) {
           ? family.exponentiated
           : null,
       shown = [
-        count(n),
-        applyFormat(chi2, "%7.2f").trim(),
+        // %10.0fc: a count too long for commas is printed without them.
+        applyFormat(n, "%10.0fc").trim(),
+        applyFormat(chi2, "%10.2f").trim(),
         applyFormat(p, "%6.4f").trim(),
         applyFormat(r2, "%6.4f").trim(),
       ],
-      // The values sit in a column of seven, ending at column 78. When one
-      // needs more (200,000 observations, a chi2 of 19039.96), Stata widens
-      // the column to the widest value and a space, moving the block left.
-      pad = Math.max(7, greatest(shown.map((v) => v.length + 1))),
+      // The values sit in a column as wide as the widest value shown and a
+      // space, ending at column 78: seven for a p-value of 0.0000, more
+      // for 200,000 observations or a chi2 of 19039.96, which moves the
+      // block left; less when the p-value is missing and no pseudo R2 is
+      // shown, as without a constant and with fewer clusters than
+      // coefficients.
+      pad = greatest(
+        (isMissing(ll0) ? shown.slice(0, 3) : shown).map((v) => v.length + 1),
+      ),
       left = 56 - (pad - 7),
       side = (label, value) => `${label.padEnd(14)}=${value.padStart(pad)}`;
-    Object.assign(model, { chi2, p, r2_p: r2 });
+    // The exponentiated form asked for, which a prefix such as jackknife
+    // reports too.
+    Object.assign(model, { chi2, p, r2_p: r2, eform: transform });
     session.estimates = model;
     session.results.e = {
       N: n,
@@ -609,7 +691,7 @@ function maximumLikelihood(kind) {
       chi2type: wald ? "Wald" : "LR",
       p,
       r2_p: r2,
-      rank: size,
+      rank,
       k: names.length,
       ic: log.length - 1,
       converged: 1,
@@ -663,7 +745,14 @@ function maximumLikelihood(kind) {
         `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Prob > chi2", shown[2])}`,
       );
     ctx.out("");
-    if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
+    // The note ends where the table does, which a long dependent variable
+    // widens.
+    if (cluster)
+      ctx.out(
+        clusterNote(clusters, cluster.name, count)
+          .trim()
+          .padStart(66 + tableWidth(session, model, [model.depvar])),
+      );
     zTable(session, model, options.level, transform).forEach(ctx.out);
     ctx.out("");
   };
@@ -1313,13 +1402,15 @@ function predict(session, text, ctx) {
     if (model.wtype === "pweight" || model.wtype === "iweight")
       throw new StataError(`not possible with ${model.wtype}s`, 135);
     const outcome = data.get(model.depvar).data;
-    for (const i of model.sample ?? []) {
+    // A frequency-weighted observation counts that many times.
+    (model.sample ?? []).forEach((i, r) => {
       const key2 = patternOf(i),
-        entry = patterns.get(key2) ?? { m: 0, y: 0 };
-      entry.m += 1;
-      entry.y += Number(outcome[i] !== 0);
+        entry = patterns.get(key2) ?? { m: 0, y: 0 },
+        weight = model.weights?.[r] ?? 1;
+      entry.m += weight;
+      entry.y += weight * Number(outcome[i] !== 0);
       patterns.set(key2, entry);
-    }
+    });
   }
   session.select(parsed, null, (i) => {
     if (
@@ -1371,6 +1462,112 @@ function predict(session, text, ctx) {
 }
 
 // ----- estat and estimates -----
+/**
+ * The terms of the goodness-of-fit chi2 over cells (covariate patterns or
+ * groups) with total weight n, observed successes o and expected e, as
+ * lfit adds them: cells with nothing expected, or everything, add nothing.
+ */
+function cellChi2(cells) {
+  let chi2 = 0,
+    groups = 0;
+  for (const { n, o, e } of cells) {
+    if (!(n > 0)) continue;
+    groups++;
+    if (e > 0 && e < n) chi2 += (o - e) ** 2 / (e * (1 - e / n));
+  }
+  return { chi2, groups };
+}
+/** Pearson's test over the covariate patterns of the estimation sample. */
+function pearsonPatterns(model, rows, p, y, weightAt) {
+  const patterns = new Map();
+  rows.forEach((i, r) => {
+    const key = JSON.stringify(model.columns.map((c) => c.value(i))),
+      cell = patterns.get(key) ?? { n: 0, o: 0, e: 0 },
+      weight = weightAt(r);
+    cell.n += weight;
+    cell.o += weight * y[r];
+    cell.e += weight * p[r];
+    patterns.set(key, cell);
+  });
+  return cellChi2(patterns.values());
+}
+/**
+ * The Hosmer-Lemeshow test over `group` quantiles of the predicted
+ * probabilities, following lfit step by step: the observations are sorted
+ * by probability and summed cumulatively, one row kept for each distinct
+ * probability; a row closes quantile int(group * W / N), W being the
+ * weight summed so far and N the number of observations (or quantile
+ * round(group * W / N) when that is a whole number within rounding, or
+ * the row is the last); quantiles no row closes are empty. Ties can leave
+ * fewer groups than asked for.
+ */
+function hosmerLemeshow(p, y, weightAt, observations, group) {
+  const order = p.map((_, r) => r).sort((a, b) => p[a] - p[b]),
+    W = [],
+    O = [],
+    E = [];
+  let w = 0,
+    o = 0,
+    e = 0;
+  order.forEach((r, k) => {
+    w += weightAt(r);
+    o += weightAt(r) * y[r];
+    e += weightAt(r) * p[r];
+    if (k === order.length - 1 || p[order[k + 1]] !== p[r]) {
+      W.push(w);
+      O.push(o);
+      E.push(e);
+    }
+  });
+  const D = W.length,
+    eps = group * 1e-8,
+    q = W.map((v) => (group * v) / observations),
+    round = (v) => Math.floor(v + 0.5),
+    k = q.map((qj, j) => {
+      const r = round(qj),
+        tie =
+          j + 1 < D &&
+          Math.abs(qj - r) < eps &&
+          ((qj <= r && q[j + 1] - r >= eps) ||
+            (qj >= r && (r - q[j + 1] >= eps || j === 0)));
+      return tie || j === D - 1 ? r : Math.trunc(qj);
+    }),
+    // The rows (1-based) that close a quantile, with its number.
+    closing = [];
+  k.forEach((kj, j) => {
+    if ((j === 0 || kj !== k[j - 1]) && kj !== 0)
+      closing.push({ i: kj, m: j + 1 });
+  });
+  // The row each quantile ends at, or null.
+  let M;
+  if (Math.min(closing.length, group) < group) {
+    // Each quantile takes the row that closes it; one that none closes
+    // shares the row before it, and so is empty.
+    M = new Array(group).fill(null);
+    let at = 0;
+    for (let n = 1; n <= group; n++) {
+      if (n > 1 && closing[at + 1]?.i === n) at++;
+      M[n - 1] = closing[at]?.i === n ? closing[at].m : null;
+    }
+    for (let g = 1; g < group; g++) if (M[g] === null) M[g] = M[g - 1];
+  } else M = closing.slice(0, group).map((c) => c.m);
+  // What falls between the row of one quantile and the row of the last.
+  const portion = (X, g) => {
+    const m = M[g],
+      before = g ? M[g - 1] : null;
+    if (m === null) return null;
+    if (before === null) return X[m - 1];
+    return m > before ? X[m - 1] - X[before - 1] : null;
+  };
+  return cellChi2(
+    M.map((_, g) => ({
+      n: portion(W, g),
+      o: portion(O, g),
+      e: portion(E, g),
+    })),
+  );
+}
+
 function estat(session, text, ctx) {
   const model = estimates(session),
     what = text.trim().split(/[\s,]/)[0];
@@ -1402,7 +1599,7 @@ function estat(session, text, ctx) {
       "-------------+---------------------------------------------------------------",
     );
     ctx.out(
-      `${".".padStart(12)} |${count(model.N).padStart(11)}${g(ll0).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
+      `${".".padStart(12)} |${applyFormat(model.N, "%10.0fc").padStart(11)}${g(ll0).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
     );
     ctx.out("-".repeat(77));
     ctx.out("Note: BIC uses N = number of observations. See [R] IC note.");
@@ -1492,6 +1689,20 @@ function estat(session, text, ctx) {
       throw new StataError("pweights not allowed", 101);
     if (model.wtype === "iweight" && what !== "gof")
       throw new StataError("iweight not allowed", 101);
+    const options = session.parse(
+      what === "gof"
+        ? "[, Group(integer 0) Table OUTsample ALL]"
+        : "[, CUToff(real 0.5) ALL]",
+      text.trim().slice(what.length),
+    ).options;
+    for (const name of ["table", "all"])
+      if (options[name])
+        throw new StataError(
+          `estat ${what}, ${name} is not available yet`,
+          198,
+        );
+    if (options.cutoff !== undefined && options.cutoff !== 0.5)
+      throw new StataError(`estat ${what}, cutoff() is not available yet`, 198);
     const outcome = session.data.get(model.depvar).data,
       rows = model.sample,
       index = (i) =>
@@ -1502,71 +1713,109 @@ function estat(session, text, ctx) {
         ),
       p = rows.map((i) => model.family.mean(index(i))),
       y = rows.map((i) => Number(outcome[i] !== 0)),
-      kind = model.kind === "logit" ? "logistic" : "probit";
-    ctx.out("");
+      kind = model.kind === "logit" ? "logistic" : "probit",
+      // Each observation's weight. The number of observations is what
+      // summarize reports under the weight: the sum of frequency weights,
+      // the count otherwise.
+      weightAt = (r) => model.weights?.[r] ?? 1,
+      observations =
+        model.wtype === "fweight"
+          ? Math.round(model.weights.reduce((t, v) => t + v, 0))
+          : rows.length;
     if (what === "gof") {
-      // Observations with the same covariates form one pattern.
-      const patterns = new Map();
-      rows.forEach((i, r) => {
-        const key = JSON.stringify(model.columns.map((c) => c.value(i))),
-          cell = patterns.get(key) ?? { n: 0, y: 0, p: p[r] },
-          weight = model.weights?.[r] ?? 1;
-        cell.n += weight;
-        cell.y += weight * y[r];
-        patterns.set(key, cell);
-      });
-      let chi2 = 0;
-      for (const cell of patterns.values())
-        chi2 +=
-          (cell.y - cell.n * cell.p) ** 2 / (cell.n * cell.p * (1 - cell.p));
-      const df = patterns.size - model.rank,
-        values = [
-          count(rows.length),
-          count(patterns.size),
-          applyFormat(df > 0 ? chi2 : 0, "%9.2f").trim(),
-          df > 0 ? applyFormat(chi2tail(df, chi2), "%6.4f").trim() : ".",
+      if (options.group < 0)
+        throw new StataError("option group() cannot be negative", 411);
+      if (options.group > rows.length)
+        throw new StataError(
+          "number of groups cannot be greater than number of observations",
+          498,
+        );
+      const fit = options.group
+        ? hosmerLemeshow(p, y, weightAt, observations, options.group)
+        : pearsonPatterns(model, rows, p, y, weightAt);
+      // The test takes away a degree of freedom for each coefficient
+      // estimated (two for the Hosmer-Lemeshow test) unless the sample is
+      // another one.
+      const df =
+          fit.groups -
+          (options.outsample
+            ? 0
+            : options.group
+              ? 2
+              : model.estimable.filter(Boolean).length),
+        prob = chi2tail(df, fit.chi2);
+      if (df < 0)
+        throw new StataError(
+          "not enough degrees of freedom to perform the test",
+          322,
+        );
+      if (options.group)
+        ctx.out(
+          `note: obs collapsed on ${options.group} quantiles of estimated probabilities.`,
+        );
+      ctx.out("");
+      const values = [
+          applyFormat(observations, "%10.0fc").trim(),
+          applyFormat(fit.groups, "%10.0fc").trim(),
+          applyFormat(fit.chi2, "%9.2f").trim(),
+          applyFormat(prob, "%6.4f").trim(),
         ],
-        width = greatest(values.map((v) => v.length)) + 1;
+        labels = [
+          "Number of observations",
+          options.group ? "Number of groups" : "Number of covariate patterns",
+          `${options.group ? "Hosmer–Lemeshow" : "Pearson"} chi2(${df})`,
+          "Prob > chi2",
+        ],
+        width = greatest(values.map((v) => v.length)) + 1,
+        labelWidth = greatest(labels.map((v) => v.length));
       ctx.out(`Goodness-of-fit test after ${kind} model`);
       ctx.out(`Variable: ${model.depvar}`);
       ctx.out("");
-      [
-        "Number of observations",
-        "Number of covariate patterns",
-        `Pearson chi2(${Math.max(0, df)})`,
-        "Prob > chi2",
-      ].forEach((label, k) =>
-        ctx.out(`${label.padStart(28)} =${values[k].padStart(width)}`),
+      labels.forEach((label, k) =>
+        ctx.out(`${label.padStart(labelWidth)} =${values[k].padStart(width)}`),
       );
       ctx.out("");
+      if (options.group && fit.groups < options.group) {
+        ctx.out(
+          `Warning: There are only ${fit.groups} distinct quantiles because of ties.`,
+        );
+        ctx.out("");
+      }
+      // return list shows the last saved first, as lfit saves them.
       session.results.r = {
-        N: rows.length,
-        m: patterns.size,
-        chi2: df > 0 ? chi2 : 0,
-        df: Math.max(0, df),
+        p: prob,
+        df,
+        chi2: fit.chi2,
+        m: fit.groups,
+        N: observations,
       };
       return;
     }
+    ctx.out("");
     let tp = 0,
       fp = 0,
       fn = 0,
       tn = 0;
+    // A frequency-weighted observation counts that many times.
     y.forEach((actual, r) => {
-      const positive = p[r] >= 0.5;
-      if (positive && actual) tp++;
-      else if (positive) fp++;
-      else if (actual) fn++;
-      else tn++;
+      const positive = p[r] >= 0.5,
+        weight = weightAt(r);
+      if (positive && actual) tp += weight;
+      else if (positive) fp += weight;
+      else if (actual) fn += weight;
+      else tn += weight;
     });
     const percent = (a, b) =>
         `${applyFormat(b ? (100 * a) / b : MISSING, "%8.2f")}%`,
       line = (label, code, a, b) =>
         ctx.out(`${label.padEnd(32)}${code}${percent(a, b)}`),
       rule = "-".repeat(50),
-      // The counts have no thousands separators, as Stata prints them.
+      // The counts are %9.0g: no thousands separators, and an exponent
+      // once frequency weights make them too long.
+      nine = (v) => applyFormat(v, "%9.0g").trim(),
       row = (label, a, b) =>
         ctx.out(
-          `${label}|${String(a).padStart(10)}${String(b).padStart(14)}  |${String(a + b).padStart(11)}`,
+          `${label}|${nine(a).padStart(10)}${nine(b).padStart(14)}  |${nine(a + b).padStart(11)}`,
         );
     ctx.out(
       `${kind[0].toUpperCase() + kind.slice(1)} model for ${model.depvar}`,
@@ -1594,12 +1843,12 @@ function estat(session, text, ctx) {
     line("False - rate for classified -", "Pr( D| -)", fn, tn + fn);
     ctx.out(rule);
     ctx.out(
-      `${"Correctly classified".padEnd(41)}${percent(tp + tn, rows.length)}`,
+      `${"Correctly classified".padEnd(41)}${percent(tp + tn, tp + fp + fn + tn)}`,
     );
     ctx.out(rule);
     ctx.out("");
     session.results.r = {
-      P_corr: (100 * (tp + tn)) / rows.length,
+      P_corr: (100 * (tp + tn)) / (tp + fp + fn + tn),
       P_p1: (100 * tp) / (tp + fn),
       P_n0: (100 * tn) / (tn + fp),
     };

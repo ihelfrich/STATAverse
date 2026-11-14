@@ -299,6 +299,28 @@ function resultsHeader(ctx, title, n, reps, parts, extra = []) {
 }
 const tableRow = (label, b, se, statistic, p, low, high) =>
   `${label}|${g(b).padStart(11)}${g(se).padStart(11)}${applyFormat(statistic, "%9.2f")}${applyFormat(p, "%8.3f")}${g(low).padStart(13)}${g(high).padStart(12)}`;
+/**
+ * A coefficient's row; with the exponentiated form the fitted command was
+ * asked for (odds ratios, incidence-rate ratios), the coefficient and its
+ * interval are exponentiated and the standard error is exp(b) se, by the
+ * delta method, while the test stays on the coefficient.
+ */
+function coefficientRow(label, b, se, statistic, p, critical, eform) {
+  const show = eform ? Math.exp : (v) => v;
+  return tableRow(
+    label,
+    show(b),
+    eform ? Math.exp(b) * se : se,
+    statistic,
+    p,
+    show(b - critical * se),
+    show(b + critical * se),
+  );
+}
+/** The heading of the coefficient column: eform's label, or `word`. */
+const coefficientHead = (eform, word) =>
+  eform ? word(eform[1]).padStart(10).padEnd(11) : word("Coefficient");
+
 /** The covariance of the replicate statistics about their mean. */
 function covariance(replicates, scale) {
   const k = replicates[0].length,
@@ -390,17 +412,18 @@ function bootstrap(session, text, ctx) {
   const V = covariance(replicates, 1 / (replicates.length - 1)),
     critical = invnormal(1 - (1 - level / 100) / 2),
     quiet = !!parts.options.nodots,
+    eform = parts.coefficients ? model.eform : null,
     row = (label, k) => {
       const se = Math.sqrt(V[k][k]),
         z = observed[k] / se;
-      return tableRow(
+      return coefficientRow(
         label,
         observed[k],
         se,
         z,
         2 * normal(-Math.abs(z)),
-        observed[k] - critical * se,
-        observed[k] + critical * se,
+        critical,
+        eform,
       );
     };
   if (!quiet && model) ctx.out(`(running ${name} on estimation sample)`);
@@ -447,13 +470,19 @@ function bootstrap(session, text, ctx) {
       `${" ".repeat(table.w + 1)}|   Observed   Bootstrap                         Normal-based`,
     );
     ctx.out(
-      `${table.depvar} | coefficient  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+      `${table.depvar} | ${coefficientHead(eform, (v) => v.toLowerCase())}  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
     );
     ctx.out(table.split);
-    termRows(session, model, (k) => row("", k).slice(1), table.w).forEach(
-      ctx.out,
-    );
+    // A coefficient fixed at zero is a ratio of one.
+    termRows(
+      session,
+      model,
+      (k) => row("", k).slice(1),
+      table.w,
+      eform ? 1 : 0,
+    ).forEach(ctx.out);
     ctx.out(table.rule);
+    if (eform && model.constant) ctx.out(eform[2]);
   } else {
     resultsHeader(ctx, "Bootstrap results", n, replicates.length, parts);
     ctx.out(RULE);
@@ -537,17 +566,18 @@ function jackknife(session, text, ctx) {
     df = used - 1,
     critical = invttail(df, (1 - level / 100) / 2),
     quiet = !!parts.options.nodots,
+    eform = parts.coefficients ? model.eform : null,
     row = (label, k) => {
       const se = Math.sqrt(V[k][k]),
         t = observed[k] / se;
-      return tableRow(
+      return coefficientRow(
         label,
         observed[k],
         se,
         t,
         2 * ttail(df, Math.abs(t)),
-        observed[k] - critical * se,
-        observed[k] + critical * se,
+        critical,
+        eform,
       );
     };
   if (!quiet) {
@@ -583,13 +613,19 @@ function jackknife(session, text, ctx) {
     ctx.out(table.rule);
     ctx.out(`${" ".repeat(table.w + 1)}|              Jackknife`);
     ctx.out(
-      `${table.depvar} | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+      `${table.depvar} | ${coefficientHead(eform, (v) => v)}  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
     );
     ctx.out(table.split);
-    termRows(session, model, (k) => row("", k).slice(1), table.w).forEach(
-      ctx.out,
-    );
+    // A coefficient fixed at zero is a ratio of one.
+    termRows(
+      session,
+      model,
+      (k) => row("", k).slice(1),
+      table.w,
+      eform ? 1 : 0,
+    ).forEach(ctx.out);
     ctx.out(table.rule);
+    if (eform && model.constant) ctx.out(eform[2]);
   } else {
     resultsHeader(ctx, "Jackknife results", n, used, parts, [
       { name: "n()", expression: "r(N)" },
