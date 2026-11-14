@@ -201,6 +201,10 @@ for (const c of fixture.cases)
             // itself (values near 2000), whose F statistic, shown whole by
             // return list, agrees with Stata's to about eight digits.
             "causal-didregress",
+            // Stata's ml search moves the Gompertz model's starting
+            // values when records enter late; the fit ends where Stata's
+            // does.
+            "survival-streg-factors-and-entry",
           ].includes(c.id),
         )
       )

@@ -1613,7 +1613,7 @@ export function coefficientSpace(model) {
     // main equation after the dependent variable too, as in [wage]education.
     // regress (bootstrapped too), ivregress and xtreg leave theirs
     // unnamed, though some of them report z.
-    const unnamed = ["ivregress", "xtreg", "regress"],
+    const unnamed = ["ivregress", "xtreg", "regress", "stcox"],
       tagged =
         ((model.dist === "z" &&
           !unnamed.includes(model.kind) &&
@@ -2226,6 +2226,50 @@ export function linear(model, text, session) {
  * Position of the coefficient called name, [eq]name or eq:name in a model,
  * or -1. A bare name in a model with several equations means the first.
  */
+/**
+ * _b[name] or _se[name] of the last model, as Stata reads them: _b[x] and
+ * _b[eq:x] in the model's equations, _b[/name] and _b[/:name] for an
+ * ancillary parameter such as streg's /ln_p, and _b[_:x] where the
+ * equation has no name. An equation the model does not have is not found;
+ * [eq]_b[x] arrives here as eq:x too.
+ */
+export function coefficientValue(model, kind, name) {
+  const text = name.trim(),
+    missing = () => new StataError(`[${text}] not found`, 111),
+    space = coefficientSpace(model),
+    read = (entry) => {
+      const at = space.entries.indexOf(entry);
+      return kind === "_b" ? space.b[at] : Math.sqrt(space.V[at][at]);
+    },
+    slash = /^\/\s*(?::\s*)?(.+)$/.exec(text),
+    colon = slash ? null : /^([^:#.\s][^:]*?|#\d+)\s*:\s*(.+)$/.exec(text);
+  if (slash) {
+    const entry = space.entries.find(
+      (e) => e.equation === "/" && e.name === slash[1].trim(),
+    );
+    if (!entry) throw missing();
+    return read(entry);
+  }
+  if (colon && !model.names.some((n) => n.includes(":"))) {
+    const equation = colon[1].trim(),
+      main = space.entries[0]?.equation ?? null,
+      named = new Set(space.entries.map((e) => e.equation).filter(Boolean));
+    if (equation === "/" || (named.has(equation) && equation !== main)) {
+      const entry = space.entries.find(
+        (e) => e.equation === equation && e.name === colon[2].trim(),
+      );
+      if (!entry) throw missing();
+      return read(entry);
+    }
+    if (equation !== main && !(main === null && equation === "_"))
+      if (!/^#1$/.test(equation))
+        throw new StataError(`equation ${equation} not found`, 111);
+  }
+  const at = coefficientIndex(model, text);
+  if (at < 0) throw missing();
+  return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+}
+
 export function coefficientIndex(model, name) {
   const text = name.trim().replace(/^\[\s*([^\]]+?)\s*\]\s*/, "$1:"),
     exact = model.names.indexOf(text);

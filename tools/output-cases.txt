@@ -19504,3 +19504,668 @@ capture noisily didregress (y x) d, group(grp) time(t)
 display _rc
 capture noisily didregress (y x) (d x), group(grp) time(t)
 display _rc
+=== survival-stset-forms
+set linesize 79
+clear
+set seed 2041
+set obs 12
+generate id = _n
+generate grp = runiform() < .5
+generate t = ceil(runiform()*20)
+generate d = floor(runiform()*3)
+generate e = floor(runiform()*4)
+replace t = . in 3
+replace t = 0 in 5
+capture noisily stdescribe
+stset t, failure(d==1)
+return list
+describe
+char list _dta[]
+list
+stset
+stset t
+stset
+stset t d
+stset t, failure(d==1 2) id(id)
+stset t, failure(d) origin(time e)
+list _t0 _t _d _st
+stset t, failure(d) enter(time e)
+list _t0 _t _d _st
+stset t, failure(d) exit(time 10)
+stset t, failure(d) exit(time .)
+stset, noshow
+stsum
+stset, show
+stset, clear
+describe
+capture noisily stset t, id(id)
+set linesize 200
+=== survival-stset-records-and-windows
+set linesize 79
+clear
+set seed 77
+set obs 10
+generate id = ceil(_n/2)
+bysort id: generate t = _n*5 + floor(runiform()*5)
+generate d = runiform() < .4
+generate e = floor(runiform()*3)
+generate double tt = t + runiform()
+generate x = runiform()
+stset t, failure(d) id(id)
+list id t d _t0 _t _d _st
+stdescribe
+return list
+stsum
+sts list
+stset t, failure(d) id(id) exit(time .)
+list id t d _t0 _t _d _st
+stdescribe
+sts list
+stset tt, failure(d) origin(time e) enter(time 1) exit(time 12)
+describe _t _t0
+list tt e _t0 _t _d _st
+stsum
+stset tt, failure(d) scale(2)
+stsum
+sts list
+stset t, failure(d) id(id) origin(min)
+stset t if x > .3, failure(d)
+stsum
+stset
+set linesize 200
+=== survival-describe-summaries-by
+set linesize 79
+clear
+set seed 9311
+set obs 60
+generate id = _n
+generate arm = 1 + floor(runiform()*3)
+label define armlbl 1 "Placebo" 2 "Low dose" 3 "High dose"
+label values arm armlbl
+generate str6 site = cond(runiform() < .5, "north", "south")
+generate age = 40 + floor(runiform()*30)
+generate x = round(invnormal(runiform()), .01)
+generate t = round(-ln(runiform())*12*exp(-.3*x - .2*arm), .1) + .1
+generate d = runiform() < .7
+generate t0 = cond(runiform() < .3, round(runiform()*t, .1), 0)
+stset t, failure(d)
+stdescribe
+stdescribe if arm == 2
+stsum
+return list
+stsum, by(arm)
+stsum, by(site arm)
+stsum if age > 50, by(site)
+stset t, failure(d) enter(time t0)
+stdescribe
+stsum, by(arm)
+set linesize 200
+=== survival-sts-list-and-tests
+set linesize 79
+clear
+set seed 9311
+set obs 60
+generate id = _n
+generate arm = 1 + floor(runiform()*3)
+label define armlbl 1 "Placebo" 2 "Low dose" 3 "High dose"
+label values arm armlbl
+generate str6 site = cond(runiform() < .5, "north", "south")
+generate x = round(invnormal(runiform()), .01)
+generate t = round(-ln(runiform())*12*exp(-.3*x - .2*arm), .1) + .1
+generate d = runiform() < .7
+generate t0 = cond(runiform() < .3, round(runiform()*t, .1), 0)
+stset t, failure(d)
+sts list if arm == 1
+sts list, by(arm) level(90)
+sts list, by(site) failure
+sts list if x > 0, enter
+sts test arm
+display %10.0g r(chi2) " " r(df)
+sts test arm, wilcoxon
+display %10.0g r(chi2) " " r(df) " " r(by)
+sts test site arm
+sts test site, logrank noshow
+sts graph, by(arm)
+sts graph if site == "north", failure title(North)
+stset t, failure(d) enter(time t0)
+sts list if arm == 3
+sts list if arm == 3, enter
+sts test arm
+capture noisily sts test arm if d == 0
+set linesize 200
+=== survival-stcox-ties-and-tests
+set linesize 79
+clear
+set seed 2041
+set obs 40
+generate id = _n
+generate grp = runiform() < .5
+generate x = round(invnormal(runiform()),.01)
+generate t = ceil(-ln(runiform())*10*exp(-.5*x - .4*grp))
+generate d = runiform() < .75
+capture noisily stcox x
+stset t, failure(d)
+stcox x grp
+display %12.0g e(ll) " " %12.0g e(ll_0) " " %12.0g e(chi2) " " %12.0g e(r2_p)
+display e(N) " " e(N_sub) " " e(N_fail) " " e(risk) " " e(df_m) " " e(rank) " " e(converged)
+display "`e(cmd)' `e(cmd2)' `e(ties)' `e(vce)' `e(chi2type)' `e(depvar)' `e(t0)'"
+matrix list e(b)
+matrix list e(V)
+estat phtest
+display %9.4f r(chi2) " " r(df) " " %9.4f r(p)
+estat phtest, detail
+estat phtest, detail log
+estat phtest, rank
+estat phtest, km
+lincom x
+lincom x, hr
+test x grp
+predict h
+predict xbv, xb
+summarize h xbv
+estat ic
+stcox
+stcox, nohr
+stcox x grp, nohr nolog
+stcox x grp, efron
+estat phtest, detail
+stcox x grp, exactm
+capture noisily estat phtest
+stcox i.grp x, nolog
+stcox x if d == 0, nolog
+set linesize 200
+=== survival-stcox-factors-and-entry
+set linesize 79
+clear
+set seed 9311
+set obs 60
+generate id = _n
+generate arm = 1 + floor(runiform()*3)
+label define armlbl 1 "Placebo" 2 "Low dose" 3 "High dose"
+label values arm armlbl
+generate age = 40 + floor(runiform()*30)
+generate x = round(invnormal(runiform()), .01)
+generate t = round(-ln(runiform())*12*exp(-.3*x - .2*arm), .1) + .1
+generate d = runiform() < .7
+generate t0 = cond(runiform() < .3, round(runiform()*t, .1), 0)
+stset t, failure(d)
+stcox i.arm x age
+estat phtest, detail
+stcox i.arm x age, efron nolog
+estat phtest, detail rank
+stcox i.arm x c.age#c.age, nolog
+stset t, failure(d) enter(time t0)
+stcox x age, nolog
+stcox x age, efron nolog
+estat phtest, detail
+stcox x age, exactm nolog
+set linesize 200
+=== survival-streg-models
+set linesize 79
+clear
+set seed 2041
+set obs 40
+generate id = _n
+generate grp = runiform() < .5
+generate x = round(invnormal(runiform()),.01)
+generate t = ceil(-ln(runiform())*10*exp(-.5*x - .4*grp))
+generate d = runiform() < .75
+stset t, failure(d)
+streg x grp, dist(exponential)
+display %12.0g e(ll) " " %12.0g e(ll_0) " " %12.0g e(chi2) " " %10.0g e(p)
+display "`e(cmd)' `e(cmd2)' `e(title)' `e(frm2)'"
+streg x grp, dist(exponential) time
+streg x grp, dist(weibull)
+display %12.0g e(ll) " " %12.0g e(ll_0) " " %12.0g e(aux_p)
+matrix list e(b)
+estat ic
+test x
+lincom x
+streg
+streg x grp, dist(weibull) time
+streg x grp, dist(gompertz)
+display %12.0g e(ll) " " %12.0g e(ll_0) " " %10.0g e(gamma)
+streg x grp, dist(weibull) nohr
+streg x grp, dist(gompertz) nohr nolog
+streg x grp, d(e) nolog
+streg x, nolog
+capture noisily streg x grp, dist(gom) time nolog
+capture noisily streg x grp, dist(normal) nolog
+set linesize 200
+=== survival-streg-factors-and-entry
+set linesize 79
+clear
+set seed 9311
+set obs 60
+generate id = _n
+generate arm = 1 + floor(runiform()*3)
+generate age = 40 + floor(runiform()*30)
+generate x = round(invnormal(runiform()), .01)
+generate t = round(-ln(runiform())*12*exp(-.3*x - .2*arm), .1) + .1
+generate d = runiform() < .7
+generate t0 = cond(runiform() < .3, round(runiform()*t, .1), 0)
+stset t, failure(d)
+streg i.arm x, dist(weibull) nolog
+streg i.arm x, dist(weibull) time nolog
+streg i.arm x, dist(exp) time nolog
+streg i.arm x, dist(gompertz) nolog
+stset t, failure(d) enter(time t0)
+streg x age, dist(weibull)
+streg x age, dist(weibull) time nolog
+streg x age, dist(exponential)
+streg x age, dist(gompertz)
+streg, dist(weibull) nolog
+set linesize 200
+=== survival-red-no-ties-and-ties
+set linesize 79
+clear
+set seed 505
+set obs 50
+generate x = invnormal(runiform())
+generate t = -ln(runiform())*exp(-.4*x)
+generate d = runiform() < .8
+stset t, failure(d)
+stcox x
+stcox x, efron
+stcox x, exactm
+display "`e(ties)' `e(method)'"
+matrix list e(b)
+estat phtest, detail
+replace t = t[2] in 3
+replace d = 0 in 2/3
+stcox x, nolog
+display "`e(ties)' `e(method)'"
+replace d = 1 in 2
+stcox x, efron nolog
+display "`e(ties)' `e(method)'"
+generate t0 = t/2
+stset t, failure(d) enter(time t0)
+stcox x, exactm nolog
+estat phtest
+replace t = t[5] in 6
+replace d = 1 in 5/6
+stset t, failure(d)
+stcox x, nolog
+display "`e(ties)' `e(method)'"
+set linesize 200
+=== survival-red-exactm-large-tie-groups
+set linesize 79
+clear
+set seed 909
+set obs 1000
+generate x = invnormal(runiform())
+generate z = runiform() < .5
+generate t = ceil(runiform()*3)
+generate d = runiform() < .7
+stset t, failure(d)
+stcox x z, exactm
+display %12.0g e(ll) " " %12.0g e(ll_0)
+clear
+set seed 808
+set obs 60
+generate x = invnormal(runiform())
+generate t = ceil(runiform()*2)
+generate d = runiform() < .9
+stset t, failure(d)
+stcox x, exactm
+clear
+set seed 77
+set obs 200
+generate x = invnormal(runiform())
+generate g = runiform() < .4
+generate t = ceil(-ln(runiform())*4*exp(-.3*x))
+generate d = runiform() < .75
+stset t, failure(d)
+stcox x g, exactm
+lincom x
+set linesize 200
+=== survival-red-cox-convergence
+set linesize 79
+clear
+set seed 70
+set obs 200
+generate x = invnormal(runiform())
+generate g = runiform() < .4
+generate w = runiform()*3
+generate t = ceil(-ln(runiform())*2*exp(-.3*x+.2*g))
+generate d = runiform() < .75
+quietly stset t, failure(d)
+stcox x g w
+stcox x g w, efron
+stcox x g w, exactm
+clear
+set seed 71
+set obs 500
+generate x = invnormal(runiform())
+generate g = runiform() < .4
+generate w = runiform()*3
+generate t = ceil(-ln(runiform())*3*exp(-.3*x+.2*g))
+generate d = runiform() < .75
+quietly stset t, failure(d)
+stcox x g w
+stcox x g w, efron
+stcox x g w, exactm
+clear
+set seed 74
+set obs 40
+generate x = invnormal(runiform())
+generate g = runiform() < .4
+generate w = runiform()*3
+generate t = ceil(-ln(runiform())*6*exp(-.3*x+.2*g))
+generate d = runiform() < .75
+quietly stset t, failure(d)
+stcox x g w
+stcox x g w, efron
+stcox x g w, exactm
+set linesize 200
+=== survival-red-separation-and-no-variance
+set linesize 79
+clear
+set seed 1111
+set obs 70
+generate x = invnormal(runiform())
+generate x2 = -x
+generate g = floor(runiform()*3)
+generate t = -ln(runiform())*10*exp(-.3*x)
+generate d = runiform() < .8
+replace x = . in 3
+generate z = x > 0 if x < .
+replace d = 1 if z == 1
+replace d = 0 if z == 0
+stset t, failure(d)
+capture noisily streg z, dist(exponential) nolog
+display _rc
+display e(converged) " " e(rank) " " e(df_m) " " e(ic) " " e(rc)
+matrix list e(V)
+capture noisily streg
+display _rc
+capture noisily streg z, dist(weibull) nolog
+display _rc
+clear
+set seed 404
+set obs 30
+generate z = _n > 15
+generate t = cond(z, ceil(runiform()*5), 5 + ceil(runiform()*5))
+generate d = 1
+generate t2 = 3
+generate x = invnormal(runiform())
+stset t2, failure(d)
+stcox x, exactm
+matrix list e(b)
+matrix list e(V)
+lincom x
+display e(rank) " " e(df_m) " " e(chi2)
+stcox x
+replace d = 0
+stset t, failure(d)
+stcox x z, nolog
+display "`e(ties)' `e(method)' " e(rank) " " e(df_m)
+matrix list e(b)
+estat phtest
+set linesize 200
+=== survival-red-predict-st-sample-and-types
+set linesize 79
+clear
+set seed 1717
+set obs 60
+generate x = invnormal(runiform())
+generate g = floor(runiform()*3)
+generate t = ceil(-ln(runiform())*10)
+generate d = runiform() < .7
+replace x = . in 2
+stset t if g < 2, failure(d)
+streg x i.g, dist(weibull) nolog
+predict hw, hr
+predict xw, xb
+predict sw, stdp
+summarize hw xw sw
+stcox x i.g, nolog
+predict double h2, hr
+predict double xbd, xb
+predict float xbf, xb
+predict sd2, stdp
+describe h2 xbd xbf sd2
+list x g h2 xbd sd2 in 1/3
+summarize h2 xbd sd2
+streg x i.g, dist(weibull) nolog
+predict double hw2, hr
+predict double sw2, stdp
+describe hw2 sw2
+list hw2 sw2 in 1/3
+streg x, dist(exponential) nolog
+predict double xe, xb
+summarize xe
+streg x, dist(gompertz) nolog
+predict he, hr
+summarize he
+set linesize 200
+=== survival-red-coefficient-equations
+set linesize 79
+clear
+set seed 505
+set obs 50
+generate x = invnormal(runiform())
+generate t = -ln(runiform())*exp(-.4*x)
+generate d = runiform() < .8
+regress t x
+capture noisily display _b[_:x]
+capture noisily display _b[t:x]
+capture noisily display _b[foo:x]
+display _rc
+logit d x
+capture noisily display _b[d:x]
+capture noisily display _b[foo:x]
+capture noisily display _b[/x]
+stset t, failure(d)
+stcox x
+capture noisily display _b[_t:x]
+capture noisily display _b[foo:x]
+capture noisily display _b[x]
+streg x, dist(weibull)
+capture noisily display _b[_t:_cons]
+capture noisily display _b[/ln_p]
+capture noisily display _b[/:ln_p]
+capture noisily display _se[/ln_p]
+capture noisily display _b[ln_p]
+display _rc
+capture noisily display _b[/foo]
+display _rc
+capture noisily display _b[ln_p:_cons]
+display _rc
+capture noisily display [_t]_b[x]
+display _b[/ln_p] + _b[x]
+streg x, dist(gompertz) nolog
+capture noisily display _b[/gamma]
+capture noisily display _se[/gamma]
+streg x, dist(exp) nolog
+capture noisily display _b[/ln_p]
+display _rc
+tobit t x, ll(0.1)
+capture noisily display _b[/var(e.t)]
+capture noisily display _b[foo:x]
+capture noisily display _b[t:x]
+set linesize 200
+=== survival-red-streg-matrices
+set linesize 79
+clear
+set seed 1717
+set obs 60
+generate x = invnormal(runiform())
+generate g = floor(runiform()*3)
+generate t = ceil(-ln(runiform())*10)
+generate d = runiform() < .7
+generate c = 1
+replace x = . in 2
+stset t if g < 2, failure(d)
+streg x i.g, dist(weibull) nolog
+matrix list e(Cns)
+matrix list e(ilog)
+display e(k) " " e(rank) " " e(df_m) " `e(user)' `e(opt)' `e(ml_method)' `e(technique)' `e(which)' `e(deriv_useminbound)'"
+streg x i.g, dist(exponential) nolog
+matrix list e(Cns)
+matrix list e(ilog)
+display e(k) " " e(rank) " " e(df_m) " `e(user)'"
+streg x ib1.g, dist(gompertz) nolog
+matrix list e(Cns)
+display e(k) " " e(rank) " " e(df_m) " `e(user)'"
+streg x ib1.g, dist(weibull) time nolog
+matrix list e(Cns)
+stset t, failure(d)
+streg i.g##c.x, dist(weibull) nolog
+matrix list e(Cns)
+streg x c, dist(exp) nolog
+matrix list e(Cns)
+matrix list e(b)
+generate t0 = cond(runiform() < .3, floor(runiform()*t), 0)
+stset t, failure(d) enter(time t0)
+streg x, dist(weibull) nolog
+display "`e(user)'"
+set linesize 200
+=== survival-red-streg-no-covariates
+set linesize 79
+clear
+set seed 1717
+set obs 60
+generate x = invnormal(runiform())
+generate t = ceil(-ln(runiform())*10)
+generate d = runiform() < .7
+generate c = 1
+generate t0 = cond(runiform() < .3, floor(runiform()*t), 0)
+stset t, failure(d)
+streg, dist(weibull)
+display e(ic) " " e(df_m) " " e(chi2) " " e(p)
+matrix list e(ilog)
+streg, dist(gompertz)
+display e(ic) " " e(df_m) " `e(chi2type)'"
+matrix list e(ilog)
+streg, dist(gompertz) nohr nolog
+streg
+streg, dist(exponential)
+display e(ic)
+streg c, dist(weibull)
+display e(ic)
+streg, dist(weibull) time
+stset t, failure(d) enter(time t0)
+streg, dist(gompertz)
+streg, dist(weibull)
+set linesize 200
+=== survival-red-stset-strings-and-notes
+set linesize 79
+clear
+set seed 101
+set obs 40
+generate t = ceil(runiform()*20)
+generate s = "a"
+capture noisily stset t, failure(s)
+display _rc
+capture noisily stset t, failure(s==1)
+display _rc
+capture noisily stset t, failure(s=="a")
+display _rc
+capture noisily stset s
+display _rc
+clear
+set seed 303
+set obs 80
+generate x1 = invnormal(runiform())
+generate x2 = 2*x1 + 1
+generate c = 3
+generate t = ceil(-ln(runiform())*10*exp(-.5*x1))
+generate d = runiform() < .7
+stset t, failure(d)
+stcox x1 x2
+stcox c x1
+stcox c
+stcox x1 x2, nolog
+streg x1 x2, dist(weibull)
+streg c x1, dist(exp) nolog
+clear
+set seed 2323
+set obs 40
+generate x = invnormal(runiform())
+generate t = ceil(-ln(runiform())*15)
+generate d = runiform() < .7
+generate c = 5
+stset t, failure(d)
+streg c, dist(weibull) nolog
+display e(chi2) " " e(df_m) " " e(p)
+streg c, dist(exponential) nolog
+streg c, dist(gompertz) nolog
+stcox c, nolog
+display e(chi2) " " e(df_m) " " e(p)
+set linesize 200
+=== survival-red-empty-samples-and-null-model
+set linesize 79
+clear
+set seed 1212
+set obs 45
+generate g = floor(runiform()*3)
+generate x = runiform()
+generate t = ceil(runiform()*15)
+generate d = runiform() < .6
+stset t, failure(d)
+capture noisily stsum if g == 5
+display _rc
+capture noisily stsum if g == 5, by(g)
+display _rc
+capture noisily sts test g if x > 5
+display _rc
+capture noisily sts list if x > 5
+display _rc
+capture noisily sts list if x > 5, by(g)
+display _rc
+capture noisily sts graph if x > 5
+display _rc
+capture noisily stdescribe if x > 5
+display _rc
+capture noisily stcox g if x > 5
+display _rc
+capture noisily streg g if x > 5, dist(exp)
+display _rc
+capture noisily stcox g if d == 0
+display _rc
+capture noisily streg g if d == 0, dist(weibull)
+display _rc
+clear
+set seed 1818
+set obs 90
+generate t = ceil(-ln(runiform())*12)
+generate d = runiform() < .7
+generate x = runiform()
+stset t, failure(d)
+capture noisily stcox, estimate nolog
+display _rc
+display e(N) " " e(ll) " " e(ll_0) " " e(chi2) " " e(r2_p) " " e(df_m) " `e(ties)'"
+stcox, estimate
+stcox
+stcox x, nolog
+stcox, estimate efron
+stcox, estimate exactm nolog
+capture noisily stcox, estimate nohr
+predict h, hr
+summarize h
+set linesize 200
+=== survival-red-sts-test-many-groups
+set linesize 79
+clear
+set seed 9
+set obs 400
+generate g = floor(runiform()*60)
+generate d = runiform() < .8
+generate t = ceil(runiform()*8)
+generate t0 = cond(runiform() < .4, floor(runiform()*t), 0)
+stset t, failure(d)
+quietly sts test g
+display %9.4f r(chi2) " " r(df)
+quietly sts test g, wilcoxon
+display %9.4f r(chi2) " " r(df)
+stset t, failure(d) enter(time t0)
+quietly sts test g
+display %9.4f r(chi2) " " r(df)
+replace t = -ln(runiform())*10
+stset t, failure(d)
+quietly sts test g
+display %9.4f r(chi2) " " r(df)
+quietly sts test g, wilcoxon
+display %9.4f r(chi2) " " r(df)
+set linesize 200

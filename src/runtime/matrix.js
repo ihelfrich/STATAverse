@@ -199,6 +199,7 @@ function list(session, text, ctx) {
       : session.matrices?.get(name);
   if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
   const { values, rowNames, colNames } = matrix,
+    // A 1 x 1 matrix is symmetric too: Stata lists (5) as symmetric A[1,1].
     symmetric =
       // Stata calls every 1 x 1 matrix symmetric.
       values.length === colNames.length &&

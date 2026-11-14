@@ -11,7 +11,7 @@ import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
 import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
-import { ESTIMATION_COMMANDS } from "./estimation.js";
+import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { MIXED_COMMANDS } from "./mixed.js";
 import { PANEL_COMMANDS } from "./panel.js";
@@ -39,6 +39,7 @@ import { DELIMITED_COMMANDS } from "./delimited.js";
 import { FOREIGN_COMMANDS } from "./foreign.js";
 import { INFILE_COMMANDS } from "./infix.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
+import { SURVIVAL_COMMANDS, survivalPostestimation } from "./survival.js";
 import {
   DATA_COMMANDS,
   fold,
@@ -1351,8 +1352,13 @@ function returns(kind) {
       if (strings.length) {
         ctx.out("");
         ctx.out("macros:");
+        // A macro too long for the line is cut to end with "..", the line
+        // one short of the line size.
+        const room = (session.settings.linesize ?? 79) - 28;
         for (const [name, value] of strings)
-          ctx.out(`${label(name)} : "${value}"`);
+          ctx.out(
+            `${label(name)} : "${value.length > room ? `${value.slice(0, room - 2)}..` : value}"`,
+          );
       }
       // mean's and total's results, which keep no model.
       const tabled =
@@ -1360,27 +1366,33 @@ function returns(kind) {
           ? session.meanTotalResults
           : null;
       if (kind === "e" && (session.estimates || tabled)) {
+        // e(b) as matrix list shows it, ancillary parameters included; a
+        // model with no coefficients, as stcox, estimate fits, has none.
         const k = tabled
-          ? tabled.groups.length * tabled.variables.length
-          : session.estimates.names.length;
-        ctx.out("");
-        ctx.out("matrices:");
-        // A model that keeps more than b and V, as mixed does, lists them.
-        const own = !tabled && session.estimates.ereturnMatrices;
+            ? tabled.groups.length * tabled.variables.length
+            : coefficientSpace(session.estimates).entries.length,
+          // Other matrices the command stored in e(), as streg's e(ilog)
+          // or didregress's e(group_count), in the order it stored them.
+          stored = entries.filter(
+            ([key, v]) => key.startsWith("matrix:") && v?.values,
+          ),
+          // A model that keeps more than b and V, as mixed does, lists them.
+          own = !tabled && session.estimates?.ereturnMatrices;
+        if (k || stored.length || own) {
+          ctx.out("");
+          ctx.out("matrices:");
+        }
         if (own)
           for (const [name, rows, columns] of own)
             ctx.out(`${label(name)} :  ${rows} x ${columns}`);
-        else {
+        else if (k) {
           ctx.out(`${label("b")} :  1 x ${k}`);
           ctx.out(`${label("V")} :  ${k} x ${k}`);
         }
-        // Other matrices the command stored, such as didregress's
-        // e(group_count), in the order it stored them.
-        for (const [key, value] of entries)
-          if (key.startsWith("matrix:") && value?.values)
-            ctx.out(
-              `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
-            );
+        for (const [key, value] of stored)
+          ctx.out(
+            `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+          );
         if (tabled) {
           if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
           ctx.out(`${label("_N")} :  1 x ${k}`);
@@ -2417,6 +2429,7 @@ export const COMMANDS = [
   ...DELIMITED_COMMANDS,
   ...INFILE_COMMANDS,
   ...MATRIX_COMMANDS,
+  ...SURVIVAL_COMMANDS,
   ...ESTIMATION_COMMANDS,
   ...DATA_COMMANDS,
   command("generate", 1, generate, true),
@@ -2638,9 +2651,10 @@ COMMANDS.forEach((c, k) => {
         : run(session, text, ctx),
   };
 });
-// predict, estat and margins after teffects, heckman, didregress and xtdidregress
-// are answered by those commands' own module, which refuses what it does
-// not compute rather than let the linear model's predict run.
+// predict, estat and margins after teffects, heckman, didregress and
+// xtdidregress are answered by those commands' own module, which refuses
+// what it does not compute rather than let the linear model's predict run;
+// after stcox and streg, predict and estat phtest are survival's.
 COMMANDS.forEach((c, k) => {
   if (c.name !== "predict" && c.name !== "estat" && c.name !== "margins")
     return;
@@ -2648,7 +2662,9 @@ COMMANDS.forEach((c, k) => {
   COMMANDS[k] = {
     ...COMMANDS[k],
     run: (session, text, ctx) =>
-      causalPostestimation(c.name, session, text, ctx)
+      causalPostestimation(c.name, session, text, ctx) ||
+      (c.name !== "margins" &&
+        survivalPostestimation(session, c.name, text, ctx))
         ? undefined
         : run(session, text, ctx),
   };
