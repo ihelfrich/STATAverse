@@ -13,6 +13,7 @@ import {
   fit,
   invertSymmetric,
   quadratic,
+  statisticCell,
   tableWidth,
   abbreviate,
   termRows,
@@ -544,6 +545,11 @@ export function ivDiagnostic(session, model, what, ctx) {
       `estat ${what} is only available after ivregress`,
       301,
     );
+  if (model.wtype)
+    throw new StataError(
+      `estat ${what} after a weighted ivregress is not available yet`,
+      198,
+    );
   run(session, model, ctx);
   return true;
 }
@@ -932,7 +938,7 @@ function areg(session, text, ctx) {
     if (!kept.includes(k))
       ctx.out(`note: ${active[k].name} omitted because of collinearity.`);
   if (wtype && wtype !== "fweight")
-    ctx.out(`(sum of wgt is ${sumOfWeights(sumW)})`);
+    ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out("");
   values.forEach(([label, value], k) => {
     const text = left[k] ?? "";
@@ -960,7 +966,7 @@ function areg(session, text, ctx) {
         known = !isMissing(se) && se > 0 && dfR > 0,
         t = known ? model.b[k] / se : MISSING,
         bound = (sign) => (known ? model.b[k] + sign * critical * se : MISSING);
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(known ? 2 * ttail(dfR, Math.abs(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(known ? 2 * ttail(dfR, Math.abs(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
     },
     w0,
   ).forEach(ctx.out);
@@ -984,16 +990,6 @@ function sandwichOf(bread, meat, scale) {
       (_, c) => scale * row.reduce((t, v, k) => t + v * bread[k][c], 0),
     ),
   );
-}
-
-/** The sum of weights as areg reports it, to sixteen significant digits. */
-function sumOfWeights(value) {
-  const text = value.toPrecision(16);
-  return text.includes("e")
-    ? text
-    : text.includes(".")
-      ? text.replace(/0+$/, "").replace(/\.$/, "")
-      : text;
 }
 
 export const MORE_ESTIMATORS = [{ name: "areg", minimum: 4, run: areg }];

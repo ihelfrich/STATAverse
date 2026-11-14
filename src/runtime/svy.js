@@ -12,17 +12,19 @@
 // refused.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { Ftail, invttail, ttail } from "./distributions.js";
+import { Ftail, invttail, lngamma, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
   baseLevelsAsked,
   design,
   invertSymmetric,
+  statisticCell,
   tableWidth,
   termRows,
 } from "./estimation.js";
 import { evaluateAll } from "./expression.js";
+import { poissonStart } from "./likelihood.js";
 import { count, labelled } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
@@ -863,7 +865,7 @@ function tCells(b, se, d, critical, { tested = true, eform = false } = {}) {
     tail = ttail(d, Math.abs(t)),
     p = isMissing(tail) ? MISSING : 2 * tail,
     open = isMissing(critical);
-  return `${number(show(b), 11)}${number(eform ? Math.exp(b) * se : se, 11)}${tested ? `${applyFormat(t, "%9.2f")}${isMissing(p) ? dot(8) : applyFormat(p, "%8.3f")}` : " ".repeat(17)}${open ? dot(13) : number(show(b - critical * se), 13)}${open ? dot(12) : number(show(b + critical * se), 12)}`;
+  return `${number(show(b), 11)}${number(eform ? Math.exp(b) * se : se, 11)}${tested ? `${statisticCell(t)}${isMissing(p) ? dot(8) : applyFormat(p, "%8.3f")}` : " ".repeat(17)}${open ? dot(13) : number(show(b - critical * se), 13)}${open ? dot(12) : number(show(b + critical * se), 12)}`;
 }
 
 /**
@@ -1108,7 +1110,7 @@ function summary(session, text, ctx, prefix, kind) {
       columns,
       estimable: columns.map(() => true),
     },
-    w = tableWidth(session, table),
+    w = tableWidth(session, table, [], 50),
     width = w + 50,
     percent = kind === "proportion" && !!options.percent,
     [title, statistic] = percent
@@ -1310,6 +1312,49 @@ function newton(start, evaluate) {
     if (step.every((v, a) => Math.abs(v) <= 1e-11 * (1 + Math.abs(theta[a]))))
       break;
     if (iteration === 299)
+      throw new StataError("convergence not achieved", 430);
+  }
+  const inverse = invertSymmetric(current.information);
+  if (!inverse)
+    throw new StataError(
+      "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
+      430,
+    );
+  return { theta, bread: inverse, ...current };
+}
+
+/**
+ * The Newton steps logit, probit and poisson take with sampling weights,
+ * which svy runs: each step halved while it lowers the log likelihood, and
+ * a stop once a step changes it by less than 1e-7 of itself. Stopping
+ * where they stop gives Stata's estimates to the last digit.
+ */
+function weightedSteps(start, evaluate) {
+  let theta = start.slice(),
+    current = evaluate(theta);
+  for (let iteration = 1; iteration <= 100; iteration++) {
+    const inverse = invertSymmetric(current.information);
+    if (!inverse)
+      throw new StataError(
+        "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
+        430,
+      );
+    let step = inverse.map((row) =>
+        row.reduce((t, v, c) => t + v * current.gradient[c], 0),
+      ),
+      next = theta.map((v, a) => v + step[a]),
+      trial = evaluate(next);
+    for (let halve = 0; halve < 20 && !(trial.ll >= current.ll); halve++) {
+      step = step.map((v) => v / 2);
+      next = theta.map((v, a) => v + step[a]);
+      trial = evaluate(next);
+    }
+    const change =
+      Math.abs(trial.ll - current.ll) / Math.max(1e-300, Math.abs(current.ll));
+    theta = next;
+    current = trial;
+    if (change < 1e-7) break;
+    if (iteration === 100)
       throw new StataError("convergence not achieved", 430);
   }
   const inverse = invertSymmetric(current.information);
@@ -1524,8 +1569,8 @@ function model(session, text, ctx, prefix, asked) {
     bread = fit.bread;
     scoreOf = (i) => piece(theta, i, false).gradient;
   } else {
-    const mean = y.reduce((t, v, i) => t + weight[i] * v, 0) / W,
-      start = new Array(size).fill(0);
+    const mean = y.reduce((t, v, i) => t + weight[i] * v, 0) / W;
+    let start = new Array(size).fill(0);
     if (constant)
       start[size - 1] =
         kind === "logit"
@@ -1533,6 +1578,15 @@ function model(session, text, ctx, prefix, asked) {
           : kind === "probit"
             ? invnormal(mean)
             : Math.log(mean);
+    // poisson starts where poisson.ado's starting values put it.
+    if (kind === "poisson")
+      start = poissonStart(
+        x,
+        y,
+        y.map((v) => lngamma(v + 1)),
+        constant,
+        weight,
+      );
     const evaluate = (b) => {
         const gradient = new Array(size).fill(0),
           information = Array.from({ length: size }, () =>
@@ -1554,7 +1608,7 @@ function model(session, text, ctx, prefix, asked) {
           for (let c = 0; c < a; c++) information[c][a] = information[a][c];
         return { ll, gradient, information };
       },
-      fit = newton(start, evaluate);
+      fit = weightedSteps(start, evaluate);
     theta = fit.theta;
     bread = fit.bread;
     scoreOf = (i, row) => {
@@ -1763,16 +1817,15 @@ function model(session, text, ctx, prefix, asked) {
         ),
         V: cuts.map((_, c) => cuts.map((_, e) => V[k + c][k + e])),
       },
-      outcomeModel: active.every((c) => c.term.variable)
-        ? {
-            theta,
-            V,
-            k,
-            cuts: cuts.length,
-            outcomes,
-            variables: active.map((c) => c.term.variable),
-          }
-        : null,
+      outcomeModel: {
+        theta,
+        V,
+        k,
+        cuts: cuts.length,
+        outcomes,
+        columns: active,
+        allColumns: columns,
+      },
     });
   }
   session.estimates = result;
@@ -1925,13 +1978,23 @@ function svyTabulate(session, text, ctx, prefix) {
       shownAs = options.format ?? "%6.0g",
       cell = (value) => applyFormat(value, shownAs).trim(),
       stub = (text) => text.padStart(9),
+      // A title too long for its space is broken between words, and a
+      // word longer than the space in pieces of that size.
       pieces = (text, size) => {
         const out = [];
-        for (let at = 0; at < text.length; at += size)
-          out.push(text.slice(at, at + size));
-        return out;
+        for (const word of text.split(/ +/).filter(Boolean)) {
+          const last = out.at(-1);
+          if (last !== undefined && `${last} ${word}`.length <= size)
+            out[out.length - 1] = `${last} ${word}`;
+          else
+            for (let at = 0; at < word.length; at += size)
+              out.push(word.slice(at, at + size));
+        }
+        return out.length ? out : [""];
       },
-      rowNames = pieces(variables[0].name, 9),
+      // The variable's label titles the table, or its name without one.
+      title = (variable) => variable.label || variable.name,
+      rowNames = pieces(title(variables[0]), 9),
       stubs =
         rowNames.length === 1
           ? [stub(rowNames[0])]
@@ -2050,7 +2113,7 @@ function svyTabulate(session, text, ctx, prefix) {
           ` ${cellsText.map((value) => value.padStart(width)).join("  ")}`,
         centred = (value) =>
           `${" ".repeat(Math.ceil((area - value.length) / 2))}${value}`,
-        colLines = pieces(variables[1].name, area),
+        colLines = pieces(title(variables[1]), area),
         headerLines = [
           ...colLines.slice(0, -1),
           centred(colLines.at(-1)),

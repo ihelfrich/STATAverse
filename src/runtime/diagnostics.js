@@ -4,7 +4,7 @@ import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail } from "./distributions.js";
-import { abbreviate, coefficientSpace } from "./estimation.js";
+import { abbreviate, coefficientSpace, termRows } from "./estimation.js";
 import { count, moments } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -419,10 +419,20 @@ const omittedName = (name) =>
 
 function summarizeSample(session, model, text, ctx) {
   const rows = model.sample,
-    names = [
-      model.depvar,
-      ...model.columns.filter((c) => c.term.variable).map((c) => c.name),
-    ];
+    // The dependent variable, then each regressor's column laid out as the
+    // coefficient table lays it out: factor levels under their variable's
+    // name, base levels left out. The dependent variable has no column and
+    // sits where a table's constant would.
+    columns = [null, ...model.columns],
+    table = {
+      names: [model.depvar, ...model.columns.map((c) => c.name)],
+      columns,
+      estimable: columns.map((c) => !c || !(c.omitted || c.collinear)),
+    },
+    valuesOf = (k) =>
+      k === 0
+        ? rows.map((i) => session.data.get(model.depvar).data[i])
+        : rows.map((i) => columns[k].value(i));
   ctx.out("");
   ctx.out(
     `${`  Estimation sample ${model.command}`.padEnd(43)}Number of obs = ${count(rows.length).padStart(10)}`,
@@ -435,12 +445,15 @@ function summarizeSample(session, model, text, ctx) {
   ctx.out(
     "  -------------+-----------------------------------------------------",
   );
-  for (const name of names) {
-    const m = moments(rows.map((i) => session.data.get(name).data[i]));
-    ctx.out(
-      `  ${name.padStart(12)} |${g(m.mean).padStart(13)}${g(m.sd).padStart(14)}${g(m.min).padStart(13)}${g(m.max).padStart(13)}`,
-    );
-  }
+  termRows(
+    session,
+    table,
+    (k) => {
+      const m = moments(valuesOf(k));
+      return `${g(m.mean).padStart(13)}${g(m.sd).padStart(14)}${g(m.min).padStart(13)}${g(m.max).padStart(13)}`;
+    },
+    12,
+  ).forEach((line) => ctx.out(`  ${line}`));
   ctx.out("  " + "-".repeat(67));
   ctx.out("");
 }

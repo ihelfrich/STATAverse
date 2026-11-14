@@ -340,6 +340,8 @@ export function estimatesTable(session, text, ctx) {
     });
     if (options.stats) {
       ctx.out(split);
+      // With equations headed, the statistics are headed too.
+      if (headed) ctx.out(`${"Statistics".padEnd(13)}|`);
       for (const name of options.stats.trim().split(/\s+/))
         ctx.out(
           `${name.padStart(12)} |${columns

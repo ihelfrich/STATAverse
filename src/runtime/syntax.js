@@ -334,7 +334,19 @@ function newVariables(text, context) {
     types = [],
     typed = [],
     labels = [],
-    tokens = text.split(/\s+/).filter(Boolean);
+    // p1-p4 stands for p1 p2 p3 p4, as in Stata's newvarlist.
+    tokens = text
+      .split(/\s+/)
+      .filter(Boolean)
+      .flatMap((token) => {
+        const range = /^([A-Za-z_]\w*?)(\d+)-([A-Za-z_]\w*?)(\d+)$/.exec(token);
+        if (!range || range[1] !== range[3] || +range[2] > +range[4])
+          return [token];
+        return Array.from(
+          { length: range[4] - range[2] + 1 },
+          (_, k) => `${range[1]}${+range[2] + k}`,
+        );
+      });
   for (let i = 0; i < tokens.length; i++) {
     let type = context.defaultType ?? "float",
       token = tokens[i];

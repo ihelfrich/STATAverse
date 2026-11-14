@@ -13137,3 +13137,501 @@ use frh, clear
 collapse (mean) lninc, by(female)
 capture noisily save, replace
 describe, short
+=== models6-wide-t-statistics
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+xtset pid year
+xtreg bigy xit, fe
+xtreg bigy xit, re
+xtreg bigy xit, fe vce(robust)
+areg bigy xit, absorb(pid)
+areg lninc age i.educ [aweight=pw], absorb(stratum)
+=== models6-margins-labelled-factor-effects
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+regress lninc age i.female i.smoker
+margins, dydx(*)
+margins, dydx(female)
+logit employed age i.female i.educ
+margins, dydx(*) at(age=(30 50))
+margins, dydx(*) at(age=30)
+margins, dydx(female) at(age=30 educ=2)
+margins, dydx(female educ) at(age=30)
+margins, dydx(age) at(female=1 educ=2)
+margins, dydx(age female) at(age=(30 50) educ=2)
+regress lninc age i.female
+margins, dydx(female) at(age=30)
+=== models6-svy-over-and-tabulate-labels
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+set linesize 79
+svyset psu [pweight=pw], strata(stratum)
+svy: mean lninc, over(female)
+svy: mean hours, over(region female)
+svy: total nkids, over(female)
+svy: mean lninc hours, over(educ)
+svy: tabulate educ
+svy: tabulate educ female, row
+svy: tabulate female
+svy: tabulate region educ
+set linesize 200
+=== models6-glm-weights
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+glm lninc age i.female [pweight=pw], family(gaussian)
+glm lninc age i.female [aweight=pw], family(gaussian)
+glm lninc age i.female [fweight=nkids], family(gaussian)
+glm lninc age i.female [iweight=pw], family(gaussian)
+glm employed age i.female [pweight=pw], family(binomial) link(probit)
+glm employed age i.female [fweight=nkids], family(binomial)
+glm employed age i.female [aweight=pw], family(binomial)
+glm employed age i.female [iweight=pw], family(binomial)
+glm nkids age i.female [pweight=pw], family(poisson)
+glm employed age i.female, family(binomial) vce(robust)
+glm employed age i.female, family(binomial) vce(cluster stratum)
+glm lninc age [pw=pw], vce(cluster pid)
+=== models6-xtreg-weights
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+generate w3 = 1 + mod(pid*7, 5) + .5*(pid > 30)
+xtset pid year
+xtreg yit xit [aweight=stratum], fe
+xtreg yit xit age [fweight=stratum], fe
+xtreg yit xit age [pweight=w3], fe
+xtreg yit xit [aweight=w3], fe vce(cluster pid)
+capture noisily xtreg yit xit [iweight=stratum], fe
+capture noisily xtreg yit xit [aweight=stratum], re
+capture noisily xtreg yit xit [pweight=stratum], re
+capture noisily xtreg yit xit [aweight=stratum], be
+capture noisily xtreg yit xit [aweight=pw], fe
+=== models6-ivregress-weights
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+ivregress 2sls lninc i.region (hours = z i.educ) [pweight=pw]
+ivregress 2sls lninc i.region (hours = z i.educ) [aweight=pw]
+ivregress 2sls lninc i.region (hours = z i.educ) [fweight=nkids]
+ivregress 2sls lninc i.region (hours = z i.educ) [iweight=pw]
+ivregress 2sls lninc i.region (hours = z i.educ) [pw=pw], vce(cluster stratum)
+ivregress 2sls lninc age (hours = z) [aweight=pw], vce(robust)
+ivregress 2sls lninc (hours = z) if age > 30 [pweight=pw]
+=== models6-estat-summarize-factors
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+regress lninc age i.female hours
+estat summarize
+regress lninc age i.female i.educ i.smoker
+estat summarize
+regress lninc c.age##c.age i.female#c.hours
+estat summarize
+regress lninc i.female##i.smoker
+estat summarize
+logit employed age i.educ
+estat summarize
+=== models6-estimates-table-statistics
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+quietly regress lninc age i.female
+estimates store a1
+quietly logit employed age i.female
+estimates store a3
+estimates table a1 a3, stats(N)
+estimates table a1 a3, stats(N ll) se
+estimates table a1, stats(N)
+quietly ologit sat age
+estimates store o1
+estimates table a1 o1, stats(N)
+=== models6-svy-likelihood-steps
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+svyset psu [pweight=pw], strata(stratum)
+svy: logit employed age i.female i.educ
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+logit employed age i.female i.educ [pweight=pw]
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+poisson nkids age i.female i.educ, irr
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+svy: poisson nkids age i.female i.educ, irr
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+poisson nkids age i.educ##i.region
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+=== models6-r-table
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+summarize age
+quietly regress lninc age i.female
+return list
+quietly logit employed age i.female
+return list
+quietly ologit sat age
+return list
+svyset psu [pweight=pw], strata(stratum)
+quietly svy: mean lninc
+return list
+quietly regress lninc age, level(90)
+return list
+matrix T = r(table)
+display T[3,1] " " T[8,2]
+=== models6-ordered-margins-factors
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+set linesize 79
+ologit sat age i.female
+margins
+margins female
+margins female, predict(outcome(4))
+margins, dydx(age)
+margins, dydx(*)
+margins, dydx(female) predict(outcome(2))
+margins, atmeans predict(outcome(1))
+margins, at(age=(30 50)) predict(outcome(3))
+margins, dydx(*) at(age=40)
+capture noisily margins educ
+ologit sat i.educ i.female age
+margins female, predict(outcome(4))
+margins educ, predict(outcome(1))
+margins educ#female, predict(outcome(1))
+margins, dydx(educ) predict(outcome(1))
+predict p1-p4, pr
+summarize p1-p4
+predict q2, outcome(2)
+summarize q2
+oprobit sat age i.female
+margins female
+margins, dydx(female)
+ologit sat c.age##i.female
+margins female, predict(outcome(1))
+margins, dydx(age) predict(outcome(1))
+mlogit educ age i.female
+margins female, predict(outcome(2))
+margins, dydx(*) predict(outcome(3))
+set linesize 200

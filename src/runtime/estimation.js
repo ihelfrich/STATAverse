@@ -19,7 +19,13 @@ import {
 } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
-import { MISSING, isMissing, isName, isStringType } from "./values.js";
+import {
+  MISSING,
+  isMissing,
+  isName,
+  isStringType,
+  missingValue,
+} from "./values.js";
 import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -770,9 +776,12 @@ function levelLabel(session, column) {
  * count: the z-tables of the likelihood models count their dependent
  * variable, which names their first equation, and tobit its var(e.y) row.
  */
-export function tableWidth(session, table, extra = []) {
+export function tableWidth(session, table, extra = [], columns = 66) {
   const model = withBaseSetting(session, table),
-    cap = (session.settings?.linesize ?? 80) - 67,
+    // columns: the width of the table to the right of the stub's last
+    // character, rule included (66 for a coefficient table, 50 for the
+    // table of mean, total, ratio and proportion).
+    cap = (session.settings?.linesize ?? 80) - columns - 1,
     // A name counts whole when the line allows it; an interaction that does
     // not fit is broken after a # as it would be in a column that wide,
     // and then its longest line counts, with the # that ends it.
@@ -1398,6 +1407,98 @@ export function predict(session, text, ctx) {
  * values and covariances of all of them.
  */
 const spaces = new WeakMap();
+
+/**
+ * r(table), which an estimation command leaves as its only r() result
+ * (with mean, proportion, ratio and total, r(mcmethod) too): a column for
+ * each coefficient of e(b) and the rows b, se, the t or z statistic, its
+ * p-value, the confidence interval, the residual degrees of freedom
+ * (missing after a z test), the critical value and whether the table was
+ * shown exponentiated. A base level or omitted coefficient has only its b;
+ * an ancillary parameter, such as a cut point, has no test, shown .b.
+ * body is what was typed after the command, which may ask for a level or
+ * an exponentiated form.
+ */
+export function tableResults(session, model, body, command) {
+  const space = coefficientSpace(model),
+    [, options = ""] = splitAtComma(body ?? ""),
+    asked = /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\(\s*([\d.]+)\s*\)/.exec(options),
+    level = asked ? Number(asked[1]) : (session.settings?.level ?? 95),
+    // regress and others that report t without saying so keep df_r.
+    t = model.dist ? model.dist === "t" : model.df_r !== undefined,
+    df = t ? model.df_r : MISSING,
+    critical = t
+      ? invttail(df, (1 - level / 100) / 2)
+      : invnormal(1 - (1 - level / 100) / 2),
+    eform =
+      (command === "logistic" && !/(?:^|[\s,])coef\b/.test(options)) ||
+      /(?:^|[\s,])(?:or|irr|rrr|hr|eform(?:\([^)]*\))?)(?=$|[\s,])/.test(
+        options,
+      ),
+    noTest = missingValue("b"),
+    rows = Array.from({ length: 9 }, () => []);
+  space.entries.forEach((entry, k) => {
+    const b = space.b[k],
+      variance = space.V[k][k],
+      base = /^\d+b\./.test(entry.name) || /#\d+b\./.test(entry.name),
+      shown = (v) => (eform && entry.aux === undefined ? Math.exp(v) : v);
+    let column;
+    if (entry.omitted || base || !(variance > 0) || isMissing(variance))
+      column = [
+        shown(b),
+        MISSING,
+        MISSING,
+        MISSING,
+        MISSING,
+        MISSING,
+        df,
+        critical,
+        Number(eform),
+      ];
+    else {
+      const se = Math.sqrt(variance),
+        z = b / se,
+        test = entry.aux === undefined,
+        // A variance, as tobit's var(e.y), has its interval on the log
+        // scale.
+        spread = /^var\(/.test(entry.name)
+          ? (sign) => b * Math.exp((sign * critical * se) / b)
+          : (sign) => shown(b + sign * critical * se);
+      column = [
+        shown(b),
+        eform && test ? Math.exp(b) * se : se,
+        test ? z : noTest,
+        test
+          ? t
+            ? 2 * ttail(df, Math.abs(z))
+            : 2 * normal(-Math.abs(z))
+          : noTest,
+        spread(-1),
+        spread(1),
+        df,
+        critical,
+        Number(eform),
+      ];
+    }
+    column.forEach((v, r) => rows[r].push(v));
+  });
+  const results = {
+    "matrix:table": {
+      rowNames: ["b", "se", t ? "t" : "z", "pvalue", "ll", "ul", "df"].concat([
+        "crit",
+        "eform",
+      ]),
+      colNames: space.entries.map((e) =>
+        e.equation ? `${e.equation}:${e.name}` : e.name,
+      ),
+      values: rows,
+    },
+  };
+  if (["mean", "proportion", "ratio", "total"].includes(model.command))
+    results.mcmethod = "noadjust";
+  return results;
+}
+
 export function coefficientSpace(model) {
   if (spaces.has(model)) return spaces.get(model);
   const entries = [],

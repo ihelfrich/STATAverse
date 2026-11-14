@@ -6,6 +6,7 @@
 // iterations; the Gaussian identity model is least squares. Standard
 // errors come from the observed information, as Stata's default does.
 import { StataError } from "./errors.js";
+import { evaluateAll } from "./expression.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, lngamma } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
@@ -25,6 +26,7 @@ import {
   maximizeNR,
   quadSum,
   row,
+  robustRank,
   rule,
   split,
   tableHead,
@@ -35,6 +37,7 @@ import { perfectPrediction, recheckCollinearity } from "./models.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
+import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 // A value that is not a number, such as a ratio with no degrees of
 // freedom, is shown missing.
@@ -211,6 +214,7 @@ function separated(f, outcome, constant, ctx) {
     perfect: found.notes,
     active,
     sample: kept,
+    w: f.w && f.w.filter((_, j) => found.keep[j]),
     at,
     place: (theta, V) => ({
       b: at.map((j) => (j >= 0 ? theta[j] : 0)),
@@ -233,6 +237,7 @@ function separated(f, outcome, constant, ctx) {
     // the shares in its constant-only likelihood.
     whole: {
       y: f.y,
+      w: f.w,
       x: f.sample.map((i) => [
         ...active.map((c) => c.value(i)),
         ...(constant ? [1] : []),
@@ -245,12 +250,22 @@ function separated(f, outcome, constant, ctx) {
  * Fits a family and link; returns estimates, variance and fit statistics.
  * notes collects what Stata says of the outcome before the iteration log.
  */
-function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
+function fitGlm(session, parsed, familyName, linkName, notes, ctx, asked) {
   const link = LINKS[linkName],
     constant = parsed.options.constant !== false,
     logOff = parsed.options.log === false;
-  let f = frame(session, parsed, constant),
+  let f = frame(session, parsed, constant, constant, false, asked),
     family = FAMILIES[familyName];
+  const wtype = asked.wtype;
+  if (wtype === "fweight" && f.w.some((v) => !Number.isInteger(v)))
+    throw new StataError("may not use noninteger frequency weights", 401);
+  // Analytic weights are scaled to sum to the number of observations, and
+  // Stata says what they summed to.
+  if (wtype === "aweight") {
+    const total = f.w.reduce((t, v) => t + v, 0);
+    ctx.out(`(sum of wgt is ${applyFormat(total, "%18.0gc").trim()})`);
+    f = { ...f, w: f.w.map((v) => (v * f.w.length) / total) };
+  }
   const name = f.dependent.name;
   if (!f.x[0].length) throw new StataError("too few variables specified", 102);
   if (f.y.length === 1) throw new StataError("insufficient observations", 2001);
@@ -284,26 +299,37 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       family = { ...family, title: "Binomial", variance: "V(u) = u*(1-u/1)" };
   }
   const { x, y } = f,
-    n = y.length,
+    // Each observation's weight in the sums, and the number of
+    // observations, which frequency weights count by their sum.
+    ww = f.w ?? y.map(() => 1),
+    wsum = ww.reduce((t, v) => t + v, 0),
+    n = wtype === "fweight" ? wsum : y.length,
     k = x[0].length,
-    whole = f.whole ?? f;
+    whole = f.whole ?? f,
+    wholeW = whole.w ?? whole.y.map(() => 1),
+    weightedTerm = (term) => (i, xb, todo) =>
+      term(i, xb, todo).map((v) => v * ww[i]);
   let theta, V, ll, log, logNotes, converged;
   if (familyName === "gaussian") {
     if (linkName !== "identity")
       throw new StataError("family(gaussian) takes link(identity) here", 198);
     // Least squares, which glm.ado reports without iterating.
     const xtx = Array.from({ length: k }, () => new Array(k).fill(0));
-    for (const r of x)
+    x.forEach((r, i) => {
       for (let a = 0; a < k; a++)
-        for (let c = 0; c < k; c++) xtx[a][c] += r[a] * r[c];
+        for (let c = 0; c < k; c++) xtx[a][c] += ww[i] * r[a] * r[c];
+    });
     const inverse = invertSymmetric(xtx);
-    theta = inverse && leastSquares(x, y, null);
+    theta = inverse && leastSquares(x, y, f.w);
     if (!theta)
       throw new StataError(
         "the model could not be fitted: the regressors are collinear",
         430,
       );
-    const rss = x.reduce((t, r, i) => t + (y[i] - dot(r, theta)) ** 2, 0),
+    const rss = x.reduce(
+        (t, r, i) => t + ww[i] * (y[i] - dot(r, theta)) ** 2,
+        0,
+      ),
       scale = rss / (n - k);
     // glim_v1's likelihood takes this scale, which a fit with no residual
     // degrees of freedom, or no residual, leaves missing or zero.
@@ -312,7 +338,9 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       throw new StataError("initial values not feasible", 1400);
     }
     V = inverse.map((r) => r.map((v) => v * scale));
-    ll = -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1);
+    // glim_v1 with the scale rss / n: each observation's likelihood is
+    // weighted, its last term summing to n.
+    ll = -0.5 * (wsum * (Math.log(2 * Math.PI) + Math.log(rss / n)) + n);
     log = [ll];
     logNotes = [""];
     converged = true;
@@ -321,7 +349,7 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
     // outcome and the mean outcome (for the binomial, between it and 1/2).
     // Perfect predictors set aside, its regression still takes every
     // observation of the sample.
-    const mean = y.reduce((a, b) => a + b, 0) / n,
+    const mean = y.reduce((a, b, i) => a + ww[i] * b, 0) / wsum,
       z = whole.y.map(() => 0),
       w = whole.y.map(() => 0);
     whole.y.forEach((v, i) => {
@@ -329,7 +357,7 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
         e = link.eta(u),
         d = link.d1(u);
       z[i] = e + (v - u) / d;
-      w[i] = (d * d) / family.v(u);
+      w[i] = (wholeW[i] * (d * d)) / family.v(u);
     });
     // The regression takes the observations where the link and variance
     // are defined at that mean: none for a Poisson outcome that is always
@@ -349,19 +377,22 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       // glim_lf: the log likelihood, its score and the observed
       // information in the index, with the mean kept inside its range.
       fit = maximizeNR(
-        sums(x, (i, xb, todo) => {
-          const u = family.bound(link.mu(xb)),
-            value = family.ll(y[i], u);
-          if (!todo) return [value];
-          const d1 = link.d1(u),
-            v = family.v(u),
-            t1 = (d1 * d1) / v;
-          return [
-            value,
-            ((y[i] - u) / v) * d1,
-            t1 - (u - y[i]) * ((t1 / v) * family.dv(u) - link.d2(u) / v),
-          ];
-        }),
+        sums(
+          x,
+          weightedTerm((i, xb, todo) => {
+            const u = family.bound(link.mu(xb)),
+              value = family.ll(y[i], u);
+            if (!todo) return [value];
+            const d1 = link.d1(u),
+              v = family.v(u),
+              t1 = (d1 * d1) / v;
+            return [
+              value,
+              ((y[i] - u) / v) * d1,
+              t1 - (u - y[i]) * ((t1 / v) * family.dv(u) - link.d2(u) / v),
+            ];
+          }),
+        ),
         start,
       );
     } catch (error) {
@@ -373,7 +404,14 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
         ctx.out("");
         if (!logOff)
           error.log.forEach((value, j) =>
-            ctx.out(iterationLine(j, "Log likelihood", value, error.notes[j])),
+            ctx.out(
+              iterationLine(
+                j,
+                asked.robust ? "Log pseudolikelihood" : "Log likelihood",
+                value,
+                error.notes[j],
+              ),
+            ),
           );
       }
       // glm.ado answers any failure of a Poisson model with a link other
@@ -392,7 +430,50 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
     ({ theta, V, ll, log, converged } = fit);
     logNotes = fit.notes;
   }
-  const rank = V.filter((r, j) => r[j] > 0 && Number.isFinite(r[j])).length;
+  // The sandwich: each observation's score in the index, weighted, its
+  // outer products summed within clusters (each observation its own
+  // without vce(cluster)), and the whole scaled by G / (G - 1). A
+  // frequency weight stands for that many observations, each its own
+  // cluster.
+  let clusters = null;
+  if (asked.robust && V.every((r) => r.every(Number.isFinite))) {
+    const scale =
+        familyName === "gaussian"
+          ? x.reduce((t, r, i) => t + ww[i] * (y[i] - dot(r, theta)) ** 2, 0) /
+            (n - k)
+          : 1,
+      score = (i) => {
+        const xb = dot(x[i], theta);
+        if (familyName === "gaussian") return (y[i] - xb) / scale;
+        const u = family.bound(link.mu(xb));
+        return ((y[i] - u) / family.v(u)) * link.d1(u);
+      },
+      apart = wtype === "fweight" && !asked.cluster,
+      own = { data: x.map((_, i) => i) },
+      { meat, clusters: counted } = clusterMeat(
+        asked.cluster ?? own,
+        asked.cluster ? f.sample : own.data,
+        (i) => {
+          const s = (apart ? Math.sqrt(ww[i]) : ww[i]) * score(i);
+          return x[i].map((v) => v * s);
+        },
+        k,
+      ),
+      G = apart ? n : counted,
+      product = (a, b) =>
+        a.map((row) =>
+          b[0].map((_, c) => row.reduce((t, v, j) => t + v * b[j][c], 0)),
+        );
+    V = product(product(V, meat), V).map((r) =>
+      r.map((v) => (v * G) / (G - 1)),
+    );
+    if (asked.cluster) clusters = G;
+  }
+  // A robust variance from few clusters has the rank they allow.
+  const rank =
+    asked.robust && V.every((r) => r.every(Number.isFinite))
+      ? robustRank(V, clusters)
+      : V.filter((r, j) => r[j] > 0 && Number.isFinite(r[j])).length;
   // The deviance and Pearson statistic are summed, as glm.ado sums them,
   // over the whole sample, observations a perfect predictor set aside
   // included.
@@ -400,10 +481,13 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
     observed = whole.y,
     deviance =
       familyName === "gaussian"
-        ? fitted.reduce((t, u, i) => t + (observed[i] - u) ** 2, 0)
-        : fitted.reduce((t, u, i) => t + family.deviance(observed[i], u), 0),
+        ? fitted.reduce((t, u, i) => t + wholeW[i] * (observed[i] - u) ** 2, 0)
+        : fitted.reduce(
+            (t, u, i) => t + wholeW[i] * family.deviance(observed[i], u),
+            0,
+          ),
     pearson = fitted.reduce(
-      (t, u, i) => t + (observed[i] - u) ** 2 / family.v(u),
+      (t, u, i) => t + (wholeW[i] * (observed[i] - u) ** 2) / family.v(u),
       0,
     ),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])];
@@ -422,6 +506,7 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
     converged,
     deviance,
     pearson,
+    clusters,
     model: {
       command: "glm",
       title: "Generalized linear models",
@@ -438,10 +523,17 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       df_m: rank - (constant ? 1 : 0),
       rank,
       ll,
-      vce: "oim",
+      vce: asked.cluster ? "cluster" : asked.robust ? "robust" : "oim",
+      clusters,
+      clusterName: asked.cluster?.name,
       kind: "glm",
       link: linkName,
       sample: f.sample,
+      // The weight type and expression, and each observation's weight in
+      // the order of sample, which margins averages by.
+      wtype,
+      wexp: wtype ? `= ${parsed.weight.exp}` : undefined,
+      weights: f.w,
     },
   };
 }
@@ -451,10 +543,15 @@ function coefficientTable(session, ctx, fitted, options, oim) {
   const { f, model } = fitted,
     w = tableWidth(session, tableModel(f, baseLevelsAsked(options)), [
       model.depvar,
-    ]);
+    ]),
+    robust = model.vce === "robust" || model.vce === "cluster";
+  if (model.clusters)
+    ctx.out(clusterNote(model.clusters, model.clusterName, count, 66 + w));
   if (oim) {
     ctx.out(rule(w));
-    ctx.out(`${" ".repeat(w + 1)}|${" ".repeat(17)}OIM`);
+    ctx.out(
+      `${" ".repeat(w + 1)}|${robust ? `${" ".repeat(15)}Robust` : `${" ".repeat(17)}OIM`}`,
+    );
     ctx.out(
       `${abbreviate(model.depvar, w).padStart(w)} | Coefficient  std. err.      z    P>|z|     [${g(options.level)}% conf. interval]`,
     );
@@ -495,29 +592,54 @@ function wald(theta, V, at) {
  * and the iteration log. Without a log, a fit that did not converge says
  * so before the blank line.
  */
-function opening(ctx, text, fitted, notes) {
+function opening(ctx, text, fitted, notes, word = "Log likelihood") {
   (fitted.f.perfect ?? []).forEach(ctx.out);
   fitted.f.notes(ctx);
   notes.forEach(ctx.out);
   if (!fitted.converged && /\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
     ctx.out("convergence not achieved");
   ctx.out("");
-  iterations(
-    ctx,
-    text,
-    fitted.log,
-    "Log likelihood",
-    fitted.logNotes,
-    fitted.converged,
-  );
+  iterations(ctx, text, fitted.log, word, fitted.logNotes, fitted.converged);
+}
+
+/**
+ * What glm's weight and vce() ask for: the weight type, each observation's
+ * weight, whether the variance is the sandwich and the cluster variable,
+ * and which observations remain (none with a missing or zero weight, or
+ * no cluster). Sampling weights imply the sandwich.
+ */
+function glmRequest(session, parsed) {
+  const options = parsed.options,
+    wtype = parsed.weight?.type ?? null;
+  if (wtype === "pweight" && /^\s*oim\s*$/.test(options.vce ?? ""))
+    throw new StataError("pweights not allowed with option vce(oim)", 198);
+  const { robust, cluster } = readVce(session, options, /^oim$/, {
+    multiway: false,
+  });
+  let weight = null;
+  if (wtype) {
+    const compiled = session.compile(parsed.weight.exp);
+    if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+    weight = evaluateAll(compiled, session.data.n);
+  }
+  return {
+    wtype,
+    weight,
+    cluster,
+    robust: robust || wtype === "pweight",
+    keep: (i) =>
+      (!cluster || !noCluster(cluster, i)) &&
+      (!weight || (!isMissing(weight[i]) && weight[i] !== 0)),
+  };
 }
 
 function glm(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Family(string) Link(string) Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels | Robust VCE(string) EForm SCale(string) OFFset(varname) EXPosure(varname) IRLS]",
+      "anything [if] [in] [fweight pweight iweight aweight] [, Family(string) Link(string) Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels Robust VCE(string) | EForm SCale(string) OFFset(varname) EXPosure(varname) IRLS]",
       text,
     ),
     options = parsed.options,
+    asked = glmRequest(session, parsed),
     familyName = match(
       FAMILIES,
       (options.family ?? "gaussian")
@@ -530,7 +652,7 @@ function glm(session, text, ctx) {
       ? match(LINKS, options.link.trim().toLowerCase(), "link")
       : FAMILIES[familyName].link,
     notes = [],
-    fitted = fitGlm(session, parsed, familyName, linkName, notes, ctx),
+    fitted = fitGlm(session, parsed, familyName, linkName, notes, ctx, asked),
     { n, deviance, pearson, ll } = fitted,
     k = fitted.model.rank,
     df = n - k,
@@ -559,7 +681,12 @@ function glm(session, text, ctx) {
     k: fitted.model.names.length,
     cmd: "glm",
     depvar: fitted.model.depvar,
-    vce: "oim",
+    vce: fitted.model.vce,
+    ...(asked.robust ? { vcetype: "Robust" } : {}),
+    ...(asked.cluster
+      ? { N_clust: fitted.clusters, clustvar: asked.cluster.name }
+      : {}),
+    ...(asked.wtype ? { wtype: asked.wtype, wexp: fitted.model.wexp } : {}),
     converged: fitted.converged ? 1 : 0,
     vf: 1,
     varfunct: fitted.family.title,
@@ -567,7 +694,8 @@ function glm(session, text, ctx) {
     linkt: fitted.link.title,
     linkf: fitted.link.text.replace("g(u) = ", ""),
   };
-  opening(ctx, text, fitted, notes);
+  const word = asked.robust ? "Log pseudolikelihood" : "Log likelihood  ";
+  opening(ctx, text, fitted, notes, word.trim());
   ctx.out(
     `${"Generalized linear models".padEnd(50)}${right("Number of obs", count(n))}`,
   );
@@ -590,9 +718,7 @@ function glm(session, text, ctx) {
   );
   ctx.out("");
   ctx.out(`${" ".repeat(50)}${right("AIC", g(aic))}`);
-  ctx.out(
-    `${`Log likelihood   = ${long(ll)}`.padEnd(50)}${right("BIC", g(bic))}`,
-  );
+  ctx.out(`${`${word} = ${long(ll)}`.padEnd(50)}${right("BIC", g(bic))}`);
   ctx.out("");
   coefficientTable(session, ctx, fitted, options, true);
   // glm.ado's footnotes. A binomial mean must lie in [0, 1], which the
