@@ -13,6 +13,7 @@ import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
+import { MIXED_COMMANDS } from "./mixed.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { EVERYDAY_COMMANDS, labelSubcommand } from "./everyday.js";
@@ -1361,8 +1362,15 @@ function returns(kind) {
           : session.estimates.names.length;
         ctx.out("");
         ctx.out("matrices:");
-        ctx.out(`${label("b")} :  1 x ${k}`);
-        ctx.out(`${label("V")} :  ${k} x ${k}`);
+        // A model that keeps more than b and V, as mixed does, lists them.
+        const own = !tabled && session.estimates.ereturnMatrices;
+        if (own)
+          for (const [name, rows, columns] of own)
+            ctx.out(`${label(name)} :  ${rows} x ${columns}`);
+        else {
+          ctx.out(`${label("b")} :  1 x ${k}`);
+          ctx.out(`${label("V")} :  ${k} x ${k}`);
+        }
         if (tabled) {
           if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
           ctx.out(`${label("_N")} :  1 x ${k}`);
@@ -2335,6 +2343,9 @@ const command = (name, minimum, run, byable = false) => ({
 // A command under by: runs once per group, with a heading for each.
 
 export const COMMANDS = [
+  // Before MODEL_COMMANDS: predict and estat after mixed are its own, and
+  // hand any other model on.
+  ...MIXED_COMMANDS,
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,

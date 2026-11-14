@@ -1443,6 +1443,8 @@ const spaces = new WeakMap();
  * an exponentiated form.
  */
 export function tableResults(session, model, body, command) {
+  // mixed reports its variance parameters as its table shows them.
+  if (model.tableResults) return model.tableResults();
   const space = coefficientSpace(model),
     [, options = ""] = splitAtComma(body ?? ""),
     asked = /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\(\s*([\d.]+)\s*\)/.exec(options),
@@ -1526,6 +1528,8 @@ export function tableResults(session, model, body, command) {
 }
 
 export function coefficientSpace(model) {
+  // mixed lays out its own: the fixed effects and its variance parameters.
+  if (model.space) return model.space;
   if (spaces.has(model)) return spaces.get(model);
   const entries = [],
     dropped = (k) => model.estimable?.[k] === false;

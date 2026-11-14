@@ -57,6 +57,20 @@ export function lrtest(session, text, ctx) {
       "LR test likely invalid for models with robust VCE",
       498,
     );
+  // mixed is compared only with mixed, and a REML fit only with one of the
+  // same fixed effects.
+  const mixed = [a, b].filter((model) => model.command === "mixed").length;
+  if (mixed === 1 && !/\bforce\b/.test(options ?? ""))
+    throw new StataError(
+      `test involves different estimators: ${a.command} vs. ${b.command}`,
+      498,
+    );
+  const reml = mixed === 2 && (a.reml || b.reml);
+  if (reml && (a.reml !== b.reml || a.names.join(" ") !== b.names.join(" ")))
+    throw new StataError(
+      "REML criterion is not comparable under different fixed-effects specifications",
+      498,
+    );
   if (a.N !== b.N)
     throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
   const [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
@@ -83,6 +97,21 @@ export function lrtest(session, text, ctx) {
   ctx.out(`${`LR chi2(${df})`.padStart(11)} =${applyFormat(chi2, "%7.2f")}`);
   ctx.out(`Prob > chi2 = ${applyFormat(p, "%6.4f")}`);
   ctx.out("");
+  if (mixed) {
+    ctx.out(
+      "Note: The reported degrees of freedom assumes the null hypothesis is not on",
+    );
+    ctx.out(
+      "      the boundary of the parameter space. If this is not true, then the",
+    );
+    ctx.out("      reported test is conservative.");
+    if (reml) {
+      ctx.out(
+        "Note: LR tests based on REML are valid only when the fixed-effects",
+      );
+      ctx.out("      specification is identical for both models.");
+    }
+  }
   session.results.r = { p, chi2, df };
 }
 

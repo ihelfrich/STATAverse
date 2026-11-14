@@ -144,6 +144,17 @@ for (const c of fixture.cases)
             "redteam5b-estat-classification-gof",
             // margins after ologit takes its gradients by differencing.
             "models6-ordered-margins-factors",
+            // mixed reaches Stata's maximum by its own Newton steps, and
+            // both take the Hessian of the variance parameters by
+            // differencing; the seventh digit of what follows may differ.
+            "mixed-random-intercept",
+            "mixed-random-slopes",
+            "mixed-two-level",
+            "mixed-predict-one-level",
+            "mixed-predict-two-level",
+            "mixed-large-sample",
+            "mixed-special-forms",
+            "mixed-postestimation",
           ].includes(c.id),
         )
       )
