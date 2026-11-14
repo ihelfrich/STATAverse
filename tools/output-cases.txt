@@ -5781,3 +5781,71 @@ capture noisily bitesti 10 3 .5 if
 display _rc
 capture noisily bitesti 10 3 .5 ifx
 display _rc
+=== graph-bar-sort-and-statistics
+@EST
+graph bar (count)
+graph hbar (percent)
+capture noisily graph bar
+capture noisily graph bar (mean)
+graph bar (count) if g == 2, blabel(bar)
+graph bar (mean) y, over(g, descending)
+graph bar (mean) y, over(g, sort(x1) descending)
+graph bar (mean) y, over(g, sort((max) x2))
+graph bar (mean) y, over(g, sort(nosuch))
+graph bar (median) y (p75) y (p25) x1, over(g)
+graph bar (p50) y, over(cl)
+graph hbar (p90) y, over(g, des)
+graph box y, over(g, descending)
+graph box y x1, over(g, sort(2) descending)
+capture noisily graph bar (p0) y
+capture noisily graph bar (p100) y
+capture noisily graph bar (foo) y
+capture noisily graph bar (P50) y
+capture noisily graph bar (mean) y, over(g, sort((foo) x1))
+capture noisily graph bar (mean) y, over(g, sort(1) sort(x1))
+capture noisily graph bar (mean) y, over(g, descending descending)
+capture noisily graph bar (mean) y, over(g, sort(2))
+capture noisily graph box y, over(g, sort(2))
+capture noisily graph box y, over(g, sort((max) x1))
+=== graph-bar-sort-and-statistics-2
+@EST
+capture noisily graph bar (count), over(g, sort(x1))
+capture noisily graph bar, over(g, sort((sum) x1))
+capture noisily graph bar (percent), over(g, sort((median) x2))
+capture noisily graph bar (count), over(g, sort((foo) x2))
+graph bar (count), over(g, sort(nosuch))
+graph bar (count), over(g, sort(1) descending)
+capture noisily graph bar (mean) y, over(g, sort(g))
+capture noisily graph bar (mean) y, over(cl, sort((max) cl) descending)
+capture noisily graph bar (mean) y, over(g, sort((mean) g x1))
+capture noisily graph bar (mean) y, over(g, sort((mean) x1 g))
+capture noisily graph bar (mean) g, over(g)
+capture noisily graph bar (mean) y, over(g, sort((max) x1 y))
+capture noisily graph bar (mean) y x2, over(g, sort((max) x1 y))
+graph bar (mean) y x2, over(g, sort((mean) x1 x2))
+graph bar (mean) y, over(g, sort((median) x2 x1) descending)
+graph bar (p05) y (p5) y (p005) y, over(g)
+graph bar (p50) y (median) y x1 (mean) y y, over(g)
+capture noisily graph bar (mean) y (p50), over(g)
+capture noisily graph bar (mean) y (sum), over(g)
+capture noisily graph bar (count) (sum) y
+capture noisily graph bar (count) (percent)
+capture noisily graph bar (mean) (sum) y
+capture noisily graph bar (mean) y (count) (foo) x1
+capture noisily graph bar (p 50) y
+capture noisily graph bar ( foo ) y
+capture noisily graph bar (p50.5) y
+capture noisily graph bar (p-1) y
+capture noisily graph bar (p5.0) y
+capture noisily graph bar (p1e1) y
+capture noisily graph bar (mean) y, over(g, sort(1e1))
+capture noisily graph bar (mean) y, over(g, sort(2.0))
+graph bar (mean) y, over(g, sort(1e0))
+graph bar (mean) y, over(g, sort(01) descending)
+graph bar (mean) y, over(g, sort(+1))
+graph bar (mean) y, over(g, sort(1.5))
+capture noisily graph bar (mean) y, over(g, DESCENDING)
+capture noisily graph bar (mean) y, over(g, Desc)
+capture noisily graph bar (mean) y, over(g, SORT(1))
+capture noisily graph bar (mean) y, over(g, Sort(1))
+capture noisily graph box y, over(g, SORT(1))
