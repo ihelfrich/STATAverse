@@ -1,5 +1,5 @@
 // tabulate, table, mean and proportion on a student's own .dta files. The
-// three files in tests/fixtures/userdata were written by Stata 19 from
+// four files in tests/fixtures/userdata were written by Stata 19 from
 // simulated data, and every expected table was recorded from Stata 19 MP
 // (version 17, set processors 1) running the same commands on them.
 import assert from "node:assert/strict";
@@ -169,4 +169,173 @@ test("table shows variable labels and takes nformat()", () => {
       /not available in the browser/,
     );
   }
+});
+
+// tabulate-unicode.dta has East Asian and accented value and variable
+// labels; Stata lays its tables out in screen columns (two for a wide
+// character) and wraps headings in bytes.
+test("tabulate and table line up East Asian and accented labels from a file", () => {
+  const s = session("unicode.dta");
+  s.run("use unicode.dta, clear");
+  assert.deepEqual(printed(s, "tabulate region"), [
+    "     Région de résidence |      Freq.     Percent        Cum.",
+    "-------------------------+-----------------------------------",
+    "                北部地域 |         13       32.50       32.50",
+    "Région économique du sud |         14       35.00       67.50",
+    "  東京都と周辺の地域です |         13       32.50      100.00",
+    "-------------------------+-----------------------------------",
+    "                   Total |         40      100.00",
+  ]);
+  assert.deepEqual(printed(s, "tabulate region wave"), [
+    "                      |       調査の回",
+    "  Région de résidence |         1          2 |     Total",
+    "----------------------+----------------------+----------",
+    "             北部地域 |         6          7 |        13",
+    "Région économique du  |         7          7 |        14",
+    " 東京都と周辺の地域で |         7          6 |        13",
+    "----------------------+----------------------+----------",
+    "                Total |        20         20 |        40",
+  ]);
+  assert.deepEqual(printed(s, "tabulate wave region"), [
+    "    調査の |       Région de résidence",
+    "        回 |  北部地域  Région éc   東京都と |     Total",
+    "-----------+---------------------------------+----------",
+    "         1 |         6          7          7 |        20",
+    "         2 |         7          7          6 |        20",
+    "-----------+---------------------------------+----------",
+    "     Total |        13         14         13 |        40",
+  ]);
+  assert.deepEqual(printed(s, "tabulate region, summarize(income)"), [
+    "  Région de |          Summary of income",
+    "  résidence |        Mean   Std. dev.       Freq.",
+    "------------+------------------------------------",
+    "   北部地域 |   35,711.71    8,794.90          13",
+    "  Région éc |   39,239.26    9,246.97          14",
+    "   東京都と |   35,063.27   10,780.52          13",
+    "------------+------------------------------------",
+    "      Total |   36,735.61    9,570.47          40",
+  ]);
+  assert.deepEqual(
+    printed(s, "tabulate region wave, summarize(income) means"),
+    [
+      "                              Means of income",
+      "",
+      " Région de |      調査の回",
+      " résidence |         1          2 |     Total",
+      "-----------+----------------------+----------",
+      "  北部地域 | 34,305.65  36,916.91 | 35,711.71",
+      " Région éc | 45,934.03  32,544.50 | 39,239.26",
+      "  東京都と | 36,467.74  33,424.73 | 35,063.27",
+      "-----------+----------------------+----------",
+      "     Total | 39,132.31  34,338.91 | 36,735.61",
+    ],
+  );
+  assert.deepEqual(printed(s, "table region wave"), [
+    "---------------------------------------------",
+    "                           |      調査の回",
+    "                           |   1    2   Total",
+    "---------------------------+-----------------",
+    "Région de résidence        |",
+    "  北部地域                 |   6    7      13",
+    "  Région économique du sud |   7    7      14",
+    "  東京都と周辺の地域です   |   7    6      13",
+    "  Total                    |  20   20      40",
+    "---------------------------------------------",
+  ]);
+});
+
+test("frequency weights in the billions from a file are added up, not repeated", () => {
+  const s = session("unicode.dta");
+  s.run("use unicode.dta, clear");
+  assert.deepEqual(printed(s, "tabulate region [fweight=wt]"), [
+    "     Région de résidence |      Freq.     Percent        Cum.",
+    "-------------------------+-----------------------------------",
+    "                北部地域 |33752207068       38.17       38.17",
+    "Région économique du sud |31622178715       35.76       73.93",
+    "  東京都と周辺の地域です |23052543973       26.07      100.00",
+    "-------------------------+-----------------------------------",
+    "                   Total |88426929756      100.00",
+  ]);
+  // summarize() takes frequency weights only up to a long integer.
+  const result = s.run("tabulate region [fweight=wt], summarize(income)");
+  assert.equal(result.rc, 401);
+  assert.match(
+    result.output.at(-1).lines.join("\n"),
+    /may not use noninteger frequency weights/,
+  );
+});
+
+test("tabulate's summarize() chooses its columns and keeps the variable's format", () => {
+  const s = session("weights.dta");
+  s.run("use weights.dta, clear");
+  assert.deepEqual(printed(s, "tabulate region, summarize(income) means obs"), [
+    "            |    Summary of Annual",
+    "     Census |         income",
+    "     region |        Mean         Obs",
+    "------------+------------------------",
+    "      North |   42,269.10          29",
+    "      South |   39,764.65          24",
+    "  Less than |   41,122.22          27",
+    "------------+------------------------",
+    "      Total |   41,130.69          80",
+  ]);
+  assert.deepEqual(
+    printed(s, "tabulate region [aweight=wt], summarize(income)"),
+    [
+      "     Census |            Summary of Annual income",
+      "     region |        Mean   Std. dev.       Freq.         Obs",
+      "------------+------------------------------------------------",
+      "      North |   42,559.45   11,983.56          54          29",
+      "      South |   38,949.24   13,339.78          39          24",
+      "  Less than |   41,780.74   11,434.68          43          27",
+      "------------+------------------------------------------------",
+      "      Total |   41,283.02   12,160.17         135          80",
+    ],
+  );
+});
+
+// Two files saved in the session from simulated data; recorded from Stata 19
+// running the same commands.
+test("merge keepusing() leaves the variables it drops missing in using-only observations", () => {
+  const s = createConsoleSession();
+  for (const step of [
+    "clear",
+    "set obs 4",
+    "gen id = _n",
+    "gen y = _n",
+    'gen str3 nm = "m"',
+    "save kA, replace",
+    "clear",
+    "set obs 4",
+    "gen id = _n + 2",
+    "gen y = 100 + _n",
+    'gen str3 nm = "u"',
+    "gen z = 7",
+    "save kB, replace",
+    "use kA, clear",
+    "quietly merge 1:1 id using kB, keepusing(z) gen(how)",
+  ])
+    assert.equal(s.run(step).rc, 0, step);
+  assert.deepEqual(printed(s, "list, sep(0)"), [
+    "     +-----------------------------------+",
+    "     | id   y   nm   z               how |",
+    "     |-----------------------------------|",
+    "  1. |  1   1    m   .   Master only (1) |",
+    "  2. |  2   2    m   .   Master only (1) |",
+    "  3. |  3   3    m   7       Matched (3) |",
+    "  4. |  4   4    m   7       Matched (3) |",
+    "  5. |  5   .        7    Using only (2) |",
+    "  6. |  6   .        7    Using only (2) |",
+    "     +-----------------------------------+",
+  ]);
+  assert.deepEqual(printed(s, "tabulate how, summarize(y)"), [
+    "   Matching |",
+    "result from |            Summary of y",
+    "      merge |        Mean   Std. dev.       Freq.",
+    "------------+------------------------------------",
+    "  Master on |         1.5   .70710678           2",
+    "  Matched ( |         3.5   .70710678           2",
+    "------------+------------------------------------",
+    "      Total |         2.5   1.2909944           4",
+  ]);
 });

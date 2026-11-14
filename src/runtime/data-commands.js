@@ -284,13 +284,17 @@ function merge(session, text, ctx) {
   for (const variable of data.variables) {
     const text = isStringType(variable.type),
       theirs = other.has(variable.name) ? other.get(variable.name) : null,
-      shared = theirs && isStringType(theirs.type) === text,
+      shared =
+        theirs &&
+        isStringType(theirs.type) === text &&
+        (keys.includes(variable.name) || wanted.includes(variable.name)),
       type =
         shared && keys.includes(variable.name)
           ? widerType(variable.type, theirs.type)
           : variable.type,
       // A row with a master observation keeps the master's values; a
-      // using-only row takes shared variables from the using data.
+      // using-only row takes shared variables from the using data (a key,
+      // or a variable keepusing() keeps; the others are missing there).
       values = all.map((row) =>
         row.master !== null
           ? variable.data[row.master]

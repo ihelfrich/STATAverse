@@ -1,13 +1,16 @@
 // table (the common one-way and two-way forms), proportion and anova.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { applyFormat, isFormat, parseFormat } from "./format.js";
 import { Ftail, invttail } from "./distributions.js";
 import { project } from "./diagnostics.js";
 import {
   count,
+  displayWidth,
   labelled,
   moments,
+  padDisplay,
+  padDisplayEnd,
   percentile,
   weightedRows,
 } from "./reports.js";
@@ -39,6 +42,12 @@ const centralMoment = (values, k) => {
   const m = moments(values).mean;
   return values.reduce((t, v) => t + (v - m) ** k, 0) / values.length;
 };
+// A percentage or proportion: of the table's observations, or with a
+// variable of its sum over them (`whole`).
+const share = (scale) => (cell) =>
+  cell.whole === undefined
+    ? (scale * cell.rows.length) / cell.n
+    : (scale * cell.values.reduce((a, b) => a + b, 0)) / cell.whole;
 const TABLE_STATISTICS = {
   frequency: {
     title: "Frequency",
@@ -58,28 +67,28 @@ const TABLE_STATISTICS = {
     format: "%9.2f",
     alone: true,
     tagged: true,
-    of: (cell) => (100 * cell.rows.length) / cell.n,
+    of: share(100),
   },
   rawpercent: {
     title: "Unweighted percent",
     format: "%9.2f",
     alone: true,
     tagged: true,
-    of: (cell) => (100 * cell.rows.length) / cell.n,
+    of: share(100),
   },
   proportion: {
     title: "Proportion",
     format: "%9.4g",
     alone: true,
     tagged: true,
-    of: (cell) => cell.rows.length / cell.n,
+    of: share(1),
   },
   rawproportion: {
     title: "Unweighted proportion",
     format: "%9.4g",
     alone: true,
     tagged: true,
-    of: (cell) => cell.rows.length / cell.n,
+    of: share(1),
   },
   count: {
     title: "Number of nonmissing values",
@@ -196,11 +205,19 @@ function statisticName(word) {
     ["fvrawproportion", 9],
     ["fvpercent", 6],
     ["fvrawpercent", 9],
+    // The summary statistics Stata lets you shorten (checked in Stata 19):
+    // mean to m, median to med, variance to var, kurtosis to kurt,
+    // skewness to skew and total to tot; the rest must be spelled out.
+    ["mean", 1],
+    ["median", 3],
+    ["variance", 3],
+    ["kurtosis", 4],
+    ["skewness", 4],
+    ["total", 3],
   ].find(([full, minimum]) => word.length >= minimum && full.startsWith(word));
   if (abbreviated) return abbreviated[0];
-  const p = /^p([1-9]\d?)$/.exec(word);
-  if (p) return word;
-  return word;
+  // And its synonyms: n for count, sum for total, rawsum for rawtotal.
+  return { n: "count", sum: "total", rawsum: "rawtotal" }[word] ?? word;
 }
 const statisticOf = (name) => {
   const p = /^p([1-9]\d?)$/.exec(name);
@@ -210,6 +227,19 @@ const statisticOf = (name) => {
         of: centile(Number(p[1])),
       }
     : TABLE_STATISTICS[name];
+};
+
+// A number in a format, European ones (%9,2f: a decimal comma, and with c
+// periods between thousands) drawn as their period form with the two
+// marks exchanged.
+const EUROPEAN = /^%(-?0?\d*),(\d+[fge]c?)$/;
+const european = (value, format) => {
+  const m = EUROPEAN.exec(format);
+  return m
+    ? applyFormat(value, `%${m[1]}.${m[2]}`).replace(/[.,]/g, (c) =>
+        c === "." ? "," : ".",
+      )
+    : applyFormat(value, format);
 };
 
 // Takes the quotes off an option's text argument.
@@ -317,10 +347,12 @@ function table(session, text, ctx) {
           `options of statistic(${kind}) are not available in the browser yet`,
           198,
         );
-      if (spec.alone) {
+      // A frequency takes no variables; a percentage or proportion is of
+      // the observations, or with variables of each one's sum.
+      if (spec.alone && (!varlist || !spec.tagged)) {
         if (varlist)
           throw new StataError(
-            `statistic ${kind} incorrectly specified; varlist not allowed`,
+            `statistic ${word} incorrectly specified; varlist not allowed`,
             100,
           );
         requests.push({ kind, spec, variable: null });
@@ -334,8 +366,24 @@ function table(session, text, ctx) {
       for (const variable of session.varlist(varlist))
         requests.push({ kind, spec, variable: data.get(variable) });
     } else if (name === "nformat" && argument !== undefined) {
-      const [format, ...results] = argument.trim().split(/\s+/);
-      if (!/^%-?0?\d*(\.\d+)?(f|fc|g|gc|e)$/.test(format ?? ""))
+      const [format, ...results] = argument.trim().split(/\s+/),
+        parsedFormat = isFormat(format ?? "")
+          ? parseFormat(format)
+          : EUROPEAN.test(format ?? "")
+            ? { kind: "number" }
+            : null;
+      // Stata takes any numeric format, dates included; the clock and
+      // hexadecimal ones are not drawn here.
+      if (
+        !parsedFormat &&
+        /^%(-?0?\d*\.\d+[fge]c?|\d*x|-?t[cCb]\S*)$/.test(format ?? "")
+      )
+        throw new StataError(
+          `nformat(${format}) is not available in the browser yet`,
+          198,
+          "Use a %f, %g, %e or date format such as %9.2f or %td.",
+        );
+      if (!parsedFormat || parsedFormat.kind === "string")
         throw new StataError(
           `'${format ?? ""}' found where numeric format expected\nin option nformat()`,
           7,
@@ -361,14 +409,25 @@ function table(session, text, ctx) {
     } else if (name === "nototals" && argument === undefined)
       flags.nototals = true;
     else if (name === "totals" && argument !== undefined)
-      totals = session.varlist(argument).map((each) => {
-        if (each !== rowVar.name && each !== colVar?.name)
-          throw new StataError(
-            `option totals() incorrectly specified; ${each} found where ${[rowVar.name, colVar?.name].filter(Boolean).join(" or ")} expected`,
-            198,
-          );
-        return each;
-      });
+      // Each term is a dimension (i.g as g), an interaction g#h, whose
+      // totals are the table's cells and add nothing, or g##h, which asks
+      // for the totals of each of its variables.
+      totals = argument
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .flatMap((term) => {
+          const names = term.split(/##?/).map((part) => {
+            const [each] = session.varlist(part.replace(/^i\./, ""));
+            if (each !== rowVar.name && each !== colVar?.name)
+              throw new StataError(
+                `option totals() incorrectly specified; ${each} found where ${[rowVar.name, colVar?.name].filter(Boolean).join(" or ")} expected`,
+                198,
+              );
+            return each;
+          });
+          return names.length === 1 || term.includes("##") ? names : [];
+        });
     else if (is(name, "missing", 4) && argument === undefined)
       flags.missing = true;
     else if (name === "listwise" && argument === undefined)
@@ -489,7 +548,7 @@ function table(session, text, ctx) {
     shape = (request, value) => {
       let shown = isMissing(value)
         ? "."
-        : applyFormat(value, formatOf(request)).trim();
+        : european(value, formatOf(request)).trim();
       for (const each of stringFormats)
         if (!each.results.length || each.results.includes(request.kind))
           shown = each.format.replace(
@@ -515,10 +574,20 @@ function table(session, text, ctx) {
             : variable
               ? subset.map(() => MISSING)
               : [],
-        values = all.filter((v) => !isMissing(v));
+        values = all.filter((v) => !isMissing(v)),
+        whole =
+          request.spec.tagged && variable
+            ? rows.reduce(
+                (t, i) =>
+                  isStringType(variable.type) || isMissing(variable.data[i])
+                    ? t
+                    : t + variable.data[i],
+                0,
+              )
+            : undefined;
       return shape(
         request,
-        request.spec.of({ rows: subset, all, values, n: rows.length }),
+        request.spec.of({ rows: subset, all, values, n: rows.length, whole }),
       );
     },
     within = (variable, level, list) =>
@@ -533,7 +602,10 @@ function table(session, text, ctx) {
     ],
     rowTitle = rowVar.label || rowVar.name,
     stub =
-      Math.max(rowTitle.length, greatest(rowLabels.map((l) => l.length))) + 1;
+      Math.max(
+        displayWidth(rowTitle),
+        greatest(rowLabels.map((l) => displayWidth(l))),
+      ) + 1;
   // The columns: in a one-way table one per statistic and variable, the
   // statistics in the order first asked for and each one's variables in
   // the order variables were first named; in a two-way table one per
@@ -618,9 +690,9 @@ function table(session, text, ctx) {
   const gap = (k) => (k ? 3 : 2),
     widths = columns.map((column, k) =>
       Math.max(
-        ...column.headers.map((h) => h.length),
-        (column.over ?? "").length,
-        ...body.map((line) => line[k].length),
+        ...column.headers.map((h) => displayWidth(h)),
+        displayWidth(column.over ?? ""),
+        ...body.map((line) => displayWidth(line[k])),
       ),
     ),
     // A heading over several columns is centred over them, which widen
@@ -656,12 +728,12 @@ function table(session, text, ctx) {
       room =
         widths.slice(span.from, span.to + 1).reduce((a, b) => a + b, 0) +
         3 * (count - 1),
-      need = span.text.length + 2 * count - 2 - room;
+      need = displayWidth(span.text) + 2 * count - 2 - room;
     for (let k = 0; k < need; k++) widths[span.from + (k % count)] += 1;
   }
   const total = widths.reduce((t, w, k) => t + w + gap(k), 0),
     line = (label, items) =>
-      `${label.padEnd(stub)}|${items.map((item, k) => item.padStart(widths[k] + gap(k))).join("")}`,
+      `${padDisplayEnd(label, stub)}|${items.map((item, k) => padDisplay(item, widths[k] + gap(k))).join("")}`,
     rule = "-".repeat(stub + 1 + total);
   ctx.out("");
   if (title !== null) ctx.out(title);
@@ -679,13 +751,13 @@ function table(session, text, ctx) {
           .reduce((t, w, k) => t + w + gap(span.from + k), 0),
         lead = gap(span.from),
         piece = span.single
-          ? span.text.padStart(width)
+          ? padDisplay(span.text, width)
           : " ".repeat(
-              lead + Math.ceil((width - lead - span.text.length) / 2),
+              lead + Math.ceil((width - lead - displayWidth(span.text)) / 2),
             ) + span.text;
-      text = text.padEnd(before) + piece;
+      text = padDisplayEnd(text, before) + piece;
     }
-    ctx.out(`${" ".repeat(stub)}|${text.padEnd(total)}`);
+    ctx.out(`${" ".repeat(stub)}|${padDisplayEnd(text, total)}`);
   }
   const headerLines = Math.max(...columns.map((c) => c.headers.length));
   for (let h = 0; h < headerLines; h++)
@@ -699,7 +771,7 @@ function table(session, text, ctx) {
       ),
     );
   ctx.out(`${"-".repeat(stub)}+${"-".repeat(total)}`);
-  ctx.out(`${rowTitle.padEnd(stub)}|${" ".repeat(total)}`);
+  ctx.out(`${padDisplayEnd(rowTitle, stub)}|${" ".repeat(total)}`);
   body.forEach((items, k) => ctx.out(line(rowLabels[k], items)));
   ctx.out(rule);
   notes.forEach((note) => ctx.out(note));
@@ -757,11 +829,21 @@ function weightedMean(values, weights, type, all) {
 }
 
 // The header and rules of mean's and proportion's tables, the first
-// column `stub` characters wide.
-function estimationHeader(ctx, title, n, stub, columns) {
+// column `stub` characters wide; the header is laid out for the width the
+// longest label asked for before it was cut, at most `room`, the line size
+// less 50.
+function estimationHeader(
+  ctx,
+  title,
+  n,
+  stub,
+  columns,
+  wanted = stub,
+  room = 29,
+) {
   ctx.out("");
   ctx.out(
-    `${title}${`Number of obs = ${applyFormat(n, "%14.0fc").trim()}`.padStart(62 + stub - 12 - title.length)}`,
+    `${title}${`Number of obs = ${applyFormat(n, "%14.0fc").trim()}`.padStart(Math.max(stub, Math.min(room, wanted)) + 50 - title.length)}`,
   );
   ctx.out("");
   ctx.out("-".repeat(stub + 50));
@@ -770,12 +852,68 @@ function estimationHeader(ctx, title, n, stub, columns) {
 }
 
 // A label in the first column of an estimation table, followed by two
-// blanks; the column widens to fit the longest.
+// blanks; the column widens to fit the longest. A label longer than
+// `limit` (the line size less 52: 27 at the default 79, so that the table
+// is at most 79 wide) is cut to two characters less and "..". Recorded
+// from Stata 19.
 const stubLabel = (text, stub) => `${text}  `.padStart(stub + 1);
+const shortened = (text, limit) =>
+  text.length > limit ? `${text.slice(0, limit - 2)}..` : text;
+const labelLimit = (session) => (session.settings.linesize ?? 79) - 52;
+
+// The lines that name a group of observations of over(): its values joined
+// by blanks (by "#" when any of its variables has a value label), or,
+// when that is longer than `limit`, one line for each
+// value, all but the last ending in " #".
+function groupLines(pieces, limit, joiner = " ") {
+  const joined = pieces.join(joiner);
+  return joined.length <= limit
+    ? [joined]
+    : pieces.map((piece) => shortened(piece, limit));
+}
+function printGroup(ctx, lines, stub, rest) {
+  lines
+    .slice(0, -1)
+    .forEach((line) => ctx.out(`${`${line} #`.padStart(stub + 1)}|`));
+  ctx.out(`${stubLabel(lines.at(-1), stub)}|${rest}`);
+}
+
+// The variables of mean's over(): numeric variables, no operators.
+function overVariables(session, text) {
+  if (/#/.test(text))
+    throw new StataError(
+      "interactions not allowed\ninvalid over() option",
+      101,
+    );
+  if (/(^|\s)[A-Za-z0-9]*\./.test(text))
+    throw new StataError(
+      "factor-variable and time-series operators not allowed\ninvalid over() option",
+      101,
+    );
+  return session.varlist(text).map((name) => {
+    const variable = session.data.get(name);
+    if (isStringType(variable.type))
+      throw new StataError(
+        `string variables not allowed in varlist;\n${name} is a string variable\ninvalid over() option`,
+        109,
+      );
+    return variable;
+  });
+}
+
+// An estimate, its standard error and confidence interval as mean and
+// proportion show them, in columns of 11, 11, 14 and 12; a missing
+// standard error leaves the rest missing.
+const estimateColumns = (estimate, se, lower, upper, shape = g) =>
+  [estimate, se, lower, upper]
+    .map((value, k) =>
+      (isMissing(se) && k ? "." : shape(value)).padStart([11, 11, 14, 12][k]),
+    )
+    .join("");
 
 export function mean(session, text, ctx) {
   const parsed = session.parse(
-      "varlist [if] [in] [fweight aweight pweight iweight] [, Level(cilevel) OVer(varname) | VCE(string)]",
+      "varlist [if] [in] [fweight aweight pweight iweight] [, Level(cilevel) OVer(string) | VCE(string)]",
       text,
     ),
     level = parsed.options.level,
@@ -789,10 +927,10 @@ export function mean(session, text, ctx) {
       return variable;
     }),
     over = parsed.options.over
-      ? session.data.get(session.varlist(parsed.options.over)[0])
-      : null,
+      ? overVariables(session, parsed.options.over)
+      : [],
     // mean uses the observations complete on every variable named, and on
-    // the over() variable.
+    // the over() variables.
     sample = estimationSample(
       session,
       parsed,
@@ -801,105 +939,187 @@ export function mean(session, text, ctx) {
         .filter(
           (i) =>
             variables.every((v) => !isMissing(v.data[i])) &&
-            (!over || present(over.data[i])),
+            over.every((v) => !isMissing(v.data[i])),
         ),
     ),
     { rows, weights, type, n } = sample;
   if (!rows.length) throw new StataError("no observations", 2000);
-  const critical = invttail(n - 1, (1 - level / 100) / 2),
-    levels = over
-      ? [...new Set(rows.map((i) => over.data[i]))].sort(ascending)
-      : [null],
-    names = variables.map((v) => (over ? `c.${v.name}@${over.name}` : v.name)),
-    shown = over ? levels.map((value) => labelled(session, over, value)) : [],
+  // The groups of over(): each combination of its variables' values that
+  // occurs, in order of the first variable, then the second, ...
+  const found = new Map();
+  for (const i of rows) {
+    const values = over.map((v) => v.data[i]),
+      key = values.join("\u0001");
+    if (!found.has(key)) found.set(key, { values, rows: [] });
+    found.get(key).rows.push(i);
+  }
+  const groups = over.length
+      ? [...found.values()].sort((a, b) => {
+          for (let k = 0; k < over.length; k++) {
+            const order = ascending(a.values[k], b.values[k]);
+            if (order) return order;
+          }
+          return 0;
+        })
+      : [{ values: [], rows }],
+    critical = invttail(n - 1, (1 - level / 100) / 2),
+    names = variables.map((v) =>
+      over.length ? `c.${v.name}@${over.map((o) => o.name).join("#")}` : v.name,
+    ),
+    limit = labelLimit(session),
+    lines = groups.map((group) =>
+      groupLines(
+        group.values.map((value, k) => labelled(session, over[k], value)),
+        limit,
+        over.some((v) => v.valueLabel) ? "#" : " ",
+      ),
+    ),
     stub = Math.max(
       12,
-      ...(over ? names.map((name) => name.length) : []),
-      ...shown.map((text) => text.length + 1),
+      ...(over.length ? names.map((name) => name.length) : []),
+      ...lines.flat().map((line) => line.length + 1),
     ),
-    line = (label, group, variable) => {
+    columns = (group, variable) => {
       const { mean: m, se } = weightedMean(
         group.map((i) => variable.data[i]),
         weights && group.map((i) => weights[i]),
         type,
         rows.length,
       );
-      return `${label}|${g(m).padStart(11)}${g(se).padStart(11)}${g(m - critical * se).padStart(14)}${g(m + critical * se).padStart(12)}`;
+      return estimateColumns(m, se, m - critical * se, m + critical * se);
     };
-  estimationHeader(ctx, "Mean estimation", n, stub, [
-    `       Mean   Std. err.     [${g(level)}% conf. interval]`,
-  ]);
+  estimationHeader(
+    ctx,
+    "Mean estimation",
+    n,
+    stub,
+    [`       Mean   Std. err.     [${g(level)}% conf. interval]`],
+    Math.max(
+      stub,
+      ...groups.map(
+        (group) =>
+          group.values
+            .map((value, k) => labelled(session, over[k], value))
+            .join(over.some((v) => v.valueLabel) ? "#" : " ").length + 1,
+      ),
+    ),
+    limit + 2,
+  );
   variables.forEach((variable, k) => {
-    if (!over) {
-      ctx.out(line(`${variable.name.padStart(stub)} `, rows, variable));
+    if (!over.length) {
+      ctx.out(`${variable.name.padStart(stub)} |${columns(rows, variable)}`);
       return;
     }
     if (k) ctx.out(`${" ".repeat(stub)} |`);
     ctx.out(`${names[k].padStart(stub)} |`);
-    levels.forEach((value, j) =>
-      ctx.out(
-        line(
-          stubLabel(shown[j], stub),
-          rows.filter((i) => over.data[i] === value),
-          variable,
-        ),
-      ),
+    groups.forEach((group, j) =>
+      printGroup(ctx, lines[j], stub, columns(group.rows, variable)),
     );
   });
   ctx.out("-".repeat(stub + 50));
   ctx.out("");
 }
 
+/**
+ * proportion of one or more variables, each in a block of its own, over
+ * the observations complete on all of them; with percent the estimates are
+ * shown as percentages in %9.2f.
+ */
 function proportion(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] [fweight pweight iweight] [, Level(cilevel) | OVer(string) VCE(string) CItype(string)]",
+      "varlist [if] [in] [fweight pweight iweight] [, Level(cilevel) percent | OVer(string) VCE(string) CItype(string)]",
       text,
     ),
     level = parsed.options.level,
-    variable = session.data.get(parsed.varlist[0]),
+    percent = Boolean(parsed.options.percent),
+    variables = parsed.varlist.map((name) => {
+      const variable = session.data.get(name);
+      if (isStringType(variable.type))
+        throw new StataError(
+          `${name}:  string variables may not be used as factor variables`,
+          109,
+        );
+      return variable;
+    }),
     { rows, weights, type, n } = estimationSample(
       session,
       parsed,
-      session.rows(parsed, null).filter((i) => present(variable.data[i])),
+      session
+        .rows(parsed, null)
+        .filter((i) => variables.every((v) => present(v.data[i]))),
     );
   if (!rows.length) throw new StataError("no observations", 2000);
-  const levels = [...new Set(rows.map((i) => variable.data[i]))].sort(
-      ascending,
-    ),
-    critical = invttail(n - 1, (1 - level / 100) / 2),
+  const critical = invttail(n - 1, (1 - level / 100) / 2),
     sumW = weights ? rows.reduce((t, i) => t + weights[i], 0) : rows.length,
-    shown = levels.map((value) => labelled(session, variable, value)),
-    stub = Math.max(12, ...shown.map((text) => text.length + 1));
-  estimationHeader(ctx, "Proportion estimation", n, stub, [
-    "                                   Logit",
-    ` Proportion   Std. err.     [${g(level)}% conf. interval]`,
-  ]);
-  ctx.out(`${variable.name.padStart(stub)} |`);
-  levels.forEach((value, j) => {
-    const inside = (i) => variable.data[i] === value,
-      p = weights
-        ? rows.reduce((t, i) => t + (inside(i) ? weights[i] : 0), 0) / sumW
-        : rows.filter(inside).length / rows.length,
-      // A sampling weight's standard error is linearized; otherwise it is
-      // that of a proportion of the (weighted) number of observations.
-      se =
-        type === "pweight"
-          ? Math.sqrt(
-              ((rows.length / (rows.length - 1)) *
-                rows.reduce(
-                  (t, i) => t + (weights[i] * (Number(inside(i)) - p)) ** 2,
-                  0,
-                )) /
-                sumW ** 2,
-            )
-          : Math.sqrt((p * (1 - p)) / sumW),
-      // The interval is formed on the logit scale and transformed back.
-      logit = Math.log(p / (1 - p)),
-      half = (critical * se) / (p * (1 - p)),
-      back = (v) => 1 / (1 + Math.exp(-v));
-    ctx.out(
-      `${stubLabel(shown[j], stub)}|${g(p).padStart(11)}${g(se).padStart(11)}${g(p > 0 && p < 1 ? back(logit - half) : p).padStart(14)}${g(p > 0 && p < 1 ? back(logit + half) : p).padStart(12)}`,
-    );
+    blocks = variables.map((variable) => {
+      const levels = [...new Set(rows.map((i) => variable.data[i]))].sort(
+        ascending,
+      );
+      return {
+        variable,
+        levels,
+        labels: levels.map((value) => labelled(session, variable, value)),
+      };
+    }),
+    wanted = Math.max(
+      12,
+      ...blocks.flatMap((block) =>
+        block.labels.map((label) => label.length + 1),
+      ),
+    ),
+    limit = labelLimit(session),
+    stub = Math.max(12, Math.min(limit + 1, wanted)),
+    shape = percent
+      ? (value) => applyFormat(100 * value, "%9.2f").trim()
+      : (value) => g(value);
+  estimationHeader(
+    ctx,
+    percent ? "Percent estimation" : "Proportion estimation",
+    n,
+    stub,
+    [
+      "                                   Logit",
+      ` ${percent ? "   Percent" : "Proportion"}   Std. err.     [${g(level)}% conf. interval]`,
+    ],
+    wanted,
+    limit + 2,
+  );
+  blocks.forEach(({ variable, levels, labels }, k) => {
+    if (k) ctx.out(`${" ".repeat(stub)} |`);
+    ctx.out(`${variable.name.padStart(stub)} |`);
+    levels.forEach((value, j) => {
+      const inside = (i) => variable.data[i] === value,
+        p = weights
+          ? rows.reduce((t, i) => t + (inside(i) ? weights[i] : 0), 0) / sumW
+          : rows.filter(inside).length / rows.length,
+        // A sampling weight's standard error is linearized; otherwise it
+        // is that of a proportion of the (weighted) number of observations.
+        se =
+          type === "pweight"
+            ? Math.sqrt(
+                ((rows.length / (rows.length - 1)) *
+                  rows.reduce(
+                    (t, i) => t + (weights[i] * (Number(inside(i)) - p)) ** 2,
+                    0,
+                  )) /
+                  sumW ** 2,
+              )
+            : Math.sqrt((p * (1 - p)) / sumW),
+        // The interval is formed on the logit scale and transformed back.
+        logit = Math.log(p / (1 - p)),
+        half = (critical * se) / (p * (1 - p)),
+        back = (v) => 1 / (1 + Math.exp(-v)),
+        inner = p > 0 && p < 1;
+      ctx.out(
+        `${stubLabel(shortened(labels[j], limit), stub)}|${estimateColumns(
+          p,
+          se,
+          inner ? back(logit - half) : p,
+          inner ? back(logit + half) : p,
+          shape,
+        )}`,
+      );
+    });
   });
   ctx.out("-".repeat(stub + 50));
   ctx.out("");

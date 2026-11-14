@@ -17,7 +17,6 @@ import {
 } from "./values.js";
 
 const g9 = (value, width) => applyFormat(value, "%9.0g").trim().padStart(width);
-const g10 = (value) => applyFormat(value, "%10.0g").trim().padStart(12);
 export const count = (n) => applyFormat(n, "%14.0gc").trim();
 
 export function percentile(sorted, p) {
@@ -96,10 +95,11 @@ export function countCommand(session, text, ctx) {
 
 /**
  * The observations a weighted command uses. A frequency weight repeats the
- * observation; an analytic weight comes back as weights rescaled to sum to
- * the number of observations.
+ * observation (or, with `expand` false, comes back as weights, so that
+ * frequencies of billions need no rows of their own); an analytic weight
+ * comes back as weights rescaled to sum to the number of observations.
  */
-export function weightedRows(session, parsed, rows) {
+export function weightedRows(session, parsed, rows, { expand = true } = {}) {
   if (!parsed.weight) return { rows, weights: null };
   const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n),
     used = rows.filter((i) => !isMissing(all[i]) && all[i] !== 0);
@@ -108,6 +108,7 @@ export function weightedRows(session, parsed, rows) {
   if (parsed.weight.type === "fweight") {
     if (used.some((i) => !Number.isInteger(all[i])))
       throw new StataError("may not use noninteger frequency weights", 401);
+    if (!expand) return { rows: used, weights: all };
     return {
       rows: used.flatMap((i) => new Array(all[i]).fill(i)),
       weights: null,
@@ -278,23 +279,67 @@ function detail(ctx, variable, values, m, observed = values) {
   );
 }
 
-// Fills lines of at most `width` characters with words, as the headings of
-// tabulate do; a word longer than a line is cut into pieces of the line's
-// width, and its last piece continues the next line.
+// The number of columns text takes on the screen: two for each East Asian
+// wide or full-width character, one for any other. Stata lays its tables
+// out in these columns.
+const WIDE =
+  /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{1F300}-\u{1F64F}\u{1F900}-\u{1F9FF}\u{20000}-\u{3FFFD}]/u;
+export function displayWidth(text) {
+  let width = 0;
+  for (const character of text) width += WIDE.test(character) ? 2 : 1;
+  return width;
+}
+// Text right-aligned in `width` screen columns.
+export const padDisplay = (text, width) =>
+  " ".repeat(Math.max(0, width - displayWidth(text))) + text;
+// Text left-aligned in `width` screen columns.
+export const padDisplayEnd = (text, width) =>
+  text + " ".repeat(Math.max(0, width - displayWidth(text)));
+// The longest beginning of text that takes at most `width` screen columns.
+export function cutDisplay(text, width) {
+  let kept = "",
+    used = 0;
+  for (const character of text) {
+    const size = WIDE.test(character) ? 2 : 1;
+    if (used + size > width) break;
+    kept += character;
+    used += size;
+  }
+  return kept;
+}
+// The longest beginning of text that takes at most `width` bytes in UTF-8.
+function cutBytes(text, width) {
+  let kept = "",
+    used = 0;
+  for (const character of text) {
+    const size = byteLength(character);
+    if (used + size > width) break;
+    kept += character;
+    used += size;
+  }
+  return kept;
+}
+
+// Fills lines of at most `width` bytes with words, as the headings of
+// tabulate do (Stata 19 measures them in bytes, so an accented or East
+// Asian heading wraps sooner than its screen width); a word longer than a
+// line is cut into pieces of the line's width, and its last piece
+// continues the next line.
 function wrapWords(text, width) {
   if (width < 1) return [text];
   const lines = [];
   let line = null;
   for (const word of text.split(" ")) {
-    if (line !== null && (line + " " + word).length <= width) {
+    if (line !== null && byteLength(line + " " + word) <= width) {
       line += " " + word;
       continue;
     }
     if (line !== null) lines.push(line);
     let rest = word;
-    while (rest.length > width) {
-      lines.push(rest.slice(0, width));
-      rest = rest.slice(width);
+    while (byteLength(rest) > width) {
+      const piece = cutBytes(rest, width) || [...rest][0];
+      lines.push(piece);
+      rest = rest.slice(piece.length);
     }
     line = rest || null;
   }
@@ -366,39 +411,135 @@ function exactSum(values) {
   return partials.reduce((a, b) => a + b, 0);
 }
 
+// Puts commas between the thousands of a number written out in digits.
+function withCommas(text) {
+  const [whole, part] = text.split(".");
+  return (
+    whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+    (part !== undefined ? "." + part : "")
+  );
+}
+
 /**
- * A weighted frequency as tabulate prints it: in %#.0gc, # being the width
- * of its column (11 one way, 10 in a two-way cell), except that a number
- * within a twentieth of a unit of the next decimal place of a number with
- * one more decimal is shown with that decimal, wider than its column.
- * Recorded from Stata 19 on 450 random aweighted counts.
+ * A mean or standard deviation in a table of tabulate's summarize(), in
+ * the summarized variable's format as Stata shows it there (recorded from
+ * Stata 19): an %f format as it is while the number fits in ten characters
+ * (a comma format first losing its commas), and otherwise in %9.#e with at
+ * most two decimals; a %g format as %10.#g, with commas when it has them
+ * and they fit; an %e format as %10.0g; a date format as it is.
  */
-function weightedFrequency(value, width) {
-  const shown = applyFormat(value, `%${width}.0gc`).trim();
-  if (!shown.includes(".") || /e/.test(shown)) return shown;
-  const decimals = width - 2 - shown.split(".")[0].length,
-    strip = (text) => text.replace(/\.?0+$/, ""),
-    commas = (text) => {
-      const [whole, part] = text.split(".");
-      return (
-        whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (part ? "." + part : "")
-      );
+function summaryNumber(value, format) {
+  if (isMissing(value)) return applyFormat(value, "%10.0g").trim();
+  const spec = /^%-?0?\d*(?:\.(\d+))?([efg])(c?)$/.exec(format ?? "");
+  if (spec) {
+    const digits = Number(spec[1] ?? 0),
+      commas = spec[3];
+    if (spec[2] === "e") return applyFormat(value, "%10.0g").trim();
+    if (spec[2] === "g") {
+      const text = applyFormat(value, `%10.${digits}g${commas}`).trim(),
+        marked = withCommas(text);
+      return commas && /^-?\d+$/.test(text) && marked.length <= 10
+        ? marked
+        : text;
+    }
+    if (commas) {
+      const text = applyFormat(value, `%40.${digits}fc`).trim();
+      if (text.length <= 10) return text;
+    }
+    const text = applyFormat(value, `%40.${digits}f`).trim();
+    if (text.length <= 10 || (value !== 0 && Math.abs(value) < 1)) return text;
+    return applyFormat(
+      value,
+      `%9.${digits === 0 ? 2 : Math.min(digits, 2)}e`,
+    ).trim();
+  }
+  if (dateWidth(format))
+    return applyFormat(value, format.replace(/^%-/, "%")).trim();
+  return applyFormat(value, "%10.0g").trim();
+}
+// The width of a date format, which a table of summaries gives its means
+// and standard deviations; null for other formats.
+function dateWidth(format) {
+  return /^%-?(t[dwmqhy]|d)/.test(format ?? "")
+    ? applyFormat(0, format.replace(/^%-/, "%")).length
+    : null;
+}
+
+/**
+ * A weighted frequency as tabulate prints it, # being the width of its
+ * column (11 one way, 10 in a two-way cell). It is shown in %#.0gc when
+ * the table's total fits that format without an exponent (`commas`), and
+ * otherwise in %#.0g; a whole number that %#.0g leaves without commas
+ * takes them when they fit in # characters. A number within a twentieth of
+ * a unit of the next decimal place (of the decimals # characters allow) is
+ * shown with that decimal, wider than its column, and a number %#.0g would
+ * show with an exponent is shown whole when it has # digits. Recorded from
+ * Stata 19 on 450 random aweighted counts and 3,300 iweighted ones from
+ * 1e-11 to 1e11.
+ */
+function weightedFrequency(value, width, commas = true) {
+  const size = Math.abs(value),
+    sign = value < 0 ? "-" : "",
+    // The number with d decimals, without trailing zeros or a leading 0.
+    plain = (d) => {
+      let text = size.toFixed(d);
+      if (d > 0) text = text.replace(/\.?0+$/, "");
+      text = text.replace(/^0\./, ".");
+      return sign + (commas ? withCommas(text) : text);
     };
-  if (decimals < 0 || commas(strip(value.toFixed(decimals))) !== shown)
+  let shown = applyFormat(value, `%${width}.0g${commas ? "c" : ""}`).trim();
+  const exponent = /e/.test(shown);
+  if (exponent) {
+    if (size < 1) return shown;
+    const whole = Math.round(size).toFixed(0);
+    if (whole.length === width) return sign + whole;
+  } else if (commas && !/[.,]/.test(shown) && size >= 1000) {
+    const marked = withCommas(shown);
+    if (marked.length <= width) shown = marked;
+  }
+  const whole = Math.floor(size).toFixed(0),
+    decimals =
+      width -
+      2 -
+      (size < 1 ? 0 : (/,/.test(shown) ? withCommas(whole) : whole).length);
+  if (exponent ? decimals < -1 : decimals < 0 || plain(decimals) !== shown)
     return shown;
-  return Number(value.toFixed(decimals + 2)) ===
-    Number(value.toFixed(decimals + 1))
-    ? commas(strip(value.toFixed(decimals + 1)))
-    : shown;
+  if (
+    Number(value.toFixed(decimals + 2)) === Number(value.toFixed(decimals + 1))
+  ) {
+    const longer = plain(decimals + 1);
+    if (!exponent || longer.length <= width) return longer;
+  }
+  return shown;
 }
 
 /**
  * The mean, standard deviation, sum of weights and number of observations
  * of tabulate's summarize() option. Analytic weights give the weighted mean
- * and the standard deviation summarize gives; without them each observation
- * counts once (a frequency weight has already repeated it).
+ * and the standard deviation summarize gives; frequency weights (with
+ * `frequency`) count each observation as often as its weight, the sum of
+ * the weights being the number of observations; without weights each
+ * observation counts once.
  */
-function cellSummary(values, weights) {
+function cellSummary(values, weights, frequency = false) {
+  if (weights && frequency) {
+    let sumW = 0,
+      sum = 0,
+      ss = 0;
+    values.forEach((v, k) => {
+      sumW += weights[k];
+      sum += weights[k] * v;
+    });
+    if (!sumW) return { mean: MISSING, sd: MISSING, freq: 0, n: 0 };
+    const mean = sum / sumW;
+    values.forEach((v, k) => (ss += weights[k] * (v - mean) ** 2));
+    return {
+      mean,
+      sd: sumW > 1 ? Math.sqrt(ss / (sumW - 1)) : 0,
+      freq: sumW,
+      n: sumW,
+    };
+  }
   if (!weights) {
     const m = moments(values);
     return {
@@ -472,8 +613,16 @@ function twoWaySummaries(ctx, table) {
   });
   const g = (value) => applyFormat(value, "%10.0g").trim(),
     stats = (item) => {
-      const m = cellSummary(item.values, table.weights && item.weights);
-      return names.map(([key]) => g(m[key]));
+      const m = cellSummary(
+        item.values,
+        table.weights && item.weights,
+        table.frequency,
+      );
+      return names.map(([key]) =>
+        key === "mean" || key === "sd"
+          ? summaryNumber(m[key], target.format)
+          : g(m[key]),
+      );
     },
     blank = " ".repeat(stub);
   for (let from = 0; from < size[1]; from += table.perPanel) {
@@ -484,7 +633,8 @@ function twoWaySummaries(ctx, table) {
       rule = `${"-".repeat(stub + 1)}+${"-".repeat(11 * columns.length)}+----------`,
       columnTitle = wrapWords(table.columnTitle, inner - 1).map(
         (line) =>
-          " ".repeat(Math.max(0, Math.ceil((inner - line.length) / 2))) + line,
+          " ".repeat(Math.max(0, Math.ceil((inner - displayWidth(line)) / 2))) +
+          line,
       ),
       height = Math.max(columnTitle.length + 1, table.rowHeading.length);
     for (let k = 0; k < height; k++) {
@@ -497,18 +647,23 @@ function twoWaySummaries(ctx, table) {
       ctx.out(`${left} |${right}`);
     }
     ctx.out(rule);
-    const block = (r, name) => {
-      const shown = columns.map((c) => stats(cell[r][c])),
-        all = stats(cell[r][size[1]]);
-      all.forEach((_, j) =>
-        ctx.out(
-          `${(j ? "" : name).padStart(stub)} |${shown
-            .map((item) => item[j].padStart(11))
-            .join("")
-            .slice(1)} |${all[j].padStart(10)}`,
-        ),
-      );
-    };
+    // A mean or standard deviation in a date format fills the format's
+    // width; everything else ten characters.
+    const dated = dateWidth(target.format),
+      cellWidth = (j) =>
+        dated && (names[j][0] === "mean" || names[j][0] === "sd") ? dated : 10,
+      block = (r, name) => {
+        const shown = columns.map((c) => stats(cell[r][c])),
+          all = stats(cell[r][size[1]]);
+        all.forEach((_, j) =>
+          ctx.out(
+            `${padDisplay(j ? "" : name, stub)} |${shown
+              .map((item) => item[j].padStart(cellWidth(j) + 1))
+              .join("")
+              .slice(1)} |${all[j].padStart(cellWidth(j))}`,
+          ),
+        );
+      };
     for (let r = 0; r < size[0]; r++) {
       if (r && names.length > 1) ctx.out(rule);
       block(r, rowShown[r]);
@@ -537,7 +692,7 @@ export function tabulate(session, text, ctx) {
       : head;
   }
   const parsed = session.parse(
-    "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact NOFreq NOMeans NOStandard NOObs | LRchi2 Gamma TAUb EXPected plot MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ALL CCHi2 CLRchi2 NOKey Wrap FIRSTonly]",
+    "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact NOFreq NOMeans NOStandard NOObs MEans STandard FREq OBs | LRchi2 Gamma TAUb EXPected plot MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ALL CCHi2 CLRchi2 NOKey Wrap FIRSTonly]",
     text,
   );
   const options = parsed.options;
@@ -556,10 +711,20 @@ export function tabulate(session, text, ctx) {
         throw parsed.weight.type === "aweight"
           ? new StataError(`${option} not allowed with aweights`, 406)
           : new StataError(`option ${option} not allowed`, 198);
-  const used = weightedRows(session, parsed, scope(session, parsed, ctx)),
-    rows = used.rows,
-    // An analytic or importance weight of each observation; null when
-    // each observation counts once.
+  const used = weightedRows(session, parsed, scope(session, parsed, ctx), {
+      expand: false,
+    }),
+    counted = parsed.weight?.type === "fweight";
+  // summarize() takes frequency weights only as long integers.
+  if (
+    counted &&
+    options.summarize &&
+    used.rows.some((i) => used.weights[i] > 2147483647)
+  )
+    throw new StataError("may not use noninteger frequency weights", 401);
+  const rows = used.rows,
+    // The weight of each observation; null when each observation counts
+    // once. Frequency weights are added up as counts.
     raw = used.weights,
     variables = parsed.varlist.map((name) => session.data.get(name)),
     // With summarize(), Stata leaves out the observations in which the
@@ -618,19 +783,43 @@ export function tabulate(session, text, ctx) {
       if (cramer) throw new StataError("option V not allowed", 198);
     }
   } else if (cramer) throw new StataError("option V not allowed", 198);
-  // nomeans, nostandard and noobs belong to summarize(); Stata names the
-  // first one typed.
-  if (!target && (options.nomeans || options.nostandard || options.noobs)) {
+  // means, standard and obs and their no- forms belong to summarize();
+  // Stata names the first one typed. (freq is taken without it.) Asked for
+  // and refused together, Stata names the no- form.
+  const summaryOptions = [
+    ["means", 2],
+    ["standard", 2],
+    ["obs", 2],
+    ["nomeans", 4],
+    ["nostandard", 4],
+    ["noobs", 4],
+  ];
+  if (!target && summaryOptions.some(([full]) => options[full])) {
     const first = optionItems(splitAtComma(text)[1] ?? "")
       .map((item) => item.name.toLowerCase())
-      .map((name) =>
-        ["nomeans", "nostandard", "noobs"].find(
-          (full) => name.length >= 4 && full.startsWith(name),
-        ),
+      .map(
+        (name) =>
+          summaryOptions.find(
+            ([full, minimum]) =>
+              name.length >= minimum && full.startsWith(name),
+          )?.[0],
       )
       .find(Boolean);
     throw new StataError(`option ${first} not allowed`, 198);
   }
+  for (const each of ["means", "standard", "freq", "obs"])
+    if (target && options[each] && options[`no${each}`])
+      throw new StataError(`option no${each} not allowed`, 198);
+  // Which statistics a table of summaries shows: those of means, standard
+  // and freq that are asked for (all three when none is), less those
+  // refused, and the number of observations with obs or with weights.
+  const chosen = options.means || options.standard || options.freq,
+    shows = {
+      mean: chosen ? Boolean(options.means) : !options.nomeans,
+      sd: chosen ? Boolean(options.standard) : !options.nostandard,
+      freq: chosen ? Boolean(options.freq) : !options.nofreq,
+      n: Boolean(options.obs || (parsed.weight && !options.noobs)),
+    };
   if (!keep.length) {
     ctx.out("no observations");
     // A one-way table posts r(N) = r(r) = 0; a two-way one leaves r() empty.
@@ -653,9 +842,16 @@ export function tabulate(session, text, ctx) {
         ? keep.length / exactSum(keep.map((i) => raw[i]))
         : 1,
     weightOf = raw ? (i) => raw[i] * scale : () => 1,
-    // The frequencies of a table, in the width of their column.
+    // The frequencies of a table, in the width of their column; weighted
+    // ones have commas when the table's total takes them.
     frequency = (n, width) =>
-      raw ? weightedFrequency(n, width) : count(n).padStart(width),
+      raw
+        ? weightedFrequency(
+            n,
+            width,
+            !/e/.test(applyFormat(total, `%${width}.0gc`)),
+          )
+        : count(n).padStart(width),
     // The weights of the observations of each value of a variable, added up.
     sums = (k) => {
       const lists = new Map(levels[k].map((value) => [value, []]));
@@ -669,38 +865,72 @@ export function tabulate(session, text, ctx) {
     const counts = sums(0);
     let entries = [...counts];
     if (options.sort) entries = entries.sort((a, b) => b[1] - a[1]);
+    // A str# variable's column is as wide as its storage, between 11 and
+    // 39, and a longer string is cut to two less than that and "..". In a
+    // table of summaries the stub is 11 characters wide, a value label cut
+    // at 9, and a str# variable makes it one less than its storage width,
+    // between 11 and 33. Widths are screen columns. Recorded from Stata 19.
+    const storage = /^str(\d+)$/.exec(variables[0].type ?? ""),
+      stringWidth = !isStringType(variables[0].type)
+        ? 0
+        : target
+          ? Math.min(
+              33,
+              Math.max(
+                11,
+                storage
+                  ? Number(storage[1]) - 1
+                  : greatest(entries.map(([value]) => displayWidth(value))),
+              ),
+            )
+          : Math.min(
+              39,
+              Math.max(
+                11,
+                storage
+                  ? Number(storage[1])
+                  : greatest(entries.map(([value]) => displayWidth(value))),
+              ),
+            );
     const // A value label is cut at 39 characters, and the longest label of
       // the whole value label, used or not, widens the column (not in a
       // table of summaries).
       shown = entries.map(([value]) =>
-        label(0, value) === undefined
-          ? show(0, value)
-          : show(0, value).slice(0, 39),
+        typeof value === "string"
+          ? displayWidth(value) > stringWidth
+            ? cutDisplay(value, stringWidth - 2) + ".."
+            : value
+          : label(0, value) === undefined
+            ? show(0, value)
+            : cutDisplay(show(0, value), target ? 9 : 39),
       ),
-      width = Math.max(
-        11,
-        target
-          ? 0
-          : Math.min(
-              39,
-              labelSetWidth(0, (text) => text.length),
+      width = stringWidth
+        ? stringWidth
+        : target
+          ? 11
+          : Math.max(
+              11,
+              Math.min(39, labelSetWidth(0, displayWidth)),
+              greatest(
+                entries.map(([value], k) =>
+                  textual(0, value)
+                    ? displayWidth(shown[k])
+                    : Math.min(9, shown[k].length),
+                ),
+              ),
             ),
-        greatest(
-          entries.map(([value], k) =>
-            textual(0, value) ? shown[k].length : Math.min(9, shown[k].length),
-          ),
-        ),
-      ),
       rule = "-".repeat(width + 1) + "+" + "-".repeat(35),
-      heading = wrapWords(title(0), width).map((line) => line.padStart(width));
+      heading = wrapWords(title(0), width).map((line) =>
+        padDisplay(line, width),
+      );
     if (target) {
       // The weighted columns: each statistic in 12 characters, the title
       // wrapped and centred over them.
       const columns = [
-          ["mean", "        Mean", !options.nomeans],
-          ["sd", "   Std. dev.", !options.nostandard],
-          ["freq", "       Freq.", !options.nofreq],
-          ["n", "         Obs", parsed.weight && !options.noobs],
+          ["mean", "        Mean", shows.mean],
+          ["sd", "   Std. dev.", shows.sd],
+          ["freq", "       Freq.", shows.freq],
+          ["n", "         Obs", shows.n],
         ].filter((item) => item[2]),
         span = 12 * columns.length,
         caption = wrapWords(
@@ -708,21 +938,50 @@ export function tabulate(session, text, ctx) {
           span - 1,
         ).map(
           (text) =>
-            " ".repeat(Math.max(0, Math.ceil((span - text.length) / 2))) + text,
+            " ".repeat(
+              Math.max(0, Math.ceil((span - displayWidth(text)) / 2)),
+            ) + text,
         ),
         wideRule = "-".repeat(width + 1) + "+" + "-".repeat(span),
-        line = (label, list) => {
-          const m = cellSummary(
+        summaryOf = (list) =>
+          cellSummary(
             list.map((i) => target.data[i]),
-            parsed.weight?.type === "aweight" ? list.map((i) => raw[i]) : null,
-          );
-          return `${label.padStart(width)} |${columns
+            raw ? list.map((i) => raw[i]) : null,
+            counted,
+          ),
+        // A weighted Freq. is the sum of the weights, rounded, with commas
+        // when the total's fit in ten characters; one of more than ten
+        // digits is shown in %10.0g. Recorded from Stata 19.
+        allWeight = Math.round(summaryOf(keep).freq).toFixed(0),
+        summaryFrequency = (freq) => {
+          const whole = Math.round(freq).toFixed(0);
+          if (whole.length > 10) return applyFormat(freq, "%10.0g").trim();
+          return withCommas(allWeight).length <= 10 ? withCommas(whole) : whole;
+        },
+        // The Obs. of frequency weights, their sum: with commas when the
+        // total's fit in eleven characters, or without them.
+        observations = (n) => {
+          const whole = n.toFixed(0);
+          return withCommas(allWeight).length <= 11
+            ? withCommas(whole)
+            : whole.length <= 11
+              ? whole
+              : applyFormat(n, "%11.0g").trim();
+        },
+        line = (label, list) => {
+          const m = summaryOf(list);
+          // A number wider than nine characters pushes the bar right.
+          return `${isStringType(variables[0].type) ? padDisplay(label, width) : "  " + padDisplay(label, 9)} |${columns
             .map(([key]) =>
               key === "mean" || key === "sd"
-                ? g10(m[key])
-                : key === "freq" && parsed.weight?.type === "aweight"
-                  ? applyFormat(m.freq, "%12.0fc")
-                  : count(m[key]).padStart(12),
+                ? summaryNumber(m[key], target.format).padStart(
+                    (dateWidth(target.format) ?? 10) + 2,
+                  )
+                : key === "freq" && parsed.weight
+                  ? summaryFrequency(m.freq).padStart(12)
+                  : key === "n" && counted
+                    ? observations(m.n).padStart(12)
+                    : count(m[key]).padStart(12),
             )
             .join("")}`;
         };
@@ -731,9 +990,17 @@ export function tabulate(session, text, ctx) {
         session.results.r = {};
         return;
       }
-      caption.forEach((text) => ctx.out(`${" ".repeat(width)} |${text}`));
-      heading.slice(0, -1).forEach((text) => ctx.out(`${text} |`));
-      ctx.out(`${heading.at(-1)} |${columns.map((item) => item[1]).join("")}`);
+      // The variable's title and the caption over the column titles end
+      // on the line of the column titles.
+      const height = Math.max(heading.length, caption.length + 1);
+      for (let k = 0; k < height; k++)
+        ctx.out(
+          `${heading[k - (height - heading.length)] ?? " ".repeat(width)} |${
+            k === height - 1
+              ? columns.map((item) => item[1]).join("")
+              : (caption[k - (height - 1 - caption.length)] ?? "")
+          }`,
+        );
       ctx.out(wideRule);
       entries.forEach(([value], k) =>
         ctx.out(
@@ -765,7 +1032,7 @@ export function tabulate(session, text, ctx) {
         const percent = (100 * n) / total;
         running += percent;
         ctx.out(
-          `${shown[k].padStart(width)} |${frequency(n, 11).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
+          `${padDisplay(shown[k], width)} |${frequency(n, 11).padStart(11)}${applyFormat(percent, "%12.2f")}${applyFormat(running, "%12.2f")}`,
         );
       });
       ctx.out(rule);
@@ -799,7 +1066,7 @@ export function tabulate(session, text, ctx) {
     }
     // With importance weights r(N) is the sum of the weights.
     session.results.r = {
-      N: parsed.weight?.type === "iweight" ? total : keep.length,
+      N: parsed.weight?.type === "iweight" || counted ? total : keep.length,
       r: entries.length,
     };
     return;
@@ -825,15 +1092,17 @@ export function tabulate(session, text, ctx) {
     rowText = (value) => {
       const item = show(0, value);
       if (!textual(0, value)) return item;
-      if (typeof value !== "string") return item.slice(0, target ? 9 : 21);
-      return item.length > widest ? item.slice(0, widest - 2) + ".." : item;
+      if (typeof value !== "string") return cutDisplay(item, target ? 9 : 21);
+      return displayWidth(item) > widest
+        ? cutDisplay(item, widest - 2) + ".."
+        : item;
     },
     columnText = (value) => {
       const item = show(1, value);
       if (!textual(1, value)) return item;
-      return typeof value === "string" && item.length > 9
-        ? item.slice(0, 7) + ".."
-        : item.slice(0, 9);
+      return typeof value === "string" && displayWidth(item) > 9
+        ? cutDisplay(item, 7) + ".."
+        : cutDisplay(item, 9);
     },
     rowShown = levels[0].map(rowText),
     columnShown = levels[1].map(columnText),
@@ -871,7 +1140,7 @@ export function tabulate(session, text, ctx) {
     // A column value wider than its cell pushes the cells after it right.
     cells = (items) =>
       items
-        .map((item) => "  " + item.trimStart().padStart(9))
+        .map((item) => "  " + padDisplay(item.trimStart(), 9))
         .join("")
         .slice(1),
     // A weighted frequency fills its cell of ten characters.
@@ -882,7 +1151,9 @@ export function tabulate(session, text, ctx) {
             .join("")
             .slice(1)
         : cells(items.map((n) => count(n))),
-    rowHeading = wrapWords(title(0), stub).map((line) => line.padStart(stub)),
+    rowHeading = wrapWords(title(0), stub).map((line) =>
+      padDisplay(line, stub),
+    ),
     rowTotal = levels[0].map((value) => rowSums.get(value)),
     columnTotal = levels[1].map((value) => columnSums.get(value)),
     percent = (n, of) => applyFormat((100 * n) / of, "%10.2f"),
@@ -895,13 +1166,13 @@ export function tabulate(session, text, ctx) {
     twoWaySummaries(ctx, {
       target,
       statistics: [
-        !options.nomeans && "mean",
-        !options.nostandard && "sd",
-        !options.nofreq && "freq",
-        parsed.weight && !options.noobs && "n",
+        shows.mean && "mean",
+        shows.sd && "sd",
+        shows.freq && "freq",
+        shows.n && "n",
       ],
-      weights:
-        parsed.weight?.type === "aweight" ? keep.map((i) => raw[i]) : null,
+      weights: raw ? keep.map((i) => raw[i]) : null,
+      frequency: counted,
       groups: levels.map((list, k) => {
         const index = new Map(list.map((value, j) => [value, j]));
         return keep.map((i) => index.get(variables[k].data[i]));
@@ -943,7 +1214,7 @@ export function tabulate(session, text, ctx) {
   const blank = " ".repeat(stub),
     rowLines = (row, r, columns, name) =>
       entries.map(([option], line) => {
-        const lead = line ? blank : name.padStart(stub);
+        const lead = line ? blank : padDisplay(name, stub);
         if (option === "frequency")
           return `${lead} |${counts(columns.map((c) => row[c]))} |${frequency(r === null ? total : rowTotal[r], 10).padStart(10)}`;
         const of = (k) =>
@@ -969,7 +1240,8 @@ export function tabulate(session, text, ctx) {
       rule = `${"-".repeat(stub + 1)}+${"-".repeat(span)}+----------`,
       columnTitle = wrapWords(title(1), span - 1).map(
         (line) =>
-          " ".repeat(Math.max(0, Math.ceil((span - line.length) / 2))) + line,
+          " ".repeat(Math.max(0, Math.ceil((span - displayWidth(line)) / 2))) +
+          line,
       ),
       // The column title ends on the line above the column values, the
       // row title on the line of the column values.
@@ -993,7 +1265,7 @@ export function tabulate(session, text, ctx) {
     ctx.out("");
   }
   session.results.r = {
-    N: parsed.weight?.type === "iweight" ? total : keep.length,
+    N: parsed.weight?.type === "iweight" || counted ? total : keep.length,
     r: levels[0].length,
     c: levels[1].length,
   };

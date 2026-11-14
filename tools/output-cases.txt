@@ -4924,3 +4924,758 @@ generate id = _n
 merge 1:1 id using `scores'
 tabulate _merge
 label list _merge
+=== table-statistic-synonyms-and-ratios
+clear
+set obs 20
+gen byte g = 1 + mod(_n,2)
+gen x = _n/3
+gen long lx = _n*57154573
+gen int ix = _n*6
+capture noisily table g, statistic(sum x)
+capture noisily table g, statistic(n x)
+capture noisily table g, statistic(N x)
+capture noisily table g, statistic(med x)
+capture noisily table g, statistic(medi x)
+capture noisily table g, statistic(var x)
+capture noisily table g, statistic(vari x)
+capture noisily table g, statistic(kurt x)
+capture noisily table g, statistic(skew x)
+capture noisily table g, statistic(tot x)
+capture noisily table g, statistic(mea x)
+capture noisily table g, statistic(me x)
+capture noisily table g, statistic(m x)
+capture noisily table g, statistic(rawsum x)
+capture noisily table g, statistic(percent x)
+capture noisily table g, statistic(proportion x)
+capture noisily table g, statistic(perc x)
+capture noisily table g, statistic(prop x)
+capture noisily table g, statistic(rawpercent x)
+capture noisily table g, statistic(rawproportion x)
+capture noisily table g, statistic(sum lx)
+capture noisily table g, statistic(sum ix)
+capture noisily table g, statistic(se x)
+capture noisily table g, statistic(sem x)
+capture noisily table g, statistic(semea x)
+capture noisily table g, statistic(sd x)
+capture noisily table g, statistic(s x)
+capture noisily table g, statistic(co x)
+capture noisily table g, statistic(cou x)
+capture noisily table g, statistic(freq x)
+capture noisily table g, statistic(max x)
+capture noisily table g, statistic(ma x)
+capture noisily table g, statistic(mi x)
+capture noisily table g, statistic(min x)
+capture noisily table g, statistic(ran x)
+capture noisily table g, statistic(rang x)
+capture noisily table g, statistic(fir x)
+capture noisily table g, statistic(first x)
+capture noisily table g, statistic(firstn x)
+capture noisily table g, statistic(iq x)
+capture noisily table g, statistic(geom x)
+capture noisily table g, statistic(kurto x)
+capture noisily table g, statistic(skewn x)
+capture noisily table g, statistic(tota x)
+capture noisily table g, statistic(total x)
+capture noisily table g, statistic(rawt x)
+capture noisily table g, statistic(rawtotal x)
+capture noisily table g, statistic(rawsu x)
+capture noisily table g, statistic(su x)
+capture noisily table g, statistic(sumw x)
+capture noisily table g, statistic(sumw)
+capture noisily table g, statistic(percent x lx)
+capture noisily table g, statistic(percent) statistic(percent x)
+capture noisily table g, statistic(mean x) statistic(sum x) statistic(n x)
+clear
+set obs 20
+gen byte g = 1 + mod(_n,2)
+gen byte h = 1 + mod(_n,3)
+gen x = _n/3
+capture noisily table g, statistic(va x)
+capture noisily table g, statistic(v x)
+capture noisily table g, statistic(kur x)
+capture noisily table g, statistic(ku x)
+capture noisily table g, statistic(ske x)
+capture noisily table g, statistic(sk x)
+capture noisily table g, statistic(to x)
+capture noisily table g, statistic(t x)
+capture noisily table g, statistic(varia x)
+capture noisily table g, statistic(varian x)
+capture noisily table g, statistic(kurtos x)
+capture noisily table g, statistic(skewne x)
+capture noisily table g, statistic(media x)
+capture noisily table g, statistic(sums x)
+capture noisily table g, statistic(summ x)
+capture noisily table g, statistic(sebi x)
+capture noisily table g, statistic(rawpercen x)
+capture noisily table g, statistic(rawp x)
+capture noisily table g, statistic(percen x)
+capture noisily table g, statistic(propo x)
+capture noisily table g, statistic(pe x)
+capture noisily table g, statistic(per x)
+capture noisily table g, statistic(pro x)
+capture noisily table g, statistic(fre)
+capture noisily table g, statistic(freq)
+capture noisily table g h, statistic(percent x)
+capture noisily table g h, statistic(proportion x)
+capture noisily table g, statistic(percent x) statistic(mean x)
+capture noisily table g, statistic(frequency) statistic(percent) statistic(percent x)
+replace x = . in 3
+capture noisily table g, statistic(percent x)
+capture noisily table g, statistic(rawpercent x)
+capture noisily table g, statistic(percent x) missing
+capture noisily table g, statistic(percent x) listwise
+=== table-nformat-dates-and-total-terms
+clear
+set seed 12
+set obs 400
+gen byte g = 1 + floor(runiform()*3)
+gen byte h = 1 + floor(runiform()*4)
+gen x = runiform()*1000
+capture noisily table g, statistic(mean x) nformat(%td)
+capture noisily table g, statistic(mean x) nformat(%tdCCYY-NN-DD)
+capture noisily table g, statistic(mean x) nformat(%tm)
+capture noisily table g, statistic(mean x) nformat(%ty)
+capture noisily table g, statistic(mean x) nformat(%tq)
+capture noisily table g, statistic(mean x) nformat(%d)
+capture noisily table g, statistic(mean x) nformat(%9.2fc)
+capture noisily table g, statistic(mean x) nformat(%-9.2f)
+capture noisily table g, statistic(mean x) nformat(%09.2f)
+capture noisily table g, statistic(mean x) nformat(%10s)
+capture noisily table g, statistic(mean x) nformat(%8.0g)
+capture noisily table g, statistic(mean x) nformat(%9,2f)
+capture noisily table g h, totals(g#h)
+capture noisily table g h, totals(h#g)
+capture noisily table g h, totals(g#h g)
+capture noisily table g h, totals(g#h h)
+capture noisily table g, totals(g#g)
+capture noisily table g h, totals(g#x)
+capture noisily table g h, totals(i.g)
+capture noisily table g h, totals(g##h)
+capture noisily table g h, totals(h g)
+capture noisily table g h, totals(h)
+capture noisily table g, statistic(sum x) nformat(%12,2fc)
+capture noisily table g, statistic(mean x) nformat(%tw)
+capture noisily table g h, statistic(mean x) nformat(%9,3g)
+=== tabulate-weighted-frequency-forms
+clear
+input byte g byte h double w
+1 1 1234.5
+2 1 2345.6
+3 2 100
+end
+tab g [iw=w]
+tab g h [iw=w]
+replace w = w*1000
+tab g [iw=w]
+tab g h [iw=w]
+clear
+input byte g byte h double w
+1 1 1440677.2
+2 1 1354715.9
+3 2 900000.4
+end
+tab g [iw=w]
+tab g h [iw=w]
+replace w = w*10
+tab g [iw=w]
+tab g h [iw=w]
+replace w = round(w/10)
+tab g [iw=w]
+tab g h [iw=w]
+replace w = w*100
+tab g [iw=w]
+tab g h [iw=w]
+replace w = w/10000 + .123456789
+tab g [iw=w]
+tab g h [iw=w]
+clear
+input byte g byte h double w
+1 1 999999.94
+2 1 .5
+3 2 .01
+end
+tab g [iw=w]
+tab g h [iw=w]
+replace w = 9999999.4 in 1
+tab g [iw=w]
+tab g h [iw=w]
+replace w = 99999.94 in 1
+tab g [iw=w]
+tab g h [iw=w]
+replace w = 999.94 in 1
+tab g [iw=w]
+tab g h [iw=w]
+replace w = 123456.123456 in 1
+tab g [iw=w]
+tab g h [iw=w]
+replace w = 12345678.123456 in 1
+tab g [iw=w]
+tab g h [iw=w]
+replace w = -12345678.123456 in 1
+tab g [iw=w]
+tab g h [iw=w]
+clear
+set seed 4242
+set obs 60
+generate int g = 1 + floor(runiform()*30)
+generate byte h = 1 + floor(runiform()*2)
+generate double u = runiform()
+generate double wa = u/10000
+tabulate g [iweight=wa]
+tabulate g h [iweight=wa]
+generate double wb = u/10
+tabulate g [iweight=wb]
+tabulate g h [iweight=wb]
+generate double wc = u*100
+tabulate g [iweight=wc]
+tabulate g h [iweight=wc]
+generate double wd = u*100000
+tabulate g [iweight=wd]
+tabulate g h [iweight=wd]
+generate double we = u*100000000
+tabulate g [iweight=we]
+tabulate g h [iweight=we]
+tabulate g [aweight=wd]
+tabulate g h [aweight=wd]
+generate long f = round(wd*100)
+tabulate g [fweight=f]
+tabulate g h [fweight=f]
+=== tabulate-summary-large-weights
+clear
+input byte g byte h double w x
+1 1 4.4e10 1
+1 2 3.1e10 2
+2 1 5.2e11 3
+2 2 1.7e10 5
+end
+capture noisily tab g [aw=w], summarize(x)
+capture noisily tab g [iw=w], summarize(x)
+capture noisily tab g [fw=w], summarize(x)
+capture noisily tab g [fw=w]
+capture noisily tab g h [fw=w]
+clear
+set seed 31
+set obs 60
+gen byte g = 1 + mod(_n,4)
+gen byte h = 1 + mod(_n,3)
+gen x = runiform()*2 - 1
+gen double w = .
+quietly replace w = runiform()*10^6
+capture noisily tab g [aw=w], summarize(x)
+capture noisily tab g h [aw=w], summarize(x)
+quietly replace w = round(w)
+capture noisily tab g [fw=w], summarize(x)
+capture noisily tab g [iw=w], summarize(x) noobs
+capture noisily tab g h [fw=w], summarize(x) nomeans nost
+capture noisily tab g [fw=w]
+capture noisily tab g h [fw=w]
+quietly replace w = runiform()*10^9
+capture noisily tab g [aw=w], summarize(x)
+capture noisily tab g h [aw=w], summarize(x)
+quietly replace w = round(w)
+capture noisily tab g [fw=w], summarize(x)
+capture noisily tab g [iw=w], summarize(x) noobs
+capture noisily tab g h [fw=w], summarize(x) nomeans nost
+capture noisily tab g [fw=w]
+capture noisily tab g h [fw=w]
+quietly replace w = runiform()*10^10
+capture noisily tab g [aw=w], summarize(x)
+capture noisily tab g h [aw=w], summarize(x)
+quietly replace w = round(w)
+capture noisily tab g [fw=w], summarize(x)
+capture noisily tab g [iw=w], summarize(x) noobs
+capture noisily tab g h [fw=w], summarize(x) nomeans nost
+capture noisily tab g [fw=w]
+capture noisily tab g h [fw=w]
+=== tabulate-summary-stub-labels
+clear
+set obs 6
+gen byte g = 1 + mod(_n,3)
+gen x = _n
+gen w = 1 + mod(_n,2)
+label define gl 1 "Master only (1)" 2 "Using only (2)" 3 "A very long region label that is long"
+label values g gl
+tab g, summarize(x)
+tab g [aw=w], summarize(x)
+tab g, summarize(x) means
+label define gl 1 "abcdefghij" 2 "abcdefghijkl" 3 "short", replace
+tab g, summarize(x)
+label define gl 1 "abcdefghi" 2 "abc" 3 "short", replace
+tab g, summarize(x)
+label define gl 1 "a" 2 "abc" 3 "short", replace
+tab g, summarize(x)
+label variable g "A rather long variable label for the grouping variable"
+tab g, summarize(x)
+tab g, summarize(x) means
+tab g, summarize(x) means standard
+label variable x "Income of the household in dollars per year"
+tab g, summarize(x)
+tab g, summarize(x) freq
+label variable g "Region"
+tab g, summarize(x)
+gen str20 s = "a string value " + string(_n)
+tab s, summarize(x)
+gen str40 s2 = "a much longer string value that is long " + string(_n)
+tab s2, summarize(x)
+gen y = _n * 1000.5
+tab y, summarize(x)
+gen z = _n / 3
+tab z, summarize(x)
+format z %12.8f
+tab z, summarize(x)
+clear
+set obs 3
+gen x = _n
+gen z = _n / 3
+format z %12.8f
+tab z
+tab z, summarize(x)
+gen z2 = _n * 123456.789
+format z2 %15.3f
+tab z2
+tab z2, summarize(x)
+gen str5 s5 = "ab"
+tab s5, summarize(x)
+gen str10 s10 = "abc"
+tab s10, summarize(x)
+gen str20 s20 = "abc"
+tab s20, summarize(x)
+gen str25 s25 = "abcdefghijklmnopqrstuvwxy"
+tab s25, summarize(x)
+gen str32 s32 = "abcdefghijklmnopqrstuvwxyz123456"
+tab s32, summarize(x)
+gen str33 s33 = "abcdefghijklmnopqrstuvwxyz1234567"
+tab s33, summarize(x)
+gen str34 s34 = "abcdefghijklmnopqrstuvwxyz12345678"
+tab s34, summarize(x)
+gen str50 s50 = "abcdefghijklmnopqrstuvwxyz12345678abcdefghijklmnop"
+tab s50, summarize(x)
+gen str50 t50 = "ab"
+tab t50, summarize(x)
+gen strL sl = "ab"
+tab sl, summarize(x)
+gen str3 s3 = "ab"
+tab s3, summarize(x)
+gen str1 s1 = "a"
+tab s1, summarize(x)
+gen str12 s12 = "abcdefghijkl"
+tab s12, summarize(x)
+=== tabulate-summary-column-options
+clear
+set obs 40
+gen byte k = mod(_n,3)
+gen byte j = mod(_n,2)
+gen x = _n/7
+gen w = 1 + mod(_n,4)
+capture noisily tab k, summarize(x) means
+capture noisily tab k, summarize(x) standard
+capture noisily tab k, summarize(x) freq
+capture noisily tab k, summarize(x) obs
+capture noisily tab k, summarize(x) means standard
+capture noisily tab k, summarize(x) mean
+capture noisily tab k, summarize(x) me
+capture noisily tab k, summarize(x) stan
+capture noisily tab k, summarize(x) st
+capture noisily tab k, summarize(x) fre
+capture noisily tab k, summarize(x) ob
+capture noisily tab k, summarize(x) means nomeans
+capture noisily tab k, summarize(x) means nofreq
+capture noisily tab k, summarize(x) freq obs
+capture noisily tab k, summarize(x) obs noobs
+capture noisily tab k, summarize(x) means obs
+capture noisily tab k [aw=w], summarize(x) means
+capture noisily tab k [aw=w], summarize(x) freq
+capture noisily tab k [aw=w], summarize(x) obs
+capture noisily tab k [aw=w], summarize(x) means standard
+capture noisily tab k j, summarize(x) means
+capture noisily tab k j, summarize(x) standard
+capture noisily tab k j, summarize(x) freq
+capture noisily tab k j, summarize(x) obs
+capture noisily tab k j, summarize(x) means standard
+capture noisily tab k j [aw=w], summarize(x) obs
+capture noisily tab k j [aw=w], summarize(x) freq
+capture noisily tab k, means
+capture noisily tab k, obs
+capture noisily tab k, freq
+capture noisily tab k, standard
+=== tabulate-summary-variable-formats
+clear
+set obs 8
+gen byte g = 1 + mod(_n,2)
+gen byte h = 1 + mod(_n,2)
+gen price = 4000 + _n*517.37
+gen double dp = 4000 + _n*517.37
+gen w = 1 + mod(_n,3)
+format price %8.0gc
+tab g h, summarize(price)
+tab g, summarize(price)
+tab g [aw=w], summarize(price)
+format price %9.2f
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %9.2fc
+tab g, summarize(price)
+format price %12.2fc
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %14.4f
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %6.0g
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %12.0g
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %10.3e
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %td
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %-9.2f
+tab g, summarize(price)
+format price %4.1f
+tab g, summarize(price)
+tab g h, summarize(price)
+format price %20.0g
+tab g, summarize(price)
+format price %8.0g
+tab g, summarize(price)
+format dp %10.0g
+tab g, summarize(dp)
+format dp %9.0g
+tab g, summarize(dp)
+format dp %15.0g
+tab g, summarize(dp)
+format dp %9.0gc
+tab g, summarize(dp)
+format dp %15.2gc
+tab g, summarize(dp)
+format dp %010.2f
+tab g, summarize(dp)
+tab g [aw=w], summarize(dp)
+replace dp = dp * 1e6
+format dp %12.0gc
+tab g, summarize(dp)
+tab g h, summarize(dp)
+format dp %20.2fc
+tab g, summarize(dp)
+tab g h, summarize(dp)
+gen int ip = 1000 + _n*100
+tab g, summarize(ip)
+format ip %8.0gc
+tab g, summarize(ip)
+tab g h, summarize(ip)
+clear
+set obs 4
+gen byte g = 1 + mod(_n,2)
+gen byte h = 1 + mod(_n,2)
+gen double v = 12345678.123 + _n
+format v %15.2f
+tab g, summarize(v)
+tab g h, summarize(v)
+replace v = 1234567.123 + _n
+tab g, summarize(v)
+tab g h, summarize(v)
+replace v = 123456789.123 + _n
+tab g, summarize(v)
+tab g h, summarize(v)
+format v %15.0f
+tab g, summarize(v)
+tab g h, summarize(v)
+format v %15.0fc
+tab g, summarize(v)
+tab g h, summarize(v)
+replace v = 1234567.123 + _n
+format v %15.2fc
+tab g, summarize(v)
+tab g h, summarize(v)
+format v %10.3g
+tab g, summarize(v)
+format v %10.3gc
+tab g, summarize(v)
+replace v = 1234.56789 + _n
+format v %10.3g
+tab g, summarize(v)
+tab g h, summarize(v)
+format v %9.3gc
+tab g, summarize(v)
+format v %10.2e
+tab g, summarize(v)
+tab g, summarize(v)
+format v %tm
+tab g, summarize(v)
+tab g, summarize(v)
+replace v = -1234.56789 * _n
+format v %9.2f
+tab g, summarize(v)
+tab g h, summarize(v)
+replace v = .000123456 * _n
+format v %9.2f
+tab g, summarize(v)
+tab g h, summarize(v)
+format v %12.8f
+tab g, summarize(v)
+tab g h, summarize(v)
+=== mean-proportion-groups-and-long-labels
+clear
+input byte g byte h double w
+1 1 1.3942437
+1 2 .886472697
+2 1 .594940449
+2 2 4.7793104
+1 1 2.5
+2 2 1.25
+1 2 3
+2 1 .75
+end
+gen x = _n
+mean w, over(g h)
+mean w x, over(g h)
+mean w [pw=x], over(g h)
+mean w [fw=g], over(h g)
+capture noisily mean w, over(g#h)
+capture noisily mean w, over(i.g)
+proportion g h
+proportion g h [pw=w]
+proportion g, percent
+proportion g h, percent
+proportion g [pw=w], percent
+label define gl 1 "Master only (1)" 2 "A very long region label that is long"
+label values g gl
+label define hl 1 "Exactly twenty-eight chars.." 2 "Exactly twenty-seven chars."
+label values h hl
+mean x, over(g)
+mean x [pw=w], over(g)
+proportion g
+proportion h
+proportion g [pw=w]
+proportion g [fw=g]
+proportion g [iw=w]
+mean x, over(g h)
+proportion g h
+label variable g "A long variable label"
+mean x, over(g)
+mean x w, over(g)
+clear
+input byte g byte h double w
+1 1 1.3942437
+1 2 .886472697
+2 1 .594940449
+2 . 4.7793104
+1 1 2.5
+2 2 1.25
+. 2 3
+2 1 .75
+end
+gen str5 s = cond(g==1, "alpha", "beta")
+capture mean w, over(g#h)
+di _rc
+capture mean w, over(i.g)
+di _rc
+proportion g h
+proportion g h, percent level(90)
+mean w, over(g h)
+capture noisily mean w, over(s h)
+capture noisily proportion s
+clear
+set obs 6
+gen byte g = 1 + mod(_n,2)
+gen x = _n
+label define gl 1 "a" 2 "abcdefghijklm"
+label values g gl
+mean x, over(g)
+label define gl 2 "abcdefghijklmnopqrs", replace
+mean x, over(g)
+label define gl 2 "abcdefghijklmnopqrstuvwxy", replace
+mean x, over(g)
+label define gl 2 "abcdefghijklmnopqrstuvwxyz1", replace
+mean x, over(g)
+proportion g
+label define gl 2 "abcdefghijklmnopqrstuvwxyz", replace
+mean x, over(g)
+proportion g, percent
+clear
+input byte g byte h double w
+1 1 1.3942437
+1 2 .886472697
+2 1 .594940449
+2 2 4.7793104
+1 1 2.5
+2 2 1.25
+1 2 3
+2 1 .75
+end
+label define gl 1 "one" 2 "two"
+label values g gl
+mean w, over(g h)
+mean w, over(h g)
+label define hl 1 "uno"
+label values h hl
+mean w, over(g h)
+label define gl 1 "a rather long label here", modify
+mean w, over(g h)
+mean w, over(h g)
+=== mean-proportion-long-labels-linesize-79
+set linesize 79
+clear
+input byte g byte h double w
+1 1 1.3942437
+1 2 .886472697
+2 1 .594940449
+2 2 4.7793104
+1 1 2.5
+2 2 1.25
+1 2 3
+2 1 .75
+end
+gen x = _n
+mean w, over(g h)
+mean w x, over(g h)
+mean w [pw=x], over(g h)
+mean w [fw=g], over(h g)
+capture noisily mean w, over(g#h)
+capture noisily mean w, over(i.g)
+proportion g h
+proportion g h [pw=w]
+proportion g, percent
+proportion g h, percent
+proportion g [pw=w], percent
+label define gl 1 "Master only (1)" 2 "A very long region label that is long"
+label values g gl
+label define hl 1 "Exactly twenty-eight chars.." 2 "Exactly twenty-seven chars."
+label values h hl
+mean x, over(g)
+mean x [pw=w], over(g)
+proportion g
+proportion h
+proportion g [pw=w]
+proportion g [fw=g]
+proportion g [iw=w]
+mean x, over(g h)
+proportion g h
+label variable g "A long variable label"
+mean x, over(g)
+mean x w, over(g)
+clear
+set obs 6
+gen byte g = 1 + mod(_n,2)
+gen x = _n
+label define gl 1 "a" 2 "abcdefghijklm"
+label values g gl
+mean x, over(g)
+label define gl 2 "abcdefghijklmnopqrs", replace
+mean x, over(g)
+label define gl 2 "abcdefghijklmnopqrstuvwxy", replace
+mean x, over(g)
+label define gl 2 "abcdefghijklmnopqrstuvwxyz1", replace
+mean x, over(g)
+proportion g
+label define gl 2 "abcdefghijklmnopqrstuvwxyz", replace
+mean x, over(g)
+proportion g, percent
+clear
+input byte g byte h double w
+1 1 1.3942437
+1 2 .886472697
+2 1 .594940449
+2 2 4.7793104
+1 1 2.5
+2 2 1.25
+1 2 3
+2 1 .75
+end
+label define gl 1 "one" 2 "two"
+label values g gl
+mean w, over(g h)
+mean w, over(h g)
+label define hl 1 "uno"
+label values h hl
+mean w, over(g h)
+label define gl 1 "a rather long label here", modify
+mean w, over(g h)
+mean w, over(h g)
+set linesize 200
+=== tabulate-table-unicode-widths
+clear
+set obs 3
+gen byte k = _n
+label define cj 1 "日本語のラベルです" 2 "一" 3 "two"
+label values k cj
+tab k
+gen byte j = mod(_n,2)
+tab k j
+tab j k
+gen x = _n
+tab k, summarize(x)
+table k
+table j k
+table k, statistic(mean x)
+gen byte h = 1 + mod(_n,2)
+gen byte g = _n
+label variable h "Dépendance économique à l'égard des transferts sociaux"
+tab h g
+tab g h
+tab h
+label define el 1 "Économie à l'égard" 2 "ééééééééééééééééééééééé"
+label values h el
+tab h
+tab h g
+tab g h
+label variable k "日本語の変数ラベルです日本語の変数ラベルです"
+tab k
+tab k j
+tab j k
+label define cj 1 "日本語のラベルですラベルですラベルです日本語のラベルです", modify
+tab k
+tab k j
+tab j k
+gen str20 s = "日本語" + string(_n)
+tab s
+tab s j
+tab j s
+clear
+set obs 3
+gen str20 a = "abc"
+tab a
+gen str20 b = "日本語" + string(_n)
+tab b
+gen str5 c = "日" + string(_n)
+tab c
+gen str12 d = "日本語本" + string(_n)
+tab d
+gen str50 f = "abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"
+tab f
+gen str30 e2 = "日本語本日本語本日本" + string(_n)
+tab e2
+=== merge-keepusing-using-only
+tempfile kA kB
+clear
+set obs 4
+gen id = _n
+gen y = _n
+gen str3 nm = "m"
+quietly save `kA'
+clear
+set obs 4
+gen id = _n + 2
+gen y = 100 + _n
+gen str3 nm = "u"
+gen z = 7
+quietly save `kB'
+use `kA', clear
+merge 1:1 id using `kB', keepusing(nm)
+list, sep(0)
+use `kA', clear
+merge 1:1 id using `kB', keepusing(z) gen(how)
+list, sep(0)
+tab how, summarize(y)
+use `kA', clear
+merge 1:1 id using `kB', keepusing(y)
+list, sep(0)
+use `kA', clear
+merge 1:1 id using `kB'
+list, sep(0)
+use `kA', clear
+list, sep(0)
