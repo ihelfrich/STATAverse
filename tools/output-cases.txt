@@ -13635,3 +13635,529 @@ mlogit educ age i.female
 margins female, predict(outcome(2))
 margins, dydx(*) predict(outcome(3))
 set linesize 200
+=== models7-margins-blank-rows
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+generate byte one = female
+label define onel 1 "Yes" 0 "No"
+label values one onel
+label define half 0 "Zero only"
+generate fh = female
+label values fh half
+generate f12 = female + 1
+label define f12l 1 "Man" 2 "Woman"
+label values f12 f12l
+generate f12u = female + 1
+set linesize 79
+logit employed age i.female c.hours
+margins, dydx(*)
+margins, dydx(*) at(age=30 hours=30)
+regress lninc i.female age i.smoker hours
+margins, dydx(*)
+regress lninc age i.female i.smoker i.educ
+margins, dydx(*)
+margins, dydx(*) atmeans
+capture noisily margins, dydx(female) at(age=40 hours=30)
+regress lninc i.female i.educ i.smoker
+margins, dydx(*)
+regress lninc age i.fh
+margins, dydx(fh)
+regress lninc age ib1.one hours
+margins, dydx(*)
+regress lninc age ib1.smoker hours
+margins, dydx(*)
+regress lninc age ib2.f12 hours
+margins, dydx(*)
+regress lninc age ib2.f12u hours
+margins, dydx(*)
+set linesize 200
+=== models7-margins-titles-estimability
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+logit employed age i.female i.educ
+margins, dydx(*) at(age=30 educ=2)
+margins, dydx(age female) at(age=30 educ=2)
+margins, dydx(female educ) at(age=30)
+margins, dydx(female educ) at(age=30 educ=2)
+margins, dydx(educ female) at(age=30 female=1)
+margins, dydx(age educ) at(age=30 female=1)
+margins, dydx(age educ) at(age=30 female=1 educ=3)
+margins, dydx(*) at(age=30 female=1)
+margins, dydx(*) at(age=30 educ=2 female=0)
+regress lninc age i.female, noconstant
+margins, dydx(female)
+margins female
+margins
+margins, dydx(*)
+regress lninc age i.female i.smoker, noconstant
+margins smoker
+regress lninc c.age#i.female, noconstant
+margins female
+xtset pid year
+xtreg yit hours age [pweight=pwc], fe
+margins
+matrix list r(table)
+set linesize 200
+=== models7-ordered-margins
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+ologit sat age i.female [pweight=pw]
+margins female, predict(outcome(4))
+margins, predict(outcome(4))
+oprobit sat age i.female [pweight=pw]
+margins female, predict(outcome(2))
+ologit sat age i.female, vce(cluster psu)
+margins, dydx(female) predict(outcome(4))
+ologit sat c.age##i.female i.educ
+margins female, atmeans predict(outcome(3))
+ologit sat i.educ##i.female age
+margins educ, predict(outcome(4)) atmeans
+ologit sat age ib1.female
+margins female, predict(outcome(4))
+margins, dydx(female) predict(outcome(4))
+margins female, predict(outcome(#2))
+ologit sat age i.female
+quietly margins, dydx(*) predict(outcome(2))
+matrix list r(b)
+set linesize 200
+=== models7-weighted-areg-margins
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+areg lninc age i.female [aweight=pw], absorb(stratum)
+margins female
+areg lninc age i.female [pweight=pw], absorb(stratum)
+margins female
+margins, dydx(age)
+=== models7-estat-summarize-weights
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+label variable hours "Hours worked per week in the main job of the respondent"
+regress lninc age i.female hours i.smoker [aweight=pw]
+estat summarize
+estat summarize, labels
+estat summarize, equation
+estat summarize, noweights
+estat summarize, labels equation noheader
+regress lninc age i.educ hours [fweight=fw]
+estat summarize, labels
+estat summarize, equation noheader
+regress lninc age i.female, vce(cluster psu)
+estat summarize
+estat summarize, labels
+logit employed age i.female [pweight=pw], vce(cluster stratum)
+estat summarize
+logit employed age i.educ
+estat summarize, labels
+estat summarize, noheader
+estat summarize, equation
+probit employed age i.smoker c.age#i.female
+estat summarize, labels
+estat summarize, equation
+tobit lninc age i.female, ll(9)
+estat summarize, equation
+estat summarize, vsquish
+estat summarize age
+ivregress 2sls lninc age i.female (endo = z) [pweight=pw]
+estat summarize
+glm employed age i.female [fweight=fw], family(binomial)
+estat summarize
+set linesize 200
+=== models7-assumed-weights
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+ivregress 2sls lninc age (endo = z) [weight=fw]
+glm employed age [weight=fw], family(binomial)
+=== models7-svy-mean-narrow-lines
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+label define regl 1 "Northeast region of country" 2 "Midwest" 3 "South"
+label values region regl
+svyset psu [pweight=pw], strata(stratum)
+set linesize 79
+svy: mean lninc, over(region educ)
+set linesize 80
+svy: mean lninc, over(region educ)
+set linesize 66
+svy: mean lninc, over(region)
+svy: mean lninc, over(region educ)
+set linesize 60
+svy: mean lninc, over(female)
+svy: mean lninc, over(educ female)
+svy: mean lninc, over(region educ)
+set linesize 55
+svy: mean lninc, over(female)
+svy: mean lninc, over(region)
+set linesize 200
+=== models7-matrix-list-stripes
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+matrix B = J(2,8,1)
+matrix list B
+matrix C = J(2,9,1.234567)
+matrix list C
+matrix E = J(7,7,2)
+matrix list E
+generate age2 = age
+quietly regress lninc age age2 ib2.educ
+matrix A = r(table)
+matrix list A
+quietly regress lninc age i.female hours i.educ
+matrix V = e(V)
+matrix list V
+matrix list e(b)
+quietly mlogit sat age
+matrix list e(b)
+matrix list r(table)
+quietly regress lninc c.age#i.female hours
+matrix list r(table)
+quietly logit employed age i.female
+matrix list e(V)
+quietly ologit sat age i.female
+matrix list r(table)
+quietly regress lninc age i.female
+quietly margins, dydx(female)
+matrix list r(table)
+quietly regress lninc age hours i.female
+estat vif
+return list
+quietly regress lninc age i.female
+estimates store m1
+quietly logit employed age i.female
+estimates store m2
+estimates table m1
+return list
+matrix list r(coef)
+estimates table m1 m2, stats(N)
+return list
+matrix list r(coef)
+matrix list r(stats)
+set linesize 200
+=== models7-r-results
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+quietly regress lninc age i.female, noconstant
+quietly margins, dydx(female)
+matrix list r(b)
+matrix list r(table)
+quietly margins female
+matrix list r(b)
+matrix list r(table)
+quietly regress lninc age i.female
+quietly estimates table
+return list
+matrix list r(coef)
+estimates store m1
+estimates table m1 .
+return list
+quietly regress lninc age i.female [aweight=pw]
+quietly estat summarize
+return list
+matrix list r(stats), format(%12.0g)
+quietly estat summarize, equation
+matrix list r(stats)
+quietly logit employed age i.educ c.age#i.female
+quietly estat summarize
+matrix list r(stats)
+set linesize 200

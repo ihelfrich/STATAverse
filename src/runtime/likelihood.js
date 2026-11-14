@@ -984,6 +984,8 @@ function ordered(kind) {
         vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
         kind,
         sample: f.sample,
+        // Each observation's sampling weight, which margins averages with.
+        ...(f.w ? { weights: f.w, wtype: "pweight" } : {}),
         cuts: full.theta.slice(k),
         // The cut points as test and lincom reach them, [/]cut1 and so on:
         // their values, their covariances with each coefficient in names

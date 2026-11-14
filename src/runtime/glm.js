@@ -33,7 +33,11 @@ import {
   tableModel,
   unconverged,
 } from "./likelihood.js";
-import { perfectPrediction, recheckCollinearity } from "./models.js";
+import {
+  bareWeight,
+  perfectPrediction,
+  recheckCollinearity,
+} from "./models.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -639,8 +643,11 @@ function glm(session, text, ctx) {
       text,
     ),
     options = parsed.options,
-    asked = glmRequest(session, parsed),
-    familyName = match(
+    asked = glmRequest(session, parsed);
+  // [w=exp] is a frequency weight, and Stata says so.
+  if (asked.wtype === "fweight" && bareWeight(text))
+    ctx.out("(frequency weights assumed)");
+  const familyName = match(
       FAMILIES,
       (options.family ?? "gaussian")
         .trim()

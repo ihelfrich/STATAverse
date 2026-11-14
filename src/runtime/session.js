@@ -231,6 +231,19 @@ const FAILED_R = new Map([
   ],
 ]);
 
+/** The weight type a word in [word=exp] names, "weight" for the bare one. */
+const weightOf = (word) =>
+  [
+    ["weight", 1, "weight"],
+    ["aweight", 2, "aweight"],
+    ["fweight", 2, "fweight"],
+    ["frequency", 2, "fweight"],
+    ["pweight", 2, "pweight"],
+    ["iweight", 2, "iweight"],
+  ].find(
+    ([full, minimum]) => word.length >= minimum && full.startsWith(word),
+  )?.[2];
+
 // Commands that change or read the last estimates without fitting or
 // showing them, which leave r() as they set it.
 const NO_TABLE = new Set([
@@ -750,9 +763,22 @@ export class Session {
         if (!READ_ONLY.has(command.name)) markChanged(this);
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
+      const model = this.estimates;
+      // A fit's weight expression, which estat summarize weights with, kept
+      // where the command did not keep it.
+      if (model && model !== before && !model.wexp) {
+        const weight =
+          /(?:^|\s)\[\s*([A-Za-z]+)\s*=\s*([^\]]+)\]/.exec(
+            splitAtComma(body)[0],
+          ) ?? [];
+        const type = weight[1] && weightOf(weight[1].toLowerCase());
+        if (type && (type !== "weight" || model.wtype)) {
+          model.wexp = `= ${weight[2].trim()}`;
+          if (type !== "weight") model.wtype ??= type;
+        }
+      }
       // An estimation command, or one that shows the last estimates again,
       // leaves r(table) as its r().
-      const model = this.estimates;
       if (
         model &&
         !NO_TABLE.has(command.name) &&

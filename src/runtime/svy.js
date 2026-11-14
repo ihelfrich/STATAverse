@@ -676,10 +676,47 @@ const levelOf = (session, prefix, options, text) =>
  * left, the sample's on the right, each column's labels and values aligned
  * to the widest, the right column ending at width.
  */
+/**
+ * A line of output wider than the linesize, cut there and continued after
+ * "> " on as many lines as it takes.
+ */
+function fold(line, linesize) {
+  const chars = [...line],
+    width = Math.max(linesize, 3);
+  if (chars.length <= width) return [line];
+  const lines = [chars.slice(0, width).join("")];
+  for (let at = width; at < chars.length; at += width - 2)
+    lines.push("> " + chars.slice(at, at + width - 2).join(""));
+  return lines;
+}
+
+/**
+ * A line of text and column stops ({col #}) as SMCL lays it out on a line
+ * too narrow for it: what does not fit goes on after "> ", and a stop
+ * writes as many blanks as the stop is past the column the line has
+ * reached, going on to the next line as text does.
+ */
+function smclLines(pieces, linesize) {
+  const lines = [];
+  let line = "";
+  const put = (ch) => {
+    if (line.length >= linesize) {
+      lines.push(line);
+      line = "> ";
+    }
+    line += ch;
+  };
+  for (const piece of pieces)
+    if (typeof piece === "string") [...piece].forEach(put);
+    else for (let k = piece.col - (line.length + 1); k > 0; k--) put(" ");
+  lines.push(line);
+  return lines.map((text) => text.replace(/\s+$/, ""));
+}
+
 function header(
   ctx,
   survey,
-  { title, notes = [], width, test, r2, summaryScheme },
+  { title, notes = [], width, test, r2, summaryScheme, linesize = Infinity },
 ) {
   const left = [
       ["Number of strata", count(survey.N_strata)],
@@ -735,7 +772,18 @@ function header(
       r = right[k]
         ? `${right[k][0].padEnd(labelRight)} = ${right[k][1].padStart(valueRight)}`
         : "";
-    ctx.out(r ? `${l.padEnd(at)}${r}` : l);
+    if (r && at + r.length > linesize)
+      smclLines(
+        [
+          l,
+          { col: at + 1 },
+          right[k][0].padEnd(labelRight),
+          { col: at + labelRight + 2 },
+          `= ${right[k][1].padStart(valueRight)}`,
+        ],
+        linesize,
+      ).forEach((line) => ctx.out(line));
+    else ctx.out(r ? `${l.padEnd(at)}${r}` : l);
   }
   ctx.out("");
 }
@@ -1110,8 +1158,15 @@ function summary(session, text, ctx, prefix, kind) {
       columns,
       estimable: columns.map(() => true),
     },
-    w = tableWidth(session, table, [], 50),
+    // The stub is set as though the line were at least 79 wide, and the
+    // header is as wide as the stub wants to be; lines wider than the line
+    // go on after "> ", as Stata folds them.
+    shape = { floor: 79, breakPad: 2 },
+    w = tableWidth(session, table, [], 50, shape),
     width = w + 50,
+    headerWidth =
+      tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
+    linesize = session.settings?.linesize ?? 80,
     percent = kind === "proportion" && !!options.percent,
     [title, statistic] = percent
       ? ["Percent estimation", "Percent"]
@@ -1125,8 +1180,41 @@ function summary(session, text, ctx, prefix, kind) {
           ? applyFormat(v * scale, "%9.2f").trim()
           : g(v),
     legend = options.legend !== false;
-  const display = (out, { level: shownLevel, header: withHeader }) => {
-    const critical = invttail(survey.df, (1 - shownLevel / 100) / 2),
+  const display = (plain, { level: shownLevel, header: withHeader }) => {
+    // A row of estimates puts each number at its column, so a row folded
+    // on a narrow line moves the next number on as SMCL does.
+    const out = {
+        ...plain,
+        out: (line) =>
+          (line.length > linesize &&
+          line.length === w + 50 &&
+          line.endsWith("f. interval]")
+            ? // The heading of the interval column stops at its "f.".
+              smclLines(
+                [line.slice(0, w + 38), { col: w + 39 }, line.slice(w + 38)],
+                linesize,
+              )
+            : line.length > linesize &&
+                line.length === w + 50 &&
+                line[w + 1] === "|"
+              ? smclLines(
+                  [
+                    line.slice(0, w + 4),
+                    { col: w + 5 },
+                    line.slice(w + 4, w + 13),
+                    { col: w + 16 },
+                    line.slice(w + 15, w + 24),
+                    { col: w + 30 },
+                    line.slice(w + 29, w + 38),
+                    { col: w + 42 },
+                    line.slice(w + 41),
+                  ],
+                  linesize,
+                )
+              : fold(line, linesize)
+          ).forEach((one) => plain.out(one)),
+      },
+      critical = invttail(survey.df, (1 - shownLevel / 100) / 2),
       interval = (value, s) => {
         if (isMissing(s) || isMissing(critical)) return [MISSING, MISSING];
         if (kind === "proportion" && citype === "logit") {
@@ -1140,10 +1228,11 @@ function summary(session, text, ctx, prefix, kind) {
         return [value - critical * s, value + critical * s];
       };
     if (withHeader)
-      header(out, survey, {
+      header(plain, survey, {
         title: `Survey: ${title}`,
-        width,
+        width: headerWidth,
         summaryScheme: true,
+        linesize,
       });
     if (ratios && legend) {
       ratios.forEach((r) =>

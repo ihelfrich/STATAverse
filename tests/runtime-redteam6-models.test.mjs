@@ -131,9 +131,11 @@ test("margins leaves r(table), after ologit too", () => {
   close(cell(r, 1, 0), 0.0172598934376196, "se Male", 1e-6);
   close(cell(r, 0, 1), 0.333912468256645, "Female", 1e-8);
   close(cell(r, 1, 1), 0.0239560487345799, "se Female", 1e-6);
+  // r(table) holds the base level first, 0b.female, as Stata's does.
   r = run(s, "margins, dydx(female) predict(outcome(2))");
-  close(cell(r, 0, 0), -0.0368060732510137, "effect", 1e-8);
-  close(cell(r, 1, 0), 0.00857838179484408, "se effect", 1e-6);
+  assert.equal(cell(r, 0, 0), 0);
+  close(cell(r, 0, 1), -0.0368060732510137, "effect", 1e-8);
+  close(cell(r, 1, 1), 0.00857838179484408, "se effect", 1e-6);
 });
 
 test("glm takes sampling, analytic, frequency and importance weights", () => {
@@ -262,4 +264,135 @@ test("svy: logit and poisson, and poisson, stop where Stata stops", () => {
   const r = run(s, "poisson nkids age i.female i.educ");
   close(coefficient(s, "age"), -0.000128429651631799, "poisson age", 1e-12);
   close(r.e.ll, -861.499513612687, "poisson ll", 1e-12);
+});
+
+// The seventh round's models findings, on the testers' data (seed 90210,
+// 800 observations). The tables are compared line by line in
+// tests/runtime-output.test.mjs (the models7-* cases); these values were
+// recorded from Stata 19 MP (version 17, set processors 1) at full
+// precision.
+const DATA7 = `clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+drop ystar`;
+
+function session7() {
+  const s = new Session();
+  assert.equal(s.run(DATA7).rc, 0);
+  return s;
+}
+const matrix = (results, name) => results.r[`matrix:${name}`];
+
+test("margins after ologit and oprobit average with the sampling weights", () => {
+  const s = session7();
+  run(s, "ologit sat age i.female [pweight=pw]");
+  let r = run(s, "margins female, predict(outcome(4))");
+  close(cell(r, 0, 0), 0.2396318180678825849, "ologit Male", 1e-12);
+  close(cell(r, 0, 1), 0.2992057926320977335, "ologit Female", 1e-12);
+  // The standard errors come from numerical derivatives.
+  close(cell(r, 1, 0), 0.0198629421836148123, "se Male", 1e-8);
+  close(cell(r, 1, 1), 0.0220690008520315444, "se Female", 1e-8);
+  run(s, "oprobit sat age i.female [pweight=pw]");
+  r = run(s, "margins female, predict(outcome(2))");
+  close(cell(r, 0, 0), 0.2010799667501489696, "oprobit Male", 1e-12);
+  close(cell(r, 0, 1), 0.1972178845523268609, "oprobit Female", 1e-12);
+  close(cell(r, 1, 0), 0.0152616528095071095, "se Male", 1e-8);
+  assert.deepEqual(matrix(r, "b").rowNames, ["r1"]);
+});
+
+test("margins after a weighted areg averages with the weights", () => {
+  const s = session7();
+  run(s, "areg lninc age i.female [pweight=pw], absorb(stratum)");
+  const r = run(s, "margins female");
+  close(cell(r, 0, 0), 10.24813968113219076, "Male", 1e-12);
+  close(cell(r, 1, 0), 0.0302312105113282138, "se Male", 1e-10);
+  close(cell(r, 0, 1), 10.14491443984171148, "Female", 1e-12);
+  close(cell(r, 1, 1), 0.0302130812214701332, "se Female", 1e-10);
+});
+
+test("margins after noconstant leaves a factor's effect not estimable", () => {
+  const s = session7();
+  run(s, "regress lninc age i.female, noconstant");
+  const r = run(s, "margins, dydx(female)");
+  // r(table) holds the base level and a missing effect, as Stata's does.
+  assert.deepEqual(table(r).colNames, ["0b.female", "1o.female"]);
+  assert.equal(cell(r, 0, 1), missingValue());
+  assert.equal(cell(r, 1, 1), missingValue());
+  assert.deepEqual(matrix(r, "b").rowNames, ["y1"]);
+});
+
+test("estat summarize weights its statistics and leaves r(stats)", () => {
+  const s = session7();
+  run(s, "regress lninc age i.female [aweight=pw]");
+  let r = run(s, "estat summarize");
+  let stats = matrix(r, "stats");
+  assert.deepEqual(stats.rowNames, ["lninc", "age", "1.female", "_weight"]);
+  close(stats.values[0][0], 10.19613616805360046, "mean lninc", 1e-14);
+  close(stats.values[0][1], 0.5818440238648919793, "sd lninc", 1e-14);
+  close(stats.values[2][0], 0.5037867911807567545, "mean female", 1e-14);
+  close(stats.values[3][1], 1.151112275412138564, "sd _weight", 1e-14);
+  run(s, "regress lninc age i.female [fweight=fw]");
+  r = run(s, "estat summarize");
+  stats = matrix(r, "stats");
+  close(stats.values[0][0], 10.21756540791221113, "fw mean lninc", 1e-14);
+  close(stats.values[0][1], 0.5944924894524690195, "fw sd lninc", 1e-14);
+  close(stats.values[1][1], 13.32746832186950314, "fw sd age", 1e-14);
+  r = run(s, "estat summarize, equation");
+  assert.deepEqual(matrix(r, "stats").rowNames, [
+    "depvar:lninc",
+    "age",
+    "1.female",
+    "weight:_weight",
+  ]);
+});
+
+test("estat vif and estimates table leave their own r()", () => {
+  const s = session7();
+  run(s, "regress lninc age hours i.female");
+  let r = run(s, "estat vif");
+  // vif.ado keeps each VIF in a float and, with factor variables, does not
+  // sort them.
+  close(r.r.vif_1, 1.000811338424682617, "vif_1", 1e-15);
+  close(r.r.vif_3, 1.00109255313873291, "vif_3", 1e-15);
+  assert.equal(r.r.name_3, "1.female");
+  assert.equal(r.r["matrix:table"], undefined);
+  run(s, "regress lninc age i.female");
+  run(s, "estimates store m1");
+  run(s, "logit employed age i.female");
+  run(s, "estimates store m2");
+  r = run(s, "estimates table m1 m2");
+  assert.equal(r.r.names, "m1 m2");
+  const coef = matrix(r, "coef");
+  close(coef.values[3][0], 9.827947160377240365, "m1 _cons", 1e-14);
+  close(coef.values[3][1], 0.0044852588492971766, "m1 var _cons", 1e-12);
+  close(coef.values[6][2], 0.1090773837276243635, "m2 1.female", 1e-12);
+  close(coef.values[6][3], 0.020822198048901619, "m2 var 1.female", 1e-12);
+  assert.equal(coef.values[1][1], missingValue("b"));
+  assert.equal(coef.values[0][2], missingValue("z"));
+  r = run(s, "estimates table");
+  assert.equal(r.r.names, ".");
 });

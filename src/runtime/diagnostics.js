@@ -5,7 +5,8 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail } from "./distributions.js";
 import { abbreviate, coefficientSpace, termRows } from "./estimation.js";
-import { count, moments } from "./reports.js";
+import { evaluateAll } from "./expression.js";
+import { moments } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 
@@ -417,45 +418,348 @@ const omittedName = (name) =>
     )
     .join("#");
 
+/**
+ * estat summarize: the dependent variable and the regressors over the
+ * estimation sample, weighted as the fit was (sampling weights as analytic
+ * weights), with the weights themselves, unweighted, as _weight. labels
+ * adds each variable's label, equation heads the dependent variable and
+ * the regressors by equation, noheader leaves out the header and noweights
+ * the weights. As estat_summ.ado lays them out.
+ */
 function summarizeSample(session, model, text, ctx) {
-  const rows = model.sample,
-    // The dependent variable, then each regressor's column laid out as the
-    // coefficient table lays it out: factor levels under their variable's
-    // name, base levels left out. The dependent variable has no column and
-    // sits where a table's constant would.
-    columns = [null, ...model.columns],
-    table = {
-      names: [model.depvar, ...model.columns.map((c) => c.name)],
-      columns,
-      estimable: columns.map((c) => !c || !(c.omitted || c.collinear)),
+  const parsed = session.parse(
+      "[anything] [, EQuation noHEAder noWEIghts LABels VSQuish | ALLBASElevels BASElevels noOMITted noEMPTYcells FVWRAP(string) FVWRAPON(string) NOFVLABel FVLABel GROUP(string)]",
+      text,
+    ),
+    options = parsed.options;
+  // A list of variables is summarized in place of the model's.
+  let listed = null;
+  if (parsed.anything?.trim()) {
+    if (/[:.#()]/.test(parsed.anything))
+      throw new StataError(
+        "estat summarize with equations or factor variables in its list is not available yet; name the variables",
+        198,
+      );
+    listed = session.varlist(parsed.anything).map((name) => {
+      const variable = session.data.get(name);
+      return {
+        name,
+        term: { variable },
+        value: (i) => variable.data[i],
+      };
+    });
+    if (options.equation)
+      throw new StataError(
+        "estat summarize, equation with a list of variables is not available yet",
+        198,
+      );
+  }
+  if (options.equation && model.equations)
+    throw new StataError(
+      "estat summarize, equation after a model of several equations is not available yet",
+      198,
+    );
+  const data = session.data,
+    // Each observation of the sample once (regress repeats one with a
+    // frequency weight).
+    rows = [...new Set(model.sample)],
+    wtype = options.weights === false ? null : (model.wtype ?? null),
+    wexp = model.wexp;
+  if (wtype && !wexp)
+    throw new StataError(
+      "estat summarize after this weighted fit is not available yet; estat summarize, noweights summarizes the sample unweighted",
+      198,
+    );
+  const weightAll = wtype
+      ? evaluateAll(session.compile(wexp.replace(/^\s*=\s*/, "")), data.n)
+      : null,
+    weights = weightAll ? rows.map((i) => weightAll[i]) : null,
+    labels = !!options.labels,
+    linesize = session.settings?.linesize ?? 80,
+    // Summary statistics as summarize gives them under the weight.
+    stats = (values) => {
+      if (!weights) return moments(values);
+      let W = 0,
+        sum = 0,
+        min = Infinity,
+        max = -Infinity;
+      values.forEach((v, r) => {
+        W += weights[r];
+        sum += weights[r] * v;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      });
+      const mean = sum / W,
+        ss = values.reduce((t, v, r) => t + weights[r] * (v - mean) ** 2, 0),
+        n = values.length,
+        variance =
+          wtype === "fweight" || wtype === "iweight"
+            ? ss / (W - 1)
+            : (ss / W) * (n / (n - 1));
+      return { mean, sd: Math.sqrt(variance), min, max };
     },
-    valuesOf = (k) =>
-      k === 0
-        ? rows.map((i) => session.data.get(model.depvar).data[i])
-        : rows.map((i) => columns[k].value(i));
-  ctx.out("");
-  ctx.out(
-    `${`  Estimation sample ${model.command}`.padEnd(43)}Number of obs = ${count(rows.length).padStart(10)}`,
-  );
-  ctx.out("");
-  ctx.out("  " + "-".repeat(67));
-  ctx.out(
-    "      Variable |         Mean      Std. dev.         Min          Max",
-  );
-  ctx.out(
-    "  -------------+-----------------------------------------------------",
-  );
-  termRows(
-    session,
-    table,
-    (k) => {
-      const m = moments(valuesOf(k));
-      return `${g(m.mean).padStart(13)}${g(m.sd).padStart(14)}${g(m.min).padStart(13)}${g(m.max).padStart(13)}`;
+    variableLabel = (name) =>
+      data.has(name) ? (data.get(name).label ?? "") : "",
+    // A label in pieces of at most so many characters, broken between
+    // words as Stata's piece does.
+    pieces = (label, width) => {
+      const out = [];
+      let line = "";
+      for (const word of label.split(" ")) {
+        if (line && `${line} ${word}`.length > width) {
+          out.push(line);
+          line = word;
+        } else line = line ? `${line} ${word}` : word;
+        while (line.length > width) {
+          out.push(line.slice(0, width));
+          line = line.slice(width);
+        }
+      }
+      if (line) out.push(line);
+      return out;
     },
-    12,
-  ).forEach((line) => ctx.out(`  ${line}`));
-  ctx.out("  " + "-".repeat(67));
+    // The table's width: labels widen it by the longest label of the
+    // dependent variable and the plain variables (factors do not count),
+    // within the line.
+    shown = listed ?? model.columns,
+    longest = Math.max(
+      21,
+      ...[
+        ...(listed ? [] : [model.depvar]),
+        ...shown
+          .filter((c) => c.term.variable)
+          .map((c) => c.term.variable.name),
+      ].map((name) => variableLabel(name).length),
+      wtype ? wexp.length : 0,
+    ),
+    labelWidth = Math.min(linesize - 57, longest),
+    length = labels ? 53 + labelWidth : 59,
+    indent = labels ? "" : "  ",
+    line = (ch) =>
+      `${indent}${"-".repeat(13)}${ch}${"-".repeat(length - (labels ? 10 : 6))}`,
+    clustvar = session.results.e?.clustvar ?? model.clusterName,
+    observations =
+      wtype === "fweight" ? weights.reduce((t, v) => t + v, 0) : rows.length;
+  if (options.header !== false) {
+    ctx.out("");
+    const command = model.command,
+      at = (offset) => " ".repeat(Math.max(0, offset - 1));
+    if (!clustvar)
+      ctx.out(
+        `${`${indent}Estimation sample ${command}`.padEnd(length - 21 - 1 + (labels ? 0 : 6))}Number of obs = ${applyFormat(observations, "%10.0fc")}`,
+      );
+    else {
+      const ll = length - 28 + (labels ? 0 : 6),
+        groups = new Map();
+      rows.forEach((i, r) => {
+        const key = data.get(clustvar).data[i];
+        groups.set(
+          key,
+          (groups.get(key) ?? 0) + (wtype === "fweight" ? weights[r] : 1),
+        );
+      });
+      const sizes = [...groups.values()];
+      if (labels)
+        ctx.out(
+          `${`Estimation sample ${command}`.padEnd(ll - 1)}Number of obs        = ${applyFormat(observations, "%10.0fc")}`,
+        );
+      else {
+        ctx.out(`  Estimation sample ${command}`);
+        ctx.out(
+          `${at(ll)}Number of obs        = ${applyFormat(observations, "%10.0fc")}`,
+        );
+      }
+      ctx.out("");
+      ctx.out(
+        `${at(ll)}Number of clusters   = ${applyFormat(sizes.length, "%10.0fc")}`,
+      );
+      ctx.out(
+        `${at(ll)}Obs per cluster: min = ${applyFormat(Math.min(...sizes), "%10.0fc")}`,
+      );
+      ctx.out(
+        `${at(ll)}                 avg = ${applyFormat(observations / sizes.length, "%10.1fc")}`,
+      );
+      ctx.out(
+        `${at(ll)}                 max = ${applyFormat(Math.max(...sizes), "%10.0fc")}`,
+      );
+    }
+  }
   ctx.out("");
+  ctx.out(labels ? "-".repeat(length + 4) : `  ${"-".repeat(length + 8)}`);
+  ctx.out(
+    labels
+      ? "    Variable |      Mean   Std. dev.     Min      Max   Label"
+      : "      Variable |         Mean      Std. dev.         Min          Max",
+  );
+  // Each row's statistics, and with labels the variable's label beside
+  // them, its rest on lines of its own.
+  const cells = (values, label) => {
+      const m = stats(values);
+      if (!labels)
+        return `${g(m.mean).padStart(13)}${g(m.sd).padStart(14)}${g(m.min).padStart(13)}${g(m.max).padStart(13)}`;
+      const [first = "", ...rest] = label ? pieces(label, labelWidth) : [];
+      return [
+        `${g(m.mean).padStart(10)}${g(m.sd).padStart(11)}${g(m.min, "%8.0g").padStart(9)}${g(m.max, "%8.0g").padStart(9)}${first ? `   ${first}` : ""}`,
+        ...rest.map((piece) => `${" ".repeat(42)}${piece}`),
+      ].join("\n");
+    },
+    // vsquish leaves out the blank rows between groups.
+    emit = (lines) =>
+      lines
+        .filter((text) => !options.vsquish || text !== `${" ".repeat(13)}|`)
+        .forEach((text) =>
+          text.split("\n").forEach((one, k) => {
+            // A label's further pieces start at column 57.
+            if (k) ctx.out(`${" ".repeat(13)}|${one}`.trimEnd());
+            else ctx.out(`${indent}${one}`.trimEnd());
+          }),
+        ),
+    depvar = data.get(model.depvar),
+    equation = !!options.equation,
+    // The dependent variable has no column and sits where a table's
+    // constant would: first, or alone in its equation.
+    lay = (columns, names) =>
+      termRows(
+        session,
+        {
+          names,
+          columns,
+          estimable: columns.map((c) => !c || !(c.omitted || c.collinear)),
+        },
+        (k) =>
+          columns[k]
+            ? cells(
+                rows.map((i) => columns[k].value(i)),
+                columns[k].term.variable
+                  ? variableLabel(columns[k].term.variable.name)
+                  : "",
+              )
+            : cells(
+                rows.map((i) => depvar.data[i]),
+                variableLabel(model.depvar),
+              ),
+        12,
+      ),
+    // With labels, a factor's heading carries the variable's label, and
+    // no blank row comes before it.
+    headings = new Map(
+      model.columns
+        .filter((c) => c.term.factor)
+        .map((c) => [abbreviate(c.term.factor.name, 12), c.term.factor.name]),
+    ),
+    withLabels = (lines) => {
+      if (!labels) return lines;
+      const out = [];
+      lines.forEach((text) => {
+        const name = text.slice(0, 12).trim();
+        if (
+          text.length === 14 &&
+          text.endsWith(" |") &&
+          headings.has(name) &&
+          !text.includes("#")
+        ) {
+          if (out.at(-1) === `${" ".repeat(13)}|`) out.pop();
+          const [first = "", ...rest] = pieces(
+            variableLabel(headings.get(name)),
+            labelWidth,
+          );
+          out.push(
+            `${text}${first ? `${" ".repeat(42)}${first}` : ""}`,
+            ...rest.map(
+              (piece) => `${" ".repeat(13)}|${" ".repeat(42)}${piece}`,
+            ),
+          );
+          return;
+        }
+        out.push(text);
+      });
+      return out;
+    };
+  ctx.out(line("+"));
+  const space = coefficientSpace(model),
+    eqName = space.entries[0]?.equation ?? "_",
+    heading = (name) =>
+      ctx.out(
+        labels
+          ? `${abbreviate(name, 12).padEnd(13)}|`
+          : `  ${abbreviate(name, 12).padEnd(13)}|`,
+      );
+  if (equation) {
+    heading("depvar");
+    emit(withLabels(lay([null], [model.depvar])));
+    ctx.out(line("+"));
+    heading(eqName);
+    emit(
+      withLabels(
+        lay(
+          model.columns,
+          model.columns.map((c) => c.name),
+        ),
+      ),
+    );
+  } else if (listed)
+    emit(
+      withLabels(
+        lay(
+          listed,
+          listed.map((c) => c.name),
+        ),
+      ),
+    );
+  else
+    emit(
+      withLabels(
+        lay(
+          [null, ...model.columns],
+          [model.depvar, ...model.columns.map((c) => c.name)],
+        ),
+      ),
+    );
+  if (weights) {
+    ctx.out(line("+"));
+    // The weights are summarized unweighted.
+    const m = moments(weights);
+    ctx.out(
+      `${indent}${"_weight".padStart(12)} |${
+        labels
+          ? `${g(m.mean).padStart(10)}${g(m.sd).padStart(11)}${g(m.min, "%8.0g").padStart(9)}${g(m.max, "%8.0g").padStart(9)}   ${pieces(wexp, labelWidth)[0]}`
+          : `${g(m.mean).padStart(13)}${g(m.sd).padStart(14)}${g(m.min).padStart(13)}${g(m.max).padStart(13)}`
+      }`,
+    );
+  }
+  ctx.out(labels ? "-".repeat(length + 4) : `  ${"-".repeat(length + 8)}`);
+  if (clustvar) ctx.out(`${indent}Std. dev. not adjusted for clustering`);
+  ctx.out("");
+  // r(stats): each row's mean, standard deviation, minimum and maximum,
+  // base levels and omitted columns left out, as estat_summ.ado leaves it.
+  const kept = shown.filter(
+      (c) => !c.base && !c.omitted && !c.collinear && !c.empty,
+    ),
+    prefix = equation && eqName !== "_" ? `${eqName}:` : "",
+    entries = [
+      ...(listed
+        ? []
+        : [
+            [
+              `${equation ? "depvar:" : ""}${model.depvar}`,
+              stats(rows.map((i) => depvar.data[i])),
+            ],
+          ]),
+      ...kept.map((c) => [
+        `${prefix}${c.name}`,
+        stats(rows.map((i) => c.value(i))),
+      ]),
+      ...(weights
+        ? [[`${equation ? "weight:" : ""}_weight`, moments(weights)]]
+        : []),
+    ];
+  session.results.r = {
+    "matrix:stats": {
+      rowNames: entries.map(([name]) => name),
+      colNames: ["mean", "sd", "min", "max"],
+      values: entries.map(([, m]) => [m.mean, m.sd, m.min, m.max]),
+    },
+  };
 }
 
 /** Runs a regress diagnostic; returns false when the name is not one. */

@@ -882,6 +882,8 @@ function areg(session, text, ctx) {
       vce,
       ...(vcetype ? { vcetype } : {}),
       ...(wtype ? { wtype, sumW } : {}),
+      // Each observation's weight, which margins averages with.
+      ...(w ? { weights: w } : {}),
       sample: rows,
       level: options.level,
     },

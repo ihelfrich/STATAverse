@@ -6,7 +6,7 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { density, invnormal, normal } from "./functions-normal.js";
-import { marginTermsOf, marginsTable } from "./margins.js";
+import { marginTermsOf, marginsTable, withBaseLevels } from "./margins.js";
 import { count, labelled } from "./reports.js";
 import { MISSING, isMissing } from "./values.js";
 import { parseNumlist } from "./numlist.js";
@@ -107,6 +107,9 @@ export function outcomeMargins(session, model, text, ctx) {
     level = options.level;
   const rows = model.sample,
     n = rows.length,
+    // Each observation's sampling weight, which weights every average.
+    weightOf = new Map(rows.map((i, r) => [i, model.weights?.[r] ?? 1])),
+    total = rows.reduce((t, i) => t + weightOf.get(i), 0),
     variables = covariatesOf(s),
     names = variables.map((v) => v.name),
     factors = new Map(
@@ -127,14 +130,19 @@ export function outcomeMargins(session, model, text, ctx) {
       const base = own.find((c) => c.base) ?? own[0];
       return [base.level, ...own.filter((c) => c !== base).map((c) => c.level)];
     },
+    // A factor's levels in order, as the margins of a factor list them.
+    sortedLevels = (name) => levelsOf(name).sort((a, b) => a - b),
     means = new Map(
       variables.map((v) => [
         v.name,
-        rows.reduce((t, i) => t + v.data[i], 0) / n,
+        rows.reduce((t, i) => t + weightOf.get(i) * v.data[i], 0) / total,
       ]),
     ),
     shareOf = (variable, value) =>
-      rows.filter((i) => variable.data[i] === value).length / n,
+      rows.reduce(
+        (t, i) => t + (variable.data[i] === value ? weightOf.get(i) : 0),
+        0,
+      ) / total,
     // The outcomes asked for: one, or all of them.
     asked = /outcome\(\s*([^)\s]+)\s*\)/.exec(options.predict ?? ""),
     chosen = asked
@@ -147,10 +155,18 @@ export function outcomeMargins(session, model, text, ctx) {
     terms = parsed.anything?.trim()
       ? marginTermsOf(session, parsed.anything, factors)
       : [],
-    wrt = options.dydx
+    // Effects are listed in the model's order, whatever order dydx() names
+    // the variables in.
+    typed = options.dydx
       ? options.dydx.trim() === "*" || options.dydx.trim() === "_all"
         ? names
         : session.varlist(options.dydx)
+      : [null],
+    wrt = options.dydx
+      ? [
+          ...names.filter((name) => typed.includes(name)),
+          ...typed.filter((name) => !names.includes(name)),
+        ]
       : [null];
   if (options.predict && !asked)
     throw new StataError(
@@ -177,7 +193,7 @@ export function outcomeMargins(session, model, text, ctx) {
       const name = session.varlist(m[1])[0];
       if (!names.includes(name))
         throw new StataError(
-          `variable ${name} not found in list of covariates`,
+          `invalid at() option;\nvariable ${name} not found in list of covariates`,
           322,
         );
       const values = parseNumlist(m[2].replace(/^\(|\)$/g, ""));
@@ -198,12 +214,16 @@ export function outcomeMargins(session, model, text, ctx) {
         198,
       );
   // Every covariate is fixed, but for one factor whose effect dydx()
-  // takes; the effects are then conditional, as margins says of others.
+  // takes, when at() fixes no other such factor; the effects are then
+  // conditional, as margins says of others.
   const fixedAll = sets.every((set) => {
     const free = names.filter((name) => !set.has(name));
     return (
       !free.length ||
-      (free.length === 1 && factors.has(free[0]) && wrt.includes(free[0]))
+      (free.length === 1 &&
+        factors.has(free[0]) &&
+        wrt.includes(free[0]) &&
+        !wrt.some((name) => factors.has(name) && set.has(name)))
     );
   });
   // The columns of observation i, and their derivatives in one variable,
@@ -250,18 +270,22 @@ export function outcomeMargins(session, model, text, ctx) {
       (names.every((name) => fixed.has(name)) ? [rows[0]] : rows).map((i) => ({
         x: columnsAt(i, fixed),
         d: variable ? slopesAt(i, fixed, variable) : null,
+        w: weightOf.get(i),
       }));
-  // Each quantity: the average over the points of a probability or slope,
-  // or the difference of two averages of probabilities.
+  // Each quantity: the weighted average over the points of a probability or
+  // slope, or the difference of two averages of probabilities.
   const average = (theta, points, j, slope) => {
-      let total = 0;
-      for (const point of points)
-        total += (
-          slope
+      let sum = 0,
+        weights = 0;
+      for (const point of points) {
+        sum +=
+          point.w *
+          (slope
             ? slopes(model, theta, point.x, point.d)
-            : probabilities(model, theta, point.x)
-        )[j];
-      return total / points.length;
+            : probabilities(model, theta, point.x))[j];
+        weights += point.w;
+      }
+      return sum / weights;
     },
     estimate = (quantity) => {
       const theta = s.theta,
@@ -313,7 +337,7 @@ export function outcomeMargins(session, model, text, ctx) {
     let combos = [[]];
     for (const name of term)
       combos = combos.flatMap((combo) =>
-        levelsOf(name).map((value) => [...combo, value]),
+        sortedLevels(name).map((value) => [...combo, value]),
       );
     const named = term.some((name) =>
       session.data.valueLabels?.has(factors.get(name).valueLabel),
@@ -362,6 +386,10 @@ export function outcomeMargins(session, model, text, ctx) {
               factor: name,
               wrt: `${value}.${name}`,
               discrete: true,
+              // r(b) and r(table) hold the base level too, at its place.
+              base: { level: first, column: `${first}b.${name}` },
+              level: value,
+              beforeBase: value < first,
               ...change(sets[0], name, value, first, chosen[0]),
             });
         }
@@ -390,28 +418,36 @@ export function outcomeMargins(session, model, text, ctx) {
       ...margin(sets[0], chosen[0]),
     });
 
-  const describe = (set) => {
+  // The settings above the table. A factor whose margins are taken is
+  // not listed, though its levels held at their means widen the names and
+  // values, as in margins after other models.
+  const marginNames = terms.flat(),
+    describe = (set) => {
       const entries = [...set].flatMap(([name, value]) =>
           value === "mean" && factors.has(name)
-            ? levelsOf(name).map((at) => [
+            ? sortedLevels(name).map((at) => [
                 `${at}.${name}`,
                 g(shareOf(factors.get(name), at)),
                 " (mean)",
+                marginNames.includes(name),
               ])
             : [
                 [
                   name,
                   value === "mean" ? g(means.get(name)) : g(value),
                   value === "mean" ? " (mean)" : "",
+                  false,
                 ],
               ],
         ),
         width = Math.max(0, ...entries.map((e) => e[0].length)),
         wide = Math.max(0, ...entries.map((e) => e[1].length));
-      return entries.map(
-        ([name, value, note]) =>
-          `${name.padEnd(width)} = ${value.padStart(wide)}${note}`,
-      );
+      return entries
+        .filter((e) => !e[3])
+        .map(
+          ([name, value, note]) =>
+            `${name.padEnd(width)} = ${value.padStart(wide)}${note}`,
+        );
     },
     atLines = () =>
       many
@@ -436,7 +472,9 @@ export function outcomeMargins(session, model, text, ctx) {
         : "Predictive margins"
     ).padEnd(78 - observations.length)}${observations}`,
   );
-  ctx.out("Model VCE: OIM");
+  ctx.out(
+    `Model VCE: ${model.vce === "robust" || model.vce === "cluster" ? "Robust" : "OIM"}`,
+  );
   ctx.out("");
   if (all) {
     if (dydx) {
@@ -453,9 +491,7 @@ export function outcomeMargins(session, model, text, ctx) {
       atLines().forEach(ctx.out);
     }
   } else {
-    ctx.out(
-      `Expression: ${label(chosen[0])}, predict(outcome(${s.outcomes[chosen[0]]}))`,
-    );
+    ctx.out(`Expression: ${label(chosen[0])}, predict(outcome(${asked[1]}))`);
     if (dydx) ctx.out(`dy/dx wrt:  ${shownWrt.join(" ")}`);
     atLines().forEach(ctx.out);
   }
@@ -480,13 +516,17 @@ export function outcomeMargins(session, model, text, ctx) {
     ctx,
   );
   // r(b), r(V) and r(table), as margins leaves them.
-  const values = results.filter((r) => !r.group && !r.heading && !r.rule),
+  const values = withBaseLevels(
+      results.filter((r) => !r.group && !r.heading && !r.rule),
+      s.theta.length,
+    ),
     columnNames = values.map((r) => r.wrt ?? r.label);
   session.results.r = {
     N: n,
     level,
+    // Effects are a row y1, margins a row r1, as Stata names them.
     "matrix:b": {
-      rowNames: ["r1"],
+      rowNames: [dydx ? "y1" : "r1"],
       colNames: columnNames,
       values: [values.map((r) => r.value)],
     },
@@ -506,13 +546,19 @@ export function outcomeMargins(session, model, text, ctx) {
     "matrix:table": {
       rowNames: ["b", "se", "z", "pvalue", "ll", "ul", "df", "crit", "eform"],
       colNames: columnNames,
+      // A base level, or an estimate with no standard error, has only its
+      // value.
       values: [
         values.map((r) => r.value),
-        values.map((r) => r.se),
-        values.map((r) => r.value / r.se),
-        values.map((r) => 2 * normal(-Math.abs(r.value / r.se))),
-        values.map((r) => r.value - critical * r.se),
-        values.map((r) => r.value + critical * r.se),
+        ...[
+          (r) => r.se,
+          (r) => r.value / r.se,
+          (r) => 2 * normal(-Math.abs(r.value / r.se)),
+          (r) => r.value - critical * r.se,
+          (r) => r.value + critical * r.se,
+        ].map((cell) =>
+          values.map((r) => (r.se > 0 && !isMissing(r.se) ? cell(r) : MISSING)),
+        ),
         values.map(() => MISSING),
         values.map(() => critical),
         values.map(() => 0),

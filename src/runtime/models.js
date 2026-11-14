@@ -399,10 +399,7 @@ function maximumLikelihood(kind) {
       } = design(session, parsed.anything, rows, constant),
       logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? "");
     // [w=exp] is a frequency weight, and Stata says so.
-    if (
-      wtype === "fweight" &&
-      /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0])
-    )
+    if (wtype === "fweight" && bareWeight(text))
       ctx.out("(frequency weights assumed)");
     let sample = complete,
       n = sample.length,
@@ -951,6 +948,10 @@ function ivColumns(listed, rows) {
   return notes;
 }
 
+/** Whether a command's weight is typed as [weight=exp] or [w=exp]. */
+export const bareWeight = (text) =>
+  /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0]);
+
 function ivregress(session, text, ctx) {
   // A weight, [pweight=w], may stand anywhere after the varlist; it is
   // taken out before the varlist is read and handed to the parser.
@@ -1097,6 +1098,9 @@ function ivregress(session, text, ctx) {
         "option first is not available yet with weights; fit the first stage with regress and the same weights",
         198,
       );
+    // [w=exp] is an analytic weight, and Stata says so.
+    if (wtype === "aweight" && bareWeight(weightClause))
+      ctx.out("(analytic weights assumed)");
     // ivregress.ado shows the sum in %12.4e.
     if (wtype === "aweight" || wtype === "pweight")
       ctx.out(`(sum of wgt is ${applyFormat(weightSum, "%12.4e")})`);
@@ -1913,7 +1917,21 @@ function estat(session, text, ctx) {
         ss = values.reduce((t, v) => t + (v - mean) ** 2, 0);
       vifs.push([name, (model.V[k][k] * ss) / s2]);
     });
-    vifs.sort((a, b) => b[1] - a[1]);
+    // vif.ado sorts by VIF, largest first, unless the model has factor
+    // variables. It keeps each VIF in a float variable.
+    if (!model.columns.some((c) => c?.term?.components?.some((p) => p.factor)))
+      vifs.sort((a, b) => b[1] - a[1]);
+    vifs.forEach((v) => (v[1] = Math.fround(v[1])));
+    // r(vif_#) and r(name_#), numbered in the order shown; return list
+    // shows the last set first, as vif.ado sets them.
+    session.results.r = Object.fromEntries(
+      vifs
+        .flatMap(([name, vif], k) => [
+          [`vif_${k + 1}`, vif],
+          [`name_${k + 1}`, name],
+        ])
+        .reverse(),
+    );
     ctx.out("");
     ctx.out("    Variable |       VIF       1/VIF  ");
     ctx.out("-------------+----------------------");
