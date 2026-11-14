@@ -118,6 +118,11 @@ for (const c of fixture.cases)
             "table-width-likelihood-models",
             "mlogit-factor-layout",
             "test-lincom-tobit-prefix-and-minus",
+            "table-width-continuous-pieces",
+            "table-level-labels-abbreviated",
+            "table-unlabelled-levels-and-one-level-factors",
+            "constraint-lines-wrapped",
+            "table-width-xtreg-and-resampling",
           ].includes(c.id),
         )
       )

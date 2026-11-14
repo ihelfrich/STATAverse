@@ -568,11 +568,14 @@ export function fit(session, parsed, by) {
 
 /**
  * The terms of a coefficient table in order, each with the coefficients it
- * gives, those shown (base levels are hidden) and whether it prints as one
- * row like a plain variable: a factor with one level to show, such as a
- * 0/1 variable, does.
+ * gives and those shown (base levels are hidden). A factor with one level
+ * to show, such as a 0/1 variable, prints as one row like a plain variable
+ * (1.union) when the variable has no value label: it is alone. When it
+ * has one, even without a label for that level, the factor is headed by
+ * its name and the row shows the level (union, then Yes), but like a plain
+ * variable it has no blank row after it: it is single.
  */
-function tableBlocks(model) {
+function tableBlocks(session, model) {
   const blocks = [];
   model.names.forEach((_, k) => {
     const term = model.columns?.[k]?.term ?? "_cons",
@@ -582,11 +585,18 @@ function tableBlocks(model) {
   });
   for (const block of blocks) {
     block.shown = block.items.filter((k) => !hiddenBase(model.columns[k]));
-    block.alone =
+    const one =
       block.term !== "_cons" &&
       !block.term.variable &&
       block.term.components.length === 1 &&
+      block.term.components[0].factor &&
       block.shown.length === 1;
+    block.alone =
+      one &&
+      !session.data.valueLabels?.has(
+        block.term.components[0].variable.valueLabel,
+      );
+    block.single = one && !block.alone;
   }
   return blocks;
 }
@@ -607,7 +617,7 @@ function levelLabel(session, column) {
           ?.get(factors[j].variable.valueLabel)
           ?.has(level) ?? false,
     );
-  return { pieces, text: pieces.join(named ? "#" : " ") };
+  return { pieces, named, text: pieces.join(named ? "#" : " ") };
 }
 
 /**
@@ -628,7 +638,7 @@ export function tableWidth(session, model, extra = []) {
         ? name.length
         : brokenName(name, cap).widest,
     lengths = extra.map((text) => text.length);
-  for (const block of tableBlocks(model)) {
+  for (const block of tableBlocks(session, model)) {
     if (!block.shown.length) continue;
     // A plain variable, the constant, a factor shown on one row as its
     // full name (1.name) and a product of continuous variables count by
@@ -643,10 +653,14 @@ export function tableWidth(session, model, extra = []) {
       continue;
     }
     // A factor or interaction counts by its header, and each level's label
-    // with the space after it.
+    // with the space after it. A label of several levels too long for the
+    // line is split, and then each level counts on its own.
     lengths.push(needs(block.term.header));
-    for (const k of block.shown)
-      lengths.push(levelLabel(session, model.columns[k]).text.length + 1);
+    for (const k of block.shown) {
+      const { pieces, text } = levelLabel(session, model.columns[k]);
+      if (text.length + 1 <= cap) lengths.push(text.length + 1);
+      else lengths.push(...pieces.map((piece) => piece.length + 1));
+    }
   }
   return Math.max(12, Math.min(Math.max(0, ...lengths), cap));
 }
@@ -657,9 +671,22 @@ export function tableWidth(session, model, extra = []) {
  */
 const hiddenBase = (column) => !!column?.base && !column.empty;
 
-/** Stata's abbrev(name, width): the start, a ~, and the last character. */
-export const abbreviate = (name, width) =>
-  name.length > width ? `${name.slice(0, width - 2)}~${name.at(-1)}` : name;
+/**
+ * Stata's abbrev(name, width): the start, a ~, and the end, which is the
+ * run of digits that ends the name (union_memb~12) while one character of
+ * the start still fits, and otherwise the last character. A factor level's
+ * prefix (1.) is kept and the name after it abbreviated.
+ */
+export function abbreviate(name, width) {
+  if (name.length <= width) return name;
+  const prefix = /^\d+[a-z]*\./.exec(name)?.[0];
+  if (prefix && width - prefix.length >= 3)
+    return `${prefix}${abbreviate(name.slice(prefix.length), width - prefix.length)}`;
+  const digits = /\d*$/.exec(name)[0].length,
+    end =
+      digits && digits < name.length && width - 1 - digits >= 1 ? digits : 1;
+  return `${name.slice(0, width - 1 - end)}~${name.slice(-end)}`;
+}
 
 /**
  * A name too long for a first column of width w, broken as Stata breaks
@@ -684,7 +711,9 @@ export function brokenName(name, w, abbreviated = true) {
       last.text = `${last.text}#${part}`;
       return;
     }
-    if (abbreviated && part.length > w && /^c\../.test(part))
+    // A continuous piece keeps its c. only when it fits with the # that
+    // ends it and a space before it; a factor's name may fill the column.
+    if (abbreviated && part.length > (final ? w : w - 1) && /^c\../.test(part))
       units.push(
         { text: "c.", fixed: true, bare: true },
         { text: abbreviate(part.slice(2), w), fixed: true },
@@ -720,13 +749,16 @@ export function termRows(session, model, cells, width, omittedValue = 0) {
     gap = `${" ".repeat(w + 1)}|`;
   const out = [];
   let previousPlain = true;
-  tableBlocks(model).forEach((block, b) => {
+  tableBlocks(session, model).forEach((block, b) => {
     const { shown, alone } = block,
       plain =
         block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
     if (b && !(plain && previousPlain)) out.push(gap);
     else if (b && block.term === "_cons" && !previousPlain) out.push(gap);
-    previousPlain = block.term === "_cons" ? previousPlain : plain;
+    // A factor headed by its name with one labelled level has a blank row
+    // before it, but none after.
+    previousPlain =
+      block.term === "_cons" ? previousPlain : plain || block.single;
     const row = (label, k) =>
       out.push(
         model.estimable[k]
@@ -755,13 +787,30 @@ export function termRows(session, model, cells, width, omittedValue = 0) {
     const header = brokenName(block.term.header, w, !!width);
     out.push(...header.lines, `${short(header.last).padStart(w)} |`);
     // A level's label too long for the column puts each level on a line of
-    // its own, those before the last followed by a #; a label still too
-    // long is cut and marked with two dots.
+    // its own, those before the last followed by a #; unlabelled levels are
+    // instead joined with spaces on as few lines as hold them, none ending
+    // in a #. A label still too long is cut and marked with two dots when
+    // it has a blank or is longer than a name may be, and abbreviated as a
+    // name is (abcdefghij~m) otherwise.
     const cut = (text) =>
-      width && text.length > w - 1 ? `${text.slice(0, w - 3)}..` : text;
+      !width || text.length <= w - 1
+        ? text
+        : /\s/.test(text) || text.length > 32
+          ? `${text.slice(0, w - 3)}..`
+          : abbreviate(text, w - 1);
     for (const k of shown) {
-      const { pieces, text } = levelLabel(session, model.columns[k]);
-      if (width && text.length > w - 1 && pieces.length > 1) {
+      const { pieces, named, text } = levelLabel(session, model.columns[k]);
+      if (width && text.length > w - 1 && pieces.length > 1 && !named) {
+        const lines = [];
+        for (const piece of pieces)
+          if (lines.length && `${lines.at(-1)} ${piece}`.length <= w - 1)
+            lines[lines.length - 1] += ` ${piece}`;
+          else lines.push(piece);
+        lines
+          .slice(0, -1)
+          .forEach((line) => out.push(`${`${cut(line)}  `.padStart(w + 1)}|`));
+        row(`${cut(lines.at(-1))}  `.padStart(w + 1), k);
+      } else if (width && text.length > w - 1 && pieces.length > 1) {
         pieces
           .slice(0, -1)
           .forEach((piece) =>
@@ -1511,8 +1560,22 @@ export function describeLinear(space, weights, constant) {
   });
   return `${text}${text ? " " : ""}= ${g(-constant + 0)}`;
 }
-const constraintLine = (k, text) =>
-  ` (${String(k + 1).padStart(2)}) ${text.startsWith("=") ? "" : " "}${text}`;
+/**
+ * The lines of a constraint as Stata lists it, its words wrapped at the line
+ * size onto lines indented by seven spaces.
+ */
+function constraintLines(session, k, text) {
+  const width = session.settings?.linesize ?? 80,
+    [first, ...words] = text.split(" "),
+    lines = [
+      ` (${String(k + 1).padStart(2)}) ${text.startsWith("=") ? "" : " "}${first}`,
+    ];
+  for (const word of words)
+    if (lines.at(-1).length + 1 + word.length <= width)
+      lines[lines.length - 1] += ` ${word}`;
+    else lines.push(`       ${word}`);
+  return lines;
+}
 
 /** Each coefficient of an equation but its constant, as a constraint. */
 function equationConstraints(model, space, text) {
@@ -2008,7 +2071,9 @@ export function waldTest(session, model, fresh, tail, ctx) {
       : fresh;
   model.testConstraints = constraints;
   ctx.out("");
-  constraints.forEach((c, k) => ctx.out(constraintLine(k, c.text)));
+  constraints.forEach((c, k) =>
+    constraintLines(session, k, c.text).forEach((line) => ctx.out(line)),
+  );
   if (options.notest) {
     session.results.r = {};
     ctx.out("");
@@ -2251,7 +2316,7 @@ export function lincom(session, text, ctx) {
     // with decimals.
     interval = `[${g(level)}% conf. interval]`.padStart(25);
   ctx.out("");
-  ctx.out(constraintLine(0, constraint.text));
+  constraintLines(session, 0, constraint.text).forEach((line) => ctx.out(line));
   ctx.out("");
   ctx.out(RULE);
   ctx.out(
