@@ -244,7 +244,7 @@ function parseDeclared(session, declaration, text) {
   try {
     return session.parse(declaration, text);
   } catch (error) {
-    const m = /^option (\w+) not allowed$/.exec(error?.message ?? "");
+    const m = /^option (\w+)(?:\(\))? not allowed$/.exec(error?.message ?? "");
     const word = m?.[1].toLowerCase(),
       name =
         word &&
