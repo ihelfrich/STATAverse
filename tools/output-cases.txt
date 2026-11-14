@@ -4682,6 +4682,7 @@ label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
 === ttest-by-prefix
+=== redteam3-tests-by-prefix
 clear
 set obs 20
 set seed 61
@@ -5449,3 +5450,334 @@ capture noisily ttesti 5 2 1 3 6 1, xname(b) yname(zzz)
 ttesti 1 2 . 3
 ttesti 1 2 . 3 4 5
 set linesize 200
+generate h = runiform() < .5
+generate k = 1 + (_n > 5) + (_n > 12)
+by g, sort: signtest y = 0
+by g: bitest h == .5
+by g: bitest h == .5, detail
+by g: prtest h == .4
+bysort g: robvar y, by(k)
+bysort g: prtest h, by(k)
+bysort k: robvar y, by(g)
+bysort g: prtest h, by(k) level(90)
+bysort g: signtest y = h if y > -1
+capture noisily by g: bitest h == .5 in 1/5
+display _rc
+capture noisily by g: bitesti 10 3 .5
+display _rc
+capture noisily by g: prtesti 10 .3 .5
+display _rc
+=== redteam3-bitest-detail
+clear
+set obs 40
+set seed 41
+generate y = runiform() < .4
+generate a_rather_long_name = y
+bitest y == .5, detail
+bitest a_rather_long_name == .4, detail
+bitest y == 1/3 in 1/7, detail
+bitesti 40 13 .5, detail
+bitesti 10 10 .5, detail
+bitesti 10 0 .3, detail
+bitesti 100 30 .25, detail
+bitesti 7 3 .3333333, detail
+bitesti 50 1 .01, detail
+bitesti 10 9 .95, detail
+bitesti 100000 50300 .5, detail
+bitesti 20 .3 .5, detail
+bitesti 1000000 400000 .4, detail
+bitesti 12345678 4 .0000001
+bitesti 3 1 .123456789
+bitesti 30 10 .3333333333
+=== redteam3-binomial-errors
+clear
+set obs 20
+generate h = mod(_n, 2)
+generate x = _n
+generate str3 s = cond(_n < 3, "a", "b")
+capture noisily bitesti 20 21 .5
+display _rc
+capture noisily bitesti 20 -1 .5
+display _rc
+capture noisily bitesti 0 0 .5
+display _rc
+capture noisily bitesti -3 0 .5
+display _rc
+capture noisily bitesti 2.5 1 .5
+display _rc
+capture noisily bitesti 20 1.5 .5
+display _rc
+capture noisily bitesti 20 3 1.5
+display _rc
+capture noisily bitesti 20 3
+display _rc
+capture noisily bitesti 20 3 .5 4
+display _rc
+capture noisily bitesti a 3 .5
+display _rc
+capture noisily bitesti 20 3 .5, level(90)
+display _rc
+capture noisily bitesti
+display _rc
+capture noisily bitest h == .5, by(h)
+display _rc
+capture noisily bitest h == .5, detail level(90)
+display _rc
+capture noisily bitest s == .5
+display _rc
+capture noisily bitest h == .5 if 0
+display _rc
+capture noisily bitest x == .5
+display _rc
+capture noisily bitest x == .5 if 0
+display _rc
+capture noisily bitest h == 1.5
+display _rc
+capture noisily bitest h == 1.5 if 0
+display _rc
+capture noisily signtest s = 0
+display _rc
+capture noisily signtest x = s
+display _rc
+capture noisily robvar s, by(h)
+display _rc
+capture noisily robvar s, by(s)
+display _rc
+set linesize 60
+capture noisily bitesti
+capture noisily bitesti 0 0 .5
+capture noisily bitesti 20 21 .5
+capture noisily bitesti 20 3 1.5
+set linesize 200
+=== redteam3-robvar-missing-statistics
+clear
+set obs 10
+generate y = _n
+generate g = 1
+capture noisily robvar y, by(g)
+display _rc
+generate h = _n > 5
+replace y = . if h
+robvar y, by(h)
+robvar y if 0, by(h)
+display _rc
+robvar y if h == 7, by(h)
+clear
+input y g
+1 1
+2 1
+3 2
+4 2
+5 3
+7 3
+end
+robvar y, by(g)
+replace y = g
+robvar y, by(g)
+clear
+input y g
+1 1
+2 1
+3 1
+5 2
+6 2
+7 2
+end
+robvar y, by(g)
+generate str3 s = "a"
+robvar y, by(s)
+=== redteam3-robvar-layout
+clear
+set obs 41
+set seed 1818
+generate str5 site = cond(_n<10,"north",cond(_n<30,"south","east"))
+generate y = invchi2(3,runiform())
+replace y = . in 2
+robvar y, by(site)
+clear
+set obs 60
+set seed 38
+generate grp = 1 + floor(runiform()*4)
+label define gl 1 "very long label number one" 2 "second" 3 "third group label" 4 "x"
+label values grp gl
+generate y = invnormal(runiform()) * grp
+robvar y, by(grp)
+generate str20 staff = cond(grp < 3, "Administrative staff", "Teaching")
+robvar y, by(staff)
+generate y2 = y * 1000
+robvar y2, by(staff)
+generate y3 = round(y * 3)
+robvar y3 in 1/6, by(staff)
+generate z = y * 1e-6
+robvar z, by(staff)
+generate w = 1e6 + y
+robvar w, by(staff)
+=== redteam3-tabulate-summary-labels
+clear
+set obs 8
+generate g = _n
+generate y = _n^2
+label define L 1 "abcdefghij" 2 "abcdefghijk" 3 "abcdefghijkl" 4 "a b c d e f g h i j k l m n o p" 5 "x" 6 "abcdefghi" 7 "abcdefghijklmnopqrstuvwxyz0123456789" 8 "e long unicode label"
+label values g L
+tabulate g, summarize(y)
+generate str40 s = substr("abcdefghijklmnopqrstuvwxyz0123456789ABCD", 1, 8 + 2*_n)
+tabulate s, summarize(y)
+replace s = substr("abcdefghijklmnopqrstuvwxyz0123456789ABCD", 1, 4 + _n)
+tabulate s, summarize(y)
+replace s = "abcdefghijklmnopqrstuvwxyz0123456789ABCD" if _n == 8
+tabulate s, summarize(y)
+generate str12 t = cond(_n < 4, "abcdefghijkl", "z")
+tabulate t, summarize(y)
+generate str11 u = cond(_n < 4, "abcdefghijk", "z")
+tabulate u, summarize(y)
+generate str13 v = cond(_n < 4, "abcdefghijklm", "z")
+tabulate v, summarize(y)
+generate str5 w = "abcde"
+tabulate w, summarize(y)
+generate str33 a33 = substr("abcdefghijklmnopqrstuvwxyz0123456789ABCD", 1, 33)
+tabulate a33, summarize(y)
+generate str34 a34 = substr("abcdefghijklmnopqrstuvwxyz0123456789ABCD", 1, 34)
+tabulate a34, summarize(y)
+format g %20.0g
+tabulate g, summarize(y)
+label variable g "a rather long variable label for g"
+tabulate g, summarize(y)
+generate long thisisaverylongname = _n
+label values thisisaverylongname L
+tabulate thisisaverylongname, summarize(y)
+=== redteam3-signtest-expressions
+clear
+set obs 300
+generate x = _n
+generate a_long_variable_name = 300 - _n
+signtest x = 0
+signtest x = 0 if x > 10
+signtest x = 00
+signtest x = 0.0
+signtest x = 5
+signtest x = -3
+signtest x = (0)
+signtest x=0
+signtest x =   0  if x < 5
+signtest a_long_variable_name = 0
+signtest a_long_variable_name = x
+=== redteam3-bitest-by-empty-groups
+clear
+set obs 20
+set seed 66
+generate g = _n > 10
+generate h = runiform() < .5
+by g, sort: bitest h == .5 if g == 1
+by g: bitest h == .5 if g == 0
+generate str3 s = cond(_n < 11, "aa", cond(_n < 17, "bb", "cc"))
+replace h = . if s == "bb"
+capture noisily bysort s: bitest h == .5
+display _rc
+capture noisily bysort s: bitest h == .5, detail
+display _rc
+generate y = _n
+capture noisily bysort s: bitest h == .5 if y > 100
+display _rc
+bysort s: signtest y = 3 if y > 100
+bysort s: prtest h == .5 if y > 100
+=== redteam3-robvar-equal-spread
+clear
+set obs 30
+generate g = 1 + (_n > 15)
+generate y = mod(_n, 15) + 10*g
+robvar y, by(g)
+clear
+input y g
+1 1
+3 1
+5 1
+2 2
+4 2
+6 2
+7 3
+9 3
+11 3
+end
+robvar y if g < 3, by(g)
+robvar y, by(g)
+clear
+input y g
+1 1
+2 1
+4 2
+5 2
+end
+robvar y, by(g)
+replace y = y * 10 + 1
+robvar y, by(g)
+=== redteam3-bitest-syntax-errors
+clear
+set obs 30
+set seed 77
+generate y = runiform() < .4
+generate str3 s = cond(_n < 10, "a", "b")
+generate z = 2
+capture noisily bitest y
+display _rc
+capture noisily bitest y == s
+display _rc
+capture noisily bitest y ==
+display _rc
+capture noisily bitest y == "a"
+display _rc
+capture noisily bitest y .5
+display _rc
+capture noisily bitest y, detail
+display _rc
+capture noisily bitest y if y == 1
+display _rc
+capture noisily bitest y s
+display _rc
+capture noisily bitest y zz
+display _rc
+capture noisily bitest y z == .5
+display _rc
+capture noisily bitest y s = .5
+display _rc
+capture noisily bitest y in 1/5
+display _rc
+capture noisily bitest z == s
+display _rc
+capture noisily bitest y == s if _n > 40
+display _rc
+capture noisily bitest y == z
+display _rc
+bitest y = .5
+bitest y==1/3 if s == "b"
+capture noisily bitesti 10 3 .5 if 1
+display _rc
+capture noisily bitesti 10 3 .5 in 1/5
+display _rc
+capture noisily bitesti 10 3 .5 [fw=2]
+display _rc
+capture noisily bitesti 10 3 .5 using x
+display _rc
+capture noisily bitesti 10 3 .5 y
+display _rc
+capture noisily bitesti 10 3 .5 if 1, detail
+display _rc
+capture noisily bitesti 10 3 .5 [fw=2] if 1
+display _rc
+capture noisily bitesti 10 3 .5 if 1 [fw=2]
+display _rc
+capture noisily bitesti 10 3 .5 using x if 1
+display _rc
+capture noisily bitesti 10 3 .5 in 1 if 1
+display _rc
+capture noisily bitesti 10 3 .5 y if 1
+display _rc
+capture noisily bitesti 10 3 .5 [aw=2]
+display _rc
+capture noisily bitesti 10 3 .5 =
+display _rc
+capture noisily bitesti 10 3 .5 1
+display _rc
+capture noisily bitesti 10 3 .5 if
+display _rc
+capture noisily bitesti 10 3 .5 ifx
+display _rc
