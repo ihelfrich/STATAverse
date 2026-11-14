@@ -11,7 +11,7 @@
     <meta name="robots" content="noindex" />
     <title>Console (preview) · STATAverse</title>
     <link rel="stylesheet" href="../assets/css/learn.css" />
-    <link rel="stylesheet" href="../assets/css/console.css?v=a3691e9c93" />
+    <link rel="stylesheet" href="../assets/css/console.css?v=50191d449e" />
   </head>
   <body class="console-page" data-pagefind-ignore="all">
     <a class="skip-link" href="#main">Skip to the console</a>
@@ -251,9 +251,10 @@
               <thead>
                 <tr>
                   <th scope="col">Name</th>
+                  <th scope="col">Label</th>
                   <th scope="col">Type</th>
                   <th scope="col">Format</th>
-                  <th scope="col">Label</th>
+                  <th scope="col">Value label</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -272,11 +273,16 @@
                 type="file"
                 id="console-file"
                 multiple
-                accept=".csv,.tsv,.txt,.dta,.do,text/csv,text/plain"
+                accept=".csv,.tsv,.txt,.dta,.do,.xlsx,.xlsm,.xls,.sav,.xpt,.sas7bdat,text/csv,text/plain"
               />
-              <span>CSV, text, Stata .dta or .do. It stays in this tab.</span>
+              <span
+                >CSV or other text, Stata .dta, Excel, SPSS .sav, SAS .xpt or
+                .sas7bdat, or a .do file, up to 500 MB. It stays in this
+                browser.</span
+              >
             </p>
             <ul id="console-own" aria-label="Your files"></ul>
+            <p id="console-kept"></p>
           </div>
           <ul id="console-datasets" aria-labelledby="data-title"></ul>
           <p class="console-files">
@@ -320,8 +326,11 @@
               are not included.
             </p>
             <p>
-              Nothing you type or add leaves this browser. Your do-files and map
-              are kept here between visits; data and added files are not.
+              Nothing you type or add leaves this browser. Your do-files, map
+              and added files are kept in this browser between visits, on this
+              device only; the data in memory is not. Remove takes an added file
+              out, and clearing this site's data in the browser removes them
+              all.
             </p>
             <p>
               Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the
@@ -332,7 +341,7 @@
         </details>
       </div>
     </main>
-    <script type="module" src="../assets/js/console.js?v=a3691e9c93"></script>
+    <script type="module" src="../assets/js/console.js?v=50191d449e"></script>
     <script src="../assets/js/site.js" defer></script>
   </body>
 </html>

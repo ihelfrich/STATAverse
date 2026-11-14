@@ -17,7 +17,11 @@ export function splitCommands(source) {
     compound = 0,
     comment = 0;
   const flush = () => {
-    const command = current.replace(/\s+/g, " ").trim();
+    // Runs of blanks are kept as typed: a string literal such as "  a" keeps
+    // its blanks, and commands that echo what was typed, such as tab1's
+    // heading, need them. Tabs and the line breaks of a continued command
+    // become single blanks.
+    const command = current.replace(/\s/g, " ").trim();
     if (command && !/^\*/.test(command))
       out.push({ text: command, line: startLine });
     current = "";
@@ -95,7 +99,9 @@ const OPENS = /\{\s*$/;
  * { kind: "program", name, options, body, line }.
  */
 export function parseBlocks(commands) {
-  let at = 0;
+  let at = 0,
+    // The line of the } that closed the block read last.
+    closed = 0;
   const block = (closing) => {
     const nodes = [];
     while (at < commands.length) {
@@ -103,6 +109,7 @@ export function parseBlocks(commands) {
       if (text === "}") {
         if (closing !== "}")
           throw new StataError("} without a matching {", 198);
+        closed = line;
         at++;
         return nodes;
       }
@@ -139,14 +146,16 @@ export function parseBlocks(commands) {
           throw new StataError("input has no end", 198);
         at++;
         nodes.push({ kind: "input", text, rows, line });
-      } else if (OPENS.test(text))
+      } else if (OPENS.test(text)) {
+        const body = block("}");
         nodes.push({
           kind: "block",
           header: text.replace(OPENS, "").trim(),
-          body: block("}"),
+          body,
           line,
+          end: closed,
         });
-      else nodes.push({ kind: "command", text, line });
+      } else nodes.push({ kind: "command", text, line });
     }
     if (closing === "}") throw new StataError("{ without a matching }", 198);
     return nodes;

@@ -104,9 +104,124 @@ export function inferType(values) {
   return "double";
 }
 
-const encoder = new TextEncoder();
+const encoder = new TextEncoder(),
+  decoder = new TextDecoder("utf-8", { ignoreBOM: true }),
+  strict = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+// Stata keeps a string's bytes as they are, UTF-8 or not: text from a file
+// saved by Stata 13 or earlier is in the system code page (Latin-1, say),
+// and substr() can cut a character in two. A byte that is not part of a
+// UTF-8 character is held here as one of the code units U+DC80 to U+DCFF,
+// which UTF-8 text never holds alone, so that it counts as one byte and is
+// written back unchanged.
+const ESCAPED = /(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g;
+
+/** The UTF-8 sequence starting at bytes[i]: its length, or 0 if it is not one. */
+function sequenceAt(bytes, i) {
+  const b = bytes[i],
+    size =
+      b >= 0xc2 && b <= 0xdf
+        ? 2
+        : b >= 0xe0 && b <= 0xef
+          ? 3
+          : b >= 0xf0 && b <= 0xf4
+            ? 4
+            : 0;
+  if (!size || i + size > bytes.length) return 0;
+  const second = bytes[i + 1],
+    low = b === 0xe0 ? 0xa0 : b === 0xf0 ? 0x90 : 0x80,
+    high = b === 0xed ? 0x9f : b === 0xf4 ? 0x8f : 0xbf;
+  if (second < low || second > high) return 0;
+  for (let j = 2; j < size; j++)
+    if (bytes[i + j] < 0x80 || bytes[i + j] > 0xbf) return 0;
+  return size;
+}
+
+/** Text from bytes, each byte that is not UTF-8 kept as it is. */
+export function decodeBytes(bytes) {
+  try {
+    return strict.decode(bytes);
+  } catch {
+    let out = "",
+      from = 0,
+      i = 0;
+    while (i < bytes.length) {
+      if (bytes[i] < 0x80) i++;
+      else {
+        const size = sequenceAt(bytes, i);
+        if (size) i += size;
+        else {
+          out +=
+            decoder.decode(bytes.subarray(from, i)) +
+            String.fromCharCode(0xdc00 + bytes[i]);
+          from = ++i;
+        }
+      }
+    }
+    return out + decoder.decode(bytes.subarray(from));
+  }
+}
+
+/** The bytes of text: UTF-8, and each byte kept by decodeBytes as it was. */
+export function encodeText(text) {
+  if (!/[\uDC80-\uDCFF]/.test(text)) return encoder.encode(text);
+  const parts = text.split(/((?<![\uD800-\uDBFF])[\uDC80-\uDCFF])/),
+    chunks = parts.map((part, k) =>
+      k % 2 ? Uint8Array.of(part.charCodeAt(0) - 0xdc00) : encoder.encode(part),
+    ),
+    out = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.length;
+  }
+  return out;
+}
+
 /** Stata measures strings in bytes of UTF-8. */
-export const byteLength = (text) => encoder.encode(text).length;
+export const byteLength = (text) =>
+  encoder.encode(text).length -
+  (/[\uDC80-\uDCFF]/.test(text) ? 2 * (text.match(ESCAPED)?.length ?? 0) : 0);
+
+/**
+ * How Stata shows text in its output: a null byte as \0. Bytes that are not
+ * UTF-8 are shown as they are by Stata; here, where the page shows Unicode,
+ * as the replacement character.
+ */
+export const shownText = (text) =>
+  /[\0\uDC80-\uDCFF]/.test(text)
+    ? text.replace(/\0/g, "\\0").replace(ESCAPED, "\uFFFD")
+    : text;
+
+// Columns of the Results window. Stata's udstrlen() gives every character
+// from U+2E80 on two columns (CJK, halfwidth forms, U+FEFF and emoji alike)
+// but U+FFFD, and every earlier one a column, combining marks and Hangul
+// jamo included. Read off udstrlen(uchar(n)) for every code point in
+// Stata 19.
+const columnsOf = (character) => {
+  const code = character.codePointAt(0);
+  return code < 0x2e80 || code === 0xfffd ? 1 : 2;
+};
+/** The columns text takes in Stata's output: two for a wide character. */
+export function displayWidth(text) {
+  if (/^[\x00-\u2e7f]*$/.test(text)) return text.length;
+  let width = 0;
+  for (const character of text) width += columnsOf(character);
+  return width;
+}
+/** Text right-aligned in a field of so many columns of the screen. */
+export const padDisplay = (text, width) =>
+  " ".repeat(Math.max(0, width - displayWidth(text))) + text;
+/** The longest start of a string that fits in a number of columns. */
+export function truncateColumns(text, columns) {
+  let out = "",
+    used = 0;
+  for (const character of text) {
+    used += columnsOf(character);
+    if (used > columns) break;
+    out += character;
+  }
+  return out;
+}
 /** Cuts to a byte width without splitting a character. */
 export function truncateBytes(text, width) {
   if (text.length <= width && byteLength(text) <= width) return text;
@@ -134,5 +249,9 @@ const RESERVED = new Set(
     " ",
   ),
 );
-export const isName = (name) => /^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(name);
+// A name is a letter (any alphabet) or _ followed by ASCII letters, digits
+// and _ or any character outside ASCII (co₂, temp°c and r² are names), at
+// most 32 characters, as in Stata 14 and later.
+export const isName = (name) =>
+  /^[\p{L}_][\w\u0080-\u{10FFFF}]{0,31}$/u.test(name);
 export const isReserved = (name) => RESERVED.has(name) || /^str\d+$/.test(name);

@@ -3,37 +3,66 @@
 import { Session } from "./runtime/session.js";
 import { Dataset } from "./runtime/store.js";
 import { addTextFile } from "./runtime/delimited.js";
+import { StataError } from "./runtime/errors.js";
 import { toCSV } from "./datasets.js";
 import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
+import { binaryKind, checkForeign } from "./runtime/foreign.js";
 
 const library = Object.fromEntries(
   Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
 );
 
+/**
+ * Whether added bytes are text: no NUL in the text they decode to, and no
+ * zero byte at all unless the scan chose UTF-16 or UTF-32, whose files are
+ * whole numbers of their code units. A .dta, .xlsx or .zip file fails.
+ */
+function looksLikeText(bytes, stored) {
+  const unit = /^UTF-32/.test(stored.encoding)
+    ? 4
+    : /^UTF-16/.test(stored.encoding)
+      ? 2
+      : 1;
+  return (
+    !stored.text.includes("\0") &&
+    bytes.length % unit === 0 &&
+    (unit > 1 || !bytes.includes(0))
+  );
+}
+
 export function createConsoleSession() {
-  let session;
+  let session, interactive;
   // Files the student added stay available when the session is cleared.
   const added = new Map();
-  // A text file is kept as text; a .dta file as the dataset read from it.
+  // A text file is kept as text, or as its bytes with the text decoded from
+  // them; a .dta file as the dataset read from it.
   const put = (name, file) => {
-    if (typeof file === "string") addTextFile(session, name, file);
+    if (typeof file === "string" || file instanceof Uint8Array)
+      addTextFile(session, name, file);
     else (session.files ??= new Map()).set(name, file);
   };
   const memory = () => ({
     observations: session.data.n,
     sortedBy: [...session.data.sortedBy],
     files: [...(session.files ?? new Map()).keys()].sort(),
-    variables: session.data.variables.map(({ name, type, format, label }) => ({
-      name,
-      type,
-      format,
-      label,
-    })),
+    variables: session.data.variables.map(
+      ({ name, type, format, label, valueLabel }) => ({
+        name,
+        type,
+        format,
+        label,
+        valueLabel: valueLabel ?? "",
+      }),
+    ),
   });
   const reset = (dataset = "") => {
     session = new Session();
+    interactive = session.frame();
     session.library = library;
+    // Results as Stata's log shows them: a loop echoed once with its lines
+    // numbered, do-files run by do shown with their commands.
+    session.foldLoops = true;
     // Each site dataset is also there as a CSV file, as lessons expect.
     for (const [id, data] of Object.entries(library))
       addTextFile(session, LIBRARY[id].file, toCSV(data));
@@ -45,14 +74,53 @@ export function createConsoleSession() {
   reset();
   return {
     reset,
-    addFile(name, text) {
-      added.set(name, text);
-      addTextFile(session, name, text);
+    /**
+     * A text file, as text or as the bytes the picker read. Bytes are
+     * decoded as import delimited's scan decodes them (UTF-8, UTF-16 with
+     * or without a byte-order mark, or Latin-1 and Windows-1252 when they
+     * are not UTF-8) and kept, so that encoding() can read them again.
+     */
+    addFile(name, content) {
+      const file =
+        content instanceof ArrayBuffer ? new Uint8Array(content) : content;
+      const before = session.files?.get(name),
+        stored = addTextFile(session, name, file);
+      if (file instanceof Uint8Array && !looksLikeText(file, stored)) {
+        if (before) session.files.set(name, before);
+        else session.files.delete(name);
+        throw new StataError(
+          `${name} is not a text file; open a Stata dataset with use, and save a spreadsheet as .csv before adding it`,
+          610,
+        );
+      }
+      added.set(name, file);
       return { memory: memory() };
     },
-    /** A .dta file: read once, then there for use, merge and append. */
+    /**
+     * A .dta file: read once, then there for use, merge and append. A
+     * workbook, SPSS or SAS file is kept as its bytes for import excel,
+     * import spss and import sasxport5/8, and checked as it is added.
+     */
     addData(name, bytes) {
-      const data = readDta(bytes);
+      const kind = binaryKind(name);
+      if (kind) {
+        const file = { bytes: new Uint8Array(bytes) },
+          check = checkForeign(kind, name, file);
+        added.set(name, file);
+        put(name, file);
+        return { memory: memory(), kind, ...check };
+      }
+      let data;
+      try {
+        data = readDta(bytes);
+      } catch (error) {
+        // An array too large to make: the dataset does not fit in memory.
+        if (error instanceof RangeError)
+          throw new Error(
+            "this dataset needs more memory than this browser tab has. In Stata, keep the variables and observations you need, save, and add that file",
+          );
+        throw error;
+      }
       added.set(name, data);
       put(name, data);
       return {
@@ -61,18 +129,80 @@ export function createConsoleSession() {
         variables: data.variables.length,
       };
     },
+    /** A file kept as its bytes: an Excel workbook, an SPSS or SAS file. */
+    addBinary(name, bytes) {
+      // Kept as its bytes, as Stata keeps any file in its folder; the command
+      // that reads it (import excel, import spss, ...) checks it.
+      const file = { bytes: new Uint8Array(bytes) };
+      added.set(name, file);
+      put(name, file);
+      return { memory: memory() };
+    },
     removeFile(name) {
       added.delete(name);
       session.files?.delete(name);
       return { memory: memory() };
     },
+    /**
+     * A file in the session's folder, such as a workbook written by export
+     * excel or putexcel, for the page to offer as a download: { bytes } or
+     * { text }, or null when there is no such file.
+     */
+    readFile(name) {
+      const file = session.files?.get(name);
+      if (!file) return null;
+      if (file.bytes instanceof Uint8Array) return { name, bytes: file.bytes };
+      if (typeof file.text === "string") return { name, text: file.text };
+      return { name, bytes: writeDta(file) };
+    },
     /** The data in memory as the bytes of a .dta file. */
     exportData() {
-      return { bytes: writeDta(session.data.snapshot()), memory: memory() };
+      const data = session.data;
+      return {
+        // The file keeps the dataset's notes and characteristics.
+        bytes: writeDta({
+          ...data.snapshot(),
+          notes: data.notes,
+          chars: data.chars,
+        }),
+        memory: memory(),
+      };
     },
-    run(source) {
-      const { output, rc } = session.run(source);
-      return { output, rc, memory: memory() };
+    /**
+     * Runs commands as Stata's Command window does: locals set by one are
+     * there for the next. A do-file ({ doFile: true }) has locals of its own,
+     * as it has in Stata.
+     */
+    run(source, { doFile = false } = {}) {
+      const { output, rc } = session.run(
+        source,
+        doFile ? undefined : interactive,
+      );
+      // A byte that is not UTF-8 (text from an old file, or cut out of a
+      // character) is shown as U+FFFD, where Stata prints the raw byte.
+      for (const block of output)
+        block.lines = block.lines.map((line) =>
+          line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD"),
+        );
+      // Graphs written by graph export, for the page to turn into files.
+      const made = session.exported ?? [];
+      session.exported = [];
+      return { output, rc, made, memory: memory() };
     },
   };
+}
+
+/**
+ * The name of an added file a run looked for and did not find, from the
+ * error that stopped it; "" when the run did not stop on a missing file.
+ */
+export function missingFile(output) {
+  const last = output.at(-1);
+  if (!last || last.rc !== 601 || /^\s*(sysuse|webuse)\b/.test(last.command))
+    return "";
+  for (const line of last.lines) {
+    const m = /^file (.+?) not found\b/.exec(line);
+    if (m) return m[1].replace(/^"(.*)"$/, "$1");
+  }
+  return "";
 }

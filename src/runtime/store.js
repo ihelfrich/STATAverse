@@ -2,6 +2,7 @@
 // operations on variables and observations that Stata's data commands share.
 // Commands sit on top of this; nothing here parses command text.
 import { StataError } from "./errors.js";
+import { greatest } from "./extremes.js";
 import {
   MISSING,
   byteLength,
@@ -19,8 +20,11 @@ import {
   truncateBytes,
 } from "./values.js";
 
+// The narrowest string type that holds every value. greatest() loops rather
+// than spreading one argument per observation into Math.max, which overflowed
+// the call stack once a variable had about 150,000 observations.
 const widthType = (values) => {
-  const width = Math.max(1, ...values.map(byteLength));
+  const width = Math.max(1, greatest(values.map(byteLength)));
   return width > MAX_STRING_WIDTH ? "strL" : "str" + width;
 };
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
@@ -32,6 +36,37 @@ const descending = (a, b) =>
       : -1
     : compare(b, a);
 
+/**
+ * The characteristics of _dta or of a variable as Stata lists them, newest
+ * first, as [name, text] pairs. Notes are characteristics too: note1, note2,
+ * ... hold the notes and note0 the number of the last one, which a gap left
+ * by a dropped note does not change.
+ */
+export function characteristicsOf(data, owner) {
+  return [...(data.chars?.get(owner) ?? [])];
+}
+
+/**
+ * Defines a characteristic, or deletes it when the text is empty. A new or
+ * changed one becomes the newest; one given the text it has keeps its
+ * place, as in Stata.
+ */
+export function defineCharacteristic(data, owner, name, text) {
+  const chars = (data.chars ??= new Map()),
+    own = chars.get(owner) ?? new Map();
+  if (own.get(name) === text) return;
+  own.delete(name);
+  if (text !== "") chars.set(owner, new Map([[name, text], ...own]));
+  else if (own.size) chars.set(owner, own);
+  else chars.delete(owner);
+}
+
+const copyChars = (from) => ({
+  chars: new Map(
+    [...(from.chars ?? [])].map(([name, map]) => [name, new Map(map)]),
+  ),
+});
+
 export class Dataset {
   constructor({ defaultType = "float" } = {}) {
     this.n = 0;
@@ -41,6 +76,9 @@ export class Dataset {
     this.label = "";
     // Value labels: label name to a Map from number to text.
     this.valueLabels = new Map();
+    // Characteristics, notes among them: owner (_dta or a variable) to a
+    // Map from characteristic to text, newest first.
+    this.chars = new Map();
   }
 
   get names() {
@@ -240,8 +278,13 @@ export class Dataset {
     for (const name of names) this.get(name);
     for (const name of names) this.unsortFrom(name);
     this.variables = this.variables.filter((v) => !names.includes(v.name));
-    // Stata has no observations without variables.
-    if (!this.variables.length) this.n = 0;
+    for (const name of names) this.chars?.delete(name);
+    // Stata has no observations without variables, and dropping the last
+    // variable clears the dataset's characteristics and notes too.
+    if (!this.variables.length) {
+      this.n = 0;
+      this.chars?.clear();
+    }
   }
   keep(names) {
     for (const name of names) this.get(name);
@@ -255,6 +298,11 @@ export class Dataset {
       throw new StataError(`variable ${to} already defined`, 110);
     variable.name = to;
     this.sortedBy = this.sortedBy.map((name) => (name === from ? to : name));
+    // Its notes and characteristics go with it.
+    if (this.chars?.has(from)) {
+      this.chars.set(to, this.chars.get(from));
+      this.chars.delete(from);
+    }
   }
   /** Moves the listed variables to the front, in the order given. */
   order(names) {
@@ -278,19 +326,33 @@ export class Dataset {
       sortedBy: [...this.sortedBy],
       defaultType: this.defaultType,
       label: this.label,
+      // The survey design svyset keeps with the data, as Stata keeps it in
+      // the data's characteristics.
+      svyset: this.svyset,
       valueLabels: new Map(
         [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
+      ...copyChars(this),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
+      // The settings reshape keeps with the data.
+      ...(this.reshapeChars
+        ? { reshapeChars: structuredClone(this.reshapeChars) }
+        : {}),
     };
   }
   restore(snapshot) {
+    delete this.chars;
+    delete this.reshapeChars;
     Object.assign(this, {
       ...snapshot,
+      ...(snapshot.reshapeChars
+        ? { reshapeChars: structuredClone(snapshot.reshapeChars) }
+        : {}),
       sortedBy: [...snapshot.sortedBy],
       valueLabels: new Map(
         [...snapshot.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
+      ...copyChars(snapshot),
       variables: snapshot.variables.map((v) => ({
         ...v,
         data: v.data.slice(),

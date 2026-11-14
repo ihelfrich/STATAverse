@@ -52,23 +52,34 @@ test("histogram chooses bins as Stata does and still draws under quietly", () =>
   const { last, session } = run("quietly histogram x, bin(3) frequency");
   assert.equal(marks(last.graph.svg, "rect"), 1 + 3);
   assert.deepEqual(last.lines, []);
-  assert.deepEqual(session.results.r, { N: 6, bin: 3, width: 5 / 3, start: 1 });
+  // Stata 19 leaves r() empty after histogram draws its graph.
+  assert.deepEqual(session.results.r, {});
 });
 
 test("graph commands refuse what they cannot draw", () => {
   assert.equal(run("scatter y s").result.rc, 109);
   assert.equal(run("scatter y").result.rc, 102);
-  assert.equal(run("scatter y x if x > 99").result.rc, 2000);
-  assert.equal(run("graph pie y").result.rc, 198);
+  // A twoway graph with no observations is drawn empty: Stata 19 returns 0
+  // for scatter wage educ if wage < 0 and draws the axes with no markers.
+  assert.equal(run("scatter y x if x > 99").result.rc, 0);
+  assert.equal(marks(run("scatter y x if x > 99").last.graph.svg, "circle"), 0);
+  assert.equal(run("graph dot y").result.rc, 198);
   assert.equal(run("twoway (rcap y x x)").result.rc, 198);
-  assert.equal(run("graph export out.png").result.rc, 0);
+  // graph export writes the graph shown last; with none, Stata 19 says
+  // "no Graph window open", r(601).
+  assert.equal(run("graph export out.png").result.rc, 601);
+  assert.equal(run("scatter y x\ngraph export out.png").result.rc, 0);
 });
 
-test("ticks are round and cover the data", () => {
+test("ticks are the values Stata's natscale picks", () => {
+  // Recorded from Stata 19 (version 17): _natscale 0 10 5 gives 0 to 10 by
+  // 2; _natscale 3.1 25.1 5 gives 5 to 25 by 5, labels inside the data;
+  // _natscale -.3 .42 5 gives -.4 to .4 by .2. A graph of a constant 5 is
+  // labelled 4 and 6.
   assert.deepEqual(ticks(0, 10), [0, 2, 4, 6, 8, 10]);
-  assert.deepEqual(ticks(3.1, 25.1), [0, 5, 10, 15, 20, 25, 30]);
-  assert.deepEqual(ticks(5, 5), [4, 4.5, 5, 5.5, 6]);
-  assert.deepEqual(ticks(-0.3, 0.42), [-0.4, -0.2, 0, 0.2, 0.4, 0.6]);
+  assert.deepEqual(ticks(3.1, 25.1), [5, 10, 15, 20, 25]);
+  assert.deepEqual(ticks(5, 5), [4, 6]);
+  assert.deepEqual(ticks(-0.3, 0.42), [-0.4, -0.2, 0, 0.2, 0.4]);
 });
 
 test("marginsplot draws the last margins with its intervals", () => {
@@ -133,7 +144,8 @@ test("graph bar, hbar and box report the statistics they draw", () => {
   assert.equal(graphs.length, 4);
   // Means of y by g: (1 + 3)/2, 3.5 from the two present values, and 8.
   assert.match(graphs[0].description, /mean of y by g: 1 2, 2 3\.5, 3 8/);
-  assert.match(graphs[1].description, /median of x by g: 1 1\.5, 2 4, 3 6/);
+  // Stata titles (median) as p 50.
+  assert.match(graphs[1].description, /p 50 of x by g: 1 1\.5, 2 4, 3 6/);
   assert.match(graphs[2].description, /x \(2\): median 4, quartiles 3 and 5/);
   assert.match(graphs[3].description, /percent by g: 1 33\.33333, 2 50/);
   assert.match(graphs[1].svg, />1<\/text>/);
@@ -145,7 +157,8 @@ test("kdensity, lowess and the plots after regress draw and store what they comp
   );
   assert.equal(result.rc, 0);
   assert.equal(result.output.filter((o) => o.graph).length, 9);
-  assert.equal(session.results.r.N, 6);
+  // Stata 19 leaves r() empty once histogram has drawn.
+  assert.deepEqual(session.results.r, {});
   assert.equal(session.data.get("kd").type, "double");
   // With one regressor the added-variable slope is the coefficient itself.
   assert.match(
@@ -155,7 +168,11 @@ test("kdensity, lowess and the plots after regress draw and store what they comp
 });
 
 test("graphs that are not available say so", () => {
-  for (const command of ["graph pie, over(g)", "twoway rcap y x x", "avplot g"])
+  for (const command of [
+    "graph dot y, over(g)",
+    "twoway rcap y x x",
+    "avplot g",
+  ])
     assert.notEqual(run(`regress y x\n${command}`).result.rc, 0, command);
 });
 

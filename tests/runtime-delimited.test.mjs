@@ -4,8 +4,8 @@ import { Session } from "../src/runtime/session.js";
 import { addTextFile, parseDelimitedText } from "../src/runtime/delimited.js";
 import { MISSING } from "../src/runtime/values.js";
 
-// Installed Stata on the development machine cannot run import delimited,
-// so these cases state the documented behaviour instead of a recording.
+// The results here are those Stata 19 gives for the same files; the wider
+// set recorded from Stata 19 is in runtime-userdata-delimited.test.mjs.
 const CSV =
   'ID,Name,Score,Weight,Note\n1,"Smith, Ann",71.5,60,"said ""hi"""\n2,Bo,,70000,\n3,Cy,80,3000000000,plain\n';
 const session = (text = CSV, name = "people.csv") => {
@@ -18,7 +18,10 @@ test("import delimited reads names, types, quotes and missing values", () => {
   const s = session(),
     result = s.run('import delimited using "people.csv", clear');
   assert.equal(result.rc, 0);
-  assert.deepEqual(result.output[0].lines, ["(5 vars, 3 obs)"]);
+  assert.deepEqual(result.output[0].lines, [
+    "(encoding automatically selected: ISO-8859-1)",
+    "(5 vars, 3 obs)",
+  ]);
   assert.deepEqual(
     s.data.variables.map((v) => [v.name, v.type]),
     [
@@ -60,7 +63,8 @@ test("import delimited options and refusals", () => {
   strings.run("import delimited people.csv, stringcols(1)");
   assert.equal(strings.data.get("id").type, "str1");
   assert.equal(session().run("import delimited nosuch.csv").rc, 601);
-  assert.equal(session().run("import excel people.csv").rc, 198);
+  // import excel exists now; Stata 19 cannot load a CSV as a workbook, r(603).
+  assert.equal(session().run("import excel people.csv").rc, 603);
   const busy = session();
   assert.equal(
     busy.run("clear\nset obs 1\ngenerate x = 1\nimport delimited people.csv")
@@ -94,12 +98,9 @@ test("export delimited writes what import delimited reads back", () => {
 
 test("the delimited parser handles line endings and embedded newlines", () => {
   const rows = parseDelimitedText('a,b\r\n"x\ny",2\r\n\r\n3,4', ",");
-  assert.deepEqual(
-    rows.map((r) => r.map((c) => c.text)),
-    [
-      ["a", "b"],
-      ["x\ny", "2"],
-      ["3", "4"],
-    ],
-  );
+  assert.deepEqual(rows, [
+    ["a", "b"],
+    ["x\ny", "2"],
+    ["3", "4"],
+  ]);
 });

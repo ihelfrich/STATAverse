@@ -219,7 +219,7 @@ export function parseDeclaration(declaration) {
 const notAllowed = (what) => new StataError(`${what} not allowed`, 101);
 
 // Finds where each clause of the part before the comma begins.
-function clauses(head, expAllowed = true) {
+export function clauses(head, expAllowed = true) {
   const found = [];
   // A weight is a top-level [ ... ] that follows a blank; x[_n-1] is not one.
   let depth = 0;
@@ -236,7 +236,9 @@ function clauses(head, expAllowed = true) {
         found.push({ kind: "weight", at: i, after: i });
     }
   }
-  const word = /(?<![A-Za-z_0-9.])(if|in|using)(?![A-Za-z_0-9])/g;
+  // A file may be called using.dta: using followed by a period is a name.
+  const word =
+    /(?<![\w\u0080-\u{10FFFF}.])(if|in|using(?!\.))(?![\w\u0080-\u{10FFFF}])/gu;
   for (let m; (m = word.exec(head));)
     if (flags[m.index])
       found.push({ kind: m[1], at: m.index, after: m.index + m[1].length });
@@ -362,10 +364,13 @@ function existingVariables(text, specs, context) {
   for (const name of names) {
     const type = context.types?.[name];
     if (!type) continue;
-    if (
-      (specs.numeric && isStringType(type)) ||
-      (specs.string && isNumericType(type))
-    )
+    // syntax's own words for a string variable where numbers are wanted.
+    if (specs.numeric && isStringType(type))
+      throw new StataError(
+        `string variables not allowed in varlist;\n${name} is a string variable`,
+        109,
+      );
+    if (specs.string && isNumericType(type))
       throw new StataError("type mismatch", 109);
   }
   return names;
@@ -379,7 +384,7 @@ function nameList(text) {
 }
 
 // Splits the text after the comma into name and name(argument) items.
-function optionItems(text) {
+export function optionItems(text) {
   // Stata allows a blank between an option's name and its parenthesis.
   const joined = [];
   for (const word of words(text))

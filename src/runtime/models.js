@@ -3,9 +3,9 @@
 // leave the same result object regress leaves, marked dist "z", and the
 // post-estimation commands here read only that object.
 import { least, greatest } from "./extremes.js";
-import { firstStage, ivDiagnostic } from "./more-estimators.js";
+import { firstStage, ivDiagnostic, sweptColumns } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
-import { regressDiagnostic, testparm } from "./diagnostics.js";
+import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
@@ -14,31 +14,74 @@ import { count } from "./reports.js";
 import { linkOf } from "./margins.js";
 import { outcomePredict } from "./outcome-margins.js";
 import {
-  RULE,
+  coefficientSpace,
+  degreesOfFreedom,
   describeLinear,
   design,
+  equationOf,
   estimates,
   invertSymmetric,
   lincom as lincomT,
-  linear,
+  waldTest,
   predict as predictT,
   quadratic,
   termRows,
   tableWidth,
   abbreviate,
+  baseLevelsAsked,
   test as testT,
+  unitConstraint,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
+import { evaluateAll } from "./expression.js";
 import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const density = (z) => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
 
 function lnfactorial(n) {
+  // Counts of millions would take millions of steps on every evaluation
+  // of the likelihood; Stirling's series is exact to double precision.
+  if (n > 1000) {
+    const x = n + 1;
+    return (
+      (x - 0.5) * Math.log(x) -
+      x +
+      0.5 * Math.log(2 * Math.PI) +
+      1 / (12 * x) -
+      1 / (360 * x ** 3)
+    );
+  }
   let total = 0;
   for (let k = 2; k <= n; k++) total += Math.log(k);
   return total;
+}
+/**
+ * The rank of a symmetric nonnegative definite matrix, by sweeping its
+ * largest remaining diagonal element while one is left that is not
+ * rounding error relative to where it began.
+ */
+function rankOf(V) {
+  const a = V.map((row) => row.slice()),
+    left = new Set(V.keys());
+  let rank = 0;
+  for (;;) {
+    let pivot = -1;
+    for (const j of left)
+      if (
+        V[j][j] > 0 &&
+        a[j][j] > 1e-10 * V[j][j] &&
+        (pivot < 0 || a[j][j] > a[pivot][pivot])
+      )
+        pivot = j;
+    if (pivot < 0) return rank;
+    rank++;
+    left.delete(pivot);
+    for (const i of left)
+      for (const k of left)
+        a[i][k] -= (a[i][pivot] * a[pivot][k]) / a[pivot][pivot];
+  }
 }
 const FAMILIES = {
   logit: {
@@ -88,12 +131,18 @@ const FAMILIES = {
   },
 };
 
-function zTable(session, model, level, transform) {
+/**
+ * The coefficient table of logit, probit, poisson and ivregress. named says
+ * the dependent variable names the first equation, as it does after the
+ * likelihood models (not ivregress); it then counts in the first column's
+ * width.
+ */
+function zTable(session, model, level, transform, named = true) {
   const critical = invnormal(1 - (1 - level / 100) / 2),
     robust = model.vce !== "oim" && model.vce !== "unadjusted",
     head = (transform?.[1] ?? "Coefficient").padStart(10).padEnd(11),
     // The first column fits the names as Stata fits them; see tableWidth.
-    w = tableWidth(session, model),
+    w = tableWidth(session, model, named ? [model.depvar] : []),
     rule = "-".repeat(66 + w),
     lines = [
       rule,
@@ -110,9 +159,11 @@ function zTable(session, model, level, transform) {
         const b = model.b[k],
           se = Math.sqrt(model.V[k][k]),
           z = b / se;
-        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${zColumn(z)}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
       },
       w,
+      // A coefficient fixed at zero is an odds ratio (or rate ratio) of one.
+      transform ? 1 : 0,
     ),
   );
   lines.push(rule);
@@ -120,43 +171,253 @@ function zTable(session, model, level, transform) {
   return lines;
 }
 
-function waldChi2(model) {
+/**
+ * The z statistic as the coefficient table prints it, nine wide: two
+ * decimals while its size fits seven characters, and from 10,000 on one
+ * significant decimal with an exponent, as 1.2e+04 or -7.1e+04.
+ */
+export function zColumn(z) {
+  if (isMissing(z) || !(Math.abs(z) >= 9999.995))
+    return applyFormat(z, "%9.2f");
+  const [mantissa, exponent] = z.toExponential(1).split("e");
+  return `${mantissa}e${exponent[0]}${exponent.slice(1).padStart(2, "0")}`.padStart(
+    9,
+  );
+}
+
+function waldChi2(model, generalized = false) {
   const k = model.df_m;
   if (!k) return MISSING;
   const at = model.names
       .map((name, i) => (name !== "_cons" && model.estimable[i] ? i : -1))
       .filter((i) => i >= 0),
-    inverse = invertSymmetric(at.map((i) => at.map((j) => model.V[i][j])));
-  return inverse
+    V = at.map((i) => at.map((j) => model.V[i][j])),
+    b = at.map((i) => model.b[i]);
+  if (!generalized) {
+    const inverse = invertSymmetric(V);
+    return inverse ? quadratic(b, inverse) : MISSING;
+  }
+  // ivregress with clusters: with fewer clusters than coefficients the
+  // variance is singular, and Stata inverts it in part, sweeping the
+  // largest remaining diagonal first until none is left; the statistic
+  // keeps its degrees of freedom.
+  const kept = sweptColumns(V);
+  // Stata then prints the p-value but leaves e(p) missing.
+  model.deficient = kept.length < at.length;
+  if (!kept.length) return MISSING;
+  const part = invertSymmetric(kept.map((i) => kept.map((j) => V[i][j])));
+  return part
     ? quadratic(
-        at.map((i) => model.b[i]),
-        inverse,
+        kept.map((i) => b[i]),
+        part,
       )
     : MISSING;
+}
+
+/**
+ * Stata's search for regressors that predict a binary outcome perfectly,
+ * which logit and probit make before fitting (_rmcoll with the logit
+ * option; the rules are those of _binperfect.ado). Every column, base
+ * levels of factors included, is compared between failures and successes:
+ *
+ * - when every failure has one value and some success has it too, the
+ *   observations with any other value are all successes; they are set
+ *   aside and the column is omitted (likewise with the outcomes swapped);
+ * - when the largest value among failures is the smallest among successes
+ *   (or the reverse), the outcome is known except at that value, and only
+ *   the observations with that value are kept;
+ * - when the values of failures and successes do not meet at all, the
+ *   outcome is known everywhere and the model cannot be fitted, r(2000).
+ *
+ * After each reduction the search starts again from the first column. A
+ * column that takes one value in what remains is left to the collinearity
+ * check. Returns the observations kept (as flags over the sample), the
+ * rules applied and the notes, each followed by a blank line as Stata
+ * prints them; a complete separation throws after printing the notes.
+ */
+export function perfectPrediction(columns, sample, outcome, ctx, lead) {
+  const keep = sample.map(() => true),
+    rules = [],
+    notes = [],
+    left = [...columns];
+  // Positions in the sample still in use.
+  let kept = sample.map((_, j) => j);
+  for (let k = 0; k < left.length;) {
+    const column = left[k],
+      // Stata names the column without base-level markers, in every part
+      // of an interaction: 0.g#0.h, not 0.g#0b.h.
+      name = column.name.replace(/(^|#)(\d+)b\./g, "$1$2."),
+      // The message of a complete separation names the column by its
+      // variables alone, as g#x for 1.g#c.x.
+      variables = column.term.components.map((c) => c.variable.name).join("#");
+    let m0 = Infinity,
+      M0 = -Infinity,
+      m1 = Infinity,
+      M1 = -Infinity;
+    for (const j of kept) {
+      const v = column.value(sample[j]);
+      if (outcome[j]) {
+        if (v < m1) m1 = v;
+        if (v > M1) M1 = v;
+      } else {
+        if (v < m0) m0 = v;
+        if (v > M0) M0 = v;
+      }
+    }
+    // One value everywhere: nothing to separate.
+    if (m0 === M0 && m1 === M1 && m0 === m1) {
+      k++;
+      continue;
+    }
+    // Keep the observations at value; the rest are not used.
+    const reduce = (value, text) => {
+      const before = kept.length;
+      kept = kept.filter((j) => {
+        if (column.value(sample[j]) === value) return true;
+        keep[j] = false;
+        return false;
+      });
+      const dropped = before - kept.length;
+      rules.push({ column, value });
+      notes.push(
+        ...text,
+        `      ${name} omitted and ${dropped} obs not used.`,
+        "",
+      );
+      left.splice(k, 1);
+      k = 0;
+    };
+    const exceptAt = (relation, value) => [
+      `note: outcome = ${name} ${relation} ${g(value)} predicts data perfectly except for`,
+      `      ${name} == ${g(value)} subsample:`,
+    ];
+    if (m0 === M0 && (m0 === m1 || m0 === M1))
+      reduce(m0, [`note: ${name} != ${g(m0)} predicts success perfectly;`]);
+    else if (m1 === M1 && (m1 === m0 || m1 === M0))
+      reduce(m1, [`note: ${name} != ${g(m1)} predicts failure perfectly;`]);
+    else if (M0 === m1) reduce(M0, exceptAt(">", M0));
+    else if (M1 === m0) reduce(M1, exceptAt("<", M1));
+    else if (M0 < m1 || M1 < m0) {
+      if (lead) ctx.out("");
+      notes.forEach(ctx.out);
+      throw new StataError(
+        M0 < m1
+          ? `outcome = ${variables} > ${g(M0)} predicts data perfectly`
+          : `outcome = ${variables} <= ${g(M1)} predicts data perfectly`,
+        2000,
+      );
+    } else k++;
+  }
+  return { keep, rules, notes };
+}
+
+/**
+ * Which columns are collinear with the constant and the columns before
+ * them over these observations, as _rmcoll finds them after perfect
+ * predictors have set observations aside. Base levels and the perfect
+ * predictors themselves are left out. A factor level with no observations
+ * left is marked empty, so the table shows it as (empty).
+ */
+export function recheckCollinearity(columns, sample, constant) {
+  const basis = [],
+    independent = (vector) => {
+      let rest = vector;
+      const original = rest.reduce((t, v) => t + v * v, 0);
+      for (const q of basis) {
+        const weight =
+          rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+        rest = rest.map((v, k) => v - weight * q.vector[k]);
+      }
+      const norm = rest.reduce((t, v) => t + v * v, 0);
+      if (!(original > 0 && norm > 1e-9 * original)) return false;
+      basis.push({ vector: rest, norm });
+      return true;
+    };
+  if (constant) independent(sample.map(() => 1));
+  for (const c of columns) {
+    if (c.levels) {
+      const factors = c.term.components.filter((f) => f.factor);
+      c.empty = !sample.some((i) =>
+        factors.every((f, k) => f.variable.data[i] === c.levels[k]),
+      );
+    }
+    if (c.base || c.perfect) continue;
+    c.collinear = !independent(sample.map(c.value));
+  }
 }
 
 function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr]",
+        `anything [if] [in] [fweight pweight iweight] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels${family.binary ? " | ASIS" : ""}]`,
         text,
       ),
-      options = parsed.options,
-      rows = session.rows(parsed, null),
+      options = parsed.options;
+    // Stata resamples observations, which a weight would stand in for.
+    if (
+      parsed.weight &&
+      /^\s*(b(o(o(t(s(t(r(ap?)?)?)?)?)?)?)?|bs)\s*(,|$)/.test(options.vce ?? "")
+    )
+      throw new StataError(
+        "weights not allowed with bootstrap estimation",
+        101,
+      );
+    const wtype = parsed.weight?.type ?? null;
+    // Sampling weights carry their own variance. logit and probit will
+    // not set it aside for the conventional one; poisson will.
+    const plainVce = /^\s*(oim|opg)\s*$/.exec(options.vce ?? "");
+    if (wtype === "pweight" && plainVce && family.binary)
+      throw new StataError(
+        `pweights not allowed with option vce(${plainVce[1]})`,
+        198,
+      );
+    const compiled = wtype ? session.compile(parsed.weight.exp) : null;
+    if (compiled && compiled.type !== "numeric")
+      throw new StataError("type mismatch", 109);
+    const { robust, cluster } = readVce(session, options, /^oim$/, {
+        multiway: false,
+      }),
+      // Each observation's weight. Observations whose weight is missing or
+      // zero are left out before the model is laid out, as are those with
+      // no cluster, so a factor level they alone have is not a level of
+      // the model, and its lowest level left is the base.
+      weightOf = compiled ? evaluateAll(compiled, session.data.n) : null,
+      rows = session
+        .rows(parsed, null)
+        .filter(
+          (i) =>
+            (!weightOf || (!isMissing(weightOf[i]) && weightOf[i] !== 0)) &&
+            (!cluster || !noCluster(cluster, i)),
+        ),
       constant = options.constant !== false,
-      { robust, cluster } = readVce(session, options, /^oim$/),
       {
         dependent,
         columns,
         sample: complete,
       } = design(session, parsed.anything, rows, constant),
-      sample = cluster
-        ? complete.filter((i) => !noCluster(cluster, i))
-        : complete,
-      n = sample.length;
+      logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? "");
+    // [w=exp] is a frequency weight, and Stata says so.
+    if (
+      wtype === "fweight" &&
+      /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0])
+    )
+      ctx.out("(frequency weights assumed)");
+    let sample = complete,
+      n = sample.length,
+      perfect = { rules: [], notes: [] };
+    if (weightOf) {
+      if (
+        wtype === "fweight" &&
+        sample.some((i) => !Number.isInteger(weightOf[i]))
+      )
+        throw new StataError("may not use noninteger frequency weights", 401);
+      // Importance weights may be negative; the others may not.
+      if (wtype !== "iweight" && sample.some((i) => weightOf[i] < 0))
+        throw new StataError("negative weights encountered", 402);
+    }
     if (!n) throw new StataError("no observations", 2000);
-    const y = sample.map((i) => dependent.data[i]);
+    let y = sample.map((i) => dependent.data[i]);
     if (family.binary) {
       const outcome = y.map((v) => Number(v !== 0));
       if (outcome.every((v) => v === outcome[0]))
@@ -164,19 +425,55 @@ function maximumLikelihood(kind) {
           "outcome does not vary; remember:\n                                  0 = negative outcome,\n        all other nonmissing values = positive outcome",
           2000,
         );
-      y.splice(0, n, ...outcome);
+      // Copied in place: spreading every observation into splice overflowed
+      // the call stack at about 130,000 observations.
+      outcome.forEach((v, i) => {
+        y[i] = v;
+      });
+      // Observations whose outcome a regressor predicts perfectly are set
+      // aside, and collinearity is judged again over those that remain.
+      const found = perfectPrediction(columns, sample, y, ctx, logged);
+      if (found.rules.length) {
+        perfect = found;
+        for (const rule of found.rules) rule.column.perfect = true;
+        sample = sample.filter((_, j) => found.keep[j]);
+        y = y.filter((_, j) => found.keep[j]);
+        n = sample.length;
+        recheckCollinearity(columns, sample, constant);
+      }
     } else if (y.some((v) => v < 0 || !Number.isInteger(v)))
       throw new StataError(
         `${dependent.name} must be a nonnegative count`,
         459,
       );
-    const active = columns.filter((c) => !c.base),
+    // Every weight multiplies its observation's contribution to the
+    // likelihood, its score and its information. A frequency weight stands
+    // for that many identical observations, so they count that many times
+    // in the number of observations (after perfect predictors, whose notes
+    // count observations, not frequencies); repeating them instead would
+    // allocate the whole population and lose digits in the sums.
+    let w = null;
+    if (wtype) {
+      w = sample.map((i) => weightOf[i]);
+      const total = w.reduce((t, v) => t + v, 0);
+      // Importance weights that sum to nothing leave nothing to fit.
+      if (!(total > 0)) throw new StataError("insufficient observations", 2001);
+      if (wtype === "fweight") n = total;
+    }
+    const weightAt = w ? (i) => w[i] : () => 1;
+    // A variable collinear with those before it is omitted, as Stata's
+    // _rmcoll omits it, and stays in the table as (omitted); so does a
+    // perfect predictor.
+    for (const c of columns) c.omitted = !!c.collinear || !!c.perfect;
+    const active = columns.filter((c) => !c.base && !c.omitted),
       x = sample.map((i) => [
         ...active.map((c) => c.value(i)),
         ...(constant ? [1] : []),
       ]),
       size = active.length + (constant ? 1 : 0),
-      mean = y.reduce((a, b) => a + b, 0) / n,
+      mean = w
+        ? y.reduce((a, b, i) => a + w[i] * b, 0) / w.reduce((a, b) => a + b, 0)
+        : y.reduce((a, b) => a + b, 0) / n,
       // Start at the constant-only model.
       start = family.binary
         ? kind === "logit"
@@ -187,16 +484,24 @@ function maximumLikelihood(kind) {
         x.reduce(
           (total, row, i) =>
             total +
-            family.ll(
-              y[i],
-              row.reduce((t, v, k) => t + v * b[k], 0),
-            ),
+            weightAt(i) *
+              family.ll(
+                y[i],
+                row.reduce((t, v, k) => t + v * b[k], 0),
+              ),
           0,
         );
     let b = new Array(size).fill(0);
     if (constant) b[size - 1] = start;
-    const ll0 = constant ? logLikelihood(b) : MISSING,
-      word = robust ? "Log pseudolikelihood" : "Log likelihood",
+    // Sampling weights make the variance robust unless poisson was asked
+    // for vce(oim). poisson with them reports no constant-only model, and
+    // so no pseudo R2.
+    const sandwich = robust || (wtype === "pweight" && !plainVce),
+      ll0 =
+        constant && !(kind === "poisson" && wtype === "pweight")
+          ? logLikelihood(b)
+          : MISSING,
+      word = sandwich ? "Log pseudolikelihood" : "Log likelihood",
       log = [];
     let ll = logLikelihood(b),
       information;
@@ -205,11 +510,11 @@ function maximumLikelihood(kind) {
         hessian = Array.from({ length: size }, () => new Array(size).fill(0));
       x.forEach((row, i) => {
         const xb = row.reduce((t, v, k) => t + v * b[k], 0),
-          s = family.score(y[i], xb),
-          w = family.weight(y[i], xb);
+          s = weightAt(i) * family.score(y[i], xb),
+          h = weightAt(i) * family.weight(y[i], xb);
         for (let a = 0; a < size; a++) {
           gradient[a] += s * row[a];
-          for (let c = 0; c <= a; c++) hessian[a][c] += w * row[a] * row[c];
+          for (let c = 0; c <= a; c++) hessian[a][c] += h * row[a] * row[c];
         }
       });
       for (let a = 0; a < size; a++)
@@ -258,25 +563,41 @@ function maximumLikelihood(kind) {
         throw new StataError("convergence not achieved", 430);
     }
     information = invertSymmetric(derivatives().hessian);
+    // A fit that ran off to a boundary the search above did not catch, as
+    // when an interaction separates the outcome only in part: Stata reports
+    // its observations as completely determined, which is not done here.
+    if (!information)
+      throw new StataError(
+        "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
+        430,
+      );
     let V = information,
       clusters = null;
-    if (robust) {
+    if (sandwich) {
       // Each observation is its own cluster unless one was named; the
-      // correction is G / (G - 1) with G the number of clusters.
-      const scoreOf = (i) => {
-          const s = family.score(
-            y[i],
-            x[i].reduce((t, v, k) => t + v * b[k], 0),
-          );
+      // correction is G / (G - 1) with G the number of clusters. The score
+      // of a weighted observation is multiplied by its weight. A
+      // frequency-weighted observation on its own stands for that many
+      // clusters, each with the unweighted score: its part of the middle
+      // is its weight times the outer product, and each counts in G.
+      const apart = wtype === "fweight" && !cluster,
+        scoreOf = (i) => {
+          const s =
+            (apart ? Math.sqrt(w[i]) : weightAt(i)) *
+            family.score(
+              y[i],
+              x[i].reduce((t, v, k) => t + v * b[k], 0),
+            );
           return x[i].map((v) => v * s);
         },
         own = { data: sample.map((_, i) => i) },
-        { meat, clusters: G } = clusterMeat(
+        { meat, clusters: counted } = clusterMeat(
           cluster ?? own,
           cluster ? sample : own.data,
           scoreOf,
           size,
         ),
+        G = apart ? n : counted,
         bm = information.map((row) =>
           meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
         );
@@ -289,89 +610,171 @@ function maximumLikelihood(kind) {
         ),
       );
     }
+    // A robust variance from fewer clusters than coefficients (or whose
+    // clusters leave some direction unmeasured) is singular. Stata then
+    // gives the rank of the variance as e(rank), one less (for the
+    // constant) as the model's degrees of freedom, and no model test.
+    const rank = sandwich ? rankOf(V) : size;
     const names = [
         ...columns.map((c) => c.name),
         ...(constant ? ["_cons"] : []),
       ],
-      position = new Map(active.map((c, k) => [c.name, k]));
-    if (constant) position.set("_cons", size - 1);
+      // Where each coefficient is in the fit, or -1: by column, since a
+      // variable named twice gives two columns of one name.
+      at = [
+        ...columns.map((c) => active.indexOf(c)),
+        ...(constant ? [size - 1] : []),
+      ];
     const model = {
       command: kind,
       title: family.title,
       dist: "z",
       depvar: dependent.name,
       names,
-      b: names.map((name) => (position.has(name) ? b[position.get(name)] : 0)),
-      V: names.map((r) =>
-        names.map((c) =>
-          position.has(r) && position.has(c)
-            ? V[position.get(r)][position.get(c)]
-            : 0,
-        ),
-      ),
+      b: at.map((j) => (j >= 0 ? b[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
       columns,
       constant,
-      estimable: names.map((name) => position.has(name)),
+      estimable: at.map((j) => j >= 0),
       N: n,
-      df_m: active.length,
-      rank: size,
+      df_m:
+        rank < size ? Math.max(0, rank - (constant ? 1 : 0)) : active.length,
+      rank,
+      singular: rank < size,
       ll,
       ll_0: ll0,
-      vce: cluster ? "cluster" : robust ? "robust" : "oim",
+      vce: cluster ? "cluster" : sandwich ? "robust" : "oim",
       clusters,
       clusterName: cluster?.name,
       family,
       kind,
       sample,
+      // The weight type and expression; for sampling and importance
+      // weights, each observation's weight, in the order of sample.
+      wtype,
+      wexp: wtype ? `= ${parsed.weight.exp}` : undefined,
+      weights: w,
+      // The perfect-prediction rules; predict leaves the observations they
+      // set aside missing.
+      rules: perfect.rules,
+      baseLevels: baseLevelsAsked(options),
     };
-    const chi2 = robust ? waldChi2(model) : 2 * (ll - ll0),
+    // A model without a constant has no constant-only model to compare
+    // with, so its test is a Wald test, as with a robust variance.
+    const wald = sandwich || isMissing(ll0),
+      chi2 = wald
+        ? model.singular
+          ? MISSING
+          : waldChi2(model)
+        : 2 * (ll - ll0),
       p = isMissing(chi2) ? MISSING : chi2tail(model.df_m, chi2),
       r2 = isMissing(ll0) ? MISSING : 1 - ll / ll0,
       transform =
         family.exponentiated && options[family.exponentiated[0]]
           ? family.exponentiated
           : null,
-      side = (label, value) => `${label.padEnd(14)}=${value.padStart(7)}`;
-    Object.assign(model, { chi2, p, r2_p: r2 });
+      shown = [
+        // %10.0fc: a count too long for commas is printed without them.
+        applyFormat(n, "%10.0fc").trim(),
+        applyFormat(chi2, "%10.2f").trim(),
+        applyFormat(p, "%6.4f").trim(),
+        applyFormat(r2, "%6.4f").trim(),
+      ],
+      // The values sit in a column as wide as the widest value shown and a
+      // space, ending at column 78: seven for a p-value of 0.0000, more
+      // for 200,000 observations or a chi2 of 19039.96, which moves the
+      // block left; less when the p-value is missing and no pseudo R2 is
+      // shown, as without a constant and with fewer clusters than
+      // coefficients.
+      pad = greatest(
+        (isMissing(ll0) ? shown.slice(0, 3) : shown).map((v) => v.length + 1),
+      ),
+      left = 56 - (pad - 7),
+      side = (label, value) => `${label.padEnd(14)}=${value.padStart(pad)}`;
+    // The exponentiated form asked for, which a prefix such as jackknife
+    // reports too.
+    Object.assign(model, { chi2, p, r2_p: r2, eform: transform });
     session.estimates = model;
     session.results.e = {
       N: n,
       df_m: model.df_m,
       ll,
-      ll_0: ll0,
+      // poisson with sampling weights leaves no e(ll_0).
+      ...(kind === "poisson" && wtype === "pweight" ? {} : { ll_0: ll0 }),
       chi2,
+      chi2type: wald ? "Wald" : "LR",
       p,
       r2_p: r2,
-      rank: size,
-      k: size,
+      rank,
+      k: names.length,
       ic: log.length - 1,
       converged: 1,
       cmd: kind,
       depvar: model.depvar,
       vce: model.vce,
-      ...(robust ? { vcetype: "Robust" } : {}),
+      ...(sandwich ? { vcetype: "Robust" } : {}),
       ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
+      ...(wtype ? { wtype, wexp: model.wexp } : {}),
     };
-    ctx.out("");
-    if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
+    // Stata's built-in logit and probit print, with the log, a blank line,
+    // the notes of perfect predictors (each followed by a blank line) and
+    // of omitted variables, then the log; without it, the notes and a
+    // blank line. poisson, an ado-file, prints the notes first and a blank
+    // line after them.
+    // A cell of an interaction with no observations, or collinear though
+    // none of its levels is a base, is noted too, named without markers.
+    const notes = () =>
+      columns.forEach((c) => {
+        if (c.collinear && !c.perfect)
+          ctx.out(`note: ${c.name} omitted because of collinearity.`);
+        else if (c.emptyCell)
+          ctx.out(
+            `note: ${bareName(c.name)} identifies no observations in the sample.`,
+          );
+        else if (c.omittedCell)
+          ctx.out(`note: ${bareName(c.name)} omitted because of collinearity.`);
+      });
+    if (kind === "poisson") {
+      notes();
+      ctx.out("");
+    } else {
+      if (logged) ctx.out("");
+      perfect.notes.forEach(ctx.out);
+      notes();
+      if (!logged) ctx.out("");
+    }
+    if (logged) {
       log.forEach((value, k) =>
         ctx.out(
           `Iteration ${k}:  ${word} = ${g(value, "%10.0g").padStart(10)}`,
         ),
       );
+      ctx.out("");
+    }
+    ctx.out(`${family.title.padEnd(left)}${side("Number of obs", shown[0])}`);
+    ctx.out(
+      `${"".padEnd(left)}${side(`${wald ? "Wald" : "LR"} chi2(${model.df_m})`, shown[1])}`,
+    );
+    // Without a constant-only model there is no pseudo R2, and the log
+    // likelihood shares the line of the p-value.
+    if (!isMissing(ll0)) {
+      ctx.out(`${"".padEnd(left)}${side("Prob > chi2", shown[2])}`);
+      ctx.out(
+        `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Pseudo R2", shown[3])}`,
+      );
+    } else
+      ctx.out(
+        `${`${word} = ${g(ll, "%10.0g")}`.padEnd(left)}${side("Prob > chi2", shown[2])}`,
+      );
     ctx.out("");
-    ctx.out(`${family.title.padEnd(56)}${side("Number of obs", count(n))}`);
-    ctx.out(
-      `${"".padEnd(56)}${side(`${robust ? "Wald" : "LR"} chi2(${model.df_m})`, applyFormat(chi2, "%7.2f").trim())}`,
-    );
-    ctx.out(
-      `${"".padEnd(56)}${side("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
-    );
-    ctx.out(
-      `${`${word} = ${g(ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(r2, "%6.4f").trim())}`,
-    );
-    ctx.out("");
-    if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
+    // The note ends where the table does, which a long dependent variable
+    // widens.
+    if (cluster)
+      ctx.out(
+        clusterNote(clusters, cluster.name, count)
+          .trim()
+          .padStart(66 + tableWidth(session, model, [model.depvar])),
+      );
     zTable(session, model, options.level, transform).forEach(ctx.out);
     ctx.out("");
   };
@@ -464,7 +867,89 @@ function smallestRoot(A, B) {
   return least(C.map((row, i) => row[i]));
 }
 
+/** A column's name without base or omitted markers: 0.g#4.region. */
+const bareName = (name) =>
+  name.replace(/(^|#)(\d+)[bo]+\./g, "$1$2.").replace(/(^|#)co\./g, "$1c.");
+
 // ----- two-stage least squares -----
+/**
+ * Sorts ivregress's exogenous regressors and instruments over the sample
+ * as Stata does, and returns its notes. An exogenous column with no
+ * observations is empty; one collinear with the constant and the columns
+ * before it is omitted, and so is a cell of an interaction that design()
+ * set aside although none of its levels is a base. Stata names both in its
+ * notes without base or omitted markers. An instrument that repeats an
+ * exogenous factor or interaction is dropped with a note for each of its
+ * columns, base level included; one collinear with the regressors and
+ * instruments before it is dropped with a note, unless it is a variable
+ * also among the exogenous regressors, which Stata drops silently.
+ */
+function ivColumns(listed, rows) {
+  const basis = [],
+    independent = (column) => {
+      let rest = rows.map((i) => column.value(i));
+      const original = rest.reduce((t, v) => t + v * v, 0);
+      for (const q of basis) {
+        const weight =
+          rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+        rest = rest.map((v, k) => v - weight * q.vector[k]);
+      }
+      const norm = rest.reduce((t, v) => t + v * v, 0);
+      if (!(original > 0 && norm > 1e-9 * original)) return false;
+      basis.push({ vector: rest, norm });
+      return true;
+    },
+    occupied = (c) => {
+      if (!c.levels) return true;
+      const factors = c.term.components.filter((f) => f.factor);
+      return rows.some((i) =>
+        factors.every((f, k) => f.variable.data[i] === c.levels[k]),
+      );
+    },
+    key = (term) =>
+      term.components
+        .map((c) => `${c.factor ? "i" : "c"}.${c.variable.name}`)
+        .sort()
+        .join("#"),
+    notes = [];
+  independent({ value: () => 1 });
+  for (const c of listed.exogenous) {
+    c.collinear = false;
+    if (!occupied(c)) {
+      c.empty = true;
+      notes.push(
+        `note: ${bareName(c.name)} identifies no observations in the sample.`,
+      );
+      continue;
+    }
+    // A base level, or a cell of an interaction at a base level.
+    if (c.base && (c.term.factor || c.bases > 0)) continue;
+    c.base = false;
+    if (!independent(c)) {
+      c.collinear = true;
+      notes.push(`note: ${bareName(c.name)} omitted because of collinearity.`);
+    }
+  }
+  const repeated = new Set(
+      listed.exogenous.filter((c) => !c.term.variable).map((c) => key(c.term)),
+    ),
+    plain = new Set(
+      listed.exogenous.filter((c) => c.term.variable).map((c) => c.name),
+    );
+  for (const c of listed.instruments) {
+    const repeat = !c.term.variable && repeated.has(key(c.term));
+    if (repeat || !(c.base || !occupied(c))) {
+      c.collinear = false;
+      if (repeat || !independent(c)) {
+        c.dropped = true;
+        if (occupied(c) && !(c.term.variable && plain.has(c.name)))
+          notes.push(`note: ${c.name} omitted because of collinearity.`);
+      }
+    }
+  }
+  return notes;
+}
+
 function ivregress(session, text, ctx) {
   const m =
     /^\s*(2sls|liml|gmm)\s+(\S+)\s+([^()]*)\(([^=()]+)=([^()]+)\)((?:(?!\b(?:if|in)\b)[^(),])*)([\s\S]*)$/.exec(
@@ -477,13 +962,17 @@ function ivregress(session, text, ctx) {
     );
   const estimator = m[1],
     parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) | noCONStant SMALL Igmm]",
+      "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels | noCONStant SMALL Igmm]",
       m[7],
     ),
-    names = (part) => (part.trim() ? session.varlist(part) : []),
-    endogenous = names(m[4]),
-    exogenous = [...names(m[3]), ...names(m[6])],
-    instruments = names(m[5]),
+    // The exogenous regressors and the instruments are read as regress reads
+    // its varlist, factor variables and interactions included; the
+    // endogenous regressors may not be factor variables, as in Stata.
+    texts = {
+      endogenous: m[4].trim(),
+      exogenous: `${m[3].trim()} ${m[6].trim()}`.trim(),
+      instruments: m[5].trim(),
+    },
     weighting = (parsed.options.wmatrix ?? "robust").trim(),
     asked = readVce(session, parsed.options, /^un(adjusted)?$/),
     cluster = asked.cluster,
@@ -494,17 +983,47 @@ function ivregress(session, text, ctx) {
       const data = session.data.get(name).data;
       return data;
     },
-    all = [m[2], ...endogenous, ...exogenous, ...instruments].map(
-      (name) => session.varlist(name)[0],
-    ),
-    rows = session
-      .rows(parsed, null)
-      .filter(
-        (i) =>
-          all.every((name) => !isMissing(column(name)[i])) &&
-          !(cluster && noCluster(cluster, i)),
+    depName = session.varlist(m[2])[0];
+  const columnsOf = (part, from, levelRows) =>
+      part
+        ? design(session, `${depName} ${part}`, from, true, levelRows).columns
+        : [],
+    first = session.rows(parsed, null),
+    all = [
+      session.data.get(depName),
+      ...Object.values(texts).flatMap((part) =>
+        columnsOf(part, first).flatMap((c) => c.term.variables),
       ),
-    n = rows.length;
+    ],
+    rows = first.filter(
+      (i) =>
+        all.every((variable) => !isMissing(variable.data[i])) &&
+        !(cluster && noCluster(cluster, i)),
+    ),
+    n = rows.length,
+    // Every column over the estimation sample, base levels and columns
+    // collinear with those before them included; those fitted are active.
+    // Stata finds the levels of an exogenous factor in the whole dataset,
+    // whatever if, in and missing values leave in the sample; a level with
+    // no observations in the sample is then shown as (empty).
+    listed = {
+      endogenous: columnsOf(texts.endogenous, rows),
+      exogenous: columnsOf(
+        texts.exogenous,
+        rows,
+        Array.from({ length: session.data.n }, (_, i) => i),
+      ),
+      instruments: columnsOf(texts.instruments, rows),
+    },
+    notes = ivColumns(listed, rows),
+    activeOf = (list) =>
+      list.filter((c) => !c.base && !c.collinear && !c.empty && !c.dropped),
+    endogenousColumns = activeOf(listed.endogenous),
+    exogenousColumns = activeOf(listed.exogenous),
+    instrumentColumns = activeOf(listed.instruments),
+    endogenous = endogenousColumns.map((c) => c.name),
+    exogenous = exogenousColumns.map((c) => c.name),
+    instruments = instrumentColumns.map((c) => c.name);
   if (cluster && estimator !== "2sls")
     throw new StataError(
       `ivregress ${estimator} with vce(cluster) is not available yet; ivregress 2sls takes it`,
@@ -516,12 +1035,11 @@ function ivregress(session, text, ctx) {
       481,
     );
   if (!n) throw new StataError("no observations", 2000);
-  const dep = session.varlist(m[2])[0],
+  const dep = depName,
     y = rows.map((i) => column(dep)[i]),
-    matrix = (list) =>
-      rows.map((i) => [...list.map((name) => column(name)[i]), 1]),
-    X = matrix([...endogenous, ...exogenous]),
-    Z = matrix([...exogenous, ...instruments]),
+    matrix = (list) => rows.map((i) => [...list.map((c) => c.value(i)), 1]),
+    X = matrix([...endogenousColumns, ...exogenousColumns]),
+    Z = matrix([...exogenousColumns, ...instrumentColumns]),
     cross = (A, B) =>
       A[0].map((_, a) =>
         B[0].map((_, b) => A.reduce((t, row, i) => t + row[a] * B[i][b], 0)),
@@ -561,7 +1079,7 @@ function ivregress(session, text, ctx) {
     // kappa is the smallest root of |Y'M1 Y - k Y'M Y| = 0, where Y holds
     // the outcome and the endogenous regressors, M1 removes the exogenous
     // regressors and M removes every instrument.
-    const exo = matrix(exogenous),
+    const exo = matrix(exogenousColumns),
       residualOn = (A, v) => {
         const inverse = invertSymmetric(cross(A, A)),
           coefficient = solve(
@@ -681,27 +1199,26 @@ function ivregress(session, text, ctx) {
     });
     V = multiply(multiply(bread, meat), bread);
   } else V = bread.map((row) => row.map((v) => (v * rss) / n));
-  const namesOut = [...endogenous, ...exogenous, "_cons"],
+  // Base levels and omitted columns stay in the table, fixed at zero.
+  const shownColumns = [...listed.endogenous, ...listed.exogenous],
+    regressors = [...endogenousColumns, ...exogenousColumns],
+    at = [...shownColumns.map((c) => regressors.indexOf(c)), regressors.length],
+    namesOut = [...shownColumns.map((c) => c.name), "_cons"],
     model = {
       command: "ivregress",
       title: `Instrumental-variables ${estimator === "2sls" ? "2SLS" : estimator.toUpperCase()} regression`,
       dist: "z",
       depvar: dep,
       names: namesOut,
-      b,
-      V,
-      columns: [...endogenous, ...exogenous].map((name) => ({
-        name,
-        value: (i) => column(name)[i],
-        term: { variable: session.data.get(name) },
-        evaluate: (get) => get(session.data.get(name)),
-        partial: (get, variable) => Number(variable === session.data.get(name)),
-      })),
+      b: at.map((j) => (j >= 0 ? b[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+      columns: shownColumns,
       constant: true,
-      estimable: namesOut.map(() => true),
+      estimable: at.map((j) => j >= 0),
+      baseLevels: baseLevelsAsked(parsed.options),
       N: n,
-      df_m: namesOut.length - 1,
-      rank: namesOut.length,
+      df_m: regressors.length,
+      rank: regressors.length + 1,
       rss,
       mss: tss - rss,
       r2: 1 - rss / tss,
@@ -716,13 +1233,32 @@ function ivregress(session, text, ctx) {
         endogenous,
         exogenous,
         instruments,
+        // What was typed, for the first-stage regressions, and the columns
+        // fitted.
+        texts,
+        b,
+        columns: {
+          endogenous: endogenousColumns,
+          exogenous: exogenousColumns,
+          instruments: instrumentColumns,
+        },
         rows,
         estimator,
+        kappa: kClass?.kappa,
+        // The variance the first-stage regressions use.
+        vce: cluster
+          ? `cluster ${cluster.name}`
+          : robust
+            ? "robust"
+            : undefined,
+        // Stata's count of endogenous regressors, base levels included.
+        endogenousCount: listed.endogenous.filter((c) => c.base || !c.collinear)
+          .length,
         J: gmm?.J,
         robustWeights: !!gmm && /^r/.test(weighting),
       },
     };
-  const chi2 = waldChi2(model),
+  const chi2 = waldChi2(model, !!cluster),
     p = chi2tail(model.df_m, chi2),
     side = (label, value) => `${label.padEnd(16)}=${value.padStart(11)}`;
   Object.assign(model, { chi2, p });
@@ -731,7 +1267,7 @@ function ivregress(session, text, ctx) {
     N: n,
     df_m: model.df_m,
     chi2,
-    p,
+    p: model.deficient ? MISSING : p,
     r2: model.r2,
     rmse: model.rmse,
     rss,
@@ -746,206 +1282,263 @@ function ivregress(session, text, ctx) {
     ...(kClass ? { kappa: kClass.kappa } : {}),
     ...(gmm ? { J: gmm.J } : {}),
   };
+  for (const c of listed.endogenous)
+    if (c.collinear)
+      ctx.out(`note: ${c.name} omitted because of collinearity.`);
+  notes.forEach(ctx.out);
   if (parsed.options.first) {
+    if (endogenousColumns.some((c) => !c.term.variable))
+      throw new StataError(
+        "option first is not available yet with a factor-variable endogenous regressor; type estat firststage",
+        198,
+      );
     firstStage(session, model.iv, parsed, ctx);
   }
   ctx.out("");
-  [
-    ["Number of obs", count(n)],
-    [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
-    ["Prob > chi2", applyFormat(p, "%6.4f").trim()],
-    // Stata leaves R-squared out when it would be negative.
-    ...(model.r2 >= 0
-      ? [["R-squared", applyFormat(model.r2, "%6.4f").trim()]]
-      : []),
-    ["Root MSE", "    " + applyFormat(model.rmse, "%7.0g")],
-  ].forEach(([label, value], k, list) =>
+  const right = [
+      ["Number of obs", count(n)],
+      [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
+      ["Prob > chi2", applyFormat(p, "%6.4f").trim()],
+      // When R-squared would be negative, 2SLS shows it missing; LIML and
+      // GMM leave it out.
+      ...(model.r2 >= 0
+        ? [["R-squared", applyFormat(model.r2, "%6.4f").trim()]]
+        : kClass || gmm
+          ? []
+          : [["R-squared", "."]]),
+      ["Root MSE", "    " + applyFormat(model.rmse, "%7.0g")],
+    ],
+    // GMM names its weight matrix on the fifth line, beside Root MSE or
+    // below it.
+    left = [
+      model.title,
+      "",
+      "",
+      "",
+      ...(gmm
+        ? [
+            `GMM weight matrix: ${/^r/.test(weighting) ? "Robust" : "Unadjusted"}`,
+          ]
+        : []),
+    ];
+  for (let k = 0; k < Math.max(left.length, right.length); k++)
     ctx.out(
-      `${(k
-        ? gmm && k === list.length - 1
-          ? `GMM weight matrix: ${/^r/.test(weighting) ? "Robust" : "Unadjusted"}`
-          : ""
-        : model.title
-      ).padEnd(50)}${side(label, value)}`,
-    ),
-  );
+      right[k] ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}` : left[k],
+    );
   ctx.out("");
-  if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
-  zTable(session, model, parsed.options.level, null).forEach(ctx.out);
-  ctx.out(`Endogenous: ${endogenous.join(" ")}`);
-  ctx.out(`Exogenous:  ${[...exogenous, ...instruments].join(" ")}`);
+  // The note ends where the table does.
+  if (cluster)
+    ctx.out(
+      clusterNote(
+        clusters,
+        cluster.name,
+        count,
+        66 + tableWidth(session, model, []),
+      ),
+    );
+  zTable(session, model, parsed.options.level, null, false).forEach(ctx.out);
+  // The lists are a paragraph as wide as the table less two (the line,
+  // if narrower), continued twelve columns in.
+  const limit =
+      Math.min(
+        66 + tableWidth(session, model, []),
+        session.settings?.linesize ?? 80,
+      ) - 2,
+    paragraph = (lead, words) => {
+      let line = lead;
+      words.forEach((word, k) => {
+        if (k && `${line} ${word}`.length > limit) {
+          ctx.out(line);
+          line = `${" ".repeat(12)}${word}`;
+        } else line = k ? `${line} ${word}` : `${line}${word}`;
+      });
+      ctx.out(line);
+    };
+  paragraph("Endogenous: ", endogenous);
+  paragraph("Exogenous:  ", [...exogenous, ...instruments]);
   ctx.out("");
 }
 
 // ----- post-estimation that depends on the distribution -----
-function test(session, text, ctx) {
-  const model = estimates(session);
-  if (model.dist !== "z") return testT(session, text, ctx);
-  const [head] = splitAtComma(text);
-  // After mlogit a list of variables is tested in every equation at once.
-  if (model.equations && /^[\sA-Za-z_0-9.]+$/.test(head))
-    return acrossEquations(session, model, head.trim().split(/\s+/), ctx);
-  const groups = head.match(/\([^()]*\)/g),
-    specs = groups
-      ? groups.map((s) => s.slice(1, -1))
-      : /=/.test(head)
-        ? [head]
-        : head.trim().split(/\s+/).filter(Boolean);
-  if (!specs.length) throw new StataError("nothing to test", 198);
-  const constraints = specs.map((spec) => {
-      const sides = spec.split(/==?/);
-      return linear(
-        model,
-        sides.length === 2 ? `(${sides[0]}) - (${sides[1]})` : spec,
+
+/** Every combination of one item from each list. */
+const combinations = (lists) =>
+  lists.reduce(
+    (made, list) => made.flatMap((done) => list.map((item) => [...done, item])),
+    [[]],
+  );
+
+/**
+ * The terms testparm's varlist(fv ts) names, each a list of parts: a
+ * factor, at any level or the one given, or a continuous variable. i.(a b)
+ * is i.a i.b, a##b is a, b and a#b, and in an interaction a name alone is
+ * a factor.
+ */
+function testparmTerms(session, head) {
+  const component = (word, inInteraction) => {
+      const m = /^(i|c|(\d+)b?n?)\.(.+)$/i.exec(word),
+        operator = m?.[1].toLowerCase(),
+        target = (m ? m[3] : word).replace(/^\((.*)\)$/, "$1");
+      return session.varlist(target).map((variable) => ({
+        variable,
+        factor: operator ? operator !== "c" : inInteraction,
+        level: m?.[2] === undefined ? null : Number(m[2]),
+      }));
+    },
+    terms = [];
+  for (const token of head.match(/(?:[^\s(]|\([^)]*\))+/g) ?? []) {
+    if (token.includes("##")) {
+      let expanded = [];
+      for (const part of token.split("##")) {
+        const next = component(part, true);
+        expanded = [...expanded, [next], ...expanded.map((t) => [...t, next])];
+      }
+      for (const term of expanded) terms.push(...combinations(term));
+    } else if (token.includes("#"))
+      terms.push(
+        ...combinations(token.split("#").map((part) => component(part, true))),
       );
-    }),
-    tag = (line) =>
-      model.kind === "ivregress"
-        ? line
-        : line.replace(
-            /(^|[-+*] ?|^-)([A-Za-z_0-9][\w.#]*)/g,
-            (all, lead, name) =>
-              model.names.includes(name)
-                ? `${lead}[${model.depvar}]${name}`
-                : all,
-          );
-  constraints.forEach((c, k) =>
-    ctx.out(
-      ` (${String(k + 1).padStart(2)})  ${tag(describeLinear(model, c.weights, c.constant))}`,
-    ),
-  );
-  const q = constraints.length,
-    difference = constraints.map(
-      (c) => c.weights.reduce((t, w, k) => t + w * model.b[k], 0) + c.constant,
-    ),
-    inverse = invertSymmetric(
-      constraints.map((a) =>
-        constraints.map((b) =>
-          a.weights.reduce(
-            (t, wa, i) =>
-              t +
-              wa * b.weights.reduce((u, wb, j) => u + model.V[i][j] * wb, 0),
-            0,
-          ),
-        ),
-      ),
-    );
-  if (!inverse) throw new StataError("the constraints are redundant", 111);
-  const chi2 = quadratic(difference, inverse),
-    p = chi2tail(q, chi2);
-  ctx.out("");
-  ctx.out(
-    `           chi2(${String(q).padStart(3)}) =${applyFormat(chi2, "%8.2f")}`,
-  );
-  ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
-  ctx.out("");
-  session.results.r = { drop: 0, chi2, df: q, p };
+    else terms.push(...component(token, false).map((part) => [part]));
+  }
+  return terms;
 }
 
-function lincom(session, text, ctx) {
-  const model = estimates(session);
-  if (model.dist !== "z") return lincomT(session, text, ctx);
-  // [eq]name would read as a weight, so the expression is set aside
-  // before the options are parsed.
-  const [head, tail] = splitAtComma(text),
-    parsed = {
-      ...session.parse(
-        "[, Level(cilevel) OR IRr EForm]",
-        tail === null ? "" : `,${tail}`,
-      ),
-      anything: head.trim(),
-    },
-    { weights, constant } = linear(model, parsed.anything),
-    estimate = weights.reduce((t, w, k) => t + w * model.b[k], 0) + constant,
-    se = Math.sqrt(quadratic(weights, model.V)),
-    level = parsed.options.level,
-    critical = invnormal(1 - (1 - level / 100) / 2),
-    z = estimate / se,
-    p = 2 * normal(-Math.abs(z)),
-    text1 = describeLinear(model, weights, 0),
-    shown =
-      model.kind === "ivregress"
-        ? text1
-        : text1.replace(/(?<![\w.#])([A-Za-z_0-9][\w.#]*)/g, (name) =>
-            model.names.includes(name) ? `[${model.depvar}]${name}` : name,
-          );
-  ctx.out("");
-  ctx.out(` ( 1)  ${shown}`);
-  ctx.out("");
-  ctx.out(RULE);
-  ctx.out(
-    `${model.depvar.padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(
-    "-------------+----------------------------------------------------------------",
-  );
-  ctx.out(
-    `${"(1)".padStart(12)} |${g(estimate).padStart(11)}${g(se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(p, "%8.3f")}${g(estimate - critical * se).padStart(13)}${g(estimate + critical * se).padStart(12)}`,
-  );
-  ctx.out(RULE);
-  ctx.out("");
-  session.results.r = {
-    estimate,
-    se,
-    z,
-    p,
-    lb: estimate - critical * se,
-    ub: estimate + critical * se,
-    level,
-  };
+/** Whether the coefficient called name is the term: its parts in any order. */
+function isTerm(name, term) {
+  const parts = name.split("#").map((part) => {
+    const level = /^(\d+)[bon]*\.(.+)$/.exec(part);
+    return level
+      ? { variable: level[2], factor: true, level: Number(level[1]) }
+      : { variable: part.replace(/^c?o?\./, ""), factor: false };
+  });
+  if (parts.length !== term.length) return false;
+  const used = new Set();
+  return term.every((want) => {
+    const k = parts.findIndex(
+      (part, j) =>
+        !used.has(j) &&
+        part.variable === want.variable &&
+        part.factor === want.factor &&
+        (want.level === null || want.level === part.level),
+    );
+    used.add(k);
+    return k >= 0;
+  });
+}
+
+/** Stata's message when testparm finds nothing to test, wrapped to the line. */
+function nothingTestable(equation, linesize = 80) {
+  const lines = [""];
+  for (const word of `the specified varlist does not identify any testable coefficients${equation === null ? "" : ` from equation(${equation})`}`.split(
+    " ",
+  )) {
+    const last = lines.at(-1);
+    if (last && `${last} ${word}`.length > linesize - 1) lines.push(word);
+    else lines[lines.length - 1] = last ? `${last} ${word}` : word;
+  }
+  return new StataError(["no such variables;", ...lines].join("\n"), 111);
 }
 
 /**
- * test and testparm after mlogit: each named variable's coefficient is
- * zero in every equation. Stata lists the base outcome's too and drops it.
+ * testparm, as Stata's testparm.ado runs test: the coefficients of the
+ * terms named that are neither omitted nor base levels, in the order of
+ * e(b), found in equation() or the first equation (the second after an
+ * mlogit whose base outcome comes first). Each is zero, in every equation
+ * after mlogit unless equation() is given, or with equal each equals the
+ * first, in equation() or, without it, the first equation that has it.
  */
-function acrossEquations(session, model, words, ctx) {
-  const variables = [];
-  for (const word of words)
-    for (const name of /^_cons$/.test(word) ? [word] : session.varlist(word))
-      if (!variables.includes(name)) variables.push(name);
-  const lines = [],
-    dropped = [],
-    at = [];
-  for (const name of variables) {
-    if (!model.names.some((n) => n.replace(/^[^:]+:/, "") === name))
-      throw new StataError(`${name} not found`, 111);
-    model.equations.forEach((equation, j) => {
-      const number = String(lines.length + 1).padStart(2);
-      if (j === model.baseEquation) {
-        lines.push(` (${number})  [${equation}]o.${name} = 0`);
-        dropped.push(lines.length);
-      } else {
-        lines.push(` (${number})  [${equation}]${name} = 0`);
-        at.push(model.names.indexOf(`${equation}:${name}`));
-      }
-    });
+function testparm(session, text, ctx) {
+  const model = estimates(session),
+    [head, tail] = splitAtComma(text);
+  session.results.r = {};
+  const terms = testparmTerms(session, head),
+    { options } = session.parse(
+      "[, EQuation(string) Equal DF(string) NOSVYadjust SMALL]",
+      tail === null ? "" : `,${tail}`,
+    ),
+    df = degreesOfFreedom(options.df);
+  if (options.small)
+    throw new StataError(
+      "option small is allowed only if option dfmethod() was used with the mixed command during estimation",
+      198,
+    );
+  if (options.nosvyadjust)
+    throw new StataError(
+      "option nosvyadjust is allowed only with survey data",
+      198,
+    );
+  const space = coefficientSpace(model),
+    asked = options.equation?.trim() || null,
+    named = space.entries.some((e) => e.equation !== null);
+  let within;
+  if (asked === null)
+    within =
+      model.equations &&
+      space.entries.every((e) => e.equation !== model.equations[0] || e.omitted)
+        ? model.equations[1]
+        : space.entries[0].equation;
+  else if (!named) {
+    // regress's one equation has no name but #1.
+    if (!/^#\s*1$/.test(asked))
+      throw nothingTestable(asked, session.settings?.linesize);
+    within = null;
+  } else {
+    try {
+      within = equationOf(model, space, asked);
+    } catch (error) {
+      if (error instanceof StataError && error.code === 303)
+        throw new StataError(`equation ${asked} not found`, 303);
+      throw error;
+    }
+    if (within === "/") throw new StataError("equation / not found", 303);
   }
-  const inverse = invertSymmetric(at.map((r) => at.map((c) => model.V[r][c])));
-  if (!inverse) throw new StataError("the constraints are redundant", 111);
-  const chi2 = quadratic(
-      at.map((k) => model.b[k]),
-      inverse,
-    ),
-    p = chi2tail(at.length, chi2);
-  ctx.out("");
-  lines.forEach(ctx.out);
-  dropped.forEach((k) => ctx.out(`       Constraint ${k} dropped`));
-  ctx.out("");
-  ctx.out(
-    `           chi2(${String(at.length).padStart(3)}) =${applyFormat(chi2, "%8.2f")}`,
+  const chosen = space.entries.flatMap((e, k) =>
+    e.equation === within &&
+    !e.omitted &&
+    !(e.index >= 0 && model.estimable?.[e.index] === false) &&
+    !/^\d+b\.[^#]*$/.test(e.name) &&
+    terms.some((term) => isTerm(e.name, term))
+      ? [k]
+      : [],
   );
-  ctx.out(`         Prob > chi2 =${applyFormat(p, "%10.4f")}`);
-  ctx.out("");
-  session.results.r = {
-    ...Object.fromEntries(
-      dropped.map((k, n) => [`dropped_${n + 1}`, k]).reverse(),
-    ),
-    drop: 1,
-    chi2,
-    df: at.length,
-    p,
-  };
+  if (!chosen.length) throw nothingTestable(asked, session.settings?.linesize);
+  const names = chosen.map((k) => space.entries[k].name),
+    zero = () => space.entries.map(() => 0),
+    constraint = (weights) => ({
+      weights,
+      constant: 0,
+      text: describeLinear(space, weights, 0),
+    });
+  let constraints;
+  if (options.equal) {
+    if (names.length < 2)
+      throw new StataError("too few variables specified", 102);
+    const at = (k) =>
+      asked === null
+        ? space.entries.findIndex(
+            (e) => e.name === names[k] && e.equation !== "/",
+          )
+        : chosen[k];
+    constraints = names.slice(1).map((_, k) => {
+      const weights = zero();
+      weights[at(k + 1)] += 1;
+      weights[at(0)] -= 1;
+      return constraint(weights);
+    });
+  } else if (asked === null && model.equations)
+    constraints = names.flatMap((name) =>
+      space.entries.flatMap((e, k) =>
+        e.name === name && e.equation !== "/" ? [unitConstraint(space, k)] : [],
+      ),
+    );
+  else constraints = chosen.map((k) => unitConstraint(space, k));
+  waldTest(
+    session,
+    model,
+    constraints,
+    df === undefined ? null : `df(${df})`,
+    ctx,
+  );
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
@@ -977,9 +1570,16 @@ function predict(session, text, ctx) {
     mean = family.mean ?? linkOf(model)[0],
     pearson = model.kind === "logit",
     parsed = session.parse(
-      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${pearson ? " Residuals" : ""}]`,
+      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${pearson ? " Residuals" : ""}${family.binary ? " ASIF | RULEs" : ""}]`,
       text,
     ),
+    // Observations a perfect-prediction rule set aside are missing unless
+    // asif asks for the prediction regardless. Stata compares in float.
+    rules = parsed.options.asif ? [] : (model.rules ?? []),
+    setAside = (i) =>
+      rules.some(
+        (r) => Math.fround(r.column.value(i)) !== Math.fround(r.value),
+      ),
     wantXb = parsed.options.xb,
     data = session.data,
     values = new Array(data.n).fill(MISSING);
@@ -998,14 +1598,20 @@ function predict(session, text, ctx) {
         .map((name, k) => (name === "_cons" ? 1 : model.columns[k].value(i)))
         .join(" ");
   if (parsed.options.residuals) {
+    // Covariate patterns count observations, which sampling and
+    // importance weights do not stand for.
+    if (model.wtype === "pweight" || model.wtype === "iweight")
+      throw new StataError(`not possible with ${model.wtype}s`, 135);
     const outcome = data.get(model.depvar).data;
-    for (const i of model.sample ?? []) {
+    // A frequency-weighted observation counts that many times.
+    (model.sample ?? []).forEach((i, r) => {
       const key2 = patternOf(i),
-        entry = patterns.get(key2) ?? { m: 0, y: 0 };
-      entry.m += 1;
-      entry.y += Number(outcome[i] !== 0);
+        entry = patterns.get(key2) ?? { m: 0, y: 0 },
+        weight = model.weights?.[r] ?? 1;
+      entry.m += weight;
+      entry.y += weight * Number(outcome[i] !== 0);
       patterns.set(key2, entry);
-    }
+    });
   }
   session.select(parsed, null, (i) => {
     if (
@@ -1013,7 +1619,8 @@ function predict(session, text, ctx) {
         (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
           isMissing(v.data[i]),
         ),
-      )
+      ) ||
+      setAside(i)
     )
       return;
     const row = model.names.map((name, k) =>
@@ -1056,6 +1663,112 @@ function predict(session, text, ctx) {
 }
 
 // ----- estat and estimates -----
+/**
+ * The terms of the goodness-of-fit chi2 over cells (covariate patterns or
+ * groups) with total weight n, observed successes o and expected e, as
+ * lfit adds them: cells with nothing expected, or everything, add nothing.
+ */
+function cellChi2(cells) {
+  let chi2 = 0,
+    groups = 0;
+  for (const { n, o, e } of cells) {
+    if (!(n > 0)) continue;
+    groups++;
+    if (e > 0 && e < n) chi2 += (o - e) ** 2 / (e * (1 - e / n));
+  }
+  return { chi2, groups };
+}
+/** Pearson's test over the covariate patterns of the estimation sample. */
+function pearsonPatterns(model, rows, p, y, weightAt) {
+  const patterns = new Map();
+  rows.forEach((i, r) => {
+    const key = JSON.stringify(model.columns.map((c) => c.value(i))),
+      cell = patterns.get(key) ?? { n: 0, o: 0, e: 0 },
+      weight = weightAt(r);
+    cell.n += weight;
+    cell.o += weight * y[r];
+    cell.e += weight * p[r];
+    patterns.set(key, cell);
+  });
+  return cellChi2(patterns.values());
+}
+/**
+ * The Hosmer-Lemeshow test over `group` quantiles of the predicted
+ * probabilities, following lfit step by step: the observations are sorted
+ * by probability and summed cumulatively, one row kept for each distinct
+ * probability; a row closes quantile int(group * W / N), W being the
+ * weight summed so far and N the number of observations (or quantile
+ * round(group * W / N) when that is a whole number within rounding, or
+ * the row is the last); quantiles no row closes are empty. Ties can leave
+ * fewer groups than asked for.
+ */
+function hosmerLemeshow(p, y, weightAt, observations, group) {
+  const order = p.map((_, r) => r).sort((a, b) => p[a] - p[b]),
+    W = [],
+    O = [],
+    E = [];
+  let w = 0,
+    o = 0,
+    e = 0;
+  order.forEach((r, k) => {
+    w += weightAt(r);
+    o += weightAt(r) * y[r];
+    e += weightAt(r) * p[r];
+    if (k === order.length - 1 || p[order[k + 1]] !== p[r]) {
+      W.push(w);
+      O.push(o);
+      E.push(e);
+    }
+  });
+  const D = W.length,
+    eps = group * 1e-8,
+    q = W.map((v) => (group * v) / observations),
+    round = (v) => Math.floor(v + 0.5),
+    k = q.map((qj, j) => {
+      const r = round(qj),
+        tie =
+          j + 1 < D &&
+          Math.abs(qj - r) < eps &&
+          ((qj <= r && q[j + 1] - r >= eps) ||
+            (qj >= r && (r - q[j + 1] >= eps || j === 0)));
+      return tie || j === D - 1 ? r : Math.trunc(qj);
+    }),
+    // The rows (1-based) that close a quantile, with its number.
+    closing = [];
+  k.forEach((kj, j) => {
+    if ((j === 0 || kj !== k[j - 1]) && kj !== 0)
+      closing.push({ i: kj, m: j + 1 });
+  });
+  // The row each quantile ends at, or null.
+  let M;
+  if (Math.min(closing.length, group) < group) {
+    // Each quantile takes the row that closes it; one that none closes
+    // shares the row before it, and so is empty.
+    M = new Array(group).fill(null);
+    let at = 0;
+    for (let n = 1; n <= group; n++) {
+      if (n > 1 && closing[at + 1]?.i === n) at++;
+      M[n - 1] = closing[at]?.i === n ? closing[at].m : null;
+    }
+    for (let g = 1; g < group; g++) if (M[g] === null) M[g] = M[g - 1];
+  } else M = closing.slice(0, group).map((c) => c.m);
+  // What falls between the row of one quantile and the row of the last.
+  const portion = (X, g) => {
+    const m = M[g],
+      before = g ? M[g - 1] : null;
+    if (m === null) return null;
+    if (before === null) return X[m - 1];
+    return m > before ? X[m - 1] - X[before - 1] : null;
+  };
+  return cellChi2(
+    M.map((_, g) => ({
+      n: portion(W, g),
+      o: portion(O, g),
+      e: portion(E, g),
+    })),
+  );
+}
+
 function estat(session, text, ctx) {
   const model = estimates(session),
     what = text.trim().split(/[\s,]/)[0];
@@ -1087,7 +1800,7 @@ function estat(session, text, ctx) {
       "-------------+---------------------------------------------------------------",
     );
     ctx.out(
-      `${".".padStart(12)} |${count(model.N).padStart(11)}${g(ll0).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
+      `${".".padStart(12)} |${applyFormat(model.N, "%10.0fc").padStart(11)}${g(ll0).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
     );
     ctx.out("-".repeat(77));
     ctx.out("Note: BIC uses N = number of observations. See [R] IC note.");
@@ -1131,7 +1844,9 @@ function estat(session, text, ctx) {
     const outcome = session.data.get(model.depvar).data;
     let deviance = 0,
       pearson = 0;
-    for (const i of model.sample) {
+    // Sampling and importance weights weight each observation's part.
+    for (const [r, i] of model.sample.entries()) {
+      const weight = model.weights?.[r] ?? 1;
       const mu = Math.exp(
           model.names.reduce(
             (t, name, k) =>
@@ -1141,8 +1856,8 @@ function estat(session, text, ctx) {
           ),
         ),
         y = outcome[i];
-      deviance += 2 * ((y > 0 ? y * Math.log(y / mu) : 0) - (y - mu));
-      pearson += (y - mu) ** 2 / mu;
+      deviance += weight * 2 * ((y > 0 ? y * Math.log(y / mu) : 0) - (y - mu));
+      pearson += (weight * (y - mu) ** 2) / mu;
     }
     const df = model.N - model.rank,
       line = (label, value) =>
@@ -1167,79 +1882,165 @@ function estat(session, text, ctx) {
         `estat ${what} is only available after logit and probit`,
         321,
       );
+    // Stata refuses the classification table after sampling and
+    // importance weights, and the goodness-of-fit test after sampling
+    // weights; after importance weights each observation counts as its
+    // weight in its covariate pattern.
+    if (model.wtype === "pweight")
+      throw new StataError("pweights not allowed", 101);
+    if (model.wtype === "iweight" && what !== "gof")
+      throw new StataError("iweight not allowed", 101);
+    // The sample is e(sample), unless if, in or all name another: then
+    // every observation there with an outcome and a prediction, as lfit_p
+    // marks it.
+    const parsed = session.parse(
+        what === "gof"
+          ? "[if] [in] [, All Group(integer 0) OUTsample | Table]"
+          : "[if] [in] [, All CUToff(real 0.5)]",
+        text.trim().slice(what.length),
+      ),
+      options = parsed.options;
+    if (options.table)
+      throw new StataError(
+        "option table is not available yet; estat gof shows the test without the table",
+        198,
+      );
+    if (options.all && (parsed.if || parsed.in))
+      throw new StataError("all option not allowed with if or in", 198);
+    if (model.weights && (options.all || parsed.if || parsed.in))
+      throw new StataError(
+        `estat ${what} with if, in or all after a weighted fit is not available yet`,
+        198,
+      );
+    if (what !== "gof" && (options.cutoff < 0 || options.cutoff > 1))
+      throw new StataError("cutoff() must be between 0 and 1", 198);
     const outcome = session.data.get(model.depvar).data,
-      rows = model.sample,
       index = (i) =>
         model.names.reduce(
           (t, name, k) =>
             t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
           0,
         ),
-      p = rows.map((i) => model.family.mean(index(i))),
+      predicted = (i) =>
+        model.names.some(
+          (name, k) =>
+            name !== "_cons" &&
+            model.b[k] !== 0 &&
+            isMissing(model.columns[k].value(i)),
+        )
+          ? MISSING
+          : model.family.mean(index(i)),
+      rows =
+        parsed.if || parsed.in || options.all
+          ? session
+              .rows(parsed, null)
+              .filter((i) => !isMissing(outcome[i]) && !isMissing(predicted(i)))
+          : model.sample,
+      p = rows.map(predicted),
       y = rows.map((i) => Number(outcome[i] !== 0)),
-      kind = model.kind === "logit" ? "logistic" : "probit";
-    ctx.out("");
+      kind = model.kind === "logit" ? "logistic" : "probit",
+      // Each observation's weight. The number of observations is what
+      // summarize reports under the weight: the sum of frequency weights,
+      // the count otherwise.
+      weightAt = (r) => model.weights?.[r] ?? 1,
+      observations =
+        model.wtype === "fweight"
+          ? Math.round(model.weights.reduce((t, v) => t + v, 0))
+          : rows.length;
     if (what === "gof") {
-      // Observations with the same covariates form one pattern.
-      const patterns = new Map();
-      rows.forEach((i, r) => {
-        const key = JSON.stringify(model.columns.map((c) => c.value(i))),
-          cell = patterns.get(key) ?? { n: 0, y: 0, p: p[r] };
-        cell.n++;
-        cell.y += y[r];
-        patterns.set(key, cell);
-      });
-      let chi2 = 0;
-      for (const cell of patterns.values())
-        chi2 +=
-          (cell.y - cell.n * cell.p) ** 2 / (cell.n * cell.p * (1 - cell.p));
-      const df = patterns.size - model.rank,
-        values = [
-          count(rows.length),
-          count(patterns.size),
-          applyFormat(df > 0 ? chi2 : 0, "%9.2f").trim(),
-          df > 0 ? applyFormat(chi2tail(df, chi2), "%6.4f").trim() : ".",
+      if (options.group < 0)
+        throw new StataError("option group() cannot be negative", 411);
+      if (options.group > rows.length)
+        throw new StataError(
+          "number of groups cannot be greater than number of observations",
+          498,
+        );
+      const fit = options.group
+        ? hosmerLemeshow(p, y, weightAt, observations, options.group)
+        : pearsonPatterns(model, rows, p, y, weightAt);
+      // The test takes away a degree of freedom for each coefficient
+      // estimated (two for the Hosmer-Lemeshow test) unless the sample is
+      // another one.
+      const df =
+          fit.groups -
+          (options.outsample
+            ? 0
+            : options.group
+              ? 2
+              : model.estimable.filter(Boolean).length),
+        prob = chi2tail(df, fit.chi2);
+      if (df < 0)
+        throw new StataError(
+          "not enough degrees of freedom to perform the test",
+          322,
+        );
+      if (options.group)
+        ctx.out(
+          `note: obs collapsed on ${options.group} quantiles of estimated probabilities.`,
+        );
+      ctx.out("");
+      const values = [
+          applyFormat(observations, "%10.0fc").trim(),
+          applyFormat(fit.groups, "%10.0fc").trim(),
+          applyFormat(fit.chi2, "%9.2f").trim(),
+          applyFormat(prob, "%6.4f").trim(),
         ],
-        width = greatest(values.map((v) => v.length)) + 1;
+        labels = [
+          "Number of observations",
+          options.group ? "Number of groups" : "Number of covariate patterns",
+          `${options.group ? "Hosmer–Lemeshow" : "Pearson"} chi2(${df})`,
+          "Prob > chi2",
+        ],
+        width = greatest(values.map((v) => v.length)) + 1,
+        labelWidth = greatest(labels.map((v) => v.length));
       ctx.out(`Goodness-of-fit test after ${kind} model`);
       ctx.out(`Variable: ${model.depvar}`);
       ctx.out("");
-      [
-        "Number of observations",
-        "Number of covariate patterns",
-        `Pearson chi2(${Math.max(0, df)})`,
-        "Prob > chi2",
-      ].forEach((label, k) =>
-        ctx.out(`${label.padStart(28)} =${values[k].padStart(width)}`),
+      labels.forEach((label, k) =>
+        ctx.out(`${label.padStart(labelWidth)} =${values[k].padStart(width)}`),
       );
       ctx.out("");
+      if (options.group && fit.groups < options.group) {
+        ctx.out(
+          `Warning: There are only ${fit.groups} distinct quantiles because of ties.`,
+        );
+        ctx.out("");
+      }
+      // return list shows the last saved first, as lfit saves them.
       session.results.r = {
-        N: rows.length,
-        m: patterns.size,
-        chi2: df > 0 ? chi2 : 0,
-        df: Math.max(0, df),
+        p: prob,
+        df,
+        chi2: fit.chi2,
+        m: fit.groups,
+        N: observations,
       };
       return;
     }
+    ctx.out("");
     let tp = 0,
       fp = 0,
       fn = 0,
       tn = 0;
+    // A frequency-weighted observation counts that many times.
     y.forEach((actual, r) => {
-      const positive = p[r] >= 0.5;
-      if (positive && actual) tp++;
-      else if (positive) fp++;
-      else if (actual) fn++;
-      else tn++;
+      const positive = p[r] >= options.cutoff,
+        weight = weightAt(r);
+      if (positive && actual) tp += weight;
+      else if (positive) fp += weight;
+      else if (actual) fn += weight;
+      else tn += weight;
     });
     const percent = (a, b) =>
         `${applyFormat(b ? (100 * a) / b : MISSING, "%8.2f")}%`,
       line = (label, code, a, b) =>
         ctx.out(`${label.padEnd(32)}${code}${percent(a, b)}`),
       rule = "-".repeat(50),
+      // The counts are %9.0g: no thousands separators, and an exponent
+      // once frequency weights make them too long.
+      nine = (v) => applyFormat(v, "%9.0g").trim(),
       row = (label, a, b) =>
         ctx.out(
-          `${label}|${count(a).padStart(10)}${count(b).padStart(14)}  |${count(a + b).padStart(11)}`,
+          `${label}|${nine(a).padStart(10)}${nine(b).padStart(14)}  |${nine(a + b).padStart(11)}`,
         );
     ctx.out(
       `${kind[0].toUpperCase() + kind.slice(1)} model for ${model.depvar}`,
@@ -1253,7 +2054,9 @@ function estat(session, text, ctx) {
     ctx.out("-----------+--------------------------+-----------");
     row("   Total   ", tp + fn, fp + tn);
     ctx.out("");
-    ctx.out("Classified + if predicted Pr(D) >= .5");
+    ctx.out(
+      `Classified + if predicted Pr(D) >= ${applyFormat(options.cutoff, "%18.0g").trim()}`,
+    );
     ctx.out(`True D defined as ${model.depvar} != 0`);
     ctx.out(rule);
     line("Sensitivity", "Pr( +| D)", tp, tp + fn);
@@ -1267,14 +2070,21 @@ function estat(session, text, ctx) {
     line("False - rate for classified -", "Pr( D| -)", fn, tn + fn);
     ctx.out(rule);
     ctx.out(
-      `${"Correctly classified".padEnd(41)}${percent(tp + tn, rows.length)}`,
+      `${"Correctly classified".padEnd(41)}${percent(tp + tn, tp + fp + fn + tn)}`,
     );
     ctx.out(rule);
     ctx.out("");
+    const share = (a, b) => (b ? (100 * a) / b : MISSING);
     session.results.r = {
-      P_corr: (100 * (tp + tn)) / rows.length,
-      P_p1: (100 * tp) / (tp + fn),
-      P_n0: (100 * tn) / (tn + fp),
+      P_corr: share(tp + tn, tp + fp + fn + tn),
+      P_p1: share(tp, tp + fn),
+      P_n0: share(tn, tn + fp),
+      P_p0: share(fp, fp + tn),
+      P_n1: share(fn, tp + fn),
+      P_1p: share(tp, tp + fp),
+      P_0n: share(tn, fn + tn),
+      P_0p: share(fp, tp + fp),
+      P_1n: share(fn, fn + tn),
     };
   } else if (ivDiagnostic(session, model, what, ctx)) {
     // Printed by the diagnostic.
@@ -1311,6 +2121,8 @@ function estimatesCommand(session, text, ctx) {
       throw new StataError(`estimation result ${name} not found`, 111);
     session.estimates = entry.model;
     session.results.e = { ...entry.e };
+    // estimates restore is r-class: r() holds only the name restored.
+    session.results.r = { names: name };
     ctx.out(`(results ${name} are active now)`);
   } else if (action === "dir") {
     if (!stored.size) return;
@@ -1361,21 +2173,9 @@ export const MODEL_COMMANDS = [
   },
   { name: "lrtest", minimum: 6, run: lrtest },
   { name: "ivregress", minimum: 5, run: ivregress },
-  { name: "test", minimum: 4, run: test },
-  {
-    name: "testparm",
-    minimum: 8,
-    run: (session, text, ctx) =>
-      estimates(session).equations
-        ? acrossEquations(
-            session,
-            estimates(session),
-            splitAtComma(text)[0].trim().split(/\s+/).filter(Boolean),
-            ctx,
-          )
-        : testparm(session, estimates(session), text, ctx),
-  },
-  { name: "lincom", minimum: 6, run: lincom },
+  { name: "test", minimum: 4, run: testT },
+  { name: "testparm", minimum: 8, run: testparm },
+  { name: "lincom", minimum: 6, run: lincomT },
   { name: "predict", minimum: 7, run: predict },
   { name: "estat", minimum: 5, run: estat },
   { name: "estimates", minimum: 3, run: estimatesCommand },

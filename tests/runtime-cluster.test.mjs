@@ -81,11 +81,19 @@ test("a clustered fit differs from the conventional one", () => {
 });
 
 test("a variance the runtime does not compute is refused", () => {
+  // What is no variance at all is refused as Stata refuses it (recorded
+  // from Stata 19).
+  for (const [command, message] of [
+    ["logit yb x1 x2, vce(hc3)", "vcetype hc3 not allowed"],
+    ["poisson cnt x1 x2, vce(nonsense)", "vcetype nonsense not allowed"],
+  ]) {
+    const run = session().run(command);
+    assert.equal(run.rc, 198, command);
+    assert.equal(run.output[0].lines[0], message, command);
+  }
   for (const command of [
     "logit yb x1 x2, vce(bootstrap)",
-    "logit yb x1 x2, vce(hc3)",
     "probit yb x1 x2, vce(jackknife)",
-    "poisson cnt x1 x2, vce(nonsense)",
     "ivregress 2sls y x2 (x1 = z), vce(hac nwest)",
     "ivregress gmm y x2 (x1 = z), vce(cluster cl)",
     "ivregress liml y x2 (x1 = z), vce(cluster cl)",

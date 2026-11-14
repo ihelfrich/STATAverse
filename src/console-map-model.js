@@ -3,6 +3,7 @@
 // runs after it, and two steps that follow the same one are branches. This
 // file is the part with no page in it: the kinds of step, the commands each
 // writes, and the do-file a whole map stands for.
+import { loadCommand } from "./console-files.js";
 
 const text = (value) => String(value ?? "").trim();
 // A field's text is put in a command as typed, on one line.
@@ -43,9 +44,7 @@ function loadLine(dataset) {
   const file = fileOf(dataset);
   if (!dataset) return "clear";
   if (!file) return `sysuse ${dataset}, clear`;
-  return /\.dta$/i.test(file)
-    ? `use "${file}", clear`
-    : `import delimited using "${file}", clear`;
+  return loadCommand(file);
 }
 /** A do-file name made from what was typed: letters, digits, _ and -. */
 export const doName = (typed) =>

@@ -1,9 +1,11 @@
 // do, run and include on do-files held in the session, and the commands
 // that combine or rearrange datasets: cross, joinby and stack.
 import { greatest } from "./extremes.js";
-import { StataError } from "./errors.js";
+import { Signal, StataError } from "./errors.js";
 import { fileName, load } from "./data-commands.js";
+import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
+import { findFile } from "./files.js";
 import { MISSING, isStringType } from "./values.js";
 
 const RANK = ["byte", "int", "long", "float", "double"];
@@ -36,12 +38,12 @@ function doFile(mode) {
     if (!m) throw new StataError("invalid syntax", 198);
     const typed = m[1].replace(/^"|"$/g, ""),
       files = session.files ?? new Map(),
-      name = files.has(typed)
+      name = findFile(files, typed)
         ? typed
         : /\.\w+$/.test(typed)
           ? typed
           : `${typed}.do`,
-      stored = files.get(name);
+      stored = files.get(findFile(files, name));
     if (!stored) throw new StataError(`file ${name} not found`, 601);
     if (typeof stored.text !== "string")
       throw new StataError(`${name} is a dataset, not a do-file`, 610);
@@ -60,15 +62,58 @@ function doFile(mode) {
       );
       frame.locals.set("0", m[2].trim());
     }
+    // run shows nothing, and neither does do under quietly or capture.
+    const silent =
+        mode === "run" ||
+        ctx.flags?.quiet ||
+        (ctx.flags?.capture && !ctx.flags?.noisy),
+      output = silent ? [] : ctx.output,
+      // Shown as Stata's log shows it (the Console): the do command first,
+      // then the file's commands, then "end of do-file".
+      leads = session.foldLoops && !silent && !!ctx.flags,
+      start = output.length,
+      { sourceLines, loopDepth } = session;
+    session.sourceLines = stored.text.replace(/\r\n?/g, "\n").split("\n");
+    session.loopDepth = 0;
+    let failure = null,
+      exited = false;
     try {
-      session.runNodes(
-        parseBlocks(splitCommands(stored.text)),
-        frame,
-        mode === "run" ? [] : ctx.output,
-      );
+      session.runNodes(parseBlocks(splitCommands(stored.text)), frame, output);
+    } catch (error) {
+      // exit ends this do-file and returns to the one that ran it.
+      if (error instanceof Signal && error.kind === "exit") {
+        exited = true;
+        if (error.code) failure = new StataError("", error.code);
+      } else failure = error;
     } finally {
       session.doDepth -= 1;
+      session.sourceLines = sourceLines;
+      session.loopDepth = loopDepth;
     }
+    if (leads) {
+      ctx.flags.leadAt = start;
+      const last = output.length > start ? output.at(-1) : null;
+      if (failure instanceof StataError) {
+        if (last && !failure.recorded) {
+          if (failure.message) last.lines.push(failure.message);
+          last.lines.push(`r(${failure.code});`);
+          last.rc = failure.code;
+        }
+        if (last) failure.recorded = true;
+        if (last && mode === "do")
+          last.lines.push("", "end of do-file", `r(${failure.code});`);
+      } else if (!failure && mode === "do") {
+        if (exited && last) last.lines.push("", "end of do-file");
+        else
+          output.push({
+            command: "",
+            lines: ["end of do-file"],
+            rc: 0,
+            line: session.line,
+          });
+      }
+    }
+    if (failure) throw failure;
   };
 }
 
@@ -248,4 +293,5 @@ export const MORE_DATA_COMMANDS = [
   { name: "cross", minimum: 5, run: cross },
   { name: "joinby", minimum: 6, run: joinby },
   { name: "stack", minimum: 5, run: stack },
+  ...INSPECT_COMMANDS,
 ];

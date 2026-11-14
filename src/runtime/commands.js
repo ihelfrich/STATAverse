@@ -5,7 +5,7 @@
 // frame and out(line) for results.
 import { least, greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
-import { STANDARD_MESSAGES } from "./error-messages.js";
+import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
@@ -29,13 +29,29 @@ import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS } from "./timeseries.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
+import { CONTRAST_COMMANDS } from "./contrast.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
+import { FOREIGN_COMMANDS } from "./foreign.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
-import { DATA_COMMANDS } from "./data-commands.js";
+import {
+  DATA_COMMANDS,
+  fold,
+  rebuilt,
+  remade,
+  settle,
+} from "./data-commands.js";
+import { describe } from "./data-utilities.js";
+import { characteristicsOf } from "./store.js";
+import {
+  GUARDED_AFTER_SVY,
+  REPLAYED_AFTER_SVY,
+  SVY_COMMANDS,
+  guardAfterSvy,
+  replayAfterSvy,
+} from "./svy.js";
 import {
   count,
   countCommand,
-  describe,
   list,
   moments,
   percentile,
@@ -47,6 +63,7 @@ import {
   tabulate,
 } from "./reports.js";
 import {
+  MAX_STRING_WIDTH,
   MISSING,
   byteLength,
   coerce,
@@ -59,6 +76,8 @@ import {
   isStringType,
   isType,
   missingName,
+  promote,
+  stringWidth,
 } from "./values.js";
 
 const exitSignal = (kind, code = 0) => new Signal(kind, code);
@@ -84,6 +103,29 @@ const STATISTICS = {
     const s = [...v].sort((a, b) => a - b);
     return s.length ? percentile(s, 75) - percentile(s, 25) : MISSING;
   },
+};
+// collapse statistics that pick an observation rather than compute a value;
+// they are the only ones a string variable allows.
+const ORDERED = ["first", "last", "firstnm", "lastnm"];
+// Statistics only collapse has: standard errors of a mean, of a proportion
+// (missing unless every value is 0 or 1) and of a Poisson mean, and the
+// sum of the values whatever the weights.
+const COLLAPSE_ONLY = {
+  semean: (v) => {
+    const sd = moments(v).sd;
+    return v.length > 1 && !isMissing(sd) ? sd / Math.sqrt(v.length) : MISSING;
+  },
+  sebinomial: (v) => {
+    if (!v.length || v.some((x) => x !== 0 && x !== 1)) return MISSING;
+    const p = v.reduce((t, x) => t + x, 0) / v.length;
+    return Math.sqrt((p * (1 - p)) / v.length);
+  },
+  sepoisson: (v) => {
+    if (!v.length) return MISSING;
+    const mean = v.reduce((t, x) => t + x, 0) / v.length;
+    return mean < 0 ? MISSING : Math.sqrt(mean / v.length);
+  },
+  rawsum: (v) => v.reduce((t, x) => t + x, 0),
 };
 const statistic = (name) => {
   if (STATISTICS[name]) return STATISTICS[name];
@@ -168,6 +210,13 @@ export function extendedFunction(session, frame, source) {
   if ((m = /^f(?:o(?:r(?:m(?:at?)?)?)?)?\s+(\S+)$/.exec(text)))
     return data.get(session.varlist(m[1])[0]).format;
   if (/^sortedby$/.test(text)) return data.sortedBy.join(" ");
+  if ((m = /^char\s+(\S+?)\[(\S*)\]$/.exec(text))) {
+    const owner = m[1] === "_dta" ? "_dta" : session.varlist(m[1])[0],
+      chars = characteristicsOf(data, owner);
+    return m[2]
+      ? (chars.find(([name]) => name === m[2])?.[1] ?? "")
+      : chars.map(([name]) => name).join(" ");
+  }
   if (/^data\s+l(a(b(el?)?)?)?$/.test(text)) return data.label;
   if ((m = /^l(?:a(?:b(?:el?)?)?)?\s+(\S+)\s+(\S+)$/.exec(text))) {
     const map = data.valueLabels.get(m[1]),
@@ -324,8 +373,8 @@ export function displayText(session, text, asMacro = false) {
     else if ((m = /^"([^"]*)""$/.exec(word))) out += smcl(m[1]) + '"';
     else if (word === '"') out += '"';
     else if (/^%/.test(word)) {
-      if (!parseFormat(word))
-        throw new StataError(`invalid format ${word}`, 120);
+      // Stata names no format in this message.
+      if (!parseFormat(word)) throw new StataError("invalid %format", 120);
       format = word;
     } else {
       // An expression may be written with blanks around its operators.
@@ -406,9 +455,24 @@ function replace(session, text, ctx) {
   const toMissing = string
     ? 0
     : rows.filter((i) => before[i] !== raw[i] && isMissing(raw[i])).length;
+  // Under by, Stata replaces group by group and reports only a promotion
+  // made in the last group, from the type the earlier groups left.
+  let was = beforeType;
+  if (ctx.by) {
+    const last = ctx.by.groups.at(-1),
+      earlier = rows
+        .filter((i) => i < last.start || i >= last.start + last.count)
+        .map((i) => raw[i]);
+    if (!string) was = promote(beforeType, earlier);
+    else if (earlier.length) {
+      const width = Math.max(1, greatest(earlier.map(byteLength)));
+      if (width > stringWidth(beforeType))
+        was = width > MAX_STRING_WIDTH ? "strL" : `str${width}`;
+    }
+  }
   const result = session.data.replace(name, raw, rows);
-  if (result.to !== beforeType)
-    ctx.out(`variable ${name} was ${beforeType} now ${result.to}`);
+  if (result.to !== was)
+    ctx.out(`variable ${name} was ${was} now ${result.to}`);
   ctx.out(
     `(${count(result.changed)} real change${result.changed === 1 ? "" : "s"} made${toMissing ? `, ${count(toMissing)} to missing` : ""})`,
   );
@@ -439,6 +503,16 @@ function dropKeep(keep) {
     const names = session.parse("varlist", text).varlist;
     if (keep) data.keep(names);
     else data.drop(names);
+    // With no variables left the data are no file's: no name, label, time
+    // stamp, notes or change, as after clear, but the value labels stay.
+    // The same dataset is emptied, as a command that runs this one (such as
+    // simulate) holds it.
+    if (!data.variables.length) {
+      Object.assign(data, { n: 0, sortedBy: [], label: "" });
+      delete data.notes;
+      delete data.chars;
+      settle(data, "", "");
+    }
   };
 }
 
@@ -558,17 +632,26 @@ function compress(session, text, ctx) {
     } else {
       const smallest = inferType(Array.from(variable.data));
       // compress moves to an integer type when it can, and never to float.
+      // It changes a type only to save space, so a float holding large
+      // integers stays float rather than becoming a long of the same size.
       if (["byte", "int", "long"].includes(smallest)) target = smallest;
-      const rank = ["byte", "int", "long", "float", "double"];
-      if (rank.indexOf(target) > rank.indexOf(before)) target = before;
+      if (bytesOf(target) >= bytesOf(before)) target = before;
     }
     if (target !== before) {
       session.data.recast(name, target, { force: true });
       saved += (bytesOf(before) - bytesOf(target)) * session.data.n;
-      changes.push(`  variable ${name} was ${before} now ${target}`);
+      changes.push({
+        name,
+        text: `  variable ${name} was ${before} now ${target}`,
+        pass: isStringType(before) ? 2 : before === "double" ? 1 : 0,
+      });
     }
   }
-  changes.sort().forEach(ctx.out);
+  // Stata reports the int, long and float variables first, then the
+  // doubles, then the strings, each in dataset order.
+  changes
+    .sort((a, b) => a.pass - b.pass)
+    .forEach((change) => ctx.out(change.text));
   ctx.out(`  (${count(saved)} bytes saved)`);
 }
 
@@ -600,6 +683,17 @@ function setCommand(session, text, ctx) {
         `set rng ${rest[0] ?? ""} is not available; mt64 is`,
         198,
       );
+  } else if (what === "showbaselevels") {
+    // on shows base levels as the baselevels option does, all as
+    // allbaselevels does; off, or nothing, as by default.
+    const value = rest
+      .join(" ")
+      .replace(/,\s*perm(a(n(e(n(t(ly?)?)?)?)?)?)?\s*$/, "")
+      .trim();
+    if (!["", "on", "off", "all"].includes(value))
+      throw new StataError("on, off, or all required", 100);
+    session.settings.showbaselevels =
+      value === "on" ? "base" : value === "all" ? "all" : undefined;
   } else if (what === "seed") {
     const seed = session.scalar(rest.join(" "));
     if (!(seed >= 0 && seed <= 2147483647))
@@ -610,7 +704,7 @@ function setCommand(session, text, ctx) {
   }
   // Settings that only affect how Stata's own windows behave are accepted.
   else if (
-    !/^(mo(re?)?|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|showbaselevels|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
+    !/^(mo(re?)?|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
       what,
     )
   )
@@ -627,19 +721,56 @@ function clear(session, text) {
     session.scalars.clear();
     session.programs.clear();
     session.results = { r: {}, e: {}, s: {} };
+    // Graphs are dropped too; their windows stay open, empty.
+    session.graphs?.clear();
+    session.currentGraph = null;
+    for (const name of session.windows?.keys() ?? [])
+      session.windows.set(name, null);
   }
 }
 
 // ----- reports -----
 
+/**
+ * When a value label is attached or grows, Stata widens the %g, %f or %e
+ * format of each variable carrying it to the bytes of its longest text,
+ * dropping a - or 0 modifier; it never narrows one, and leaves dates and
+ * the binary formats alone.
+ */
+function widenForLabel(session, name) {
+  const map = session.data.valueLabels.get(name);
+  if (!map) return;
+  let longest = 0;
+  for (const text of map.values())
+    longest = Math.max(longest, byteLength(text));
+  for (const variable of session.data.variables ?? []) {
+    if (variable.valueLabel !== name) continue;
+    const spec = parseFormat(variable.format ?? "");
+    if (
+      spec?.kind !== "number" ||
+      !/^%-?0?\d+\.\d+[gfe]c?$/.test(variable.format)
+    )
+      continue;
+    const width = Math.min(longest, 2045);
+    if (width > spec.width)
+      variable.format = `%${width}.${spec.digits}${spec.style}${spec.commas ? "c" : ""}`;
+  }
+}
+
 // ----- labels and formats -----
-function label(session, text) {
+function label(session, text, ctx) {
   const data = session.data;
   let m;
+  // Variable and dataset labels hold at most 80 characters.
+  const short = (label) => {
+    if ([...label].length <= 80) return label;
+    ctx.out("note: label truncated to 80 characters");
+    return [...label].slice(0, 80).join("");
+  };
   if ((m = /^var(?:i(?:a(?:b(?:le?)?)?)?)?\s+(\S+)\s*([\s\S]*)$/.exec(text))) {
-    data.get(session.varlist(m[1])[0]).label = unquoteMacro(m[2]);
+    data.get(session.varlist(m[1])[0]).label = short(unquoteMacro(m[2]));
   } else if ((m = /^da(?:ta?)?\s*([\s\S]*)$/.exec(text)))
-    data.label = unquoteMacro(m[1]);
+    data.label = short(unquoteMacro(m[1]));
   else if ((m = /^de(?:f(?:i(?:ne?)?)?)?\s+(\S+)\s+([\s\S]*)$/.exec(text))) {
     const [body, options = ""] = m[2].split(/,(?=[^"]*$)/),
       words = macroWords(body);
@@ -649,7 +780,12 @@ function label(session, text) {
       replaceAll = /\breplace\b/.test(options);
     if (exists && !add && !replaceAll)
       throw new StataError(`label ${m[1]} already defined`, 110);
-    const map = exists && !replaceAll ? data.valueLabels.get(m[1]) : new Map();
+    const map = new Map(
+        exists && !replaceAll ? data.valueLabels.get(m[1]) : [],
+      ),
+      pairs = [];
+    // Every value is checked before any is stored: a refused definition
+    // leaves the label as it was.
     for (let k = 0; k < words.length; k += 2) {
       const value = session.scalar(words[k].text);
       if (
@@ -657,16 +793,22 @@ function label(session, text) {
         (!isMissing(value) && !Number.isInteger(value))
       )
         throw invalid("may not label noninteger values");
-      if (
-        map.has(value) &&
-        exists &&
-        !/\bmodify\b/.test(options) &&
-        !replaceAll
-      )
-        throw invalid(`label ${m[1]} already has a value for ${words[k].text}`);
-      map.set(value, words[k + 1].text);
+      if (value === MISSING) throw invalid("may not label .");
+      pairs.push([value, words[k + 1].text]);
     }
+    // add may not change a value the label already has, but empty text
+    // removes it, under add as under modify.
+    if (exists && !replaceAll && !/\bmodify\b/.test(options))
+      for (const [value, text] of pairs)
+        if (text !== "" && map.has(value))
+          throw new StataError("invalid attempt to modify label", 180);
+    for (const [value, text] of pairs)
+      if (text === "" && map.has(value)) map.delete(value);
+      else map.set(value, text);
+    // label dir lists the most recently defined or modified label first.
+    data.valueLabels.delete(m[1]);
     data.valueLabels.set(m[1], map);
+    widenForLabel(session, m[1]);
   } else if ((m = /^val(?:u(?:es?)?)?\s+([\s\S]+)$/.exec(text))) {
     const words = m[1].trim().split(/\s+/),
       target = words.length > 1 ? words.pop() : ".",
@@ -677,6 +819,7 @@ function label(session, text) {
         throw new StataError("may not label strings", 181);
       variable.valueLabel = target === "." ? "" : target;
     }
+    if (target !== ".") widenForLabel(session, target);
   } else if ((m = /^drop\s+([\s\S]+)$/.exec(text))) {
     for (const name of m[1].trim() === "_all"
       ? [...data.valueLabels.keys()]
@@ -684,7 +827,46 @@ function label(session, text) {
       if (!data.valueLabels.delete(name))
         throw new StataError(`value label ${name} not found`, 111);
     }
-  } else if (!/^(l(i(st?)?)?|dir)\b/.test(text)) throw invalid();
+  } else if ((m = /^l(?:i(?:st?)?)?(?:\s+([\s\S]*))?$/.exec(text)))
+    labelList(session, (m[1] ?? "").trim(), ctx);
+  else if (/^dir\s*$/.test(text)) {
+    const names = [...data.valueLabels.keys()].reverse();
+    names.forEach((name) => ctx.out(name));
+    session.results.r = names.length ? { names: names.join(" ") } : {};
+  } else throw invalid();
+}
+/**
+ * label list: each label's values in order, right-aligned in twelve columns,
+ * missing values last. r() describes the last label listed.
+ */
+function labelList(session, text, ctx) {
+  const labels = session.data.valueLabels,
+    names = text ? text.split(/\s+/) : [...labels.keys()].reverse();
+  for (const name of names)
+    if (!labels.has(name))
+      throw new StataError(`value label ${name} not found`, 111);
+  session.results.r = {};
+  for (const name of names) {
+    const entries = [...labels.get(name)].sort((a, b) => a[0] - b[0]),
+      present = entries.map(([value]) => value).filter((v) => !isMissing(v));
+    ctx.out(`${name}:`);
+    for (const [value, text] of entries)
+      fold(
+        `${(isMissing(value) ? missingName(value) : String(value)).padStart(12)} ${text}`,
+        session.settings.linesize ?? 80,
+      ).forEach((line) => ctx.out(line));
+    // A label of extended missing values only has a missing minimum and
+    // maximum; an empty label has 0.
+    const none = entries.length ? MISSING : 0;
+    session.results.r = {
+      min: present.length ? least(present) : none,
+      max: present.length ? greatest(present) : none,
+      hasemiss: Number(
+        entries.some(([value]) => isMissing(value) && value !== MISSING),
+      ),
+      k: entries.length,
+    };
+  }
 }
 function format(session, text) {
   const words = text.trim().split(/\s+/),
@@ -692,13 +874,29 @@ function format(session, text) {
     names = session.varlist(words.filter((word) => word !== spec).join(" "));
   if (!spec) throw invalid();
   const parsed = parseFormat(spec);
-  if (!parsed) throw new StataError(`invalid format ${spec}`, 120);
-  for (const name of names) {
-    const variable = session.data.get(name);
-    if ((parsed.kind === "string") !== isStringType(variable.type))
-      throw new StataError(`invalid format ${spec} for ${name}`, 120);
-    variable.format = spec;
+  if (!parsed) throw new StataError("invalid %format", 120);
+  if (parsed.kind === "business")
+    throw new StataError(
+      `business calendar formats (${spec}) are not available in the browser`,
+      198,
+      "A %tb format needs a business calendar (.stbcal) file, which the browser runtime cannot read; use a %td format instead.",
+    );
+  // Every variable is checked before any format changes.
+  const strings = names.map((name) =>
+    isStringType(session.data.get(name).type),
+  );
+  if (strings.some((s) => s !== strings[0]))
+    throw new StataError(
+      "varlist must contain all numeric or all string variables",
+      109,
+    );
+  for (const string of strings) {
+    if (string && parsed.kind !== "string")
+      throw new StataError("string %fmt required for string variables", 120);
+    if (!string && parsed.kind === "string")
+      throw new StataError("numeric %fmt required for numeric variables", 120);
   }
+  for (const name of names) session.data.get(name).format = spec;
 }
 
 // ----- scalars, macros and programs -----
@@ -780,13 +978,40 @@ function syntaxCommand(session, text, ctx) {
   for (const [name, value] of Object.entries(result.locals))
     if (value !== "") ctx.frame.locals.set(name, value);
 }
+// return, ereturn and sreturn. Inside an r-class program, return stages its
+// results and r() becomes them when the program ends; ereturn and sreturn
+// change e() and s() at once, so later lines and a failure see them. Setting
+// them anywhere else is an error, as in Stata.
+const CLASS = { r: "rclass", e: "eclass", s: "sclass" },
+  CLASS_CODE = { r: 151, e: 152, s: 153 };
 function returns(kind) {
   return (session, text, ctx) => {
-    const target = ctx.frame.returns?.[kind] ?? session.results[kind];
+    const program = ctx.frame.program,
+      owner =
+        !!program && new RegExp(`\\b${CLASS[kind]}\\b`).test(program.options),
+      staged = kind === "r" && owner ? ctx.frame.returns.r : null,
+      target = staged ?? session.results[kind];
     let m;
-    if (/^clear\b/.test(text))
+    if (/^clear\b/.test(text)) {
+      // return clear outside an r-class program has nothing to clear: r()
+      // stays as it is.
+      if (kind === "r" && !owner) return;
+      if (kind === "e") session.estimates = null;
       return void Object.keys(target).forEach((key) => delete target[key]);
-    if (/^add\b/.test(text)) return;
+    }
+    if (!owner && /^(sca|loc|add|mat|post|repost)\w*\b/.test(text))
+      throw new StataError(
+        `non ${CLASS[kind].replace("class", "-class")} program may not set ${kind}()`,
+        CLASS_CODE[kind],
+      );
+    // return add stages every r() result not already staged, then r() is
+    // empty until the program ends.
+    if (kind === "r" && /^add\s*$/.test(text)) {
+      for (const [key, value] of Object.entries(session.results.r))
+        if (!(key in staged)) staged[key] = value;
+      session.results.r = {};
+      return;
+    }
     if (/^list\b/.test(text)) {
       // Stata lists results in the order its own code stored them, which
       // differs by command; here they are in the order they were set.
@@ -818,7 +1043,20 @@ function returns(kind) {
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);
       }
-      if (numbers.length || strings.length) ctx.out("");
+      // Matrices a command stored in r(), such as test's r(mtest).
+      const matrices = entries.filter(
+        ([key, v]) => key.startsWith("matrix:") && v?.values,
+      );
+      if (kind !== "e" && matrices.length) {
+        ctx.out("");
+        ctx.out("matrices:");
+        for (const [key, value] of matrices)
+          ctx.out(
+            `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+          );
+      }
+      if (numbers.length || strings.length || (kind !== "e" && matrices.length))
+        ctx.out("");
       return;
     }
     if ((m = /^sca(?:l(?:ar?)?)?\s+(\w+)\s*=\s*([\s\S]+)$/.exec(text)))
@@ -903,23 +1141,105 @@ function assertCommand(session, text, ctx) {
       9,
     );
 }
-function isid(session, text) {
+// Stata's list of names: "a", "a and b", "a, b, and c".
+function nameList(names) {
+  if (names.length < 3) return names.join(" and ");
+  return `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+}
+function isid(session, text, ctx) {
   const parsed = session.parse("varlist [, Sort Missok]", text),
     columns = parsed.varlist.map((name) => session.data.get(name).data),
+    noun = `variable${columns.length > 1 ? "s" : ""} ${nameList(parsed.varlist)}`,
     seen = new Set();
+  // Without missok, isid counts the observations with every identifier
+  // present, which leaves r(N), and refuses any that are missing.
+  if (!parsed.options.missok) {
+    let complete = 0;
+    for (let i = 0; i < session.data.n; i++)
+      if (
+        columns.every((column) =>
+          typeof column[i] === "string"
+            ? column[i] !== ""
+            : !isMissing(column[i]),
+        )
+      )
+        complete++;
+    session.results.r = { N: complete };
+    if (complete < session.data.n)
+      throw new StataError(`${noun} should never be missing`, 459);
+  }
   for (let i = 0; i < session.data.n; i++) {
     const key = JSON.stringify(columns.map((column) => column[i]));
     if (seen.has(key))
       throw new StataError(
-        `variable${columns.length > 1 ? "s" : ""} ${parsed.varlist.join(" ")} ${columns.length > 1 ? "do" : "does"} not uniquely identify the observations`,
+        `${noun} ${columns.length > 1 ? "do" : "does"} not uniquely identify the observations`,
         459,
       );
     seen.add(key);
   }
-  if (parsed.options.sort) session.data.sort(parsed.varlist);
+  if (parsed.options.sort) {
+    // sort first asks, in an r-class step, whether the data are already in
+    // that order, which leaves r(sorted).
+    const sorted = parsed.varlist.every(
+      (name, k) => session.data.sortedBy[k] === name,
+    );
+    session.results.r = { sorted: sorted ? 1 : 0 };
+    if (!sorted) session.data.sort(parsed.varlist);
+    ctx.out(
+      `(data ${sorted ? "already" : "now"} sorted by ${parsed.varlist.join(" ")})`,
+    );
+  }
 }
 
 // ----- egen and collapse -----
+/**
+ * The options each egen function takes, as its _g*.ado file declares them,
+ * those after a bar being ones this runtime refuses, and whether it may be
+ * combined with by. Any other option is one Stata does not allow.
+ */
+const ROW_ONLY = { options: "", by: false };
+const EGEN = {
+  concat: {
+    options: "Punct(string) | Decode MAXLength(string) Format(string)",
+    by: false,
+  },
+  anycount: { options: "Values(numlist)", by: false },
+  anymatch: { options: "Values(numlist)", by: false },
+  rowtotal: { options: "Missing", by: false },
+  rowmean: ROW_ONLY,
+  rowmin: ROW_ONLY,
+  rowmax: ROW_ONLY,
+  rowmiss: ROW_ONLY,
+  rowsd: ROW_ONLY,
+  rowfirst: ROW_ONLY,
+  rowlast: ROW_ONLY,
+  rownonmiss: { options: "| Strok", by: false },
+  group: {
+    options: "Missing | Label(string) LName(string) Truncate(string) AUTOTYPE",
+    by: false,
+  },
+  tag: { options: "Missing", by: false },
+  seq: { options: "| Block(string) From(string) To(string)", by: true },
+  rank: { options: "Field Track | Unique Suffix(string)", by: true },
+  std: { options: "| Mean(string) Sd(string)", by: true },
+  cut: {
+    options: "AT(numlist) Group(integer 0) | ICodes Label",
+    by: false,
+  },
+  pctile: { options: "P(real 50) | AUTOTYPE", by: true },
+  mean: { options: "", by: true },
+  sd: { options: "", by: true },
+  count: { options: "", by: true },
+  total: { options: "Missing", by: true },
+  sum: { options: "Missing", by: true },
+  min: { options: "MISSing", by: true },
+  max: { options: "MISSing", by: true },
+  median: { options: "| AUTOTYPE", by: true },
+  iqr: { options: "| AUTOTYPE", by: true },
+};
+// Stata's other egen functions, which this runtime does not have yet.
+const EGEN_MISSING =
+  /^(any|anyvalue|diff|ends|fill|kurt|mad|mdev|mode|mtr|pc|rowmedian|rowpctile|skew)$/;
 function egen(session, text, ctx) {
   const m =
     /^((?:byte|int|long|float|double|str\d*)\s+)?([A-Za-z_]\w*)\s*=\s*(\w+)\s*\(([\s\S]*?)\)\s*((?:if|in|,)[\s\S]*)?$/.exec(
@@ -927,14 +1247,23 @@ function egen(session, text, ctx) {
     );
   if (!m) throw invalid();
   const [, typeText, name, fcn, argument, tail = ""] = m,
-    parsed = session.parse(
-      "[if] [in] [, BY(varlist) Missing Field Track Unique P(integer 50) AT(numlist) Values(numlist) Group(integer 0) Punct(string) | Label Icodes Format(string) Decode MAXLength(integer 0)]",
-      tail,
-    ),
     data = session.data;
+  // egen.ado's order: the new name, then the function, then its options.
   if (!isName(name)) throw invalid(`${name} invalid name`);
   if (data.has(name))
     throw new StataError(`variable ${name} already defined`, 110);
+  if (EGEN_MISSING.test(fcn))
+    throw new StataError(`egen ${fcn}() is not available yet`, 198);
+  const known = Object.hasOwn(EGEN, fcn) ? EGEN[fcn] : null;
+  if (!known) throw new StataError(`unknown egen function ${fcn}()`, 133);
+  const parsed = session.parse(
+    `[if] [in] [, BY(${known.by ? "varlist" : "string"}) ${known.options}]`,
+    tail,
+  );
+  if (!known.by && (parsed.options.by || ctx.by))
+    throw new StataError(`egen ... ${fcn}() may not be combined with by`, 190);
+  if (parsed.options.field && parsed.options.track)
+    throw invalid("only one of options field or track is allowed");
   // With no observations and by(), Stata's egen finds nothing to work on.
   if (!data.n && (parsed.options.by || ctx.by))
     throw new StataError("no observations to group", 111);
@@ -999,7 +1328,10 @@ function egen(session, text, ctx) {
         .filter((v) => !isMissing(v));
       values[i] =
         fcn === "rowtotal"
-          ? row.reduce((a, b) => a + b, 0)
+          ? // missing: a row with no values is missing, not 0.
+            row.length || !parsed.options.missing
+            ? row.reduce((a, b) => a + b, 0)
+            : MISSING
           : fcn === "rowmean"
             ? row.length
               ? row.reduce((a, b) => a + b, 0) / row.length
@@ -1067,6 +1399,7 @@ function egen(session, text, ctx) {
     groups.forEach((group) => group.forEach((i, k) => (values[i] = k + 1)));
   } else if (fcn === "rank") {
     const compiled = session.compile(argument);
+    if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
     for (const group of groups) {
       const pairs = group
         .map((i) => [
@@ -1075,10 +1408,17 @@ function egen(session, text, ctx) {
         ])
         .filter(([, v]) => !isMissing(v))
         .sort((a, b) => a[1] - b[1]);
+      // Tied values share the mean of their ranks; under track the lowest
+      // of them, and under field the rank counted from the largest value.
       for (let k = 0; k < pairs.length;) {
         let j = k;
         while (j < pairs.length && pairs[j][1] === pairs[k][1]) j++;
-        for (let t = k; t < j; t++) values[pairs[t][0]] = (k + 1 + j) / 2;
+        for (let t = k; t < j; t++)
+          values[pairs[t][0]] = parsed.options.track
+            ? k + 1
+            : parsed.options.field
+              ? pairs.length - j + 1
+              : (k + 1 + j) / 2;
         k = j;
       }
     }
@@ -1140,10 +1480,26 @@ function egen(session, text, ctx) {
         : statistic(fcn);
     if (!fn) throw new StataError(`unknown egen function ${fcn}()`, 133);
     const compiled = session.compile(argument);
-    if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
-    const all = evaluateAll(compiled, data.n);
+    // count() counts !missing(exp), which for a string is a nonempty value.
+    const counting = fcn === "count" && compiled.type === "string";
+    if (compiled.type !== "numeric" && !counting)
+      throw new StataError("type mismatch", 109);
+    const all = counting
+      ? evaluateAll(compiled, data.n).map((v) => (v === "" ? MISSING : 1))
+      : evaluateAll(compiled, data.n);
     for (const group of groups) {
-      const result = fn(group.map((i) => all[i]).filter((v) => !isMissing(v)));
+      const present = group.map((i) => all[i]).filter((v) => !isMissing(v));
+      // missing: total() of no values is missing, not 0, and max() and min()
+      // compare missing values too, which sort above every number.
+      const result = !parsed.options.missing
+        ? fn(present)
+        : fcn === "max"
+          ? greatest(group.map((i) => all[i]))
+          : fcn === "min"
+            ? least(group.map((i) => all[i]))
+            : present.length
+              ? fn(present)
+              : MISSING;
       for (const i of group) values[i] = result;
     }
   }
@@ -1157,7 +1513,14 @@ function egen(session, text, ctx) {
   data.sortedBy = sorted;
   if (fcn === "group" || fcn === "tag")
     data.get(name).label = `${fcn}(${argument.trim()})`;
-  if (fcn === "rank") data.get(name).label = `rank of (${argument.trim()})`;
+  if (fcn === "rank")
+    data.get(name).label = [
+      parsed.options.field ? "field" : parsed.options.track ? "track" : "",
+      `rank of (${argument.trim()})`,
+      keys.length ? `by ${keys.join(" ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   if (label) data.get(name).label = label;
 }
 
@@ -1187,7 +1550,12 @@ function collapse(session, text, ctx) {
     []) {
     if (token.startsWith("(")) {
       stat = token.slice(1, -1).trim();
-      if (!statistic(stat))
+      if (
+        !statistic(stat) &&
+        !ORDERED.includes(stat) &&
+        !COLLAPSE_ONLY[stat] &&
+        stat !== "percent"
+      )
         throw new StataError(`${stat} is not a collapse statistic`, 198);
       continue;
     }
@@ -1199,6 +1567,15 @@ function collapse(session, text, ctx) {
         targets.push({ name: source, source, stat });
   }
   if (!targets.length) throw new StataError("varlist required", 100);
+  // A string variable can only be carried by position.
+  for (const t of targets)
+    if (isStringType(data.get(t.source).type) && !ORDERED.includes(t.stat))
+      throw new StataError(
+        `string variable ${t.source} not allowed with statistic ${t.stat}`,
+        109,
+      );
+  const gap = (column, i) =>
+    typeof column[i] === "string" ? column[i] === "" : isMissing(column[i]);
   if (weightClause && !weightType)
     throw new StataError(`${weightClause[1]} is not a kind of weight`, 198);
   const weights = weightType
@@ -1211,13 +1588,41 @@ function collapse(session, text, ctx) {
     weights.some((w) => !isMissing(w) && !Number.isInteger(w))
   )
     throw new StataError("may not use noninteger frequency weights", 401);
-  const unweighted = ["count", "min", "max", "first", "last"];
+  // With analytic weights a count is of observations; with sampling and
+  // importance weights it is the sum of the weights.
+  const unweighted = [
+    ...(weightType === "aweight" ? ["count"] : []),
+    "min",
+    "max",
+    ...ORDERED,
+  ];
+  const quantile = (stat) =>
+    stat === "median" || stat === "iqr" || /^p\d+$/.test(stat);
+  // The statistics collapse_17.ado's CheckWeight does not allow with each
+  // kind of weight.
+  const barred = {
+      pweight: ["sd", "semean", "sebinomial", "sepoisson"],
+      iweight: ["semean", "sebinomial", "sepoisson"],
+      aweight: ["sebinomial", "sepoisson"],
+    }[weightType],
+    clash = targets.find((t) => barred?.includes(t.stat));
+  if (clash)
+    throw new StataError(`${clash.stat} not allowed with ${weightType}s`, 135);
   if (weightType && weightType !== "fweight") {
     const refused = targets.find(
       (t) =>
         !unweighted.includes(t.stat) &&
-        !["mean", "sum", "total"].includes(t.stat) &&
-        !(t.stat === "sd" && weightType === "aweight"),
+        ![
+          "mean",
+          "sum",
+          "total",
+          "count",
+          "sd",
+          "semean",
+          "rawsum",
+          "percent",
+        ].includes(t.stat) &&
+        !quantile(t.stat),
     );
     if (refused)
       throw new StataError(
@@ -1227,6 +1632,24 @@ function collapse(session, text, ctx) {
     if (weightType === "aweight" && targets.some((t) => t.stat === "count"))
       ctx.out("(note: aweights not used to compute counts)");
   }
+  /**
+   * A weighted percentile as Stata computes it: the first value whose
+   * cumulative weight passes p% of the total, or the average of it and the
+   * next value when the cumulative weight equals that point exactly.
+   */
+  const weightedPercentile = (pairs, p) => {
+    if (!pairs.length) return MISSING;
+    const sorted = [...pairs].sort((a, b) => a[0] - b[0]),
+      point = (p / 100) * sorted.reduce((t, [, w]) => t + w, 0);
+    let running = 0;
+    for (let k = 0; k < sorted.length; k++) {
+      running += sorted[k][1];
+      if (running === point && k + 1 < sorted.length)
+        return (sorted[k][0] + sorted[k + 1][0]) / 2;
+      if (running >= point) return sorted[k][0];
+    }
+    return sorted.at(-1)[0];
+  };
   /** One statistic of a column over a group of rows, with any weights. */
   const weighted = (stat, column, group) => {
     const use = group.filter(
@@ -1234,44 +1657,110 @@ function collapse(session, text, ctx) {
         !isMissing(column[i]) &&
         (!weights || (!isMissing(weights[i]) && weights[i] !== 0)),
     );
+    const plain = weights ? use.map((i) => column[i]) : present(column, group);
+    // (rawsum) ignores the weights; (percent) is the group's share of all
+    // the observations, or of all the weight, with a value.
+    if (stat === "rawsum") return plain.reduce((t, v) => t + v, 0);
+    if (stat === "percent") {
+      const all = shares.get(column),
+        part = weights ? use.reduce((t, i) => t + weights[i], 0) : plain.length;
+      return all ? (100 * part) / all : MISSING;
+    }
+    const compute = statistic(stat) ?? COLLAPSE_ONLY[stat];
     if (!weights || (unweighted.includes(stat) && weightType !== "fweight"))
-      return statistic(stat)(
-        weights ? use.map((i) => column[i]) : present(column, group),
-      );
+      return compute(plain);
     if (weightType === "fweight")
-      return statistic(stat)(
-        use.flatMap((i) => new Array(weights[i]).fill(column[i])),
+      return compute(use.flatMap((i) => new Array(weights[i]).fill(column[i])));
+    if (quantile(stat)) {
+      const pairs = use.map((i) => [column[i], weights[i]]);
+      if (stat === "iqr")
+        return pairs.length
+          ? weightedPercentile(pairs, 75) - weightedPercentile(pairs, 25)
+          : MISSING;
+      return weightedPercentile(
+        pairs,
+        stat === "median" ? 50 : Number(stat.slice(1)),
       );
+    }
     if (!use.length) return stat === "mean" || stat === "sd" ? MISSING : 0;
     const sumW = use.reduce((t, i) => t + weights[i], 0),
       sumWX = use.reduce((t, i) => t + weights[i] * column[i], 0),
       mean = sumWX / sumW;
+    if (stat === "count") return sumW;
     if (stat === "mean") return mean;
+    // An importance weight counts as that many observations.
+    if (stat === "sd" && weightType === "iweight")
+      return sumW > 1
+        ? Math.sqrt(
+            use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
+              (sumW - 1),
+          )
+        : MISSING;
     // An analytic weight is rescaled to sum to the group's size; a
     // sampling weight is used as it is.
     if (stat === "sum" || stat === "total")
       return weightType === "aweight" ? mean * use.length : sumWX;
-    return use.length > 1
-      ? Math.sqrt(
-          (use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
-            sumW) *
-            (use.length / (use.length - 1)),
-        )
-      : MISSING;
+    const sd =
+      use.length > 1
+        ? Math.sqrt(
+            (use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
+              sumW) *
+              (use.length / (use.length - 1)),
+          )
+        : MISSING;
+    if (stat === "semean")
+      return isMissing(sd) ? MISSING : sd / Math.sqrt(use.length);
+    return sd;
+  };
+  // (first) and (last) take the group's first or last observation, missing
+  // or not; (firstnm) and (lastnm) skip missing values. Observations without
+  // a usable weight are not in the group.
+  const byPosition = (stat, column, group) => {
+    const kept = weights
+        ? group.filter((i) => !isMissing(weights[i]) && weights[i] !== 0)
+        : group,
+      pool = stat.endsWith("nm") ? kept.filter((i) => !gap(column, i)) : kept,
+      i = stat.startsWith("first") ? pool[0] : pool.at(-1);
+    return i === undefined
+      ? typeof column[0] === "string"
+        ? ""
+        : MISSING
+      : column[i];
   };
   const names = targets.map((t) => t.name);
   if (new Set(names).size !== names.length)
     throw new StataError("a target variable is named twice", 198);
   const by = parsed.options.by ?? [],
-    // cw keeps only observations with every source variable present.
+    // cw keeps only observations with every source variable present. An
+    // observation whose weight is zero or missing is left out, so a group
+    // with no positive weight does not appear.
     rows = session
       .rows(parsed, null)
       .filter(
         (i) =>
-          !parsed.options.cw ||
-          targets.every((t) => !isMissing(data.get(t.source).data[i])),
+          (!weights || (!isMissing(weights[i]) && weights[i] !== 0)) &&
+          (!parsed.options.cw ||
+            targets.every((t) => !gap(data.get(t.source).data, i))),
       ),
-    groups = new Map();
+    groups = new Map(),
+    // What a (percent) is a share of: every observation, or all the
+    // weight, with a value.
+    shares = new Map(
+      targets
+        .filter((t) => t.stat === "percent")
+        .map((t) => {
+          const column = data.get(t.source).data;
+          let all = 0;
+          for (const i of rows)
+            if (
+              !isMissing(column[i]) &&
+              (!weights || (!isMissing(weights[i]) && weights[i] !== 0))
+            )
+              all += weights ? weights[i] : 1;
+          return [column, all];
+        }),
+    );
+  if (!rows.length) throw new StataError("no observations", 2000);
   for (const i of rows) {
     const key = JSON.stringify(by.map((k) => data.get(k).data[i]));
     if (!groups.has(key)) groups.set(key, []);
@@ -1288,6 +1777,9 @@ function collapse(session, text, ctx) {
   const result = new data.constructor();
   result.defaultType = data.defaultType;
   result.valueLabels = data.valueLabels;
+  // The dataset's notes and characteristics stay; the variables' go.
+  if (data.chars?.has("_dta"))
+    result.chars.set("_dta", new Map(data.chars.get("_dta")));
   result.n = order.length;
   // The by variables keep the order they had in the data, whatever order
   // by() lists them in; the statistics follow.
@@ -1306,31 +1798,38 @@ function collapse(session, text, ctx) {
     });
   }
   for (const target of targets) {
-    const column = numericColumn(session, target.source),
-      source = data.get(target.source),
-      values = order.map((group) => weighted(target.stat, column, group));
-    // Counts are stored as long and extremes keep the source type. Other
-    // statistics are double when the source is double or long (or a sum),
-    // and float otherwise.
+    const source = data.get(target.source),
+      column = source.data,
+      string = isStringType(source.type),
+      values = order.map((group) =>
+        ORDERED.includes(target.stat)
+          ? byPosition(target.stat, column, group)
+          : weighted(target.stat, column, group),
+      );
+    // Counts are stored as long, or as double when frequency, sampling or
+    // importance weights make them sums of weights; extremes keep the
+    // source type. Other statistics are double when the source is double
+    // or long (or a sum, raw sum or percent), and of the default type
+    // otherwise.
     const type =
       target.stat === "count"
-        ? weightType === "fweight"
+        ? weightType && weightType !== "aweight"
           ? "double"
           : "long"
-        : ["min", "max", "first", "last"].includes(target.stat)
+        : ["min", "max", ...ORDERED].includes(target.stat)
           ? source.type
-          : ["sum", "total"].includes(target.stat) ||
+          : ["sum", "total", "rawsum", "percent"].includes(target.stat) ||
               ["double", "long"].includes(source.type)
             ? "double"
-            : "float";
-    result.generate(target.name, values, { type });
+            : data.defaultType;
+    result.generate(target.name, values, { type, string });
     Object.assign(result.get(target.name), {
       label: `(${target.stat === "median" ? "p 50" : target.stat.replace(/^p(\d+)$/, "p $1")}) ${target.source}`,
       format: source.format,
     });
   }
   result.sortedBy = [...by];
-  session.data = result;
+  rebuilt(session, result);
 }
 
 function sysuse(session, text) {
@@ -1353,6 +1852,8 @@ function sysuse(session, text) {
       4,
     );
   session.data = session.data.constructor.fromRows(library[name]);
+  // A site dataset is as it was read: unchanged, with its name.
+  settle(session.data, `${name}.dta`);
 }
 
 function xtile(session, text) {
@@ -1437,6 +1938,7 @@ const command = (name, minimum, run, byable = false) => ({
 export const COMMANDS = [
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
+  ...SVY_COMMANDS,
   ...PANEL_COMMANDS,
   ...UTILITY_COMMANDS,
   ...EVERYDAY_COMMANDS,
@@ -1454,6 +1956,9 @@ export const COMMANDS = [
   ...TIMESERIES_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
+  // Before DELIMITED_COMMANDS: its import and export hand delimited text on.
+  ...FOREIGN_COMMANDS,
+  ...CONTRAST_COMMANDS,
   ...DELIMITED_COMMANDS,
   ...MATRIX_COMMANDS,
   ...ESTIMATION_COMMANDS,
@@ -1517,14 +2022,28 @@ export const COMMANDS = [
   command("preserve", 8, (session) => {
     if (session.preserved.length)
       throw new StataError("already preserved", 621);
-    session.preserved.push(session.data.snapshot());
+    // The file's name and whether the data had changed come back too.
+    const data = session.data;
+    session.preserved.push({
+      ...data.snapshot(),
+      filename: data.filename,
+      filedate: data.filedate,
+      clean: data.clean,
+      dirty: Boolean(data.dirty),
+      notes: data.notes && structuredClone(data.notes),
+      chars: data.chars && structuredClone(data.chars),
+    });
   }),
   command("restore", 7, (session, text) => {
     const options = text.replace(/^,/, "").trim();
     if (!session.preserved.length)
       throw new StataError("nothing to restore", 622);
     if (/\bnot\b/.test(options)) return void session.preserved.pop();
-    session.data.restore(session.preserved.at(-1));
+    const saved = session.preserved.at(-1);
+    session.data.restore(saved);
+    for (const key of ["notes", "chars"])
+      if (saved[key]) session.data[key] = structuredClone(saved[key]);
+      else delete session.data[key];
     if (!/\bpreserve\b/.test(options)) session.preserved.pop();
   }),
   command("version", 4, (session, text) => {
@@ -1538,12 +2057,39 @@ export const COMMANDS = [
   }),
   // error exp stops with return code exp and Stata's message for it.
   command("error", 5, (session, text) => {
-    if (!text.trim()) throw invalid();
-    const value = session.scalar(text);
-    if (typeof value !== "number" || !(value >= 0)) throw invalid();
+    // An argument that is not a numeric expression stops with 197, as
+    // Stata's error does, and the reason.
+    const malformed = (message) => new StataError(message, 197);
+    if (!text.trim()) throw malformed("invalid syntax");
+    if (splitAtComma(text)[1] !== null) throw malformed("options not allowed");
+    let value;
+    try {
+      value = session.scalar(text);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      const extra = /^(.*) found where an operator was expected$/.exec(
+        error.message,
+      );
+      throw malformed(
+        extra
+          ? `invalid '${extra[1]}'`
+          : /ends too soon|invalid syntax/.test(error.message)
+            ? "invalid syntax"
+            : error.message,
+      );
+    }
+    if (typeof value !== "number") throw malformed("type mismatch");
     // Stata rounds a fractional code; one it has no message for prints none.
+    // A negative or missing code, or one past 100,000, stops with 100,000
+    // and no message.
     const code = Math.round(value);
-    if (code) throw new StataError(STANDARD_MESSAGES[code] ?? "", code);
+    if (isMissing(value) || code < 0 || code > 100000)
+      throw new StataError("", 100000);
+    if (code)
+      throw new StataError(
+        standardMessage(code, session.settings.linesize ?? 80),
+        code,
+      );
   }),
   command("exit", 4, (session, text) => {
     const code = text.replace(/,.*$/, "").trim();
@@ -1589,6 +2135,32 @@ export const COMMANDS = [
     }
   }),
 ];
+// Post-estimation commands that do not yet take a survey design into
+// account stop after a svy estimate rather than report as if the data were
+// a simple random sample.
+COMMANDS.forEach((c, k) => {
+  if (!GUARDED_AFTER_SVY.has(c.name)) return;
+  COMMANDS[k] = {
+    ...c,
+    run: (session, text, ctx) => {
+      guardAfterSvy(session, c.name, text);
+      return c.run(session, text, ctx);
+    },
+  };
+});
+// After a svy estimate, the estimation command typed alone shows it again,
+// and ereturn display shows its coefficient table.
+COMMANDS.forEach((c, k) => {
+  if (!REPLAYED_AFTER_SVY.has(c.name)) return;
+  const run = COMMANDS[k].run;
+  COMMANDS[k] = {
+    ...COMMANDS[k],
+    run: (session, text, ctx) =>
+      replayAfterSvy(session, c.name, text, ctx)
+        ? undefined
+        : run(session, text, ctx),
+  };
+});
 function findCommandName(session, word) {
   const name = /^[A-Za-z_]\w*(?=,?$)/.exec(word)?.[0];
   if (!name) return false;

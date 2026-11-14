@@ -56,9 +56,12 @@ function tokenize(source) {
       if (end < 0) throw new StataError("too few quotes", 132);
       push("string", source.slice(i + 1, end), i);
       i = end + 1;
-    } else if ((m = /^(t[dmqwh])\(([^()]*)\)/.exec(rest))) {
+    } else if ((m = /^(t[dmqwhcC])\(([^()]*)\)/.exec(rest))) {
+      // td(), tc(), tC(), tw(), tm(), tq() and th(), read with their
+      // blanks removed, as Stata's message shows them.
       const value = dateLiteral(m[1], m[2]);
-      if (value === undefined) throw invalid(`${m[0]} invalid date literal`);
+      if (value === undefined)
+        throw invalid(`${m[1]}(${m[2].replace(/\s+/g, "")}) invalid`);
       push("number", value, i);
       i += m[0].length;
     } else if ((m = /^[01]\.[0-9a-fA-F]+[xX][+-][0-9a-fA-F]+/.exec(rest))) {
@@ -74,12 +77,12 @@ function tokenize(source) {
       );
       i += m[0].length;
     } else if ((m = /^(?:\d+\.?\d*|\.\d+)(?:[eEdD][+-]?\d+)?/.exec(rest))) {
-      if (/^[A-Za-z_]/.test(source[i + m[0].length] ?? ""))
+      if (/^[\p{L}_]/u.test(source.slice(i + m[0].length, i + m[0].length + 2)))
         throw invalid(`${m[0]}${source[i + m[0].length]} invalid number`);
       const value = Number(m[0].replace(/[dD]/, "e"));
       push("number", value > DOUBLE_MAX ? MISSING : value, i);
       i += m[0].length;
-    } else if ((m = /^\.([a-z])?(?![A-Za-z_0-9.])/.exec(rest))) {
+    } else if ((m = /^\.([a-z])?(?![\p{L}\p{Nd}_.])/u.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
       i += m[0].length;
     } else if (
@@ -92,7 +95,9 @@ function tokenize(source) {
       // _b[x] and _se[x]: a coefficient of the last model and its error.
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
-    } else if ((m = /^([LFD])(\d*)\.([A-Za-z_][A-Za-z_0-9]*)/.exec(rest))) {
+    } else if (
+      (m = /^([LFD])(\d*)\.([\p{L}_][\w\u0080-\u{10FFFF}]*)/u.exec(rest))
+    ) {
       // L.x, F2.x and D.x: lag, lead and difference under xtset or tsset.
       push(
         "series",
@@ -100,7 +105,7 @@ function tokenize(source) {
         i,
       );
       i += m[0].length;
-    } else if ((m = /^[A-Za-z_][A-Za-z_0-9]*/.exec(rest))) {
+    } else if ((m = /^[\p{L}_][\w\u0080-\u{10FFFF}]*/u.exec(rest))) {
       push("name", m[0], i);
       i += m[0].length;
     } else if (
@@ -177,15 +182,16 @@ export function compileExpression(source, scope = {}) {
       return left;
     };
   }
+  // Stata evaluates both sides of & and |, so a draw on the right is taken
+  // whatever the left side gives.
   const logical = (op, left, right) => {
     const a = numeric(left),
       b = numeric(right);
-    return node(
-      N,
-      op === "&"
-        ? (i, env) => Number(a(i, env) !== 0 && b(i, env) !== 0)
-        : (i, env) => Number(a(i, env) !== 0 || b(i, env) !== 0),
-    );
+    return node(N, (i, env) => {
+      const x = a(i, env) !== 0,
+        y = b(i, env) !== 0;
+      return Number(op === "&" ? x && y : x || y);
+    });
   };
   const COMPARE = {
     "==": (x, y) => x === y,
@@ -202,9 +208,13 @@ export function compileExpression(source, scope = {}) {
       test = COMPARE[op];
     return node(N, (i, env) => Number(test(a(i, env), b(i, env))));
   };
-  const repeat = (text, count) => (i, env) => {
-    const k = count(i, env);
-    return isMissing(k) || k < 1 ? "" : text(i, env).repeat(Math.trunc(k));
+  // A string times a count, in either order. Both operands are evaluated,
+  // left first, whatever the count is, as Stata does.
+  const repeat = (left, right, textOnLeft) => (i, env) => {
+    const a = left(i, env),
+      b = right(i, env),
+      [text, n] = textOnLeft ? [a, b] : [b, a];
+    return isMissing(n) || n < 1 ? "" : text.repeat(Math.trunc(n));
   };
 
   const primary = () => {
@@ -259,9 +269,11 @@ export function compileExpression(source, scope = {}) {
         throw invalid("a matrix element needs a row and a column");
       const column = numeric(or());
       if (!take("]")) throw new StataError("too few ')' or ']'", 132);
-      return node(N, (i, env) =>
-        scope.matrix.element(name, row(i, env), column(i, env)),
-      );
+      // The column is evaluated before the row, as Stata does.
+      return node(N, (i, env) => {
+        const c = column(i, env);
+        return scope.matrix.element(name, row(i, env), c);
+      });
     }
     let resolved = null;
     try {
@@ -347,9 +359,11 @@ export function compileExpression(source, scope = {}) {
       if (!take(",")) throw invalid();
       const column = numeric(or());
       if (!take(")")) throw invalid();
-      return node(N, (i, env) =>
-        scope.matrix.element(target.value, row(i, env), column(i, env)),
-      );
+      // The column is evaluated before the row, as Stata does.
+      return node(N, (i, env) => {
+        const c = column(i, env);
+        return scope.matrix.element(target.value, row(i, env), c);
+      });
     }
     const args = [];
     if (at >= tokens.length) throw new StataError("too few ')' or ']'", 132);
@@ -406,7 +420,12 @@ export function compileExpression(source, scope = {}) {
       strict = !definition.lenient,
       { fn } = definition;
     return node(type, (i, env) => {
-      const values = evaluators.map((evaluate) => evaluate(i, env));
+      // Stata evaluates a function's arguments last to first, which decides
+      // which argument receives which draw when several call runiform(),
+      // and whether regexs() reads the match regexm() makes beside it.
+      const values = new Array(evaluators.length);
+      for (let k = evaluators.length - 1; k >= 0; k--)
+        values[k] = evaluators[k](i, env);
       if (strict && values.some((v) => typeof v === "number" && isMissing(v)))
         return type === N ? MISSING : "";
       const result = definition.state ? fn(state, ...values) : fn(...values);
@@ -460,9 +479,9 @@ export function compileExpression(source, scope = {}) {
   );
   const multiply = binaryLevel(["*"], divide, (_, l, r) => {
     if (l.type === S && r.type === N)
-      return node(S, repeat(l.evaluate, r.evaluate));
+      return node(S, repeat(l.evaluate, r.evaluate, true));
     if (l.type === N && r.type === S)
-      return node(S, repeat(r.evaluate, l.evaluate));
+      return node(S, repeat(l.evaluate, r.evaluate, false));
     return arithmetic(l, r, (x, y) => x * y);
   });
   const subtract = binaryLevel(["-"], multiply, (_, l, r) =>

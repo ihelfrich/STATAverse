@@ -9,12 +9,15 @@ import { invnormal, normal } from "./functions-normal.js";
 import { Generator } from "./random.js";
 import {
   RULE,
+  abbreviate,
   hooks,
   invertSymmetric,
   quadratic,
+  tableWidth,
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
+import { clauses, splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -249,24 +252,75 @@ function modelHeader(ctx, model, reps, test) {
           ]
         : []),
     ];
+  // The models fitted by likelihood report it, and their pseudo R2. With
+  // sampling weights it is a pseudolikelihood, and poisson then has no
+  // pseudo R2: the line takes the place of the p-value's.
+  const likelihood = model.r2_p !== undefined && model.ll !== undefined,
+    last = likelihood && isMissing(model.r2_p) ? lines.pop() : null,
+    log = `${model.wtype === "pweight" ? "Log pseudolikelihood" : "Log likelihood"} = ${g(model.ll, "%10.0g")}`;
   lines.forEach((line, k) =>
     ctx.out(
       `${(k ? "" : (model.title ?? "Linear regression")).padEnd(56)}${line}`,
     ),
   );
+  if (last) ctx.out(`${log.padEnd(56)}${last}`);
+  else if (likelihood)
+    ctx.out(`${log.padEnd(56)}${side("Pseudo R2", four(model.r2_p))}`);
   ctx.out("");
+}
+
+/**
+ * The first column of a resampled coefficient table, as wide as the fitted
+ * command makes it (see tableWidth): the models fitted by likelihood count
+ * their dependent variable, regress and xtreg do not.
+ */
+const LIKELIHOOD = ["logit", "probit", "poisson", "logistic"];
+function columns(session, model) {
+  const w = tableWidth(
+    session,
+    model,
+    LIKELIHOOD.includes(model.command) ? [model.depvar] : [],
+  );
+  return {
+    w,
+    rule: "-".repeat(66 + w),
+    split: `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
+    depvar: abbreviate(model.depvar, w).padStart(w),
+  };
 }
 function resultsHeader(ctx, title, n, reps, parts, extra = []) {
   ctx.out(`${title.padEnd(60)}Number of obs = ${count(n)}`);
   ctx.out(`${" ".repeat(60)}Replications  = ${count(reps)}`);
   ctx.out("");
-  ctx.out(`      Command: ${parts.command}`);
+  ctx.out(`      Command: ${parts.command.replace(/ {2,}/g, " ")}`);
   for (const item of [...parts.items, ...extra])
     ctx.out(`${item.name.padStart(13)}: ${item.expression}`);
   ctx.out("");
 }
 const tableRow = (label, b, se, statistic, p, low, high) =>
   `${label}|${g(b).padStart(11)}${g(se).padStart(11)}${applyFormat(statistic, "%9.2f")}${applyFormat(p, "%8.3f")}${g(low).padStart(13)}${g(high).padStart(12)}`;
+/**
+ * A coefficient's row; with the exponentiated form the fitted command was
+ * asked for (odds ratios, incidence-rate ratios), the coefficient and its
+ * interval are exponentiated and the standard error is exp(b) se, by the
+ * delta method, while the test stays on the coefficient.
+ */
+function coefficientRow(label, b, se, statistic, p, critical, eform) {
+  const show = eform ? Math.exp : (v) => v;
+  return tableRow(
+    label,
+    show(b),
+    eform ? Math.exp(b) * se : se,
+    statistic,
+    p,
+    show(b - critical * se),
+    show(b + critical * se),
+  );
+}
+/** The heading of the coefficient column: eform's label, or `word`. */
+const coefficientHead = (eform, word) =>
+  eform ? word(eform[1]).padStart(10).padEnd(11) : word("Coefficient");
+
 /** The covariance of the replicate statistics about their mean. */
 function covariance(replicates, scale) {
   const k = replicates[0].length,
@@ -312,6 +366,9 @@ function bootstrap(session, text, ctx) {
     name = commandName(parts.command),
     before = session.estimates;
   if (reps < 2) throw new StataError("reps() must be at least 2", 198);
+  // Stata resamples observations, which a weight would stand in for.
+  if (clauses(splitAtComma(parts.command)[0]).some((c) => c.kind === "weight"))
+    throw new StataError("weights not allowed with bootstrap estimation", 101);
   const observed = evaluate(session, ctx, parts);
   if (!observed)
     throw new StataError(
@@ -355,17 +412,18 @@ function bootstrap(session, text, ctx) {
   const V = covariance(replicates, 1 / (replicates.length - 1)),
     critical = invnormal(1 - (1 - level / 100) / 2),
     quiet = !!parts.options.nodots,
+    eform = parts.coefficients ? model.eform : null,
     row = (label, k) => {
       const se = Math.sqrt(V[k][k]),
         z = observed[k] / se;
-      return tableRow(
+      return coefficientRow(
         label,
         observed[k],
         se,
         z,
         2 * normal(-Math.abs(z)),
-        observed[k] - critical * se,
-        observed[k] + critical * se,
+        critical,
+        eform,
       );
     };
   if (!quiet && model) ctx.out(`(running ${name} on estimation sample)`);
@@ -406,15 +464,25 @@ function bootstrap(session, text, ctx) {
       pLabel: "Prob > chi2",
       p,
     });
-    ctx.out(RULE);
+    const table = columns(session, model);
+    ctx.out(table.rule);
     ctx.out(
-      "             |   Observed   Bootstrap                         Normal-based",
+      `${" ".repeat(table.w + 1)}|   Observed   Bootstrap                         Normal-based`,
     );
     ctx.out(
-      `${model.depvar.padStart(12)} | coefficient  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+      `${table.depvar} | ${coefficientHead(eform, (v) => v.toLowerCase())}  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
     );
-    ctx.out(SPLIT);
-    termRows(session, model, (k) => row("", k).slice(1)).forEach(ctx.out);
+    ctx.out(table.split);
+    // A coefficient fixed at zero is a ratio of one.
+    termRows(
+      session,
+      model,
+      (k) => row("", k).slice(1),
+      table.w,
+      eform ? 1 : 0,
+    ).forEach(ctx.out);
+    ctx.out(table.rule);
+    if (eform && model.constant) ctx.out(eform[2]);
   } else {
     resultsHeader(ctx, "Bootstrap results", n, replicates.length, parts);
     ctx.out(RULE);
@@ -428,8 +496,8 @@ function bootstrap(session, text, ctx) {
     parts.items.forEach((item, k) =>
       ctx.out(row(`${item.name.padStart(12)} `, k)),
     );
+    ctx.out(RULE);
   }
-  ctx.out(RULE);
   ctx.out("");
 }
 
@@ -455,6 +523,13 @@ function jackknife(session, text, ctx) {
     snapshot = data.snapshot();
   if (parts.coefficients && !model)
     throw new StataError("expression list required", 198);
+  // Stata leaves out a frequency-weighted observation one unit at a time
+  // and scales importance-weighted replicates; neither is done here.
+  if (model?.wtype === "fweight" || model?.wtype === "iweight")
+    throw new StataError(
+      `jackknife with ${model.wtype}s is not available yet; pweights are`,
+      198,
+    );
   if (model?.sample)
     takeRows(
       data,
@@ -491,17 +566,18 @@ function jackknife(session, text, ctx) {
     df = used - 1,
     critical = invttail(df, (1 - level / 100) / 2),
     quiet = !!parts.options.nodots,
+    eform = parts.coefficients ? model.eform : null,
     row = (label, k) => {
       const se = Math.sqrt(V[k][k]),
         t = observed[k] / se;
-      return tableRow(
+      return coefficientRow(
         label,
         observed[k],
         se,
         t,
         2 * ttail(df, Math.abs(t)),
-        observed[k] - critical * se,
-        observed[k] + critical * se,
+        critical,
+        eform,
       );
     };
   if (!quiet) {
@@ -533,13 +609,23 @@ function jackknife(session, text, ctx) {
       pLabel: "Prob > F",
       p,
     });
-    ctx.out(RULE);
-    ctx.out("             |              Jackknife");
+    const table = columns(session, model);
+    ctx.out(table.rule);
+    ctx.out(`${" ".repeat(table.w + 1)}|              Jackknife`);
     ctx.out(
-      `${model.depvar.padStart(12)} | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+      `${table.depvar} | ${coefficientHead(eform, (v) => v)}  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
     );
-    ctx.out(SPLIT);
-    termRows(session, model, (k) => row("", k).slice(1)).forEach(ctx.out);
+    ctx.out(table.split);
+    // A coefficient fixed at zero is a ratio of one.
+    termRows(
+      session,
+      model,
+      (k) => row("", k).slice(1),
+      table.w,
+      eform ? 1 : 0,
+    ).forEach(ctx.out);
+    ctx.out(table.rule);
+    if (eform && model.constant) ctx.out(eform[2]);
   } else {
     resultsHeader(ctx, "Jackknife results", n, used, parts, [
       { name: "n()", expression: "r(N)" },
@@ -553,8 +639,8 @@ function jackknife(session, text, ctx) {
     parts.items.forEach((item, k) =>
       ctx.out(row(`${item.name.padStart(12)} `, k)),
     );
+    ctx.out(RULE);
   }
-  ctx.out(RULE);
   ctx.out("");
 }
 
@@ -589,7 +675,7 @@ function simulate(session, text, ctx) {
     throw error;
   }
   ctx.out("");
-  ctx.out(`      Command: ${parts.command}`);
+  ctx.out(`      Command: ${parts.command.replace(/ {2,}/g, " ")}`);
   for (const item of parts.items)
     ctx.out(`${item.name.padStart(13)}: ${item.expression}`);
   ctx.out("");

@@ -457,7 +457,7 @@
 #console-variable-table td {
   font-family: var(--mono);
 }
-#console-variable-table td:last-child {
+#console-variable-table td:nth-child(2) {
   font-family: var(--sans);
   white-space: normal;
 }
@@ -1486,7 +1486,16 @@
 #console-own code {
   font-family: var(--mono);
   color: #0f2f86;
+}
+#console-own .console-own-size {
+  color: var(--muted);
   margin-right: auto;
+}
+#console-kept:empty {
+  display: none;
+}
+.console-drawer .console-own #console-kept {
+  margin-top: 6px;
 }
 #console-own button {
   font-size: 12.5px;

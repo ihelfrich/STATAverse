@@ -5,9 +5,12 @@
 // missing, unless it is marked lenient and decides for itself.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
+import { abbreviateName } from "./format.js";
 import {
   MISSING,
   byteLength,
+  decodeBytes,
+  encodeText,
   coerce,
   isMissing,
   parseNumber,
@@ -28,13 +31,13 @@ import {
 const N = "numeric",
   S = "string",
   ANY = "any";
-const encoder = new TextEncoder(),
-  decoder = new TextDecoder();
 const isAscii = (s) => /^[\x00-\x7f]*$/.test(s);
 const whole = (x) => Math.trunc(x);
 
 import { density, invnormal, normal } from "./functions-normal.js";
 import { Generator } from "./random.js";
+import { civilFromDays, daysFromCivil, mdy, readLiteral } from "./datetime.js";
+import { DATETIME_FUNCTIONS } from "./functions-datetime.js";
 
 export { invnormal, normal };
 
@@ -66,138 +69,22 @@ function comb(n, k) {
 }
 
 // ----- dates: days since 1 January 1960 -----
-// Civil-calendar arithmetic on integers, valid for every year Stata allows.
-function daysFromCivil(year, month, day) {
-  const y = month <= 2 ? year - 1 : year,
-    era = Math.floor(y / 400),
-    yoe = y - era * 400,
-    doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1,
-    doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
-  return era * 146097 + doe - 719468 + 3653;
-}
-function civilFromDays(days) {
-  const z = days - 3653 + 719468,
-    era = Math.floor(z / 146097),
-    doe = z - era * 146097,
-    yoe = Math.floor(
-      (doe -
-        Math.floor(doe / 1460) +
-        Math.floor(doe / 36524) -
-        Math.floor(doe / 146096)) /
-        365,
-    ),
-    doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)),
-    mp = Math.floor((5 * doy + 2) / 153),
-    day = doy - Math.floor((153 * mp + 2) / 5) + 1,
-    month = mp < 10 ? mp + 3 : mp - 9;
-  return { year: yoe + era * 400 + (month <= 2 ? 1 : 0), month, day };
-}
-const leap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-export function mdy(m, d, y) {
-  m = whole(m);
-  d = whole(d);
-  y = whole(y);
-  if (y < 100 || y > 9999 || m < 1 || m > 12 || d < 1) return MISSING;
-  if (d > MONTH_DAYS[m - 1] + (m === 2 && leap(y) ? 1 : 0)) return MISSING;
-  return daysFromCivil(y, m, d);
-}
+// The calendar, the literals and the translation of strings live in
+// datetime.js; the datetime functions in functions-datetime.js.
 const parts = (d) => civilFromDays(Math.floor(d));
 const dayOfYear = (d) => {
   const { year } = parts(d);
   return Math.floor(d) - daysFromCivil(year, 1, 1) + 1;
 };
-const MONTHS = [
-  "january",
-  "february",
-  "march",
-  "april",
-  "may",
-  "june",
-  "july",
-  "august",
-  "september",
-  "october",
-  "november",
-  "december",
-];
-function monthNumber(word) {
-  const w = word.toLowerCase();
-  if (w.length < 3) return 0;
-  return MONTHS.findIndex((name) => name.startsWith(w)) + 1;
-}
-/** td(), tm(), tq(), tw() and th() literals; returns undefined if unreadable. */
-export function dateLiteral(kind, text) {
-  const t = text.trim().toLowerCase();
-  let m;
-  if (kind === "td") {
-    if (!(m = /^(\d{1,2})([a-z]{3,9})(\d{4})$/.exec(t))) return undefined;
-    const month = monthNumber(m[2]),
-      value = month ? mdy(month, Number(m[1]), Number(m[3])) : MISSING;
-    return isMissing(value) ? undefined : value;
-  }
-  const letter = { tm: "m", tq: "q", tw: "w", th: "h" }[kind],
-    per = { tm: 12, tq: 4, tw: 52, th: 2 }[kind];
-  if (!(m = new RegExp(`^(\\d{4})${letter}(\\d{1,2})$`).exec(t)))
-    return undefined;
-  const period = Number(m[2]);
-  if (period < 1 || period > per) return undefined;
-  return (Number(m[1]) - 1960) * per + period - 1;
-}
-/**
- * date(s, mask [, topyear]). A two-digit year is read only with a century in
- * the mask (DM20Y) or with topyear, which makes it the latest year ending in
- * those digits that is not after topyear.
- */
-function parseDate(text, mask, topyear) {
-  const order = [];
-  let century = 0;
-  for (const m of mask.toUpperCase().matchAll(/(\d\d)?([MDY])/g)) {
-    order.push(m[2]);
-    if (m[2] === "Y" && m[1]) century = Number(m[1]) * 100;
-  }
-  if (order.length !== 3 || new Set(order).size !== 3) return MISSING;
-  let tokens = text.match(/[A-Za-z]+|\d+/g) ?? [];
-  if (tokens.length === 1 && /^\d+$/.test(tokens[0])) {
-    // An unbroken run of digits is read by position.
-    const widths = order.map((c) => (c === "Y" ? (century ? 2 : 4) : 2));
-    if (tokens[0].length !== widths.reduce((a, b) => a + b, 0)) return MISSING;
-    let at = 0;
-    tokens = widths.map((w) => tokens[0].slice(at, (at += w)));
-  }
-  if (tokens.length !== 3) return MISSING;
-  const value = {};
-  for (const [k, token] of tokens.entries()) {
-    const role = order[k];
-    if (/^\d+$/.test(token)) {
-      value[role] = Number(token);
-      if (role === "Y") {
-        if (century) {
-          if (token.length > 2) return MISSING;
-          value.Y += century;
-        } else if (
-          token.length <= 2 &&
-          topyear !== undefined &&
-          !isMissing(topyear)
-        ) {
-          const top = whole(topyear);
-          value.Y = top - ((((top - value.Y) % 100) + 100) % 100);
-        } else if (token.length !== 4) return MISSING;
-      }
-    } else if (role === "M") {
-      value.M = monthNumber(token);
-      if (!value.M) return MISSING;
-    } else return MISSING;
-  }
-  return mdy(value.M, value.D, value.Y);
-}
+export { mdy };
+export const dateLiteral = readLiteral;
 const period = (per, year, part) =>
   part < 1 || part > per || whole(year) < 100 || whole(year) > 9999
     ? MISSING
     : (whole(year) - 1960) * per + whole(part) - 1;
 
 // ----- strings -----
-const bytesOf = (s) => encoder.encode(s);
+const bytesOf = (s) => encodeText(s);
 function substr(s, n1, n2) {
   if (isMissing(n1)) return "";
   const bytes = isAscii(s) ? null : bytesOf(s),
@@ -208,7 +95,7 @@ function substr(s, n1, n2) {
   const count = isMissing(n2) ? length : whole(n2);
   if (count < 1) return "";
   return bytes
-    ? decoder.decode(bytes.slice(start - 1, start - 1 + count))
+    ? decodeBytes(bytes.slice(start - 1, start - 1 + count))
     : s.slice(start - 1, start - 1 + count);
 }
 function usubstr(s, n1, n2) {
@@ -550,13 +437,6 @@ export const FUNCTIONS = {
     mdy((((Math.floor(h) % 2) + 2) % 2) * 6 + 1, 1, 1960 + Math.floor(h / 2)),
   ),
   dofy: one((y) => mdy(1, 1, y)),
-  date: {
-    args: [S, S, N],
-    min: 2,
-    returns: N,
-    lenient: true,
-    fn: (s, mask, topyear) => parseDate(s, mask, topyear),
-  },
 
   // strings
   strlen: { args: [S], returns: N, fn: byteLength },
@@ -584,9 +464,7 @@ export const FUNCTIONS = {
   // Stata reverses bytes, so a character outside ASCII does not survive;
   // ustrreverse() reverses characters.
   strreverse: text((s) =>
-    isAscii(s)
-      ? [...s].reverse().join("")
-      : decoder.decode(bytesOf(s).reverse()),
+    isAscii(s) ? [...s].reverse().join("") : decodeBytes(bytesOf(s).reverse()),
   ),
   ustrreverse: text((s) => [...s].reverse().join("")),
   substr: { args: [S, N, N], returns: S, lenient: true, fn: substr },
@@ -679,10 +557,7 @@ export const FUNCTIONS = {
   abbrev: {
     args: [S, N],
     returns: S,
-    fn: (s, n) => {
-      const width = Math.max(5, Math.min(32, whole(n)));
-      return s.length <= width ? s : s.slice(0, width - 2) + "~" + s.at(-1);
-    },
+    fn: (s, n) => abbreviateName(s, Math.max(5, Math.min(32, whole(n)))),
   },
   regexm: {
     args: [S, S],
@@ -718,6 +593,6 @@ for (const [alias, name] of Object.entries({
   rtrim: "strrtrim",
   itrim: "stritrim",
   reverse: "strreverse",
-  daily: "date",
 }))
   FUNCTIONS[alias] = FUNCTIONS[name];
+Object.assign(FUNCTIONS, DATETIME_FUNCTIONS);

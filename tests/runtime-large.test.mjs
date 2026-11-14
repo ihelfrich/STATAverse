@@ -56,7 +56,8 @@ test("a long number list and a long captured loop do not overflow", () => {
     "capture noisily {\n  forvalues i = 1/200000 {\n    display `i'\n  }\n}",
   );
   assert.equal(loop.rc, 0);
-  assert.ok(loop.output.length > 100000);
+  // The Console shows the loop as one record, as Stata echoes it once.
+  assert.ok(loop.output.reduce((n, r) => n + r.lines.length, 0) > 100000);
 });
 
 test("by() draws only the groups present in the sample", () => {

@@ -6,23 +6,32 @@
 import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { invttail, ttail } from "./distributions.js";
 import { density, invnormal } from "./functions-normal.js";
-import { RULE, design, invertSymmetric } from "./estimation.js";
+import {
+  coefficientHeader,
+  coefficientRows,
+  design,
+  invertSymmetric,
+  tableWidth,
+} from "./estimation.js";
 import { count } from "./reports.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0);
 
-/** Solves the square system A b = y; null when A is singular. */
+/**
+ * Solves the square system A b = y; null when A is singular, that is when
+ * a pivot is no more than rounding error beside the largest entry of A.
+ */
 function solve(A, y) {
   const n = A.length,
-    m = A.map((row, i) => [...row, y[i]]);
+    m = A.map((row, i) => [...row, y[i]]),
+    scale = Math.max(...A.map((row) => Math.max(...row.map(Math.abs))));
   for (let c = 0; c < n; c++) {
     let pivot = c;
     for (let r = c + 1; r < n; r++)
       if (Math.abs(m[r][c]) > Math.abs(m[pivot][c])) pivot = r;
-    if (Math.abs(m[pivot][c]) < 1e-12) return null;
+    if (Math.abs(m[pivot][c]) < Math.max(1e-12, 1e-11 * scale)) return null;
     [m[c], m[pivot]] = [m[pivot], m[c]];
     for (let r = 0; r < n; r++) {
       if (r === c) continue;
@@ -72,6 +81,7 @@ export function quantileFit(x, observed, q) {
     basis.map((i) => x[i]),
     basis.map((i) => y[i]),
   );
+  if (!b) throw new StataError("the regressors are collinear", 198);
   for (let iteration = 0; iteration < 50 * (n + k); iteration++) {
     const inBasis = new Set(basis),
       residual = y.map((v, i) => (inBasis.has(i) ? 0 : v - dot(x[i], b))),
@@ -83,6 +93,7 @@ export function quantileFit(x, observed, q) {
           basis.map((_, r) => Number(r === j)),
         ),
       );
+    if (directions.some((d) => !d)) break;
     let best = null;
     directions.forEach((d, j) => {
       const along = x.map((row) => dot(row, d));
@@ -104,8 +115,12 @@ export function quantileFit(x, observed, q) {
     const stops = [];
     for (let i = 0; i < n; i++) {
       if (inBasis.has(i)) continue;
-      const rate = best.sign * best.along[i];
-      if (Math.abs(rate) < 1e-12) continue;
+      const rate = best.sign * best.along[i],
+        // A rate that is only rounding error, as for an observation whose
+        // regressors repeat those of one staying in the basis, is zero:
+        // taking it in would make the basis singular.
+        size = x[i].reduce((t, v, c) => t + Math.abs(v * best.d[c]), 0);
+      if (Math.abs(rate) < 1e-12 || Math.abs(rate) <= 1e-9 * size) continue;
       const t = residual[i] / rate;
       if (t > 1e-12) stops.push([t, Math.abs(rate), i]);
     }
@@ -118,12 +133,13 @@ export function quantileFit(x, observed, q) {
       if (slope >= -1e-10) break;
     }
     if (!enter) break;
-    basis = basis.map((i, j) => (j === best.j ? enter[2] : i));
-    const next = solve(
-      basis.map((i) => x[i]),
-      basis.map((i) => y[i]),
-    );
+    const trial = basis.map((i, j) => (j === best.j ? enter[2] : i)),
+      next = solve(
+        trial.map((i) => x[i]),
+        trial.map((i) => y[i]),
+      );
     if (!next) break;
+    basis = trial;
     b = next;
   }
   const exact =
@@ -153,20 +169,43 @@ function qreg(session, text, ctx) {
       session.rows(parsed, null),
       true,
     ),
-    active = columns.filter((c) => !c.base),
     n = sample.length;
   if (!n) throw new StataError("no observations", 2000);
+  // A regressor collinear with those before it is omitted, as _rmcoll
+  // omits it in qreg.ado.
+  for (const c of columns) c.omitted = !!c.collinear && !c.base;
+  const active = columns.filter((c) => !c.base && !c.omitted);
   const y = sample.map((i) => dependent.data[i]),
     x = sample.map((i) => [...active.map((c) => c.value(i)), 1]),
     k = x[0].length,
     df = n - k;
   if (df < 1) throw new StataError("insufficient observations", 2001);
   const full = quantileFit(x, y, q),
-    alone = quantileFit(
-      x.map(() => [1]),
-      y,
-      q,
-    ),
+    // The constant alone. Stata reports as e(q_v) the floor((n + 1) q)-th
+    // smallest outcome, which is not always a minimiser of the sum (with
+    // n = 401 and q = .25 it takes the 100th, where the 101st is
+    // optimal), and the raw sum of deviations about it.
+    sorted = [...y].sort((a, b) => a - b),
+    rank = (n + 1) * q,
+    about =
+      sorted[
+        Math.min(
+          n,
+          Math.max(
+            1,
+            Math.abs(rank - Math.round(rank)) < 1e-9
+              ? Math.round(rank)
+              : Math.floor(rank),
+          ),
+        ) - 1
+      ],
+    alone = {
+      b: [about],
+      value: y.reduce(
+        (t, v) => t + (v >= about ? q * (v - about) : (q - 1) * (v - about)),
+        0,
+      ),
+    },
     // Hall and Sheather's bandwidth, then the sparsity from the fitted
     // quantiles at the regressors' means on either side.
     zq = invnormal(q),
@@ -224,9 +263,10 @@ function qreg(session, text, ctx) {
       sample,
     },
     level = options.level,
-    critical = invttail(df, (1 - level / 100) / 2),
     pseudo = 1 - full.value / alone.value;
   session.estimates = model;
+  for (const c of columns)
+    if (c.omitted) ctx.out(`note: ${c.name} omitted because of collinearity.`);
   session.results.e = {
     N: n,
     df_m: k - 1,
@@ -247,27 +287,23 @@ function qreg(session, text, ctx) {
   ctx.out("");
   ctx.out(`${model.title.padEnd(52)}Number of obs =${count(n).padStart(11)}`);
   ctx.out(
-    `  Raw sum of deviations${g(alone.value).padStart(9)} (about ${g(alone.b[0])})`,
+    `  Raw sum of deviations${g(alone.value).padStart(9)} (about ${g(alone.b[0], "%10.0g")})`,
   );
   ctx.out(
     `${`  Min sum of deviations${g(full.value).padStart(9)}`.padEnd(52)}Pseudo R2     =${applyFormat(pseudo, "%11.4f")}`,
   );
   ctx.out("");
-  ctx.out(RULE);
-  ctx.out(
-    `${model.depvar.padStart(12)} | Coefficient  Std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(
-    "-------------+----------------------------------------------------------------",
-  );
-  used.forEach((name, j) => {
-    const se = Math.sqrt(V[j][j]),
-      t = full.b[j] / se;
-    ctx.out(
-      `${name.padStart(12)} |${g(full.b[j]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(df, Math.abs(t)), "%8.3f")}${g(full.b[j] - critical * se).padStart(13)}${g(full.b[j] + critical * se).padStart(12)}`,
-    );
-  });
-  ctx.out(RULE);
+  // The table of regress: factor variables under their names, labelled
+  // levels, the first column widened to the names the line allows.
+  const width = tableWidth(session, model);
+  coefficientHeader(
+    { ...model, vce: "ols" },
+    level,
+    model.depvar,
+    width,
+  ).forEach(ctx.out);
+  coefficientRows(session, model, level, width).forEach(ctx.out);
+  ctx.out("-".repeat(66 + width));
   ctx.out("");
 }
 
