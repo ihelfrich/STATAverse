@@ -35,6 +35,7 @@ import { DELIMITED_COMMANDS } from "./delimited.js";
 import { FOREIGN_COMMANDS } from "./foreign.js";
 import { INFILE_COMMANDS } from "./infix.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
+import { SURVIVAL_COMMANDS, survivalPostestimation } from "./survival.js";
 import {
   DATA_COMMANDS,
   fold,
@@ -2361,6 +2362,7 @@ export const COMMANDS = [
   ...DELIMITED_COMMANDS,
   ...INFILE_COMMANDS,
   ...MATRIX_COMMANDS,
+  ...SURVIVAL_COMMANDS,
   ...ESTIMATION_COMMANDS,
   ...DATA_COMMANDS,
   command("generate", 1, generate, true),
@@ -2578,6 +2580,18 @@ COMMANDS.forEach((c, k) => {
     ...COMMANDS[k],
     run: (session, text, ctx) =>
       replayAfterSvy(session, c.name, text, ctx)
+        ? undefined
+        : run(session, text, ctx),
+  };
+});
+// After stcox and streg, predict and estat phtest are survival's.
+COMMANDS.forEach((c, k) => {
+  if (c.name !== "predict" && c.name !== "estat") return;
+  const run = COMMANDS[k].run;
+  COMMANDS[k] = {
+    ...COMMANDS[k],
+    run: (session, text, ctx) =>
+      survivalPostestimation(session, c.name, text, ctx)
         ? undefined
         : run(session, text, ctx),
   };

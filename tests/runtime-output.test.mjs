@@ -144,6 +144,10 @@ for (const c of fixture.cases)
             "redteam5b-estat-classification-gof",
             // margins after ologit takes its gradients by differencing.
             "models6-ordered-margins-factors",
+            // Stata's ml search moves the Gompertz model's starting
+            // values when records enter late; the fit ends where Stata's
+            // does.
+            "survival-streg-factors-and-entry",
           ].includes(c.id),
         )
       )

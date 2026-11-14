@@ -1551,7 +1551,7 @@ export function coefficientSpace(model) {
     // main equation after the dependent variable too, as in [wage]education.
     // regress (bootstrapped too), ivregress and xtreg leave theirs
     // unnamed, though some of them report z.
-    const unnamed = ["ivregress", "xtreg", "regress"],
+    const unnamed = ["ivregress", "xtreg", "regress", "stcox"],
       tagged =
         (model.dist === "z" &&
           !unnamed.includes(model.kind) &&
