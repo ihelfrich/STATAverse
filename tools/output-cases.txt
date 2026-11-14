@@ -13186,3 +13186,124 @@ use frh, clear
 collapse (mean) lninc, by(female)
 capture noisily save, replace
 describe, short
+=== graph-redteam6-weights
+clear
+set seed 2718
+set obs 90
+gen id = _n
+gen region = 1 + mod(_n, 5)
+label define rl 1 "North" 2 "South" 3 "East" 4 "West" 5 "Central"
+label values region rl
+gen sex = cond(runiform() < .5, "M", "F")
+gen income = round(1000 + 20000*runiform()^2, 1)
+replace income = income*10 if region == 3
+gen age = 18 + floor(50*runiform())
+gen wt = round(50 + 40*runiform(), .1)
+replace wt = . in 5/7
+gen yr = 1990 + mod(_n, 30)
+gen c3 = 7
+gen treat = _n > 45
+label variable income "Household income"
+label variable age "Age (years)"
+gen grp = mod(_n, 4)
+replace grp = . if mod(_n, 9) == 0
+replace grp = .a in 2
+gen str8 city = cond(mod(_n,3)==0, "", cond(mod(_n,3)==1, "Rome", "Oslo"))
+gen neg = wt - 70
+gen big = income * 1000
+gen tiny = wt / 100000
+capture noisily scatter wt age, by(region, holes(0))
+capture noisily scatter wt age, by(region, holes(-1.5))
+capture noisily scatter wt age, by(region, holes(2.5 0))
+capture noisily scatter wt age, by(region, holes(0 2.5))
+capture noisily scatter wt age, by(region, cols(0) holes(2.5))
+scatter wt age, by(region, holes(3 3))
+lowess wt age, bwidth(1) generate(s1) nograph
+summarize s1
+lowess wt age, bwidth(-.2) generate(s3) nograph
+summarize s3
+lowess wt age, bwidth(1.5)
+lowess wt age in 1/2, generate(s2)
+summarize s2
+lowess wt c3, generate(s4)
+summarize s4
+lowess wt age if id < 0
+kdensity c3, generate(kx kd)
+summarize kx kd
+kdensity c3, nograph
+display "scale " r(scale) " " r(n) " " r(bwidth)
+kdensity wt [aw=region], generate(x1 d1) n(6) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+list x1 d1 in 1/6
+kdensity wt [fw=region], generate(x2 d2) n(6) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+list x2 d2 in 1/6
+kdensity wt [iw=region], generate(x3 d3) n(6) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+list x3 d3 in 1/6
+kdensity wt [aw=income], generate(x4 d4) n(6) nograph
+list x4 d4 in 1/6
+kdensity wt, at(age) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+kdensity wt, student(5) normal
+capture noisily kdensity wt [pw=region]
+twoway kdensity wt [aw=region]
+twoway kdensity wt [fw=region]
+capture noisily twoway kdensity wt [iw=region]
+capture noisily twoway kdensity wt [pw=region]
+twoway histogram wt [fw=region]
+capture noisily twoway histogram wt [aw=region]
+twoway (histogram wt [fw=region]), by(treat)
+twoway lfit wt age [aw=region]
+twoway lfit wt age [pw=region]
+twoway qfit wt age [aw=region]
+twoway lfitci wt age [fw=region]
+twoway lfitci wt age [pw=region]
+twoway qfitci wt age [pw=income]
+capture noisily twoway lfit wt age [iw=region]
+capture noisily twoway lowess wt age [aw=region]
+twoway line wt age [aw=region]
+twoway line wt age [fw=region]
+twoway area wt id [pw=region]
+twoway bar wt id [fw=region]
+capture noisily twoway line wt age [iw=region]
+histogram age, gap(20)
+histogram age, gap(99.5)
+capture noisily histogram age, gap(100)
+capture noisily histogram age, gap(-1)
+twoway histogram age, gap(20)
+histogram age, by(treat) gap(50)
+line wt yr, cmissing(n)
+line wt neg yr, cmissing(y n)
+line wt yr, cmissing(n) sort
+scatter wt yr, cmissing(n)
+twoway lfit wt yr, cmissing(n)
+capture noisily line wt yr, cmis(n)
+line wt income in 1/15, sort(age)
+line wt income in 1/15, sort(age id)
+line wt income, sort(city)
+capture noisily line wt income, sort(nosuch)
+twoway (line wt age, sort(id)) (scatter wt age)
+=== graph-redteam6-axes
+clear
+set seed 31337
+set obs 137
+gen g = cond(_n <= 15, 1, cond(_n <= 70, 2, 3))
+gen h = mod(_n, 2)
+gen v1 = round(100*runiform(), .1)
+gen v2 = round(runiform()^3 * 50, .01)
+gen v3 = round(1000 + 500*runiform() + 500*runiform(), 1)
+gen v4 = floor(6*runiform())
+gen v5 = round(-20 + 15*runiform(), .5)
+gen v6 = runiform()/1000
+gen v7 = floor(3*runiform()) + 10*g
+gen v8 = round(exp(5*runiform()), .1)
+histogram v5, by(g)
+histogram v5, by(g) ylabel(#4)
+histogram v5 if g==1, start(-20) width(1.3636364) ylabel(#4)
+histogram v5, by(h) discrete
+scatter v5 v1, xlabel(10(5)0)
+scatter v5 v1, xlabel(10(3)0)
+scatter v5 v1, xlabel(0(-25)100)
+scatter v5 v1, ylabel(-5(5)-20)
+scatter v5 v1, xlabel(100(30)-20)

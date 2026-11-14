@@ -99105,6 +99105,393 @@
       ]
     },
     {
+      "id": "graph-redteam6-weights",
+      "source": "clear\nset seed 2718\nset obs 90\ngen id = _n\ngen region = 1 + mod(_n, 5)\nlabel define rl 1 \"North\" 2 \"South\" 3 \"East\" 4 \"West\" 5 \"Central\"\nlabel values region rl\ngen sex = cond(runiform() < .5, \"M\", \"F\")\ngen income = round(1000 + 20000*runiform()^2, 1)\nreplace income = income*10 if region == 3\ngen age = 18 + floor(50*runiform())\ngen wt = round(50 + 40*runiform(), .1)\nreplace wt = . in 5/7\ngen yr = 1990 + mod(_n, 30)\ngen c3 = 7\ngen treat = _n > 45\nlabel variable income \"Household income\"\nlabel variable age \"Age (years)\"\ngen grp = mod(_n, 4)\nreplace grp = . if mod(_n, 9) == 0\nreplace grp = .a in 2\ngen str8 city = cond(mod(_n,3)==0, \"\", cond(mod(_n,3)==1, \"Rome\", \"Oslo\"))\ngen neg = wt - 70\ngen big = income * 1000\ngen tiny = wt / 100000\ncapture noisily scatter wt age, by(region, holes(0))\ncapture noisily scatter wt age, by(region, holes(-1.5))\ncapture noisily scatter wt age, by(region, holes(2.5 0))\ncapture noisily scatter wt age, by(region, holes(0 2.5))\ncapture noisily scatter wt age, by(region, cols(0) holes(2.5))\nscatter wt age, by(region, holes(3 3))\nlowess wt age, bwidth(1) generate(s1) nograph\nsummarize s1\nlowess wt age, bwidth(-.2) generate(s3) nograph\nsummarize s3\nlowess wt age, bwidth(1.5)\nlowess wt age in 1/2, generate(s2)\nsummarize s2\nlowess wt c3, generate(s4)\nsummarize s4\nlowess wt age if id < 0\nkdensity c3, generate(kx kd)\nsummarize kx kd\nkdensity c3, nograph\ndisplay \"scale \" r(scale) \" \" r(n) \" \" r(bwidth)\nkdensity wt [aw=region], generate(x1 d1) n(6) nograph\ndisplay %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)\nlist x1 d1 in 1/6\nkdensity wt [fw=region], generate(x2 d2) n(6) nograph\ndisplay %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)\nlist x2 d2 in 1/6\nkdensity wt [iw=region], generate(x3 d3) n(6) nograph\ndisplay %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)\nlist x3 d3 in 1/6\nkdensity wt [aw=income], generate(x4 d4) n(6) nograph\nlist x4 d4 in 1/6\nkdensity wt, at(age) nograph\ndisplay %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)\nkdensity wt, student(5) normal\ncapture noisily kdensity wt [pw=region]\ntwoway kdensity wt [aw=region]\ntwoway kdensity wt [fw=region]\ncapture noisily twoway kdensity wt [iw=region]\ncapture noisily twoway kdensity wt [pw=region]\ntwoway histogram wt [fw=region]\ncapture noisily twoway histogram wt [aw=region]\ntwoway (histogram wt [fw=region]), by(treat)\ntwoway lfit wt age [aw=region]\ntwoway lfit wt age [pw=region]\ntwoway qfit wt age [aw=region]\ntwoway lfitci wt age [fw=region]\ntwoway lfitci wt age [pw=region]\ntwoway qfitci wt age [pw=income]\ncapture noisily twoway lfit wt age [iw=region]\ncapture noisily twoway lowess wt age [aw=region]\ntwoway line wt age [aw=region]\ntwoway line wt age [fw=region]\ntwoway area wt id [pw=region]\ntwoway bar wt id [fw=region]\ncapture noisily twoway line wt age [iw=region]\nhistogram age, gap(20)\nhistogram age, gap(99.5)\ncapture noisily histogram age, gap(100)\ncapture noisily histogram age, gap(-1)\ntwoway histogram age, gap(20)\nhistogram age, by(treat) gap(50)\nline wt yr, cmissing(n)\nline wt neg yr, cmissing(y n)\nline wt yr, cmissing(n) sort\nscatter wt yr, cmissing(n)\ntwoway lfit wt yr, cmissing(n)\ncapture noisily line wt yr, cmis(n)\nline wt income in 1/15, sort(age)\nline wt income in 1/15, sort(age id)\nline wt income, sort(city)\ncapture noisily line wt income, sort(nosuch)\ntwoway (line wt age, sort(id)) (scatter wt age)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2718", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        { "command": "gen id = _n", "lines": [] },
+        { "command": "gen region = 1 + mod(_n, 5)", "lines": [] },
+        {
+          "command": "label define rl 1 \"North\" 2 \"South\" 3 \"East\" 4 \"West\" 5 \"Central\"",
+          "lines": []
+        },
+        { "command": "label values region rl", "lines": [] },
+        {
+          "command": "gen sex = cond(runiform() < .5, \"M\", \"F\")",
+          "lines": []
+        },
+        {
+          "command": "gen income = round(1000 + 20000*runiform()^2, 1)",
+          "lines": []
+        },
+        {
+          "command": "replace income = income*10 if region == 3",
+          "lines": ["(18 real changes made)"]
+        },
+        { "command": "gen age = 18 + floor(50*runiform())", "lines": [] },
+        { "command": "gen wt = round(50 + 40*runiform(), .1)", "lines": [] },
+        {
+          "command": "replace wt = . in 5/7",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        { "command": "gen yr = 1990 + mod(_n, 30)", "lines": [] },
+        { "command": "gen c3 = 7", "lines": [] },
+        { "command": "gen treat = _n > 45", "lines": [] },
+        {
+          "command": "label variable income \"Household income\"",
+          "lines": []
+        },
+        { "command": "label variable age \"Age (years)\"", "lines": [] },
+        { "command": "gen grp = mod(_n, 4)", "lines": [] },
+        {
+          "command": "replace grp = . if mod(_n, 9) == 0",
+          "lines": ["(10 real changes made, 10 to missing)"]
+        },
+        {
+          "command": "replace grp = .a in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "gen str8 city = cond(mod(_n,3)==0, \"\", cond(mod(_n,3)==1, \"Rome\", \"Oslo\"))",
+          "lines": ["(30 missing values generated)"]
+        },
+        {
+          "command": "gen neg = wt - 70",
+          "lines": ["(3 missing values generated)"]
+        },
+        { "command": "gen big = income * 1000", "lines": [] },
+        {
+          "command": "gen tiny = wt / 100000",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "capture noisily scatter wt age, by(region, holes(0))",
+          "lines": [
+            "holes() invalid -- invalid numlist has elements outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter wt age, by(region, holes(-1.5))",
+          "lines": [
+            "holes() invalid -- invalid numlist has elements outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter wt age, by(region, holes(2.5 0))",
+          "lines": [
+            "holes() invalid -- invalid numlist has noninteger elements"
+          ]
+        },
+        {
+          "command": "capture noisily scatter wt age, by(region, holes(0 2.5))",
+          "lines": [
+            "holes() invalid -- invalid numlist has elements outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter wt age, by(region, cols(0) holes(2.5))",
+          "lines": [
+            "cols() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        { "command": "scatter wt age, by(region, holes(3 3))", "lines": [] },
+        {
+          "command": "lowess wt age, bwidth(1) generate(s1) nograph",
+          "lines": []
+        },
+        {
+          "command": "summarize s1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s1 |         87    69.31976    1.627317   67.27278   72.95196"
+          ]
+        },
+        {
+          "command": "lowess wt age, bwidth(-.2) generate(s3) nograph",
+          "lines": []
+        },
+        {
+          "command": "summarize s3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s3 |         87    69.31976    1.627317   67.27278   72.95196"
+          ]
+        },
+        { "command": "lowess wt age, bwidth(1.5)", "lines": [] },
+        { "command": "lowess wt age in 1/2, generate(s2)", "lines": [] },
+        {
+          "command": "summarize s2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s2 |          0"
+          ]
+        },
+        { "command": "lowess wt c3, generate(s4)", "lines": [] },
+        {
+          "command": "summarize s4",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s4 |          0"
+          ]
+        },
+        { "command": "lowess wt age if id < 0", "lines": [] },
+        { "command": "kdensity c3, generate(kx kd)", "lines": [] },
+        {
+          "command": "summarize kx kd",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          kx |         50           7           0          7          7",
+            "          kd |         50           0           0          0          0"
+          ]
+        },
+        { "command": "kdensity c3, nograph", "lines": [] },
+        {
+          "command": "display \"scale \" r(scale) \" \" r(n) \" \" r(bwidth)",
+          "lines": ["scale . 50 0"]
+        },
+        {
+          "command": "kdensity wt [aw=region], generate(x1 d1) n(6) nograph",
+          "lines": []
+        },
+        {
+          "command": "display %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)",
+          "lines": ["  9.35228466 6   3.85299360"]
+        },
+        {
+          "command": "list x1 d1 in 1/6",
+          "lines": [
+            "     +-----------------------+",
+            "     |        x1          d1 |",
+            "     |-----------------------|",
+            "  1. | 46.947006   .00392444 |",
+            "  2. | 56.328203   .02431566 |",
+            "  3. | 65.709401   .03420084 |",
+            "  4. | 75.090598   .02421174 |",
+            "  5. | 84.471796   .01653901 |",
+            "     |-----------------------|",
+            "  6. | 93.852994   .00373406 |",
+            "     +-----------------------+"
+          ]
+        },
+        {
+          "command": "kdensity wt [fw=region], generate(x2 d2) n(6) nograph",
+          "lines": []
+        },
+        {
+          "command": "display %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)",
+          "lines": ["  9.09398604 6   3.07393756"]
+        },
+        {
+          "command": "list x2 d2 in 1/6",
+          "lines": [
+            "     +-----------------------+",
+            "     |        x2          d2 |",
+            "     |-----------------------|",
+            "  1. | 47.726062   .00398126 |",
+            "  2. | 56.795637   .02565861 |",
+            "  3. | 65.865212   .03588336 |",
+            "  4. | 74.934787   .02327659 |",
+            "  5. | 84.004362   .01756581 |",
+            "     |-----------------------|",
+            "  6. | 93.073938   .00359715 |",
+            "     +-----------------------+"
+          ]
+        },
+        {
+          "command": "kdensity wt [iw=region], generate(x3 d3) n(6) nograph",
+          "lines": []
+        },
+        {
+          "command": "display %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)",
+          "lines": ["  0.03542475 6   3.85262130"]
+        },
+        {
+          "command": "list x3 d3 in 1/6",
+          "lines": [
+            "     +-----------------------+",
+            "     |        x3          d3 |",
+            "     |-----------------------|",
+            "  1. | 46.947378   1.0360353 |",
+            "  2. | 56.328427    6.419487 |",
+            "  3. | 65.709475   9.0292846 |",
+            "  4. | 75.090524   6.3917971 |",
+            "  5. | 84.471573   4.3664467 |",
+            "     |-----------------------|",
+            "  6. | 93.852621   .98580101 |",
+            "     +-----------------------+"
+          ]
+        },
+        {
+          "command": "kdensity wt [aw=income], generate(x4 d4) n(6) nograph",
+          "lines": []
+        },
+        {
+          "command": "list x4 d4 in 1/6",
+          "lines": [
+            "     +-----------------------+",
+            "     |        x4          d4 |",
+            "     |-----------------------|",
+            "  1. | 46.625361   .00487589 |",
+            "  2. | 56.135216   .02155805 |",
+            "  3. | 65.645072   .02822266 |",
+            "  4. | 75.154927   .02575458 |",
+            "  5. | 84.664783   .01978294 |",
+            "     |-----------------------|",
+            "  6. | 94.174638   .00653936 |",
+            "     +-----------------------+"
+          ]
+        },
+        { "command": "kdensity wt, at(age) nograph", "lines": [] },
+        {
+          "command": "display %12.8f r(scale) \" \" r(n) \" \" %12.8f r(bwidth)",
+          "lines": ["  1.08924184 90   3.85262130"]
+        },
+        { "command": "kdensity wt, student(5) normal", "lines": [] },
+        {
+          "command": "capture noisily kdensity wt [pw=region]",
+          "lines": ["pweights not allowed"]
+        },
+        { "command": "twoway kdensity wt [aw=region]", "lines": [] },
+        { "command": "twoway kdensity wt [fw=region]", "lines": [] },
+        {
+          "command": "capture noisily twoway kdensity wt [iw=region]",
+          "lines": ["iweights not allowed"]
+        },
+        {
+          "command": "capture noisily twoway kdensity wt [pw=region]",
+          "lines": ["pweights not allowed"]
+        },
+        { "command": "twoway histogram wt [fw=region]", "lines": [] },
+        {
+          "command": "capture noisily twoway histogram wt [aw=region]",
+          "lines": ["aweights not allowed"]
+        },
+        {
+          "command": "twoway (histogram wt [fw=region]), by(treat)",
+          "lines": []
+        },
+        { "command": "twoway lfit wt age [aw=region]", "lines": [] },
+        { "command": "twoway lfit wt age [pw=region]", "lines": [] },
+        { "command": "twoway qfit wt age [aw=region]", "lines": [] },
+        { "command": "twoway lfitci wt age [fw=region]", "lines": [] },
+        { "command": "twoway lfitci wt age [pw=region]", "lines": [] },
+        { "command": "twoway qfitci wt age [pw=income]", "lines": [] },
+        {
+          "command": "capture noisily twoway lfit wt age [iw=region]",
+          "lines": ["iweights not allowed"]
+        },
+        {
+          "command": "capture noisily twoway lowess wt age [aw=region]",
+          "lines": ["weights not allowed"]
+        },
+        { "command": "twoway line wt age [aw=region]", "lines": [] },
+        { "command": "twoway line wt age [fw=region]", "lines": [] },
+        { "command": "twoway area wt id [pw=region]", "lines": [] },
+        { "command": "twoway bar wt id [fw=region]", "lines": [] },
+        {
+          "command": "capture noisily twoway line wt age [iw=region]",
+          "lines": ["iweights not allowed"]
+        },
+        {
+          "command": "histogram age, gap(20)",
+          "lines": ["(bin=9, start=18, width=5.4444444)"]
+        },
+        {
+          "command": "histogram age, gap(99.5)",
+          "lines": ["(bin=9, start=18, width=5.4444444)"]
+        },
+        {
+          "command": "capture noisily histogram age, gap(100)",
+          "lines": [
+            "(bin=9, start=18, width=5.4444444)",
+            "option gap() must be between 0 and 100"
+          ]
+        },
+        {
+          "command": "capture noisily histogram age, gap(-1)",
+          "lines": [
+            "(bin=9, start=18, width=5.4444444)",
+            "option gap() must be between 0 and 100"
+          ]
+        },
+        { "command": "twoway histogram age, gap(20)", "lines": [] },
+        { "command": "histogram age, by(treat) gap(50)", "lines": [] },
+        { "command": "line wt yr, cmissing(n)", "lines": [] },
+        { "command": "line wt neg yr, cmissing(y n)", "lines": [] },
+        { "command": "line wt yr, cmissing(n) sort", "lines": [] },
+        { "command": "scatter wt yr, cmissing(n)", "lines": [] },
+        { "command": "twoway lfit wt yr, cmissing(n)", "lines": [] },
+        {
+          "command": "capture noisily line wt yr, cmis(n)",
+          "lines": ["option cmis() not allowed"]
+        },
+        { "command": "line wt income in 1/15, sort(age)", "lines": [] },
+        { "command": "line wt income in 1/15, sort(age id)", "lines": [] },
+        { "command": "line wt income, sort(city)", "lines": [] },
+        {
+          "command": "capture noisily line wt income, sort(nosuch)",
+          "lines": [
+            "variable nosuch not found",
+            "option sort() incorrectly specified"
+          ]
+        },
+        {
+          "command": "twoway (line wt age, sort(id)) (scatter wt age)",
+          "lines": []
+        }
+      ]
+    },
+    {
+      "id": "graph-redteam6-axes",
+      "source": "clear\nset seed 31337\nset obs 137\ngen g = cond(_n <= 15, 1, cond(_n <= 70, 2, 3))\ngen h = mod(_n, 2)\ngen v1 = round(100*runiform(), .1)\ngen v2 = round(runiform()^3 * 50, .01)\ngen v3 = round(1000 + 500*runiform() + 500*runiform(), 1)\ngen v4 = floor(6*runiform())\ngen v5 = round(-20 + 15*runiform(), .5)\ngen v6 = runiform()/1000\ngen v7 = floor(3*runiform()) + 10*g\ngen v8 = round(exp(5*runiform()), .1)\nhistogram v5, by(g)\nhistogram v5, by(g) ylabel(#4)\nhistogram v5 if g==1, start(-20) width(1.3636364) ylabel(#4)\nhistogram v5, by(h) discrete\nscatter v5 v1, xlabel(10(5)0)\nscatter v5 v1, xlabel(10(3)0)\nscatter v5 v1, xlabel(0(-25)100)\nscatter v5 v1, ylabel(-5(5)-20)\nscatter v5 v1, xlabel(100(30)-20)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31337", "lines": [] },
+        {
+          "command": "set obs 137",
+          "lines": ["Number of observations (_N) was 0, now 137."]
+        },
+        {
+          "command": "gen g = cond(_n <= 15, 1, cond(_n <= 70, 2, 3))",
+          "lines": []
+        },
+        { "command": "gen h = mod(_n, 2)", "lines": [] },
+        { "command": "gen v1 = round(100*runiform(), .1)", "lines": [] },
+        { "command": "gen v2 = round(runiform()^3 * 50, .01)", "lines": [] },
+        {
+          "command": "gen v3 = round(1000 + 500*runiform() + 500*runiform(), 1)",
+          "lines": []
+        },
+        { "command": "gen v4 = floor(6*runiform())", "lines": [] },
+        { "command": "gen v5 = round(-20 + 15*runiform(), .5)", "lines": [] },
+        { "command": "gen v6 = runiform()/1000", "lines": [] },
+        { "command": "gen v7 = floor(3*runiform()) + 10*g", "lines": [] },
+        { "command": "gen v8 = round(exp(5*runiform()), .1)", "lines": [] },
+        { "command": "histogram v5, by(g)", "lines": [] },
+        { "command": "histogram v5, by(g) ylabel(#4)", "lines": [] },
+        {
+          "command": "histogram v5 if g==1, start(-20) width(1.3636364) ylabel(#4)",
+          "lines": ["(bin=10, start=-20, width=1.3636364)"]
+        },
+        { "command": "histogram v5, by(h) discrete", "lines": [] },
+        { "command": "scatter v5 v1, xlabel(10(5)0)", "lines": [] },
+        { "command": "scatter v5 v1, xlabel(10(3)0)", "lines": [] },
+        { "command": "scatter v5 v1, xlabel(0(-25)100)", "lines": [] },
+        { "command": "scatter v5 v1, ylabel(-5(5)-20)", "lines": [] },
+        { "command": "scatter v5 v1, xlabel(100(30)-20)", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
