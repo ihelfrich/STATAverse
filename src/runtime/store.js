@@ -221,7 +221,7 @@ export class Dataset {
       type: stored,
       missing: text
         ? data.filter((v) => v === "").length
-        : data.filter(isMissing).length,
+        : values.filter(isMissing).length,
     };
   }
 

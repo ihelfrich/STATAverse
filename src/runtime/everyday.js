@@ -4,7 +4,8 @@
 import { StataError } from "./errors.js";
 import { splitAtComma } from "./syntax.js";
 import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
-import { invttail, ttail } from "./distributions.js";
+import { ibeta, invttail, ttail } from "./distributions.js";
+import { invnormal } from "./functions-normal.js";
 import {
   abbreviate,
   columnName,
@@ -58,6 +59,8 @@ function numeric(session, names) {
 function ci(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
+  if (/^prop/.test(m[1]) && "proportions".startsWith(m[1]))
+    return ciProportions(session, m[2], ctx);
   if (!"means".startsWith(m[1]) || m[1].length < 4) {
     if (/^(prop|var)/.test(m[1]))
       throw new StataError(`ci ${m[1]} is not available yet; ci means is`, 198);
@@ -168,6 +171,146 @@ function ci(session, text, ctx) {
   }
   ctx.out("");
   if (last) session.results.r = last;
+}
+
+/** The x at which the regularized incomplete beta I_x(a, b) is p. */
+function invibeta(a, b, p) {
+  let low = 0,
+    high = 1;
+  for (let k = 0; k < 200 && high - low > 1e-17; k++) {
+    const mid = (low + high) / 2;
+    if (ibeta(a, b, mid) < p) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+const PROPORTION_TYPES = {
+  exact: "Binomial exact",
+  wald: "Binomial Wald",
+  wilson: "Wilson",
+  agresti: "Agresti\u2013Coull",
+  jeffreys: "Jeffreys",
+};
+/**
+ * ci proportions: each 0/1 variable's proportion, its standard error and a
+ * binomial interval, exact (Clopper-Pearson) unless wald, wilson, agresti
+ * or jeffreys is asked for. Variables that are not 0/1 are passed over. An
+ * exact interval at a proportion of 0 or 1 is one-sided, and marked.
+ */
+function ciProportions(session, text, ctx) {
+  const parsed = session.parse(
+      "[varlist] [if] [in] [fweight] [, Level(cilevel) SEParator(integer 5) EXact WAld WIlson Agresti Jeffreys]",
+      text,
+    ),
+    options = parsed.options,
+    asked = Object.keys(PROPORTION_TYPES).filter((type) => options[type]);
+  if (asked.length > 1)
+    throw new StataError(
+      `options ${asked.join(" and ")} may not be combined`,
+      198,
+    );
+  const type = asked[0] ?? "exact",
+    level = options.level,
+    alpha = 1 - level / 100,
+    z = invnormal(1 - alpha / 2),
+    weighted = weightedRows(
+      session,
+      parsed,
+      session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    ),
+    rows = weighted.rows,
+    binary = parsed.varlist
+      .map((name) => session.data.get(name))
+      .filter((variable) => {
+        if (isStringType(variable.type)) return false;
+        const values = rows
+          .map((i) => variable.data[i])
+          .filter((v) => !isMissing(v));
+        return values.every((v) => v === 0 || v === 1);
+      });
+  if (!binary.length) {
+    ctx.out("no binary (0/1) variables found; nothing to compute");
+    return;
+  }
+  const digits = String(level).length,
+    rule =
+      "-------------+---------------------------------------------------------------",
+    label = PROPORTION_TYPES[type];
+  ctx.out("");
+  ctx.out(" ".repeat(57 + Math.floor((20 - label.length) / 2)) + label);
+  ctx.out(
+    `    Variable |        Obs  Proportion    Std. err.    ${digits === 2 ? "   " : digits === 4 ? " " : ""}[${g(level)}% conf. interval]`,
+  );
+  ctx.out(rule);
+  let last = null,
+    oneSided = false;
+  binary.forEach((variable, shown) => {
+    if (shown && options.separator && shown % options.separator === 0)
+      ctx.out(rule);
+    const values = rows
+        .map((i) => variable.data[i])
+        .filter((v) => !isMissing(v)),
+      n = values.length,
+      k = values.filter((v) => v === 1).length,
+      p = n ? k / n : MISSING,
+      se = n ? Math.sqrt((p * (1 - p)) / n) : MISSING;
+    let lb = MISSING,
+      ub = MISSING,
+      star = "";
+    if (n && type === "exact") {
+      if (k === 0) {
+        lb = 0;
+        ub = 1 - (alpha / 2) ** (1 / n);
+        star = "ub";
+      } else if (k === n) {
+        lb = (alpha / 2) ** (1 / n);
+        ub = 1;
+        star = "lb";
+      } else {
+        lb = invibeta(k, n - k + 1, alpha / 2);
+        ub = invibeta(k + 1, n - k, 1 - alpha / 2);
+      }
+    } else if (n && type === "wald") {
+      lb = p - z * se;
+      ub = p + z * se;
+    } else if (n && type === "wilson") {
+      const centre = p + (z * z) / (2 * n),
+        spread = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n)),
+        scale = 1 + (z * z) / n;
+      lb = (centre - spread) / scale;
+      ub = (centre + spread) / scale;
+    } else if (n && type === "agresti") {
+      const m = n + z * z,
+        q = (k + (z * z) / 2) / m,
+        spread = z * Math.sqrt((q * (1 - q)) / m);
+      lb = Math.max(0, q - spread);
+      ub = Math.min(1, q + spread);
+    } else if (n && type === "jeffreys") {
+      lb = k === 0 ? 0 : invibeta(k + 0.5, n - k + 0.5, alpha / 2);
+      ub = k === n ? 1 : invibeta(k + 0.5, n - k + 0.5, 1 - alpha / 2);
+    }
+    if (star) oneSided = true;
+    const number = (value) => applyFormat(value, "%9.0g");
+    let line = `${padDisplay(abbreviateAmong(variable.name, 12, session.data.names), 12)} |`;
+    for (const [column, cell] of [
+      [16, applyFormat(n, "%10.0fc")],
+      [29, number(p)],
+      [41, number(se)],
+      [57, number(lb) + (star === "lb" ? "*" : "")],
+      [69, number(ub) + (star === "ub" ? "*" : "")],
+    ])
+      line = line.padEnd(column - 1) + cell;
+    ctx.out(line);
+    last = { N: n, proportion: p, se, lb, ub, level, citype: type };
+  });
+  if (oneSided) {
+    ctx.out("");
+    ctx.out(
+      `(*) one-sided, ${g(100 - (100 - level) / 2)}% confidence interval`,
+    );
+  }
+  ctx.out("");
+  session.results.r = last;
 }
 
 /**

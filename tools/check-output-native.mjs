@@ -80,7 +80,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await promisify(execFile)(
     "/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp",
     ["-b", "do", "audit.do"],
-    { cwd: folder, timeout: 180000 },
+    { cwd: folder, timeout: 2700000 },
   );
   const results = [];
   for (const [k, c] of cases.entries()) {

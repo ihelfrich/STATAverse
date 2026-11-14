@@ -64,6 +64,14 @@ for (const c of fixture.cases)
     const theirs = c.commands;
     let k = 0;
     for (const expected of theirs) {
+      // A program definition prints nothing in the runtime; Stata's log
+      // echoes its lines under the program command.
+      if (
+        /^(pr|pro|prog|progr|progra|program)(\s+de\w*)?\s+(?!drop\b|dir\b|list\b)\S/.test(
+          expected.command,
+        )
+      )
+        continue;
       if (SKIP.some((pattern) => pattern.test(expected.command))) {
         k++;
         continue;
@@ -144,6 +152,8 @@ for (const c of fixture.cases)
             "redteam5b-estat-classification-gof",
             // margins after ologit takes its gradients by differencing.
             "models6-ordered-margins-factors",
+            // logit, or and poisson, irr replay the fit by fitting it again.
+            "pass7-debug-replay-likelihood",
           ].includes(c.id),
         )
       )

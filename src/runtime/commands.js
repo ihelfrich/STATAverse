@@ -8,7 +8,15 @@ import { Signal, StataError } from "./errors.js";
 import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
-import { applyFormat, displayValue, parseFormat } from "./format.js";
+import {
+  abbreviateAmong,
+  abbreviateName,
+  applyFormat,
+  displayValue,
+  parseFormat,
+} from "./format.js";
+import { ibeta } from "./distributions.js";
+import { invnormal } from "./functions-normal.js";
 import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS } from "./estimation.js";
@@ -65,6 +73,7 @@ import {
   tab2,
   tabulate,
   widenForLabel,
+  wrapLine,
 } from "./reports.js";
 import {
   MAX_STRING_WIDTH,
@@ -174,6 +183,9 @@ const macroValue = (session, value) =>
 function defineMacro(session, frame, map, text) {
   let m;
   if ((m = /^(\+\+|--)\s*(\w+)$/.exec(text.trim()))) {
+    // Stata increments a local that exists; one never set is an error.
+    if (map === frame?.locals && !map.has(m[2]))
+      throw new StataError(`local macro \`${m[2]}' not found`, 111);
     const value = Number(map.get(m[2]) ?? 0) + (m[1] === "++" ? 1 : -1);
     return void map.set(m[2], macroValue(session, value));
   }
@@ -189,6 +201,13 @@ function defineMacro(session, frame, map, text) {
     return setMacro(map, name, extendedFunction(session, frame, m[3]));
   setMacro(map, name, unquoteMacro(m[4] ?? ""));
 }
+
+// The first words of Stata's extended macro functions.
+const EXTENDED_FUNCTIONS = new Set(
+  "properties results type format value variable data sortedby label constraint char permname adosubdir dir sysdir environment env rowfullnames colfullnames roweq coleq rownames colnames rownumb colnumb rowsof colsof roweqnumb coleqnumb rowvarlist colvarlist rowlfnames collfnames word piece length strlen ustrlen udstrlen subinstr list display di dis disp displ displa copy serset all tsnorm f fo for form forma val valu var vari varia variab variabl l la lab labe word".split(
+    " ",
+  ),
+);
 
 /** The extended macro functions that follow a colon. */
 export function extendedFunction(session, frame, source) {
@@ -250,8 +269,13 @@ export function extendedFunction(session, frame, source) {
   }
   if ((m = /^list\s+([\s\S]*)$/.exec(text)))
     return listFunction(frame, m[1].trim());
+  const word = text.split(/\s/)[0];
+  // A word that names no extended macro function is not allowed; one that
+  // Stata has and the browser does not is refused as such.
+  if (!EXTENDED_FUNCTIONS.has(word) && !/^(e|r|s)\(/.test(word))
+    throw new StataError(`${word} not allowed`, 101);
   throw new StataError(
-    `extended macro function "${text.split(/\s/)[0]}" is not supported`,
+    `extended macro function "${word}" is not supported`,
     198,
   );
 }
@@ -652,7 +676,21 @@ export function displayText(session, text, asMacro = false) {
 }
 
 // ----- generate and replace -----
+/**
+ * Stata's messages for two slips in generate and replace: == where = was
+ * meant, and a new variable named _n or _N.
+ */
+function assignmentSlips(text, creating) {
+  const m =
+    /^\s*(?:(?:byte|int|long|float|double|str\d+|strL)\s+)?([A-Za-z_]\w*)(?::[A-Za-z_]\w*)?\s*(==)?/.exec(
+      text,
+    );
+  if (m?.[2]) throw new StataError("== invalid name", 198);
+  if (creating && m && /^_[nN]$/.test(m[1]))
+    throw new StataError(`${m[1]} invalid varname`, 198);
+}
 function generate(session, text, ctx) {
+  assignmentSlips(text, true);
   const parsed = session.parse(
       "newvarname =exp [if] [in] [, Before(string) After(string)]",
       text,
@@ -704,6 +742,7 @@ function generate(session, text, ctx) {
 }
 
 function replace(session, text, ctx) {
+  assignmentSlips(text, false);
   const parsed = session.parse("varname =exp [if] [in] [, noPROMOTE]", text),
     name = parsed.varlist[0],
     variable = session.data.get(name),
@@ -722,8 +761,14 @@ function replace(session, text, ctx) {
     rows.push(i);
     if (string) variable.data[i] = value;
     else {
+      // A float stays a float, so a later x[_n-1] sees the value as it is
+      // stored; an integer type that cannot hold the value is promoted,
+      // and sees it whole.
       const held = coerce(variable.type, value);
-      variable.data[i] = held === value || isMissing(value) ? held : value;
+      variable.data[i] =
+        held === value || isMissing(value) || variable.type === "float"
+          ? held
+          : value;
     }
   });
   variable.data = before;
@@ -774,6 +819,8 @@ const noEqualsInIf = (run) => (session, text, ctx) => {
 function dropKeep(keep) {
   return (session, text, ctx) => {
     const data = session.data;
+    if (!text.trim())
+      throw new StataError("varlist, if exp, or in range required", 100);
     if (/^(if|in)\b/.test(text.trim())) {
       const parsed = session.parse("[if] [in]", text),
         selected = new Set(session.rows(parsed, ctx.by)),
@@ -817,6 +864,8 @@ function gsort(session, text) {
     .split(/\s+/)
     .filter(Boolean)
     .map((word) => {
+      // A sign with no name after it.
+      if (/^[+-]$/.test(word)) throw invalid();
       const m = /^([+-]?)(.+)$/.exec(word);
       return { name: session.varlist(m[2])[0], descending: m[1] === "-" };
     });
@@ -1226,7 +1275,8 @@ function scalar(session, text, ctx) {
         throw new StataError(`scalar ${name} not found`, 111);
     return;
   }
-  if ((m = /^(?:l(?:i(?:st?)?)?|di(?:r)?)\b([\s\S]*)$/.exec(text))) {
+  // A scalar may be named l or di: scalar l = 2 defines it.
+  if ((m = /^(?:l(?:i(?:st?)?)?|di(?:r)?)\b(?!\s*=)([\s\S]*)$/.exec(text))) {
     // Newest first, as Stata lists them; the name right-aligned in ten.
     const asked = m[1].trim().split(/\s+/).filter(Boolean),
       names =
@@ -1249,13 +1299,285 @@ function scalar(session, text, ctx) {
   if (!m || !isName(m[1])) throw invalid();
   session.scalars.set(m[1], session.scalar(m[2]));
 }
+/**
+ * The first token of text, as tokenize and gettoken read it: blanks are
+ * skipped; a quoted string is one token (without its quotes unless quotes
+ * is set); a parse character is a token of its own; anything else runs to
+ * the next blank or parse character. Returns the token and the text after
+ * it, or null when only blanks are left.
+ */
+function firstToken(text, parse = "", quotes = false) {
+  let i = 0;
+  while (i < text.length && /\s/.test(text[i]) && !parse.includes(text[i])) i++;
+  if (i >= text.length) return null;
+  let j = i;
+  if (text[i] === "`" && text[i + 1] === '"') {
+    let depth = 1;
+    for (j = i + 2; j < text.length && depth; j++) {
+      if (text[j] === "`" && text[j + 1] === '"') (depth++, j++);
+      else if (text[j] === '"' && text[j + 1] === "'") (depth--, j++);
+    }
+    return {
+      token: quotes ? text.slice(i, j) : text.slice(i + 2, j - 2),
+      rest: text.slice(j),
+    };
+  }
+  if (text[i] === '"') {
+    j = text.indexOf('"', i + 1);
+    j = j < 0 ? text.length : j + 1;
+    return {
+      token: quotes ? text.slice(i, j) : text.slice(i + 1, j - 1),
+      rest: text.slice(j),
+    };
+  }
+  if (parse.includes(text[i]))
+    return { token: text[i], rest: text.slice(i + 1) };
+  while (j < text.length && !/\s/.test(text[j]) && !parse.includes(text[j]))
+    j++;
+  return { token: text.slice(i, j), rest: text.slice(j) };
+}
+/** parse() of tokenize and gettoken: the characters in its quotes. */
+function parseCharacters(options) {
+  const m = /^\s*p(?:a(?:r(?:se?)?)?)?\(\s*(?:"([^"]*)"|([^)]*))\s*\)\s*/.exec(
+    options,
+  );
+  if (!m) return null;
+  return { chars: m[1] ?? m[2].trim(), rest: options.slice(m[0].length) };
+}
+/** tokenize: the words of a string into the positional locals `1', `2', .... */
+function tokenize(session, text, ctx) {
+  const [head, options] = splitAtComma(text);
+  let parse = "";
+  const rest = (options ?? "").trim();
+  if (rest) {
+    const found = parseCharacters(rest);
+    if (!found)
+      throw new StataError(`option ${rest.split(/[\s(]/)[0]} not allowed`, 198);
+    parse = found.chars;
+    if (found.rest.trim())
+      throw new StataError(
+        `option ${found.rest.trim().split(/[\s(]/)[0]} not allowed`,
+        198,
+      );
+  }
+  let source = head.trim();
+  if (source.startsWith('`"') && source.endsWith("\"'"))
+    source = source.slice(2, -2);
+  else if (
+    source.length >= 2 &&
+    source.startsWith('"') &&
+    source.endsWith('"') &&
+    source.indexOf('"', 1) === source.length - 1
+  )
+    source = source.slice(1, -1);
+  const locals = ctx.frame.locals,
+    tokens = [];
+  for (let next = firstToken(source, parse); next;) {
+    tokens.push(next.token);
+    next = firstToken(next.rest, parse);
+  }
+  // The positional locals past the last token are cleared.
+  for (const name of [...locals.keys()])
+    if (/^[1-9]\d*$/.test(name) && Number(name) > tokens.length)
+      locals.delete(name);
+  tokens.forEach((token, k) =>
+    token === ""
+      ? locals.delete(String(k + 1))
+      : locals.set(String(k + 1), token),
+  );
+}
+/**
+ * gettoken: the first token of a macro into one macro, and what follows it
+ * into another. A macro is named plainly (a local) or as local name or
+ * global name.
+ */
+function gettoken(session, text, ctx) {
+  const [head, options] = splitAtComma(text),
+    m = /^([\s\S]*?):([\s\S]*)$/.exec(head);
+  if (!m) throw invalid();
+  const target = (words) => {
+    if (words.length === 1) return { map: ctx.frame.locals, name: words[0] };
+    if (words.length === 2 && /^(local|global)$/.test(words[0]))
+      return {
+        map: words[0] === "local" ? ctx.frame.locals : session.globals,
+        name: words[1],
+      };
+    throw invalid();
+  };
+  // Names: one or two targets before the colon, one source after it.
+  const before = m[1].trim().split(/\s+/).filter(Boolean),
+    targets = [];
+  for (let k = 0; k < before.length;) {
+    const take = /^(local|global)$/.test(before[k]) ? 2 : 1;
+    targets.push(target(before.slice(k, k + take)));
+    k += take;
+  }
+  const source = target(m[2].trim().split(/\s+/).filter(Boolean));
+  if (!targets.length || targets.length > 2) throw invalid();
+  let parse = " ",
+    quotes = false,
+    rest = (options ?? "").trim();
+  while (rest) {
+    const found = parseCharacters(rest);
+    if (found) {
+      parse = found.chars;
+      rest = found.rest.trim();
+      continue;
+    }
+    const word = /^q(?:u(?:o(?:t(?:es?)?)?)?)?\b/.exec(rest);
+    if (word) {
+      quotes = true;
+      rest = rest.slice(word[0].length).trim();
+      continue;
+    }
+    const name = rest.split(/[\s(]/)[0];
+    if (/^(qed|m(a(t(ch?)?)?)?|b(i(nd?)?)?)$/.test(name))
+      throw new StataError(
+        `option ${name}() is not available in the browser yet`,
+        198,
+        "gettoken here takes parse() and quotes.",
+      );
+    throw new StataError(`option ${name} not allowed`, 198);
+  }
+  const value = source.map.get(source.name) ?? "",
+    found = firstToken(value, parse.replace(/ /g, ""), quotes);
+  setMacro(targets[0].map, targets[0].name, found ? found.token : "");
+  if (targets[1])
+    setMacro(targets[1].map, targets[1].name, found ? found.rest : "");
+}
+/**
+ * xi: indicator variables for i.varname terms, _I + the first nine
+ * characters of the name + _ + the level (strings coded 1, 2, ... in sort
+ * order), the first level omitted; and for i.varname*contvar their
+ * products with the variable, _I + three characters + X + three + _ +
+ * level. Earlier _I variables are dropped first. As a prefix, xi: runs the
+ * command with each term replaced by the variables made for it.
+ */
+function xi(session, text, ctx) {
+  let body = text.trim();
+  if (body.startsWith(","))
+    throw new StataError(
+      "xi's options are not available in the browser yet",
+      198,
+      "Type xi: command, or use factor variables (i.varname) in the command itself.",
+    );
+  const prefix = body.startsWith(":");
+  if (prefix) body = body.slice(1).trim();
+  const data = session.data,
+    TERM = /^[iI]\.([A-Za-z_]\w*)(?:\*([A-Za-z_]\w*))?$/,
+    [head, options] = prefix ? splitAtComma(body) : [body, null],
+    words = head.split(/\s+/).filter(Boolean),
+    terms = words.filter((word) => /^[iI]\./.test(word));
+  // The command runs as one typed after the prefix: its lines are this
+  // command's.
+  const runInner = (line) => {
+    const lines = [];
+    try {
+      session.dispatch(line, ctx.frame, {}, lines, ctx.output);
+    } finally {
+      lines.forEach((piece) => ctx.out(piece));
+    }
+  };
+  if (!terms.length) {
+    if (prefix) return runInner(body);
+    throw new StataError("varlist required", 100);
+  }
+  for (const term of terms)
+    if (!TERM.test(term))
+      throw new StataError(
+        `xi term ${term} is not available in the browser yet`,
+        198,
+        "xi here makes i.varname and i.varname*contvar; for other interactions use factor variables, as in i.a#i.b.",
+      );
+  // Stata's xi starts by dropping the _I variables of an earlier xi.
+  const earlier = data.names.filter((name) => /^_I/.test(name));
+  if (earlier.length) data.drop(earlier);
+  const made = new Map();
+  for (const term of terms) {
+    const [, name, other] = TERM.exec(term),
+      variable = data.get(session.varlist(name)[0]),
+      string = isStringType(variable.type),
+      present = [
+        ...new Set(
+          Array.from(variable.data).filter((v) =>
+            string ? v !== "" : !isMissing(v),
+          ),
+        ),
+      ].sort((a, b) => (string ? (a < b ? -1 : a > b ? 1 : 0) : a - b)),
+      codes = present.map((value, k) => (string ? k + 1 : value)),
+      stub = `_I${variable.name.slice(0, 9)}_`,
+      shown = (code) => (string ? present[code - 1] : formatNumber(code)),
+      label = abbreviateName(`i.${variable.name}`, 15),
+      // A heading wider than the line goes on after "> ", as display's do.
+      say = (line) =>
+        wrapLine(line, session.settings.linesize ?? 79).forEach((piece) =>
+          ctx.out(piece),
+        );
+    if (!present.length) throw new StataError("no observations", 2000);
+    const dummies = [];
+    if (!made.has(variable.name)) {
+      codes.slice(1).forEach((code, k) => {
+        const level = present[k + 1],
+          values = Array.from(variable.data, (v) =>
+            string
+              ? v === ""
+                ? MISSING
+                : Number(v === level)
+              : isMissing(v)
+                ? MISSING
+                : Number(v === level),
+          ),
+          dummy = `${stub}${formatNumber(code)}`;
+        data.generate(dummy, values, { type: "byte" });
+        data.get(dummy).label = `${variable.name}==${shown(code)}`;
+        dummies.push(dummy);
+      });
+      made.set(variable.name, dummies);
+      const range = `${stub}${formatNumber(codes[0])}-${formatNumber(codes.at(-1))}`;
+      say(
+        `${label.padEnd(17)} ${range.padEnd(19)} (${string ? `${stub}1 for ${variable.name}==${present[0]} omitted` : `naturally coded; ${stub}${formatNumber(codes[0])} omitted`})`,
+      );
+    } else dummies.push(...made.get(variable.name));
+    let replacement = dummies;
+    if (other) {
+      const continuous = data.get(session.varlist(other)[0]);
+      if (isStringType(continuous.type))
+        throw new StataError("type mismatch", 109);
+      const product = `_I${variable.name.slice(0, 3)}X${continuous.name.slice(0, 3)}_`,
+        products = [];
+      codes.slice(1).forEach((code, k) => {
+        const dummy = data.get(dummies[k]).data,
+          name = `${product}${formatNumber(code)}`,
+          values = Array.from(dummy, (d, i) =>
+            isMissing(d) || isMissing(continuous.data[i])
+              ? MISSING
+              : Math.fround(d * continuous.data[i]),
+          );
+        data.generate(name, values, { type: "float" });
+        data.get(name).label =
+          `(${variable.name}==${shown(code)})*${continuous.name}`;
+        products.push(name);
+      });
+      say(
+        `${abbreviateName(term, 15).padEnd(17)} ${`${product}#`.padEnd(19)} (coded as above)`,
+      );
+      replacement = [...dummies, continuous.name, ...products];
+    }
+    made.set(term, replacement);
+  }
+  if (!prefix) return;
+  const rewritten = words
+    .map((word) => (made.has(word) ? made.get(word).join(" ") : word))
+    .join(" ");
+  runInner(`${rewritten}${options !== null ? `, ${options}` : ""}`);
+}
 function temporary(prefix) {
   return (session, text, ctx) => {
     for (const name of text.trim().split(/\s+/).filter(Boolean))
       setMacro(
         ctx.frame.locals,
         name,
-        `__${prefix}${String(++session.temporary).padStart(6, "0")}`,
+        `__${prefix}${String(session.temporary++).padStart(6, "0")}`,
       );
   };
 }
@@ -1363,6 +1685,12 @@ function returns(kind) {
         ctx.out("matrices:");
         ctx.out(`${label("b")} :  1 x ${k}`);
         ctx.out(`${label("V")} :  ${k} x ${k}`);
+        // Other matrices the command stored, such as regress's e(beta).
+        for (const [key, value] of entries)
+          if (key.startsWith("matrix:") && value?.values)
+            ctx.out(
+              `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+            );
         if (tabled) {
           if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
           ctx.out(`${label("_N")} :  1 x ${k}`);
@@ -1597,10 +1925,25 @@ function egen(session, text, ctx) {
     throw new StataError(`egen ${fcn}() is not available yet`, 198);
   const known = Object.hasOwn(EGEN, fcn) ? EGEN[fcn] : null;
   if (!known) throw new StataError(`unknown egen function ${fcn}()`, 133);
-  const parsed = session.parse(
-    `[if] [in] [, BY(${known.by ? "varlist" : "string"}) ${known.options}]`,
-    tail,
-  );
+  // A function that reads an expression or variables needs them: egen
+  // z = mean() is invalid syntax.
+  if (!argument.trim() && !/^(seq|fill)$/.test(fcn)) throw invalid();
+  let parsed;
+  try {
+    parsed = session.parse(
+      `[if] [in] [, BY(${known.by ? "varlist" : "string"}) ${known.options}]`,
+      tail,
+    );
+  } catch (error) {
+    // A variable by() names that is not there, as egen.ado reports it.
+    if (
+      error instanceof StataError &&
+      error.code === 111 &&
+      /\bby\s*\(/.test(tail)
+    )
+      throw new StataError(`${error.message}\n(error in option by())`, 111);
+    throw error;
+  }
   if (!known.by && (parsed.options.by || ctx.by))
     throw new StataError(`egen ... ${fcn}() may not be combined with by`, 190);
   if (parsed.options.field && parsed.options.track)
@@ -2286,44 +2629,210 @@ function xtile(session, text) {
   data.get(parsed.varlist[0]).label = `${q} quantiles of ${parsed.exp.trim()}`;
 }
 
+/** P(X >= k) for X binomial(n, p): Stata's Binomial(n, k, p). */
+function upperBinomial(n, k, p) {
+  if (k <= 0) return 1;
+  if (k > n) return 0;
+  return ibeta(k, n - k + 1, p);
+}
+/**
+ * centile: each centile asked for, at position (n + 1) p / 100 with
+ * interpolation, and its confidence interval: by default the exact
+ * binomial limits interpolated between order statistics (Gardner and
+ * Altman), exact without interpolation under cci, and from the normal
+ * distribution under normal or meansd. A limit that runs off the sample is
+ * held at its end and marked. Results are posted as centile.ado posts
+ * them, so return list shows the last first.
+ */
 function centile(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Centile(numlist) Level(cilevel)]",
+      "[varlist] [if] [in] [, Centile(numlist) Level(cilevel) CCi Meansd Normal]",
       text,
     ),
-    wanted = parsed.options.centile ?? [50],
-    rows = session.rows(parsed, null),
-    results = {};
+    options = parsed.options,
+    wanted = options.centile ?? [50];
+  if (wanted.some((p) => p < 0 || p > 100))
+    throw new StataError(
+      "centile() invalid -- invalid numlist has elements outside of allowed range",
+      125,
+    );
+  const rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    level = options.level,
+    alpha2 = (100 - level) / 200,
+    z2 = -invnormal(alpha2),
+    digits = String(level).length,
+    posted = [];
   ctx.out("");
-  ctx.out("    Variable |       Obs  Percentile    Centile");
-  ctx.out("-------------+---------------------------------");
+  if (options.meansd)
+    ctx.out(`${" ".repeat(35)}-- Normal, based on mean and std. dev.--`);
+  else if (options.normal)
+    ctx.out(`${" ".repeat(35)}-- Normal, based on observed centiles --`);
+  else
+    ctx.out(
+      `${" ".repeat(55)}${options.cci ? "   Binomial exact   " : "   Binom. interp.   "}`,
+    );
+  ctx.out(
+    `    Variable |       Obs  Percentile    Centile     ${digits === 2 ? "   " : digits === 4 ? " " : ""}[${formatNumber(level)}% conf. interval]`,
+  );
+  ctx.out(`-------------+${"-".repeat(61)}`);
+  let anyMark = false,
+    mark = "",
+    n = 0;
+  const at = (line, column, text) => line.padEnd(column - 1) + text;
   for (const name of parsed.varlist) {
     const variable = session.data.get(name);
     if (isStringType(variable.type)) continue;
-    const sorted = present(variable.data, rows).sort((a, b) => a - b),
-      n = sorted.length;
-    wanted.forEach((p, k) => {
-      // Stata's centile interpolates at position (n + 1) p / 100.
-      const position = ((n + 1) * p) / 100,
-        low = Math.floor(position),
-        value = !n
-          ? MISSING
-          : low < 1
-            ? sorted[0]
-            : low >= n
-              ? sorted[n - 1]
-              : sorted[low - 1] +
-                (position - low) * (sorted[low] - sorted[low - 1]);
-      results[`c_${k + 1}`] = value;
-      results.N = n;
-      ctx.out(
-        `${(k ? "" : name).padStart(12)} |${(k ? "" : count(n)).padStart(10)}${formatNumber(p).padStart(11)}${applyFormat(value, "%9.0g").trim().padStart(12)}`,
+    const y = present(variable.data, rows).sort((a, b) => a - b),
+      own = variable.format ?? "",
+      shape = own.endsWith("fc")
+        ? `%9.${own.slice(-3)}`
+        : own.endsWith("f")
+          ? `%9.${own.slice(-2)}`
+          : "%9.0g",
+      // Order statistics are numbered from 1, as in Stata.
+      Y = (r) => y[r - 1];
+    n = y.length;
+    const mean = n ? y.reduce((a, b) => a + b, 0) / n : MISSING,
+      sd =
+        n > 1
+          ? Math.sqrt(y.reduce((t, v) => t + (v - mean) ** 2, 0) / (n - 1))
+          : MISSING;
+    wanted.forEach((p, j) => {
+      mark = "";
+      const quant = p / 100;
+      let value = MISSING,
+        lower = MISSING,
+        upper = MISSING;
+      if (n && options.meansd) {
+        const z = invnormal(quant),
+          se = sd * Math.sqrt(1 / n + z ** 2 / (2 * (n - 1)));
+        value = mean + z * sd;
+        lower = value - z2 * se;
+        upper = value + z2 * se;
+      } else if (n) {
+        let frac = (n + 1) * quant;
+        const i1 = Math.trunc(frac);
+        frac -= i1;
+        value =
+          i1 >= n ? Y(n) : i1 < 1 ? Y(1) : Y(i1) + frac * (Y(i1 + 1) - Y(i1));
+        if (options.normal) {
+          const density =
+              Math.exp(-0.5 * ((value - mean) / sd) ** 2) /
+              (sd * Math.sqrt(2 * Math.PI)),
+            se = Math.sqrt((quant * (1 - quant)) / n) / density;
+          lower = value - z2 * se;
+          upper = value + z2 * se;
+        } else {
+          const nq = n * quant,
+            spread = Math.sqrt(nq * (1 - quant)) * z2,
+            low = Math.trunc(0.5 + nq - spread),
+            high = 1 + Math.trunc(0.5 + nq + spread);
+          // The upper limit: ranks r0 < r1 whose upper tails bracket
+          // alpha/2, starting from the normal approximation.
+          let r1 = Math.min(high, n + 1),
+            r0 = r1 - 1,
+            p0 = upperBinomial(n, r0, quant),
+            p1 = upperBinomial(n, r1, quant);
+          for (;;) {
+            if (p0 > alpha2) {
+              if (p1 <= alpha2) break;
+              r0 = r1;
+              p0 = p1;
+              r1 += 1;
+              p1 = upperBinomial(n, r1, quant);
+            } else if (p0 === alpha2) {
+              r1 = r0;
+              p1 = p0;
+              break;
+            } else {
+              r1 = r0;
+              p1 = p0;
+              r0 -= 1;
+              p0 = upperBinomial(n, r0, quant);
+            }
+          }
+          if (r0 >= n || r0 < 1) {
+            upper = r0 >= n ? Y(n) : Y(1);
+            mark = "*";
+            anyMark = true;
+          } else
+            upper = options.cci
+              ? Y(r1)
+              : Y(r0) + ((p0 - alpha2) / (p0 - p1)) * (Y(r1) - Y(r0));
+          // The lower limit, from lower tails the same way.
+          r1 = Math.max(low, 0);
+          r0 = r1 - 1;
+          p0 = 1 - upperBinomial(n, r0 + 1, quant);
+          p1 = 1 - upperBinomial(n, r1 + 1, quant);
+          for (;;) {
+            if (p1 > alpha2) {
+              if (p0 <= alpha2) break;
+              r1 = r0;
+              p1 = p0;
+              r0 -= 1;
+              p0 = 1 - upperBinomial(n, r0 + 1, quant);
+            } else if (p0 === alpha2) {
+              r0 = r1;
+              p0 = p1;
+              break;
+            } else {
+              r0 = r1;
+              p0 = p1;
+              r1 += 1;
+              p1 = 1 - upperBinomial(n, r1 + 1, quant);
+            }
+          }
+          if (r1 >= n || r1 < 1) {
+            lower = r1 >= n ? Y(n) : Y(1);
+            mark = "*";
+            anyMark = true;
+          } else
+            lower = options.cci
+              ? Y(r1)
+              : Y(r1) + ((alpha2 - p0) / (p1 - p0)) * (Y(r1 + 1) - Y(r1));
+        }
+      }
+      if (n) {
+        let line = j
+          ? "             |"
+          : `${abbreviateAmong(name, 12).padStart(12)} |${applyFormat(n, "%10.0fc")}`;
+        line = at(line, 29, applyFormat(p, "%7.0g"));
+        line = at(line, 39, applyFormat(value, shape));
+        line = at(line, 55, applyFormat(lower, shape));
+        line = at(line, 67, applyFormat(upper, shape)) + mark;
+        ctx.out(line);
+      } else if (!j)
+        ctx.out(
+          `${abbreviateAmong(name, 12).padStart(12)} |${applyFormat(0, "%8.0f")}`,
+        );
+      posted.push(
+        [`c_${j + 1}`, value],
+        [`lb_${j + 1}`, lower],
+        [`ub_${j + 1}`, upper],
       );
     });
   }
+  if (anyMark) {
+    ctx.out("");
+    ctx.out(
+      `${mark} Lower (upper) confidence limit held at minimum (maximum) of sample`,
+    );
+  }
   ctx.out("");
-  ctx.out("(confidence limits for centiles are not computed here)");
-  session.results.r = { ...results, n_cent: wanted.length };
+  const results = new Map(posted);
+  // Each name keeps the place it was first posted in.
+  const ordered = [...new Set(posted.map(([key]) => key))].map((key) => [
+    key,
+    results.get(key),
+  ]);
+  session.results.r = Object.fromEntries(
+    [
+      ...ordered,
+      ["N", n],
+      ["n_cent", wanted.length],
+      ["centiles", wanted.map(formatNumber).join(" ")],
+    ].reverse(),
+  );
 }
 
 const command = (name, minimum, run, byable = false) => ({
@@ -2376,7 +2885,7 @@ export const COMMANDS = [
   command("compress", 8, compress),
   command("collapse", 8, collapse),
   command("xtile", 5, xtile),
-  command("centile", 7, centile),
+  command("centile", 7, perGroup(centile), true),
   command("count", 3, noEqualsInIf(perGroup(countCommand)), true),
   command("summarize", 2, perGroup(summarize), true),
   command("tabulate", 2, perGroup(tabulate), true),
@@ -2423,6 +2932,9 @@ export const COMMANDS = [
       else session.globals.delete(name);
     }
   }),
+  command("xi", 2, xi),
+  command("tokenize", 8, tokenize),
+  command("gettoken", 8, gettoken),
   command("tempvar", 7, temporary("")),
   command("tempname", 8, temporary("")),
   command("tempfile", 8, temporary("")),

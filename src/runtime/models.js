@@ -7,7 +7,7 @@ import { firstStage, ivDiagnostic, sweptColumns } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
 import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { abbreviateAmong, applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import { count } from "./reports.js";
@@ -1746,9 +1746,12 @@ function predict(session, text, ctx) {
         : key === "pr"
           ? `Pr(${model.depvar})`
           : label;
+  // After logit and probit, Stata's xb and stdp say "values" even for one.
+  const plural =
+    made.missing !== 1 || (family.binary && (wantXb || parsed.options.stdp));
   if (made.missing)
     ctx.out(
-      `(${count(made.missing)} missing value${made.missing === 1 ? "" : "s"} generated)`,
+      `(${count(made.missing)} missing value${plural ? "s" : ""} generated)`,
     );
 }
 
@@ -1919,8 +1922,11 @@ function estat(session, text, ctx) {
     });
     // vif.ado sorts by VIF, largest first, unless the model has factor
     // variables. It keeps each VIF in a float variable.
-    if (!model.columns.some((c) => c?.term?.components?.some((p) => p.factor)))
-      vifs.sort((a, b) => b[1] - a[1]);
+    const factors = model.columns.some(
+      (c) =>
+        c?.term?.components?.some((p) => p.factor) || /#/.test(c?.name ?? ""),
+    );
+    if (!factors) vifs.sort((a, b) => b[1] - a[1]);
     vifs.forEach((v) => (v[1] = Math.fround(v[1])));
     // r(vif_#) and r(name_#), numbered in the order shown; return list
     // shows the last set first, as vif.ado sets them.
@@ -1935,10 +1941,40 @@ function estat(session, text, ctx) {
     ctx.out("");
     ctx.out("    Variable |       VIF       1/VIF  ");
     ctx.out("-------------+----------------------");
-    for (const [name, vif] of vifs)
-      ctx.out(
-        `${name.padStart(12)} |${applyFormat(vif, "%10.2f")}${applyFormat(1 / vif, "%12.6f")}`,
-      );
+    const cell = (vif) =>
+      `${applyFormat(vif, "%10.2f")}${applyFormat(1 / vif, "%12.6f")}`;
+    if (factors) {
+      // With factor variables the rows are laid out as the coefficient
+      // table lays them out, without its blank rows, base levels and
+      // constant.
+      const byIndex = new Map();
+      model.names.forEach((name, k) => {
+        const found = vifs.find((v) => v[0] === name);
+        if (found && model.estimable[k]) byIndex.set(k, found[1]);
+      });
+      // vif names levels by their values, not their value labels.
+      const labels = session.data.valueLabels;
+      session.data.valueLabels = new Map();
+      let lines;
+      try {
+        lines = termRows(
+          session,
+          model,
+          (k) => (byIndex.has(k) ? cell(byIndex.get(k)) : "\0"),
+          12,
+        );
+      } finally {
+        session.data.valueLabels = labels;
+      }
+      lines
+        .filter(
+          (line) =>
+            !/^\s*\|$/.test(line) && !/\((base|omitted|empty)\)|\0/.test(line),
+        )
+        .forEach((line) => ctx.out(line));
+    } else
+      for (const [name, vif] of vifs)
+        ctx.out(`${name.padStart(12)} |${cell(vif)}`);
     ctx.out("-------------+----------------------");
     ctx.out(
       `${"Mean VIF".padStart(12)} |${applyFormat(vifs.reduce((t, v) => t + v[1], 0) / vifs.length, "%10.2f")}`,
@@ -2228,20 +2264,42 @@ function estimatesCommand(session, text, ctx) {
     // estimates restore is r-class: r() holds only the name restored.
     session.results.r = { names: name };
     ctx.out(`(results ${name} are active now)`);
+  } else if (/^rep(l(ay?)?)?$/.test(action)) {
+    // Each fit as it was shown, under a heading that names it.
+    const rule = "-".repeat(session.settings.linesize ?? 79),
+      names = name ? name.split(/\s+/) : [null];
+    for (const key of names) {
+      const model = key === null ? session.estimates : stored.get(key)?.model;
+      if (key !== null && !stored.has(key))
+        throw new StataError(`estimation result ${key} not found`, 111);
+      if (!model?.replay) throw new StataError("last estimates not found", 301);
+      ctx.out("");
+      ctx.out(rule);
+      ctx.out(key === null ? "active results" : `Model ${key}`);
+      ctx.out(rule);
+      ctx.out("");
+      model.replay.lines.forEach((line) => ctx.out(line));
+    }
   } else if (action === "dir") {
     if (!stored.size) return;
+    // The table is as wide as its longest title.
+    const titleOf = (model) => model.title ?? "Linear regression",
+      width =
+        47 +
+        Math.max(
+          6,
+          ...[...stored.values()].map(({ model }) => titleOf(model).length),
+        );
     ctx.out("");
-    ctx.out("-".repeat(66));
+    ctx.out("-".repeat(width));
     ctx.out("             |           Dependent  Number of        ");
     ctx.out("        Name | Command    variable     param.  Title ");
-    ctx.out(
-      "-------------+----------------------------------------------------",
-    );
+    ctx.out(`-------------+${"-".repeat(width - 14)}`);
     for (const [key, { model }] of stored)
       ctx.out(
-        `${key.padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${model.title ?? "Linear regression"}`,
+        `${abbreviateAmong(key, 12).padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${titleOf(model)}`,
       );
-    ctx.out("-".repeat(66));
+    ctx.out("-".repeat(width));
   } else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
   else if (/^stats?$/.test(action)) estimatesStats(session, rest, ctx);
   else if (action === "clear") {

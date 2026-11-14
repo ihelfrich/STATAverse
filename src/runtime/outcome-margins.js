@@ -100,7 +100,7 @@ export function outcomeMargins(session, model, text, ctx) {
       322,
     );
   const parsed = session.parse(
-      "[anything] [, DYdx(string) AT(string) ATMeans Level(cilevel) PRedict(string) | noSE POST OVER(varlist) EXPression(string)]",
+      "[anything] [, DYdx(string) AT(string) ATMeans Level(cilevel) PRedict(string) VSQuish | noSE POST OVER(varlist) EXPression(string)]",
       text,
     ),
     options = parsed.options,

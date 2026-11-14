@@ -1692,7 +1692,13 @@ function anova(session, text, ctx) {
           ? `${applyFormat(ss / df / mse, "%10.2f")}${applyFormat(Ftail(df, dfResidual, ss / df / mse), "%8.4f")}`
           : ""
       }`,
-    split = `${" ".repeat(14)}-----------+${"-".repeat(52)}`;
+    // The rule under Source reaches one column past the longest term.
+    labelOf = (term) => term.key.replace(/(^|#)[ci]\./g, "$1"),
+    widest = Math.min(
+      23,
+      Math.max(10, ...built.map((term) => labelOf(term).length)),
+    ),
+    split = `${" ".repeat(24 - widest)}${"-".repeat(widest + 1)}+${"-".repeat(52)}`;
   if (dfResidual < 1) throw new StataError("insufficient observations", 2001);
   ctx.out("");
   ctx.out(
@@ -1712,7 +1718,7 @@ function anova(session, text, ctx) {
     const without = fitOf(built.filter((other) => other !== term));
     ctx.out(
       row(
-        term.key.replace(/(^|#)[ci]\./g, "$1"),
+        labelOf(term),
         without.rss - full.rss,
         full.rank - without.rank,
         true,

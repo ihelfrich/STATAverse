@@ -28,6 +28,7 @@ import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientIndex, tableResults } from "./estimation.js";
 import { echoOf } from "./echo.js";
+import { perGroup } from "./reports.js";
 
 const MAX_STEPS = 200000;
 // Commands that never change the data, after which there is no need to see
@@ -301,6 +302,93 @@ function findCommand(word) {
     (c) => word.length >= c.minimum && c.name.startsWith(word),
   );
 }
+
+// Estimation commands that are byable(recall) in Stata: under by they fit
+// one model for each group, under the group's heading.
+const BY_RECALL = new Set([
+  "regress",
+  "logit",
+  "logistic",
+  "probit",
+  "poisson",
+  "nbreg",
+  "tobit",
+  "ologit",
+  "oprobit",
+  "mlogit",
+  "glm",
+  "qreg",
+  "cloglog",
+  "ivregress",
+  "areg",
+]);
+// Estimation commands that, typed alone, show the last fit again; with no
+// fit there is nothing to show (r(301)).
+const REPLAYED = new Set([...BY_RECALL, "xtreg", "rreg", "intreg", "truncreg"]);
+// Prefix commands, which run an estimator and show their own replay.
+const PREFIX_COMMANDS = new Set([
+  "svy",
+  "bootstrap",
+  "jackknife",
+  "statsby",
+  "simulate",
+  "permute",
+  "rolling",
+  "nestreg",
+  "stepwise",
+  "xi",
+  "mi",
+]);
+// The options a replay takes: those that change how the fit is shown.
+const REPLAY_OPTIONS =
+  /^(l(e(v(el?)?)?)?|or|irr|rrr|eform|hr|beta|nohe(a(d(er?)?)?)?|notable|nocnsr(e(p(o(rt?)?)?)?)?|noomit(t(ed?)?)?|vsquish|base(l(e(v(e(ls?)?)?)?)?)?|allbase(l(e(v(e(ls?)?)?)?)?)?|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|nolstretch)$/;
+function replays(session, command, body) {
+  const replay = session.estimates?.replay,
+    last = replay?.command === command.name;
+  // Prefix commands replay themselves, and an estimator typed alone after
+  // one of them (svy: regress, then regress) is theirs to show.
+  if (PREFIX_COMMANDS.has(command.name)) return false;
+  if (PREFIX_COMMANDS.has(replay?.command)) return false;
+  if (!last && !REPLAYED.has(command.name)) return false;
+  // Typed alone or with options only; a prefix such as bootstrap, ...: is
+  // not a replay.
+  if (/:/.test(body)) return false;
+  let head;
+  try {
+    head = splitAtComma(body)[0];
+  } catch {
+    return false;
+  }
+  if (head.trim()) return false;
+  if (last) return true;
+  throw new StataError("last estimates not found", 301);
+}
+/**
+ * A fit's lines as a replay shows them: without the iteration log, notes
+ * and the other lines a fit prints before its header.
+ */
+function fitTable(lines) {
+  let k = 0;
+  while (
+    k < lines.length &&
+    /^(\s*$|\s*(Iteration \d+|Huber iteration|Biweight iteration|Fitting |Refining |Grid node|Calculating|Initial:|Rescale|Alternative:|Feasible|note:|\(sum of wgt|\(fitting|\(\d+ (observations?|missing|real changes)|Performing))/.test(
+      lines[k],
+    )
+  )
+    k++;
+  return lines.slice(k);
+}
+
+// The e() results whose scalars have been posted again by a command that
+// holds the estimates (see dispatch).
+const heldScalars = new WeakSet();
+
+/**
+ * What an r-class program returned, as r() holds it: return list shows the
+ * last result returned first, as Stata does (an e-class program's results
+ * keep the order they were set in).
+ */
+const posted = (staged) => Object.fromEntries(Object.entries(staged).reverse());
 
 export class Session {
   constructor() {
@@ -776,15 +864,40 @@ export class Session {
       // With no observations there are no groups, and by runs nothing:
       // even generate creates no variable.
       if (flags.by && !flags.by.groups.length && command.byable) return;
-      if (flags.by && !command.byable)
+      const recall = flags.by && !command.byable && BY_RECALL.has(command.name);
+      if (flags.by && !command.byable && !recall)
         throw new StataError(
           `${command.name} may not be combined with by`,
           190,
         );
       let value;
-      const before = this.estimates;
+      const before = this.estimates,
+        // Where the lines of the fit start: after by's heading for the last
+        // group, so that a replay shows that group's fit.
+        // (A command run by another may pass an object with push only.)
+        start = { at: lines.length ?? 0 },
+        replayed = !flags.by && replays(this, command, body);
       try {
-        value = command.run(this, body, ctx);
+        if (replayed) value = this.replay(command, body, ctx, lines);
+        else if (recall)
+          value = perGroup((session, text, inner) => {
+            const rows = new Set(),
+              outer = this.panelRows;
+            for (
+              let i = inner.group.start;
+              i < inner.group.start + inner.group.count;
+              i++
+            )
+              if (!outer || outer.has(i)) rows.add(i);
+            start.at = lines.length ?? 0;
+            this.panelRows = rows;
+            try {
+              return command.run(this, text, { ...inner, by: undefined });
+            } finally {
+              this.panelRows = outer;
+            }
+          })(this, body, ctx);
+        else value = command.run(this, body, ctx);
       } catch (error) {
         if (error instanceof StataError) {
           const left = FAILED_R.get(command.name)?.(error.code, {
@@ -802,6 +915,35 @@ export class Session {
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
       const model = this.estimates;
+      // Stata's estat ic, ovtest, imtest, hettest and vif, and lincom, hold
+      // the estimates while they work and post them again, and e()'s
+      // scalars then list in the reverse of the order the fit stored them.
+      const e = this.results.e;
+      if (
+        e &&
+        !heldScalars.has(e) &&
+        (command.name === "lincom" ||
+          (command.name === "estat" &&
+            /^\s*(ic|ovt\w*|imt\w*|hett\w*|vif)\b/.test(body)))
+      ) {
+        const entries = Object.entries(e),
+          numbers = entries.filter(([, v]) => typeof v === "number").reverse(),
+          reordered = Object.fromEntries([
+            ...numbers,
+            ...entries.filter(([, v]) => typeof v !== "number"),
+          ]);
+        heldScalars.add(reordered);
+        this.results.e = reordered;
+        if (this.meanTotalResults?.e === e) this.meanTotalResults.e = reordered;
+      }
+      // What a fit printed, which the command typed alone, and estimates
+      // replay, show again.
+      if (model && model !== before && !NO_TABLE.has(command.name))
+        model.replay = {
+          command: command.name,
+          body,
+          lines: Array.isArray(lines) ? fitTable(lines.slice(start.at)) : [],
+        };
       // A fit's weight expression, which estat summarize weights with, kept
       // where the command did not keep it.
       if (model && model !== before && !model.wexp) {
@@ -828,7 +970,57 @@ export class Session {
       return value;
     }
     if (this.programs.has(word)) return this.call(word, body, ctx);
+    // A loop typed without its opening brace.
+    if (/^(foreach|forv(a(l(u(es?)?)?)?)?|while)$/.test(word))
+      throw new StataError("{ required", 100);
     throw new StataError(`command ${word} is unrecognized`, 199);
+  }
+
+  /**
+   * An estimation command typed with no varlist shows the last fit again,
+   * as Stata's replay does: without its iteration log, and with display
+   * options such as level(), or and irr applied. Those options refit the
+   * model from the command as typed; when the data have changed since, the
+   * fit would differ, and the command is refused.
+   */
+  replay(command, body, ctx, lines) {
+    const model = this.estimates,
+      { replay } = model,
+      options = splitAtComma(body)[1]?.trim() ?? "";
+    if (!options) {
+      for (const line of ["", ...replay.lines]) ctx.out(line);
+      return;
+    }
+    for (const option of options.match(/[A-Za-z_]\w*(\([^)]*\))?/g) ?? []) {
+      const name = /^\w+/.exec(option)[0];
+      if (!REPLAY_OPTIONS.test(name))
+        throw new StataError(`option ${name} not allowed`, 198);
+    }
+    const [head, typed] = splitAtComma(replay.body),
+      e = this.results.e,
+      shown = [];
+    try {
+      command.run(this, `${head}, ${typed ?? ""} ${options}`, {
+        ...ctx,
+        out: (line) => shown.push(line),
+      });
+    } finally {
+      const refit = this.estimates,
+        N = this.results.e?.N;
+      this.estimates = model;
+      this.results.e = e;
+      const same = (a, b) =>
+        !a ||
+        !b ||
+        (a.length === b.length &&
+          a.every((x, k) => Math.abs(x - b[k]) <= 1e-9 * (1 + Math.abs(x))));
+      if (refit !== model && (N !== e.N || !same(refit?.b, model.b)))
+        throw new StataError(
+          "the data have changed since these estimates were made; type the whole command to fit the model again",
+          198,
+        );
+    }
+    for (const line of ["", ...fitTable(shown)]) ctx.out(line);
   }
 
   byPrefix(text, sort) {
@@ -1032,6 +1224,16 @@ export class Session {
       this.runNodes(program.body, frame, inner);
     } catch (error) {
       this.inProgram -= 1;
+      // The line that failed reported the error; the program's caller
+      // reports it again, so it is shown once, as Stata shows it.
+      const failed =
+        error instanceof StataError ? inner.findLast((r) => r.rc) : null;
+      if (failed && failed.rc === error.code) {
+        const lines = [...failed.lines];
+        if (lines.at(-1) === `r(${error.code});`) lines.pop();
+        if (error.message && lines.at(-1) === error.message) lines.pop();
+        failed.lines = lines;
+      }
       for (const record of inner) record.lines.forEach(ctx.out);
       // An r-class program posts what it has returned so far even when it
       // fails, as Stata does: r() is then empty or holds only those values.
@@ -1040,14 +1242,14 @@ export class Session {
       // failure, and an estimation command run inside keeps what it posted.
       const exit = error instanceof Signal && error.kind === "exit";
       if (rclass && (exit || error instanceof StataError))
-        this.results.r = frame.returns.r;
+        this.results.r = posted(frame.returns.r);
       if (exit && error.code) throw new StataError("", error.code);
       if (!exit) throw error;
       return;
     }
     this.inProgram -= 1;
     for (const record of inner) record.lines.forEach(ctx.out);
-    if (rclass) this.results.r = frame.returns.r;
+    if (rclass) this.results.r = posted(frame.returns.r);
   }
 
   // ----- data entry -----
