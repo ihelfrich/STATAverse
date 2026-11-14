@@ -14313,6 +14313,170 @@ display "[" %3.0g . "]"
 display "[" %2.1g . "]"
 display "[" %-2.1g .a "]"
 === fix6-correlate-panels-and-covariance
+=== redteam6-display-commas
+display 1, 2
+display 1,2
+display "a", "b"
+display date("15mar2021","DMY"), 3
+display %9.2f 3.14159, %9.2f 2.71
+display 1,,2
+display 1,,,2
+display 1 _n , 2
+display "x" _col(5), "y"
+display max(1,2), 3
+display _char(65) _char(66) "c"
+display "[" _char(233) "]"
+display %5.2f "a"
+display %10s 5
+display "a" "unterminated
+display %tdMonth_dd,_CCYY mdy(1,1,2020)
+=== redteam6-display-columns
+display "西部" _col(10) "|"
+display %10s "西部" "|"
+display %10s "é" "|"
+display %-10s "西部" "|"
+display %~10s "西部" "|"
+display %-10s "é" "|"
+display "é" _col(10) "|"
+display udstrlen("西部地区")
+display udstrlen("abc西部é")
+display "[" udsubstr("西部地区",2,3) "]"
+display "[" udsubstr("西部地区",-2,4) "]"
+display "[" udsubstr("ab西部",1.7,2.6) "]"
+=== redteam6-smcl-directives
+set linesize 79
+display "{c 124}"
+display "A{c 124}B"
+display "{c |}{c -}{c +}{c TT}{c BT}{c LT}{c RT}{c TLC}{c BRC}"
+display "{c S|}{c -(}{c )-}{c a'}{c e'g}{c a:}{c 0x41}{c 233}{c 150}|"
+display "{col 10}x"
+display "ab{col 10}x{col 3}y"
+display "{ralign 10:x}|{lalign 10:x}|{center 10:x}|"
+display "{rcenter 9:xy}|{center 9:xy}|{ralign 3:abcdef}|"
+display "{p}" "paragraph"
+local a "Lorem ipsum dolor sit amet, consectetur adipiscing elit,"
+local b "sed do eiusmod tempor incididunt ut labore et dolore"
+display "{p 4 8 2}`a' `b' `a'{p_end}"
+display "{pstd}`a' `b'{p_end}" "next"
+display "{phang}`a' `b'{p_end}"
+display "{p 4 6 30}`a' `b'{p_end}"
+display "{p}{bf:`a'} `b' `a'"
+display "{hline 5}|{hline}"
+display "a{space 3}b{dup 3:ab}|"
+display "{bf:bold} {it:it} {cmd:cmd} {res:res} {txt:txt} {err:err}"
+display "{help regress:Regress} {help regress} {manlink R regress}"
+display "{foo}|{foo:bar}|{c xyz}|{help}|"
+display "{title:Title}|"
+display "x{p}y"
+display "{p}x{break}y z"
+display "{p}ab" "cd" "{p_end}" "e" "{p}f"
+display "{lalign 4:西部}|"
+display "{center:mid}"
+display "{right:right}"
+display "{bf}a{sf}" _col(10) "|"
+display "{ralign 6:{c 124}}|"
+display "{txt}{hline 3}{c +}" _col(10) "|"
+local x : display "{c 124}"
+display strlen(`"`x'"')
+set linesize 200
+=== redteam6-syntax-errors
+clear
+set obs 5
+generate score = _n
+generate income = 100 * _n
+generate region = mod(_n, 2)
+capture noisily display score[
+display _rc
+capture noisily display (1,2)
+display _rc
+capture noisily display "a" foo
+capture noisily display "tab" _tab "x"
+display _rc
+capture noisily list income in 0
+capture noisily list income in 5/0
+capture noisily list income in -100
+capture noisily list income in 2/100
+capture noisily summarize income,, detail
+summarize income,,
+capture noisily tabulate region,, missing
+summarize income, detail,
+capture noisily summarize income, detail, meanonly
+capture noisily summarize income, by(region)
+capture noisily regress income score, foo(1)
+capture noisily ci means income, by(region)
+capture noisily egen m = mean(income), by(region
+display _rc
+capture noisily summarize income, level(95
+capture noisily summarize income if region = 1
+capture noisily generate y = income if region = 1
+capture noisily rename income
+capture noisily rename
+capture noisily rename a b c
+capture noisily rename , upper
+capture noisily rename (income score region) (a b)
+capture noisily rename (income) (a b c)
+=== redteam6-ttest-qualifier-first
+clear
+set seed 4
+set obs 20
+generate income = 20000 + 8000 * runiform()
+generate female = runiform() < .4
+ttest income in 1/5 == 0
+prtest female in 1/10 == .5
+ttest income in 1/1 == 0
+ttest income in 1/5 == 20000, level(90)
+ttest income in 2/9 == female
+prtest female in 1/10 == .4, level(90)
+capture noisily ttest income in 1/5 if female == 0
+=== redteam6-ttest-prtest-wide-labels
+clear
+set seed 12345
+set obs 58
+generate byte region = cond(_n <= 15, 4, 1 + mod(_n, 3))
+generate score = round(50 + 8 * runiform(), 0.01)
+generate byte pass = runiform() < 0.5
+generate byte cj = region == 4
+label define cjl 0 "其他地区" 1 "西部地区的城市"
+label values cj cjl
+ttest score, by(cj)
+prtest pass, by(cj)
+label define cjl 0 "é地区" 1 "西部", modify
+ttest score, by(cj)
+prtest pass, by(cj)
+label define cjl 0 "abcdefghijklmnopq" 1 "西部地区的城市西部地区的城市", modify
+ttest score, by(cj)
+prtest pass, by(cj)
+generate str20 s = cond(cj, "西部地区的城市", "其他地区")
+ttest score, by(s)
+prtest pass, by(s)
+=== redteam6-mean-over-wide-labels
+set linesize 79
+clear
+set seed 4242
+set obs 200
+generate region = 1 + floor(runiform() * 4)
+generate cj = 1 + floor(runiform() * 3)
+generate income = 20000 + 10000 * runiform()
+generate score = 40 + 20 * runiform()
+generate w = 1 + floor(runiform() * 3)
+label define rl 1 "North" 2 "South" 3 "East" 4 "西部地区"
+label values region rl
+label define cjl 1 "东部" 2 "其他地区" 3 "西部地区的城市"
+label values cj cjl
+mean income, over(region)
+mean income score, over(cj)
+proportion cj
+total income, over(cj)
+total income [pw=w], over(region)
+mean income [pw=w], over(region)
+label define cjl 3 "西部地区的城市西部地区的城市西部地区的城市", modify
+mean income, over(cj)
+proportion cj
+label define cjl 3 "西部地区的城市 西部地区的城市西部地区的城市", modify
+mean income, over(cj)
+set linesize 200
+=== redteam6-mean-over-long-names
+set linesize 79
 clear
 set seed 4242
 set obs 60
@@ -14718,3 +14882,408 @@ display _rc
 clear
 capture noisily summarize, meanonly detail
 display _rc
+generate thirteen_char = id
+generate another_long_group_variable = 1 + mod(_n, 2)
+generate score = 40 + 20 * runiform()
+mean thirteen_char, over(another_long_group_variable)
+total thirteen_char score, over(another_long_group_variable)
+generate a_very_long_variable_name_x = score
+mean a_very_long_variable_name_x, over(another_long_group_variable)
+generate abcdefghij = score
+generate abcdefghijk = score
+generate grp_var_x_abcde = 1 + mod(_n, 3)
+mean abcdefghij, over(grp_var_x_abcde)
+mean abcdefghijk, over(grp_var_x_abcde)
+generate abcdefghijklmnopqrstuvwxyz_abcd = score
+mean abcdefghijklmnopqrstuvwxyz_abcd, over(grp_var_x_abcde)
+set linesize 200
+=== redteam6-cii-total
+clear
+set seed 31
+set obs 12
+generate income = round(runiform() * 200000)
+generate g = 1 + (runiform() < .4)
+generate w = 1 + floor(runiform() * 3)
+generate sc = runiform() * 10
+replace sc = . in 3
+cii means 30 5 2
+return list
+cii means 30 5 2, level(90)
+cii mean 100 -3.25 1.75
+cii means 30 12345678 99999
+capture noisily cii means 30 5
+capture noisily cii means 0 5 2
+capture noisily cii means 30 5 -1
+capture noisily cii 30 5 2
+total income
+total income sc
+total income, over(g)
+total income [fw=w]
+total income [pw=w]
+total income [iw=w]
+capture noisily total income [aw=w]
+total income sc, over(g) level(90)
+total income if g == 1
+total income [pw=w], over(g)
+=== redteam6b-display-items
+display _char(65)_char(66)
+display "x"_char(65)
+display _char(65)"x"
+display _skip(2)_char(65)
+display _col(5)"x"
+display "a"_n"b"
+display _dup(3)"a"
+display "a"1
+display "a"(1+1)
+display "a""b"
+display `"a"'"b"
+display _quote "q" _quote
+display _quote"q"_quote
+display _quote(2)
+display _col(-3) "x"
+display _col(0) "x"
+display _col(+3) "x"
+display _col( 3 ) "x"
+display _col (5) "x"
+display _skip(-2) "x"
+display _skip "x"
+display "a" _s "b"
+display _dup(0) "a" "|"
+display _du(2) "a"
+display _dup(2) _col(3) "x"
+display _dup(2) _skip(1) "x"
+display _dup(2) , "x"
+display _dup(2) _dup(2) "x"
+display _dup(2) %5.2f 1
+display _dup(2) as res "x"
+display _n(0) "a"
+display _newli "x"
+display _ski(2) "x"
+display _colu(2) "x"
+display _co(2) "a"
+display "ab" _char(9) "|"
+display "abcdefgh" _char(9) "|"
+display "a" _char(10) "b"
+display "[" _char(128) "|" _char(159) "|" _char(255) "]"
+display _char( 65 ) _char(065) _char(+65)
+display `"unterminated
+display "abc" "
+display "abc""
+display `"a"' `"
+display `"a `"b"' c"'
+display "a" as txt "b" as r "b" as err "b" as inp "b" as smcl "b"
+display "a" in g "b" in smcl "b"
+display 3 _col(10) "y"
+display %5.2f 3 _col(1) "x"
+display "x" +1 "y" -1
+display 3 + 4 "x"
+display "a" == "b"
+local m : display _col(5) "x" _skip(-2) _char(66)
+display `"[`m']"'
+local m : display _char(9) "x"
+display `"[`m']"'
+=== redteam6b-display-item-errors
+scalar s = "a"
+capture noisily display _col(3.7) "x"
+display _rc
+capture noisily display _col(2+1) "x"
+capture noisily display _skip(.) "x"
+capture noisily display _dup(-2) "a"
+capture noisily display _n(-1) "a"
+capture noisily display _char(256)
+capture noisily display _char(0) "|"
+capture noisily display _char(-1)
+capture noisily display _char(65.7)
+capture noisily display _char(.)
+capture noisily display _char("a")
+capture noisily display _char(66+1)
+capture noisily display _char()
+capture noisily display _char(65
+display _rc
+capture noisily display _char(65)_char(66
+capture noisily display _col "x"
+capture noisily display _dup "x"
+capture noisily display _ch(65)
+capture noisily display _quotex
+capture noisily display "a"1"b"
+display _rc
+capture noisily display 1"a"
+capture noisily display sx"a"
+capture noisily display 1+2"x"
+capture noisily display "T: " + string(5)
+display _rc
+capture noisily display "T: " + "b"
+capture noisily display "T: " + s
+capture noisily display "x" * "b"
+capture noisily display "a" != "b"
+capture noisily display "a" < "b"
+capture noisily display "a" foo(1)
+capture noisily display "a" _n "b" foo(1)
+capture noisily display "a" nosuch
+capture noisily display "a" as foo "b"
+capture noisily display "a" as te "b"
+capture noisily display "a" in "b"
+capture noisily display "abc"" "x"
+display _rc
+=== redteam6b-smcl-negative-and-links
+set linesize 79
+display "{col -2}x"
+display "abc{col -2}x"
+display "{col 3.7}x"
+display "{hline -3}x"
+display "abc{hline -3}x"
+display "{hline 3}{hline -3}x"
+display "{hline -79}x"
+display "{hline -100}x"
+display "abc{hline -77}x"
+display "{hline 0}x"
+display "{p}{hline -3}x{p_end}"
+display "{space -2}x{dup -2:ab}{ralign -3:ab}"
+display `"{browse "http://www.stata.com":Stata}"'
+display `"{browse "http://www.stata.com"}"'
+display `"{help "summarize"}"'
+display `"{browse "http://www.stata.com/a b":Stata site}"'
+display `"{help "sum mar"}"'
+display `"{stata "summarize x":run it}"'
+display `"{stata "summarize x"}"'
+display `"{help "summarize"##syntax:syn}"'
+display `"{view "a.log"}"'
+display `"{browse http://www.stata.com}"'
+display `"{browse "a":b:c}"'
+display `"{browse "a"x:b}"'
+display `"{browse "a" "b"}"'
+display `"{browse a "b"}"'
+display `"{help "a:b"}"'
+display `"{bf:"a:b"}"'
+display `"{browse "unclosed}"'
+display `"{stata `"sum x"':run}"'
+display `"{dialog "a"}"'
+set linesize 200
+=== redteam6b-mean-labels-tilde
+set linesize 79
+clear
+set seed 2024
+set obs 30
+generate score = round(50 + 20*runiform(), .01)
+generate byte g = mod(_n, 2)
+label define gl 0 "east" 1 "abcdefghijklmnopqrstuvwxyz_abcd"
+label values g gl
+mean score, over(g)
+proportion g
+total score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_ab", modify
+mean score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_abcdef", modify
+mean score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_", modify
+mean score, over(g)
+label define gl 1 "1bcdefghijklm.opqrstu-wxyz_abcd", modify
+mean score, over(g)
+label define gl 1 "Ölçek_ölçüm_değeri_çok_uzun_bir_x", modify
+mean score, over(g)
+proportion g
+label define gl 1 "Ölçek_ölçüm_değeri_çok_uzun_bir", modify
+mean score, over(g)
+label define gl 1 "Ölçek ölçüm değeri çok uzun bir", modify
+mean score, over(g)
+label define gl 1 "éééééééééééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "éééééééééééééééééééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "abc ééééééééééééééééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€", modify
+mean score, over(g)
+label define gl 1 "aa€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€", modify
+mean score, over(g)
+label define gl 1 "ддддддддддддддддддддддддддддддддддддддддд", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市西部地区的城市西部地区的城市", modify
+mean score, over(g)
+label define gl 1 "a西部地区的城市西部地区的城市西部地区的城市西部地区的城市", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市西部地区的城市西部地区的城市西部地区", modify
+mean score, over(g)
+label define gl 1 "éééééééééééééééééééé西部地区的城市西部地区的城市西部地区", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市西部地区 éééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "é é é é é é 西部地区的城市西部地区的城市西部地区", modify
+mean score, over(g)
+proportion g
+set linesize 100
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcd", modify
+mean score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_abcdefghij", modify
+mean score, over(g)
+set linesize 200
+=== redteam6b-total-mean-options
+clear
+set seed 99
+set obs 25
+generate income = round(1000 + 5000*runiform(), .01)
+generate byte region = 1 + floor(4*runiform())
+generate w = 1 + floor(3*runiform())
+generate s = cond(_n < 10, "a", "b")
+generate byte grp = mod(_n, 3)
+generate c = 5
+label define rl 1 "North" 2 "South" 3 "East" 4 "West"
+label values region rl
+capture noisily total income region, over(region)
+capture noisily mean income region, over(region)
+total income, level(99.5)
+mean income, level(99.5)
+total income, level(90)
+total income, noheader
+mean income, noheader level(90) cformat(%8.1f)
+total income, cformat(%9.2f)
+mean income, over(region) cformat(%9.3f)
+mean income, cformat(%9.2fc)
+capture noisily mean income, cformat(%9s)
+display _rc
+capture noisily mean income, cformat(abc)
+total income, coeflegend
+mean income, over(region) coeflegend
+mean income, coeflegend level(90)
+total income, nolegend
+total income, over(region) nolegend
+total income, over(region) nofvlabel
+total income, over(region, nolabel)
+total income, vce(cluster region)
+mean income, vce(cluster region)
+total income, cluster(region)
+mean income, vce(cl region)
+total income, vce(cluster s)
+capture noisily total income, vce(cluster nosuch)
+capture noisily total income, vce(robust)
+display _rc
+total income [pw=w], vce(cluster region)
+total income [fw=w], vce(cluster region)
+total income [iw=w], vce(cluster region)
+mean income [pw=w], vce(cluster region)
+mean income if region < 3, vce(cluster region)
+total income, vce(cluster region) noheader
+total income, vce(cluster region) coeflegend
+total income, over(grp) vce(cluster region)
+mean income, over(grp) vce(cluster region) cformat(%9.2f)
+ereturn list
+return list
+total
+capture noisily total, over(region)
+capture noisily mean, over(region)
+capture noisily mean
+display _rc
+mean income
+ereturn list
+mean, level(90) noheader
+total income, over(region)
+ereturn list
+return list
+mean income, over(region grp)
+total income, over(region grp)
+mean income, over(region grp) coeflegend
+mean c
+mean c, over(grp)
+total c
+generate income2 = income / 3
+replace income2 = . in 4
+mean income income2, vce(cluster region)
+total income income2, vce(cluster region) level(90)
+=== redteam6b-cii-arguments
+cii means 30 5 2
+capture noisily cii means 30 . 2
+display _rc
+return list
+cii means 30 5 2
+capture noisily cii means . 5 2
+display _rc
+capture noisily cii means 30 5 .
+display _rc
+capture noisily cii means 30 a 2
+display _rc
+capture noisily cii means 30 5 a
+display _rc
+capture noisily cii means a 5 2
+display _rc
+capture noisily cii means 30 .a 2
+display _rc
+cii means 30 2+3 2
+cii means 30 1e3 2
+capture noisily cii means 30 5 0
+display _rc
+cii means 30 5 2
+capture noisily cii means 30 5
+return list
+clear
+set obs 25
+generate income = _n
+cii means 30 5 2
+total income
+display "[" r(N) "]"
+return list
+cii means 30 5 2
+proportion income in 1/3
+return list
+=== redteam6b-ttest-qualifiers
+clear
+set seed 4
+set obs 20
+generate income = 20000 + 8000 * runiform()
+generate female = runiform() < .4
+ttest income in 1 / 5 == 0
+prtest female in 1 / 10 == .5
+ttest income if female in 1/10 == 0
+capture noisily ttest income in 1/5 ==
+display _rc
+capture noisily prtest female in 1/10 ==
+capture noisily ttest income in 1/5 if female == 0
+ttest income if female==1 in 1/12 == 20000, level(90)
+ttest income in 1/5 = 0
+ttest income in 1/8==20000
+=== redteam6b-single-equals
+clear
+set obs 40
+generate region = 1 + mod(_n,4)
+generate income = _n
+capture noisily keep if region = 1
+display _rc
+capture noisily drop if region = 1
+display _rc
+capture noisily list income if region = 1
+display _rc
+capture noisily count if region = 1
+display _rc
+capture noisily assert region = 1
+display _rc
+capture noisily keep if region = 1 & income > 3
+capture noisily drop in 1/2 if region = 1
+capture noisily list income if region = 1 in 1/3
+capture noisily summarize income if region = 1
+display _rc
+capture noisily tabulate region if region = 1
+capture noisily replace income = 2 if region = 1
+capture noisily generate y = 1 if region = 1
+capture noisily assert region == 1 if income = 3
+display _rc
+capture noisily summarize income if (region = 1)
+display _rc
+capture noisily count if (region = 1)
+capture noisily list income if (region = 1)
+capture noisily drop if (region = 1)
+capture noisily assert (region = 1)
+capture noisily summarize income if (region = 1) & income > 2
+capture noisily summarize income if region == (1 = 1)
+capture noisily display (region = 1)
+capture noisily display (1, 2)
+capture noisily display (1, 2, 3)
+count
+clear
+set obs 20
+generate inc = _n
+capture noisily summarize inc, detail ,, meanonly
+display _rc
+capture noisily summarize inc, detail meanonly
+capture noisily summarize inc, meanonly detail
+capture noisily summarize inc, meanonly ,, detail

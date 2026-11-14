@@ -218,6 +218,40 @@ export function parseDeclaration(declaration) {
 
 const notAllowed = (what) => new StataError(`${what} not allowed`, 101);
 
+/**
+ * Where a single = (not part of ==, !=, ~=, <= or >=) stands in an
+ * expression, outside quotes: { at, open, close }, open and close the
+ * indices of the brackets around it (-1 when it is at the top), or null
+ * when there is none.
+ */
+export function loneEquals(text) {
+  const opens = [];
+  let quote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') quote = !quote;
+    if (quote) continue;
+    if (c === "(" || c === "[") opens.push(i);
+    else if (c === ")" || c === "]") opens.pop();
+    else if (
+      c === "=" &&
+      !/[=!~<>]/.test(text[i - 1] ?? "") &&
+      text[i + 1] !== "="
+    ) {
+      const open = opens.at(-1) ?? -1;
+      let close = -1;
+      for (let j = i, depth = 0; open >= 0 && j < text.length; j++)
+        if (text[j] === "(" || text[j] === "[") depth++;
+        else if ((text[j] === ")" || text[j] === "]") && --depth < 0) {
+          close = j;
+          break;
+        }
+      return { at: i, open, close };
+    }
+  }
+  return null;
+}
+
 // Finds where each clause of the part before the comma begins.
 export function clauses(head, expAllowed = true) {
   const found = [];
@@ -299,6 +333,11 @@ function range(text, n) {
     const k = Number(word);
     return k < 0 ? n + 1 + k : k;
   };
+  // Zero, or a count from the end that runs past the first observation,
+  // is no observation number at all.
+  for (const word of [m[1], m[2]])
+    if (word !== undefined && /\d/.test(word) && bound(word) < 1)
+      throw new StataError(`'${word}' invalid observation number`, 198);
   const first = bound(m[1]),
     last = bound(m[2] ?? m[1]);
   if (!(first >= 1 && first <= last && last <= n))
@@ -385,6 +424,19 @@ function nameList(text) {
 
 // Splits the text after the comma into name and name(argument) items.
 export function optionItems(text) {
+  // Each further comma turns the options off and on again: a word after an
+  // odd number of them is invalid (Stata's message ends in a blank), and
+  // the words after an even number are options, so ", detail," and
+  // ",,, detail" are both detail.
+  const kept = [];
+  for (let k = 0, rest = text; rest !== null; k++) {
+    const [piece, after] = splitAtComma(rest);
+    if (k % 2 === 0) kept.push(piece);
+    else if (piece.trim())
+      throw new StataError(`invalid '${piece.trim().split(/\s+/)[0]}' `, 198);
+    rest = after;
+  }
+  text = kept.join(" ");
   // Stata allows a blank between an option's name and its parenthesis.
   const joined = [];
   for (const word of words(text))
@@ -396,6 +448,12 @@ export function optionItems(text) {
     else joined.push(word);
   return joined.map((word) => {
     const m = /^([A-Za-z_][A-Za-z_0-9]*)(?:\(([\s\S]*)\))?$/.exec(word);
+    // A parenthesis left open, as by(region, wants its close.
+    if (!m && /^[A-Za-z_]\w*\(/.test(word) && !/\)$/.test(word))
+      throw new StataError(") required", 100);
+    // A close with no open is an option of its own.
+    if (!m && /^[A-Za-z_]\w*\)/.test(word))
+      throw new StataError("option ) not allowed", 198);
     if (!m) throw new StataError(`option ${word} not allowed`, 198);
     return { word, name: m[1], argument: m[2] };
   });
@@ -605,16 +663,18 @@ export function applySyntax(declaration, text, context) {
 
   // Options.
   const items = optionText === null ? [] : optionItems(optionText);
-  if (optionText !== null && splitAtComma(optionText)[1] !== null)
-    throw new StataError("invalid syntax", 198);
   if (items.length && !decl.hasOptions) throw notAllowed("options");
   const seen = new Set(),
     extra = [];
   for (const item of items) {
     const match = matchOption(item.name, decl.options);
     if (!match) {
+      // Stata names an option written with an argument as name().
       if (!decl.star)
-        throw new StataError(`option ${item.name} not allowed`, 198);
+        throw new StataError(
+          `option ${item.name}${item.argument === undefined ? "" : "()"} not allowed`,
+          198,
+        );
       extra.push(item.word);
       continue;
     }

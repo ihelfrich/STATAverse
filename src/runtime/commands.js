@@ -9,7 +9,8 @@ import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
-import { applySyntax, splitAtComma } from "./syntax.js";
+import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
+import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
@@ -70,6 +71,7 @@ import {
   byteLength,
   coerce,
   defaultFormat,
+  displayWidth,
   formatNumber,
   inferType,
   isMissing,
@@ -303,6 +305,8 @@ function listFunction(frame, text) {
 }
 
 // ----- display -----
+// display's items: words outside quotes and brackets, and each comma
+// outside them an item of its own.
 function topLevelWords(text) {
   const out = [];
   let start = -1,
@@ -328,76 +332,322 @@ function topLevelWords(text) {
       if (start < 0) start = i;
       depth++;
     } else if (c === ")" || c === "]") depth = Math.max(0, depth - 1);
-    else if (/\s/.test(c) && depth === 0) {
+    // A comma inside a format, as %tdMonth_dd,_CCYY, is part of it.
+    else if (
+      (/\s/.test(c) || (c === "," && text[start] !== "%")) &&
+      depth === 0
+    ) {
       if (start >= 0) out.push(text.slice(start, i));
       start = -1;
+      if (c === ",") out.push(",");
       continue;
     } else if (start < 0) start = i;
   }
   if (start >= 0) out.push(text.slice(start));
   return out;
 }
-const smcl = (text) =>
-  text
-    .replace(/\{hline\s+(\d+)\}/g, (_, n) => "-".repeat(Number(n)))
-    .replace(/\{space\s+(\d+)\}/g, (_, n) => " ".repeat(Number(n)))
-    .replace(
-      /\{(txt|text|res|result|err|error|inp|input|bf|it|sf|reset|ul)\}/g,
-      "",
-    )
-    .replace(/\{(bf|it|ul|txt|res|err|inp|cmd|hi):([^}]*)\}/g, "$2");
-export function displayText(session, text, asMacro = false) {
-  const words = topLevelWords(text);
-  let out = "",
-    format = null;
-  for (let k = 0; k < words.length; k++) {
-    let word = words[k];
-    let m;
-    if (/^(_n|_newline)$/.test(word)) out += "\n";
-    else if ((m = /^_n(?:ewline)?\((.+)\)$/.exec(word)))
-      out += "\n".repeat(Math.max(0, session.scalar(m[1])));
-    else if ((m = /^_s(?:kip)?\((.+)\)$/.exec(word)))
-      out += " ".repeat(Math.max(0, session.scalar(m[1])));
-    else if ((m = /^_col(?:umn)?\((.+)\)$/.exec(word))) {
-      const column = session.scalar(m[1]),
-        line = out.slice(out.lastIndexOf("\n") + 1);
-      // A macro receives the column directive itself, as in Stata.
-      out += asMacro
-        ? `{col ${column}}`
-        : " ".repeat(Math.max(0, column - 1 - line.length));
-    } else if ((m = /^_dup\((.+)\)$/.exec(word))) {
-      const next = words[++k] ?? '""',
-        value = session.scalar(next);
-      out += String(value).repeat(Math.max(0, session.scalar(m[1])));
-    } else if (/^(_c|_continue|_request\(.*\))$/.test(word)) continue;
-    else if (word === "as" || word === "in") k++;
-    // A quotation mark left over after a closed string is printed as it is.
-    else if ((m = /^"([^"]*)""$/.exec(word))) out += smcl(m[1]) + '"';
-    else if (word === '"') out += '"';
-    else if (/^%/.test(word)) {
-      // Stata names no format in this message.
-      if (!parseFormat(word)) throw new StataError("invalid %format", 120);
-      format = word;
-    } else {
-      // An expression may be written with blanks around its operators.
-      while (
-        // A quoted string is always an item of its own.
-        !/^("|`")/.test(word) &&
-        k + 1 < words.length &&
-        (/[-+*/^&|<>=!~,]$/.test(word) ||
-          /^([-+*/^&|<>=,]|[!~]=)/.test(words[k + 1]))
-      )
-        word += " " + words[++k];
-      const value = session.scalar(word);
-      out += format
-        ? applyFormat(value, format)
-        : typeof value === "string"
-          ? smcl(value)
-          : displayValue(value);
-      format = null;
+/**
+ * The errors Stata's display gives for brackets before it evaluates an
+ * item: one left open, and a parenthesis holding a list, as (1,2), which
+ * it reads as a name.
+ */
+function checkBrackets(word) {
+  let depth = 0,
+    quote = false;
+  const opened = [];
+  for (let i = 0; i < word.length; i++) {
+    const c = word[i];
+    if (c === '"') quote = !quote;
+    if (quote) continue;
+    if (c === "(" || c === "[") {
+      depth++;
+      opened.push({
+        at: i,
+        call: c === "(" && /[\w$]/.test(word[i - 1] ?? ""),
+      });
+    } else if (c === ")" || c === "]") {
+      depth--;
+      const open = opened.pop();
+      if (open && !open.call && c === ")") {
+        const inside = word.slice(open.at + 1, i);
+        if (splitAtComma(inside)[1] !== null && !/^\s*"/.test(inside))
+          throw new StataError(
+            `${inside.replace(/\s+/g, "")} invalid name`,
+            198,
+          );
+      }
     }
   }
-  return out;
+  if (depth > 0) throw new StataError("too few ')' or ']'", 132);
+}
+/** A string in a %s format, padded by the columns it takes. */
+function padString(text, spec) {
+  const room = spec.width - displayWidth(text);
+  if (room <= 0) return text;
+  if (spec.align === "-") return text + " ".repeat(room);
+  if (spec.align === "~") {
+    const before = Math.floor(room / 2);
+    return " ".repeat(before) + text + " ".repeat(room - before);
+  }
+  return " ".repeat(room) + text;
+}
+
+// Whether a string, plain or compound, opens at i.
+const opensString = (text, i) =>
+  text[i] === '"' || (text[i] === "`" && text[i + 1] === '"');
+
+// display's directives as Stata abbreviates them. Those of the first kind
+// take a number in parentheses; _newline and _skip may go without one.
+const DIRECTIVES = [
+  ["newline", /^_n(e(w(l(i(ne?)?)?)?)?)?$/],
+  ["skip", /^_s(k(ip?)?)?$/],
+  ["column", /^_col(u(mn?)?)?$/],
+  ["char", /^_char$/],
+  ["dup", /^_dup?$/],
+  ["request", /^_req(u(e(st?)?)?)?$/],
+  ["continue", /^_c(o(n(t(i(n(ue?)?)?)?)?)?)?$/],
+  ["quote", /^_quote$/],
+];
+const directiveOf = (name) =>
+  DIRECTIVES.find(([, pattern]) => pattern.test(name))?.[0] ?? null;
+const TAKES_NUMBER = new Set(["newline", "skip", "column", "char", "dup"]);
+
+/**
+ * display's items, in order: strings, which end at their closing quote
+ * whatever follows, so "a"_n"b" is three items; directives such as
+ * _col(5), which end at their parenthesis; formats; expressions, which
+ * end at a blank or comma outside brackets and quotes; and each comma.
+ * A directive's item is { directive, argument }, argument null when it
+ * has none and undefined when its parenthesis is not closed.
+ */
+function displayItems(text) {
+  const items = [],
+    n = text.length;
+  let i = 0;
+  while (i < n) {
+    if (/\s/.test(text[i])) {
+      i++;
+      continue;
+    }
+    if (text[i] === ",") {
+      items.push(",");
+      i++;
+      continue;
+    }
+    if (opensString(text, i)) {
+      const end = stringEnd(text, i);
+      items.push(end < 0 ? text.slice(i) : text.slice(i, end));
+      i = end < 0 ? n : end;
+      continue;
+    }
+    const name = /^_[A-Za-z]\w*/.exec(text.slice(i))?.[0],
+      directive = name && directiveOf(name);
+    if (directive) {
+      i += name.length;
+      const paren = /^\s*\(/.exec(text.slice(i));
+      if (TAKES_NUMBER.has(directive) || directive === "request")
+        if (paren) {
+          const start = i + paren[0].length;
+          let depth = 1,
+            j = start;
+          for (; j < n && depth; j++)
+            if (text[j] === "(") depth++;
+            else if (text[j] === ")") depth--;
+          items.push({
+            directive,
+            argument: depth ? undefined : text.slice(start, j - 1),
+          });
+          i = depth ? n : j;
+          continue;
+        }
+      items.push({ directive, argument: null, name });
+      continue;
+    }
+    let depth = 0,
+      j = i;
+    for (; j < n; j++) {
+      const c = text[j];
+      if (opensString(text, j)) {
+        const end = stringEnd(text, j);
+        if (end < 0) {
+          j = n;
+          break;
+        }
+        j = end - 1;
+      } else if (c === "(" || c === "[") depth++;
+      else if (c === ")" || c === "]") depth = Math.max(0, depth - 1);
+      // A comma inside a format, as %tdMonth_dd,_CCYY, is part of it.
+      else if (!depth && (/\s/.test(c) || (c === "," && text[i] !== "%")))
+        break;
+    }
+    items.push(text.slice(i, j));
+    i = j;
+  }
+  return items;
+}
+
+/** A directive's number: a whole number, signed or not, and nothing else. */
+function directiveNumber(argument) {
+  const m = /^\s*([-+]?\d+)\s*$/.exec(argument ?? "");
+  if (!m) throw new StataError("invalid syntax", 198);
+  return Number(m[1]);
+}
+
+/**
+ * An expression item with a quotation mark straight after a name or
+ * number, as 1"b" or x"a", is a name Stata cannot read; one whose quote
+ * is never closed has too few quotes.
+ */
+function checkQuotes(word) {
+  let depth = 0;
+  for (let j = 0; j < word.length; j++) {
+    const c = word[j];
+    if (opensString(word, j)) {
+      const end = stringEnd(word, j);
+      if (end < 0) throw new StataError("too few quotes", 132);
+      if (!depth && /[\w.]/.test(word[j - 1] ?? "")) {
+        const start = /[\w.]*$/.exec(word.slice(0, j)).index;
+        throw new StataError(`${word.slice(start)} invalid name`, 198);
+      }
+      j = end - 1;
+    } else if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth--;
+  }
+}
+
+/**
+ * The text display shows, as SMCL. _col() and _skip() place items and a
+ * comma between items puts a blank between them (two commas, none). A
+ * format applies to the item after it when the types agree and is
+ * otherwise ignored, and _dup() repeats the item after it. asMacro gives
+ * the text a macro receives, with its SMCL as written; otherwise the SMCL
+ * is rendered at the line size. An error carries what display had
+ * written before it as partial, which Stata prints ahead of the message.
+ */
+export function displayText(session, text, asMacro = false) {
+  const items = displayItems(text);
+  let out = "";
+  // The text of the item at k, and the index of the item after it.
+  const item = (k, format = null) => {
+    const word = items[k];
+    if (word === undefined) return ["", k + 1];
+    if (word === ",")
+      // A pair of commas puts nothing between the items.
+      return items[k + 1] === "," ? ["", k + 2] : [" ", k + 1];
+    if (typeof word === "object") {
+      const { directive, argument } = word;
+      if (directive === "continue") return ["", k + 1];
+      if (directive === "quote") return ['"', k + 1];
+      if (directive === "request") return ["", k + 1];
+      if (argument === null && directive === "newline") return ["\n", k + 1];
+      if (argument === null && directive === "skip") return [" ", k + 1];
+      const number = directiveNumber(argument);
+      if (directive === "skip") return [" ".repeat(Math.max(0, number)), k + 1];
+      // A macro receives the column directive itself, as in Stata.
+      if (directive === "column") return [`{col ${number}}`, k + 1];
+      if (directive === "char") {
+        if (number < 1 || number > 255)
+          throw new StataError("invalid syntax", 198);
+        return [String.fromCharCode(number), k + 1];
+      }
+      if (number < 0) throw new StataError("invalid syntax", 198);
+      if (directive === "newline") return ["\n".repeat(number), k + 1];
+      // _dup(#) repeats the item after it. A column, a comma and a style
+      // between them are written once.
+      let before = "",
+        j = k + 1;
+      while (
+        items[j] === "," ||
+        items[j] === "as" ||
+        items[j] === "in" ||
+        items[j]?.directive === "column"
+      ) {
+        const [shown, next] = item(j);
+        before += shown;
+        j = next;
+      }
+      const [shown, next] = item(j);
+      return [before + shown.repeat(number), next];
+    }
+    // The styles of as, which abbreviate only so far, and in smcl or one
+    // of the old colours.
+    if (
+      (word === "as" &&
+        /^(text|txt|r(e(s(u(lt?)?)?)?)?|err(or?)?|inp(ut?)?|s(m(cl?)?)?)$/.test(
+          items[k + 1],
+        )) ||
+      (word === "in" &&
+        /^(s(m(cl?)?)?|g(r(e(en?)?)?)?|y(e(l(l(ow?)?)?)?)?|w(h(i(te?)?)?)?|r(ed?)?|b(l(ue?)?)?)$/.test(
+          items[k + 1],
+        ))
+    )
+      return ["", k + 2];
+    if (word === "as" || word === "in")
+      throw new StataError("invalid syntax", 198);
+    // A string left open runs to the end of the line.
+    if (/^"/.test(word) && stringEnd(word, 0) < 0)
+      return [word.slice(1), k + 1];
+    if (/^`"/.test(word) && stringEnd(word, 0) < 0)
+      return [word.slice(2), k + 1];
+    if (/^%/.test(word)) {
+      // Stata names no format in this message.
+      if (!parseFormat(word)) throw new StataError("invalid %format", 120);
+      return item(k + 1, word);
+    }
+    // An expression may be written with blanks around its operators.
+    let expression = word,
+      next = k + 1;
+    while (
+      // A quoted string is always an item of its own.
+      !opensString(expression, 0) &&
+      typeof items[next] === "string" &&
+      items[next] !== "," &&
+      (/[-+*/^&|<>=!~]$/.test(expression) ||
+        /^([-+*/^&|<>=]|[!~]=)/.test(items[next]))
+    )
+      expression += " " + items[next++];
+    // An item that starts with an operator, as after display "T: " + x,
+    // is read as a name with the operator at its front, unless it is a
+    // number with a plus sign. An = or == before an item is dropped.
+    expression = expression.replace(/^==?\s*/, "");
+    const lead = /^([+*/^<>&|]=?|[!~]=)\s*/.exec(expression),
+      sign = lead?.[1].replace(/^[!~]/, "");
+    if (lead && !/^\+\s*[\d.]/.test(expression)) {
+      const rest = expression.slice(lead[0].length),
+        end = opensString(rest, 0) ? stringEnd(rest, 0) : -1,
+        token = opensString(rest, 0)
+          ? rest.slice(0, end < 0 ? rest.length : end)
+          : /^[^\s(]*/.exec(rest)[0];
+      if (rest[token.length] === "(")
+        throw new StataError(`unknown function ${sign}${token}()`, 133);
+      throw new StataError(`${sign}${token} invalid name`, 198);
+    }
+    if (!opensString(expression, 0)) checkQuotes(expression);
+    checkBrackets(expression);
+    const value = session.scalar(expression),
+      spec = format && parseFormat(format);
+    return [
+      typeof value === "string"
+        ? spec?.kind === "string"
+          ? padString(value, spec)
+          : value
+        : spec && spec.kind !== "string"
+          ? applyFormat(value, spec)
+          : displayValue(value),
+      next,
+    ];
+  };
+  try {
+    for (let k = 0; k < items.length;) {
+      const [shown, next] = item(k);
+      out += shown;
+      k = next;
+    }
+  } catch (error) {
+    if (error instanceof StataError) error.partial = out;
+    throw error;
+  }
+  return asMacro ? out : renderSmcl(out, session.settings.linesize ?? 79);
 }
 
 // ----- generate and replace -----
@@ -481,6 +731,22 @@ function replace(session, text, ctx) {
 }
 
 // ----- observations and variables -----
+/**
+ * keep, drop, list and count refuse a single = in their if expression, as
+ * in keep if region = 1, with Stata's message for them; inside
+ * parentheses it is read as a name, as elsewhere.
+ */
+const noEqualsInIf = (run) => (session, text, ctx) => {
+  const [head] = splitAtComma(text),
+    clause = clauses(head, false).find((found) => found.kind === "if");
+  if (clause && loneEquals(clause.text)?.open === -1)
+    throw new StataError(
+      "=exp not allowed",
+      101,
+      "A single = assigns; to compare two values, write ==.",
+    );
+  return run(session, text, ctx);
+};
 function dropKeep(keep) {
   return (session, text, ctx) => {
     const data = session.data;
@@ -533,10 +799,23 @@ function gsort(session, text) {
   if (!keys.length) throw new StataError("varlist required", 100);
   session.data.sort(keys);
 }
+// rename's error for a command of the wrong shape, as rename.ado gives it.
+const renameSyntax = () =>
+  new StataError(
+    [
+      "syntax error",
+      "    Syntax is",
+      "        rename  oldname    newname   [, renumber[(#)] addnumber[(#)] sort ...]",
+      "        rename (oldnames) (newnames) [, renumber[(#)] addnumber[(#)] sort ...]",
+      "        rename  oldnames              , {upper|lower|proper}",
+    ].join("\n"),
+    198,
+  );
 function rename(session, text) {
   const data = session.data,
     [head, optionText] = splitAtComma(text),
     option = (optionText ?? "").trim();
+  if (!head.trim()) throw renameSyntax();
   // rename varlist, lower | upper | proper
   if (option) {
     const change = /^l(o(w(er?)?)?)?$/.test(option)
@@ -566,18 +845,22 @@ function rename(session, text) {
   if (groups) {
     const from = session.varlist(groups[1]),
       to = groups[2].trim().split(/\s+/).filter(Boolean);
-    if (from.length !== to.length)
+    // Stata's message makes both names plural when there is more than one
+    // old name.
+    if (from.length !== to.length) {
+      const s = from.length === 1 ? "" : "s";
       throw new StataError(
-        "the two lists must have the same number of names",
+        `corresponding oldnames and newnames mismatch\n    You specified or implied ${from.length} oldname${s} and ${to.length} newname${s};`,
         198,
       );
+    }
     // Rename through temporary names so that swaps work.
     from.forEach((name, k) => data.rename(name, `__rename${k}`));
     from.forEach((name, k) => data.rename(`__rename${k}`, to[k]));
     return;
   }
   const words = head.split(/\s+/).filter(Boolean);
-  if (words.length !== 2) throw invalid();
+  if (words.length !== 2) throw renameSyntax();
   data.rename(session.varlist(words[0])[0], words[1]);
 }
 function order(session, text) {
@@ -1053,12 +1336,24 @@ function returns(kind) {
         for (const [name, value] of strings)
           ctx.out(`${label(name)} : "${value}"`);
       }
-      if (kind === "e" && session.estimates) {
-        const k = session.estimates.names.length;
+      // mean's and total's results, which keep no model.
+      const tabled =
+        kind === "e" && session.meanTotalResults?.e === session.results.e
+          ? session.meanTotalResults
+          : null;
+      if (kind === "e" && (session.estimates || tabled)) {
+        const k = tabled
+          ? tabled.groups.length * tabled.variables.length
+          : session.estimates.names.length;
         ctx.out("");
         ctx.out("matrices:");
         ctx.out(`${label("b")} :  1 x ${k}`);
         ctx.out(`${label("V")} :  ${k} x ${k}`);
+        if (tabled) {
+          if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
+          ctx.out(`${label("_N")} :  1 x ${k}`);
+          ctx.out(`${label("error")} :  1 x ${k}`);
+        }
         ctx.out("");
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);
@@ -1141,8 +1436,20 @@ function confirm(session, text) {
   } else throw invalid();
 }
 function assertCommand(session, text, ctx) {
-  const parsed = session.parse("anything [if] [in] [, Rc0 Null Fast]", text),
-    compiled = session.compile(parsed.anything);
+  let parsed;
+  try {
+    parsed = session.parse("anything [if] [in] [, Rc0 Null Fast]", text);
+  } catch (error) {
+    // assert region = 1 is invalid syntax in Stata, not an =exp.
+    if (error instanceof StataError && error.message === "=exp not allowed")
+      throw new StataError(
+        "invalid syntax",
+        198,
+        "A single = assigns; to compare two values, write ==.",
+      );
+    throw error;
+  }
+  const compiled = session.compile(parsed.anything);
   if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
   let checked = 0,
     failed = 0;
@@ -1987,8 +2294,8 @@ export const COMMANDS = [
   command("generate", 1, generate, true),
   command("replace", 7, replace, true),
   command("egen", 4, egen, true),
-  command("drop", 4, dropKeep(false), true),
-  command("keep", 4, dropKeep(true), true),
+  command("drop", 4, noEqualsInIf(dropKeep(false)), true),
+  command("keep", 4, noEqualsInIf(dropKeep(true)), true),
   command("sort", 2, sortCommand),
   command("gsort", 5, gsort),
   command("rename", 3, rename),
@@ -1998,17 +2305,35 @@ export const COMMANDS = [
   command("collapse", 8, collapse),
   command("xtile", 5, xtile),
   command("centile", 7, centile),
-  command("count", 3, perGroup(countCommand), true),
+  command("count", 3, noEqualsInIf(perGroup(countCommand)), true),
   command("summarize", 2, perGroup(summarize), true),
   command("tabulate", 2, perGroup(tabulate), true),
   command("tab1", 4, tab1),
   command("tab2", 4, tab2),
-  command("list", 1, perGroup(list), true),
+  command("list", 1, noEqualsInIf(perGroup(list)), true),
   command("describe", 1, describe),
   command("label", 2, label),
   command("format", 4, format),
   command("display", 2, (session, text, ctx) => {
-    for (const line of displayText(session, text).split("\n")) ctx.out(line);
+    let shown;
+    try {
+      shown = displayText(session, text);
+    } catch (error) {
+      // Stata has printed the items before the one in error, and its
+      // message goes on from where they end.
+      if (!(error instanceof StataError) || !error.partial) throw error;
+      const lines = renderSmcl(
+        error.partial,
+        session.settings.linesize ?? 79,
+      ).split("\n");
+      for (const line of lines.slice(0, -1)) ctx.out(line);
+      throw new StataError(
+        lines.at(-1) + error.message,
+        error.code,
+        error.hint,
+      );
+    }
+    for (const line of shown.split("\n")) ctx.out(line);
   }),
   command("scalar", 3, scalar),
   command("local", 3, (session, text, ctx) =>

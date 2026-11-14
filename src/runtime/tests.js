@@ -11,13 +11,22 @@ import {
   count,
   labelled,
   moments,
+  padDisplayEnd,
   percentile,
   perGroup,
   tabulate,
 } from "./reports.js";
 import { Dataset } from "./store.js";
 import { clauses, splitAtComma } from "./syntax.js";
-import { MISSING, isMissing, isStringType } from "./values.js";
+import { abbreviateColumns, qualifierAfterHypothesis } from "./utilities.js";
+import {
+  MISSING,
+  displayWidth,
+  isMissing,
+  isStringType,
+  padDisplay,
+  truncateColumns,
+} from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const four = (value) => applyFormat(value, "%6.4f");
@@ -139,11 +148,18 @@ function confirmNumber(token, integer) {
 function abbreviate(text) {
   return abbrev(text.startsWith(".") ? text.slice(1) : text, 12);
 }
-/** Stata's abbrev(name, n): the first n - 2 characters, ~ and the last. */
+/**
+ * Stata's abbrev(name, n): the first n - 2 characters, ~ and the last; a
+ * name of wide (CJK) characters is abbreviated by columns of the screen.
+ */
 const abbrev = (name, n) =>
-  name.length > n ? `${name.slice(0, n - 2)}~${name.at(-1)}` : name;
-/** The first n characters of a string, as udsubstr(s, 1, n) takes them. */
-const leading = (text, n) => Array.from(text).slice(0, n).join("");
+  displayWidth(name) !== name.length
+    ? abbreviateColumns(name, n)
+    : name.length > n
+      ? `${name.slice(0, n - 2)}~${name.at(-1)}`
+      : name;
+/** The first n columns of a string, as udsubstr(s, 1, n) takes them. */
+const leading = (text, n) => truncateColumns(text, n);
 /**
  * A {p indent indent right} paragraph, {p 0 0 2} unless said: words
  * wrapped right columns short of the line, each line indented.
@@ -188,7 +204,7 @@ function proportionPrinters(ctx, level) {
   const shown = invnormal((100 - (100 - level) / 2) / 100),
     critical = invnormal((100 + level) / 200),
     row = (label, p, se) =>
-      `${label.padStart(12)} |${g(p).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(stata(nan(p) - shown * nan(se))).padStart(13)}${g(stata(nan(p) + shown * nan(se))).padStart(12)}`,
+      `${padDisplay(label, 12)} |${g(p).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(stata(nan(p) - shown * nan(se))).padStart(13)}${g(stata(nan(p) + shown * nan(se))).padStart(12)}`,
     tails = (z) => {
       // As prtesti.ado: the smaller tail is half the two-sided probability,
       // and a missing z leaves all three missing.
@@ -206,7 +222,8 @@ function proportionPrinters(ctx, level) {
     },
     // The z line: prtesti.ado's "z = " and %8.4f at column 67, which turns
     // to e-notation when z does not fit.
-    statistic = (left, z) => `${left.padEnd(66)}z = ${applyFormat(z, "%8.4f")}`;
+    statistic = (left, z) =>
+      `${padDisplayEnd(left, 66)}z = ${applyFormat(z, "%8.4f")}`;
   return { critical, row, tails, statistic };
 }
 
@@ -257,7 +274,7 @@ function twoProportions(ctx, session, sample) {
       : isVariableName(session, original)
         ? "Variable"
         : "Group",
-    width = (text) => Array.from(text).length,
+    width = displayWidth,
     bound = (p, sign, s) => stata(p + sign * critical * nan(s));
   ctx.out(
     `${"Two-sample test of proportions".padEnd(52 - width(x))}${x}: Number of obs = ${applyFormat(n1, "%8.0g")}`,
@@ -541,7 +558,7 @@ function byVariable(session, text) {
  * any other expression names the second variable.
  */
 function prtest(session, text, ctx) {
-  const t = prtestArguments(text),
+  const t = prtestArguments(qualifierAfterHypothesis(text)),
     parsed = session.parse("[if] [in] [, BY(string) Level(cilevel)]", t.rest),
     level = parsed.options.level,
     variable = session.data.get(session.varlist(t.name)[0]),

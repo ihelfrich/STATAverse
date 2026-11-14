@@ -266,6 +266,11 @@ export function summarize(session, text, ctx) {
   const weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
     rows = weighted.rows,
     analytic = weighted.weights && !parsed.options.detail;
+  if (parsed.options.detail && parsed.options.meanonly)
+    throw new StataError(
+      "only one of meanonly or detail may be specified",
+      198,
+    );
   if (weighted.weights && parsed.options.detail)
     throw new StataError(
       "summarize, detail with aweights is not available yet",

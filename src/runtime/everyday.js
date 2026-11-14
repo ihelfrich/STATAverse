@@ -2,6 +2,7 @@
 // clonevar, and the ones that have no meaning in a browser (help, browse,
 // ssc install) but should say so plainly rather than stop a do-file.
 import { StataError } from "./errors.js";
+import { splitAtComma } from "./syntax.js";
 import { abbreviateAmong, applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import {
@@ -162,6 +163,86 @@ function ci(session, text, ctx) {
   }
   ctx.out("");
   if (last) session.results.r = last;
+}
+
+/**
+ * cii means #obs #mean #sd: ci's table from summary statistics, the row
+ * unnamed and the numbers in %9.0g; r() as ci leaves it. Its checks and
+ * messages are cii.ado's, recorded from Stata 19.
+ */
+function cii(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    words = head.trim().split(/\s+/).filter(Boolean),
+    kind = words.shift() ?? "";
+  // r() is emptied first, so a cii that fails leaves none.
+  session.results.r = {};
+  if (!/^(means?|prop|var)/.test(kind) || kind.length < 4)
+    throw new StataError(
+      "you must specify one of means, proportions, or variances following cii",
+      198,
+    );
+  if (!/^means?$/.test(kind))
+    throw new StataError(`cii ${kind} is not available yet; cii means is`, 198);
+  const parsed = session.parse(
+      "[, Level(cilevel) | Poisson]",
+      optionText === null ? "" : `,${optionText}`,
+    ),
+    level = parsed.options.level;
+  if (words.length !== 3)
+    throw new StataError(
+      "you must specify 3 arguments with cii means: #obs, #mean, and #sd",
+      198,
+    );
+  // Each argument is checked as it is read: a missing value is r(7), and
+  // a name that is not a number, r(111).
+  const n = session.scalar(words[0]);
+  if (isMissing(n) || !(Number.isInteger(n) && n > 0))
+    throw new StataError(
+      "first argument, #obs, must be a positive integer",
+      isMissing(n) || n > 0 ? 7 : 198,
+    );
+  let m;
+  try {
+    m = session.scalar(words[1]);
+  } catch (error) {
+    if (error instanceof StataError && error.code === 111)
+      throw new StataError("second argument, #mean, must be a number", 111);
+    throw error;
+  }
+  if (typeof m !== "number" || isMissing(m))
+    throw new StataError("second argument, #mean, must be a number", 7);
+  const s = session.scalar(words[2]);
+  if (isMissing(s) || !(s > 0))
+    throw new StataError(
+      "third argument, #sd, must be a positive number",
+      isMissing(s) ? 7 : 198,
+    );
+  const se = s / Math.sqrt(n),
+    critical = n > 1 ? invttail(n - 1, (100 - level) / 200) : MISSING,
+    lb = n > 1 ? m - critical * se : MISSING,
+    ub = n > 1 ? m + critical * se : MISSING,
+    digits = String(level).length,
+    shape = (value) => applyFormat(value, "%9.0g");
+  ctx.out("");
+  ctx.out(
+    `    Variable |        Obs        Mean    Std. err.    ${digits === 2 ? "   " : digits === 4 ? " " : ""}[${g(level)}% conf. interval]`,
+  );
+  ctx.out(
+    "-------------+---------------------------------------------------------------",
+  );
+  ctx.out(
+    `             |${applyFormat(n, "%11.0fc")}${shape(m).padStart(12)}${shape(se).padStart(12)}${shape(lb).padStart(16)}${shape(ub).padStart(12)}`,
+  );
+  ctx.out("");
+  session.results.r = {
+    N: n,
+    mean: m,
+    se,
+    lb,
+    ub,
+    level,
+    citype: "normal",
+  };
 }
 
 function pearson(x, y) {
@@ -952,6 +1033,7 @@ export const EVERYDAY_COMMANDS = [
   { name: "mean", minimum: 4, run: mean },
   // ci is byable(recall) in Stata: under by it runs once per group.
   { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
+  { name: "cii", minimum: 3, run: cii },
   { name: "pwcorr", minimum: 6, run: perGroup(pwcorr), byable: true },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },

@@ -12,6 +12,7 @@ import {
   decodeBytes,
   encodeText,
   coerce,
+  displayWidth,
   isMissing,
   parseNumber,
 } from "./values.js";
@@ -108,6 +109,27 @@ function usubstr(s, n1, n2) {
   return count < 1
     ? ""
     : characters.slice(start - 1, start - 1 + count).join("");
+}
+/**
+ * udsubstr(): from the n1th character (counting from the end when
+ * negative), the characters that fit in n2 display columns, a wide
+ * character taking two. Recorded from Stata 19.
+ */
+function udsubstr(s, n1, n2) {
+  if (isMissing(n1)) return "";
+  const characters = [...s];
+  let start = whole(n1);
+  if (start < 0) start = characters.length + start + 1;
+  if (start < 1 || start > characters.length) return "";
+  const columns = isMissing(n2) ? Infinity : whole(n2);
+  let out = "",
+    used = 0;
+  for (const character of characters.slice(start - 1)) {
+    used += displayWidth(character);
+    if (used > columns) break;
+    out += character;
+  }
+  return out;
 }
 const words = (s) => s.split(" ").filter(Boolean);
 function wildcard(pattern) {
@@ -441,6 +463,7 @@ export const FUNCTIONS = {
   // strings
   strlen: { args: [S], returns: N, fn: byteLength },
   ustrlen: { args: [S], returns: N, fn: (s) => [...s].length },
+  udstrlen: { args: [S], returns: N, fn: displayWidth },
   strupper: text((s) => s.replace(/[a-z]/g, (c) => c.toUpperCase())),
   strlower: text((s) => s.replace(/[A-Z]/g, (c) => c.toLowerCase())),
   ustrupper: text((s) => s.toUpperCase()),
@@ -469,6 +492,7 @@ export const FUNCTIONS = {
   ustrreverse: text((s) => [...s].reverse().join("")),
   substr: { args: [S, N, N], returns: S, lenient: true, fn: substr },
   usubstr: { args: [S, N, N], returns: S, lenient: true, fn: usubstr },
+  udsubstr: { args: [S, N, N], returns: S, lenient: true, fn: udsubstr },
   strpos: {
     args: [S, S],
     returns: N,

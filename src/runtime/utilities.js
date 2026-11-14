@@ -19,6 +19,7 @@ import {
   isStringType,
   missingName,
   MISSING,
+  padDisplay,
 } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -180,11 +181,54 @@ const fromData = (values, level) => {
   return tSummary(m.n, m.mean, m.sd, level);
 };
 
-const abbrev = abbreviateName;
+/**
+ * abbrev(name, width) by columns of the screen, as Stata 19 abbreviates a
+ * name or label of wide (CJK) characters: as much of its start as fits
+ * before ~ and its last character. Other names abbreviate as names do.
+ */
+export function abbreviateColumns(name, width) {
+  const columns = displayWidth(name);
+  if (columns === name.length) return abbreviateName(name, width);
+  if (columns <= width) return name;
+  const last = Array.from(name).at(-1);
+  return `${truncateColumns(name, width - 1 - displayWidth(last))}~${last}`;
+}
+const abbrev = abbreviateColumns;
+
+/**
+ * ttest and prtest read their qualifiers as Stata's syntax does, so they
+ * may come between the variable and ==, as in ttest income in 1 / 5 == 0
+ * or ttest income if female in 1/10 == 0. An in range runs to an if or
+ * =, and an if expression to an in, so in ttest income in 1/5 if x == 0
+ * the == belongs to the if. Returns the text with the qualifiers moved
+ * after the hypothesis, before any options; an == with nothing after it
+ * is invalid syntax.
+ */
+export function qualifierAfterHypothesis(text) {
+  const [head, options] = splitAtComma(text),
+    m = /^(\s*[^\s=,]+)\s+((?:if|in)\b[\s\S]*)$/.exec(head);
+  if (!m) return text;
+  let rest = m[2];
+  const qualifiers = [];
+  for (let q; (q = /^(if|in)\b\s*/.exec(rest)); rest = rest.trimStart()) {
+    const after = rest.slice(q[0].length),
+      end = after.search(q[1] === "in" ? /\bif\b|=/ : /\sin\b/),
+      body = end < 0 ? after : after.slice(0, end);
+    qualifiers.push(
+      q[1] === "in" ? `in ${body.replace(/\s+/g, "")}` : `if ${body.trim()}`,
+    );
+    rest = end < 0 ? "" : after.slice(end);
+  }
+  if (!/^==?/.test(rest)) return text;
+  const exp = rest.replace(/^==?/, "").trim();
+  if (!exp) throw new StataError("invalid syntax", 198);
+  return `${m[1]} == ${exp} ${qualifiers.join(" ")}${options === null ? "" : `,${options}`}`;
+}
 
 // Text placed at a column as display's _col() places it. A line already
 // past the column goes on where it is.
-const at = (line, column, text) => line.padEnd(column - 1) + text;
+const at = (line, column, text) =>
+  line + " ".repeat(Math.max(0, column - 1 - displayWidth(line))) + text;
 
 /**
  * Three pieces centred as _ttest center2 centres them: on columns 11, 40
@@ -354,7 +398,7 @@ function tPrinters(ctx, session) {
         [70, cell(m.ub)],
       ].reduce(
         (line, [column, text]) => at(line, column, text),
-        `${abbrev(name, 8).padStart(8)} |`,
+        `${padDisplay(abbrev(name, 8), 8)} |`,
       ),
     rule = "-".repeat(78),
     middle = `---------+${"-".repeat(68)}`,
@@ -515,6 +559,7 @@ const emptyGroups = (run) => (session, text, ctx) => {
 };
 
 function ttest(session, text, ctx) {
+  text = qualifierAfterHypothesis(text);
   const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,][\s\S]*)$/.exec(text),
     data = session.data,
     printers = tPrinters(ctx, session),
@@ -719,15 +764,15 @@ function ttest(session, text, ctx) {
     map = isStringType(by.type)
       ? null
       : session.data.valueLabels.get(by.valueLabel),
+    // A string group is cut to eight columns of the screen, a label to
+    // eight characters.
     [xname, yname] = levels.map((value) =>
-      Array.from(
-        typeof value === "string"
-          ? value
-          : map?.get(value) || applyFormat(value, "%18.0g").trim(),
-      )
-        .slice(0, 8)
-        .join("")
-        .trim(),
+      (typeof value === "string"
+        ? truncateColumns(value, 8)
+        : Array.from(map?.get(value) || applyFormat(value, "%18.0g").trim())
+            .slice(0, 8)
+            .join("")
+      ).trim(),
     );
   twoSampleTable(ctx, session, printers)(
     a,
