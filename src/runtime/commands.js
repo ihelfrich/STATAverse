@@ -735,16 +735,17 @@ function clear(session, text) {
  * When a value label is attached or grows, Stata widens the %g, %f or %e
  * format of each variable carrying it to the bytes of its longest text,
  * dropping a - or 0 modifier; it never narrows one, and leaves dates and
- * the binary formats alone.
+ * the binary formats alone. label values widens only the variables it
+ * gives the label to anew, not every one that carries it.
  */
-function widenForLabel(session, name) {
+function widenForLabel(session, name, only = null) {
   const map = session.data.valueLabels.get(name);
   if (!map) return;
   let longest = 0;
   for (const text of map.values())
     longest = Math.max(longest, byteLength(text));
   for (const variable of session.data.variables ?? []) {
-    if (variable.valueLabel !== name) continue;
+    if (variable.valueLabel !== name || (only && !only.has(variable))) continue;
     const spec = parseFormat(variable.format ?? "");
     if (
       spec?.kind !== "number" ||
@@ -812,14 +813,17 @@ function label(session, text, ctx) {
   } else if ((m = /^val(?:u(?:es?)?)?\s+([\s\S]+)$/.exec(text))) {
     const words = m[1].trim().split(/\s+/),
       target = words.length > 1 ? words.pop() : ".",
-      names = session.varlist(words.join(" "));
+      names = session.varlist(words.join(" ")),
+      label = target === "." ? "" : target,
+      attached = new Set();
     for (const name of names) {
       const variable = data.get(name);
       if (isStringType(variable.type))
         throw new StataError("may not label strings", 181);
-      variable.valueLabel = target === "." ? "" : target;
+      if (variable.valueLabel !== label) attached.add(variable);
+      variable.valueLabel = label;
     }
-    if (target !== ".") widenForLabel(session, target);
+    if (label) widenForLabel(session, label, attached);
   } else if ((m = /^drop\s+([\s\S]+)$/.exec(text))) {
     for (const name of m[1].trim() === "_all"
       ? [...data.valueLabels.keys()]

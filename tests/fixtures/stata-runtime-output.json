@@ -99004,6 +99004,1273 @@
       ]
     },
     {
+      "id": "list-value-labels-cut-to-format-width",
+      "source": "clear\nset obs 6\ngenerate id = _n\ngenerate sex = mod(_n,2)+1\nlabel define sexlbl 1 \"Male respondent long\" 2 \"Female respondent\"\nlabel values sex sexlbl\ndescribe sex\ngenerate q1 = mod(_n,4)+1\nlabel define agr 1 \"Strongly disagree\" 2 \"Disagree\" 3 \"Agree\" 4 \"Strongly agree\"\nlabel values q1 agr\nformat q1 %8.2f\nformat sex %4.0g\ngenerate grp = mod(_n,3)\nlabel define g 0 \"Control group\" 1 \"Treatment A\" 2 \"Treatment B (high dose)\"\nlabel values grp g\nformat grp %12.0g\nlist sex q1 grp\nlist q1 in 1/5\nlist sex q1 grp, clean\nlist sex q1 grp, nolabel\nlist sex in 1/3, string(2)\nformat sex %6.0g\nlist sex, string(5)\ngenerate x = mod(_n,2)+1\nlabel define xl 1 \"zero label long\" 2 \"one label long\"\nlabel values x xl\nformat x %5.2fc\nlist x in 1/2\nformat x %3.1e\nlist x in 1/2\nformat x %05.0f\nlist x in 1/2\nformat x %tc\nlist x in 1/2\nformat x %-4.0g\nlist x in 1/2\nformat x %-5.2f\nlist x in 1/2\nformat x %10.0g\nlist x in 1/2\ngenerate longname = _n\nlabel values longname xl\nformat longname %3.0g\nlist longname in 1/2\nlist longname in 1/2, abbreviate(4)\nformat longname %-3.0g\nlist longname x in 1/2\ndescribe x longname\ngenerate d = 12345 + _n\nlabel define dl 12346 \"twelve\"\nlabel values d dl\nformat d %4.0g\nlist d in 1/3\ngenerate j = .a\nreplace j = 1 in 1\nlabel define jl 1 \"one\" .a \"missing a long label\"\nlabel values j jl\nformat j %5.0g\nlist j in 1/3\ngenerate f = mod(_n,2)+1\nlabel define fl 1 \"中文标签很长的\" 2 \"abc\"\nlabel values f fl\nformat f %5.0g\nlist f in 1/2\nformat f %6.0g\nlist f in 1/2\ngenerate byte z = mod(_n,2)+1\nlabel define zl 1 \"é accent lab\" 2 \"ü\"\nlabel values z zl\ndescribe z\nformat z %4.0g\nlist z in 1/2\ngenerate h = 1\nlabel define hl 1 \"A label that is longer than the line allows in a boxed list at the default linesize of 79 here\"\nlabel values h hl\nset linesize 79\nlist h in 1\nformat h %75.0g\nlist h in 1\nlist id h in 1, clean\nformat h %12.0g\nlist h in 1\nlist id sex q1 grp x longname d j f z h in 1/2\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate sex = mod(_n,2)+1", "lines": [] },
+        {
+          "command": "label define sexlbl 1 \"Male respondent long\" 2 \"Female respondent\"",
+          "lines": []
+        },
+        { "command": "label values sex sexlbl", "lines": [] },
+        {
+          "command": "describe sex",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             float   %20.0g     sexlbl"
+          ]
+        },
+        { "command": "generate q1 = mod(_n,4)+1", "lines": [] },
+        {
+          "command": "label define agr 1 \"Strongly disagree\" 2 \"Disagree\" 3 \"Agree\" 4 \"Strongly agree\"",
+          "lines": []
+        },
+        { "command": "label values q1 agr", "lines": [] },
+        { "command": "format q1 %8.2f", "lines": [] },
+        { "command": "format sex %4.0g", "lines": [] },
+        { "command": "generate grp = mod(_n,3)", "lines": [] },
+        {
+          "command": "label define g 0 \"Control group\" 1 \"Treatment A\" 2 \"Treatment B (high dose)\"",
+          "lines": []
+        },
+        { "command": "label values grp g", "lines": [] },
+        { "command": "format grp %12.0g", "lines": [] },
+        {
+          "command": "list sex q1 grp",
+          "lines": [
+            "     +--------------------------------+",
+            "     |  sex         q1            grp |",
+            "     |--------------------------------|",
+            "  1. | Fema   Disagree    Treatment A |",
+            "  2. | Male      Agree    Treatment B |",
+            "  3. | Fema   Strongly   Control grou |",
+            "  4. | Male   Strongly    Treatment A |",
+            "  5. | Fema   Disagree    Treatment B |",
+            "     |--------------------------------|",
+            "  6. | Male      Agree   Control grou |",
+            "     +--------------------------------+"
+          ]
+        },
+        {
+          "command": "list q1 in 1/5",
+          "lines": [
+            "     +----------+",
+            "     |       q1 |",
+            "     |----------|",
+            "  1. | Disagree |",
+            "  2. |    Agree |",
+            "  3. | Strongly |",
+            "  4. | Strongly |",
+            "  5. | Disagree |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "list sex q1 grp, clean",
+          "lines": [
+            "        sex         q1            grp",
+            "  1.   Fema   Disagree    Treatment A",
+            "  2.   Male      Agree    Treatment B",
+            "  3.   Fema   Strongly   Control grou",
+            "  4.   Male   Strongly    Treatment A",
+            "  5.   Fema   Disagree    Treatment B",
+            "  6.   Male      Agree   Control grou"
+          ]
+        },
+        {
+          "command": "list sex q1 grp, nolabel",
+          "lines": [
+            "     +------------------+",
+            "     | sex     q1   grp |",
+            "     |------------------|",
+            "  1. |   2   2.00     1 |",
+            "  2. |   1   3.00     2 |",
+            "  3. |   2   4.00     0 |",
+            "  4. |   1   1.00     1 |",
+            "  5. |   2   2.00     2 |",
+            "     |------------------|",
+            "  6. |   1   3.00     0 |",
+            "     +------------------+"
+          ]
+        },
+        {
+          "command": "list sex in 1/3, string(2)",
+          "lines": [
+            "     +------+",
+            "     |  sex |",
+            "     |------|",
+            "  1. | Fema |",
+            "  2. | Male |",
+            "  3. | Fema |",
+            "     +------+"
+          ]
+        },
+        { "command": "format sex %6.0g", "lines": [] },
+        {
+          "command": "list sex, string(5)",
+          "lines": [
+            "     +--------+",
+            "     |    sex |",
+            "     |--------|",
+            "  1. | Female |",
+            "  2. | Male r |",
+            "  3. | Female |",
+            "  4. | Male r |",
+            "  5. | Female |",
+            "     |--------|",
+            "  6. | Male r |",
+            "     +--------+"
+          ]
+        },
+        { "command": "generate x = mod(_n,2)+1", "lines": [] },
+        {
+          "command": "label define xl 1 \"zero label long\" 2 \"one label long\"",
+          "lines": []
+        },
+        { "command": "label values x xl", "lines": [] },
+        { "command": "format x %5.2fc", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +-------+",
+            "     |     x |",
+            "     |-------|",
+            "  1. | one l |",
+            "  2. |  zero |",
+            "     +-------+"
+          ]
+        },
+        { "command": "format x %3.1e", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +-----+",
+            "     |   x |",
+            "     |-----|",
+            "  1. | one |",
+            "  2. | zer |",
+            "     +-----+"
+          ]
+        },
+        { "command": "format x %05.0f", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +-------+",
+            "     |     x |",
+            "     |-------|",
+            "  1. | one l |",
+            "  2. |  zero |",
+            "     +-------+"
+          ]
+        },
+        { "command": "format x %tc", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +-----------------+",
+            "     |               x |",
+            "     |-----------------|",
+            "  1. |  one label long |",
+            "  2. | zero label long |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "format x %-4.0g", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +-----------------+",
+            "     | x               |",
+            "     |-----------------|",
+            "  1. | one label long  |",
+            "  2. | zero label long |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "format x %-5.2f", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +-----------------+",
+            "     | x               |",
+            "     |-----------------|",
+            "  1. | one label long  |",
+            "  2. | zero label long |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "format x %10.0g", "lines": [] },
+        {
+          "command": "list x in 1/2",
+          "lines": [
+            "     +------------+",
+            "     |          x |",
+            "     |------------|",
+            "  1. |  one label |",
+            "  2. | zero label |",
+            "     +------------+"
+          ]
+        },
+        { "command": "generate longname = _n", "lines": [] },
+        { "command": "label values longname xl", "lines": [] },
+        { "command": "format longname %3.0g", "lines": [] },
+        {
+          "command": "list longname in 1/2",
+          "lines": [
+            "     +----------+",
+            "     | longname |",
+            "     |----------|",
+            "  1. |      zer |",
+            "  2. |      one |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "list longname in 1/2, abbreviate(4)",
+          "lines": [
+            "     +-------+",
+            "     | lon~e |",
+            "     |-------|",
+            "  1. |   zer |",
+            "  2. |   one |",
+            "     +-------+"
+          ]
+        },
+        { "command": "format longname %-3.0g", "lines": [] },
+        {
+          "command": "list longname x in 1/2",
+          "lines": [
+            "     +------------------------------+",
+            "     | longname                   x |",
+            "     |------------------------------|",
+            "  1. | zero label long    one label |",
+            "  2. | one label long    zero label |",
+            "     +------------------------------+"
+          ]
+        },
+        {
+          "command": "describe x longname",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %10.0g     xl",
+            "longname        float   %-3.0g     xl"
+          ]
+        },
+        { "command": "generate d = 12345 + _n", "lines": [] },
+        { "command": "label define dl 12346 \"twelve\"", "lines": [] },
+        { "command": "label values d dl", "lines": [] },
+        { "command": "format d %4.0g", "lines": [] },
+        {
+          "command": "list d in 1/3",
+          "lines": [
+            "     +---------+",
+            "     |       d |",
+            "     |---------|",
+            "  1. |    twel |",
+            "  2. | 1.2e+04 |",
+            "  3. | 1.2e+04 |",
+            "     +---------+"
+          ]
+        },
+        {
+          "command": "generate j = .a",
+          "lines": ["(6 missing values generated)"]
+        },
+        { "command": "replace j = 1 in 1", "lines": ["(1 real change made)"] },
+        {
+          "command": "label define jl 1 \"one\" .a \"missing a long label\"",
+          "lines": []
+        },
+        { "command": "label values j jl", "lines": [] },
+        { "command": "format j %5.0g", "lines": [] },
+        {
+          "command": "list j in 1/3",
+          "lines": [
+            "     +-------+",
+            "     |     j |",
+            "     |-------|",
+            "  1. |   one |",
+            "  2. | missi |",
+            "  3. | missi |",
+            "     +-------+"
+          ]
+        },
+        { "command": "generate f = mod(_n,2)+1", "lines": [] },
+        {
+          "command": "label define fl 1 \"中文标签很长的\" 2 \"abc\"",
+          "lines": []
+        },
+        { "command": "label values f fl", "lines": [] },
+        { "command": "format f %5.0g", "lines": [] },
+        {
+          "command": "list f in 1/2",
+          "lines": [
+            "     +-----+",
+            "     |   f |",
+            "     |-----|",
+            "  1. | abc |",
+            "  2. |  中 |",
+            "     +-----+"
+          ]
+        },
+        { "command": "format f %6.0g", "lines": [] },
+        {
+          "command": "list f in 1/2",
+          "lines": [
+            "     +------+",
+            "     |    f |",
+            "     |------|",
+            "  1. |  abc |",
+            "  2. | 中文 |",
+            "     +------+"
+          ]
+        },
+        { "command": "generate byte z = mod(_n,2)+1", "lines": [] },
+        {
+          "command": "label define zl 1 \"é accent lab\" 2 \"ü\"",
+          "lines": []
+        },
+        { "command": "label values z zl", "lines": [] },
+        {
+          "command": "describe z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "z               byte    %13.0g     zl"
+          ]
+        },
+        { "command": "format z %4.0g", "lines": [] },
+        {
+          "command": "list z in 1/2",
+          "lines": [
+            "     +-----+",
+            "     |   z |",
+            "     |-----|",
+            "  1. |   ü |",
+            "  2. | é a |",
+            "     +-----+"
+          ]
+        },
+        { "command": "generate h = 1", "lines": [] },
+        {
+          "command": "label define hl 1 \"A label that is longer than the line allows in a boxed list at the default linesize of 79 here\"",
+          "lines": []
+        },
+        { "command": "label values h hl", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "list h in 1",
+          "lines": [
+            "     +------------------------------------------------------------------------+",
+            "     | h                                                                      |",
+            "     |------------------------------------------------------------------------|",
+            "  1. | A label that is longer than the line allows in a boxed list at the d.. |",
+            "     +------------------------------------------------------------------------+"
+          ]
+        },
+        { "command": "format h %75.0g", "lines": [] },
+        {
+          "command": "list h in 1",
+          "lines": [
+            "     +------------------------------------------------------------------------+",
+            "     | h                                                                      |",
+            "     |------------------------------------------------------------------------|",
+            "  1. | A label that is longer than the line allows in a boxed list at the d.. |",
+            "     +------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id h in 1, clean",
+          "lines": [
+            "       id",
+            ">       h",
+            "  1.    1   A label that is longer than the line allows in a boxed list at the",
+            "> default"
+          ]
+        },
+        { "command": "format h %12.0g", "lines": [] },
+        {
+          "command": "list h in 1",
+          "lines": [
+            "     +--------------+",
+            "     |            h |",
+            "     |--------------|",
+            "  1. | A label that |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "list id sex q1 grp x longname d j f z h in 1/2",
+          "lines": [
+            "     +---------------------------------------------------------------------+",
+            "  1. | id |    sex |       q1 |         grp |          x | longname        |",
+            "     |  1 | Female | Disagree | Treatment A |  one label | zero label long |",
+            "     |-------------+------------------------+------------------------------|",
+            "     |         d   |       j    |      f    |     z    |              h    |",
+            "     |      twel   |     one    |    abc    |     ü    |   A label that    |",
+            "     +---------------------------------------------------------------------+",
+            "",
+            "     +---------------------------------------------------------------------+",
+            "  2. | id |    sex |       q1 |         grp |          x | longname        |",
+            "     |  2 | Male r |    Agree | Treatment B | zero label | one label long  |",
+            "     |-------------+------------------------+------------------------------|",
+            "     |         d   |       j    |      f    |     z    |              h    |",
+            "     |   1.2e+04   |   missi    |   中文    |   é a    |   A label that    |",
+            "     +---------------------------------------------------------------------+"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "label-values-widens-only-new-variables",
+      "source": "clear\nset obs 2\ngenerate x = _n\ngenerate y = _n\ngenerate z = _n\nlabel define L 1 \"abcdefghijklmn\"\nlabel values x L\nformat x %4.0g\nlabel values y L\ndescribe x y\nlabel values z L\nformat x %4.0g\nformat y %5.0g\nformat z %6.0g\nlabel define L 2 \"abcdefghijklmnopq\", add\ndescribe x y z\nformat x %4.0g\nformat y %5.0g\nformat z %6.0g\nlabel values x y L\ndescribe x y z\nlabel values x\nlabel values x L\ndescribe x y z\nformat x %-4.0g\nlabel define M 1 \"a much longer label than the others are\"\nlabel values x M\ndescribe x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "generate z = _n", "lines": [] },
+        { "command": "label define L 1 \"abcdefghijklmn\"", "lines": [] },
+        { "command": "label values x L", "lines": [] },
+        { "command": "format x %4.0g", "lines": [] },
+        { "command": "label values y L", "lines": [] },
+        {
+          "command": "describe x y",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %4.0g      L",
+            "y               float   %14.0g     L"
+          ]
+        },
+        { "command": "label values z L", "lines": [] },
+        { "command": "format x %4.0g", "lines": [] },
+        { "command": "format y %5.0g", "lines": [] },
+        { "command": "format z %6.0g", "lines": [] },
+        {
+          "command": "label define L 2 \"abcdefghijklmnopq\", add",
+          "lines": []
+        },
+        {
+          "command": "describe x y z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %17.0g     L",
+            "y               float   %17.0g     L",
+            "z               float   %17.0g     L"
+          ]
+        },
+        { "command": "format x %4.0g", "lines": [] },
+        { "command": "format y %5.0g", "lines": [] },
+        { "command": "format z %6.0g", "lines": [] },
+        { "command": "label values x y L", "lines": [] },
+        {
+          "command": "describe x y z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %4.0g      L",
+            "y               float   %5.0g      L",
+            "z               float   %6.0g      L"
+          ]
+        },
+        { "command": "label values x", "lines": [] },
+        { "command": "label values x L", "lines": [] },
+        {
+          "command": "describe x y z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %17.0g     L",
+            "y               float   %5.0g      L",
+            "z               float   %6.0g      L"
+          ]
+        },
+        { "command": "format x %-4.0g", "lines": [] },
+        {
+          "command": "label define M 1 \"a much longer label than the others are\"",
+          "lines": []
+        },
+        { "command": "label values x M", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %39.0g     M"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "list-clean-wrapped-at-linesize",
+      "source": "clear\nset obs 6\nset seed 42\ngenerate id = _n\ngenerate double income = round(runiform()*50000+20000, .01)\ngenerate age = 20 + _n\ngenerate female = mod(_n,2)\ngenerate str45 region = cond(mod(_n,2), \"South\", \"Northeast and Mid-Atlantic\")\ngenerate str12 grp = \"treatment B\"\ngenerate str18 name = \"Bob  Smith\"\ngenerate score = 70 + _n/10\ngenerate w = 1\ngenerate double pw = 1.9299875\ngenerate pass = 1\ngenerate double before = 20 + runiform()\ngenerate double after = 21 + runiform()\ngenerate str5 sid = string(_n, \"%05.0f\")\ngenerate str11 edu = \"High school\"\nset linesize 79\nlist in 1/3, clean\nlist in 1/3, clean noobs\nlist in 1/2, clean noheader\nlist region name in 1/2, clean\nset linesize 100\nlist in 1/3, clean\nlist in 1/2, clean linesize(200)\nset linesize 120\nlist in 1/2, clean\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "set seed 42", "lines": [] },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate double income = round(runiform()*50000+20000, .01)",
+          "lines": []
+        },
+        { "command": "generate age = 20 + _n", "lines": [] },
+        { "command": "generate female = mod(_n,2)", "lines": [] },
+        {
+          "command": "generate str45 region = cond(mod(_n,2), \"South\", \"Northeast and Mid-Atlantic\")",
+          "lines": []
+        },
+        { "command": "generate str12 grp = \"treatment B\"", "lines": [] },
+        { "command": "generate str18 name = \"Bob  Smith\"", "lines": [] },
+        { "command": "generate score = 70 + _n/10", "lines": [] },
+        { "command": "generate w = 1", "lines": [] },
+        { "command": "generate double pw = 1.9299875", "lines": [] },
+        { "command": "generate pass = 1", "lines": [] },
+        { "command": "generate double before = 20 + runiform()", "lines": [] },
+        { "command": "generate double after = 21 + runiform()", "lines": [] },
+        {
+          "command": "generate str5 sid = string(_n, \"%05.0f\")",
+          "lines": []
+        },
+        { "command": "generate str11 edu = \"High school\"", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "list in 1/3, clean",
+          "lines": [
+            "       id     income   age   female                       region           grp",
+            ">         name   score   w          pw   pass      before       after     sid",
+            ">          edu",
+            "  1.    1   57757.78    21        1                        South   treatment B",
+            ">   Bob  Smith    70.1   1   1.9299875      1    20.57457   21.685271   00001",
+            ">  High school",
+            "  2.    2   51951.57    22        0   Northeast and Mid-Atlantic   treatment B",
+            ">   Bob  Smith    70.2   1   1.9299875      1   20.372888   21.637338   00002",
+            ">  High school",
+            "  3.    3   57607.26    23        1                        South   treatment B",
+            ">   Bob  Smith    70.3   1   1.9299875      1   20.273874    21.82655   00003",
+            ">  High school"
+          ]
+        },
+        {
+          "command": "list in 1/3, clean noobs",
+          "lines": [
+            "    id     income   age   female                       region           grp",
+            ">      name   score   w          pw   pass      before       after     sid",
+            ">       edu",
+            "     1   57757.78    21        1                        South   treatment B   B",
+            "> ob  Smith    70.1   1   1.9299875      1    20.57457   21.685271   00001   Hi",
+            "> gh school",
+            "     2   51951.57    22        0   Northeast and Mid-Atlantic   treatment B   B",
+            "> ob  Smith    70.2   1   1.9299875      1   20.372888   21.637338   00002   Hi",
+            "> gh school",
+            "     3   57607.26    23        1                        South   treatment B   B",
+            "> ob  Smith    70.3   1   1.9299875      1   20.273874    21.82655   00003   Hi",
+            "> gh school"
+          ]
+        },
+        {
+          "command": "list in 1/2, clean noheader",
+          "lines": [
+            "  1.    1   57757.78    21        1                        South   treatment B",
+            ">   Bob  Smith    70.1   1   1.9299875      1    20.57457   21.685271   00001",
+            ">  High school",
+            "  2.    2   51951.57    22        0   Northeast and Mid-Atlantic   treatment B",
+            ">   Bob  Smith    70.2   1   1.9299875      1   20.372888   21.637338   00002",
+            ">  High school"
+          ]
+        },
+        {
+          "command": "list region name in 1/2, clean",
+          "lines": [
+            "                           region         name",
+            "  1.                        South   Bob  Smith",
+            "  2.   Northeast and Mid-Atlantic   Bob  Smith"
+          ]
+        },
+        { "command": "set linesize 100", "lines": [] },
+        {
+          "command": "list in 1/3, clean",
+          "lines": [
+            "       id     income   age   female                       region           grp         name   score",
+            ">   w          pw   pass      before       after     sid           edu",
+            "  1.    1   57757.78    21        1                        South   treatment B   Bob  Smith    70.1",
+            ">   1   1.9299875      1    20.57457   21.685271   00001   High school",
+            "  2.    2   51951.57    22        0   Northeast and Mid-Atlantic   treatment B   Bob  Smith    70.2",
+            ">   1   1.9299875      1   20.372888   21.637338   00002   High school",
+            "  3.    3   57607.26    23        1                        South   treatment B   Bob  Smith    70.3",
+            ">   1   1.9299875      1   20.273874    21.82655   00003   High school"
+          ]
+        },
+        {
+          "command": "list in 1/2, clean linesize(200)",
+          "lines": [
+            "       id     income   age   female                       region           grp         name   score",
+            ">   w          pw   pass      before       after     sid           edu",
+            "  1.    1   57757.78    21        1                        South   treatment B   Bob  Smith    70.1",
+            ">   1   1.9299875      1    20.57457   21.685271   00001   High school",
+            "  2.    2   51951.57    22        0   Northeast and Mid-Atlantic   treatment B   Bob  Smith    70.2",
+            ">   1   1.9299875      1   20.372888   21.637338   00002   High school"
+          ]
+        },
+        { "command": "set linesize 120", "lines": [] },
+        {
+          "command": "list in 1/2, clean",
+          "lines": [
+            "       id     income   age   female                       region           grp         name   score   w          pw   pa",
+            "> ss      before       after     sid           edu",
+            "  1.    1   57757.78    21        1                        South   treatment B   Bob  Smith    70.1   1   1.9299875",
+            ">  1    20.57457   21.685271   00001   High school",
+            "  2.    2   51951.57    22        0   Northeast and Mid-Atlantic   treatment B   Bob  Smith    70.2   1   1.9299875",
+            ">  1   20.372888   21.637338   00002   High school"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "list-clean-long-strings-wrapped",
+      "source": "clear\nset obs 3\ngenerate id = 1000 + _n\ngenerate str240 essay = \"This is a long essay text for student \" + string(_n) + \" lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum\"\ngenerate str200 s2 = substr(essay, 1, 200)\ngenerate str72 v = \"v\" * 72\ngenerate str71 w = \"w\" * 71\ngenerate str70 w2 = \"w\" * 70\ngenerate str75 w3 = \"w\" * 75\ngenerate str74 w4 = \"w\" * 74\ngenerate str73 u = \"u\" * 73\ngenerate str90 c = \"中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文\"\nset linesize 80\nlist id essay in 1, clean noobs\nlist id s2 in 1, clean noobs\nset linesize 120\nlist id essay in 1, clean noobs\nset linesize 79\nlist v in 1/2, clean\nlist w in 1/2, clean\nlist w2 in 1/2, clean\nlist w3 in 1/2, clean noobs\nlist w4 in 1/2, clean noobs\nlist id u in 1/2, clean noobs\nlist id c in 1/2, clean\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = 1000 + _n", "lines": [] },
+        {
+          "command": "generate str240 essay = \"This is a long essay text for student \" + string(_n) + \" lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum\"",
+          "lines": []
+        },
+        {
+          "command": "generate str200 s2 = substr(essay, 1, 200)",
+          "lines": []
+        },
+        { "command": "generate str72 v = \"v\" * 72", "lines": [] },
+        { "command": "generate str71 w = \"w\" * 71", "lines": [] },
+        { "command": "generate str70 w2 = \"w\" * 70", "lines": [] },
+        { "command": "generate str75 w3 = \"w\" * 75", "lines": [] },
+        { "command": "generate str74 w4 = \"w\" * 74", "lines": [] },
+        { "command": "generate str73 u = \"u\" * 73", "lines": [] },
+        {
+          "command": "generate str90 c = \"中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "list id essay in 1, clean noobs",
+          "lines": [
+            "      id",
+            ">",
+            ">                                                                    essay",
+            "    1001   This is a long essay text for student 1 lorem ipsum lorem ipsum lorem",
+            ">  ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum",
+            ">  lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
+          ]
+        },
+        {
+          "command": "list id s2 in 1, clean noobs",
+          "lines": [
+            "      id",
+            ">",
+            ">                                                    s2",
+            "    1001   This is a long essay text for student 1 lorem ipsum lorem ipsum lorem",
+            ">  ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum",
+            ">  lorem ipsum lorem ipsum lorem ipsum lorem ipsum lore"
+          ]
+        },
+        { "command": "set linesize 120", "lines": [] },
+        {
+          "command": "list id essay in 1, clean noobs",
+          "lines": [
+            "      id",
+            ">                                                                                                          essay",
+            "    1001   This is a long essay text for student 1 lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ips",
+            "> um lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
+          ]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "list v in 1/2, clean",
+          "lines": [
+            "                                                                              v",
+            ">",
+            "  1.   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+            ">",
+            "  2.   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+            ">"
+          ]
+        },
+        {
+          "command": "list w in 1/2, clean",
+          "lines": [
+            "                                                                             w",
+            ">",
+            "  1.   wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            ">",
+            "  2.   wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            ">"
+          ]
+        },
+        {
+          "command": "list w2 in 1/2, clean",
+          "lines": [
+            "                                                                           w2",
+            "  1.   wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            "  2.   wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
+          ]
+        },
+        {
+          "command": "list w3 in 1/2, clean noobs",
+          "lines": [
+            "                                                                             w3",
+            ">",
+            "    wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            ">",
+            "    wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            ">"
+          ]
+        },
+        {
+          "command": "list w4 in 1/2, clean noobs",
+          "lines": [
+            "                                                                            w4",
+            ">",
+            "    wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            ">",
+            "    wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+            ">"
+          ]
+        },
+        {
+          "command": "list id u in 1/2, clean noobs",
+          "lines": [
+            "      id",
+            ">     u",
+            "    1001   uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "> uuuuu",
+            "    1002   uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+            "> uuuuu"
+          ]
+        },
+        {
+          "command": "list id c in 1/2, clean",
+          "lines": [
+            "         id                                                              c",
+            "  1.   1001   中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "  2.   1002   中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "list-table-wrapped-at-linesize",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate str60 s = \"abcdefghij\" * 6\ngenerate str20 t = \"x\"\nset linesize 79\nlist id s s t, table\nlist id s s t, linesize(200)\nlist id s s t, table divider separator(2)\nlist id s s t, linesize(100)\nlist id s t, clean divider separator(1)\nset linesize 200\nlist id s s t, linesize(79)\nlist id s s t, clean linesize(79)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate str60 s = \"abcdefghij\" * 6", "lines": [] },
+        { "command": "generate str20 t = \"x\"", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "list id s s t, table",
+          "lines": [
+            "     +-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------+",
+            "     | id                                                              s",
+            ">                                                        s   t |",
+            "     |-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------|",
+            "  1. |  1   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x |",
+            "  2. |  2   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x |",
+            "  3. |  3   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x |",
+            "     +-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id s s t, linesize(200)",
+          "lines": [
+            "     +-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------+",
+            "     | id                                                              s",
+            ">                                                        s   t |",
+            "     |-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------|",
+            "  1. |  1   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x |",
+            "  2. |  2   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x |",
+            "  3. |  3   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x |",
+            "     +-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id s s t, table divider separator(2)",
+          "lines": [
+            "     +-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------+",
+            "     | id |                                                            s |",
+            ">                                                        s | t |",
+            "     |----+--------------------------------------------------------------+-----",
+            "> ---------------------------------------------------------+---|",
+            "  1. |  1 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x |",
+            "  2. |  2 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x |",
+            "     |----+--------------------------------------------------------------+-----",
+            "> ---------------------------------------------------------+---|",
+            "  3. |  3 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | abcd",
+            "> efghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x |",
+            "     +-------------------------------------------------------------------------",
+            "> -------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id s s t, linesize(100)",
+          "lines": [
+            "     +-------------------------------------------------------------------+",
+            "  1. | id |                                                            s |",
+            "     |  1 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij |",
+            "     |-------------------------------------------------------------------|",
+            "     |                                                            s | t  |",
+            "     | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x  |",
+            "     +-------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------+",
+            "  2. | id |                                                            s |",
+            "     |  2 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij |",
+            "     |-------------------------------------------------------------------|",
+            "     |                                                            s | t  |",
+            "     | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x  |",
+            "     +-------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------+",
+            "  3. | id |                                                            s |",
+            "     |  3 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij |",
+            "     |-------------------------------------------------------------------|",
+            "     |                                                            s | t  |",
+            "     | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x  |",
+            "     +-------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id s t, clean divider separator(1)",
+          "lines": [
+            "       id                                                              s   t",
+            "  1.    1   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x",
+            "  2.    2   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x",
+            "  3.    3   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "list id s s t, linesize(79)",
+          "lines": [
+            "     +-------------------------------------------------------------------+",
+            "  1. | id |                                                            s |",
+            "     |  1 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij |",
+            "     |-------------------------------------------------------------------|",
+            "     |                                                            s | t  |",
+            "     | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x  |",
+            "     +-------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------+",
+            "  2. | id |                                                            s |",
+            "     |  2 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij |",
+            "     |-------------------------------------------------------------------|",
+            "     |                                                            s | t  |",
+            "     | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x  |",
+            "     +-------------------------------------------------------------------+",
+            "",
+            "     +-------------------------------------------------------------------+",
+            "  3. | id |                                                            s |",
+            "     |  3 | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij |",
+            "     |-------------------------------------------------------------------|",
+            "     |                                                            s | t  |",
+            "     | abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | x  |",
+            "     +-------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list id s s t, clean linesize(79)",
+          "lines": [
+            "       id                                                              s                                                              s   t",
+            "  1.    1   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x",
+            "  2.    2   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x",
+            "  3.    3   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij   x"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "by-headings-wrapped-at-linesize",
+      "source": "clear\nset obs 6\ngenerate id = _n\ngenerate region = mod(_n,3)+1\ngenerate grp = mod(_n,2)\nlabel define reg 1 \"North\" 2 \"Midwest region of the United States of America and Canada and Mexico together\" 3 \"South\"\nlabel values region reg\ngenerate str80 lab = \"Midwest region of the United States of America and Canada and Mexico\"\nreplace lab = \"abcdefghijklmnopqrstuvwxyzabcdefghijklmn\" in 2\nreplace lab = \"abcdefghijklmnopqrstuvwxyzabcdefghijklmno\" in 3\ngenerate str30 a = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\ngenerate str30 b = \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"\ngenerate x = 1\nlabel define xl 1 \"中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文\"\nlabel values x xl\ngenerate 中文 = \"中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文\"\ngenerate double v = 1.5 + _n\nformat v %6.2f\nset linesize 79\nbysort region (id): list id\nby region grp (id), sort: list id, clean\nby region grp, sort: count\nby lab (id), sort: list id, noobs\nby a b id, sort: count\nby x id, sort: count\nby 中文 id, sort: count\nby v, sort: count\nset linesize 60\nby region grp, sort: count\nset linesize 200\nby lab, sort: count\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate region = mod(_n,3)+1", "lines": [] },
+        { "command": "generate grp = mod(_n,2)", "lines": [] },
+        {
+          "command": "label define reg 1 \"North\" 2 \"Midwest region of the United States of America and Canada and Mexico together\" 3 \"South\"",
+          "lines": []
+        },
+        { "command": "label values region reg", "lines": [] },
+        {
+          "command": "generate str80 lab = \"Midwest region of the United States of America and Canada and Mexico\"",
+          "lines": []
+        },
+        {
+          "command": "replace lab = \"abcdefghijklmnopqrstuvwxyzabcdefghijklmn\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace lab = \"abcdefghijklmnopqrstuvwxyzabcdefghijklmno\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "generate str30 a = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+          "lines": []
+        },
+        {
+          "command": "generate str30 b = \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"",
+          "lines": []
+        },
+        { "command": "generate x = 1", "lines": [] },
+        {
+          "command": "label define xl 1 \"中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文\"",
+          "lines": []
+        },
+        { "command": "label values x xl", "lines": [] },
+        {
+          "command": "generate 中文 = \"中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文\"",
+          "lines": []
+        },
+        { "command": "generate double v = 1.5 + _n", "lines": [] },
+        { "command": "format v %6.2f", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "bysort region (id): list id",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> region = North",
+            "",
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  3 |",
+            "  2. |  6 |",
+            "     +----+",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America and Canada and Mexic",
+            "> o together",
+            "",
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  1 |",
+            "  2. |  4 |",
+            "     +----+",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = South",
+            "",
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  2 |",
+            "  2. |  5 |",
+            "     +----+"
+          ]
+        },
+        {
+          "command": "by region grp (id), sort: list id, clean",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> region = North, grp = 0",
+            "",
+            "       id",
+            "  1.    6",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = North, grp = 1",
+            "",
+            "       id",
+            "  1.    3",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America and Canada and Mexic",
+            "> o together, grp = 0",
+            "",
+            "       id",
+            "  1.    4",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America and Canada and Mexic",
+            "> o together, grp = 1",
+            "",
+            "       id",
+            "  1.    1",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = South, grp = 0",
+            "",
+            "       id",
+            "  1.    2",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> region = South, grp = 1",
+            "",
+            "       id",
+            "  1.    5"
+          ]
+        },
+        {
+          "command": "by region grp, sort: count",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> region = North, grp = 0",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> region = North, grp = 1",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America and Canada and Mexic",
+            "> o together, grp = 0",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America and Canada and Mexic",
+            "> o together, grp = 1",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> region = South, grp = 0",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> region = South, grp = 1",
+            "  1"
+          ]
+        },
+        {
+          "command": "by lab (id), sort: list id, noobs",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> lab = Midwest region of the United States of..",
+            "",
+            "  +----+",
+            "  | id |",
+            "  |----|",
+            "  |  1 |",
+            "  |  4 |",
+            "  |  5 |",
+            "  |  6 |",
+            "  +----+",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> lab = abcdefghijklmnopqrstuvwxyzabcdefghijklmn",
+            "",
+            "  +----+",
+            "  | id |",
+            "  |----|",
+            "  |  2 |",
+            "  +----+",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> lab = abcdefghijklmnopqrstuvwxyzabcdefghijkl..",
+            "",
+            "  +----+",
+            "  | id |",
+            "  |----|",
+            "  |  3 |",
+            "  +----+"
+          ]
+        },
+        {
+          "command": "by a b id, sort: count",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> a = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, id =",
+            ">  1",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> a = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, id =",
+            ">  2",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> a = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, id =",
+            ">  3",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> a = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, id =",
+            ">  4",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> a = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, id =",
+            ">  5",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> a = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, id =",
+            ">  6",
+            "  1"
+          ]
+        },
+        {
+          "command": "by x id, sort: count",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> x = 中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "> 中文中文中文中文中文中文中文, id = 1",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> x = 中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "> 中文中文中文中文中文中文中文, id = 2",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> x = 中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "> 中文中文中文中文中文中文中文, id = 3",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> x = 中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "> 中文中文中文中文中文中文中文, id = 4",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> x = 中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "> 中文中文中文中文中文中文中文, id = 5",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> x = 中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文",
+            "> 中文中文中文中文中文中文中文, id = 6",
+            "  1"
+          ]
+        },
+        {
+          "command": "by 中文 id, sort: count",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> 中文 = 中文中文中文中文中文中文中文中文中文中.., id = 1",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> 中文 = 中文中文中文中文中文中文中文中文中文中.., id = 2",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> 中文 = 中文中文中文中文中文中文中文中文中文中.., id = 3",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> 中文 = 中文中文中文中文中文中文中文中文中文中.., id = 4",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> 中文 = 中文中文中文中文中文中文中文中文中文中.., id = 5",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> 中文 = 中文中文中文中文中文中文中文中文中文中.., id = 6",
+            "  1"
+          ]
+        },
+        {
+          "command": "by v, sort: count",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> v = 2.50",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> v = 3.50",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> v = 4.50",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> v = 5.50",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> v = 6.50",
+            "  1",
+            "-------------------------------------------------------------------------------",
+            "-> v = 7.50",
+            "  1"
+          ]
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "by region grp, sort: count",
+          "lines": [
+            "------------------------------------------------------------",
+            "-> region = North, grp = 0",
+            "  1",
+            "------------------------------------------------------------",
+            "-> region = North, grp = 1",
+            "  1",
+            "------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America a",
+            "> nd Canada and Mexico together, grp = 0",
+            "  1",
+            "------------------------------------------------------------",
+            "-> region = Midwest region of the United States of America a",
+            "> nd Canada and Mexico together, grp = 1",
+            "  1",
+            "------------------------------------------------------------",
+            "-> region = South, grp = 0",
+            "  1",
+            "------------------------------------------------------------",
+            "-> region = South, grp = 1",
+            "  1"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "by lab, sort: count",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> lab = Midwest region of the United States of..",
+            "  4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> lab = abcdefghijklmnopqrstuvwxyzabcdefghijklmn",
+            "  1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> lab = abcdefghijklmnopqrstuvwxyzabcdefghijkl..",
+            "  1"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

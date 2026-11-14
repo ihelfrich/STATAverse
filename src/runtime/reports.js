@@ -17,6 +17,7 @@ import {
   missingName,
   padDisplay,
   shownText,
+  truncateBytes,
   truncateColumns,
 } from "./values.js";
 
@@ -1474,12 +1475,22 @@ export function list(session, text, ctx) {
       const labels =
           options.label !== false && session.data.valueLabels.get(v.valueLabel),
         string = isStringType(v.type),
+        // A right-justified %g, %f or %e format cuts a value label to its
+        // width in bytes, as Stata's list does; a left-justified or a date
+        // format shows the label whole.
+        spec = labels ? parseFormat(v.format ?? "%9.0g") : null,
+        labelWidth = spec?.kind === "number" && !spec.left ? spec.width : 0,
         cells = rows.map((i) => {
-          const value = v.data[i];
-          return {
-            text: labelled(session, v, value, options.label !== false),
-            textual: string || (labels && labels.has(value)),
-          };
+          const value = v.data[i],
+            textual = string || Boolean(labels && labels.has(value)),
+            text = labelled(session, v, value, options.label !== false);
+          // A label the format cuts loses the blanks the cut leaves at its
+          // end.
+          const cut =
+            textual && !string && labelWidth
+              ? truncateBytes(text, labelWidth)
+              : text;
+          return { text: cut === text ? text : cut.trimEnd(), textual };
         });
       return { v, string, cells };
     });
@@ -1540,17 +1551,27 @@ export function list(session, text, ctx) {
     number = (i) => `${String(i - first + 1).padStart(3)}. `,
     natural = (list) =>
       list.reduce((total, c) => total + c.width, 0) + 3 * (list.length - 1) + 2;
+  // A line longer than the session's linesize, which linesize() does not
+  // change, goes on after "> " on the next lines.
+  const print = ctx.out,
+    out = (text) =>
+      wrapLine(text, session.settings.linesize ?? 80).forEach((piece) =>
+        print(piece.trimEnd()),
+      );
   if (options.clean) {
     // Without observation numbers the rows start one column further in.
-    const line = (items) => items.join("   ");
+    // Each line ends in two blanks, where a table has " |", and those
+    // count when the line is wrapped.
+    const line = (items) => items.join("   ") + "  ";
     if (options.header !== false) ctx.out("");
     if (options.header !== false)
-      ctx.out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
+      out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
     rows.forEach((i, k) =>
-      ctx.out(
+      out(
         `${noobs ? " " : number(i).trimEnd()}   ${line(columns.map((c) => value(c, k)))}`,
       ),
     );
+    ctx.out("");
     return;
   }
   const inner = natural(columns),
@@ -1558,6 +1579,8 @@ export function list(session, text, ctx) {
       options.table ||
       (!options.display && margin.length + inner + 2 <= linesize);
   if (table) {
+    // Only table, or a linesize() wider than the line, makes one too wide.
+    ctx = { ...ctx, out };
     const gap = options.divider ? " | " : "   ",
       line = (items) => items.join(gap),
       rule = options.divider
@@ -1657,24 +1680,58 @@ export function list(session, text, ctx) {
 }
 
 /**
+ * A line as Stata prints one wider than the linesize: cut where the next
+ * character would pass the linesize, counted in display columns (two for
+ * CJK characters), the rest on lines that start with "> ".
+ */
+export function wrapLine(line, linesize) {
+  if (displayWidth(line) <= linesize) return [line];
+  const lines = [];
+  let current = "",
+    used = 0;
+  for (const character of line) {
+    const width = displayWidth(character);
+    if (used + width > linesize && used > 2) {
+      lines.push(current);
+      current = "> ";
+      used = 2;
+    }
+    current += character;
+    used += width;
+  }
+  lines.push(current);
+  return lines;
+}
+
+/**
  * Runs a reporting command once per by-group, under Stata's group heading.
  * As in Stata's by, a group with no observations, r(2000), is not an
  * error: its message is shown and the next group runs.
  */
 export const perGroup = (run) => (session, text, ctx) => {
   if (!ctx.by) return run(session, text, ctx);
-  const rule = "-".repeat(session.settings.linesize ?? 80);
+  const linesize = session.settings.linesize ?? 80,
+    rule = "-".repeat(linesize),
+    // A string wider than 40 columns shows its first 38 and "..".
+    shown = (variable, value) => {
+      const text = labelled(session, variable, value);
+      return typeof value === "string" && displayWidth(text) > 40
+        ? truncateColumns(text, 38) + ".."
+        : text;
+    };
   for (const group of ctx.by.groups) {
     ctx.out(rule);
-    ctx.out(
+    // The heading is wrapped at the linesize, as any line Stata prints.
+    wrapLine(
       "-> " +
         ctx.by.keys
           .map((key) => {
             const variable = session.data.get(key);
-            return `${key} = ${labelled(session, variable, variable.data[group.start])}`;
+            return `${key} = ${shown(variable, variable.data[group.start])}`;
           })
           .join(", "),
-    );
+      linesize,
+    ).forEach((line) => ctx.out(line));
     try {
       run(session, text, { ...ctx, group });
     } catch (error) {

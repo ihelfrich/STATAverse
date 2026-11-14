@@ -13137,3 +13137,221 @@ use frh, clear
 collapse (mean) lninc, by(female)
 capture noisily save, replace
 describe, short
+=== list-value-labels-cut-to-format-width
+clear
+set obs 6
+generate id = _n
+generate sex = mod(_n,2)+1
+label define sexlbl 1 "Male respondent long" 2 "Female respondent"
+label values sex sexlbl
+describe sex
+generate q1 = mod(_n,4)+1
+label define agr 1 "Strongly disagree" 2 "Disagree" 3 "Agree" 4 "Strongly agree"
+label values q1 agr
+format q1 %8.2f
+format sex %4.0g
+generate grp = mod(_n,3)
+label define g 0 "Control group" 1 "Treatment A" 2 "Treatment B (high dose)"
+label values grp g
+format grp %12.0g
+list sex q1 grp
+list q1 in 1/5
+list sex q1 grp, clean
+list sex q1 grp, nolabel
+list sex in 1/3, string(2)
+format sex %6.0g
+list sex, string(5)
+generate x = mod(_n,2)+1
+label define xl 1 "zero label long" 2 "one label long"
+label values x xl
+format x %5.2fc
+list x in 1/2
+format x %3.1e
+list x in 1/2
+format x %05.0f
+list x in 1/2
+format x %tc
+list x in 1/2
+format x %-4.0g
+list x in 1/2
+format x %-5.2f
+list x in 1/2
+format x %10.0g
+list x in 1/2
+generate longname = _n
+label values longname xl
+format longname %3.0g
+list longname in 1/2
+list longname in 1/2, abbreviate(4)
+format longname %-3.0g
+list longname x in 1/2
+describe x longname
+generate d = 12345 + _n
+label define dl 12346 "twelve"
+label values d dl
+format d %4.0g
+list d in 1/3
+generate j = .a
+replace j = 1 in 1
+label define jl 1 "one" .a "missing a long label"
+label values j jl
+format j %5.0g
+list j in 1/3
+generate f = mod(_n,2)+1
+label define fl 1 "中文标签很长的" 2 "abc"
+label values f fl
+format f %5.0g
+list f in 1/2
+format f %6.0g
+list f in 1/2
+generate byte z = mod(_n,2)+1
+label define zl 1 "é accent lab" 2 "ü"
+label values z zl
+describe z
+format z %4.0g
+list z in 1/2
+generate h = 1
+label define hl 1 "A label that is longer than the line allows in a boxed list at the default linesize of 79 here"
+label values h hl
+set linesize 79
+list h in 1
+format h %75.0g
+list h in 1
+list id h in 1, clean
+format h %12.0g
+list h in 1
+list id sex q1 grp x longname d j f z h in 1/2
+set linesize 200
+=== label-values-widens-only-new-variables
+clear
+set obs 2
+generate x = _n
+generate y = _n
+generate z = _n
+label define L 1 "abcdefghijklmn"
+label values x L
+format x %4.0g
+label values y L
+describe x y
+label values z L
+format x %4.0g
+format y %5.0g
+format z %6.0g
+label define L 2 "abcdefghijklmnopq", add
+describe x y z
+format x %4.0g
+format y %5.0g
+format z %6.0g
+label values x y L
+describe x y z
+label values x
+label values x L
+describe x y z
+format x %-4.0g
+label define M 1 "a much longer label than the others are"
+label values x M
+describe x
+=== list-clean-wrapped-at-linesize
+clear
+set obs 6
+set seed 42
+generate id = _n
+generate double income = round(runiform()*50000+20000, .01)
+generate age = 20 + _n
+generate female = mod(_n,2)
+generate str45 region = cond(mod(_n,2), "South", "Northeast and Mid-Atlantic")
+generate str12 grp = "treatment B"
+generate str18 name = "Bob  Smith"
+generate score = 70 + _n/10
+generate w = 1
+generate double pw = 1.9299875
+generate pass = 1
+generate double before = 20 + runiform()
+generate double after = 21 + runiform()
+generate str5 sid = string(_n, "%05.0f")
+generate str11 edu = "High school"
+set linesize 79
+list in 1/3, clean
+list in 1/3, clean noobs
+list in 1/2, clean noheader
+list region name in 1/2, clean
+set linesize 100
+list in 1/3, clean
+list in 1/2, clean linesize(200)
+set linesize 120
+list in 1/2, clean
+set linesize 200
+=== list-clean-long-strings-wrapped
+clear
+set obs 3
+generate id = 1000 + _n
+generate str240 essay = "This is a long essay text for student " + string(_n) + " lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
+generate str200 s2 = substr(essay, 1, 200)
+generate str72 v = "v" * 72
+generate str71 w = "w" * 71
+generate str70 w2 = "w" * 70
+generate str75 w3 = "w" * 75
+generate str74 w4 = "w" * 74
+generate str73 u = "u" * 73
+generate str90 c = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+set linesize 80
+list id essay in 1, clean noobs
+list id s2 in 1, clean noobs
+set linesize 120
+list id essay in 1, clean noobs
+set linesize 79
+list v in 1/2, clean
+list w in 1/2, clean
+list w2 in 1/2, clean
+list w3 in 1/2, clean noobs
+list w4 in 1/2, clean noobs
+list id u in 1/2, clean noobs
+list id c in 1/2, clean
+set linesize 200
+=== list-table-wrapped-at-linesize
+clear
+set obs 3
+generate id = _n
+generate str60 s = "abcdefghij" * 6
+generate str20 t = "x"
+set linesize 79
+list id s s t, table
+list id s s t, linesize(200)
+list id s s t, table divider separator(2)
+list id s s t, linesize(100)
+list id s t, clean divider separator(1)
+set linesize 200
+list id s s t, linesize(79)
+list id s s t, clean linesize(79)
+=== by-headings-wrapped-at-linesize
+clear
+set obs 6
+generate id = _n
+generate region = mod(_n,3)+1
+generate grp = mod(_n,2)
+label define reg 1 "North" 2 "Midwest region of the United States of America and Canada and Mexico together" 3 "South"
+label values region reg
+generate str80 lab = "Midwest region of the United States of America and Canada and Mexico"
+replace lab = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn" in 2
+replace lab = "abcdefghijklmnopqrstuvwxyzabcdefghijklmno" in 3
+generate str30 a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+generate str30 b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+generate x = 1
+label define xl 1 "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+label values x xl
+generate 中文 = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+generate double v = 1.5 + _n
+format v %6.2f
+set linesize 79
+bysort region (id): list id
+by region grp (id), sort: list id, clean
+by region grp, sort: count
+by lab (id), sort: list id, noobs
+by a b id, sort: count
+by x id, sort: count
+by 中文 id, sort: count
+by v, sort: count
+set linesize 60
+by region grp, sort: count
+set linesize 200
+by lab, sort: count
