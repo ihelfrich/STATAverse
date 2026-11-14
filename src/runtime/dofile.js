@@ -37,6 +37,9 @@ export function splitCommands(source) {
       continue;
     }
     if (atCommandStart() && !/\s/.test(c)) startLine = line;
+    // A compound string left open ends with its line, as in Stata, unless
+    // #delimit ; joins the lines.
+    if (compound && c === "\n" && delimiter === "\n") compound = 0;
     if (compound) {
       if (c === "`" && next === '"') compound++;
       else if (c === '"' && next === "'") compound--;

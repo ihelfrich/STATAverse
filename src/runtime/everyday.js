@@ -143,6 +143,8 @@ function cii(session, text, ctx) {
   const [head, optionText] = splitAtComma(text),
     words = head.trim().split(/\s+/).filter(Boolean),
     kind = words.shift() ?? "";
+  // r() is emptied first, so a cii that fails leaves none.
+  session.results.r = {};
   if (!/^(means?|prop|var)/.test(kind) || kind.length < 4)
     throw new StataError(
       "you must specify one of means, proportions, or variances following cii",
@@ -160,14 +162,30 @@ function cii(session, text, ctx) {
       "you must specify 3 arguments with cii means: #obs, #mean, and #sd",
       198,
     );
-  const [n, m, s] = words.map((word) => session.scalar(word));
-  if (!(Number.isInteger(n) && n > 0))
+  // Each argument is checked as it is read: a missing value is r(7), and
+  // a name that is not a number, r(111).
+  const n = session.scalar(words[0]);
+  if (isMissing(n) || !(Number.isInteger(n) && n > 0))
     throw new StataError(
       "first argument, #obs, must be a positive integer",
-      Number.isFinite(n) && n > 0 ? 7 : 198,
+      isMissing(n) || n > 0 ? 7 : 198,
     );
-  if (!(s > 0) || isMissing(s))
-    throw new StataError("third argument, #sd, must be a positive number", 198);
+  let m;
+  try {
+    m = session.scalar(words[1]);
+  } catch (error) {
+    if (error instanceof StataError && error.code === 111)
+      throw new StataError("second argument, #mean, must be a number", 111);
+    throw error;
+  }
+  if (typeof m !== "number" || isMissing(m))
+    throw new StataError("second argument, #mean, must be a number", 7);
+  const s = session.scalar(words[2]);
+  if (isMissing(s) || !(s > 0))
+    throw new StataError(
+      "third argument, #sd, must be a positive number",
+      isMissing(s) ? 7 : 198,
+    );
   const se = s / Math.sqrt(n),
     critical = n > 1 ? invttail(n - 1, (100 - level) / 200) : MISSING,
     lb = n > 1 ? m - critical * se : MISSING,

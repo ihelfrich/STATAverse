@@ -194,15 +194,33 @@ export function abbreviateColumns(name, width) {
 const abbrev = abbreviateColumns;
 
 /**
- * ttest and prtest as syntax reads them take an in qualifier between the
- * variable and ==, as in ttest income in 1/5 == 0: the text with the
- * qualifier moved after the hypothesis, before any options.
+ * ttest and prtest read their qualifiers as Stata's syntax does, so they
+ * may come between the variable and ==, as in ttest income in 1 / 5 == 0
+ * or ttest income if female in 1/10 == 0. An in range runs to an if or
+ * =, and an if expression to an in, so in ttest income in 1/5 if x == 0
+ * the == belongs to the if. Returns the text with the qualifiers moved
+ * after the hypothesis, before any options; an == with nothing after it
+ * is invalid syntax.
  */
 export function qualifierAfterHypothesis(text) {
-  const m = /^(\s*[^\s=,]+)\s+(in\s+[^\s=,]+)\s*(==?[\s\S]*)$/.exec(text);
+  const [head, options] = splitAtComma(text),
+    m = /^(\s*[^\s=,]+)\s+((?:if|in)\b[\s\S]*)$/.exec(head);
   if (!m) return text;
-  const [before, options] = splitAtComma(m[3]);
-  return `${m[1]} ${before.trim()} ${m[2]}${options === null ? "" : `,${options}`}`;
+  let rest = m[2];
+  const qualifiers = [];
+  for (let q; (q = /^(if|in)\b\s*/.exec(rest)); rest = rest.trimStart()) {
+    const after = rest.slice(q[0].length),
+      end = after.search(q[1] === "in" ? /\bif\b|=/ : /\sin\b/),
+      body = end < 0 ? after : after.slice(0, end);
+    qualifiers.push(
+      q[1] === "in" ? `in ${body.replace(/\s+/g, "")}` : `if ${body.trim()}`,
+    );
+    rest = end < 0 ? "" : after.slice(end);
+  }
+  if (!/^==?/.test(rest)) return text;
+  const exp = rest.replace(/^==?/, "").trim();
+  if (!exp) throw new StataError("invalid syntax", 198);
+  return `${m[1]} == ${exp} ${qualifiers.join(" ")}${options === null ? "" : `,${options}`}`;
 }
 
 // Text placed at a column as display's _col() places it. A line already

@@ -218,6 +218,40 @@ export function parseDeclaration(declaration) {
 
 const notAllowed = (what) => new StataError(`${what} not allowed`, 101);
 
+/**
+ * Where a single = (not part of ==, !=, ~=, <= or >=) stands in an
+ * expression, outside quotes: { at, open, close }, open and close the
+ * indices of the brackets around it (-1 when it is at the top), or null
+ * when there is none.
+ */
+export function loneEquals(text) {
+  const opens = [];
+  let quote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') quote = !quote;
+    if (quote) continue;
+    if (c === "(" || c === "[") opens.push(i);
+    else if (c === ")" || c === "]") opens.pop();
+    else if (
+      c === "=" &&
+      !/[=!~<>]/.test(text[i - 1] ?? "") &&
+      text[i + 1] !== "="
+    ) {
+      const open = opens.at(-1) ?? -1;
+      let close = -1;
+      for (let j = i, depth = 0; open >= 0 && j < text.length; j++)
+        if (text[j] === "(" || text[j] === "[") depth++;
+        else if ((text[j] === ")" || text[j] === "]") && --depth < 0) {
+          close = j;
+          break;
+        }
+      return { at: i, open, close };
+    }
+  }
+  return null;
+}
+
 // Finds where each clause of the part before the comma begins.
 export function clauses(head, expAllowed = true) {
   const found = [];

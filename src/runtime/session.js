@@ -7,7 +7,7 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import { applySyntax } from "./syntax.js";
+import { applySyntax, loneEquals } from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, stringOf } from "./format.js";
@@ -339,16 +339,30 @@ export class Session {
     try {
       return compileExpression(text, this.scope());
     } catch (error) {
-      // Stata calls a lone = in an expression invalid syntax.
+      // Stata calls a lone = in an expression invalid syntax, and reads a
+      // parenthesis holding one, as (region = 1), as a name, region=1.
       if (
         error instanceof StataError &&
         error.message === "= is not a comparison; use =="
-      )
+      ) {
+        const lone = loneEquals(text);
+        if (
+          lone &&
+          lone.close > 0 &&
+          text[lone.open] === "(" &&
+          !/[\w$.]/.test(text[lone.open - 1] ?? "")
+        )
+          throw new StataError(
+            `${text.slice(lone.open + 1, lone.close).replace(/\s+/g, "")} invalid name`,
+            198,
+            "A single = assigns; to compare two values, write ==.",
+          );
         throw new StataError(
           "invalid syntax",
           198,
           "A single = assigns; to compare two values, write ==.",
         );
+      }
       throw error;
     }
   }

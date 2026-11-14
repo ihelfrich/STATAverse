@@ -100233,6 +100233,1762 @@
       ]
     },
     {
+      "id": "redteam6b-display-items",
+      "source": "display _char(65)_char(66)\ndisplay \"x\"_char(65)\ndisplay _char(65)\"x\"\ndisplay _skip(2)_char(65)\ndisplay _col(5)\"x\"\ndisplay \"a\"_n\"b\"\ndisplay _dup(3)\"a\"\ndisplay \"a\"1\ndisplay \"a\"(1+1)\ndisplay \"a\"\"b\"\ndisplay `\"a\"'\"b\"\ndisplay _quote \"q\" _quote\ndisplay _quote\"q\"_quote\ndisplay _quote(2)\ndisplay _col(-3) \"x\"\ndisplay _col(0) \"x\"\ndisplay _col(+3) \"x\"\ndisplay _col( 3 ) \"x\"\ndisplay _col (5) \"x\"\ndisplay _skip(-2) \"x\"\ndisplay _skip \"x\"\ndisplay \"a\" _s \"b\"\ndisplay _dup(0) \"a\" \"|\"\ndisplay _du(2) \"a\"\ndisplay _dup(2) _col(3) \"x\"\ndisplay _dup(2) _skip(1) \"x\"\ndisplay _dup(2) , \"x\"\ndisplay _dup(2) _dup(2) \"x\"\ndisplay _dup(2) %5.2f 1\ndisplay _dup(2) as res \"x\"\ndisplay _n(0) \"a\"\ndisplay _newli \"x\"\ndisplay _ski(2) \"x\"\ndisplay _colu(2) \"x\"\ndisplay _co(2) \"a\"\ndisplay \"ab\" _char(9) \"|\"\ndisplay \"abcdefgh\" _char(9) \"|\"\ndisplay \"a\" _char(10) \"b\"\ndisplay \"[\" _char(128) \"|\" _char(159) \"|\" _char(255) \"]\"\ndisplay _char( 65 ) _char(065) _char(+65)\ndisplay `\"unterminated\ndisplay \"abc\" \"\ndisplay \"abc\"\"\ndisplay `\"a\"' `\"\ndisplay `\"a `\"b\"' c\"'\ndisplay \"a\" as txt \"b\" as r \"b\" as err \"b\" as inp \"b\" as smcl \"b\"\ndisplay \"a\" in g \"b\" in smcl \"b\"\ndisplay 3 _col(10) \"y\"\ndisplay %5.2f 3 _col(1) \"x\"\ndisplay \"x\" +1 \"y\" -1\ndisplay 3 + 4 \"x\"\ndisplay \"a\" == \"b\"\nlocal m : display _col(5) \"x\" _skip(-2) _char(66)\ndisplay `\"[`m']\"'\nlocal m : display _char(9) \"x\"\ndisplay `\"[`m']\"'\n",
+      "commands": [
+        { "command": "display _char(65)_char(66)", "lines": ["AB"] },
+        { "command": "display \"x\"_char(65)", "lines": ["xA"] },
+        { "command": "display _char(65)\"x\"", "lines": ["Ax"] },
+        { "command": "display _skip(2)_char(65)", "lines": ["  A"] },
+        { "command": "display _col(5)\"x\"", "lines": ["    x"] },
+        { "command": "display \"a\"_n\"b\"", "lines": ["a", "b"] },
+        { "command": "display _dup(3)\"a\"", "lines": ["aaa"] },
+        { "command": "display \"a\"1", "lines": ["a1"] },
+        { "command": "display \"a\"(1+1)", "lines": ["a2"] },
+        { "command": "display \"a\"\"b\"", "lines": ["ab"] },
+        { "command": "display `\"a\"'\"b\"", "lines": ["ab"] },
+        { "command": "display _quote \"q\" _quote", "lines": ["\"q\""] },
+        { "command": "display _quote\"q\"_quote", "lines": ["\"q\""] },
+        { "command": "display _quote(2)", "lines": ["\"2"] },
+        { "command": "display _col(-3) \"x\"", "lines": ["x"] },
+        { "command": "display _col(0) \"x\"", "lines": ["x"] },
+        { "command": "display _col(+3) \"x\"", "lines": ["  x"] },
+        { "command": "display _col( 3 ) \"x\"", "lines": ["  x"] },
+        { "command": "display _col (5) \"x\"", "lines": ["    x"] },
+        { "command": "display _skip(-2) \"x\"", "lines": ["x"] },
+        { "command": "display _skip \"x\"", "lines": [" x"] },
+        { "command": "display \"a\" _s \"b\"", "lines": ["a b"] },
+        { "command": "display _dup(0) \"a\" \"|\"", "lines": ["|"] },
+        { "command": "display _du(2) \"a\"", "lines": ["aa"] },
+        { "command": "display _dup(2) _col(3) \"x\"", "lines": ["  xx"] },
+        { "command": "display _dup(2) _skip(1) \"x\"", "lines": ["  x"] },
+        { "command": "display _dup(2) , \"x\"", "lines": [" xx"] },
+        { "command": "display _dup(2) _dup(2) \"x\"", "lines": ["xxxx"] },
+        { "command": "display _dup(2) %5.2f 1", "lines": [" 1.00 1.00"] },
+        { "command": "display _dup(2) as res \"x\"", "lines": ["xx"] },
+        { "command": "display _n(0) \"a\"", "lines": ["a"] },
+        { "command": "display _newli \"x\"", "lines": ["x"] },
+        { "command": "display _ski(2) \"x\"", "lines": ["  x"] },
+        { "command": "display _colu(2) \"x\"", "lines": [" x"] },
+        { "command": "display _co(2) \"a\"", "lines": ["2a"] },
+        { "command": "display \"ab\" _char(9) \"|\"", "lines": ["ab      |"] },
+        {
+          "command": "display \"abcdefgh\" _char(9) \"|\"",
+          "lines": ["abcdefgh        |"]
+        },
+        { "command": "display \"a\" _char(10) \"b\"", "lines": ["a", "b"] },
+        {
+          "command": "display \"[\" _char(128) \"|\" _char(159) \"|\" _char(255) \"]\"",
+          "lines": ["[||ÿ]"]
+        },
+        {
+          "command": "display _char( 65 ) _char(065) _char(+65)",
+          "lines": ["AAA"]
+        },
+        { "command": "display `\"unterminated", "lines": ["unterminated"] },
+        { "command": "display \"abc\" \"", "lines": ["abc"] },
+        { "command": "display \"abc\"\"", "lines": ["abc"] },
+        { "command": "display `\"a\"' `\"", "lines": ["a"] },
+        { "command": "display `\"a `\"b\"' c\"'", "lines": ["a `\"b\"' c"] },
+        {
+          "command": "display \"a\" as txt \"b\" as r \"b\" as err \"b\" as inp \"b\" as smcl \"b\"",
+          "lines": ["abbbbb"]
+        },
+        {
+          "command": "display \"a\" in g \"b\" in smcl \"b\"",
+          "lines": ["abb"]
+        },
+        { "command": "display 3 _col(10) \"y\"", "lines": ["3        y"] },
+        { "command": "display %5.2f 3 _col(1) \"x\"", "lines": [" 3.00x"] },
+        { "command": "display \"x\" +1 \"y\" -1", "lines": ["x1y-1"] },
+        { "command": "display 3 + 4 \"x\"", "lines": ["7x"] },
+        { "command": "display \"a\" == \"b\"", "lines": ["ab"] },
+        {
+          "command": "local m : display _col(5) \"x\" _skip(-2) _char(66)",
+          "lines": []
+        },
+        { "command": "display `\"[`m']\"'", "lines": ["[   xB]"] },
+        { "command": "local m : display _char(9) \"x\"", "lines": [] },
+        { "command": "display `\"[`m']\"'", "lines": ["[       x]"] }
+      ]
+    },
+    {
+      "id": "redteam6b-display-item-errors",
+      "source": "scalar s = \"a\"\ncapture noisily display _col(3.7) \"x\"\ndisplay _rc\ncapture noisily display _col(2+1) \"x\"\ncapture noisily display _skip(.) \"x\"\ncapture noisily display _dup(-2) \"a\"\ncapture noisily display _n(-1) \"a\"\ncapture noisily display _char(256)\ncapture noisily display _char(0) \"|\"\ncapture noisily display _char(-1)\ncapture noisily display _char(65.7)\ncapture noisily display _char(.)\ncapture noisily display _char(\"a\")\ncapture noisily display _char(66+1)\ncapture noisily display _char()\ncapture noisily display _char(65\ndisplay _rc\ncapture noisily display _char(65)_char(66\ncapture noisily display _col \"x\"\ncapture noisily display _dup \"x\"\ncapture noisily display _ch(65)\ncapture noisily display _quotex\ncapture noisily display \"a\"1\"b\"\ndisplay _rc\ncapture noisily display 1\"a\"\ncapture noisily display sx\"a\"\ncapture noisily display 1+2\"x\"\ncapture noisily display \"T: \" + string(5)\ndisplay _rc\ncapture noisily display \"T: \" + \"b\"\ncapture noisily display \"T: \" + s\ncapture noisily display \"x\" * \"b\"\ncapture noisily display \"a\" != \"b\"\ncapture noisily display \"a\" < \"b\"\ncapture noisily display \"a\" foo(1)\ncapture noisily display \"a\" _n \"b\" foo(1)\ncapture noisily display \"a\" nosuch\ncapture noisily display \"a\" as foo \"b\"\ncapture noisily display \"a\" as te \"b\"\ncapture noisily display \"a\" in \"b\"\ncapture noisily display \"abc\"\" \"x\"\ndisplay _rc\n",
+      "commands": [
+        { "command": "scalar s = \"a\"", "lines": [] },
+        {
+          "command": "capture noisily display _col(3.7) \"x\"",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily display _col(2+1) \"x\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _skip(.) \"x\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _dup(-2) \"a\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _n(-1) \"a\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(256)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(0) \"|\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(-1)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(65.7)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(.)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(\"a\")",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(66+1)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char()",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _char(65",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily display _char(65)_char(66",
+          "lines": ["Ainvalid syntax"]
+        },
+        {
+          "command": "capture noisily display _col \"x\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _dup \"x\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display _ch(65)",
+          "lines": ["unknown function _ch()"]
+        },
+        {
+          "command": "capture noisily display _quotex",
+          "lines": ["_quotex not found"]
+        },
+        {
+          "command": "capture noisily display \"a\"1\"b\"",
+          "lines": ["a1\"b\" invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily display 1\"a\"",
+          "lines": ["1\"a\" invalid name"]
+        },
+        {
+          "command": "capture noisily display sx\"a\"",
+          "lines": ["sx\"a\" invalid name"]
+        },
+        {
+          "command": "capture noisily display 1+2\"x\"",
+          "lines": ["2\"x\" invalid name"]
+        },
+        {
+          "command": "capture noisily display \"T: \" + string(5)",
+          "lines": ["T: unknown function +string()"]
+        },
+        { "command": "display _rc", "lines": ["133"] },
+        {
+          "command": "capture noisily display \"T: \" + \"b\"",
+          "lines": ["T: +\"b\" invalid name"]
+        },
+        {
+          "command": "capture noisily display \"T: \" + s",
+          "lines": ["T: +s invalid name"]
+        },
+        {
+          "command": "capture noisily display \"x\" * \"b\"",
+          "lines": ["x*\"b\" invalid name"]
+        },
+        {
+          "command": "capture noisily display \"a\" != \"b\"",
+          "lines": ["a=\"b\" invalid name"]
+        },
+        {
+          "command": "capture noisily display \"a\" < \"b\"",
+          "lines": ["a<\"b\" invalid name"]
+        },
+        {
+          "command": "capture noisily display \"a\" foo(1)",
+          "lines": ["aunknown function foo()"]
+        },
+        {
+          "command": "capture noisily display \"a\" _n \"b\" foo(1)",
+          "lines": ["a", "bunknown function foo()"]
+        },
+        {
+          "command": "capture noisily display \"a\" nosuch",
+          "lines": ["anosuch not found"]
+        },
+        {
+          "command": "capture noisily display \"a\" as foo \"b\"",
+          "lines": ["ainvalid syntax"]
+        },
+        {
+          "command": "capture noisily display \"a\" as te \"b\"",
+          "lines": ["ainvalid syntax"]
+        },
+        {
+          "command": "capture noisily display \"a\" in \"b\"",
+          "lines": ["ainvalid syntax"]
+        },
+        {
+          "command": "capture noisily display \"abc\"\" \"x\"",
+          "lines": ["abc too few quotes"]
+        },
+        { "command": "display _rc", "lines": ["132"] }
+      ]
+    },
+    {
+      "id": "redteam6b-smcl-negative-and-links",
+      "source": "set linesize 79\ndisplay \"{col -2}x\"\ndisplay \"abc{col -2}x\"\ndisplay \"{col 3.7}x\"\ndisplay \"{hline -3}x\"\ndisplay \"abc{hline -3}x\"\ndisplay \"{hline 3}{hline -3}x\"\ndisplay \"{hline -79}x\"\ndisplay \"{hline -100}x\"\ndisplay \"abc{hline -77}x\"\ndisplay \"{hline 0}x\"\ndisplay \"{p}{hline -3}x{p_end}\"\ndisplay \"{space -2}x{dup -2:ab}{ralign -3:ab}\"\ndisplay `\"{browse \"http://www.stata.com\":Stata}\"'\ndisplay `\"{browse \"http://www.stata.com\"}\"'\ndisplay `\"{help \"summarize\"}\"'\ndisplay `\"{browse \"http://www.stata.com/a b\":Stata site}\"'\ndisplay `\"{help \"sum mar\"}\"'\ndisplay `\"{stata \"summarize x\":run it}\"'\ndisplay `\"{stata \"summarize x\"}\"'\ndisplay `\"{help \"summarize\"##syntax:syn}\"'\ndisplay `\"{view \"a.log\"}\"'\ndisplay `\"{browse http://www.stata.com}\"'\ndisplay `\"{browse \"a\":b:c}\"'\ndisplay `\"{browse \"a\"x:b}\"'\ndisplay `\"{browse \"a\" \"b\"}\"'\ndisplay `\"{browse a \"b\"}\"'\ndisplay `\"{help \"a:b\"}\"'\ndisplay `\"{bf:\"a:b\"}\"'\ndisplay `\"{browse \"unclosed}\"'\ndisplay `\"{stata `\"sum x\"':run}\"'\ndisplay `\"{dialog \"a\"}\"'\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "display \"{col -2}x\"", "lines": ["x"] },
+        { "command": "display \"abc{col -2}x\"", "lines": ["abcx"] },
+        { "command": "display \"{col 3.7}x\"", "lines": ["{col 3.7}x"] },
+        {
+          "command": "display \"{hline -3}x\"",
+          "lines": [
+            "----------------------------------------------------------------------------x"
+          ]
+        },
+        {
+          "command": "display \"abc{hline -3}x\"",
+          "lines": [
+            "abc-------------------------------------------------------------------------x"
+          ]
+        },
+        {
+          "command": "display \"{hline 3}{hline -3}x\"",
+          "lines": [
+            "----------------------------------------------------------------------------x"
+          ]
+        },
+        { "command": "display \"{hline -79}x\"", "lines": ["x"] },
+        { "command": "display \"{hline -100}x\"", "lines": ["{hline -100}x"] },
+        {
+          "command": "display \"abc{hline -77}x\"",
+          "lines": ["abc{hline -77}x"]
+        },
+        { "command": "display \"{hline 0}x\"", "lines": ["x"] },
+        {
+          "command": "display \"{p}{hline -3}x{p_end}\"",
+          "lines": [
+            "----------------------------------------------------------------------------x"
+          ]
+        },
+        {
+          "command": "display \"{space -2}x{dup -2:ab}{ralign -3:ab}\"",
+          "lines": ["{space -2}x{dup -2:ab}{ralign -3:ab}"]
+        },
+        {
+          "command": "display `\"{browse \"http://www.stata.com\":Stata}\"'",
+          "lines": ["Stata"]
+        },
+        {
+          "command": "display `\"{browse \"http://www.stata.com\"}\"'",
+          "lines": ["http://www.stata.com"]
+        },
+        {
+          "command": "display `\"{help \"summarize\"}\"'",
+          "lines": ["summarize"]
+        },
+        {
+          "command": "display `\"{browse \"http://www.stata.com/a b\":Stata site}\"'",
+          "lines": ["Stata site"]
+        },
+        { "command": "display `\"{help \"sum mar\"}\"'", "lines": ["sum mar"] },
+        {
+          "command": "display `\"{stata \"summarize x\":run it}\"'",
+          "lines": ["run it"]
+        },
+        {
+          "command": "display `\"{stata \"summarize x\"}\"'",
+          "lines": ["summarize x"]
+        },
+        {
+          "command": "display `\"{help \"summarize\"##syntax:syn}\"'",
+          "lines": ["{help \"summarize\"##syntax:syn}"]
+        },
+        { "command": "display `\"{view \"a.log\"}\"'", "lines": ["a.log"] },
+        {
+          "command": "display `\"{browse http://www.stata.com}\"'",
+          "lines": ["//www.stata.com"]
+        },
+        { "command": "display `\"{browse \"a\":b:c}\"'", "lines": ["b:c"] },
+        {
+          "command": "display `\"{browse \"a\"x:b}\"'",
+          "lines": ["{browse \"a\"x:b}"]
+        },
+        {
+          "command": "display `\"{browse \"a\" \"b\"}\"'",
+          "lines": ["{browse \"a\" \"b\"}"]
+        },
+        { "command": "display `\"{browse a \"b\"}\"'", "lines": ["a \"b\""] },
+        { "command": "display `\"{help \"a:b\"}\"'", "lines": ["a:b"] },
+        { "command": "display `\"{bf:\"a:b\"}\"'", "lines": ["\"a:b\""] },
+        {
+          "command": "display `\"{browse \"unclosed}\"'",
+          "lines": ["{browse \"unclosed}"]
+        },
+        {
+          "command": "display `\"{stata `\"sum x\"':run}\"'",
+          "lines": ["run"]
+        },
+        { "command": "display `\"{dialog \"a\"}\"'", "lines": ["a"] },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam6b-mean-labels-tilde",
+      "source": "set linesize 79\nclear\nset seed 2024\nset obs 30\ngenerate score = round(50 + 20*runiform(), .01)\ngenerate byte g = mod(_n, 2)\nlabel define gl 0 \"east\" 1 \"abcdefghijklmnopqrstuvwxyz_abcd\"\nlabel values g gl\nmean score, over(g)\nproportion g\ntotal score, over(g)\nlabel define gl 1 \"abcdefghijklmnopqrstuvwxyz_ab\", modify\nmean score, over(g)\nlabel define gl 1 \"abcdefghijklmnopqrstuvwxyz_abcdef\", modify\nmean score, over(g)\nlabel define gl 1 \"abcdefghijklmnopqrstuvwxyz_\", modify\nmean score, over(g)\nlabel define gl 1 \"1bcdefghijklm.opqrstu-wxyz_abcd\", modify\nmean score, over(g)\nlabel define gl 1 \"Ölçek_ölçüm_değeri_çok_uzun_bir_x\", modify\nmean score, over(g)\nproportion g\nlabel define gl 1 \"Ölçek_ölçüm_değeri_çok_uzun_bir\", modify\nmean score, over(g)\nlabel define gl 1 \"Ölçek ölçüm değeri çok uzun bir\", modify\nmean score, over(g)\nlabel define gl 1 \"éééééééééééééééééééééééééééé\", modify\nmean score, over(g)\nlabel define gl 1 \"éééééééééééééééééééééééééééééééééééé\", modify\nmean score, over(g)\nlabel define gl 1 \"abc ééééééééééééééééééééééééééééééééé\", modify\nmean score, over(g)\nlabel define gl 1 \"€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€\", modify\nmean score, over(g)\nlabel define gl 1 \"aa€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€\", modify\nmean score, over(g)\nlabel define gl 1 \"ддддддддддддддддддддддддддддддддддддддддд\", modify\nmean score, over(g)\nlabel define gl 1 \"西部地区的城市西部地区的城市\", modify\nmean score, over(g)\nlabel define gl 1 \"西部地区的城市西部地区的城市西部地区的城市西部地区的城市\", modify\nmean score, over(g)\nlabel define gl 1 \"a西部地区的城市西部地区的城市西部地区的城市西部地区的城市\", modify\nmean score, over(g)\nlabel define gl 1 \"西部地区的城市西部地区的城市西部地区的城市西部地区的城市西部地区\", modify\nmean score, over(g)\nlabel define gl 1 \"éééééééééééééééééééé西部地区的城市西部地区的城市西部地区\", modify\nmean score, over(g)\nlabel define gl 1 \"西部地区的城市西部地区的城市西部地区 éééééééééééééééééééé\", modify\nmean score, over(g)\nlabel define gl 1 \"é é é é é é 西部地区的城市西部地区的城市西部地区\", modify\nmean score, over(g)\nproportion g\nset linesize 100\nlabel define gl 1 \"abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcd\", modify\nmean score, over(g)\nlabel define gl 1 \"abcdefghijklmnopqrstuvwxyz_abcdefghij\", modify\nmean score, over(g)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2024", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        {
+          "command": "generate score = round(50 + 20*runiform(), .01)",
+          "lines": []
+        },
+        { "command": "generate byte g = mod(_n, 2)", "lines": [] },
+        {
+          "command": "label define gl 0 \"east\" 1 \"abcdefghijklmnopqrstuvwxyz_abcd\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "abcdefghijklmnopqrstuvwxy~d  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g",
+          "lines": [
+            "Proportion estimation                                        Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |                                   Logit",
+            "                             | Proportion   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                           g |",
+            "                       east  |         .5   .0912871      .3215163    .6784837",
+            "abcdefghijklmnopqrstuvwxy~d  |         .5   .0912871      .3215163    .6784837",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total score, over(g)",
+          "lines": [
+            "Total estimation                                             Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |      Total   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |     904.37   21.31822      860.7693    947.9707",
+            "abcdefghijklmnopqrstuvwxy~d  |     902.54   27.12503      847.0631    958.0169",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"abcdefghijklmnopqrstuvwxyz_ab\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "abcdefghijklmnopqrstuvwxy~b  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"abcdefghijklmnopqrstuvwxyz_abcdef\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "abcdefghijklmnopqrstuvwxy..  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"abcdefghijklmnopqrstuvwxyz_\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                             Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "abcdefghijklmnopqrstuvwxyz_  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"1bcdefghijklm.opqrstu-wxyz_abcd\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "1bcdefghijklm.opqrstu-wxy~d  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"Ölçek_ölçüm_değeri_çok_uzun_bir_x\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                        Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "             c.score@g |",
+            "                 east  |   60.29133   1.421215      57.38462    63.19804",
+            "Ölçek_ölçüm_değeri_..  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g",
+          "lines": [
+            "Proportion estimation                                  Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |                                   Logit",
+            "                       | Proportion   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "                     g |",
+            "                 east  |         .5   .0912871      .3215163    .6784837",
+            "Ölçek_ölçüm_değeri_..  |         .5   .0912871      .3215163    .6784837",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"Ölçek_ölçüm_değeri_çok_uzun_bir\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "Ölçek_ölçüm_değeri_çok_uz~r  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"Ölçek ölçüm değeri çok uzun bir\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                        Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "             c.score@g |",
+            "                 east  |   60.29133   1.421215      57.38462    63.19804",
+            "Ölçek ölçüm değeri ..  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"éééééééééééééééééééééééééééé\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "ééééééééééééééééééééééééé~é  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"éééééééééééééééééééééééééééééééééééé\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                 Number of obs = 30",
+            "",
+            "------------------------------------------------------------------",
+            "                 |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------+------------------------------------------------",
+            "       c.score@g |",
+            "           east  |   60.29133   1.421215      57.38462    63.19804",
+            "ééééééééééééé..  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"abc ééééééééééééééééééééééééééééééééé\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                   Number of obs = 30",
+            "",
+            "--------------------------------------------------------------------",
+            "                   |       Mean   Std. err.     [95% conf. interval]",
+            "-------------------+------------------------------------------------",
+            "         c.score@g |",
+            "             east  |   60.29133   1.421215      57.38462    63.19804",
+            "abc ééééééééééé..  |   60.16933   1.808335      56.47087    63.86779",
+            "--------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "   c.score@g |",
+            "       east  |   60.29133   1.421215      57.38462    63.19804",
+            "€€€€€€€€€..  |   60.16933   1.808335      56.47087    63.86779",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"aa€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                              Number of obs = 30",
+            "",
+            "---------------------------------------------------------------",
+            "              |       Mean   Std. err.     [95% conf. interval]",
+            "--------------+------------------------------------------------",
+            "    c.score@g |",
+            "        east  |   60.29133   1.421215      57.38462    63.19804",
+            "aa€€€€€€€€..  |   60.16933   1.808335      56.47087    63.86779",
+            "---------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"ддддддддддддддддддддддддддддддддддддддддд\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                 Number of obs = 30",
+            "",
+            "------------------------------------------------------------------",
+            "                 |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------+------------------------------------------------",
+            "       c.score@g |",
+            "           east  |   60.29133   1.421215      57.38462    63.19804",
+            "ддддддддддддд..  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"西部地区的城市西部地区的城市\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "西部地区的城市西部地区的~市  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"西部地区的城市西部地区的城市西部地区的城市西部地区的城市\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                             Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "西部地区的城市西部地区的~市  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"a西部地区的城市西部地区的城市西部地区的城市西部地区的城市\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "-----------------------------------------------------------------------------",
+            "                            |       Mean   Std. err.     [95% conf. interval]",
+            "----------------------------+------------------------------------------------",
+            "                  c.score@g |",
+            "                      east  |   60.29133   1.421215      57.38462    63.19804",
+            "a西部地区的城市西部地区~市  |   60.16933   1.808335      56.47087    63.86779",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"西部地区的城市西部地区的城市西部地区的城市西部地区的城市西部地区\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                             Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "                             |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------------+------------------------------------------------",
+            "                   c.score@g |",
+            "                       east  |   60.29133   1.421215      57.38462    63.19804",
+            "西部地区的城市西部地区的~区  |   60.16933   1.808335      56.47087    63.86779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"éééééééééééééééééééé西部地区的城市西部地区的城市西部地区\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "-----------------------------------------------------------------------------",
+            "                            |       Mean   Std. err.     [95% conf. interval]",
+            "----------------------------+------------------------------------------------",
+            "                  c.score@g |",
+            "                      east  |   60.29133   1.421215      57.38462    63.19804",
+            "éééééééééééééééééééé西部..  |   60.16933   1.808335      56.47087    63.86779",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"西部地区的城市西部地区的城市西部地区 éééééééééééééééééééé\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "-----------------------------------------------------------------------------",
+            "                            |       Mean   Std. err.     [95% conf. interval]",
+            "----------------------------+------------------------------------------------",
+            "                  c.score@g |",
+            "                      east  |   60.29133   1.421215      57.38462    63.19804",
+            "西部地区的城市西部地区的..  |   60.16933   1.808335      56.47087    63.86779",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"é é é é é é 西部地区的城市西部地区的城市西部地区\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                              Number of obs = 30",
+            "",
+            "-----------------------------------------------------------------------------",
+            "                            |       Mean   Std. err.     [95% conf. interval]",
+            "----------------------------+------------------------------------------------",
+            "                  c.score@g |",
+            "                      east  |   60.29133   1.421215      57.38462    63.19804",
+            "é é é é é é 西部地区的城..  |   60.16933   1.808335      56.47087    63.86779",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g",
+          "lines": [
+            "Proportion estimation                                        Number of obs = 30",
+            "",
+            "-----------------------------------------------------------------------------",
+            "                            |                                   Logit",
+            "                            | Proportion   Std. err.     [95% conf. interval]",
+            "----------------------------+------------------------------------------------",
+            "                          g |",
+            "                      east  |         .5   .0912871      .3215163    .6784837",
+            "é é é é é é 西部地区的城..  |         .5   .0912871      .3215163    .6784837",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 100", "lines": [] },
+        {
+          "command": "label define gl 1 \"abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcd\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                                                  Number of obs = 30",
+            "",
+            "---------------------------------------------------------------------------------------------------",
+            "                                                  |       Mean   Std. err.     [95% conf. interval]",
+            "--------------------------------------------------+------------------------------------------------",
+            "                                        c.score@g |",
+            "                                            east  |   60.29133   1.421215      57.38462    63.19804",
+            "abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrs..  |   60.16933   1.808335      56.47087    63.86779",
+            "---------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"abcdefghijklmnopqrstuvwxyz_abcdefghij\", modify",
+          "lines": []
+        },
+        {
+          "command": "mean score, over(g)",
+          "lines": [
+            "Mean estimation                                                       Number of obs = 30",
+            "",
+            "----------------------------------------------------------------------------------------",
+            "                                       |       Mean   Std. err.     [95% conf. interval]",
+            "---------------------------------------+------------------------------------------------",
+            "                             c.score@g |",
+            "                                 east  |   60.29133   1.421215      57.38462    63.19804",
+            "abcdefghijklmnopqrstuvwxyz_abcdefghij  |   60.16933   1.808335      56.47087    63.86779",
+            "----------------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam6b-total-mean-options",
+      "source": "clear\nset seed 99\nset obs 25\ngenerate income = round(1000 + 5000*runiform(), .01)\ngenerate byte region = 1 + floor(4*runiform())\ngenerate w = 1 + floor(3*runiform())\ngenerate s = cond(_n < 10, \"a\", \"b\")\ngenerate byte grp = mod(_n, 3)\ngenerate c = 5\nlabel define rl 1 \"North\" 2 \"South\" 3 \"East\" 4 \"West\"\nlabel values region rl\ncapture noisily total income region, over(region)\ncapture noisily mean income region, over(region)\ntotal income, level(99.5)\nmean income, level(99.5)\ntotal income, level(90)\ntotal income, noheader\nmean income, noheader level(90) cformat(%8.1f)\ntotal income, cformat(%9.2f)\nmean income, over(region) cformat(%9.3f)\nmean income, cformat(%9.2fc)\ncapture noisily mean income, cformat(%9s)\ndisplay _rc\ncapture noisily mean income, cformat(abc)\ntotal income, coeflegend\nmean income, over(region) coeflegend\nmean income, coeflegend level(90)\ntotal income, nolegend\ntotal income, over(region) nolegend\ntotal income, over(region) nofvlabel\ntotal income, over(region, nolabel)\ntotal income, vce(cluster region)\nmean income, vce(cluster region)\ntotal income, cluster(region)\nmean income, vce(cl region)\ntotal income, vce(cluster s)\ncapture noisily total income, vce(cluster nosuch)\ncapture noisily total income, vce(robust)\ndisplay _rc\ntotal income [pw=w], vce(cluster region)\ntotal income [fw=w], vce(cluster region)\ntotal income [iw=w], vce(cluster region)\nmean income [pw=w], vce(cluster region)\nmean income if region < 3, vce(cluster region)\ntotal income, vce(cluster region) noheader\ntotal income, vce(cluster region) coeflegend\ntotal income, over(grp) vce(cluster region)\nmean income, over(grp) vce(cluster region) cformat(%9.2f)\nereturn list\nreturn list\ntotal\ncapture noisily total, over(region)\ncapture noisily mean, over(region)\ncapture noisily mean\ndisplay _rc\nmean income\nereturn list\nmean, level(90) noheader\ntotal income, over(region)\nereturn list\nreturn list\nmean income, over(region grp)\ntotal income, over(region grp)\nmean income, over(region grp) coeflegend\nmean c\nmean c, over(grp)\ntotal c\ngenerate income2 = income / 3\nreplace income2 = . in 4\nmean income income2, vce(cluster region)\ntotal income income2, vce(cluster region) level(90)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 25",
+          "lines": ["Number of observations (_N) was 0, now 25."]
+        },
+        {
+          "command": "generate income = round(1000 + 5000*runiform(), .01)",
+          "lines": []
+        },
+        {
+          "command": "generate byte region = 1 + floor(4*runiform())",
+          "lines": []
+        },
+        { "command": "generate w = 1 + floor(3*runiform())", "lines": [] },
+        { "command": "generate s = cond(_n < 10, \"a\", \"b\")", "lines": [] },
+        { "command": "generate byte grp = mod(_n, 3)", "lines": [] },
+        { "command": "generate c = 5", "lines": [] },
+        {
+          "command": "label define rl 1 \"North\" 2 \"South\" 3 \"East\" 4 \"West\"",
+          "lines": []
+        },
+        { "command": "label values region rl", "lines": [] },
+        {
+          "command": "capture noisily total income region, over(region)",
+          "lines": ["over variable region not allowed in varlist"]
+        },
+        {
+          "command": "capture noisily mean income region, over(region)",
+          "lines": ["over variable region not allowed in varlist"]
+        },
+        {
+          "command": "total income, level(99.5)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.   [99.5% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91    5729.45      68822.97    104236.9",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, level(99.5)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.   [99.5% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   3461.196    229.178      2752.919    4169.474",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, level(90)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91    5729.45       76727.5    96332.32",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, noheader",
+          "lines": [
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91    5729.45      74704.91    98354.91",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, noheader level(90) cformat(%8.1f)",
+          "lines": [
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |     3461.2      229.2        3069.1      3853.3",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, cformat(%9.2f)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91    5729.45      74704.91    98354.91",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, over(region) cformat(%9.3f)",
+          "lines": [
+            "Mean estimation                                Number of obs = 25",
+            "",
+            "-----------------------------------------------------------------",
+            "                |       Mean   Std. err.     [95% conf. interval]",
+            "----------------+------------------------------------------------",
+            "c.income@region |",
+            "         North  |   4006.132    370.827      3240.783    4771.481",
+            "         South  |   3512.444    709.534      2048.038    4976.850",
+            "          East  |   3141.695    287.631      2548.054    3735.336",
+            "          West  |   3236.412    388.989      2433.577    4039.247",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, cformat(%9.2fc)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   3,461.20     229.18      2,988.20    3,934.20",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily mean income, cformat(%9s)",
+          "lines": ["'%9s' found where numeric format expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily mean income, cformat(abc)",
+          "lines": ["'abc' found where numeric format expected"]
+        },
+        {
+          "command": "total income, coeflegend",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |      Total   Legend",
+            "-------------+----------------------------------------------------------------",
+            "      income |   86529.91  _b[income]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, over(region) coeflegend",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "---------------------------------------------------------------------------------",
+            "                |       Mean   Legend",
+            "----------------+----------------------------------------------------------------",
+            "c.income@region |",
+            "         North  |   4006.132  _b[c.income@1bn.region]",
+            "         South  |   3512.444  _b[c.income@2.region]",
+            "          East  |   3141.695  _b[c.income@3.region]",
+            "          West  |   3236.412  _b[c.income@4.region]",
+            "---------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, coeflegend level(90)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Legend",
+            "-------------+----------------------------------------------------------------",
+            "      income |   3461.196  _b[income]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, nolegend",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91    5729.45      74704.91    98354.91",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, over(region) nolegend",
+          "lines": [
+            "Total estimation                               Number of obs = 25",
+            "",
+            "-----------------------------------------------------------------",
+            "                |      Total   Std. err.     [95% conf. interval]",
+            "----------------+------------------------------------------------",
+            "c.income@region |",
+            "         North  |   24036.79   2224.961       19444.7    28628.88",
+            "         South  |   17562.22   3547.669      10240.19    24884.25",
+            "          East  |   12566.78   1150.523      10192.22    14941.34",
+            "          West  |   32364.12   3889.895      24335.77    40392.47",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, over(region) nofvlabel",
+          "lines": [
+            "Total estimation                               Number of obs = 25",
+            "",
+            "-----------------------------------------------------------------",
+            "                |      Total   Std. err.     [95% conf. interval]",
+            "----------------+------------------------------------------------",
+            "c.income@region |",
+            "             1  |   24036.79   2224.961       19444.7    28628.88",
+            "             2  |   17562.22   3547.669      10240.19    24884.25",
+            "             3  |   12566.78   1150.523      10192.22    14941.34",
+            "             4  |   32364.12   3889.895      24335.77    40392.47",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, over(region, nolabel)",
+          "lines": [
+            "Total estimation                               Number of obs = 25",
+            "",
+            "-----------------------------------------------------------------",
+            "                |      Total   Std. err.     [95% conf. interval]",
+            "----------------+------------------------------------------------",
+            "c.income@region |",
+            "         North  |   24036.79   2224.961       19444.7    28628.88",
+            "         South  |   17562.22   3547.669      10240.19    24884.25",
+            "          East  |   12566.78   1150.523      10192.22    14941.34",
+            "          West  |   32364.12   3889.895      24335.77    40392.47",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, vce(cluster region)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91   4822.464      71182.68    101877.1",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, vce(cluster region)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   3461.196   192.8986      2847.307    4075.086",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, cluster(region)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91   4822.464      71182.68    101877.1",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, vce(cl region)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   3461.196   192.8986      2847.307    4075.086",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, vce(cluster s)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "                      (Std. err. adjusted for 2 clusters in s)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91   1742.964      64383.45    108676.4",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily total income, vce(cluster nosuch)",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily total income, vce(robust)",
+          "lines": ["vcetype robust not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "total income [pw=w], vce(cluster region)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   158302.6   9865.358      126906.7    189698.6",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income [fw=w], vce(cluster region)",
+          "lines": [
+            "Total estimation                            Number of obs = 45",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   158302.6   9865.358      126906.7    189698.6",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income [iw=w], vce(cluster region)",
+          "lines": [
+            "Total estimation                            Number of obs = 45",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   158302.6   9865.358      126906.7    189698.6",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income [pw=w], vce(cluster region)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   3517.836   219.2302      2820.148    4215.525",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income if region < 3, vce(cluster region)",
+          "lines": [
+            "Mean estimation                             Number of obs = 11",
+            "",
+            "                 (Std. err. adjusted for 2 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   3781.728   244.8038      671.2005    6892.256",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, vce(cluster region) noheader",
+          "lines": [
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |   86529.91   4822.464      71182.68    101877.1",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, vce(cluster region) coeflegend",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "                                 (Std. err. adjusted for 4 clusters in region)",
+            "------------------------------------------------------------------------------",
+            "             |      Total   Legend",
+            "-------------+----------------------------------------------------------------",
+            "      income |   86529.91  _b[income]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total income, over(grp) vce(cluster region)",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c.income@grp |",
+            "          0  |   29592.07   1412.196      25097.83    34086.31",
+            "          1  |   27964.01    1427.51      23421.04    32506.98",
+            "          2  |   28973.83   3003.749      19414.56     38533.1",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean income, over(grp) vce(cluster region) cformat(%9.2f)",
+          "lines": [
+            "Mean estimation                             Number of obs = 25",
+            "",
+            "                 (Std. err. adjusted for 4 clusters in region)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c.income@grp |",
+            "          0  |    3699.01     176.52       3137.23     4260.79",
+            "          1  |    3107.11     158.61       2602.34     3611.89",
+            "          2  |    3621.73     375.47       2426.82     4816.64",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "            e(N_clust) =  4",
+            "               e(df_r) =  3",
+            "             e(N_over) =  3",
+            "                  e(N) =  25",
+            "               e(k_eq) =  1",
+            "               e(rank) =  3",
+            "",
+            "macros:",
+            "            e(cmdline) : \"mean income, over(grp) vce(cluster region) cformat(%9.2f)\"",
+            "                e(cmd) : \"mean\"",
+            "                e(vce) : \"cluster\"",
+            "            e(vcetype) : \"Robust\"",
+            "           e(clustvar) : \"region\"",
+            "              e(title) : \"Mean estimation\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"income\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "               e(over) : \"grp\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 3",
+            "                  e(V) :  3 x 3",
+            "                 e(sd) :  1 x 3",
+            "                 e(_N) :  1 x 3",
+            "              e(error) :  1 x 3",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "macros:",
+            "           r(mcmethod) : \"noadjust\"",
+            "",
+            "matrices:",
+            "              r(table) :  9 x 3"
+          ]
+        },
+        { "command": "total", "lines": ["last estimates not found", "r(301);"] }
+      ]
+    },
+    {
+      "id": "redteam6b-cii-arguments",
+      "source": "cii means 30 5 2\ncapture noisily cii means 30 . 2\ndisplay _rc\nreturn list\ncii means 30 5 2\ncapture noisily cii means . 5 2\ndisplay _rc\ncapture noisily cii means 30 5 .\ndisplay _rc\ncapture noisily cii means 30 a 2\ndisplay _rc\ncapture noisily cii means 30 5 a\ndisplay _rc\ncapture noisily cii means a 5 2\ndisplay _rc\ncapture noisily cii means 30 .a 2\ndisplay _rc\ncii means 30 2+3 2\ncii means 30 1e3 2\ncapture noisily cii means 30 5 0\ndisplay _rc\ncii means 30 5 2\ncapture noisily cii means 30 5\nreturn list\nclear\nset obs 25\ngenerate income = _n\ncii means 30 5 2\ntotal income\ndisplay \"[\" r(N) \"]\"\nreturn list\ncii means 30 5 2\nproportion income in 1/3\nreturn list\n",
+      "commands": [
+        {
+          "command": "cii means 30 5 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30           5    .3651484        4.253188    5.746812"
+          ]
+        },
+        {
+          "command": "capture noisily cii means 30 . 2",
+          "lines": ["second argument, #mean, must be a number"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        { "command": "return list", "lines": [] },
+        {
+          "command": "cii means 30 5 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30           5    .3651484        4.253188    5.746812"
+          ]
+        },
+        {
+          "command": "capture noisily cii means . 5 2",
+          "lines": ["first argument, #obs, must be a positive integer"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily cii means 30 5 .",
+          "lines": ["third argument, #sd, must be a positive number"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily cii means 30 a 2",
+          "lines": ["second argument, #mean, must be a number"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily cii means 30 5 a",
+          "lines": ["a not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily cii means a 5 2",
+          "lines": ["a not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily cii means 30 .a 2",
+          "lines": ["second argument, #mean, must be a number"]
+        },
+        { "command": "display _rc", "lines": ["7"] },
+        {
+          "command": "cii means 30 2+3 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30           5    .3651484        4.253188    5.746812"
+          ]
+        },
+        {
+          "command": "cii means 30 1e3 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30        1000    .3651484        999.2532    1000.747"
+          ]
+        },
+        {
+          "command": "capture noisily cii means 30 5 0",
+          "lines": ["third argument, #sd, must be a positive number"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "cii means 30 5 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30           5    .3651484        4.253188    5.746812"
+          ]
+        },
+        {
+          "command": "capture noisily cii means 30 5",
+          "lines": [
+            "you must specify 3 arguments with cii means: #obs, #mean, and #sd"
+          ]
+        },
+        { "command": "return list", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 25",
+          "lines": ["Number of observations (_N) was 0, now 25."]
+        },
+        { "command": "generate income = _n", "lines": [] },
+        {
+          "command": "cii means 30 5 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30           5    .3651484        4.253188    5.746812"
+          ]
+        },
+        {
+          "command": "total income",
+          "lines": [
+            "Total estimation                            Number of obs = 25",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |        325     36.799      249.0506    400.9494",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "display \"[\" r(N) \"]\"", "lines": ["[.]"] },
+        {
+          "command": "return list",
+          "lines": [
+            "macros:",
+            "           r(mcmethod) : \"noadjust\"",
+            "",
+            "matrices:",
+            "              r(table) :  9 x 1"
+          ]
+        },
+        {
+          "command": "cii means 30 5 2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "             |         30           5    .3651484        4.253188    5.746812"
+          ]
+        },
+        {
+          "command": "proportion income in 1/3",
+          "lines": [
+            "Proportion estimation                        Number of obs = 3",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      income |",
+            "          1  |   .3333333   .2721655      .0025661     .989814",
+            "          2  |   .3333333   .2721655      .0025661     .989814",
+            "          3  |   .3333333   .2721655      .0025661     .989814",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "macros:",
+            "           r(mcmethod) : \"noadjust\"",
+            "",
+            "matrices:",
+            "              r(table) :  9 x 3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam6b-ttest-qualifiers",
+      "source": "clear\nset seed 4\nset obs 20\ngenerate income = 20000 + 8000 * runiform()\ngenerate female = runiform() < .4\nttest income in 1 / 5 == 0\nprtest female in 1 / 10 == .5\nttest income if female in 1/10 == 0\ncapture noisily ttest income in 1/5 ==\ndisplay _rc\ncapture noisily prtest female in 1/10 ==\ncapture noisily ttest income in 1/5 if female == 0\nttest income if female==1 in 1/12 == 20000, level(90)\nttest income in 1/5 = 0\nttest income in 1/8==20000\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        {
+          "command": "generate income = 20000 + 8000 * runiform()",
+          "lines": []
+        },
+        { "command": "generate female = runiform() < .4", "lines": [] },
+        {
+          "command": "ttest income in 1 / 5 == 0",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "  income |       5    23910.27    956.3242    2138.406    21255.09    26565.46",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(income)                                           t =  25.0023",
+            "H0: mean = 0                                     Degrees of freedom =        4",
+            "",
+            "    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0",
+            " Pr(T < t) = 1.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 0.0000"
+          ]
+        },
+        {
+          "command": "prtest female in 1 / 10 == .5",
+          "lines": [
+            "One-sample test of proportion                   Number of obs      =        10",
+            "",
+            "------------------------------------------------------------------------------",
+            "    Variable |       Mean   Std. err.                     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      female |         .5   .1581139                      .1901025    .8098975",
+            "------------------------------------------------------------------------------",
+            "    p = proportion(female)                                        z =   0.0000",
+            "H0: p = 0.5",
+            "",
+            "     Ha: p < 0.5                 Ha: p != 0.5                   Ha: p > 0.5",
+            " Pr(Z < z) = 0.5000         Pr(|Z| > |z|) = 1.0000          Pr(Z > z) = 0.5000"
+          ]
+        },
+        {
+          "command": "ttest income if female in 1/10 == 0",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "  income |       5    24143.66    1044.727    2336.081    21243.04    27044.29",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(income)                                           t =  23.1100",
+            "H0: mean = 0                                     Degrees of freedom =        4",
+            "",
+            "    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0",
+            " Pr(T < t) = 1.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 0.0000"
+          ]
+        },
+        {
+          "command": "capture noisily ttest income in 1/5 ==",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily prtest female in 1/10 ==",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily ttest income in 1/5 if female == 0",
+          "lines": ["by() option required"]
+        },
+        {
+          "command": "ttest income if female==1 in 1/12 == 20000, level(90)",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [90% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "  income |       7    24242.64    750.4021    1985.377    22784.47     25700.8",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(income)                                           t =   5.6538",
+            "H0: mean = 20000                                 Degrees of freedom =        6",
+            "",
+            "  Ha: mean < 20000             Ha: mean != 20000             Ha: mean > 20000",
+            " Pr(T < t) = 0.9993         Pr(|T| > |t|) = 0.0013          Pr(T > t) = 0.0007"
+          ]
+        },
+        {
+          "command": "ttest income in 1/5 = 0",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "  income |       5    23910.27    956.3242    2138.406    21255.09    26565.46",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(income)                                           t =  25.0023",
+            "H0: mean = 0                                     Degrees of freedom =        4",
+            "",
+            "    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0",
+            " Pr(T < t) = 1.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 0.0000"
+          ]
+        },
+        {
+          "command": "ttest income in 1/8==20000",
+          "lines": [
+            "One-sample t test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "  income |       8     23380.1    934.7338    2643.826    21169.81     25590.4",
+            "------------------------------------------------------------------------------",
+            "    mean = mean(income)                                           t =   3.6161",
+            "H0: mean = 20000                                 Degrees of freedom =        7",
+            "",
+            "  Ha: mean < 20000             Ha: mean != 20000             Ha: mean > 20000",
+            " Pr(T < t) = 0.9957         Pr(|T| > |t|) = 0.0086          Pr(T > t) = 0.0043"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam6b-single-equals",
+      "source": "clear\nset obs 40\ngenerate region = 1 + mod(_n,4)\ngenerate income = _n\ncapture noisily keep if region = 1\ndisplay _rc\ncapture noisily drop if region = 1\ndisplay _rc\ncapture noisily list income if region = 1\ndisplay _rc\ncapture noisily count if region = 1\ndisplay _rc\ncapture noisily assert region = 1\ndisplay _rc\ncapture noisily keep if region = 1 & income > 3\ncapture noisily drop in 1/2 if region = 1\ncapture noisily list income if region = 1 in 1/3\ncapture noisily summarize income if region = 1\ndisplay _rc\ncapture noisily tabulate region if region = 1\ncapture noisily replace income = 2 if region = 1\ncapture noisily generate y = 1 if region = 1\ncapture noisily assert region == 1 if income = 3\ndisplay _rc\ncapture noisily summarize income if (region = 1)\ndisplay _rc\ncapture noisily count if (region = 1)\ncapture noisily list income if (region = 1)\ncapture noisily drop if (region = 1)\ncapture noisily assert (region = 1)\ncapture noisily summarize income if (region = 1) & income > 2\ncapture noisily summarize income if region == (1 = 1)\ncapture noisily display (region = 1)\ncapture noisily display (1, 2)\ncapture noisily display (1, 2, 3)\ncount\nclear\nset obs 20\ngenerate inc = _n\ncapture noisily summarize inc, detail ,, meanonly\ndisplay _rc\ncapture noisily summarize inc, detail meanonly\ncapture noisily summarize inc, meanonly detail\ncapture noisily summarize inc, meanonly ,, detail\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate region = 1 + mod(_n,4)", "lines": [] },
+        { "command": "generate income = _n", "lines": [] },
+        {
+          "command": "capture noisily keep if region = 1",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily drop if region = 1",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily list income if region = 1",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily count if region = 1",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily assert region = 1",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily keep if region = 1 & income > 3",
+          "lines": ["=exp not allowed"]
+        },
+        {
+          "command": "capture noisily drop in 1/2 if region = 1",
+          "lines": ["=exp not allowed"]
+        },
+        {
+          "command": "capture noisily list income if region = 1 in 1/3",
+          "lines": ["=exp not allowed"]
+        },
+        {
+          "command": "capture noisily summarize income if region = 1",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily tabulate region if region = 1",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily replace income = 2 if region = 1",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily generate y = 1 if region = 1",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily assert region == 1 if income = 3",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily summarize income if (region = 1)",
+          "lines": ["region=1 invalid name"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily count if (region = 1)",
+          "lines": ["region=1 invalid name"]
+        },
+        {
+          "command": "capture noisily list income if (region = 1)",
+          "lines": ["region=1 invalid name"]
+        },
+        {
+          "command": "capture noisily drop if (region = 1)",
+          "lines": ["region=1 invalid name"]
+        },
+        {
+          "command": "capture noisily assert (region = 1)",
+          "lines": ["region=1 invalid name"]
+        },
+        {
+          "command": "capture noisily summarize income if (region = 1) & income > 2",
+          "lines": ["region=1 invalid name"]
+        },
+        {
+          "command": "capture noisily summarize income if region == (1 = 1)",
+          "lines": ["1=1 invalid name"]
+        },
+        {
+          "command": "capture noisily display (region = 1)",
+          "lines": ["region=1 invalid name"]
+        },
+        {
+          "command": "capture noisily display (1, 2)",
+          "lines": ["1,2 invalid name"]
+        },
+        {
+          "command": "capture noisily display (1, 2, 3)",
+          "lines": ["1,2,3 invalid name"]
+        },
+        { "command": "count", "lines": ["  40"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "generate inc = _n", "lines": [] },
+        {
+          "command": "capture noisily summarize inc, detail ,, meanonly",
+          "lines": ["only one of meanonly or detail may be specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily summarize inc, detail meanonly",
+          "lines": ["only one of meanonly or detail may be specified"]
+        },
+        {
+          "command": "capture noisily summarize inc, meanonly detail",
+          "lines": ["only one of meanonly or detail may be specified"]
+        },
+        {
+          "command": "capture noisily summarize inc, meanonly ,, detail",
+          "lines": ["only one of meanonly or detail may be specified"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

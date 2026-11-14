@@ -62,3 +62,77 @@ test("cii leaves r() as Stata does, and udstrlen() counts columns", () => {
   assert.equal(session.results.r.citype, "normal");
   assert.deepEqual(run('display udstrlen("西部地区")').last.lines, ["8"]);
 });
+
+test("below the line size 79 mean over() keeps the table of 79", () => {
+  // Stata 19 at set linesize 60 prints the same table as at 79, full
+  // names in a 28-wide first column, and its text log wraps every line
+  // past column 60. These are the lines as the Results window holds them;
+  // the first 60 columns of each are the log's.
+  const { last } = run(
+    [
+      "set obs 60",
+      "generate id = _n",
+      "generate thirteen_char = id",
+      "generate another_long_group_variable = 1 + mod(_n, 2)",
+      "set linesize 60",
+      "mean thirteen_char, over(another_long_group_variable)",
+    ].join("\n"),
+  );
+  assert.deepEqual(last.lines.filter(Boolean), [
+    "Mean estimation                                            Number of obs = 60",
+    "-".repeat(77),
+    "                            |       Mean   Std. err.     [95% conf. interval]",
+    `${"-".repeat(28)}+${"-".repeat(48)}`,
+    "            c.thirteen_char@|",
+    "another_long_group_variable |",
+    "                         1  |         31    3.21455       24.5677     37.4323",
+    "                         2  |         30    3.21455       23.5677     36.4323",
+    "-".repeat(77),
+  ]);
+});
+
+test("mean and total refuse what they cannot yet compute, with r(198)", () => {
+  // Stata 19 runs these; the browser refuses them by name rather than
+  // printing analytic standard errors under another heading.
+  const setup = "set obs 25\ngenerate income = _n\ngenerate w = 1\n";
+  for (const [command, message] of [
+    [
+      "total income, vce(bootstrap)",
+      "vce(bootstrap) is not available in the browser yet for total",
+    ],
+    [
+      "mean income, vce(jackknife)",
+      "vce(jackknife) is not available in the browser yet for mean",
+    ],
+    [
+      "total income, stdize(w) stdweight(w)",
+      "option stdize() is not available in the browser yet for total",
+    ],
+    // Stata's own message for vce(robust).
+    ["mean income, vce(robust)", "vcetype robust not allowed"],
+  ]) {
+    const { last } = run(setup + command);
+    assert.equal(last.rc, 198, command);
+    assert.equal(last.lines[0], message);
+  }
+});
+
+test("_skip() and _col() of a missing value are invalid syntax", () => {
+  // Stata 19: display _skip(.) "x" and display _col(.) "x" are r(198).
+  for (const command of ['display _skip(.) "x"', 'display _col(.) "x"'])
+    assert.equal(run(command).last.rc, 198);
+});
+
+test("total leaves r(table), 9 by the number of estimates", () => {
+  // Stata 19: return list after total income sc shows r(mcmethod)
+  // "noadjust" and r(table) 9 x 2; r(N) from an earlier cii is gone.
+  const { session } = run(
+    "cii means 30 5 2\nset obs 5\ngenerate income = _n\ngenerate sc = _n^2\ntotal income sc",
+  );
+  const table = session.results.r["matrix:table"];
+  assert.equal(session.results.r.N, undefined);
+  assert.equal(session.results.r.mcmethod, "noadjust");
+  assert.equal(table.values.length, 9);
+  assert.equal(table.values[0].length, 2);
+  assert.deepEqual(table.colNames, ["income", "sc"]);
+});

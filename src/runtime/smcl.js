@@ -123,6 +123,26 @@ const SILENT = new Set([
   "viewerdialog",
 ]);
 
+/**
+ * The index just past the quote that closes the string opening at i, a
+ * plain "..." or a compound `"..."', which may hold others; -1 when it is
+ * left open.
+ */
+export function stringEnd(text, i) {
+  if (text[i] === '"') {
+    const close = text.indexOf('"', i + 1);
+    return close < 0 ? -1 : close + 1;
+  }
+  let depth = 0;
+  for (let j = i; j < text.length; j++)
+    if (text[j] === "`" && text[j + 1] === '"') (depth++, j++);
+    else if (text[j] === '"' && text[j + 1] === "'") {
+      if (--depth === 0) return j + 2;
+      j++;
+    }
+  return -1;
+}
+
 /** The index of the brace that closes the one at start, or -1. */
 function closing(text, start) {
   let depth = 0;
@@ -184,9 +204,23 @@ function pieces(text, linesize) {
       body = colon < 0 ? null : content.slice(colon + 1),
       [name = "", ...args] = head.split(/\s+/);
     let piece = null;
+    // A link whose argument is quoted, as {browse "http://x.org":text}:
+    // the colon after the closing quote ends the argument, and with no
+    // text the link shows what is inside the quotes. Anything else after
+    // the quote leaves the directive as written.
+    const quoted = /^\s*(\w+)\s+(?=["`])/.exec(content),
+      opening = quoted && LINKS.has(quoted[1]) ? quoted[0].length : -1;
     // A character's name may hold a colon, as {c a:} does.
     const character = /^\s*(?:c|char)\s+(\S+)\s*$/.exec(content);
-    if (character) {
+    if (opening >= 0) {
+      const end = stringEnd(content, opening),
+        marks = content[opening] === '"' ? 1 : 2,
+        rest = end < 0 ? null : content.slice(end);
+      if (rest !== null && !rest.trim())
+        piece = content.slice(opening + marks, end - marks);
+      else if (rest !== null && /^\s*:/.test(rest))
+        piece = inner(rest.slice(rest.indexOf(":") + 1));
+    } else if (character) {
       const shown = namedCharacter(character[1]);
       if (shown !== null) piece = shown;
     } else if (STYLES.has(name)) {
@@ -209,14 +243,25 @@ function pieces(text, linesize) {
     } else if (name === "hline" && body === null) {
       if (!args.length) piece = { kind: "hline" };
       else {
-        const n = count(args[0]);
-        if (n !== null && args.length === 1) piece = "-".repeat(n);
+        // A negative count draws to that many columns before the end of
+        // the line.
+        const n = count(args[0], -Infinity);
+        if (n !== null && args.length === 1)
+          piece =
+            n < 0
+              ? {
+                  kind: "hline",
+                  short: -n,
+                  text: "-".repeat(Math.max(0, linesize + n)),
+                }
+              : "-".repeat(n);
       }
     } else if (name === ".-" && body === null && !args.length)
       piece = { kind: "rule" };
     else if (name === "..." && body === null && !args.length) piece = "";
     else if (name === "col" && body === null) {
-      const n = count(args[0]);
+      // A column at or before the first moves nothing.
+      const n = count(args[0], -Infinity);
       if (n !== null && args.length === 1)
         piece = { kind: "col", column: n, text: literal };
     } else if (name === "dup" && body !== null) {
@@ -304,9 +349,19 @@ function wrap(text, [first, rest, right], linesize) {
   return lines;
 }
 
+/** Text added to a line, each tab moving on to a multiple of 8 columns. */
+function tabs(line, text) {
+  if (!text.includes("\t")) return line + text;
+  for (const [k, part] of text.split("\t").entries()) {
+    if (k) line += " ".repeat(8 - (displayWidth(line) % 8));
+    line += part;
+  }
+  return line;
+}
+
 /** SMCL text as the Results window shows it, lines joined by newlines. */
 export function renderSmcl(text, linesize = 79) {
-  if (!/[{]/.test(text)) return text;
+  if (!/[{\t]/.test(text)) return text;
   const lines = [];
   let line = "",
     paragraph = null,
@@ -318,10 +373,10 @@ export function renderSmcl(text, linesize = 79) {
         pending = false;
       }
       const parts = shown.split("\n");
-      line += parts[0];
+      line = tabs(line, parts[0]);
       for (const part of parts.slice(1)) {
         lines.push(line);
-        line = part;
+        line = tabs("", part);
       }
     },
     // Ends a paragraph: its lines, then any line breaks that followed its
@@ -371,9 +426,13 @@ export function renderSmcl(text, linesize = 79) {
               : (piece.text ?? "");
     } else if (piece.kind === "col")
       write(" ".repeat(Math.max(0, piece.column - 1 - displayWidth(line))));
-    else if (piece.kind === "hline")
-      write("-".repeat(Math.max(0, linesize - displayWidth(line))));
-    else if (piece.kind === "rule") write(`${"-".repeat(linesize)}\n`);
+    else if (piece.kind === "hline") {
+      const room = linesize - (piece.short ?? 0) - displayWidth(line);
+      // A negative count the line has already passed is printed as
+      // written.
+      if (room < 0 && piece.short) write(piece.literal);
+      else write("-".repeat(Math.max(0, room)));
+    } else if (piece.kind === "rule") write(`${"-".repeat(linesize)}\n`);
     else if (piece.kind === "right")
       write(
         " ".repeat(
