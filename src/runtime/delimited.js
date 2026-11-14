@@ -1051,7 +1051,9 @@ function exportDelimited(session, text, ctx) {
     const set = o.nolabel ? null : labels.get(v.valueLabel),
       shown =
         o.datafmt || /^%-?t/.test(v.format)
-          ? v.format
+          ? // A comma format is written without its separators, which
+            // would split the field.
+            v.format.replace(/^(%-?0?\d*\.\d+[fge])c$/, "$1")
           : v.type === "double"
             ? "%18.0g"
             : v.type === "float"

@@ -33,7 +33,13 @@ import { CONTRAST_COMMANDS } from "./contrast.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { FOREIGN_COMMANDS } from "./foreign.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
-import { DATA_COMMANDS, fold, remade, settle } from "./data-commands.js";
+import {
+  DATA_COMMANDS,
+  fold,
+  rebuilt,
+  remade,
+  settle,
+} from "./data-commands.js";
 import { describe } from "./data-utilities.js";
 import { characteristicsOf } from "./store.js";
 import {
@@ -1823,7 +1829,7 @@ function collapse(session, text, ctx) {
     });
   }
   result.sortedBy = [...by];
-  remade(session, result);
+  rebuilt(session, result);
 }
 
 function sysuse(session, text) {

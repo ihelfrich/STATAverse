@@ -123,6 +123,16 @@ export function markChanged(session) {
  * Puts data a command has remade in memory. They are still the data of the
  * file they came from, now changed.
  */
+/**
+ * Puts data that collapse or reshape built in memory. Stata builds them in
+ * a temporary file, so they are no longer the data of any file: describe
+ * names none, and save needs a name.
+ */
+export function rebuilt(session, result) {
+  result.filename = "";
+  result.filedate = "";
+  session.data = result;
+}
 export function remade(session, result) {
   result.filename = session.data.filename;
   result.filedate = session.data.filedate;
@@ -1360,7 +1370,7 @@ function reshapeWide(session, ctx) {
       groups.map((group) => work.get(name).data[group.start]),
     );
   result.sortedBy = [...spec.i];
-  remade(session, result);
+  rebuilt(session, result);
   // reshape.ado builds wide data in a file it then uses, so without
   // variables constant within i Stata counts them as unchanged since saved.
   if (!xi.length) {
@@ -1532,7 +1542,7 @@ function reshapeLong(session, ctx) {
     columns.get(name)();
   result.sortedBy = [...front];
   applyCharsForLong(result, spec);
-  remade(session, result);
+  rebuilt(session, result);
   describeResults(session);
   reshapeReport(
     ctx,

@@ -98862,6 +98862,148 @@
       ]
     },
     {
+      "id": "final-redteam-high-severity",
+      "source": "clear\nset seed 4417\nset obs 400\ngenerate byte female = runiform() < .5\ngenerate age = 20 + floor(runiform() * 40)\ngenerate hours = 20 + floor(runiform() * 30)\ngenerate pw = 1 + 3 * female + age / 20\ngenerate lninc = 9 + .02 * age - .15 * female + .01 * hours + invnormal(runiform()) * .3\nlabel define sexl 0 \"Male\" 1 \"Female\"\nlabel values female sexl\nquietly regress lninc age i.female hours [aweight=pw]\nmargins female\nquietly regress lninc c.age##i.female hours [pweight=pw]\nmargins female, at(age=30)\nmargins, at(age=40)\ngenerate double income = 25325.64 + 1e6 * (_n - 1)\nformat income %12.2fc\ngenerate big = 1234567 * _n\nformat big %15.0fc\ngenerate g = 1234.5 * _n\nformat g %9.1gc\nsave frh, replace\nexport delimited income big g using frh.csv, datafmt replace\nimport delimited using frh.csv, clear\nlist in 1/3\nuse frh, clear\ncollapse (mean) lninc, by(female)\ncapture noisily save, replace\ndescribe, short\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4417", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate byte female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate age = 20 + floor(runiform() * 40)",
+          "lines": []
+        },
+        {
+          "command": "generate hours = 20 + floor(runiform() * 30)",
+          "lines": []
+        },
+        { "command": "generate pw = 1 + 3 * female + age / 20", "lines": [] },
+        {
+          "command": "generate lninc = 9 + .02 * age - .15 * female + .01 * hours + invnormal(runiform()) * .3",
+          "lines": []
+        },
+        { "command": "label define sexl 0 \"Male\" 1 \"Female\"", "lines": [] },
+        { "command": "label values female sexl", "lines": [] },
+        {
+          "command": "quietly regress lninc age i.female hours [aweight=pw]",
+          "lines": []
+        },
+        {
+          "command": "margins female",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      female |",
+            "       Male  |   10.16676   .0257141   395.38   0.000      10.1162    10.21731",
+            "     Female  |   10.03736   .0183937   545.70   0.000      10.0012    10.07352",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly regress lninc c.age##i.female hours [pweight=pw]",
+          "lines": []
+        },
+        {
+          "command": "margins female, at(age=30)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: Robust",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: age = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      female |",
+            "       Male  |   9.881513   .0282881   349.32   0.000     9.825899    9.937127",
+            "     Female  |    9.81588   .0275357   356.48   0.000     9.761746    9.870015",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(age=40)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: Robust",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: age = 40",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   10.05807   .0156289   643.56   0.000     10.02735     10.0888",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "generate double income = 25325.64 + 1e6 * (_n - 1)",
+          "lines": []
+        },
+        { "command": "format income %12.2fc", "lines": [] },
+        { "command": "generate big = 1234567 * _n", "lines": [] },
+        { "command": "format big %15.0fc", "lines": [] },
+        { "command": "generate g = 1234.5 * _n", "lines": [] },
+        { "command": "format g %9.1gc", "lines": [] },
+        {
+          "command": "save frh, replace",
+          "lines": ["(file frh.dta not found)", "file frh.dta saved"]
+        },
+        {
+          "command": "export delimited income big g using frh.csv, datafmt replace",
+          "lines": ["(file frh.csv not found)", "file frh.csv saved"]
+        },
+        {
+          "command": "import delimited using frh.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(3 vars, 400 obs)"
+          ]
+        },
+        {
+          "command": "list in 1/3",
+          "lines": [
+            "     +---------------------------+",
+            "     |   income       big      g |",
+            "     |---------------------------|",
+            "  1. | 25325.64   1234567   1235 |",
+            "  2. |  1025326   2469134   2469 |",
+            "  3. |  2025326   3703701   3704 |",
+            "     +---------------------------+"
+          ]
+        },
+        { "command": "use frh, clear", "lines": [] },
+        { "command": "collapse (mean) lninc, by(female)", "lines": [] },
+        {
+          "command": "capture noisily save, replace",
+          "lines": ["invalid file specification"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "Sorted by: female",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

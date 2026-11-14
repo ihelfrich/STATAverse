@@ -684,6 +684,9 @@ export function fit(session, parsed, by) {
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
     sumW,
     wtype,
+    // Each sample row's analytic, sampling or importance weight (rescaled),
+    // which margins averages with; frequency weights repeat the rows.
+    ...(w ? { weights: w } : {}),
     vcetype: hc ? `Robust ${hc.toUpperCase()}` : robust ? "Robust" : "",
     xtxInverse: names.map((_, r) =>
       names.map((_, c) => {
