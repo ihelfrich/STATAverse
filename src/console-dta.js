@@ -517,8 +517,7 @@ function readTagged(bytes, head) {
   r.tag("</N><label>");
   const label = r.field(r.integer(wide ? 2 : 1));
   r.tag("</label><timestamp>");
-  const stamp = r.integer(1);
-  r.at += stamp;
+  const timestamp = r.field(r.integer(1));
   r.tag("</timestamp></header><map>");
   r.at += 14 * 8;
   r.tag("</map><variable_types>");
@@ -615,15 +614,19 @@ function readTagged(bytes, head) {
     valueLabels.set(name, readLabelTable(r, length, true));
     r.tag("</lbl>");
   }
-  return attach(
-    dataset(n, label, order, names, types, columns, {
-      formats,
-      labels,
-      labelNames,
-      valueLabels,
-    }),
-    entries,
-  );
+  return {
+    ...attach(
+      dataset(n, label, order, names, types, columns, {
+        formats,
+        labels,
+        labelNames,
+        valueLabels,
+      }),
+      entries,
+    ),
+    // The time stamp Stata wrote, which describe shows (13 Nov 2026 17:08).
+    ...(timestamp ? { timestamp } : {}),
+  };
 }
 
 // Formats 111 to 115 code the numeric types as 251 to 255 and str# as #.
@@ -658,8 +661,8 @@ function readOld(bytes) {
   r.at = 4;
   const k = r.integer(2),
     n = r.integer(4),
-    label = r.field(labelSize);
-  r.at += 18;
+    label = r.field(labelSize),
+    timestamp = r.field(18);
   const codes = Array.from({ length: k }, () => r.integer(1)),
     types = codes.map((code) =>
       release >= 111
@@ -706,15 +709,19 @@ function readOld(bytes) {
       throw error;
     }
   }
-  return attach(
-    dataset(n, label, order, names, types, columns, {
-      formats,
-      labels,
-      labelNames,
-      valueLabels,
-    }),
-    entries,
-  );
+  return {
+    ...attach(
+      dataset(n, label, order, names, types, columns, {
+        formats,
+        labels,
+        labelNames,
+        valueLabels,
+      }),
+      entries,
+    ),
+    // The time stamp Stata wrote, which describe shows (13 Nov 2026 17:08).
+    ...(timestamp ? { timestamp } : {}),
+  };
 }
 
 /**

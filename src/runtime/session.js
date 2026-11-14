@@ -13,11 +13,23 @@ import { expandVarlist } from "./varlist.js";
 import { applyFormat, stringOf } from "./format.js";
 import { formatNumber } from "./values.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
+import { changed, markChanged } from "./data-commands.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientIndex } from "./estimation.js";
 
 const MAX_STEPS = 200000;
+// Commands that never change the data, after which there is no need to see
+// whether they have (a check that reads every value).
+const READ_ONLY = new Set([
+  "display",
+  "summarize",
+  "list",
+  "count",
+  "codebook",
+  "correlate",
+  "tabstat",
+]);
 // c(current_date) in Stata's form, such as "10 Nov 2026".
 function currentDate() {
   const now = new Date(),
@@ -257,8 +269,9 @@ export class Session {
           pi: Math.PI,
           type: this.data.defaultType,
           rc: this.rc,
-          changed: Number(this.data.variables.length > 0),
-          filename: this.fileInUse ?? "",
+          changed: Number(changed(this)),
+          filename: this.data.filename ?? "",
+          filedate: this.data.filedate ?? "",
           current_date: currentDate(),
           current_time: new Date().toTimeString().slice(0, 8),
           stata_version: 17,
@@ -581,6 +594,10 @@ export class Session {
           if (left) this.results.r = left;
         }
         throw error;
+      } finally {
+        // Once the data have changed they stay changed until use, save or
+        // clear, even if a later command changes them back.
+        if (!READ_ONLY.has(command.name)) markChanged(this);
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
       return value;

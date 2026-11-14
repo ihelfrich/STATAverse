@@ -70430,6 +70430,1808 @@
       ]
     },
     {
+      "id": "describe-layouts",
+      "source": "clear\nset obs 3\ngenerate int id = _n\ngenerate byte female = mod(_n, 2)\ngenerate double gpa = _n / 4\ngenerate str20 name = \"Person \" + string(_n)\ngenerate abcdefghijklmnopqrstuvwxyz123456 = 1\ngenerate averyveryverylongname = 2\ngenerate abcdefghijklmnop = 3\ngenerate abcdefghijklmno = 4\ngenerate abcdefghijklmnopqrstuvwxyz12 = 5\ngenerate abcdefghijklmnopqrstuvwxy_12 = 6\nformat gpa %tdCCYY-NN-DD\nformat name %-20s\nlabel define sexlbl 0 \"Male\" 1 \"Female\"\nlabel define lab9chars 1 \"y\"\nlabel define averyveryverylonglabelname 1 \"x\"\nlabel values female sexlbl\nlabel values id lab9chars\nlabel values abcdefghijklmno averyveryverylonglabelname\nlabel variable id \"Student identifier\"\nlabel variable female \"Respondent is female\"\nlabel variable gpa \"Two  spaces  here\"\nlabel variable name \"A label that is quite long indeed, well over thirty-four characters and more t\"\nlabel data \"A data label that is long, about sixty characters, to see the wrap\"\nnotes: Collected in fall\nnotes female: Self-reported\nsort id\nset linesize 80\ndescribe\ndescribe, short\ndescribe, fullnames\ndescribe, numbers\ndescribe, simple\ndescribe id female name, simple\ndescribe id name abcdefghijklmnopqrstuvwxyz12\ndescribe, varlist\ndisplay r(N) \" \" r(k) \" \" r(width) \" \" r(changed) \" `r(sortlist)'\"\ndisplay wordcount(\"`r(varlist)'\") \" `r(datalabel)'\"\ndescribe id gpa, varlist\nreturn list\ncapture noisily describe, simple numbers\ncapture noisily describe, numbers fullnames\ncapture noisily describe, replace\ndescribe, replace clear\ndescribe\nlist position name type isnumeric, clean noobs\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate int id = _n", "lines": [] },
+        { "command": "generate byte female = mod(_n, 2)", "lines": [] },
+        { "command": "generate double gpa = _n / 4", "lines": [] },
+        {
+          "command": "generate str20 name = \"Person \" + string(_n)",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijklmnopqrstuvwxyz123456 = 1",
+          "lines": []
+        },
+        { "command": "generate averyveryverylongname = 2", "lines": [] },
+        { "command": "generate abcdefghijklmnop = 3", "lines": [] },
+        { "command": "generate abcdefghijklmno = 4", "lines": [] },
+        { "command": "generate abcdefghijklmnopqrstuvwxyz12 = 5", "lines": [] },
+        { "command": "generate abcdefghijklmnopqrstuvwxy_12 = 6", "lines": [] },
+        { "command": "format gpa %tdCCYY-NN-DD", "lines": [] },
+        { "command": "format name %-20s", "lines": [] },
+        {
+          "command": "label define sexlbl 0 \"Male\" 1 \"Female\"",
+          "lines": []
+        },
+        { "command": "label define lab9chars 1 \"y\"", "lines": [] },
+        {
+          "command": "label define averyveryverylonglabelname 1 \"x\"",
+          "lines": []
+        },
+        { "command": "label values female sexlbl", "lines": [] },
+        { "command": "label values id lab9chars", "lines": [] },
+        {
+          "command": "label values abcdefghijklmno averyveryverylonglabelname",
+          "lines": []
+        },
+        { "command": "label variable id \"Student identifier\"", "lines": [] },
+        {
+          "command": "label variable female \"Respondent is female\"",
+          "lines": []
+        },
+        { "command": "label variable gpa \"Two  spaces  here\"", "lines": [] },
+        {
+          "command": "label variable name \"A label that is quite long indeed, well over thirty-four characters and more t\"",
+          "lines": []
+        },
+        {
+          "command": "label data \"A data label that is long, about sixty characters, to see the wrap\"",
+          "lines": []
+        },
+        { "command": "notes: Collected in fall", "lines": [] },
+        { "command": "notes female: Self-reported", "lines": [] },
+        { "command": "sort id", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3                  A data label that is long, about",
+            "                                                sixty characters, to see the",
+            "                                                wrap",
+            "    Variables:            10",
+            "                                              (_dta has notes)",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "id              int     %8.0g      lab9chars",
+            "                                              Student identifier",
+            "female          byte    %8.0g      sexlbl   * Respondent is female",
+            "gpa             double  %td..                 Two spaces here",
+            "name            str20   %-20s                 A label that is quite long indeed,",
+            "                                                well over thirty-four characters",
+            "                                                and more t",
+            "abcdefgh~123456 float   %9.0g",
+            "averyveryvery~e float   %9.0g",
+            "abcdefghijklm~p float   %9.0g",
+            "abcdefghijklmno float   %9.0g      averyveryverylonglabelname",
+            "",
+            "abcdefghijk~z12 float   %9.0g",
+            "abcdefghijk~_12 float   %9.0g",
+            "                                            * indicated variables have notes",
+            "--------------------------------------------------------------------------------",
+            "Sorted by: id",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             3                  A data label that is long, about",
+            "                                                sixty characters, to see the",
+            "                                                wrap",
+            "    Variables:            10",
+            "Sorted by: id",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, fullnames",
+          "lines": [
+            "Contains data",
+            " Observations:             3                  A data label that is long, about",
+            "                                                sixty characters, to see the",
+            "                                                wrap",
+            "    Variables:            10",
+            "                                              (_dta has notes)",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "id              int     %8.0g      lab9chars",
+            "                                              Student identifier",
+            "female          byte    %8.0g      sexlbl   * Respondent is female",
+            "gpa             double  %td..                 Two spaces here",
+            "name            str20   %-20s                 A label that is quite long indeed,",
+            "                                                well over thirty-four characters",
+            "                                                and more t",
+            "abcdefghijklmnopqrstuvwxyz123456",
+            "                float   %9.0g",
+            "averyveryverylongname",
+            "                float   %9.0g",
+            "abcdefghijklmnop",
+            "                float   %9.0g",
+            "abcdefghijklmno float   %9.0g      averyveryverylonglabelname",
+            "",
+            "abcdefghijklmnopqrstuvwxyz12",
+            "                float   %9.0g",
+            "abcdefghijklmnopqrstuvwxy_12",
+            "                float   %9.0g",
+            "                                            * indicated variables have notes",
+            "--------------------------------------------------------------------------------",
+            "Sorted by: id",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             3                  A data label that is long, about",
+            "                                                sixty characters, to see the",
+            "                                                wrap",
+            "    Variables:            10",
+            "                                              (_dta has notes)",
+            "--------------------------------------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "    1. id        int     %8.0g      lab9chars",
+            "                                              Student identifier",
+            "    2. female    byte    %8.0g      sexlbl   * Respondent is female",
+            "    3. gpa       double  %td..                 Two spaces here",
+            "    4. name      str20   %-20s                 A label that is quite long",
+            "                                                indeed, well over thirty-four",
+            "                                                characters and more t",
+            "    5. a~123456  float   %9.0g",
+            "    6. averyv~e  float   %9.0g",
+            "    7. abcdef~p  float   %9.0g",
+            "    8. abcdef~o  float   %9.0g      averyveryverylonglabelname",
+            "",
+            "    9. abcd~z12  float   %9.0g",
+            "   10. abcd~_12  float   %9.0g",
+            "                                            * indicated variables have notes",
+            "--------------------------------------------------------------------------------",
+            "Sorted by: id",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "id            gpa           abcde~123456  abcdefghij~p  abcdefgh~z12",
+            "female        name          averyveryv~e  abcdefghij~o  abcdefgh~_12"
+          ]
+        },
+        {
+          "command": "describe id female name, simple",
+          "lines": ["id      female  name"]
+        },
+        {
+          "command": "describe id name abcdefghijklmnopqrstuvwxyz12",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "id              int     %8.0g      lab9chars",
+            "                                              Student identifier",
+            "name            str20   %-20s                 A label that is quite long indeed,",
+            "                                                well over thirty-four characters",
+            "                                                and more t",
+            "abcdefghijk~z12 float   %9.0g"
+          ]
+        },
+        {
+          "command": "describe, varlist",
+          "lines": [
+            "Contains data",
+            " Observations:             3                  A data label that is long, about",
+            "                                                sixty characters, to see the",
+            "                                                wrap",
+            "    Variables:            10",
+            "                                              (_dta has notes)",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "id              int     %8.0g      lab9chars",
+            "                                              Student identifier",
+            "female          byte    %8.0g      sexlbl   * Respondent is female",
+            "gpa             double  %td..                 Two spaces here",
+            "name            str20   %-20s                 A label that is quite long indeed,",
+            "                                                well over thirty-four characters",
+            "                                                and more t",
+            "abcdefgh~123456 float   %9.0g",
+            "averyveryvery~e float   %9.0g",
+            "abcdefghijklm~p float   %9.0g",
+            "abcdefghijklmno float   %9.0g      averyveryverylonglabelname",
+            "",
+            "abcdefghijk~z12 float   %9.0g",
+            "abcdefghijk~_12 float   %9.0g",
+            "                                            * indicated variables have notes",
+            "--------------------------------------------------------------------------------",
+            "Sorted by: id",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "display r(N) \" \" r(k) \" \" r(width) \" \" r(changed) \" `r(sortlist)'\"",
+          "lines": ["3 10 55 1 id"]
+        },
+        {
+          "command": "display wordcount(\"`r(varlist)'\") \" `r(datalabel)'\"",
+          "lines": [
+            "10 A data label that is long, about sixty characters, to see the wrap"
+          ]
+        },
+        {
+          "command": "describe id gpa, varlist",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "id              int     %8.0g      lab9chars",
+            "                                              Student identifier",
+            "gpa             double  %td..                 Two spaces here"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "            r(changed) =  1",
+            "              r(width) =  55",
+            "                  r(k) =  10",
+            "                  r(N) =  3",
+            "",
+            "macros:",
+            "           r(sortlist) : \"id\"",
+            "            r(varlist) : \"id gpa\""
+          ]
+        },
+        {
+          "command": "capture noisily describe, simple numbers",
+          "lines": ["simple may not be combined with other options"]
+        },
+        {
+          "command": "capture noisily describe, numbers fullnames",
+          "lines": ["options numbers and fullnames may not be combined"]
+        },
+        {
+          "command": "capture noisily describe, replace",
+          "lines": [
+            "no; data in memory would be lost",
+            "    Specify describe ..., replace clear to perform the command anyway."
+          ]
+        },
+        { "command": "describe, replace clear", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:            10                  describe <unnamed>",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "position        int     %8.0g                 Variable number",
+            "name            str32   %32s                  Variable name",
+            "type            str6    %9s                   Storage type",
+            "isnumeric       byte    %8.0g                 Whether numeric or string",
+            "format          str13   %13s                  Display format",
+            "vallab          str26   %26s                  Value label name",
+            "varlab          str78   %78s                  Variable label",
+            "--------------------------------------------------------------------------------",
+            "Sorted by: position",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list position name type isnumeric, clean noobs",
+          "lines": [
+            "    position                               name     type   isnume~c",
+            "           1                                 id      int          1",
+            "           2                             female     byte          1",
+            "           3                                gpa   double          1",
+            "           4                               name    str20          0",
+            "           5   abcdefghijklmnopqrstuvwxyz123456    float          1",
+            "           6              averyveryverylongname    float          1",
+            "           7                   abcdefghijklmnop    float          1",
+            "           8                    abcdefghijklmno    float          1",
+            "           9       abcdefghijklmnopqrstuvwxyz12    float          1",
+            "          10       abcdefghijklmnopqrstuvwxy_12    float          1"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "describe-empty",
+      "source": "clear\ndescribe\ndescribe, short\nset obs 2\ndescribe\ngenerate a = 1\ndescribe, short\nreturn list\ndisplay c(changed)\nclear\ndisplay c(changed)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             0",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "generate a = 1", "lines": [] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             1",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "            r(changed) =  1",
+            "              r(width) =  4",
+            "                  r(k) =  1",
+            "                  r(N) =  2"
+          ]
+        },
+        { "command": "display c(changed)", "lines": ["1"] },
+        { "command": "clear", "lines": [] },
+        { "command": "display c(changed)", "lines": ["0"] }
+      ]
+    },
+    {
+      "id": "use-subsets",
+      "source": "clear\nset obs 6\ngenerate int id = _n\ngenerate byte female = mod(_n, 2)\ngenerate float wage = 10 + _n\ngenerate region = 1 + mod(_n, 3)\nlabel define sexlbl 0 \"Male\" 1 \"Female\"\nlabel values female sexlbl\nlabel variable wage \"Hourly wage\"\nlabel data \"Small course file\"\nsort region id\nsave describe_subsets, replace\ndisplay c(changed)\nuse describe_subsets, clear\ndisplay c(changed) \" \" c(filename)\nsort id\ndisplay c(changed)\norder wage\ndisplay c(changed)\nreplace wage = wage in 1\ndisplay c(changed)\nreplace wage = 0 in 1\ndisplay c(changed)\nuse id wage using describe_subsets, clear\ndescribe id wage\ndisplay _N \" \" c(changed)\nuse describe_subsets if female == 1, clear\ncount\nuse describe_subsets in 2/4, clear\nlist, clean\nuse id wage if wage > 12 using describe_subsets in 1/5, clear\nlist, clean\nuse female-wage using describe_subsets, clear\ndescribe, simple\nuse describe_subsets, clear nolabel\nlabel list\ndescribe female\nuse describe_subsets, clear\nlabel data\ndisplay c(changed)\ncapture noisily use describe_subsets\ncapture noisily use id nosuch using describe_subsets, clear\ndescribe, short\ncapture noisily use id if female == 1 using describe_subsets, clear\ncapture noisily use describe_subsets in 1/50, clear\ncapture noisily use no_such_file, clear\ndescribe id female using describe_subsets\nreturn list\ndescribe using describe_subsets, simple\ncapture noisily describe nosuch using describe_subsets\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate int id = _n", "lines": [] },
+        { "command": "generate byte female = mod(_n, 2)", "lines": [] },
+        { "command": "generate float wage = 10 + _n", "lines": [] },
+        { "command": "generate region = 1 + mod(_n, 3)", "lines": [] },
+        {
+          "command": "label define sexlbl 0 \"Male\" 1 \"Female\"",
+          "lines": []
+        },
+        { "command": "label values female sexlbl", "lines": [] },
+        { "command": "label variable wage \"Hourly wage\"", "lines": [] },
+        { "command": "label data \"Small course file\"", "lines": [] },
+        { "command": "sort region id", "lines": [] },
+        {
+          "command": "save describe_subsets, replace",
+          "lines": [
+            "(file describe_subsets.dta not found)",
+            "file describe_subsets.dta saved"
+          ]
+        },
+        { "command": "display c(changed)", "lines": ["0"] },
+        {
+          "command": "use describe_subsets, clear",
+          "lines": ["(Small course file)"]
+        },
+        {
+          "command": "display c(changed) \" \" c(filename)",
+          "lines": ["0 describe_subsets.dta"]
+        },
+        { "command": "sort id", "lines": [] },
+        { "command": "display c(changed)", "lines": ["0"] },
+        { "command": "order wage", "lines": [] },
+        { "command": "display c(changed)", "lines": ["0"] },
+        {
+          "command": "replace wage = wage in 1",
+          "lines": ["(0 real changes made)"]
+        },
+        { "command": "display c(changed)", "lines": ["0"] },
+        {
+          "command": "replace wage = 0 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use id wage using describe_subsets, clear",
+          "lines": ["(Small course file)"]
+        },
+        {
+          "command": "describe id wage",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              int     %8.0g",
+            "wage            float   %9.0g                 Hourly wage"
+          ]
+        },
+        { "command": "display _N \" \" c(changed)", "lines": ["6 0"] },
+        {
+          "command": "use describe_subsets if female == 1, clear",
+          "lines": ["(Small course file)"]
+        },
+        { "command": "count", "lines": ["  3"] },
+        {
+          "command": "use describe_subsets in 2/4, clear",
+          "lines": ["(Small course file)"]
+        },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       id   female   wage   region",
+            "  1.    6     Male     16        1",
+            "  2.    1   Female     11        2",
+            "  3.    4     Male     14        2"
+          ]
+        },
+        {
+          "command": "use id wage if wage > 12 using describe_subsets in 1/5, clear",
+          "lines": ["(Small course file)"]
+        },
+        {
+          "command": "list, clean",
+          "lines": [
+            "       id   wage",
+            "  1.    3     13",
+            "  2.    6     16",
+            "  3.    4     14"
+          ]
+        },
+        {
+          "command": "use female-wage using describe_subsets, clear",
+          "lines": ["(Small course file)"]
+        },
+        { "command": "describe, simple", "lines": ["female  wage"] },
+        {
+          "command": "use describe_subsets, clear nolabel",
+          "lines": ["(Small course file)"]
+        },
+        { "command": "label list", "lines": [] },
+        {
+          "command": "describe female",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "female          byte    %8.0g      sexlbl"
+          ]
+        },
+        {
+          "command": "use describe_subsets, clear",
+          "lines": ["(Small course file)"]
+        },
+        { "command": "label data", "lines": [] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "capture noisily use describe_subsets",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        {
+          "command": "capture noisily use id nosuch using describe_subsets, clear",
+          "lines": ["(Small course file)", "variable nosuch not found"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        {
+          "command": "capture noisily use id if female == 1 using describe_subsets, clear",
+          "lines": ["(Small course file)", "female not found"]
+        },
+        {
+          "command": "capture noisily use describe_subsets in 1/50, clear",
+          "lines": ["(Small course file)", "observation numbers out of range"]
+        },
+        {
+          "command": "capture noisily use no_such_file, clear",
+          "lines": ["file no_such_file.dta not found"]
+        },
+        {
+          "command": "describe id female using describe_subsets",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              int     %8.0g",
+            "female          byte    %8.0g      sexlbl"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "              r(width) =  11",
+            "                  r(k) =  4",
+            "                  r(N) =  6"
+          ]
+        },
+        {
+          "command": "describe using describe_subsets, simple",
+          "lines": ["id      female  wage    region"]
+        },
+        {
+          "command": "capture noisily describe nosuch using describe_subsets",
+          "lines": ["variable nosuch not found in file describe_subsets.dta"]
+        }
+      ]
+    },
+    {
+      "id": "save-label-order",
+      "source": "clear\nset obs 2\ngenerate x = 1\ngenerate y = 1\ngenerate z = 1\nlabel define alab 1 \"a\"\nlabel define blab 1 \"b\"\nlabel define clab 1 \"c\"\nlabel define orphan 1 \"o\"\nlabel values x alab\nlabel values y blab\nlabel values z clab\nlabel dir\nsave save_ord1, replace\nuse save_ord1, clear\nlabel dir\nsave save_ord2, replace\nuse save_ord2, clear\nlabel dir\nlabel define dlab 1 \"d\"\nlabel values x dlab\nsave save_ord3, replace orphans\nuse save_ord3, clear\nlabel dir\nsave save_ord4, replace nolabel\nuse save_ord4, clear\nlabel dir\ndescribe x y z\nlabel variable x \"A variable label that runs past the limit of eighty characters, which Stata enforces strictly\"\nlabel data \"A dataset label that runs past the limit of eighty characters, which Stata enforces as well\"\ndescribe x\ndisplay \"`: data label'\"\nclear\ncapture noisily save save_empty, replace\ncapture noisily save save_empty, replace emptyok\nset obs 2\ncapture noisily save save_empty2, replace\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        { "command": "generate y = 1", "lines": [] },
+        { "command": "generate z = 1", "lines": [] },
+        { "command": "label define alab 1 \"a\"", "lines": [] },
+        { "command": "label define blab 1 \"b\"", "lines": [] },
+        { "command": "label define clab 1 \"c\"", "lines": [] },
+        { "command": "label define orphan 1 \"o\"", "lines": [] },
+        { "command": "label values x alab", "lines": [] },
+        { "command": "label values y blab", "lines": [] },
+        { "command": "label values z clab", "lines": [] },
+        { "command": "label dir", "lines": ["orphan", "clab", "blab", "alab"] },
+        {
+          "command": "save save_ord1, replace",
+          "lines": [
+            "(file save_ord1.dta not found)",
+            "file save_ord1.dta saved"
+          ]
+        },
+        { "command": "use save_ord1, clear", "lines": [] },
+        { "command": "label dir", "lines": ["alab", "blab", "clab"] },
+        {
+          "command": "save save_ord2, replace",
+          "lines": [
+            "(file save_ord2.dta not found)",
+            "file save_ord2.dta saved"
+          ]
+        },
+        { "command": "use save_ord2, clear", "lines": [] },
+        { "command": "label dir", "lines": ["clab", "blab", "alab"] },
+        { "command": "label define dlab 1 \"d\"", "lines": [] },
+        { "command": "label values x dlab", "lines": [] },
+        {
+          "command": "save save_ord3, replace orphans",
+          "lines": [
+            "(file save_ord3.dta not found)",
+            "file save_ord3.dta saved"
+          ]
+        },
+        { "command": "use save_ord3, clear", "lines": [] },
+        { "command": "label dir", "lines": ["alab", "blab", "clab", "dlab"] },
+        {
+          "command": "save save_ord4, replace nolabel",
+          "lines": [
+            "(file save_ord4.dta not found)",
+            "file save_ord4.dta saved"
+          ]
+        },
+        { "command": "use save_ord4, clear", "lines": [] },
+        { "command": "label dir", "lines": [] },
+        {
+          "command": "describe x y z",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %9.0g      dlab",
+            "y               float   %9.0g      blab",
+            "z               float   %9.0g      clab"
+          ]
+        },
+        {
+          "command": "label variable x \"A variable label that runs past the limit of eighty characters, which Stata enforces strictly\"",
+          "lines": ["note: label truncated to 80 characters"]
+        },
+        {
+          "command": "label data \"A dataset label that runs past the limit of eighty characters, which Stata enforces as well\"",
+          "lines": ["note: label truncated to 80 characters"]
+        },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %9.0g      dlab       A variable label that runs past the limit of eighty characters, which Stata enfo"
+          ]
+        },
+        {
+          "command": "display \"`: data label'\"",
+          "lines": [
+            "A dataset label that runs past the limit of eighty characters, which Stata enfor"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "capture noisily save save_empty, replace",
+          "lines": ["no variables defined"]
+        },
+        {
+          "command": "capture noisily save save_empty, replace emptyok",
+          "lines": [
+            "(dataset contains 0 observations)",
+            "(file save_empty.dta not found)",
+            "file save_empty.dta saved"
+          ]
+        },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        {
+          "command": "capture noisily save save_empty2, replace",
+          "lines": ["no variables defined"]
+        }
+      ]
+    },
+    {
+      "id": "describe-label-wrap",
+      "source": "clear\nset obs 1\ngenerate v = 1\ngenerate w = 2\nlabel data \"aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm\"\nset linesize 80\ndescribe, short\nset linesize 200\nlabel data \"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij\"\nset linesize 80\ndescribe, short\nset linesize 200\nlabel data \"abcdefghij abcdefghijabcdefghijabcdefghijabcdefghij\"\nset linesize 80\ndescribe, short\nset linesize 200\nlabel data \"  lead  and   gaps that go on long enough to need a wrap here\"\nset linesize 80\ndescribe, short\nset linesize 200\nlabel data \"  padded label  \"\nlabel variable v \"  padded var  \"\nlabel variable w \"   three  inner   spaces   \"\nset linesize 80\ndescribe\nset linesize 200\nlabel variable v \"  aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn ooo\"\nlabel variable w \"Averyveryveryverylongwordthatgoeson and then some more words follow here ok\"\nnotes w: a note\nset linesize 80\ndescribe\nset linesize 75\ndescribe\nset linesize 200\nlabel data \"A very long dataset label that has many words in it and keeps going until eighty\"\nset linesize 70\ndescribe\nset linesize 100\ndescribe\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate v = 1", "lines": [] },
+        { "command": "generate w = 2", "lines": [] },
+        {
+          "command": "label data \"aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  aaaa bbbb cccc dddd eeee ffff",
+            "                                                gggg hhhh iiii jjjj kkkk llll",
+            "                                                mmmm",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "label data \"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  abcdefghijabcdefghijabcdefghijab",
+            "                                                cdefghijabcdefghij",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "label data \"abcdefghij abcdefghijabcdefghijabcdefghijabcdefghij\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  abcdefghij",
+            "                                                abcdefghijabcdefghijabcdefghijab",
+            "                                                cdefghij",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "label data \"  lead  and   gaps that go on long enough to need a wrap here\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  lead  and   gaps that go on long",
+            "                                                enough to need a wrap here",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        { "command": "label data \"  padded label  \"", "lines": [] },
+        { "command": "label variable v \"  padded var  \"", "lines": [] },
+        {
+          "command": "label variable w \"   three  inner   spaces   \"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                    padded label",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "v               float   %9.0g                  padded var",
+            "w               float   %9.0g                  three inner spaces",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "label variable v \"  aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn ooo\"",
+          "lines": []
+        },
+        {
+          "command": "label variable w \"Averyveryveryverylongwordthatgoeson and then some more words follow here ok\"",
+          "lines": []
+        },
+        { "command": "notes w: a note", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                    padded label",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "v               float   %9.0g                  aaaa bbbb cccc dddd eeee ffff",
+            "                                                gggg hhhh iiii jjjj kkkk llll",
+            "                                                mmmm nnnn ooo",
+            "w               float   %9.0g               *",
+            "                                                Averyveryveryverylongwordthatgoe",
+            "                                                > son and then some more words",
+            "                                                follow here ok",
+            "                                            * indicated variables have notes",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 75", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                    padded label",
+            "    Variables:             2",
+            "---------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "---------------------------------------------------------------------------",
+            "v               float   %9.0g                  aaaa bbbb cccc dddd eeee",
+            "                                                ffff gggg hhhh iiii jjjj",
+            "                                                kkkk llll mmmm nnnn ooo",
+            "w               float   %9.0g               *",
+            "                                                Averyveryveryverylongwordth",
+            "                                                > atgoeson and then some",
+            "                                                more words follow here ok",
+            "                                            * indicated variables have note",
+            "> s",
+            "---------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "label data \"A very long dataset label that has many words in it and keeps going until eighty\"",
+          "lines": []
+        },
+        { "command": "set linesize 70", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long dataset",
+            "                                                label that has many",
+            "                                                words in it and keeps",
+            "                                                going until eighty",
+            "    Variables:             2",
+            "----------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "----------------------------------------------------------------------",
+            "v               float   %9.0g                  aaaa bbbb cccc dddd",
+            "                                                eeee ffff gggg hhhh",
+            "                                                iiii jjjj kkkk llll",
+            "                                                mmmm nnnn ooo",
+            "w               float   %9.0g               *",
+            "                                                Averyveryveryverylongw",
+            "                                                > ordthatgoeson and",
+            "                                                then some more words",
+            "                                                follow here ok",
+            "                                            * indicated variables have",
+            ">  notes",
+            "----------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 100", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long dataset label that has many words in it",
+            "                                                and keeps going until eighty",
+            "    Variables:             2",
+            "----------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "----------------------------------------------------------------------------------------------------",
+            "v               float   %9.0g                  aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj",
+            "                                                kkkk llll mmmm nnnn ooo",
+            "w               float   %9.0g               * Averyveryveryverylongwordthatgoeson and then some more",
+            "                                                words follow here ok",
+            "                                            * indicated variables have notes",
+            "----------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "describe-narrow-linesize",
+      "source": "clear\nset obs 1\ngenerate v = 1\ngenerate averyveryverylongname = 2\nlabel data \"A very long dataset label that has many words in it and keeps going until eighty\"\nlabel variable v \"This is a very long variable label that goes on and on past the edge of the scre\"\nlabel variable averyveryverylongname \"Short\"\nlabel define averyverylongvaluelabelname 1 \"one\"\nlabel define shortlbl 1 \"one\"\nlabel define mediumlabelnm 1 \"one\"\nset linesize 60\ndescribe\nlabel values v averyverylongvaluelabelname\nlabel values averyveryverylongname mediumlabelnm\ndescribe\nlabel values v shortlbl\ndescribe, numbers\nset linesize 50\ndescribe\ndescribe, numbers\nset linesize 55\ndescribe\nset linesize 66\ndescribe\nset linesize 68\ndescribe\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate v = 1", "lines": [] },
+        { "command": "generate averyveryverylongname = 2", "lines": [] },
+        {
+          "command": "label data \"A very long dataset label that has many words in it and keeps going until eighty\"",
+          "lines": []
+        },
+        {
+          "command": "label variable v \"This is a very long variable label that goes on and on past the edge of the scre\"",
+          "lines": []
+        },
+        {
+          "command": "label variable averyveryverylongname \"Short\"",
+          "lines": []
+        },
+        {
+          "command": "label define averyverylongvaluelabelname 1 \"one\"",
+          "lines": []
+        },
+        { "command": "label define shortlbl 1 \"one\"", "lines": [] },
+        { "command": "label define mediumlabelnm 1 \"one\"", "lines": [] },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long",
+            "                                                dataset",
+            "                                                label that",
+            "                                                has many",
+            "                                                words in it",
+            "                                                and keeps",
+            "                                                going until",
+            "                                                eighty",
+            "    Variables:             2",
+            "------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "------------------------------------------------------------",
+            "v               float   %9.0g                 This is a very",
+            "                                        long variable label",
+            "                                        that goes on and on",
+            "                                        past the edge of the",
+            "                                        scre",
+            "averyveryvery~e float   %9.0g                 Short",
+            "------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "label values v averyverylongvaluelabelname",
+          "lines": []
+        },
+        {
+          "command": "label values averyveryverylongname mediumlabelnm",
+          "lines": []
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long",
+            "                                                dataset",
+            "                                                label that",
+            "                                                has many",
+            "                                                words in it",
+            "                                                and keeps",
+            "                                                going until",
+            "                                                eighty",
+            "    Variables:             2",
+            "------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "------------------------------------------------------------",
+            "v               float   %9.0g      averyverylongvaluelabelna",
+            "                                        > me",
+            "                                              This is a very",
+            "                                        long variable label",
+            "                                        that goes on and on",
+            "                                        past the edge of the",
+            "                                        scre",
+            "averyveryvery~e float   %9.0g      mediumlabelnm",
+            "                                              Short",
+            "------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "label values v shortlbl", "lines": [] },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long",
+            "                                                dataset",
+            "                                                label that",
+            "                                                has many",
+            "                                                words in it",
+            "                                                and keeps",
+            "                                                going until",
+            "                                                eighty",
+            "    Variables:             2",
+            "------------------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Variable label",
+            "------------------------------------------------------------",
+            "    1. v         float   %9.0g      shortlbl   This is a",
+            "                                        very long variable",
+            "                                        label that goes on",
+            "                                        and on past the edge",
+            "                                        of the scre",
+            "    2. averyv~e  float   %9.0g      mediumlabelnm",
+            "                                              Short",
+            "------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 50", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A",
+            "                                                ve",
+            "                                                ry",
+            "                                                lo",
+            "                                                ng",
+            "                                                da",
+            "                                                ta",
+            "                                                se",
+            "                                                t",
+            "                                                la",
+            "                                                be",
+            "                                                l",
+            "                                                th",
+            "                                                at",
+            "                                                ha",
+            "                                                s",
+            "                                                ma",
+            "                                                ny",
+            "                                                wo",
+            "                                                rd",
+            "                                                s",
+            "                                                in",
+            "                                                it",
+            "                                                an",
+            "                                                d",
+            "                                                ke",
+            "                                                ep",
+            "                                                s",
+            "                                                go",
+            "                                                in",
+            "                                                g",
+            "                                                un",
+            "                                                ti",
+            "                                                l",
+            "                                                ei",
+            "                                                gh",
+            "                                                ty",
+            "    Variables:             2",
+            "--------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Vari",
+            "> able label",
+            "--------------------------------------------------",
+            "v               float   %9.0g      shortlbl   This",
+            "                              is a very long",
+            "                              variable label that",
+            "                              goes on and on past",
+            "                              the edge of the scre",
+            "averyveryvery~e float   %9.0g      mediumlabelnm",
+            "                                              Shor",
+            "                              > t",
+            "--------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A",
+            "                                                ve",
+            "                                                ry",
+            "                                                lo",
+            "                                                ng",
+            "                                                da",
+            "                                                ta",
+            "                                                se",
+            "                                                t",
+            "                                                la",
+            "                                                be",
+            "                                                l",
+            "                                                th",
+            "                                                at",
+            "                                                ha",
+            "                                                s",
+            "                                                ma",
+            "                                                ny",
+            "                                                wo",
+            "                                                rd",
+            "                                                s",
+            "                                                in",
+            "                                                it",
+            "                                                an",
+            "                                                d",
+            "                                                ke",
+            "                                                ep",
+            "                                                s",
+            "                                                go",
+            "                                                in",
+            "                                                g",
+            "                                                un",
+            "                                                ti",
+            "                                                l",
+            "                                                ei",
+            "                                                gh",
+            "                                                ty",
+            "    Variables:             2",
+            "--------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Vari",
+            "> able label",
+            "--------------------------------------------------",
+            "    1. v         float   %9.0g      shortlbl   Thi",
+            "                              > s is a very long",
+            "                              variable label that",
+            "                              goes on and on past",
+            "                              the edge of the scre",
+            "    2. averyv~e  float   %9.0g      mediumlabelnm",
+            "                                              Shor",
+            "                              > t",
+            "--------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 55", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very",
+            "                                                long",
+            "                                                dataset",
+            "                                                label",
+            "                                                that",
+            "                                                has",
+            "                                                many",
+            "                                                words",
+            "                                                in it",
+            "                                                and",
+            "                                                keeps",
+            "                                                going",
+            "                                                until",
+            "                                                eighty",
+            "    Variables:             2",
+            "-------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable",
+            "> label",
+            "-------------------------------------------------------",
+            "v               float   %9.0g      shortlbl   This is a",
+            "                                   very long variable",
+            "                                   label that goes on",
+            "                                   and on past the edge",
+            "                                   of the scre",
+            "averyveryvery~e float   %9.0g      mediumlabelnm",
+            "                                              Short",
+            "-------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 66", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long",
+            "                                                dataset label that",
+            "                                                has many words in",
+            "                                                it and keeps going",
+            "                                                until eighty",
+            "    Variables:             2",
+            "------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "------------------------------------------------------------------",
+            "v               float   %9.0g      shortlbl   This is a very long",
+            "                                              variable label that",
+            "                                              goes on and on past",
+            "                                              the edge of the scre",
+            "averyveryvery~e float   %9.0g      mediumlabelnm",
+            "                                              Short",
+            "------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 68", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1                  A very long dataset",
+            "                                                label that has many",
+            "                                                words in it and",
+            "                                                keeps going until",
+            "                                                eighty",
+            "    Variables:             2",
+            "--------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------",
+            "v               float   %9.0g      shortlbl   This is a very long",
+            "                                                variable label that",
+            "                                                goes on and on past",
+            "                                                the edge of the scre",
+            "averyveryvery~e float   %9.0g      mediumlabelnm",
+            "                                              Short",
+            "--------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "describe-numbers-abbreviations",
+      "source": "clear\nset obs 1\ngenerate income_2019_q1_adjusted = 1\ngenerate income_2019_q2_adjusted = 1\ngenerate income_2019_q1_adjustee = 1\ngenerate id = 1\ngenerate income = 1\ngenerate income_2019 = 1\nset linesize 80\ndescribe, numbers\ndescribe, simple\ndescribe\nclear\nset obs 1\ngenerate abcdefghijklmnopqrstuvwxyz = 1\ngenerate abcdefghijklmZopqrstuvwxyz = 1\ngenerate abcdefghiYklmnopqrstuvwxyz = 1\ngenerate abcdefghijklmnopqrstuvwxyQ = 1\ndescribe, numbers\ndescribe, simple\ndescribe\nclear\nset obs 1\ngenerate abcdefghijklmnopqrstuvwxyz0123 = 1\ngenerate abcdefghijZlmnopqrstuvwxyz0123 = 1\ngenerate abcdefghijklmnopqrstuvwxyz0124 = 1\ngenerate abcdefghijklmnopqrstuvwxyz012345 = 1\ngenerate abcdefghijklmnoZqrstuvwxyz012345 = 1\ndescribe, numbers\ndescribe, simple\ndescribe\nclear\nset obs 1\ngenerate abcdefghijklmnop = 1\ngenerate abcdefghijklZnop = 1\ngenerate abcdefgYijklmnop = 1\ngenerate aaaaaaaaaaaa1 = 1\ngenerate aaaaaaaaaaaa2 = 1\ngenerate aaaaaaaaaaab1 = 1\ndescribe, numbers\ndescribe, simple\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate income_2019_q1_adjusted = 1", "lines": [] },
+        { "command": "generate income_2019_q2_adjusted = 1", "lines": [] },
+        { "command": "generate income_2019_q1_adjustee = 1", "lines": [] },
+        { "command": "generate id = 1", "lines": [] },
+        { "command": "generate income = 1", "lines": [] },
+        { "command": "generate income_2019 = 1", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             6",
+            "--------------------------------------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "    1. income..  float   %9.0g",
+            "    2. i~2_ad~d  float   %9.0g",
+            "    3. income~e  float   %9.0g",
+            "    4. id        float   %9.0g",
+            "    5. income    float   %9.0g",
+            "    6. inc~2019  float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "i~1_adjusted  income_201~e  income",
+            "i~2_adjusted  id            income_2019"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             6",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "inco~1_adjusted float   %9.0g",
+            "inco~2_adjusted float   %9.0g",
+            "income_2019_q~e float   %9.0g",
+            "id              float   %9.0g",
+            "income          float   %9.0g",
+            "income_2019     float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate abcdefghijklmnopqrstuvwxyz = 1", "lines": [] },
+        { "command": "generate abcdefghijklmZopqrstuvwxyz = 1", "lines": [] },
+        { "command": "generate abcdefghiYklmnopqrstuvwxyz = 1", "lines": [] },
+        { "command": "generate abcdefghijklmnopqrstuvwxyQ = 1", "lines": [] },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "    1. abcdef..  float   %9.0g",
+            "    2. a~Zopq~z  float   %9.0g",
+            "    3. a~Yklm~z  float   %9.0g",
+            "    4. abcdef~Q  float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": ["abcdefghij..  a~Zopqrstu~z  abcdefghiY~z  abcdefghij~Q"]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "abcdefghijklm.. float   %9.0g",
+            "a~Zopqrstuvwxyz float   %9.0g",
+            "abcdefghiYklm~z float   %9.0g",
+            "abcdefghijklm~Q float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        {
+          "command": "generate abcdefghijklmnopqrstuvwxyz0123 = 1",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijZlmnopqrstuvwxyz0123 = 1",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijklmnopqrstuvwxyz0124 = 1",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijklmnopqrstuvwxyz012345 = 1",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijklmnoZqrstuvwxyz012345 = 1",
+          "lines": []
+        },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "    1. abcdef..  float   %9.0g",
+            "    2. a~Zlmn~3  float   %9.0g",
+            "    3. abc~0124  float   %9.0g",
+            "    4. abcdef..  float   %9.0g",
+            "    5. a~Zqrs~5  float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "abcdefghij..  a~Zlmnopqr~3  abcdefg~0124  abcdefghij..  a~Zqrstuvw~5"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "abcdefghijklm~3 float   %9.0g",
+            "abcdefghijZlm~3 float   %9.0g",
+            "abcdefghij~0124 float   %9.0g",
+            "abcdefghijklm.. float   %9.0g",
+            "a~Zqrstuvwxyz~5 float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate abcdefghijklmnop = 1", "lines": [] },
+        { "command": "generate abcdefghijklZnop = 1", "lines": [] },
+        { "command": "generate abcdefgYijklmnop = 1", "lines": [] },
+        { "command": "generate aaaaaaaaaaaa1 = 1", "lines": [] },
+        { "command": "generate aaaaaaaaaaaa2 = 1", "lines": [] },
+        { "command": "generate aaaaaaaaaaab1 = 1", "lines": [] },
+        {
+          "command": "describe, numbers",
+          "lines": [
+            "Contains data",
+            " Observations:             1",
+            "    Variables:             6",
+            "--------------------------------------------------------------------------------",
+            "    Variable  Storage   Display    Value",
+            "        name     type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "    1. abcdef..  float   %9.0g",
+            "    2. abc~Znop  float   %9.0g",
+            "    3. a~Yijk~p  float   %9.0g",
+            "    4. aaaaa~a1  float   %9.0g",
+            "    5. aaaaaa~2  float   %9.0g",
+            "    6. aaaaa~b1  float   %9.0g",
+            "--------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "ab~hijklmnop  abcdefgYij~p  aaaaaaaaaa~2",
+            "abcdefg~Znop  aaaaaaaaa~a1  aaaaaaaaa~b1"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "changed-flag-sticky",
+      "source": "clear\nset obs 4\ngenerate int id = _n\ngenerate double income = 1000 * _n\ngenerate str3 city = \"c\" + string(_n)\nlabel data \"Changed flag file\"\nnotes: A dataset note\nnotes income: An income note\nsave changed_flag, replace\nuse changed_flag, clear\ndisplay c(changed)\ngenerate x = 1\ndrop x\ndisplay c(changed)\ncapture noisily use changed_flag\nuse changed_flag, clear\nrename id ident\nrename ident id\ndisplay c(changed)\nuse changed_flag, clear\ngenerate tmp = income\nreplace income = 0\nreplace income = tmp\ndrop tmp\ndisplay c(changed)\nuse changed_flag, clear\nsort income\nreplace income = income\norder city\ndisplay c(changed)\npreserve\ngenerate z = 1\nrestore\ndisplay c(changed)\ngenerate z = 1\npreserve\ndrop z\nrestore\ndisplay c(changed)\npreserve\nuse changed_flag, clear\ndisplay c(changed)\nrestore\ndisplay c(changed)\nuse changed_flag, clear\nnotes\nnotes drop _all\ndisplay c(changed)\nuse changed_flag, clear\nnotes drop income\nnotes drop _all\nnotes drop _all\nuse changed_flag, clear\nlabel define yn 0 \"no\" 1 \"yes\"\ndrop _all\ndisplay c(changed) \"|\" c(filename) \"|\" c(filedate) \"|\" _N \"|\" c(k)\ndescribe\nlabel list\nnotes\nset obs 2\ndisplay c(changed)\nuse changed_flag, clear\ndrop id income\ndisplay c(changed) \"|\" c(filename)\ndrop city\ndisplay c(changed) \"|\" c(filename) \"|\" c(filedate)\ndescribe, replace\ndescribe\ndisplay c(changed)\nuse changed_flag, clear\ndrop in 1/l\ndisplay c(changed) \"|\" c(filename)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate int id = _n", "lines": [] },
+        { "command": "generate double income = 1000 * _n", "lines": [] },
+        { "command": "generate str3 city = \"c\" + string(_n)", "lines": [] },
+        { "command": "label data \"Changed flag file\"", "lines": [] },
+        { "command": "notes: A dataset note", "lines": [] },
+        { "command": "notes income: An income note", "lines": [] },
+        {
+          "command": "save changed_flag, replace",
+          "lines": [
+            "(file changed_flag.dta not found)",
+            "file changed_flag.dta saved"
+          ]
+        },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "display c(changed)", "lines": ["0"] },
+        { "command": "generate x = 1", "lines": [] },
+        { "command": "drop x", "lines": [] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "capture noisily use changed_flag",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "rename id ident", "lines": [] },
+        { "command": "rename ident id", "lines": [] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "generate tmp = income", "lines": [] },
+        { "command": "replace income = 0", "lines": ["(4 real changes made)"] },
+        {
+          "command": "replace income = tmp",
+          "lines": ["(4 real changes made)"]
+        },
+        { "command": "drop tmp", "lines": [] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "sort income", "lines": [] },
+        {
+          "command": "replace income = income",
+          "lines": ["(0 real changes made)"]
+        },
+        { "command": "order city", "lines": [] },
+        { "command": "display c(changed)", "lines": ["0"] },
+        { "command": "preserve", "lines": [] },
+        { "command": "generate z = 1", "lines": [] },
+        { "command": "restore", "lines": [] },
+        { "command": "display c(changed)", "lines": ["0"] },
+        { "command": "generate z = 1", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "drop z", "lines": [] },
+        { "command": "restore", "lines": [] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "display c(changed)", "lines": ["0"] },
+        { "command": "restore", "lines": [] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  A dataset note",
+            "",
+            "income:",
+            "  1.  An income note"
+          ]
+        },
+        { "command": "notes drop _all", "lines": ["  (2 notes dropped)"] },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "notes drop income", "lines": ["  (1 note dropped)"] },
+        { "command": "notes drop _all", "lines": ["  (1 note dropped)"] },
+        { "command": "notes drop _all", "lines": ["  (0 notes dropped)"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "label define yn 0 \"no\" 1 \"yes\"", "lines": [] },
+        { "command": "drop _all", "lines": [] },
+        {
+          "command": "display c(changed) \"|\" c(filename) \"|\" c(filedate) \"|\" _N \"|\" c(k)",
+          "lines": ["0|||0|0"]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        {
+          "command": "label list",
+          "lines": ["yn:", "           0 no", "           1 yes"]
+        },
+        { "command": "notes", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "drop id income", "lines": [] },
+        {
+          "command": "display c(changed) \"|\" c(filename)",
+          "lines": ["1|changed_flag.dta"]
+        },
+        { "command": "drop city", "lines": [] },
+        {
+          "command": "display c(changed) \"|\" c(filename) \"|\" c(filedate)",
+          "lines": ["0||"]
+        },
+        { "command": "describe, replace", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             0                  describe <unnamed>",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "position        int     %8.0g                 Variable number",
+            "name            str1    %9s                   Variable name",
+            "type            str1    %9s                   Storage type",
+            "isnumeric       byte    %8.0g                 Whether numeric or string",
+            "format          str1    %9s                   Display format",
+            "vallab          str1    %9s                   Value label name",
+            "varlab          str1    %9s                   Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "display c(changed)", "lines": ["1"] },
+        {
+          "command": "use changed_flag, clear",
+          "lines": ["(Changed flag file)"]
+        },
+        { "command": "drop in 1/l", "lines": ["(4 observations deleted)"] },
+        {
+          "command": "display c(changed) \"|\" c(filename)",
+          "lines": ["1|changed_flag.dta"]
+        }
+      ]
+    },
+    {
+      "id": "use-in-invalid",
+      "source": "clear\nset obs 5\ngenerate q = _n\nlabel data \"Use in test file\"\nsave use_in_test, replace\nset obs 7\ngenerate y = 1\nuse use_in_test, clear\ncapture noisily use use_in_test in -2/l, clear\ndisplay _rc \"|\" _N \"|\" c(k)\ncapture noisily use use_in_test in 0, clear\ndisplay _rc \"|\" _N \"|\" c(k)\ncapture noisily use use_in_test in 0/3, clear\ncapture noisily use use_in_test in 2/-1, clear\ncapture noisily use use_in_test in -1, clear\ncapture noisily use use_in_test in 4/3, clear\ndisplay _rc \"|\" _N \"|\" c(k)\ncapture noisily use use_in_test in L/F, clear\ncapture noisily use q in -2 using use_in_test, clear\ngenerate z = 1\ncapture noisily use use_in_test in 0\ndisplay _rc \"|\" _N \"|\" c(k)\ncapture noisily use use_in_test in 41, clear\ndisplay _rc \"|\" _N \"|\" c(k)\nuse use_in_test in 2/l, clear\ndisplay _N\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate q = _n", "lines": [] },
+        { "command": "label data \"Use in test file\"", "lines": [] },
+        {
+          "command": "save use_in_test, replace",
+          "lines": [
+            "(file use_in_test.dta not found)",
+            "file use_in_test.dta saved"
+          ]
+        },
+        {
+          "command": "set obs 7",
+          "lines": ["Number of observations (_N) was 5, now 7."]
+        },
+        { "command": "generate y = 1", "lines": [] },
+        {
+          "command": "use use_in_test, clear",
+          "lines": ["(Use in test file)"]
+        },
+        {
+          "command": "capture noisily use use_in_test in -2/l, clear",
+          "lines": ["'-2' invalid observation number"]
+        },
+        { "command": "display _rc \"|\" _N \"|\" c(k)", "lines": ["198|5|1"] },
+        {
+          "command": "capture noisily use use_in_test in 0, clear",
+          "lines": ["'0' invalid observation number"]
+        },
+        { "command": "display _rc \"|\" _N \"|\" c(k)", "lines": ["198|5|1"] },
+        {
+          "command": "capture noisily use use_in_test in 0/3, clear",
+          "lines": ["'0' invalid observation number"]
+        },
+        {
+          "command": "capture noisily use use_in_test in 2/-1, clear",
+          "lines": ["'-1' invalid observation number"]
+        },
+        {
+          "command": "capture noisily use use_in_test in -1, clear",
+          "lines": ["'-1' invalid observation number"]
+        },
+        {
+          "command": "capture noisily use use_in_test in 4/3, clear",
+          "lines": ["observation numbers out of range"]
+        },
+        { "command": "display _rc \"|\" _N \"|\" c(k)", "lines": ["198|5|1"] },
+        {
+          "command": "capture noisily use use_in_test in L/F, clear",
+          "lines": ["observation numbers out of range"]
+        },
+        {
+          "command": "capture noisily use q in -2 using use_in_test, clear",
+          "lines": ["'-2' invalid observation number"]
+        },
+        { "command": "generate z = 1", "lines": [] },
+        {
+          "command": "capture noisily use use_in_test in 0",
+          "lines": ["'0' invalid observation number"]
+        },
+        { "command": "display _rc \"|\" _N \"|\" c(k)", "lines": ["198|5|2"] },
+        {
+          "command": "capture noisily use use_in_test in 41, clear",
+          "lines": ["(Use in test file)", "observation numbers out of range"]
+        },
+        { "command": "display _rc \"|\" _N \"|\" c(k)", "lines": ["198|0|0"] },
+        {
+          "command": "use use_in_test in 2/l, clear",
+          "lines": ["(Use in test file)"]
+        },
+        { "command": "display _N", "lines": ["4"] }
+      ]
+    },
+    {
+      "id": "output-fold-long-lines",
+      "source": "clear\nset obs 1\ngenerate v = 1\nset linesize 80\nlabel data \"A very long dataset label that has many words in it and keeps going until eighty\"\nlabel define long 1 \"This is a value label text that is rather long, longer than eighty characters to see wrapping\" 2 \"short\"\nlabel values v long\nsave fold_test, replace\nuse fold_test, clear\nlabel list long\nset linesize 60\nuse fold_test, clear\nlabel list long\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate v = 1", "lines": [] },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "label data \"A very long dataset label that has many words in it and keeps going until eighty\"",
+          "lines": []
+        },
+        {
+          "command": "label define long 1 \"This is a value label text that is rather long, longer than eighty characters to see wrapping\" 2 \"short\"",
+          "lines": []
+        },
+        { "command": "label values v long", "lines": [] },
+        {
+          "command": "save fold_test, replace",
+          "lines": [
+            "(file fold_test.dta not found)",
+            "file fold_test.dta saved"
+          ]
+        },
+        {
+          "command": "use fold_test, clear",
+          "lines": [
+            "(A very long dataset label that has many words in it and keeps going until eight",
+            "> y)"
+          ]
+        },
+        {
+          "command": "label list long",
+          "lines": [
+            "long:",
+            "           1 This is a value label text that is rather long, longer than eighty",
+            "> characters to see wrapping",
+            "           2 short"
+          ]
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "use fold_test, clear",
+          "lines": [
+            "(A very long dataset label that has many words in it and kee",
+            "> ps going until eighty)"
+          ]
+        },
+        {
+          "command": "label list long",
+          "lines": [
+            "long:",
+            "           1 This is a value label text that is rather long,",
+            ">  longer than eighty characters to see wrapping",
+            "           2 short"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

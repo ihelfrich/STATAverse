@@ -6,7 +6,7 @@ import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count, list } from "./reports.js";
-import { splitAtComma } from "./syntax.js";
+import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
 import {
   MISSING,
@@ -35,24 +35,127 @@ export function fileName(text) {
   return /\.[A-Za-z0-9]+$/.test(name) ? name : name + ".dta";
 }
 const files = (session) => (session.files ??= new Map());
-const fingerprint = (data) =>
-  JSON.stringify([
-    data.n,
-    data.variables.map((v) => [
-      v.name,
-      v.type,
-      v.format,
-      v.label,
-      Array.from(v.data),
-    ]),
-  ]);
-/** True when the data in memory differ from what was last saved or loaded. */
-function changed(session) {
-  return (
-    session.data.variables.length > 0 &&
-    fingerprint(session.data) !== session.cleanFingerprint
-  );
+
+// Stata marks the data as changed when their contents, labels, notes or
+// characteristics change, but not when the observations or the variables are
+// only put in another order, and the mark stays until use, save or clear:
+// data changed and changed back are still changed. After each command the
+// fingerprint of the data is compared with the one they had when read or
+// saved; once it differs, the data are marked. The fingerprint is a hash of
+// each observation (its values taken in the order of the variable names)
+// with the observations' hashes sorted, beside the dataset's descriptions.
+const bits = new Float64Array(1),
+  words = new Uint32Array(bits.buffer);
+const mix = (h, x, prime) => {
+  h = Math.imul(h ^ x, prime);
+  return h ^ (h >>> 15);
+};
+function hashValue(lanes, value) {
+  if (typeof value === "string") {
+    for (let k = 0; k < value.length; k++) {
+      const c = value.charCodeAt(k);
+      lanes[0] = mix(lanes[0], c, 0x01000193);
+      lanes[1] = mix(lanes[1], c, 0x5bd1e995);
+    }
+    lanes[0] = mix(lanes[0], 0x10ffff, 0x01000193);
+    lanes[1] = mix(lanes[1], 0x10ffff, 0x5bd1e995);
+    return;
+  }
+  bits[0] = value;
+  lanes[0] = mix(mix(lanes[0], words[0], 0x01000193), words[1], 0x01000193);
+  lanes[1] = mix(mix(lanes[1], words[1], 0x5bd1e995), words[0], 0x5bd1e995);
 }
+/** Maps, arrays and objects as plain values with their keys in order. */
+function plain(value) {
+  if (value instanceof Map)
+    return [...value]
+      .map(([key, item]) => [key, plain(item)])
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  if (Array.isArray(value)) return value.map(plain);
+  if (value && typeof value === "object")
+    return plain(new Map(Object.entries(value)));
+  return value;
+}
+const fingerprint = (data) => {
+  const variables = [...data.variables].sort((a, b) =>
+      a.name < b.name ? -1 : 1,
+    ),
+    rows = new Float64Array(data.n),
+    lanes = new Int32Array(2);
+  for (let i = 0; i < data.n; i++) {
+    lanes[0] = 0x811c9dc5;
+    lanes[1] = 0x9747b28c;
+    for (const v of variables) hashValue(lanes, v.data[i]);
+    rows[i] = (lanes[0] >>> 0) * 2 ** 21 + (lanes[1] >>> 11);
+  }
+  rows.sort();
+  lanes[0] = 0x811c9dc5;
+  lanes[1] = 0x9747b28c;
+  for (const row of rows) hashValue(lanes, row);
+  return JSON.stringify([
+    data.n,
+    data.label ?? "",
+    variables.map((v) => [v.name, v.type, v.format, v.label, v.valueLabel]),
+    plain(data.valueLabels ?? new Map()),
+    plain(data.notes ?? new Map()),
+    plain(data.chars ?? new Map()),
+    lanes[0],
+    lanes[1],
+  ]);
+};
+let empty;
+/**
+ * True when the data in memory differ from what was last saved or loaded,
+ * or, for data made in the session, from no data at all.
+ */
+export function changed(session) {
+  const data = session.data;
+  if (data.dirty) return true;
+  empty ??= fingerprint(new Dataset());
+  return fingerprint(data) !== (data.clean ?? empty);
+}
+/** Run after each command: marks the data once they have changed. */
+export function markChanged(session) {
+  if (!session.data.dirty && changed(session)) session.data.dirty = true;
+}
+/**
+ * Puts data a command has remade in memory. They are still the data of the
+ * file they came from, now changed.
+ */
+export function remade(session, result) {
+  result.filename = session.data.filename;
+  result.filedate = session.data.filedate;
+  session.data = result;
+}
+/** A dataset's file, its time stamp and its contents as they were read. */
+export function settle(data, name, stamp) {
+  data.filename = name;
+  data.filedate = stamp ?? "";
+  data.clean = fingerprint(data);
+  data.dirty = false;
+}
+/**
+ * A line of output as Stata shows it when it is longer than the linesize:
+ * cut at the linesize, the rest on lines that start with "> ".
+ */
+export function fold(line, linesize) {
+  const chars = [...line],
+    width = Math.max(linesize, 3);
+  if (chars.length <= width) return [line];
+  const lines = [chars.slice(0, width).join("")];
+  for (let at = width; at < chars.length; at += width - 2)
+    lines.push("> " + chars.slice(at, at + width - 2).join(""));
+  return lines;
+}
+// The time stamp Stata writes into a dataset: 13 Nov 2026 17:08.
+const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+function stampNow(now = new Date()) {
+  const two = (k) => String(k).padStart(2, "0");
+  return `${two(now.getDate())} ${MONTHS[now.getMonth()]} ${now.getFullYear()} ${two(now.getHours())}:${two(now.getMinutes())}`;
+}
+const copy = (value) =>
+  value === undefined ? undefined : structuredClone(value);
+
 export function load(session, name) {
   const stored = files(session).get(name);
   if (!stored) throw new StataError(`file ${name} not found`, 601);
@@ -67,40 +170,120 @@ export function load(session, name) {
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.restore(stored);
   data.defaultType = session.data.defaultType;
+  // Notes and characteristics are the file's own; the copy in memory may
+  // change without changing the file.
+  for (const key of ["notes", "chars"])
+    if (stored[key] !== undefined) data[key] = copy(stored[key]);
+  delete data.timestamp;
+  data.filedate = stored.timestamp ?? "";
   return data;
 }
 
 function save(session, text, ctx) {
-  const parsed = session.parse(
+  const data = session.data,
+    parsed = session.parse(
       "[anything] [, replace EMPTYok noLabel ORPHANS]",
       // save using saves using.dta.
       text.replace(/^(\s*)using(?=\s*(,|$))/, '$1"using"'),
     ),
-    name = fileName(parsed.anything || session.fileInUse || ""),
+    name = fileName(parsed.anything || data.filename || ""),
     store = files(session);
   if (store.has(name) && !parsed.options.replace)
     throw new StataError(`file ${name} already exists`, 602);
+  if (!data.variables.length && !parsed.options.emptyok)
+    throw new StataError("no variables defined", 111);
+  if (!data.n && parsed.options.emptyok)
+    ctx.out("(dataset contains 0 observations)");
   if (parsed.options.replace && !store.has(name))
     ctx.out(`(file ${name} not found)`);
-  store.set(name, session.data.snapshot());
-  session.fileInUse = name;
-  session.cleanFingerprint = fingerprint(session.data);
+  const stamp = stampNow(),
+    snapshot = data.snapshot(),
+    used = new Set(data.variables.map((v) => v.valueLabel));
+  // The file keeps the value labels a variable uses (all of them with
+  // orphans, none with nolabel), the most recently defined first, so that
+  // they come back from the file in the opposite order, as Stata's do.
+  snapshot.valueLabels = new Map(
+    parsed.options.label === false
+      ? []
+      : [...snapshot.valueLabels]
+          .filter(([label]) => parsed.options.orphans || used.has(label))
+          .reverse(),
+  );
+  store.set(name, {
+    ...snapshot,
+    notes: copy(data.notes),
+    chars: copy(data.chars),
+    timestamp: stamp,
+  });
+  settle(data, name, stamp);
   ctx.out(`file ${name} saved`);
 }
-function use(session, text) {
+
+/**
+ * use filename [if] [in] [, clear nolabel], and use varlist [if] [in] using
+ * filename [, clear nolabel]. As in Stata, the data in memory are gone once
+ * the file is open: an error in the varlist, the if or the in leaves no data.
+ */
+function use(session, text, ctx) {
   if (/^\s*using\s*(,|$)/.test(text))
     throw invalid("invalid file specification");
-  const parsed = session.parse("anything [, clear]", text),
-    name = fileName(parsed.anything),
+  const [head] = splitAtComma(text),
+    // Observation numbers are checked before the file is opened: use takes
+    // none below 1 (no counting from the end) and no range that runs
+    // backward. Whether they lie in the file is known once it is open.
+    range = /(?:^|\s)in\s+(-?\w+)(?:\s*\/\s*(-?\w+))?/.exec(
+      head.replace(/`"[\s\S]*?"'|"[^"]*"/g, '""'),
+    );
+  if (range) {
+    const bound = (word) =>
+      /^[fF]$/.test(word) ? 1 : /^[lL]$/.test(word) ? Infinity : Number(word);
+    for (const word of [range[1], range[2]])
+      if (word !== undefined && /^-?\d+$/.test(word) && Number(word) < 1)
+        throw invalid(`'${word}' invalid observation number`);
+    if (range[2] !== undefined && bound(range[1]) > bound(range[2]))
+      throw invalid("observation numbers out of range");
+  }
+  const form = applySyntax(
+      "[anything] [if] [in] [using/] [, clear NOLabel]",
+      text,
+      { n: Number.MAX_SAFE_INTEGER },
+    ),
+    name = fileName(form.using ?? form.anything),
     data = load(session, name);
-  if (changed(session) && !parsed.options.clear)
+  if (changed(session) && !form.options.clear)
     throw new StataError(
       "no; dataset in memory has changed since last saved",
       4,
     );
+  if (data.label)
+    fold(`(${data.label})`, session.settings.linesize ?? 80).forEach(ctx.out);
+  const cleared = new Dataset({ defaultType: session.data.defaultType });
   session.data = data;
-  session.fileInUse = name;
-  session.cleanFingerprint = fingerprint(data);
+  try {
+    if (form.using !== undefined && form.anything) {
+      const names = session.varlist(form.anything),
+        dropped = data.names.filter((name) => !names.includes(name));
+      data.keep(names);
+      for (const name of dropped) {
+        data.notes?.delete?.(name);
+        data.chars?.delete?.(name);
+      }
+    }
+    // The if and the in are read against the variables that were kept.
+    const start = form.anything
+        ? head.indexOf(form.anything) + form.anything.length
+        : 0,
+      qualifiers = head
+        .slice(start)
+        .replace(/(?<![A-Za-z_0-9.])using\s+("[^"]*"|`"[^"]*"'|\S+)/, ""),
+      parsed = session.parse("[if] [in]", qualifiers);
+    if (parsed.if || parsed.in) data.reorder(session.rows(parsed, null));
+  } catch (error) {
+    session.data = cleared;
+    throw error;
+  }
+  if (form.options.nolabel) data.valueLabels = new Map();
+  settle(data, name, data.filedate);
 }
 
 // ----- append and merge -----
@@ -580,7 +763,7 @@ function merge(session, text, ctx) {
   )
     ? []
     : [...keys];
-  session.data = result;
+  remade(session, result);
   if (failed) {
     const words = asserted.map((code) => MERGE_TEXT[code]),
       list =
@@ -1340,7 +1523,7 @@ function reshapeLong(session, ctx) {
     columns.get(name)();
   result.sortedBy = [...front];
   applyCharsForLong(result, spec);
-  session.data = result;
+  remade(session, result);
   describeResults(session);
   reshapeReport(
     ctx,
