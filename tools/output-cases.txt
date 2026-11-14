@@ -20628,3 +20628,1060 @@ arima y, ar(1) nolog
 predict q1, dynamic(.)
 predict q2, y dynamic(.)
 list t y q1 q2 in 1/3
+=== pass7-debug-replay-regress
+clear
+ereturn clear
+set seed 1
+set obs 50
+generate x = runiform()
+generate y = x + runiform()
+capture noisily regress
+display _rc
+regress y x
+regress
+regress, level(90)
+regress, beta
+estimates replay
+estimates store m1
+quietly regress y
+estimates store m2
+estimates replay m1
+estimates dir
+capture noisily logit
+display _rc
+capture noisily probit, or
+display _rc
+capture noisily regress, robust
+display _rc
+=== pass7-debug-replay-likelihood
+clear
+set seed 1
+set obs 50
+generate x = runiform()
+generate y = x + runiform()
+generate b = y > 1
+quietly logit b x
+logit, or
+capture noisily logistic
+display _rc
+generate n = floor(3*runiform()*x)
+quietly poisson n x
+poisson, irr
+estimates replay
+=== pass7-debug-by-recall
+clear
+set seed 12345
+set obs 120
+generate female = runiform() < .5
+generate educ = 8 + floor(runiform()*10)
+generate lwage = 1 + .08*educ - .2*female + .4*invnormal(runiform())
+bysort female: regress lwage educ
+by female: regress lwage educ, robust
+regress
+=== pass7-debug-table-widths
+clear
+set seed 12345
+set obs 200
+generate female = runiform() < .5
+generate educ = 8 + floor(runiform()*10)
+generate exper = floor(runiform()*30)
+generate lwage = 1 + .08*educ + .02*exper - .2*female + .4*invnormal(runiform())
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+anova lwage region female region#female
+anova lwage region
+quietly regress lwage educ
+estimates store m1
+quietly regress lwage educ exper
+estimates store a_longer_name
+estimates dir
+regress lwage educ c.exper##c.exper i.region
+estat vif
+estat ovtest
+regress lwage educ exper
+estat vif
+=== pass7-debug-list-abbreviations
+clear
+set obs 2
+generate growth2019 = 1
+generate growth2020 = 2
+generate growthrate = 3
+generate population_density = 4
+generate popul2 = 5
+list
+generate gdp_per_capita_2010 = 1
+generate gdp_per_capita_2011 = 1
+list gdp*
+=== pass7-debug-generate-overflow
+clear
+set obs 5
+generate byte b = _n * 30
+generate int i = _n * 10000
+generate long l = _n * 1e9
+generate float f = _n / 3
+list
+=== pass7-debug-error-messages
+clear
+set seed 9
+set obs 30
+generate x = runiform()
+generate y = x + runiform()
+generate g = 1 + floor(runiform()*3)
+generate str5 s = "a" + string(g)
+generate neg = -1 + mod(_n, 2)
+generate half = _n/2
+capture noisily display 3 +
+display _rc
+capture noisily display (3
+display _rc
+capture noisily display 3)
+display _rc
+capture noisily display 'abc'
+display _rc
+capture noisily display @x
+display _rc
+capture noisily display a'b
+display _rc
+capture noisily display sqrt()
+display _rc
+capture noisily display substr("abc", 2)
+display _rc
+capture noisily display round()
+display _rc
+capture noisily display 2^
+display _rc
+capture noisily generate z = x +
+display _rc
+capture noisily generate z == 1
+display _rc
+capture noisily generate _n = 1
+display _rc
+capture noisily replace x == 1
+display _rc
+capture noisily egen z = mean()
+display _rc
+capture noisily egen z = mean(x), by(nosuch)
+display _rc
+capture noisily regress s x
+display _rc
+capture noisily regress y s
+display _rc
+capture noisily regress y i.s
+display _rc
+capture noisily regress y x#s
+display _rc
+capture noisily regress y i.neg
+display _rc
+capture noisily regress y i.half
+display _rc
+capture noisily gsort x -
+display _rc
+capture noisily drop
+display _rc
+capture noisily keep
+display _rc
+capture noisily local ++undefined_counter
+display _rc
+capture noisily local f : nosuchfun x
+display _rc
+capture noisily scalar l = nosuchvar
+display _rc
+scalar l = 2
+display l
+capture noisily forvalues i = 1/3
+display _rc
+capture noisily foreach v in a b c
+display _rc
+regress y
+=== pass7-debug-program-errors
+capture program drop twice
+program twice
+  args a b
+  display `a' * 2 + `b'
+end
+twice 3 4
+capture noisily twice 10
+display _rc
+capture program drop inner
+program inner
+  summarize nosuch
+end
+capture program drop outer
+program outer
+  display "before"
+  inner
+end
+capture noisily outer
+display _rc
+capture program drop p1
+program p1, rclass
+  return scalar zeta = 1
+  return scalar alpha = 2
+  return local mac "hi"
+  return scalar mid = 3
+  return local amac "x"
+  return scalar beta = 4
+end
+p1
+return list
+capture program drop p2
+program p2, eclass
+  ereturn scalar zeta = 1
+  ereturn scalar alpha = 2
+  ereturn local mac "hi"
+  ereturn scalar mid = 3
+end
+ereturn clear
+p2
+ereturn list
+=== pass7-debug-tokenize-gettoken
+tokenize "a b c d e"
+display "[`1'][`2'][`5'][`6']"
+tokenize "x y"
+display "[`1'][`2'][`3'][`5']"
+tokenize `"one "two three" four"'
+display `"[`1'][`2'][`3']"'
+tokenize "a,b, c", parse(",")
+display "[`1'][`2'][`3'][`4'][`5'][`6']"
+tokenize "a+b-c", parse("+-")
+display "[`1'][`2'][`3'][`4'][`5']"
+local list alpha beta
+tokenize `list'
+display "`1' `2'"
+tokenize
+display "[`1']"
+tokenize "  spaced   out  "
+display "[`1'][`2'][`3']"
+capture program drop showargs
+program showargs
+  tokenize `0'
+  local i = 1
+  while "``i''" != "" {
+    display "arg `i': ``i''"
+    local ++i
+  }
+end
+showargs p q r
+gettoken a b : list
+display "[`a'][`b']"
+local s "x,y,z"
+gettoken a s : s, parse(",")
+display "[`a'][`s']"
+gettoken a s : s, parse(",")
+display "[`a'][`s']"
+local q `"first "second word" third"'
+gettoken w q : q
+display `"[`w'][`q']"'
+gettoken w q : q
+display `"[`w'][`q']"'
+gettoken w q : q, quotes
+display `"[`w'][`q']"'
+=== pass7-debug-ci-proportions
+clear
+set seed 3
+set obs 57
+generate a = runiform() < .3
+generate b = runiform() < .9
+generate c = 0
+generate d = 1 + (runiform() < .5)
+replace a = . in 3
+ci proportions a
+ci proportions a b c
+ci proportions a b, wald
+ci proportions a, wilson
+ci proportions a, agresti
+ci proportions a, jeffreys
+ci proportions a b, level(90)
+ci proportions a, exact level(99.5)
+ci proportions d
+ci proportions a if b
+ci prop a in 1/1
+ci proportions b, wald
+return list
+bysort d: ci proportions a
+=== pass7-debug-centile-intervals
+clear
+set seed 12345
+set obs 200
+generate wage = exp(1 + .4*invnormal(runiform()))
+generate g = 1 + (runiform() < .4)
+centile wage
+centile wage, centile(10 50 90)
+centile wage, centile(1 99)
+centile wage, centile(25 75) cci
+centile wage, centile(25 75) normal
+centile wage, centile(25 75) meansd
+centile wage, centile(50) level(90)
+format wage %9.2f
+centile wage, centile(5 50)
+centile wage in 1/8, centile(5 50 95)
+bysort g: centile wage, centile(50)
+=== pass7-debug-matrix-algebra
+matrix drop _all
+matrix A = (1, 2 \ 3, 4)
+matrix rownames A = r1 r2
+matrix colnames A = a b
+matrix B = (5, 6 \ 7, 8)
+matrix C = A * B
+matrix list C
+matrix D = A + B
+matrix list D
+matrix E = A - 2*B
+matrix list E
+matrix F = A'
+matrix list F
+matrix G = inv(A)
+matrix list G
+matrix H = A, B
+matrix list H
+matrix K = A \ B
+matrix list K
+matrix L = A # B
+matrix list L
+matrix M = diag((1, 2, 3))
+matrix list M
+matrix N = vecdiag(A)
+matrix list N
+matrix S = (4, 2 \ 2, 3)
+matrix P = cholesky(S)
+matrix list P
+matrix Q = invsym(S)
+matrix list Q
+matrix R = A / 2
+matrix list R
+matrix T = -A
+matrix list T
+matrix U = (A + B)' * A
+matrix list U
+matrix W = I(2) * 3
+matrix list W
+matrix X = hadamard(A, B)
+matrix list X
+display trace(A)
+display det(A)
+display det(S)
+matrix Z = A[1..2, 2]
+matrix list Z
+matrix Y = A[2, 1...]
+matrix list Y
+capture noisily matrix bad = A * J(3, 3, 1)
+display _rc
+capture noisily matrix bad = inv((1, 2 \ 2, 4))
+display _rc
+matrix BA = B + A
+matrix list BA
+matrix NV = diag(N)
+matrix list NV
+capture noisily matrix bad2 = cholesky((1, 2 \ 2, 1))
+display _rc
+capture noisily matrix bad3 = A + J(3,3,1)
+display _rc
+capture noisily matrix bad4 = nosuch * A
+display _rc
+matrix A2 = A
+matrix A2[1, 2] = 99
+matrix list A2
+scalar s = 3
+matrix SS = s * A
+matrix list SS
+matrix d = det(A)
+matrix list d
+matrix J1 = J(1, 1, 5)
+matrix list J1
+matrix dir
+=== pass7-debug-matrix-data
+clear
+set obs 5
+generate x = _n
+generate y = 2*_n + mod(_n, 2)
+matrix accum XX = x
+matrix list XX
+matrix accum XY = x y, noconstant
+matrix list XY
+mkmat x y, matrix(D)
+matrix list D
+matrix XtX = D' * D
+matrix list XtX
+mkmat x
+matrix list x
+matrix rownames D = a b c d e
+matrix list D
+quietly regress y x
+matrix bb = e(b)
+matrix VV = e(V)
+matrix se = vecdiag(VV)
+matrix list se
+matrix t = J(1, 2, .)
+matrix t[1, 1] = bb[1, 1] / sqrt(VV[1, 1])
+local j 2
+matrix t[1, `j'] = bb[1, `j'] / sqrt(VV[`j', `j'])
+matrix list t
+matrix colnames t = x _cons
+matrix list t
+matrix X = D[1..., 1], J(5, 1, 1)
+matrix list X
+matrix list e(b)
+=== pass7-debug-dfbeta-dfits
+clear
+set seed 5
+set obs 30
+generate x = runiform()
+generate z = runiform()
+generate g = 1 + floor(runiform()*3)
+generate y = x + z + runiform()
+replace z = . in 4
+quietly regress y x z i.g
+dfbeta
+describe _dfbeta*
+summarize _dfbeta*
+dfbeta x
+dfbeta z, stub(db)
+describe db*
+predict df, dfits
+predict dbx, dfbeta(x)
+predict dbg, dfbeta(2.g)
+describe df dbx dbg
+summarize df dbx dbg
+list _dfbeta_1 df dbx in 1/5
+quietly regress y x, robust
+capture noisily dfbeta
+display _rc
+capture noisily predict dfr, dfits
+display _rc
+=== pass7-debug-xtreg-predict
+clear
+set seed 2024
+set obs 40
+generate firm = _n
+generate a = invnormal(runiform())
+expand 5
+bysort firm: generate year = 2010 + _n
+generate x = invnormal(runiform()) + .5*a
+generate y = 1 + 2*x + a + invnormal(runiform())
+replace y = . in 7
+xtset firm year
+quietly xtreg y x, fe
+predict u, u
+predict e, e
+predict ue, ue
+predict xbu, xbu
+predict xb
+describe u e ue xbu xb
+summarize u e ue xbu xb
+quietly xtreg y x, re
+predict u2, u
+predict e2, e
+predict ue2, ue
+predict xbu2, xbu
+summarize u2 e2 ue2 xbu2
+list u u2 e e2 in 6/8
+quietly xtreg y x, be
+predict u3, u
+summarize u3
+=== pass7-debug-time-series-regress
+clear
+set obs 40
+generate t = tm(2000m1) + _n - 1
+format t %tm
+tsset t
+set seed 5
+generate e = invnormal(runiform())
+generate x = runiform()
+generate z = runiform()
+generate y = 0
+replace y = .6*y[_n-1] + x + e if _n > 1
+summarize y
+regress y L.y L2.y
+regress y x L.x D.x z
+regress y L(0/2).x z, robust
+regress y z L.x
+test L.x
+display _b[L.x]
+display _b[L1.x]
+predict yh
+summarize yh
+regress y l.y F.x S.z
+generate ly = L.y
+regress y ly
+=== pass7-debug-margins-display-options
+clear
+set seed 12345
+set obs 200
+generate female = runiform() < .5
+generate educ = 8 + floor(runiform()*10)
+generate exper = floor(runiform()*30)
+generate lwage = 1 + .08*educ + .02*exper - .2*female + .4*invnormal(runiform())
+regress lwage c.educ##c.exper i.female
+margins, at(exper=(0 10) educ=(12 16)) vsquish
+margins, at(exper=(0 10)) vsquish
+margins female, vsquish
+margins, at(exper=(0 10)) noatlegend
+=== pass7-debug-tempvar-names
+clear
+set obs 4
+generate x = _n
+tempvar sq
+generate `sq' = x^2
+summarize `sq'
+tempvar a b
+display "`a' `b'"
+=== pass7-debug-xi-prefix
+clear
+set seed 9
+set obs 30
+generate x = runiform()
+generate y = x + runiform()
+generate g = 1 + floor(runiform()*3)
+generate occupation_category = 10 + floor(runiform()*3)
+generate str5 s = "a" + string(g)
+xi: regress y i.g
+describe _I*
+xi i.occupation_category
+describe _I*
+xi: regress y x i.s
+list s _Is_2 _Is_3 in 1/4
+xi: regress y i.g x, robust
+xi i.g*x
+describe _I*
+summarize _I*
+xi: regress y i.g*x
+=== pass7-debug-predict-messages
+clear
+set seed 9
+set obs 30
+generate x = runiform()
+generate h = runiform() < .5
+generate c = floor(3*runiform())
+replace x = . in 5
+quietly logit h x
+predict a1
+predict a2, xb
+predict a3, stdp
+quietly probit h x
+predict b1
+predict b2, xb
+predict b3, stdp
+quietly poisson c x
+predict c1
+predict c2, xb
+predict c3, stdp
+quietly regress h x
+predict d1
+predict d2, xb
+predict d3, stdp
+=== pass7-debug-empty-data-names
+clear
+capture noisily summarize nosuch
+display _rc
+capture noisily regress y x
+display _rc
+capture noisily list a b
+display _rc
+set obs 2
+capture noisily summarize nosuch
+display _rc
+generate x = 1
+capture noisily summarize nosuch
+display _rc
+=== pass7-debug2-matrix-functions
+matrix drop _all
+ereturn clear
+matrix V = (4,2\2,9)
+matrix R = nullmat(R) \ (1, 1^2)
+matrix R = nullmat(R) \ (2, 2^2)
+matrix R = nullmat(R) \ (3, 3^2)
+matrix list R
+matrix S = nullmat(S), (1\2)
+matrix S = nullmat(S), (3\4)
+matrix list S
+matrix C = corr(V)
+matrix list C
+matrix v = vec(V)
+matrix list v
+matrix h = vech(V)
+matrix list h
+matrix W = sweep(V,1)
+matrix list W
+matrix W2 = sweep(V,2)
+matrix list W2
+matrix rownames V = a b
+matrix colnames V = a b
+matrix v = vec(V)
+matrix list v
+matrix h = vech(V)
+matrix list h
+matrix W = sweep(V,1)
+matrix list W
+capture noisily matrix G = get(_b)
+display _rc
+capture noisily matrix G = invsym(V)*nosuchfn(V)
+display _rc
+capture noisily matrix G = nullmat(V) \ (1,2,3)
+display _rc
+capture noisily matrix G = corr(J(2,3,1))
+display _rc
+capture noisily matrix G = sweep(V,3)
+display _rc
+capture noisily matrix G = vec(Q)
+display _rc
+capture noisily matrix G = nullmat(Q)
+display _rc
+matrix M = (1,2\3,4)
+matrix G = vech(M)
+matrix list G
+capture noisily matrix G = corr(M)
+display _rc
+matrix N = (0,1\1,4)
+capture noisily matrix G = sweep(N,1)
+display _rc
+clear
+set seed 1
+set obs 20
+generate x = runiform()
+generate y = x + runiform()
+quietly regress y x
+matrix b = get(_b)
+matrix list b
+matrix V = get(VCE)
+matrix list V
+matrix z = 2*get(_b)
+matrix list z
+capture noisily matrix q = get(Rr)
+display _rc
+matrix q = det(V) + 1
+matrix list q
+matrix drop _all
+=== pass7-debug2-replay-stored-results
+clear
+ereturn clear
+set seed 1
+set obs 30
+generate g = 1 + floor(3*runiform())
+generate x = runiform()
+generate y = x + g + runiform()
+quietly xi: regress y i.g x
+regress
+regress, level(90)
+estimates replay
+clear
+ereturn clear
+set seed 3
+set obs 30
+generate x = runiform()
+generate y = x + runiform()
+quietly regress y x
+drop if _n > 25
+regress, beta
+clear
+set seed 2
+set obs 30
+generate x = runiform()
+generate y = x + runiform()
+quietly regress y x
+clear
+regress, level(90)
+set seed 13
+set obs 40
+generate x = runiform()
+generate y = x + runiform()
+regress y x if x > .3 in 1/40
+replace y = y + 1 in 1
+regress, level(90)
+clear
+set seed 16
+set obs 30
+generate x = runiform()
+generate y = x + runiform()
+quietly regress y x
+regress, noconstant
+capture noisily regress, vce(robust)
+display _rc
+capture noisily regress, or
+display _rc
+clear
+set seed 12
+set obs 60
+generate g = ceil(_n/6)
+generate x = runiform()
+generate y = x + runiform()
+regress y x, vce(cluster g)
+regress, beta
+capture noisily regress y x, vce(cluster g) beta
+display _rc
+regress y x, vce(robust) beta
+regress, beta
+=== pass7-debug2-replay-logistic
+clear
+set seed 7
+set obs 40
+generate x = runiform()
+generate y = x + 2*runiform()
+generate b = y > 1
+quietly logistic b x
+logistic
+logit
+logit, or
+logistic, coef
+quietly logit b x
+capture noisily logistic
+display _rc
+capture noisily logit, coef
+display _rc
+=== pass7-debug2-estimates-replay
+clear
+set seed 17
+set obs 30
+generate x = runiform()
+generate y = x + runiform()
+generate b = y > 1
+quietly regress y x
+estimates store ols
+quietly logit b x
+estimates store lg
+estimates replay
+estimates replay ols lg
+estimates replay _all
+estimates store a
+quietly regress y
+estimates replay
+estimates restore a
+estimates replay
+quietly regress y x
+estimates replay
+estimates replay lg, level(90)
+capture noisily estimates replay nosuch
+display _rc
+estimates clear
+=== pass7-debug2-time-series-layout
+clear
+set seed 37
+set obs 30
+generate t = _n
+tsset t
+generate x = runiform()
+generate y = x + runiform()
+regress y x L.x
+estat vif
+clear
+set seed 211
+set obs 40
+generate t = _n
+tsset t
+generate x = runiform()
+generate z = runiform()
+generate y = x + z + runiform()
+regress y L.x x
+estat vif
+regress y x L.x z
+regress y L(0/1).x L(0/1).z
+estat vif
+clear
+set seed 221
+set obs 50
+generate t = _n
+tsset t
+generate x = runiform()
+generate z = runiform()
+generate y = x + z + runiform()
+regress y L(0/2).x z
+estat vif
+estimates store ts
+estimates table ts
+regress y L.x x
+estimates store ts2
+estimates table ts ts2
+estimates table ts2, se
+estimates clear
+clear
+set seed 222
+set obs 60
+generate id = ceil(_n/10)
+bysort id: generate t = _n
+xtset id t
+generate x = runiform()
+generate y = x + runiform()
+regress y x L.x
+estat vif
+regress y L.x x
+=== pass7-debug2-time-series-factors
+clear
+set seed 34
+set obs 50
+generate t = _n
+tsset t
+generate g = 1 + floor(3*runiform())
+generate x = runiform()
+generate y = x + g/3 + runiform()
+regress y L(1 2).x i.g
+regress y L(1/2).x i.g
+regress y L.x i.g x
+regress y 2.g
+regress y 3.g x
+matrix accum F = x i.g
+matrix list F
+matrix drop _all
+=== pass7-debug2-weighted-influence
+clear
+set seed 77
+set obs 40
+generate x = runiform()
+generate w = 1 + floor(2*runiform())
+generate y = x + runiform()
+regress y x [aweight=w]
+capture noisily predict p1, dfits
+display _rc
+capture noisily predict p2, dfbeta(x)
+display _rc
+capture noisily predict p3, cooksd
+display _rc
+capture noisily predict p4, rstudent
+display _rc
+capture noisily predict p5, rstandard
+display _rc
+capture noisily predict p6, welsch
+display _rc
+capture noisily predict p7, stdf
+display _rc
+capture noisily predict p8, stdr
+display _rc
+predict p9, covratio
+predict p10, leverage
+summarize p9 p10
+capture noisily dfbeta
+display _rc
+regress y x [fweight=w]
+predict q1, dfits
+capture noisily predict q2, dfbeta(x)
+display _rc
+predict q3, cooksd
+predict q4, rstudent
+predict q5, covratio
+predict q6, welsch
+summarize q1 q3 q4 q5 q6
+capture noisily dfbeta
+display _rc
+describe, short
+clear
+set seed 77
+set obs 40
+generate x = runiform()
+generate z = runiform()
+generate y = x + z + runiform()
+regress y x z in 1/38
+predict cr, covratio
+predict wd, welsch
+predict df, dfits
+predict cr2 in 1/20, covratio
+describe cr wd df cr2
+list cr wd df cr2 in 1/4
+list cr wd in 38/40
+summarize cr wd df cr2
+quietly regress y x, vce(robust)
+capture noisily predict rcr, covratio
+display _rc
+capture noisily predict rwd, welsch
+display _rc
+display strtoname("dfbeta(x)") "|" strtoname("1a") "|" strtoname("1a", 0)
+display strtoname("a b-c") "|" strtoname(" ") "|" strtoname("123456789012345678901234567890123")
+=== pass7-debug2-estat-ic-weights
+clear
+set seed 52
+set obs 25
+generate x = runiform()
+generate w = 1 + floor(5*runiform())
+generate y = x + runiform()
+regress y x [aweight=w]
+display e(ll_0)
+estat ic
+estimates store a
+estimates stats a
+regress y x [fweight=w]
+estat ic
+regress y x, noconstant
+estat ic
+estimates stats .
+estimates clear
+=== pass7-debug2-gettoken-tokenize
+global G "p q r"
+gettoken (global) H G : G
+display "$H|$G"
+gettoken (local) h G : G
+display "`h'|$G"
+local s "a b c"
+gettoken first s : s
+display "`first'|`s'"
+gettoken (global) X : s
+display "$X|`s'"
+gettoken (local) y (global) Z : s
+display "`y'|$Z"
+capture noisily gettoken global H : G
+display _rc
+capture noisily gettoken local h : s
+display _rc
+local s `"  "hello world" next"'
+gettoken a s : s, quotes
+display `"`a'|`s'"'
+local s `"  "hello world" next"'
+gettoken a s : s
+display `"`a'|`s'"'
+local s `"`"inner "q" text"' rest"'
+gettoken a s : s, quotes
+display `"[`a']|[`s']"'
+tokenize "a  b", parse(" ")
+display "`1'|`2'|`3'"
+tokenize "a , b", parse(", ")
+display "`1'|`2'|`3'|`4'"
+tokenize "a,,b", parse(",")
+display "`1'|`2'|`3'|`4'"
+tokenize "a  b", parse(" ,")
+display "`1'|`2'|`3'"
+local t "x  y"
+gettoken a t : t, parse(" ")
+display "[`a']|[`t']"
+local t "x, y"
+gettoken a t : t, parse(", ")
+display "[`a']|[`t']"
+gettoken a t : t, parse(", ")
+display "[`a']|[`t']"
+macro drop G H X Z
+=== pass7-debug2-xi-names
+clear
+set seed 96
+set obs 20
+generate verylongname = 1 + floor(2*runiform())
+generate anotherlongvar = runiform()
+generate y = runiform()
+xi i.verylongname*anotherlongvar
+describe _I*
+generate g = 1 + floor(12*runiform())
+generate x = runiform()
+xi i.g*x
+describe _I*
+xi i.verylongname*x
+describe _I*
+generate ab = 1 + floor(3*runiform())
+xi i.ab*anotherlongvar
+describe _I*
+xi i.g*anotherlongvar
+describe _I*
+=== pass7-debug2-ci-proportions-clipping
+clear
+set obs 10
+generate allzero = 0
+generate allone = 1
+generate notbin = _n
+generate half = _n > 5
+ci proportions allzero allone
+ci proportions allzero, wald
+ci proportions allone, wald
+ci proportions allzero allone, wald
+ci proportions half allone, wald
+ci proportions notbin allzero
+ci proportions notbin
+ci proportions half allzero, wilson
+ci proportions allone, agresti
+ci proportions allone, jeffreys
+ci proportions allzero allone, agresti
+clear
+set obs 1
+generate b = 1
+ci proportions b
+ci proportions b, wald
+generate c = 0
+ci proportions c b, wald
+clear
+set obs 3
+generate p = (_n == 1)
+ci proportions p, wald
+=== pass7-debug2-anova-names
+clear
+set seed 66
+set obs 70
+generate treatment_group = 1 + floor(3*runiform())
+generate s = runiform() < .4
+generate y = treatment_group + s + runiform()
+anova y treatment_group##s
+generate abcdefghijkl = 1 + floor(2*runiform())
+generate abcdefghijklm = 1 + floor(2*runiform())
+anova y abcdefghijkl abcdefghijklm
+anova y abcdefghijkl##abcdefghijklm
+generate verylongvariablename_x = 1 + floor(3*runiform())
+anova y verylongvariablename_x##treatment_group
+anova y s#treatment_group
+generate xc = runiform()
+anova y treatment_group c.xc
+anova y treatment_group##c.xc
+clear
+set seed 67
+set obs 60
+generate a = 1 + floor(3*runiform())
+generate b = 1 + floor(2*runiform())
+generate c = 1 + floor(2*runiform())
+generate x = runiform()
+generate y = a + b + x + runiform()
+anova y a#c.x
+anova y a a#b
+anova y b a#b#c
+=== pass7-debug2-parser-messages
+clear
+set obs 5
+capture noisily generate x = 1]
+display _rc
+capture noisily generate x = (1+2]
+display _rc
+capture noisily generate x = 2*]
+display _rc
+capture noisily generate x-y = 1
+display _rc
+capture noisily generate x@ = 1
+display _rc
+capture noisily generate ab@cd = 1
+display _rc
+capture noisily generate x# = 1
+display _rc
+capture noisily generate x.y = 1
+display _rc
+capture noisily scalar s
+display _rc
+capture noisily scalar s =
+display _rc
+capture noisily scalar define s
+display _rc
+capture noisily scalar s 3
+display _rc
+capture noisily scalar 1s = 3
+display _rc
+capture noisily scalar s@ = 3
+display _rc
+generate x = 1
+capture noisily generate x-y = 1
+display _rc
+capture noisily replace x = 1]
+display _rc
+capture noisily summarize x]
+display _rc
+capture noisily display 1]
+display _rc
+capture noisily display (1]
+display _rc
+capture noisily local a = 1]
+display _rc
+capture noisily replace x@ = 1
+display _rc
+capture noisily keep if x]
+display _rc
+capture noisily generate z = x[1]]
+display _rc
+capture noisily generate z = x[1
+display _rc
+capture noisily generate z = x]1
+display _rc
+capture noisily generate z = ]
+display _rc
+capture noisily generate z = x[1)
+display _rc
+capture noisily scalar t = 1]
+display _rc
+capture noisily scalar t = (1
+display _rc

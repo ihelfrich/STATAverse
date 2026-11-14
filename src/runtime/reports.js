@@ -4,7 +4,12 @@
 // installed Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
+import {
+  abbreviateAmong,
+  abbreviateName,
+  applyFormat,
+  parseFormat,
+} from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
 import {
@@ -370,16 +375,27 @@ export function summarize(session, text, ctx) {
       central = (power) =>
         values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
       m2 = central(2);
-    Object.assign(session.results.r, {
+    // With detail, Stata stores the moments before the sum and the
+    // extremes, and return list shows them in that order.
+    const { N, sum_w, mean, Var, sd, min, max, sum } = session.results.r;
+    session.results.r = {
+      N,
+      sum_w,
+      mean,
+      Var,
+      sd,
       skewness: m2 ? central(3) / m2 ** 1.5 : MISSING,
       kurtosis: m2 ? central(4) / m2 ** 2 : MISSING,
+      sum,
+      min,
+      max,
       ...Object.fromEntries(
         [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => [
           "p" + p,
           percentile(sorted, p),
         ]),
       ),
-    });
+    };
   }
 }
 function detail(ctx, variable, values, m, formats, observed = values) {
@@ -1673,10 +1689,7 @@ export function list(session, text, ctx) {
     if (v.header !== undefined) column.header = v.header.slice(0, space);
     else {
       const w = Math.max(space, 5);
-      column.header =
-        v.name.length > w
-          ? `${v.name.slice(0, w - 2)}~${v.name.at(-1)}`
-          : v.name;
+      column.header = v.name.length > w ? abbreviateName(v.name, w) : v.name;
     }
     column.width = Math.max(displayWidth(column.header), widest);
   }

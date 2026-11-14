@@ -7,7 +7,7 @@ import { firstStage, ivDiagnostic, sweptColumns } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
 import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { abbreviateAmong, applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import { count } from "./reports.js";
@@ -1753,9 +1753,12 @@ function predict(session, text, ctx) {
         : key === "pr"
           ? `Pr(${model.depvar})`
           : label;
+  // After logit and probit, Stata's xb and stdp say "values" even for one.
+  const plural =
+    made.missing !== 1 || (family.binary && (wantXb || parsed.options.stdp));
   if (made.missing)
     ctx.out(
-      `(${count(made.missing)} missing value${made.missing === 1 ? "" : "s"} generated)`,
+      `(${count(made.missing)} missing value${plural ? "s" : ""} generated)`,
     );
 }
 
@@ -1872,9 +1875,10 @@ function estat(session, text, ctx) {
   if (what === "ic") {
     const ll0 =
         model.command === "regress"
-          ? -0.5 *
-            model.N *
-            (Math.log(2 * Math.PI) + Math.log(model.tss / model.N) + 1)
+          ? // As regress stores e(ll_0), which weights count in.
+            model.constant && !isMissing(model.ll) && !isMissing(model.r2)
+            ? model.ll + (model.N / 2) * Math.log(1 - model.r2)
+            : MISSING
           : (model.ll_0 ?? MISSING),
       k = model.rank,
       aic = -2 * model.ll + 2 * k,
@@ -1912,8 +1916,10 @@ function estat(session, text, ctx) {
   } else if (what === "vif") {
     if (model.command !== "regress")
       throw new StataError("estat vif is only available after regress", 301);
+    // Each variable's spread over the estimation sample, where a lag has
+    // the rows its operator leaves.
     const s2 = model.rss / model.dfResidual,
-      rows = session.rows({}, null),
+      rows = model.sample,
       vifs = [];
     model.names.forEach((name, k) => {
       if (name === "_cons" || !model.estimable[k]) return;
@@ -1926,9 +1932,16 @@ function estat(session, text, ctx) {
     });
     // vif.ado sorts by VIF, largest first, unless the model has factor
     // variables. It keeps each VIF in a float variable.
-    if (!model.columns.some((c) => c?.term?.components?.some((p) => p.factor)))
-      vifs.sort((a, b) => b[1] - a[1]);
+    const factors = model.columns.some(
+      (c) =>
+        c?.term?.components?.some((p) => p.factor) || /#/.test(c?.name ?? ""),
+    );
+    // vif.ado sorts the float values, largest first, ties by name.
     vifs.forEach((v) => (v[1] = Math.fround(v[1])));
+    if (!factors)
+      vifs.sort(
+        (a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0),
+      );
     // r(vif_#) and r(name_#), numbered in the order shown; return list
     // shows the last set first, as vif.ado sets them.
     session.results.r = Object.fromEntries(
@@ -1942,10 +1955,61 @@ function estat(session, text, ctx) {
     ctx.out("");
     ctx.out("    Variable |       VIF       1/VIF  ");
     ctx.out("-------------+----------------------");
-    for (const [name, vif] of vifs)
-      ctx.out(
-        `${name.padStart(12)} |${applyFormat(vif, "%10.2f")}${applyFormat(1 / vif, "%12.6f")}`,
-      );
+    const cell = (vif) =>
+      `${applyFormat(vif, "%10.2f")}${applyFormat(1 / vif, "%12.6f")}`;
+    if (factors) {
+      // With factor variables the rows are laid out as the coefficient
+      // table lays them out, without its blank rows, base levels and
+      // constant.
+      const byIndex = new Map();
+      model.names.forEach((name, k) => {
+        const found = vifs.find((v) => v[0] === name);
+        if (found && model.estimable[k]) byIndex.set(k, found[1]);
+      });
+      // vif names levels by their values, not their value labels.
+      const labels = session.data.valueLabels;
+      session.data.valueLabels = new Map();
+      let lines;
+      try {
+        lines = termRows(
+          session,
+          model,
+          (k) => (byIndex.has(k) ? cell(byIndex.get(k)) : "\0"),
+          12,
+        );
+      } finally {
+        session.data.valueLabels = labels;
+      }
+      lines
+        .filter(
+          (line) =>
+            !/^\s*\|$/.test(line) && !/\((base|omitted|empty)\)|\0/.test(line),
+        )
+        .forEach((line) => ctx.out(line));
+    } else {
+      // A time-series operated variable is a row under its variable's
+      // name, labelled L1., D1., or --. for the variable itself, when it
+      // has an operator or its neighbour is of the same variable.
+      const series = vifs.map(([name]) => {
+        const m = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/.exec(name);
+        return m
+          ? {
+              base: m[2],
+              label: /^[LFDS]$/.test(m[1]) ? `${m[1]}1.` : `${m[1]}.`,
+            }
+          : { base: name, label: "--.", plain: true };
+      });
+      vifs.forEach(([name, vif], k) => {
+        const { base, label, plain } = series[k];
+        if (k && series[k - 1].base === base)
+          return ctx.out(`${label.padStart(12)} |${cell(vif)}`);
+        if (!plain || series[k + 1]?.base === base) {
+          ctx.out(`${base.padStart(12)} |`);
+          return ctx.out(`${label.padStart(12)} |${cell(vif)}`);
+        }
+        ctx.out(`${name.padStart(12)} |${cell(vif)}`);
+      });
+    }
     ctx.out("-------------+----------------------");
     ctx.out(
       `${"Mean VIF".padStart(12)} |${applyFormat(vifs.reduce((t, v) => t + v[1], 0) / vifs.length, "%10.2f")}`,
@@ -2217,6 +2281,9 @@ function estimatesCommand(session, text, ctx) {
       inSample = new Set(model.sample),
       order = [...data.sortedBy];
     stored.set(name, { model, e: { ...session.results.e } });
+    // The active results are known by the name they were last stored or
+    // restored under, which estimates replay heads them with.
+    model.storedName = name;
     // Stata marks the estimation sample in a variable named after the store.
     if (data.has(marker)) data.drop([marker]);
     data.generate(
@@ -2231,24 +2298,71 @@ function estimatesCommand(session, text, ctx) {
     if (!entry)
       throw new StataError(`estimation result ${name} not found`, 111);
     session.estimates = entry.model;
+    entry.model.storedName = name;
     session.results.e = { ...entry.e };
     // estimates restore is r-class: r() holds only the name restored.
     session.results.r = { names: name };
     ctx.out(`(results ${name} are active now)`);
+  } else if (/^rep(l(ay?)?)?$/.test(action)) {
+    // Each fit as it was shown, under a heading that names it; display
+    // options such as level() show it as the estimator typed alone would.
+    const rule = "-".repeat(session.settings.linesize ?? 79),
+      options = splitAtComma(rest)[1]?.trim() ?? "",
+      names = !name
+        ? [null]
+        : name === "_all" || name === "*"
+          ? [...stored.keys()]
+          : name.split(/\s+/);
+    for (const key of names)
+      if (key !== null && !stored.has(key))
+        throw new StataError(`estimation result ${key} not found`, 111);
+    for (const key of names) {
+      const model = key === null ? session.estimates : stored.get(key)?.model;
+      if (!model?.replay) throw new StataError("last estimates not found", 301);
+      let lines = model.replay.lines;
+      if (options) {
+        lines = [];
+        session.replayModel(model, options, {
+          ...ctx,
+          out: (line) => lines.push(line),
+        });
+      }
+      lines = [...lines];
+      while (lines.length && !lines[0].trim()) lines.shift();
+      while (lines.length && !lines.at(-1).trim()) lines.pop();
+      ctx.out("");
+      ctx.out(rule);
+      ctx.out(
+        key !== null
+          ? `Model ${key}`
+          : model.storedName
+            ? `Model ${model.storedName}`
+            : "active results",
+      );
+      ctx.out(rule);
+      ctx.out("");
+      lines.forEach((line) => ctx.out(line));
+    }
   } else if (action === "dir") {
     if (!stored.size) return;
+    // The table is as wide as its longest title.
+    const titleOf = (model) => model.title ?? "Linear regression",
+      width =
+        47 +
+        Math.max(
+          6,
+          ...[...stored.values()].map(({ model }) => titleOf(model).length),
+        );
     ctx.out("");
-    ctx.out("-".repeat(66));
+    ctx.out("-".repeat(width));
     ctx.out("             |           Dependent  Number of        ");
     ctx.out("        Name | Command    variable     param.  Title ");
-    ctx.out(
-      "-------------+----------------------------------------------------",
-    );
+    ctx.out(`-------------+${"-".repeat(width - 14)}`);
     for (const [key, { model }] of stored)
       ctx.out(
-        `${key.padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${model.title ?? "Linear regression"}`,
+        `${abbreviateAmong(key, 12).padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${titleOf(model)}`,
       );
-    ctx.out("-".repeat(66));
+    ctx.out("-".repeat(width));
   } else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
   else if (/^stats?$/.test(action)) estimatesStats(session, rest, ctx);
   else if (action === "clear") {
@@ -2272,11 +2386,14 @@ export const MODEL_COMMANDS = [
     name: "logistic",
     minimum: 8,
     run: (session, text, ctx) => {
-      // logistic is logit reporting odds ratios, without the iteration log.
-      const [head, options] = splitAtComma(text);
+      // logistic is logit reporting odds ratios (coefficients with coef),
+      // without the iteration log.
+      const [head, typed] = splitAtComma(text),
+        options = typed ?? "",
+        coef = /(?:^|\s)coef(?=\s|$)/.test(options);
       maximumLikelihood("logit")(
         session,
-        `${head}, or nolog ${(options ?? "").replace(/\bor\b/, "")}`,
+        `${head}, ${coef ? "" : "or "}nolog ${options.replace(/\bor\b/, "").replace(/(?:^|\s)coef(?=\s|$)/g, " ")}`,
         ctx,
       );
       session.results.e.cmd = "logistic";

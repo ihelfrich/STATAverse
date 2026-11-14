@@ -160,10 +160,10 @@ function ovtest(session, model, text, ctx) {
   ctx.out("");
   ctx.out("H0: Model has no omitted variables");
   ctx.out("");
-  ctx.out(
-    `${`F(${df}, ${dfResidual})`.padStart(8)} =${applyFormat(F, "%7.2f")}`,
-  );
-  ctx.out(`Prob > F = ${applyFormat(p, "%6.4f")}`);
+  // The two labels end in one column, under the wider of them.
+  const label = `F(${df}, ${dfResidual})`.padStart(8);
+  ctx.out(`${label} =${applyFormat(F, "%7.2f")}`);
+  ctx.out(`${"Prob > F".padStart(label.length)} = ${applyFormat(p, "%6.4f")}`);
   ctx.out("");
   session.results.r = { F, df, df_r: dfResidual, p };
 }
@@ -837,8 +837,19 @@ export function leverageStatistic(session, model, option) {
     cooksd: "Cook's D",
     stdr: "S.E. of the residual",
     stdf: "S.E. of the forecast",
+    covratio: "COVRATIO",
+    welsch: "Welsch distance",
   };
   if (!labels[option]) return null;
+  // COVRATIO and Welsch distance are for the estimation sample, and a
+  // robust fit has neither.
+  const sampleOnly = option === "covratio" || option === "welsch";
+  if (sampleOnly && model.vce !== "ols")
+    throw new StataError(
+      `option ${option} not allowed after robust estimation`,
+      198,
+    );
+  const inSample = sampleOnly ? new Set(model.sample) : null;
   if (model.command !== "regress" || model.vce !== "ols")
     if (option !== "stdf" && option !== "stdr")
       if (model.command !== "regress")
@@ -850,6 +861,7 @@ export function leverageStatistic(session, model, option) {
     n = model.N,
     values = new Array(data.n).fill(MISSING);
   for (let i = 0; i < data.n; i++) {
+    if (inSample && !inSample.has(i)) continue;
     const row = model.names.map((name, j) =>
       name === "_cons" ? 1 : model.columns[j].value(i),
     );
@@ -871,8 +883,52 @@ export function leverageStatistic(session, model, option) {
     else if (option === "rstudent") {
       const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1);
       values[i] = e / Math.sqrt(without * (1 - h));
+    } else if (option === "covratio") {
+      const r2 = (e * e) / (s2 * (1 - h));
+      values[i] = ((n - k - r2) / (n - k - 1)) ** k / (1 - h);
+    } else if (option === "welsch") {
+      const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1),
+        r = e / Math.sqrt(without * (1 - h));
+      values[i] = ((r * Math.sqrt(h)) / (1 - h)) * Math.sqrt(n - 1);
     } else if (option === "cooksd")
       values[i] = ((e * e) / (s2 * (1 - h))) * (h / ((1 - h) * k));
   }
   return { values, label: labels[option] };
+}
+
+/**
+ * Influence after regress: DFBETA for coefficient k (the change in it when
+ * an observation is left out, over its standard error without that
+ * observation) or, with k null, DFITS. Values are for the estimation
+ * sample; robust estimates have neither, as in Stata.
+ */
+export function influence(session, model, k, option) {
+  if (model.command !== "regress")
+    throw new StataError(`option ${option} not allowed`, 198);
+  if (model.vce !== "ols")
+    throw new StataError(
+      `option ${option} not allowed after robust estimation`,
+      198,
+    );
+  const dependent = session.data.get(model.depvar),
+    p = model.names.length,
+    n = model.N,
+    values = new Array(session.data.n).fill(MISSING);
+  for (const i of new Set(model.sample)) {
+    const row = model.names.map((name, j) =>
+      name === "_cons" ? 1 : model.columns[j].value(i),
+    );
+    // (X'X)^-1 x_i, its leverage and the residual.
+    const lean = model.xtxInverse.map((r) =>
+        r.reduce((t, v, c) => t + v * row[c], 0),
+      ),
+      h = lean.reduce((t, v, c) => t + v * row[c], 0),
+      e = dependent.data[i] - row.reduce((t, v, j) => t + v * model.b[j], 0),
+      s2 = (model.rss - (e * e) / (1 - h)) / (n - model.rank - 1);
+    values[i] =
+      k === null
+        ? (e / Math.sqrt(s2 * (1 - h))) * Math.sqrt(h / (1 - h))
+        : (lean[k] * e) / (1 - h) / Math.sqrt(s2 * model.xtxInverse[k][k]);
+  }
+  return values;
 }

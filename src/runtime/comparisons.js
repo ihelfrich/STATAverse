@@ -32,13 +32,24 @@ const nameOf = (session, model) => {
     if (value.model === model) return key;
   return ".";
 };
-/** The log likelihood of the constant-only model. */
+/** The log likelihood of the constant-only model, as e(ll_0) holds it. */
 const nullLikelihood = (model) =>
   model.command === "regress"
-    ? -0.5 *
-      model.N *
-      (Math.log(2 * Math.PI) + Math.log(model.tss / model.N) + 1)
+    ? model.constant && !isMissing(model.ll) && !isMissing(model.r2)
+      ? model.ll + (model.N / 2) * Math.log(1 - model.r2)
+      : MISSING
     : (model.ll_0 ?? MISSING);
+// A time-series operated coefficient, L.x or LD.y, and the label of its row
+// under the variable's name (L1., LD.).
+const SERIES_NAME = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/;
+function seriesOf(name) {
+  const m = SERIES_NAME.exec(name);
+  if (!m) return undefined;
+  return {
+    base: m[2],
+    label: /^[LFDS]$/.test(m[1]) ? `${m[1]}1.` : `${m[1]}.`,
+  };
+}
 
 export function lrtest(session, text, ctx) {
   const [head, options] = splitAtComma(text),
@@ -197,9 +208,12 @@ function nameTerm(session, name, terms, labelled) {
     // A factor's levels take their value labels only when the active
     // results have the variable as a factor too, as Stata shows them.
     const components = parts.map((p) => {
-        const variable = session.data.has(p.name)
-          ? session.data.get(p.name)
-          : { name: p.name, format: "%9.0g" };
+        const ts = !p.factor && parts.length === 1 && seriesOf(p.name),
+          variable = session.data.has(p.name)
+            ? session.data.get(p.name)
+            : ts
+              ? { name: p.name, format: "%9.0g", ts }
+              : { name: p.name, format: "%9.0g" };
         return {
           variable:
             p.factor && !labelled.has(p.name)

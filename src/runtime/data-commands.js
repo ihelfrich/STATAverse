@@ -1596,7 +1596,10 @@ function reshapeError(session, ctx) {
     { xi } = reshapeLevels(session, ctx, spec),
     i = spec.i.join(" "),
     show = (names, rows) => {
-      const flag = "__000000";
+      // A name no variable has, as a temporary variable would be.
+      let flag = "__000000";
+      for (let k = 1; data.has(flag); k++)
+        flag = `__${String(k).padStart(6, "0")}`;
       data.generate(
         flag,
         Array.from({ length: data.n }, (_, r) => (rows.has(r) ? 1 : 0)),

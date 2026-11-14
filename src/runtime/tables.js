@@ -1667,15 +1667,46 @@ function anova(session, text, ctx) {
         ),
     );
   }
-  const columnsOf = (term) =>
-      term.factors
+  const columnsOf = (factors) =>
+      factors
         .map((name) => blocks.get(name))
         .reduce(
           (acc, block) =>
             acc.flatMap((a) => block.map((b) => a.map((v, i) => v * b[i]))),
           [rows.map(() => 1)],
         ),
-    built = terms.map((term) => ({ ...term, columns: columnsOf(term) })),
+    // An interaction whose margins are not terms of their own takes them
+    // in, as Stata's indicator coding does: a#b alone is every cell of a
+    // and b. A margin is one with all of the term's covariates. When two
+    // terms would share a margin (a#b a#c without a), Stata's partial sums
+    // of squares depend on which indicator columns it drops, which is not
+    // reproduced here.
+    setKey = (factors) => [...factors].sort().join("#"),
+    named = new Set(terms.map((term) => setKey(term.factors))),
+    covered = new Set(),
+    built = terms.map((term) => {
+      const columns = columnsOf(term.factors),
+        continuous = term.factors.filter((name) => /^c\./.test(name)),
+        count = term.factors.length;
+      for (let mask = 1; mask < (1 << count) - 1; mask++) {
+        const subset = term.factors.filter((_, k) => mask & (1 << k)),
+          key = setKey(subset);
+        if (
+          !continuous.every((name) => subset.includes(name)) ||
+          named.has(key)
+        )
+          continue;
+        if (covered.has(key))
+          throw new StataError(
+            `anova terms that share ${subset.join("#").replace(/(^|#)[ci]\./g, "$1")} without it as a term of its own are not available in the browser yet`,
+            198,
+            `Add ${subset.join("#").replace(/(^|#)[ci]\./g, "$1")} to the terms, or use a##b, which includes it.`,
+          );
+        covered.add(key);
+        columns.push(...columnsOf(subset));
+      }
+      return { ...term, columns };
+    }),
     y = rows.map((i) => dependent.data[i]),
     fitOf = (list) =>
       project(
@@ -1692,7 +1723,19 @@ function anova(session, text, ctx) {
           ? `${applyFormat(ss / df / mse, "%10.2f")}${applyFormat(Ftail(df, dfResidual, ss / df / mse), "%8.4f")}`
           : ""
       }`,
-    split = `${" ".repeat(14)}-----------+${"-".repeat(52)}`;
+    // The rule under Source reaches one column past the longest term, whose
+    // names are each cut to eleven characters.
+    labelOf = (term) =>
+      term.key
+        .replace(/(^|#)[ci]\./g, "$1")
+        .split("#")
+        .map((name) => abbreviateName(name, 11))
+        .join("#"),
+    widest = Math.min(
+      23,
+      Math.max(10, ...built.map((term) => labelOf(term).length)),
+    ),
+    split = `${" ".repeat(24 - widest)}${"-".repeat(widest + 1)}+${"-".repeat(52)}`;
   if (dfResidual < 1) throw new StataError("insufficient observations", 2001);
   ctx.out("");
   ctx.out(
@@ -1712,7 +1755,7 @@ function anova(session, text, ctx) {
     const without = fitOf(built.filter((other) => other !== term));
     ctx.out(
       row(
-        term.key.replace(/(^|#)[ci]\./g, "$1"),
+        labelOf(term),
         without.rss - full.rss,
         full.rank - without.rank,
         true,

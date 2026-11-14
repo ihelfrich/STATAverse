@@ -446,7 +446,7 @@ function margins(session, text, ctx) {
     );
   const [mean, slope, curve] = link,
     parsed = session.parse(
-      "[anything] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
+      "[anything] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) VSQuish noATLegend | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
       text,
     ),
     options = parsed.options,
@@ -770,7 +770,7 @@ function margins(session, text, ctx) {
         )
       )
         throw new StataError(
-          `${name}: factor variables may not contain noninteger values`,
+          `${name}:  factor variables may not contain noninteger values`,
           452,
         );
     }
@@ -1172,6 +1172,9 @@ function margins(session, text, ctx) {
           .map((r) => r.wrt)
           .join(" ")}`,
       );
+    // vsquish changes nothing here: the legend has no blank lines to take
+    // out. noatlegend leaves the legend out.
+    if (options.atlegend === false) return;
     if (sets.length > 1) {
       const prefix = `${sets.length}._at:`.length;
       legend.forEach((entries, s) =>

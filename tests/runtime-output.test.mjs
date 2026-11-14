@@ -64,6 +64,14 @@ for (const c of fixture.cases)
     const theirs = c.commands;
     let k = 0;
     for (const expected of theirs) {
+      // A program definition prints nothing in the runtime; Stata's log
+      // echoes its lines under the program command.
+      if (
+        /^(pr|pro|prog|progr|progra|program)(\s+de\w*)?\s+(?!drop\b|dir\b|list\b)\S/.test(
+          expected.command,
+        )
+      )
+        continue;
       if (SKIP.some((pattern) => pattern.test(expected.command))) {
         k++;
         continue;
@@ -214,6 +222,11 @@ for (const c of fixture.cases)
             "pass7-ts-arima-singular-and-small",
             "pass7-ts-arima-collinear",
             "pass7-ts-arima-display-predict",
+            // logit, or and poisson, irr replay the fit by fitting it again.
+            "pass7-debug-replay-likelihood",
+            // logit and logistic fits shown again, alone and stored.
+            "pass7-debug2-replay-logistic",
+            "pass7-debug2-estimates-replay",
           ].includes(c.id),
         )
       )

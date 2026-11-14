@@ -121,10 +121,16 @@ function tokenize(source) {
         i,
       );
       i += m[0].length;
-    } else
-      throw invalid(
-        c === "=" ? "= is not a comparison; use ==" : `${c} invalid`,
-      );
+    } else if (c === "=") throw invalid("= is not a comparison; use ==");
+    else {
+      // Stata names the whole word the character is in: 'abc' invalid name.
+      const operator = /[\s\-+*/^<>&|!~()[\],=]/;
+      let from = i,
+        to = i + 1;
+      while (from > 0 && !operator.test(source[from - 1])) from--;
+      while (to < source.length && !operator.test(source[to])) to++;
+      throw invalid(`${source.slice(from, to)} invalid name`);
+    }
   }
   return tokens;
 }
@@ -219,7 +225,7 @@ export function compileExpression(source, scope = {}) {
 
   const primary = () => {
     const token = tokens[at++];
-    if (!token) throw invalid("expression ends too soon");
+    if (!token) throw invalid();
     if (token.type === "number") {
       const value = token.value;
       return node(N, () => value);
@@ -341,16 +347,17 @@ export function compileExpression(source, scope = {}) {
         () => scope.results?.[name]?.[inner.value] ?? MISSING,
       );
     }
-    if (
-      (name === "rowsof" || name === "colsof" || name === "el") &&
-      scope.matrix
-    ) {
+    if (/^(rowsof|colsof|el|det|trace)$/.test(name) && scope.matrix) {
       const target = tokens[at++];
       if (target?.type !== "name") throw invalid();
       if (name !== "el") {
         if (!take(")")) throw invalid();
-        const size =
-          name === "rowsof" ? scope.matrix.rows : scope.matrix.columns;
+        const size = {
+          rowsof: scope.matrix.rows,
+          colsof: scope.matrix.columns,
+          det: scope.matrix.det,
+          trace: scope.matrix.trace,
+        }[name];
         size(target.value);
         return node(N, () => size(target.value));
       }
@@ -399,8 +406,7 @@ export function compileExpression(source, scope = {}) {
     const variadic = !Array.isArray(definition.args),
       maximum = definition.max ?? (variadic ? 255 : definition.args.length),
       minimum = definition.min ?? (variadic ? 1 : definition.args.length);
-    if (args.length < minimum || args.length > maximum)
-      throw invalid(`${name}() takes a different number of arguments`);
+    if (args.length < minimum || args.length > maximum) throw invalid();
     args.forEach((arg, k) => {
       const wanted = variadic ? definition.args : definition.args[k];
       if (wanted !== "any" && wanted !== arg.type) throw mismatch();
@@ -504,6 +510,17 @@ export function compileExpression(source, scope = {}) {
   const or = binaryLevel(["|"], and, logical);
 
   if (!tokens.length) throw invalid("expression is empty");
+  // A closing parenthesis or bracket with nothing of its kind open is
+  // Stata's "too many", whatever else the expression holds: 1], (1+2].
+  const open = [];
+  for (const token of tokens)
+    if (token.type !== "op") continue;
+    else if (token.value === "(" || token.value === "[") open.push(token.value);
+    else if (
+      (token.value === ")" || token.value === "]") &&
+      open.pop() !== (token.value === ")" ? "(" : "[")
+    )
+      throw new StataError("too many ')' or ']'", 132);
   const root = or();
   if (at < tokens.length) {
     const extra = tokens[at];
@@ -512,7 +529,7 @@ export function compileExpression(source, scope = {}) {
     if (extra.type === "op" && extra.value === "(")
       throw new StataError("unknown function ()", 133);
     if (extra.type === "op" && extra.value === ")")
-      throw new StataError("too many closing parentheses", 132);
+      throw new StataError("too many ')' or ']'", 132);
     throw invalid(`${extra.value} found where an operator was expected`);
   }
   return { type: root.type, evaluate: root.evaluate, usesSum: sums > 0 };
