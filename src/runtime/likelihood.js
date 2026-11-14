@@ -25,7 +25,9 @@ import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
 import { clusterNote, noCluster, readVce, sandwich } from "./vce.js";
 
-const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
+// A value that is not a number is shown missing.
+const g = (value, format = "%9.0g") =>
+  applyFormat(Number.isFinite(value) ? value : MISSING, format).trim();
 // The rules of a coefficient table whose first column is w wide.
 export const rule = (w) => "-".repeat(66 + w),
   split = (w) => `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
@@ -43,10 +45,14 @@ function wrapped(session, ctx, text, indent = 6) {
   ctx.out(line);
 }
 
-/** A fit's coefficients as termRows and tableWidth take a model's. */
-export function tableModel(f) {
+/**
+ * A fit's coefficients as termRows and tableWidth take a model's, with the
+ * base levels the options ask to show, whose labels widen the table too.
+ */
+export function tableModel(f, baseLevels) {
   const constant = f.names.includes("_cons");
   return {
+    baseLevels,
     names: [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
     columns: [...f.columns, ...(constant ? [undefined] : [])],
     estimable: f.at.map((j) => j >= 0),
@@ -98,6 +104,16 @@ export function frame(
     // tobit leaves out a variable named a second time; the others keep it
     // and omit it for collinearity.
     columns = dropRepeats ? all.filter((c) => !c.term.repeat) : all;
+  // tobit, which fits by gsem, also keeps a factor with one level in the
+  // sample as that level's base, which the others omit for collinearity.
+  if (dropRepeats)
+    for (const c of columns)
+      if (c.term.factor && columns.filter((o) => o.term === c.term).length < 2)
+        Object.assign(c, {
+          base: true,
+          collinear: false,
+          name: c.name.replace(/^(\d+)\./, "$1b."),
+        });
   // A variable collinear with those before it is omitted, as Stata's
   // _rmcoll omits it, and is shown as (omitted).
   for (const c of columns) c.omitted = !!c.collinear;
@@ -226,7 +242,7 @@ export function iterations(
  * One line of an iteration log, with Stata's note beside it, if any. The
  * number and its colon take three columns before the space.
  */
-const iterationLine = (k, word, value, note) =>
+export const iterationLine = (k, word, value, note) =>
   `Iteration ${`${k}:`.padEnd(3)} ${word} = ${g(value, "%10.0g").padStart(10)}${note ? `  (${note})` : ""}`;
 /**
  * What ologit, oprobit and mlogit, which are built into Stata, print before
@@ -255,6 +271,15 @@ function determinedNote(ctx, determined) {
 export function unconverged(fit) {
   if (!fit.converged) throw new StataError("convergence not achieved", 430);
 }
+/**
+ * A z or t statistic in its column of nine, as _coef_table shows it: to two
+ * decimals, or once it passes 9999 in magnitude, to two digits in
+ * e-notation (2.4e+04), which keeps it inside the column.
+ */
+export const statistic = (z) =>
+  Math.abs(z) > 9999 && Number.isFinite(z)
+    ? ` ${applyFormat(z, "%8.1e")}`
+    : applyFormat(z, "%9.2f");
 /** One row of a coefficient table tested against the normal or t. */
 export function row(label, b, se, level, df, transform) {
   // A coefficient with no variance shows only its value.
@@ -266,7 +291,7 @@ export function row(label, b, se, level, df, transform) {
       ? invttail(df, (1 - level / 100) / 2)
       : invnormal(1 - (1 - level / 100) / 2),
     show = transform ? Math.exp : (v) => v;
-  return `${label}|${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(p, "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+  return `${label}|${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${statistic(z)}${applyFormat(p, "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
 }
 /** A row with no test: an ancillary parameter and its interval. */
 const plainRow = (label, value, se, low, high) =>
@@ -410,6 +435,21 @@ function tobitTerm(y, xb, variance, state, limit) {
     (state * lambda * (bend - 1)) / (2 * variance * sigma),
     (c * lambda * (3 - bend)) / (4 * variance * variance),
   ];
+}
+
+/**
+ * gsem cannot fit a tobit with no uncensored observation. With every one
+ * censored on the same side its starting values are not feasible; with
+ * some on each side neither the constant-only model nor the full model
+ * converges, and both say so.
+ */
+function noneUncensored(states, ctx) {
+  if (states.some((s) => s === 0)) return;
+  if (states.some((s) => s < 0) && states.some((s) => s > 0)) {
+    ctx.out("convergence not achieved");
+    throw new StataError("convergence not achieved", 430);
+  }
+  throw new StataError("initial values not feasible", 1400);
 }
 
 function tobit(session, text, ctx) {
@@ -571,7 +611,7 @@ function tobit(session, text, ctx) {
         wide.w,
       );
     },
-    full = fit(f.x, f.y, f.w),
+    full = (noneUncensored(state, ctx), fit(f.x, f.y, f.w)),
     k = f.x[0].length,
     ll0 = nullFit().ll,
     regressors = f.active.length,
@@ -608,13 +648,12 @@ function tobit(session, text, ctx) {
     seVariance = Math.sqrt(V[k][k]),
     critical = invttail(df, (1 - options.level / 100) / 2),
     counts = [0, -1, 1].map((s) => state.filter((v) => v === s).length),
-    // A limit that is not a whole number is shown to two decimals.
+    // As _censobs_limits shows a limit: a whole number in %10.0gc, any
+    // other to two decimals.
     text2 = (v, infinity) =>
       v === null
         ? infinity
-        : Number.isInteger(v)
-          ? g(v, "%12.0g")
-          : applyFormat(v, "%12.2f").trim(),
+        : applyFormat(v, Number.isInteger(v) ? "%10.0gc" : "%10.2f").trim(),
     width = Math.max(text2(lower, "-inf").length, text2(upper, "+inf").length),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
     model = {
@@ -722,7 +761,7 @@ function tobit(session, text, ctx) {
   ctx.out("");
   // The first column counts the dependent variable, which names the first
   // equation, and the variance's row.
-  const w = tableWidth(session, tableModel(f), [
+  const w = tableWidth(session, tableModel(f, model.baseLevels), [
     model.depvar,
     `var(e.${model.depvar})`,
   ]);
@@ -1032,7 +1071,9 @@ function ordered(kind) {
     if (asked.cluster)
       ctx.out(clusterNote(clusters, asked.cluster.name, count));
     // The dependent variable names the first equation and counts too.
-    const w = tableWidth(session, tableModel(f), [model.depvar]);
+    const w = tableWidth(session, tableModel(f, baseLevelsAsked(options)), [
+      model.depvar,
+    ]);
     tableHead(
       ctx,
       model.depvar,
@@ -1644,8 +1685,16 @@ export function maximizeNR(evaluate, start, limit = 300) {
     }
     theta = next;
     current = evaluate(theta, 2);
+    // optimize()'s words, with the iterations so far, which the caller
+    // may print before them as ml does.
     if (!feasible(current.value))
-      throw new StataError("discontinuous region encountered", 430);
+      throw Object.assign(
+        new StataError(
+          "cannot compute an improvement -- discontinuous region encountered",
+          430,
+        ),
+        { log, notes },
+      );
     log.push(current.value);
     notes.push(shortened ? "backed up" : "");
     if (
@@ -1911,7 +1960,9 @@ function nbreg(session, text, ctx) {
   ctx.out("");
   if (asked.cluster) ctx.out(clusterNote(clusters, asked.cluster.name, count));
   // The dependent variable names the first equation and counts too.
-  const w = tableWidth(session, tableModel(f), [model.depvar]);
+  const w = tableWidth(session, tableModel(f, baseLevelsAsked(options)), [
+    model.depvar,
+  ]);
   tableHead(
     ctx,
     model.depvar,

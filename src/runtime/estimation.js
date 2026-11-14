@@ -265,10 +265,12 @@ export function design(session, text, rows, constant = true) {
         };
       });
     if (term.factor)
-      // A factor on its own: the first level is the base.
+      // A factor on its own: the first level is the base. A factor with
+      // one level in the sample has no base: its level is a column of
+      // ones, which Stata omits beside a constant for collinearity.
       made.forEach((column, k) => {
-        column.base = k === 0;
-        if (k === 0) column.name = column.name.replace(".", "b.");
+        column.base = k === 0 && made.length > 1;
+        if (column.base) column.name = column.name.replace(".", "b.");
         // A level that adds nothing, such as 2.g beside a dummy for g == 2,
         // is collinear; the likelihood fitters omit it.
         else if (!independent(column)) column.collinear = true;
@@ -798,16 +800,38 @@ export function termRows(
     gap = `${" ".repeat(w + 1)}|`;
   const out = [];
   let previousPlain = true;
+  // A blank row comes neither first nor twice in a row.
+  const blank = () => {
+    if (out.length && out.at(-1) !== gap) out.push(gap);
+  };
   tableBlocks(session, model).forEach((block, b) => {
-    const { shown, alone } = block,
-      plain =
-        block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
-    if (b && !(plain && previousPlain)) out.push(gap);
-    else if (b && block.term === "_cons" && !previousPlain) out.push(gap);
+    const { shown, alone } = block;
+    // A factor whose only level is a hidden base (which tobit keeps) shows
+    // nothing. Unlabelled, it would be one plain row and leaves no trace;
+    // labelled, it would be headed by its name, and the blank rows about
+    // it stay.
+    if (block.term !== "_cons" && !block.term.variable && !shown.length) {
+      const [only] = block.term.components;
+      if (
+        block.items.length === 1 &&
+        block.term.components.length === 1 &&
+        !session.data.valueLabels?.has(only.variable.valueLabel)
+      )
+        return;
+      blank();
+      previousPlain = false;
+      return;
+    }
+    const plain =
+      block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
+    if (b && !(plain && previousPlain)) blank();
+    else if (b && block.term === "_cons" && !previousPlain) blank();
     // A factor headed by its name with one labelled level has a blank row
-    // before it, but none after.
+    // before it, but none after, unless base levels are asked for.
     previousPlain =
-      block.term === "_cons" ? previousPlain : plain || block.single;
+      block.term === "_cons"
+        ? previousPlain
+        : plain || (block.single && !model.baseLevels);
     const row = (label, k) =>
       out.push(
         model.estimable[k]

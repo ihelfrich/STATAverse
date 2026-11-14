@@ -6999,3 +6999,166 @@ glm dd x1 i.g, family(binomial)
 display e(N) " " e(deviance) " " e(deviance_p) " " e(k)
 cloglog dd x1 i.g
 display e(ll_0) " " e(chi2)
+=== glm-constant-outcomes-and-small-samples
+clear
+set seed 1
+set obs 50
+generate x = runiform()
+generate y = 1
+generate yy = x > 0.5
+generate allz = 0
+capture noisily glm y x, family(binomial)
+display _rc
+capture noisily glm y x if yy, family(binomial)
+capture noisily glm yy x if yy, family(binomial) link(probit)
+capture noisily glm allz x, family(binomial)
+capture noisily cloglog allz x
+display _rc
+capture noisily cloglog y x
+capture noisily glm allz x, family(poisson)
+display _rc
+capture noisily glm allz x, family(poisson) link(identity)
+glm y x, family(poisson)
+capture noisily glm allz x
+display _rc
+clear
+set seed 31
+set obs 30
+generate x = invnormal(runiform())
+generate x2 = 2 * x
+generate g = 1 + floor(runiform() * 3)
+generate d = runiform() < invlogit(0.5 * x)
+generate n = floor(-ln(runiform()) * 3)
+generate y = 1 + x + invnormal(runiform())
+capture noisily glm y x in 1/2
+display _rc
+capture noisily glm y in 1/1
+display _rc
+capture noisily glm n in 1/1, family(poisson)
+capture noisily glm n x, family(poisson) link(probit)
+display _rc
+capture noisily glm n x, family(poisson) link(logit) nolog
+display _rc
+capture noisily glm d x in 1/2, family(binomial)
+cloglog d
+cloglog d, nolog
+clear
+set seed 31
+set obs 30
+generate x = invnormal(runiform())
+generate d = runiform() < invlogit(0.5 * x)
+generate n = floor(-ln(runiform()) * 3)
+capture noisily glm n x, family(poisson) link(probit)
+display _rc
+capture noisily glm n x, family(poisson) link(logit) nolog
+display _rc " " e(rank) " " e(df)
+=== glm-binomial-title-and-footnotes
+clear
+set seed 2468
+set obs 3000
+generate x = invnormal(runiform())
+generate d = runiform() < invlogit(-0.5 + 0.8 * x)
+generate dm = d
+replace dm = . in 41/60
+glm dm x, family(binomial) nolog
+display "`e(varfunct)'|`e(varfuncf)'|`e(linkt)'|`e(linkf)'|" e(vf)
+glm dm x if _n > 60, family(binomial) link(probit) nolog
+glm d x, family(binomial) nolog
+display "`e(varfunct)'|`e(varfuncf)'"
+generate d2 = d
+replace d2 = 2 in 1
+glm d2 x in 2/3000, family(binomial) nolog
+clear
+set seed 4321
+set obs 2000
+generate x = 3 * runiform()
+generate q = 0.1 + 0.3 * x
+replace q = 0.99 if q > 0.99
+generate e = runiform() < q
+generate r = runiform() < 0.2 + 0.1 * x
+glm r x, family(binomial) link(identity)
+glm r x, family(binomial) link(log) nolog
+capture noisily glm e x, family(binomial) link(identity) nolog
+display _rc " " e(converged)
+=== glm-unconverged-log-link
+clear
+set seed 4321
+set obs 2000
+generate x = 3 * runiform()
+generate q = 0.1 + 0.3 * x
+replace q = 0.99 if q > 0.99
+generate e = runiform() < q
+capture noisily glm e x, family(binomial) link(log)
+display _rc " " e(converged)
+=== glm-cloglog-large-statistics
+clear
+set seed 2468
+set obs 8000
+generate x = invnormal(runiform())
+generate g = 1 + floor(runiform() * 3)
+generate big = floor(1e6 * exp(0.2 * x + runiform()))
+glm big x i.g, family(poisson) nolog
+glm big x, family(poisson) noconstant nolog
+generate rare = runiform() < 0.001
+cloglog rare x
+cloglog rare x, nolog noconstant
+=== factor-with-one-level-in-sample
+clear
+set seed 7707
+set obs 600
+generate region = 1 + floor(runiform() * 3)
+generate educ = region + 1
+label define edlbl 1 "Less than HS" 2 "High school" 3 "Some college" 4 "BA+"
+label values educ edlbl
+generate age = 20 + floor(runiform() * 40)
+generate employed = runiform() < invlogit(-1 + 0.03 * age)
+generate satisf = 1 + floor(runiform() * 4)
+generate hours = max(0, -10 + 0.5 * age + 10 * invnormal(runiform()))
+generate kids = floor(-ln(runiform()) * 1.2)
+glm employed age i.educ if region == 2, family(binomial)
+logit employed age i.educ if region == 2
+probit employed age i.educ if region == 2, nolog
+cloglog employed age i.educ if region == 2
+ologit satisf age i.educ if region == 2
+tobit hours age i.educ if region == 2, ll(0)
+regress hours age i.educ if region == 2
+glm kids age i.educ if region == 2, family(poisson) nolog
+poisson kids age i.educ if region == 2, nolog
+glm employed age i.educ if region == 2, family(binomial) baselevels nolog
+glm employed age i.educ if region == 2, family(binomial) noconstant nolog
+tobit hours age i.educ if region == 2, ll(0) nolog baselevels
+tobit hours i.educ age if region == 2, ll(0) nolog
+generate g = 1 + floor(runiform() * 3)
+tobit hours age i.educ i.g if region == 2, ll(0) nolog
+tobit hours i.g i.educ if region == 2, ll(0) nolog
+tobit hours age i.educ if region == 2, ll(0) nolog noconstant
+display e(k) " " e(rank) " " e(df_m)
+label values educ
+tobit hours age i.educ if region == 2, ll(0) nolog
+tobit hours age i.educ i.g if region == 2, ll(0) nolog
+tobit hours i.educ i.g if region == 2, ll(0) nolog
+regress hours age i.educ if region == 2
+=== tobit-limits-and-censored-samples
+clear
+set seed 7708
+set obs 600
+generate age = 20 + floor(runiform() * 40)
+generate hours = max(0, -10 + 0.5 * age + 10 * invnormal(runiform()))
+generate inc = round(20000 + 400 * age + 8000 * invnormal(runiform()), 0.01)
+tobit inc age, ll(30000)
+tobit inc age, ul(40000) nolog
+tobit inc age, ll(30000) ul(1234567) nolog
+tobit hours age, ll(-1234.5) ul(1234567) nolog
+capture noisily tobit hours age if hours == 0 | hours >= 20, ll(0) ul(20)
+display _rc
+generate hh = hours
+replace hh = 0 if _n > 1
+tobit hh age, ll(0) nolog
+replace hh = 0
+capture noisily tobit hh age, ll(0)
+display _rc
+capture noisily tobit hh, ll(0)
+capture noisily tobit hh age, ll(0) ul(5)
+replace hh = 7 if _n < 10
+capture noisily tobit hh age if hh == 7, ul(7) nolog
+display _rc

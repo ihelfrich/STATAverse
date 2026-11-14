@@ -123,6 +123,11 @@ for (const c of fixture.cases)
             "table-unlabelled-levels-and-one-level-factors",
             "constraint-lines-wrapped",
             "table-width-xtreg-and-resampling",
+            // A fit that never converges stops where 300 steps leave it,
+            // and statistics summed from millions of counts carry the
+            // last digits of the estimates: both match Stata to rounding.
+            "glm-unconverged-log-link",
+            "glm-cloglog-large-statistics",
           ].includes(c.id),
         )
       )

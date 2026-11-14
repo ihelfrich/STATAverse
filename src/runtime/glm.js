@@ -18,6 +18,7 @@ import {
 import {
   dot,
   frame,
+  iterationLine,
   iterations,
   layoutRows,
   leastSquares,
@@ -35,7 +36,13 @@ import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 
-const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
+// A value that is not a number, such as a ratio with no degrees of
+// freedom, is shown missing.
+const g = (value, format = "%9.0g") =>
+  applyFormat(Number.isFinite(value) ? value : MISSING, format).trim();
+// What _rmcoll says of a binary outcome that takes one value.
+const CONSTANT_OUTCOME =
+  "outcome does not vary; remember:\n                                  0 = negative outcome,\n        all other nonmissing values = positive outcome";
 // glim_mu keeps a fitted mean this far inside its family's range.
 const EPS = 1e-8;
 // Each link as glim_l01 to glim_l08 give it: the index from a mean, the
@@ -71,8 +78,9 @@ const LINKS = {
     text: "g(u) = invnorm(u)",
     eta: (u) => invnormal(u),
     mu: (e) => normal(e),
-    d1: (u) => density(invnormal(u)),
-    d2: (u) => -invnormal(u) * density(invnormal(u)),
+    // invnorm(1) is missing in Stata, and so then are both derivatives.
+    d1: (u) => (u < 1 ? density(invnormal(u)) : NaN),
+    d2: (u) => (u < 1 ? -invnormal(u) * density(invnormal(u)) : NaN),
   },
   cloglog: {
     title: "Complementary log–log",
@@ -137,6 +145,13 @@ const match = (table, word, what) => {
   return key;
 };
 
+/** A sum in quad precision. */
+function quadTotal(values) {
+  const total = quadSum();
+  values.forEach((v) => total.add(v));
+  return total.value;
+}
+
 /**
  * The sums of a fit's log likelihood, gradient and observed information,
  * term(i, xb, todo) giving one observation's [value, score, weight].
@@ -150,7 +165,13 @@ function sums(x, term) {
     for (let i = 0; i < x.length; i++) {
       const r = x[i],
         [value, score, weight] = term(i, dot(r, theta), todo);
-      if (!Number.isFinite(value)) return { value: NaN, gradient, information };
+      // mlvecsum and mlmatsum leave the log likelihood missing where a
+      // score or weight is.
+      if (
+        !Number.isFinite(value) ||
+        (todo && !(Number.isFinite(score) && Number.isFinite(weight)))
+      )
+        return { value: NaN, gradient, information };
       total.add(value);
       if (!todo) continue;
       for (let a = 0; a < k; a++) {
@@ -226,11 +247,22 @@ function separated(f, outcome, constant, ctx) {
  */
 function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
   const link = LINKS[linkName],
-    constant = parsed.options.constant !== false;
+    constant = parsed.options.constant !== false,
+    logOff = parsed.options.log === false;
   let f = frame(session, parsed, constant),
     family = FAMILIES[familyName];
   const name = f.dependent.name;
   if (!f.x[0].length) throw new StataError("too few variables specified", 102);
+  if (f.y.length === 1) throw new StataError("insufficient observations", 2001);
+  // glm.ado searches a 0/1 binomial outcome for perfect predictors (as
+  // logit does), which first requires that it vary.
+  const zeroOne =
+    familyName === "binomial" && f.y.every((v) => v === 0 || v === 1);
+  if (zeroOne) {
+    if (f.y.every((v) => v === f.y[0]))
+      throw new StataError(CONSTANT_OUTCOME, 2000);
+    f = separated(f, f.y, constant, ctx);
+  }
   if (familyName !== "gaussian") {
     const y = f.y;
     if (y.some((v) => v < 0))
@@ -242,10 +274,14 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       throw new StataError(`${name} > 1 in some cases`, 499);
     if (y.some((v) => !Number.isInteger(v)))
       notes.push(`note: ${name} has noninteger values`);
-    // A proportion between 0 and 1 is a binomial outcome of one trial.
-    if (familyName === "binomial" && y.some((v) => v !== 0 && v !== 1))
+    // glim_v2 calls the family Bernoulli only when the outcome is 0 or 1
+    // in every observation of the data, in the sample or not; a missing
+    // value or a proportion anywhere makes it a binomial of one trial.
+    if (
+      familyName === "binomial" &&
+      !Array.from(f.dependent.data).every((v) => v === 0 || v === 1)
+    )
       family = { ...family, title: "Binomial", variance: "V(u) = u*(1-u/1)" };
-    else if (familyName === "binomial") f = separated(f, y, constant, ctx);
   }
   const { x, y } = f,
     n = y.length,
@@ -269,6 +305,12 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       );
     const rss = x.reduce((t, r, i) => t + (y[i] - dot(r, theta)) ** 2, 0),
       scale = rss / (n - k);
+    // glim_v1's likelihood takes this scale, which a fit with no residual
+    // degrees of freedom, or no residual, leaves missing or zero.
+    if (!(n > k && scale > 0)) {
+      if (!logOff) ctx.out("");
+      throw new StataError("initial values not feasible", 1400);
+    }
     V = inverse.map((r) => r.map((v) => v * scale));
     ll = -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1);
     log = [ll];
@@ -289,7 +331,21 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       z[i] = e + (v - u) / d;
       w[i] = (d * d) / family.v(u);
     });
-    const start = leastSquares(whole.x, z, w) ?? new Array(k).fill(0),
+    // The regression takes the observations where the link and variance
+    // are defined at that mean: none for a Poisson outcome that is always
+    // zero, or one whose mean is past the range of a logit or probit link.
+    const usable = z
+      .map((_, i) => i)
+      .filter((i) => Number.isFinite(z[i]) && Number.isFinite(w[i]));
+    let fit;
+    try {
+      if (!usable.length) throw new StataError("no observations", 459);
+      const start =
+        leastSquares(
+          usable.map((i) => whole.x[i]),
+          usable.map((i) => z[i]),
+          usable.map((i) => w[i]),
+        ) ?? new Array(k).fill(0);
       // glim_lf: the log likelihood, its score and the observed
       // information in the index, with the mean kept inside its range.
       fit = maximizeNR(
@@ -308,9 +364,35 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
         }),
         start,
       );
+    } catch (error) {
+      // ml has logged the iterations it took before it stopped.
+      if (error instanceof StataError && error.log) {
+        (f.perfect ?? []).forEach(ctx.out);
+        f.notes(ctx);
+        notes.forEach(ctx.out);
+        ctx.out("");
+        if (!logOff)
+          error.log.forEach((value, j) =>
+            ctx.out(iterationLine(j, "Log likelihood", value, error.notes[j])),
+          );
+      }
+      // glm.ado answers any failure of a Poisson model with a link other
+      // than its own or the identity with a note of its own and r(459).
+      if (
+        error instanceof StataError &&
+        familyName === "poisson" &&
+        !["log", "identity"].includes(linkName)
+      )
+        throw new StataError(
+          `${error.message}\ndata not suitable for nonstandard family-link combination`,
+          459,
+        );
+      throw error;
+    }
     ({ theta, V, ll, log, converged } = fit);
     logNotes = fit.notes;
   }
+  const rank = V.filter((r, j) => r[j] > 0 && Number.isFinite(r[j])).length;
   // The deviance and Pearson statistic are summed, as glm.ado sums them,
   // over the whole sample, observations a perfect predictor set aside
   // included.
@@ -350,8 +432,11 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
       columns: f.columns,
       constant,
       N: n,
-      df_m: k - (constant ? 1 : 0),
-      rank: k,
+      // The rank of the variance, as _post_vce_rank takes it: a fit whose
+      // variance is missing everywhere has rank 0, and its residual degrees
+      // of freedom and AIC count no parameters.
+      df_m: rank - (constant ? 1 : 0),
+      rank,
       ll,
       vce: "oim",
       kind: "glm",
@@ -364,7 +449,9 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx) {
 /** A coefficient table, with OIM above the standard errors if asked. */
 function coefficientTable(session, ctx, fitted, options, oim) {
   const { f, model } = fitted,
-    w = tableWidth(session, tableModel(f), [model.depvar]);
+    w = tableWidth(session, tableModel(f, baseLevelsAsked(options)), [
+      model.depvar,
+    ]);
   if (oim) {
     ctx.out(rule(w));
     ctx.out(`${" ".repeat(w + 1)}|${" ".repeat(17)}OIM`);
@@ -444,8 +531,11 @@ function glm(session, text, ctx) {
       : FAMILIES[familyName].link,
     notes = [],
     fitted = fitGlm(session, parsed, familyName, linkName, notes, ctx),
-    { n, k, deviance, pearson, ll } = fitted,
+    { n, deviance, pearson, ll } = fitted,
+    k = fitted.model.rank,
     df = n - k,
+    // With no residual degrees of freedom the ratios are missing.
+    perDf = (value) => (df > 0 ? value / df : MISSING),
     scale = familyName === "gaussian" ? deviance / df : 1,
     aic = (-2 * ll + 2 * k) / n,
     bic = deviance - df * Math.log(n),
@@ -458,8 +548,8 @@ function glm(session, text, ctx) {
     df: df,
     deviance,
     deviance_p: pearson,
-    dispers: deviance / df,
-    dispers_p: pearson / df,
+    dispers: perDf(deviance),
+    dispers_p: perDf(pearson),
     phi: scale,
     ll,
     aic,
@@ -471,6 +561,11 @@ function glm(session, text, ctx) {
     depvar: fitted.model.depvar,
     vce: "oim",
     converged: fitted.converged ? 1 : 0,
+    vf: 1,
+    varfunct: fitted.family.title,
+    varfuncf: fitted.family.variance.replace("V(u) = ", ""),
+    linkt: fitted.link.title,
+    linkf: fitted.link.text.replace("g(u) = ", ""),
   };
   opening(ctx, text, fitted, notes);
   ctx.out(
@@ -481,10 +576,10 @@ function glm(session, text, ctx) {
   );
   ctx.out(`${" ".repeat(50)}${right("Scale parameter", g(scale))}`);
   ctx.out(
-    `${`Deviance         = ${long(deviance)}`.padEnd(50)}${right("(1/df) Deviance", g(deviance / df))}`,
+    `${`Deviance         = ${long(deviance)}`.padEnd(50)}${right("(1/df) Deviance", g(perDf(deviance)))}`,
   );
   ctx.out(
-    `${`Pearson          = ${long(pearson)}`.padEnd(50)}${right("(1/df) Pearson", g(pearson / df))}`,
+    `${`Pearson          = ${long(pearson)}`.padEnd(50)}${right("(1/df) Pearson", g(perDf(pearson)))}`,
   );
   ctx.out("");
   ctx.out(
@@ -500,7 +595,26 @@ function glm(session, text, ctx) {
   );
   ctx.out("");
   coefficientTable(session, ctx, fitted, options, true);
-  unconverged(fitted);
+  // glm.ado's footnotes. A binomial mean must lie in [0, 1], which the
+  // identity and log links do not ensure; CheckAdmiss warns when the
+  // index leaves that range anywhere in the estimation sample.
+  if (familyName === "binomial" && linkName === "identity")
+    ctx.out("Coefficients are the risk differences.");
+  if (
+    familyName === "binomial" &&
+    (linkName === "identity" || linkName === "log") &&
+    fitted.f.x.some((r) => {
+      const index = dot(r, fitted.theta);
+      return linkName === "identity" ? index < 0 || index > 1 : index > 0;
+    })
+  ) {
+    ctx.out(
+      "Warning: Parameter estimates produce inadmissible mean estimates in one or",
+    );
+    ctx.out("         more observations.");
+  }
+  // ml's footnote; glm returns its estimates, and the do-file goes on.
+  if (!fitted.converged) ctx.out("Warning: Convergence not achieved.");
   ctx.out("");
 }
 
@@ -516,7 +630,7 @@ function fitCloglog(session, parsed, ctx) {
   if (!whole.x[0].length)
     throw new StataError("too few variables specified", 102);
   if (outcome.every((v) => v === outcome[0]))
-    throw new StataError("outcome does not vary", 2000);
+    throw new StataError(CONSTANT_OUTCOME, 2000);
   const f = separated(whole, outcome, constant, ctx),
     x = f.x,
     y = f.y.map((v) => Number(v !== 0)),
@@ -538,7 +652,9 @@ function fitCloglog(session, parsed, ctx) {
           logit,
           3,
         ).theta
-      : logit,
+      : // With no regressors cloglog.ado starts at the constant-only
+        // model's own maximum, ln(ln(n/n0)).
+        [Math.log(Math.log(n / (n - ones)))],
     fit = maximizeNR(
       sums(x, (i, z, todo) => {
         const e = Math.exp(z),
@@ -602,12 +718,21 @@ function cloglog(session, text, ctx) {
     { n, y, ll } = fitted,
     zeros = y.filter((v) => !v).length,
     constant = fitted.model.constant,
-    // The constant-only model has a closed form: the share of ones, which
-    // cloglog.ado counts before perfect predictors set observations aside.
+    // The constant-only model has a closed form, z = ln(ln(n/n0)) from
+    // the counts cloglog.ado takes before perfect predictors set
+    // observations aside. Its log likelihood is summed from cloglog.ado's
+    // terms (with its /12 where clog_lf has /4), in quad precision as ml
+    // sums the fitted one, so that a fit with no regressors tests at 0.
     all = (fitted.f.whole ?? fitted.f).y,
-    share = all.filter((v) => v !== 0).length / all.length,
+    z0 = Math.log(Math.log(all.length / all.filter((v) => v === 0).length)),
+    one0 =
+      z0 > 100
+        ? 0
+        : z0 < -12
+          ? z0 - (Math.exp(z0) / 2) * (-Math.expm1(z0) / 12)
+          : Math.log(-Math.expm1(-Math.exp(z0))),
     ll0 = constant
-      ? (n - zeros) * Math.log(share) + zeros * Math.log(1 - share)
+      ? quadTotal(y.map((v) => (v ? one0 : -Math.exp(z0))))
       : MISSING,
     dfModel = fitted.model.df_m,
     // Without a constant there is no constant-only model, and ml tests
@@ -651,7 +776,7 @@ function cloglog(session, text, ctx) {
     `${" ".repeat(48)}${right(`${constant ? "LR" : "Wald"} chi2(${dfModel})`, applyFormat(chi2, "%9.2f").trim())}`,
   );
   ctx.out(
-    `${`Log likelihood = ${g(ll, "%10.0g")}`.padEnd(48)}${right("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
+    `${`Log likelihood = ${g(ll, "%10.0g").padStart(10)}`.padEnd(48)}${right("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
   );
   ctx.out("");
   coefficientTable(session, ctx, fitted, parsed.options, false);
