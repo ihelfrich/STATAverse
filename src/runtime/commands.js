@@ -25,6 +25,7 @@ import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { QUANTILE_COMMANDS } from "./quantile.js";
 import { RESAMPLING_COMMANDS } from "./resampling.js";
 import { MORE_DATA_COMMANDS } from "./more-data.js";
+import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS } from "./timeseries.js";
@@ -1368,6 +1369,10 @@ function returns(kind) {
           ctx.out(`${label("_N")} :  1 x ${k}`);
           ctx.out(`${label("error")} :  1 x ${k}`);
         }
+        // Row vectors a model keeps beside e(b), as ratio's e(_N).
+        else
+          for (const name of session.estimates.eMatrices ?? [])
+            ctx.out(`${label(name)} :  1 x ${k}`);
         ctx.out("");
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);
@@ -2350,6 +2355,7 @@ export const COMMANDS = [
   ...QUANTILE_COMMANDS,
   ...RESAMPLING_COMMANDS,
   ...MORE_DATA_COMMANDS,
+  ...STATS_MORE_COMMANDS,
   ...TABLE_COMMANDS,
   ...GLM_COMMANDS,
   ...TIMESERIES_COMMANDS,

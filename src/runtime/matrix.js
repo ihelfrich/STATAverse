@@ -109,8 +109,17 @@ function columnParts(name) {
     equation = colon >= 0 ? `${abbreviated(name.slice(0, colon))}:` : "",
     rest = colon >= 0 ? name.slice(colon + 1) : name,
     hash = rest.lastIndexOf("#"),
+    // A statistic over groups, c.y@1.g, is broken after its @.
+    at = rest.lastIndexOf("@"),
     operator = /^[0-9]*[A-Za-z]*\./.exec(rest),
-    cut = hash >= 0 ? hash + 1 : operator ? operator[0].length : 0;
+    cut =
+      hash >= 0
+        ? hash + 1
+        : at >= 0
+          ? at + 1
+          : operator
+            ? operator[0].length
+            : 0;
   return {
     equation,
     operator: rest.slice(0, cut),
@@ -163,8 +172,8 @@ function list(session, text, ctx) {
   if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
   const { values, rowNames, colNames } = matrix,
     symmetric =
+      // Stata calls every 1 x 1 matrix symmetric.
       values.length === colNames.length &&
-      values.length > 1 &&
       values.every((row, i) => row.every((v, j) => v === values[j][i])),
     cells = values.map((row) =>
       row.map((v) => applyFormat(v, cellFormat).trim()),

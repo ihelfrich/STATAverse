@@ -121739,6 +121739,3214 @@
       ]
     },
     {
+      "id": "normality-swilk-sfrancia",
+      "source": "clear\nset seed 12345\nset obs 200\ngenerate x = invnormal(runiform())\ngenerate y = exp(invnormal(runiform()))\ngenerate g = 1 + floor(runiform()*3)\ngenerate u = runiform()\ngenerate double d = round(invnormal(runiform()), .5)\ngenerate a_rather_long_variable_name = invnormal(runiform())^2\ngenerate str3 s = \"abc\"\nreplace x = . in 5\nswilk x y u\nswilk d\nswilk d, noties\nswilk x y, lnnormal\nswilk a_rather_long_variable_name s\nswilk x if g == 2, generate(coef)\nsummarize coef\nswilk x in 1/3\nswilk x in 1/4\nswilk x in 6/11\nswilk x in 6/12\nswilk x in 1/2\nswilk u in 1/5, lnnormal\nsfrancia x y u\nsfrancia d\nsfrancia d, noties\nsfrancia x y, boxcox\nsfrancia x in 1/9\nsfrancia x in 1/12\nsfrancia x in 1/8, boxcox\nsfrancia s\nbysort g: swilk u\nby g: sfrancia u\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate y = exp(invnormal(runiform()))", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        {
+          "command": "generate double d = round(invnormal(runiform()), .5)",
+          "lines": []
+        },
+        {
+          "command": "generate a_rather_long_variable_name = invnormal(runiform())^2",
+          "lines": []
+        },
+        { "command": "generate str3 s = \"abc\"", "lines": [] },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "swilk x y u",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |        199    0.99345      0.974    -0.062    0.52457",
+            "           y |        200    0.64919     52.337     9.106    0.00000",
+            "           u |        200    0.94066      8.852     5.017    0.00000"
+          ]
+        },
+        {
+          "command": "swilk d",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           d |        200    0.99572      0.638    -1.034    0.84943"
+          ]
+        },
+        {
+          "command": "swilk d, noties",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           d |        200    0.97180      4.207     3.306    0.00047"
+          ]
+        },
+        {
+          "command": "swilk x y, lnnormal",
+          "lines": [
+            "         Shapiro–Wilk W test for 3-parameter lognormal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |        199    0.99345      0.974     0.363    0.35819",
+            "           y |        200    0.64919     52.337     7.155    0.00000"
+          ]
+        },
+        {
+          "command": "swilk a_rather_long_variable_name s",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "a_rather_l~e |        200    0.75179     37.029     8.310    0.00000",
+            "           s |          0          .          .         .          ."
+          ]
+        },
+        {
+          "command": "swilk x if g == 2, generate(coef)",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |         55    0.98830      0.593    -1.119    0.86844"
+          ]
+        },
+        {
+          "command": "summarize coef",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "        coef |         55           0    .1360828  -.3390596   .3390596"
+          ]
+        },
+        {
+          "command": "swilk x in 1/3",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |          3    0.84642      2.293     0.736    0.23089",
+            "",
+            "Note: The normal approximation to the sampling distribution of W'",
+            "      is valid for 4<=n<=2000."
+          ]
+        },
+        {
+          "command": "swilk x in 1/4",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |          4    0.93253      0.778    -0.278    0.60934"
+          ]
+        },
+        {
+          "command": "swilk x in 6/11",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |          6    0.96135      0.479    -0.954    0.83007"
+          ]
+        },
+        {
+          "command": "swilk x in 6/12",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |          7    0.94938      0.665    -0.595    0.72407"
+          ]
+        },
+        {
+          "command": "swilk x in 1/2",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |          2          .          .         .          .",
+            "",
+            "Note: The normal approximation to the sampling distribution of W'",
+            "      is valid for 4<=n<=2000."
+          ]
+        },
+        {
+          "command": "swilk u in 1/5, lnnormal",
+          "lines": [
+            "         Shapiro–Wilk W test for 3-parameter lognormal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           u |          5    0.91458      1.008     1.160    0.12299"
+          ]
+        },
+        {
+          "command": "sfrancia x y u",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |       199    0.99458      0.878    -0.269    0.60604",
+            "           y |       200    0.64303     58.120     8.400    0.00001",
+            "           u |       200    0.94585      8.816     4.500    0.00001"
+          ]
+        },
+        {
+          "command": "sfrancia d",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           d |       200    0.99630      0.602    -1.050    0.85323"
+          ]
+        },
+        {
+          "command": "sfrancia d, noties",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           d |       200    0.97158      4.627     3.168    0.00077"
+          ]
+        },
+        {
+          "command": "sfrancia x y, boxcox",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |       199    0.99458      0.868    -0.304    0.61936",
+            "           y |       200    0.64303     57.452     7.959    0.00001"
+          ]
+        },
+        {
+          "command": "sfrancia x in 1/9",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |         8          .          .         .          .",
+            "",
+            "Note: The normal approximation to the sampling distribution of W'",
+            "      is valid for 10<=n<=5000 under the log transformation."
+          ]
+        },
+        {
+          "command": "sfrancia x in 1/12",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |        11    0.91799      1.454     0.652    0.25705"
+          ]
+        },
+        {
+          "command": "sfrancia x in 1/8, boxcox",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |         7    0.89648      1.443     0.571    0.28389"
+          ]
+        },
+        {
+          "command": "sfrancia s",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "type mismatch",
+            "r(109);"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "normality-sktest",
+      "source": "clear\nset seed 4321\nset obs 150\ngenerate x = invnormal(runiform())\ngenerate y = exp(invnormal(runiform()))\ngenerate w = 1 + floor(runiform()*4)\ngenerate u = runiform()\ngenerate a_very_long_variable_name_here = invnormal(runiform())^3\ngenerate c = 3\nreplace x = . in 7\nsktest x y u\nsktest x y, noadjust\nsktest x [fw=w]\nsktest x [aw=w]\nsktest x u in 1/7\nsktest x in 1/8\nsktest u if w > 2\nsktest a_very_long_variable_name_here x\nsktest a_very_long_variable_name_here x, noadjust\nsktest c\nset linesize 79\nsktest a_very_long_variable_name_here x\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4321", "lines": [] },
+        {
+          "command": "set obs 150",
+          "lines": ["Number of observations (_N) was 0, now 150."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate y = exp(invnormal(runiform()))", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        {
+          "command": "generate a_very_long_variable_name_here = invnormal(runiform())^3",
+          "lines": []
+        },
+        { "command": "generate c = 3", "lines": [] },
+        {
+          "command": "replace x = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "sktest x y u",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           x |       149         0.8116         0.3455          0.96     0.6188",
+            "           y |       150         0.0000         0.0000         57.30     0.0000",
+            "           u |       150         0.4227         0.0000         19.83     0.0000"
+          ]
+        },
+        {
+          "command": "sktest x y, noadjust",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         --- Joint test ---",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   chi2(2)  Prob>chi2",
+            "-------------+-------------------------------------------------------------",
+            "           x |       149         0.8116         0.3455      0.95     0.6229",
+            "           y |       150         0.0000         0.0000     78.70     0.0000"
+          ]
+        },
+        {
+          "command": "sktest x [fw=w]",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           x |       391         0.3351         0.4781          1.44     0.4869"
+          ]
+        },
+        {
+          "command": "sktest x [aw=w]",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           x |       149         0.5413         0.5400          0.76     0.6844"
+          ]
+        },
+        {
+          "command": "sktest x u in 1/7",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           x |         6             .              .              .          .",
+            "           u |         7             .              .              .          ."
+          ]
+        },
+        {
+          "command": "sktest x in 1/8",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           x |         7             .              .              .          ."
+          ]
+        },
+        {
+          "command": "sktest u if w > 2",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           u |        86         0.1959         0.0018          9.80     0.0074"
+          ]
+        },
+        {
+          "command": "sktest a_very_long_variable_name_here x",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                                           ----- Joint test -----",
+            "                      Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------------------------+-----------------------------------------------------------------",
+            "a_very_long_variable_name_here |       150         0.0000         0.0000         71.38     0.0000",
+            "                             x |       149         0.8116         0.3455          0.96     0.6188"
+          ]
+        },
+        {
+          "command": "sktest a_very_long_variable_name_here x, noadjust",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                                           --- Joint test ---",
+            "                      Variable |       Obs   Pr(skewness)   Pr(kurtosis)   chi2(2)  Prob>chi2",
+            "-------------------------------+-------------------------------------------------------------",
+            "a_very_long_variable_name_here |       150         0.0000         0.0000     99.25     0.0000",
+            "                             x |       149         0.8116         0.3455      0.95     0.6229"
+          ]
+        },
+        {
+          "command": "sktest c",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           c |       150             .              .              .          ."
+          ]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "sktest a_very_long_variable_name_here x",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "a_very_lon~e |       150         0.0000         0.0000         71.38     0.0000",
+            "           x |       149         0.8116         0.3455          0.96     0.6188"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "normality-results",
+      "source": "clear\nset seed 12345\nset obs 200\ngenerate x = invnormal(runiform())\ngenerate u = runiform()\nswilk x u\nreturn list\nsfrancia x u\nreturn list\nsfrancia x, boxcox\nreturn list\nsktest x u\nreturn list\nmatrix list r(table)\nsktest x, noadjust\nreturn list\nsktest u in 1/7\nreturn list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        {
+          "command": "swilk x u",
+          "lines": [
+            "                   Shapiro–Wilk W test for normal data",
+            "",
+            "    Variable |        Obs       W           V         z       Prob>z",
+            "-------------+------------------------------------------------------",
+            "           x |        200    0.99336      0.991    -0.021    0.50830",
+            "           u |        200    0.94974      7.498     4.635    0.00000"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(p) =  1.78255062933e-06",
+            "                  r(z) =  4.635247810774081",
+            "                  r(V) =  7.497570477099944",
+            "                  r(W) =  .9497433699893639",
+            "                  r(N) =  200"
+          ]
+        },
+        {
+          "command": "sfrancia x u",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |       200    0.99447      0.901    -0.215    0.58527",
+            "           u |       200    0.95478      7.362     4.128    0.00002"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(z) =  4.127870160848969",
+            "                  r(V) =  7.362353740892227",
+            "                  r(W) =  .9547801777858826",
+            "                  r(N) =  200",
+            "                  r(p) =  .0000183069371574"
+          ]
+        },
+        {
+          "command": "sfrancia x, boxcox",
+          "lines": [
+            "                  Shapiro–Francia W' test for normal data",
+            "",
+            "    Variable |       Obs       W'          V'        z       Prob>z",
+            "-------------+-----------------------------------------------------",
+            "           x |       200    0.99447      0.891    -0.248    0.59796"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(z) =  -.2480821433344789",
+            "                  r(V) =  .8907223652395148",
+            "                  r(W) =  .9944655795081432",
+            "                  r(N) =  200",
+            "                  r(p) =  .5979645743050364"
+          ]
+        },
+        {
+          "command": "sktest x u",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           x |       200         0.6187         0.7548          0.35     0.8415",
+            "           u |       200         0.3187         0.0000         61.81     0.0000"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  200",
+            "             r(p_skew) =  .3186590410180767",
+            "             r(p_kurt) =  9.45822168273e-20",
+            "               r(chi2) =  61.80826807030321",
+            "             r(p_chi2) =  3.78883000930e-14",
+            "",
+            "matrices:",
+            "              r(table) :  2 x 5"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[2,5]",
+            "           N     p_skew     p_kurt       chi2     p_chi2",
+            "x        200  .61871332  .75480318  .34521912  .84146609",
+            "u        200  .31865904  9.458e-20  61.808268  3.789e-14"
+          ]
+        },
+        {
+          "command": "sktest x, noadjust",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         --- Joint test ---",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   chi2(2)  Prob>chi2",
+            "-------------+-------------------------------------------------------------",
+            "           x |       200         0.6187         0.7548      0.35     0.8415"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  200",
+            "             r(p_skew) =  .6187133171108186",
+            "             r(p_kurt) =  .7548031848330973",
+            "               r(chi2) =  .3452191234088408",
+            "             r(p_chi2) =  .8414660913020323",
+            "",
+            "matrices:",
+            "              r(table) :  1 x 5"
+          ]
+        },
+        {
+          "command": "sktest u in 1/7",
+          "lines": [
+            "Skewness and kurtosis tests for normality",
+            "                                                         ----- Joint test -----",
+            "    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2",
+            "-------------+-----------------------------------------------------------------",
+            "           u |         7             .              .              .          ."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  7",
+            "             r(p_skew) =  .",
+            "             r(p_kurt) =  .",
+            "               r(chi2) =  .",
+            "             r(p_chi2) =  .",
+            "",
+            "matrices:",
+            "              r(table) :  1 x 5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kendall-tau",
+      "source": "clear\nset seed 2468\nset obs 60\ngenerate g = 1 + floor(runiform()*3)\ngenerate h = floor(runiform()*2)\ngenerate y = 10 + 5*runiform()\ngenerate x = 2 + runiform()\ngenerate z = 1 + runiform()\ngenerate str2 s = \"ab\"\nreplace x = . in 7\nktau y x\nreturn list\nktau g h\nreturn list\nktau y x z\nreturn list\nktau y x z, stats(taua taub score se obs p)\nktau y x z, stats(taub p) bonferroni star(.5)\nktau y x z, stats(taub) sidak print(.3)\nktau y x z, pw\nktau y x z g h, pw stats(obs)\nktau y x, matrix stats(taua taub)\nktau y s x\nktau y x if h == 1\nbysort h: ktau y z\ncapture noisily ktau y\ncapture noisily ktau y x in 1/2\ncapture noisily ktau y x z, stats(foo)\ncapture noisily ktau y x z, star(2)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate h = floor(runiform()*2)", "lines": [] },
+        { "command": "generate y = 10 + 5*runiform()", "lines": [] },
+        { "command": "generate x = 2 + runiform()", "lines": [] },
+        { "command": "generate z = 1 + runiform()", "lines": [] },
+        { "command": "generate str2 s = \"ab\"", "lines": [] },
+        {
+          "command": "replace x = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "ktau y x",
+          "lines": [
+            "  Number of obs =      59",
+            "Kendall's tau-a =      -0.1046",
+            "Kendall's tau-b =      -0.1046",
+            "Kendall's score =    -179",
+            "    SE of score =     152.917",
+            "",
+            "Test of H0: y and x are independent",
+            "     Prob > |z| =       0.2444  (continuity corrected)"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  59",
+            "              r(tau_a) =  -.1046171829339567",
+            "              r(tau_b) =  -.1046171829339567",
+            "              r(score) =  -179",
+            "           r(se_score) =  152.9171889182726",
+            "                  r(p) =  .2444123722084137"
+          ]
+        },
+        {
+          "command": "ktau g h",
+          "lines": [
+            "  Number of obs =      60",
+            "Kendall's tau-a =      -0.0565",
+            "Kendall's tau-b =      -0.0995",
+            "Kendall's score =    -100",
+            "    SE of score =     124.361   (corrected for ties)",
+            "",
+            "Test of H0: g and h are independent",
+            "     Prob > |z| =       0.4260  (continuity corrected)"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  60",
+            "              r(tau_a) =  -.0564971751412429",
+            "              r(tau_b) =  -.0995282099155852",
+            "              r(score) =  -100",
+            "           r(se_score) =  124.3609495087259",
+            "                  r(p) =  .4259914485525242"
+          ]
+        },
+        {
+          "command": "ktau y x z",
+          "lines": [
+            "Number of observations = 59",
+            "",
+            "             |          y          x          z",
+            "-------------+---------------------------------",
+            "           y |     1.0000",
+            "           x |    -0.1046     1.0000",
+            "           z |    -0.0766    -0.0614     1.0000"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  59",
+            "              r(tau_a) =  -.0613676212741087",
+            "              r(tau_b) =  -.0613676212741087",
+            "              r(score) =  -105",
+            "           r(se_score) =  152.9171889182726",
+            "                  r(p) =  .4964369220095386",
+            "",
+            "matrices:",
+            "               r(Nobs) :  3 x 3",
+            "              r(Tau_a) :  3 x 3",
+            "              r(Tau_b) :  3 x 3",
+            "              r(Score) :  3 x 3",
+            "           r(Se_Score) :  3 x 3",
+            "                  r(P) :  3 x 3"
+          ]
+        },
+        {
+          "command": "ktau y x z, stats(taua taub score se obs p)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   tau_a         |",
+            "|   tau_b         |",
+            "|   score         |",
+            "|   se of score   |",
+            "|   Number of obs |",
+            "|   p-value       |",
+            "+-----------------+",
+            "",
+            "             |          y          x          z",
+            "-------------+---------------------------------",
+            "           y |     1.0000",
+            "             |     1.0000",
+            "             |  1711.0000",
+            "             |   152.9172",
+            "             |         59",
+            "             |          .",
+            "             |",
+            "           x |    -0.1046     1.0000",
+            "             |    -0.1046     1.0000",
+            "             |  -179.0000  1711.0000",
+            "             |   152.9172   152.9172",
+            "             |         59         59",
+            "             |     0.2444          .",
+            "             |",
+            "           z |    -0.0766    -0.0614     1.0000",
+            "             |    -0.0766    -0.0614     1.0000",
+            "             |  -131.0000  -105.0000  1711.0000",
+            "             |   152.9172   152.9172   152.9172",
+            "             |         59         59         59",
+            "             |     0.3953     0.4964          .",
+            "             |"
+          ]
+        },
+        {
+          "command": "ktau y x z, stats(taub p) bonferroni star(.5)",
+          "lines": [
+            "Number of observations = 59",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   tau_b         |",
+            "|   p-value       |",
+            "+-----------------+",
+            "",
+            "             |          y          x          z",
+            "-------------+---------------------------------",
+            "           y |     1.0000",
+            "             |          .",
+            "             |",
+            "           x |    -0.1046     1.0000",
+            "             |     0.7332          .",
+            "             |",
+            "           z |    -0.0766    -0.0614     1.0000",
+            "             |     1.0000     1.0000          .",
+            "             |"
+          ]
+        },
+        {
+          "command": "ktau y x z, stats(taub) sidak print(.3)",
+          "lines": [
+            "Number of observations = 59",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   tau_b         |",
+            "+-----------------+",
+            "",
+            "             |          y          x          z",
+            "-------------+---------------------------------",
+            "           y |     1.0000",
+            "           x |                1.0000",
+            "           z |                           1.0000"
+          ]
+        },
+        {
+          "command": "ktau y x z, pw",
+          "lines": [
+            "note: number of observations varies.",
+            "",
+            "             |          y          x          z",
+            "-------------+---------------------------------",
+            "           y |     1.0000",
+            "           x |    -0.1046     1.0000",
+            "           z |    -0.1006    -0.0614     1.0000"
+          ]
+        },
+        {
+          "command": "ktau y x z g h, pw stats(obs)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   Number of obs |",
+            "+-----------------+",
+            "",
+            "             |          y          x          z          g          h",
+            "-------------+-------------------------------------------------------",
+            "           y |         60",
+            "           x |         59         59",
+            "           z |         60         59         60",
+            "           g |         60         59         60         60",
+            "           h |         60         59         60         60         60"
+          ]
+        },
+        {
+          "command": "ktau y x, matrix stats(taua taub)",
+          "lines": [
+            "Number of observations = 59",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   tau_a         |",
+            "|   tau_b         |",
+            "+-----------------+",
+            "",
+            "             |          y          x",
+            "-------------+----------------------",
+            "           y |     1.0000",
+            "             |     1.0000",
+            "             |",
+            "           x |    -0.1046     1.0000",
+            "             |    -0.1046     1.0000",
+            "             |"
+          ]
+        },
+        {
+          "command": "ktau y s x",
+          "lines": [
+            "note: s ignored because string variable.",
+            "",
+            "  Number of obs =      59",
+            "Kendall's tau-a =      -0.1046",
+            "Kendall's tau-b =      -0.1046",
+            "Kendall's score =    -179",
+            "    SE of score =     152.917",
+            "",
+            "Test of H0: y and x are independent",
+            "     Prob > |z| =       0.2444  (continuity corrected)"
+          ]
+        },
+        {
+          "command": "ktau y x if h == 1",
+          "lines": [
+            "  Number of obs =      32",
+            "Kendall's tau-a =       0.0040",
+            "Kendall's tau-b =       0.0040",
+            "Kendall's score =       2",
+            "    SE of score =      61.666",
+            "",
+            "Test of H0: y and x are independent",
+            "     Prob > |z| =       0.9871  (continuity corrected)"
+          ]
+        },
+        {
+          "command": "bysort h: ktau y z",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> h = 0",
+            "",
+            "  Number of obs =      27",
+            "Kendall's tau-a =      -0.2650",
+            "Kendall's tau-b =      -0.2650",
+            "Kendall's score =     -93",
+            "    SE of score =      47.969",
+            "",
+            "Test of H0: y and z are independent",
+            "     Prob > |z| =       0.0551  (continuity corrected)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> h = 1",
+            "",
+            "  Number of obs =      33",
+            "Kendall's tau-a =       0.0152",
+            "Kendall's tau-b =       0.0152",
+            "Kendall's score =       8",
+            "    SE of score =      64.539",
+            "",
+            "Test of H0: y and z are independent",
+            "     Prob > |z| =       0.9136  (continuity corrected)"
+          ]
+        },
+        {
+          "command": "capture noisily ktau y",
+          "lines": ["too few variables specified"]
+        },
+        {
+          "command": "capture noisily ktau y x in 1/2",
+          "lines": ["insufficient observations"]
+        },
+        {
+          "command": "capture noisily ktau y x z, stats(foo)",
+          "lines": [
+            "stats() must contain one or more of taua, taub, score, se, obs, and p"
+          ]
+        },
+        {
+          "command": "capture noisily ktau y x z, star(2)",
+          "lines": ["star() must be between 0 and 1"]
+        }
+      ]
+    },
+    {
+      "id": "kendall-tau-wide",
+      "source": "clear\nset seed 97\nset obs 30\ngenerate v1 = floor(runiform()*6)\ngenerate v2 = floor(runiform()*6)\ngenerate v3 = floor(runiform()*6)\ngenerate v4 = floor(runiform()*6)\ngenerate v5 = floor(runiform()*6)\ngenerate v6 = floor(runiform()*6)\ngenerate v7 = floor(runiform()*6)\nktau v1-v7\nset linesize 79\nktau v1-v7\nktau v1-v7, stats(taub p)\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 97", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate v1 = floor(runiform()*6)", "lines": [] },
+        { "command": "generate v2 = floor(runiform()*6)", "lines": [] },
+        { "command": "generate v3 = floor(runiform()*6)", "lines": [] },
+        { "command": "generate v4 = floor(runiform()*6)", "lines": [] },
+        { "command": "generate v5 = floor(runiform()*6)", "lines": [] },
+        { "command": "generate v6 = floor(runiform()*6)", "lines": [] },
+        { "command": "generate v7 = floor(runiform()*6)", "lines": [] },
+        {
+          "command": "ktau v1-v7",
+          "lines": [
+            "Number of observations = 30",
+            "",
+            "             |         v1         v2         v3         v4         v5         v6         v7",
+            "-------------+-----------------------------------------------------------------------------",
+            "          v1 |     0.8115",
+            "          v2 |    -0.1839     0.8299",
+            "          v3 |    -0.0667    -0.0667     0.8391",
+            "          v4 |     0.0713    -0.0115    -0.0207     0.8529",
+            "          v5 |    -0.1540     0.0207    -0.0851    -0.3494     0.8322",
+            "          v6 |     0.1172    -0.0368     0.0483    -0.0552     0.0299     0.8506",
+            "          v7 |    -0.0713     0.2368     0.0759    -0.0414    -0.0621    -0.1172     0.8529"
+          ]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "ktau v1-v7",
+          "lines": [
+            "Number of observations = 30",
+            "",
+            "             |         v1         v2         v3         v4         v5",
+            "-------------+-------------------------------------------------------",
+            "          v1 |     0.8115",
+            "          v2 |    -0.1839     0.8299",
+            "          v3 |    -0.0667    -0.0667     0.8391",
+            "          v4 |     0.0713    -0.0115    -0.0207     0.8529",
+            "          v5 |    -0.1540     0.0207    -0.0851    -0.3494     0.8322",
+            "          v6 |     0.1172    -0.0368     0.0483    -0.0552     0.0299",
+            "          v7 |    -0.0713     0.2368     0.0759    -0.0414    -0.0621",
+            "",
+            "             |         v6         v7",
+            "-------------+----------------------",
+            "          v6 |     0.8506",
+            "          v7 |    -0.1172     0.8529"
+          ]
+        },
+        {
+          "command": "ktau v1-v7, stats(taub p)",
+          "lines": [
+            "Number of observations = 30",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   tau_b         |",
+            "|   p-value       |",
+            "+-----------------+",
+            "",
+            "             |         v1         v2         v3         v4         v5",
+            "-------------+-------------------------------------------------------",
+            "          v1 |     1.0000",
+            "             |          .",
+            "             |",
+            "          v2 |    -0.2241     1.0000",
+            "             |     0.1355          .",
+            "             |",
+            "          v3 |    -0.0808    -0.0799     1.0000",
+            "             |     0.5978     0.6007          .",
+            "             |",
+            "          v4 |     0.0857    -0.0137    -0.0245     1.0000",
+            "             |     0.5733     0.9406     0.8819          .",
+            "             |",
+            "          v5 |    -0.1874     0.0249    -0.1018    -0.4148     1.0000",
+            "             |     0.2125     0.8808     0.5012     0.0049          .",
+            "             |",
+            "          v6 |     0.1411    -0.0438     0.0571    -0.0648     0.0355",
+            "             |     0.3477     0.7799     0.7102     0.6703     0.8231",
+            "             |",
+            "          v7 |    -0.0857     0.2814     0.0897    -0.0485    -0.0737",
+            "             |     0.5733     0.0575     0.5524     0.7531     0.6284",
+            "             |",
+            "",
+            "             |         v6         v7",
+            "-------------+----------------------",
+            "          v6 |     1.0000",
+            "             |          .",
+            "             |",
+            "          v7 |    -0.1377     1.0000",
+            "             |     0.3547          .",
+            "             |"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "contract-basics",
+      "source": "clear\nset seed 2468\nset obs 60\ngenerate g = 1 + floor(runiform()*3)\ngenerate h = floor(runiform()*2)\ngenerate w = 1 + floor(runiform()*4)\ngenerate s = cond(runiform() < .5, \"a\", \"b\")\nreplace g = . in 3\nreplace s = \"\" in 9\nlabel define gl 1 \"one\" 2 \"two\" 3 \"three\"\nlabel values g gl\nlabel variable g \"Group\"\npreserve\ncontract g h\ndescribe\nlist\nrestore\npreserve\ncontract h g, freq(n) percent(pct) cfreq(cf) cpercent(cp)\ndescribe\nlist\nrestore\npreserve\ncontract g h, zero nomiss\nlist\nrestore\npreserve\ncontract g h, zero\nlist\nrestore\npreserve\ncontract g s [fw=w], percent(p) float format(%9.3f)\ndescribe\nlist\nrestore\npreserve\ncontract s, nomiss cpercent(cp)\ndescribe\nlist\nrestore\npreserve\ncontract g if h == 1\nlist\nrestore\npreserve\ncontract h in 1/10, percent(p)\nlist\nrestore\ncapture noisily contract g, float\ncapture noisily contract g, format(%9.2f)\ngenerate _freq = 1\ncapture noisily contract g\ncapture noisily contract g, freq(h)\ncapture noisily contract g if h > 5\ndrop _freq\ncontract h\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate h = floor(runiform()*2)", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        {
+          "command": "generate s = cond(runiform() < .5, \"a\", \"b\")",
+          "lines": []
+        },
+        {
+          "command": "replace g = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace s = \"\" in 9",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "label define gl 1 \"one\" 2 \"two\" 3 \"three\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "label variable g \"Group\"", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "contract g h", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "g               float   %9.0g      gl         Group",
+            "h               float   %9.0g",
+            "_freq           byte    %12.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: g  h",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     |     g   h   _freq |",
+            "     |-------------------|",
+            "  1. |   one   0       9 |",
+            "  2. |   one   1      13 |",
+            "  3. |   two   0       3 |",
+            "  4. |   two   1       7 |",
+            "  5. | three   0      14 |",
+            "     |-------------------|",
+            "  6. | three   1      13 |",
+            "  7. |     .   0       1 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "contract h g, freq(n) percent(pct) cfreq(cf) cpercent(cp)",
+          "lines": []
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             7",
+            "    Variables:             6",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "g               float   %9.0g      gl         Group",
+            "h               float   %9.0g",
+            "n               byte    %12.0g",
+            "cf              byte    %10.0g                Cumulative frequency",
+            "pct             double  %8.2f                 Percent",
+            "cp              double  %8.2f                 Cumulative percent",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: h  g",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------------------+",
+            "     |     g   h    n   cf     pct       cp |",
+            "     |--------------------------------------|",
+            "  1. |   one   0    9    9   15.00    15.00 |",
+            "  2. |   two   0    3   12    5.00    20.00 |",
+            "  3. | three   0   14   26   23.33    43.33 |",
+            "  4. |     .   0    1   27    1.67    45.00 |",
+            "  5. |   one   1   13   40   21.67    66.67 |",
+            "     |--------------------------------------|",
+            "  6. |   two   1    7   47   11.67    78.33 |",
+            "  7. | three   1   13   60   21.67   100.00 |",
+            "     +--------------------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "contract g h, zero nomiss", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     |     g   h   _freq |",
+            "     |-------------------|",
+            "  1. |   one   0       9 |",
+            "  2. |   one   1      13 |",
+            "  3. |   two   0       3 |",
+            "  4. |   two   1       7 |",
+            "  5. | three   0      14 |",
+            "     |-------------------|",
+            "  6. | three   1      13 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "contract g h, zero", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     |     g   h   _freq |",
+            "     |-------------------|",
+            "  1. |   one   0       9 |",
+            "  2. |   one   1      13 |",
+            "  3. |   two   0       3 |",
+            "  4. |   two   1       7 |",
+            "  5. | three   0      14 |",
+            "     |-------------------|",
+            "  6. | three   1      13 |",
+            "  7. |     .   0       1 |",
+            "  8. |     .   1       0 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "contract g s [fw=w], percent(p) float format(%9.3f)",
+          "lines": []
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             8",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "g               float   %9.0g      gl         Group",
+            "s               str1    %9s",
+            "_freq           byte    %12.0g",
+            "p               float   %9.3f                 Percent",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: g  s",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------+",
+            "     |     g   s   _freq        p |",
+            "     |----------------------------|",
+            "  1. |   one   a      34   23.611 |",
+            "  2. |   one   b      24   16.667 |",
+            "  3. |   two           2    1.389 |",
+            "  4. |   two   a      11    7.639 |",
+            "  5. |   two   b      11    7.639 |",
+            "     |----------------------------|",
+            "  6. | three   a      23   15.972 |",
+            "  7. | three   b      38   26.389 |",
+            "  8. |     .   a       1    0.694 |",
+            "     +----------------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "contract s, nomiss cpercent(cp)", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               str1    %9s",
+            "_freq           byte    %12.0g",
+            "cp              double  %8.2f                 Cumulative percent",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: s",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     | s   _freq       cp |",
+            "     |--------------------|",
+            "  1. | a      27    45.76 |",
+            "  2. | b      32   100.00 |",
+            "     +--------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "contract g if h == 1", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------+",
+            "     |     g   _freq |",
+            "     |---------------|",
+            "  1. |   one      13 |",
+            "  2. |   two       7 |",
+            "  3. | three      13 |",
+            "     +---------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "contract h in 1/10, percent(p)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | h   _freq       p |",
+            "     |-------------------|",
+            "  1. | 0       4   40.00 |",
+            "  2. | 1       6   60.00 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "capture noisily contract g, float",
+          "lines": ["percent or cpercent must be specified"]
+        },
+        {
+          "command": "capture noisily contract g, format(%9.2f)",
+          "lines": ["percent or cpercent must be specified"]
+        },
+        { "command": "generate _freq = 1", "lines": [] },
+        {
+          "command": "capture noisily contract g",
+          "lines": [
+            "_freq already defined: use freq() option to specify frequency variable"
+          ]
+        },
+        {
+          "command": "capture noisily contract g, freq(h)",
+          "lines": ["variable h already defined"]
+        },
+        {
+          "command": "capture noisily contract g if h > 5",
+          "lines": [
+            "_freq already defined: use freq() option to specify frequency variable"
+          ]
+        },
+        { "command": "drop _freq", "lines": [] },
+        { "command": "contract h", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | h   _freq |",
+            "     |-----------|",
+            "  1. | 0      27 |",
+            "  2. | 1      33 |",
+            "     +-----------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ratio-estimation",
+      "source": "clear\nset seed 2468\nset obs 60\ngenerate g = 1 + floor(runiform()*3)\ngenerate h = floor(runiform()*2)\ngenerate w = 1 + floor(runiform()*4)\nreplace g = . in 3\nlabel define gl 1 \"one\" 2 \"two\" 3 \"three\"\nlabel values g gl\ngenerate y = 10 + 5*runiform()\ngenerate x = 2 + runiform()\ngenerate z = 1 + runiform()\nreplace x = . in 7\nratio y/x\nereturn list\nmatrix list e(b)\nmatrix list e(V)\nratio (r1: y/x) (r2: z/x), over(h)\nmatrix list e(V)\nmatrix list e(_N)\nratio y/x, over(g h)\nratio y/x [pw=w], over(h)\nratio y/x [fw=w]\nratio y/x [fw=w], over(h)\nratio y/x [iw=w]\nratio y/x, over(h) vce(cluster g)\nratio y/x, vce(cluster g)\nereturn list\nratio y/x [pw=w], vce(cluster g)\nratio y x\nratio myr: y/x, level(90)\nratio\nratio, level(80)\nratio (y/x), noheader\nratio (y/x) if h == 1, nolegend\nratio y/x, coeflegend\nratio y/x in 1/20, cformat(%9.3f)\nereturn list\nlincom _b[_ratio_1] - 4\ntest _b[_ratio_1] = 4\ncapture noisily ratio y/x [aw=w]\ncapture noisily ratio y/x z/x\ncapture noisily ratio y\ncapture noisily ratio (y/x) (z)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate h = floor(runiform()*2)", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        {
+          "command": "replace g = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "label define gl 1 \"one\" 2 \"two\" 3 \"three\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "generate y = 10 + 5*runiform()", "lines": [] },
+        { "command": "generate x = 2 + runiform()", "lines": [] },
+        { "command": "generate z = 1 + runiform()", "lines": [] },
+        {
+          "command": "replace x = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "ratio y/x",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.062381   .1189389      4.824299    5.300463",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  58",
+            "             e(N_over) =  1",
+            "                  e(N) =  59",
+            "               e(k_eq) =  1",
+            "               e(rank) =  1",
+            "",
+            "macros:",
+            "            e(cmdline) : \"ratio y/x\"",
+            "                e(cmd) : \"ratio\"",
+            "                e(vce) : \"linearized\"",
+            "            e(vcetype) : \"Linearized\"",
+            "              e(title) : \"Ratio estimation\"",
+            "           e(namelist) : \"_ratio_1\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"y x\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 1",
+            "                  e(V) :  1 x 1",
+            "                 e(_N) :  1 x 1",
+            "              e(error) :  1 x 1",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": ["symmetric e(b)[1,1]", "    _ratio_1", "y1  5.062381"]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[1,1]",
+            "           _ratio_1",
+            "_ratio_1  .01414647"
+          ]
+        },
+        {
+          "command": "ratio (r1: y/x) (r2: z/x), over(h)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "           r1: y/x",
+            "           r2: z/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      c.r1@h |",
+            "          0  |   5.009023   .1685096      4.671714    5.346332",
+            "          1  |   5.109049   .1695227      4.769712    5.448385",
+            "             |",
+            "      c.r2@h |",
+            "          0  |   .5834637   .0286433      .5261279    .6407995",
+            "          1  |   .6357256   .0233302      .5890252     .682426",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[4,4]",
+            "               c.r1@      c.r1@      c.r2@      c.r2@",
+            "                0.h        1.h        0.h        1.h",
+            "c.r1@0.h  .02839549",
+            "c.r1@1.h          0  .02873794",
+            "c.r2@0.h  .00153469          0  .00082044",
+            "c.r2@1.h          0  .00120396          0   .0005443"
+          ]
+        },
+        {
+          "command": "matrix list e(_N)",
+          "lines": [
+            "e(_N)[1,4]",
+            "     c.r1@  c.r1@  c.r2@  c.r2@",
+            "      0.h    1.h    0.h    1.h",
+            "r1     27     32     27     32"
+          ]
+        },
+        {
+          "command": "ratio y/x, over(g h)",
+          "lines": [
+            "Ratio estimation                              Number of obs = 58",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "----------------------------------------------------------------",
+            "               |             Linearized",
+            "               |      Ratio   std. err.     [95% conf. interval]",
+            "---------------+------------------------------------------------",
+            "c._ratio_1@g#h |",
+            "        one#0  |   4.813388   .2848495      4.242987     5.38379",
+            "        one#1  |   5.020301   .2810389      4.457531    5.583072",
+            "        two#0  |    5.31422   .3073636      4.698735    5.929705",
+            "        two#1  |   5.354673   .3550423      4.643713    6.065633",
+            "      three#0  |   5.130653   .2586533      4.612709    5.648598",
+            "      three#1  |   5.070695   .2781913      4.513626    5.627763",
+            "----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x [pw=w], over(h)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@h |",
+            "          0  |   5.041124   .1956429      4.649502    5.432745",
+            "          1  |   5.069946   .1749958      4.719654    5.420238",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x [fw=w]",
+          "lines": [
+            "Ratio estimation                           Number of obs = 140",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.057576   .0784683      4.902431    5.212722",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x [fw=w], over(h)",
+          "lines": [
+            "Ratio estimation                           Number of obs = 140",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@h |",
+            "          0  |   5.041124   .1191575      4.805528    5.276719",
+            "          1  |   5.069946   .1048915      4.862557    5.277335",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x [iw=w]",
+          "lines": [
+            "Ratio estimation                           Number of obs = 140",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.057576   .0784683      4.902431    5.212722",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x, over(h) vce(cluster g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 58",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "                      (Std. err. adjusted for 3 clusters in g)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@h |",
+            "          0  |   5.045537     .11852      4.535587    5.555488",
+            "          1  |   5.109049    .077242      4.776703    5.441394",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x, vce(cluster g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 58",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "                      (Std. err. adjusted for 3 clusters in g)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.080086   .0858904       4.71053    5.449643",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "            e(N_clust) =  3",
+            "               e(df_r) =  2",
+            "             e(N_over) =  1",
+            "                  e(N) =  58",
+            "               e(k_eq) =  1",
+            "               e(rank) =  1",
+            "",
+            "macros:",
+            "            e(cmdline) : \"ratio y/x, vce(cluster g)\"",
+            "                e(cmd) : \"ratio\"",
+            "                e(vce) : \"cluster\"",
+            "            e(vcetype) : \"Robust\"",
+            "           e(clustvar) : \"g\"",
+            "              e(title) : \"Ratio estimation\"",
+            "           e(namelist) : \"_ratio_1\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"y x\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 1",
+            "                  e(V) :  1 x 1",
+            "                 e(_N) :  1 x 1",
+            "              e(error) :  1 x 1",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "ratio y/x [pw=w], vce(cluster g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 58",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "                      (Std. err. adjusted for 3 clusters in g)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.064969   .0859874      4.694995    5.434942",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y x",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.062381   .1189389      4.824299    5.300463",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio myr: y/x, level(90)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "          myr: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "         myr |   5.062381   .1189389      4.863568    5.261194",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "          myr: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "         myr |   5.062381   .1189389      4.824299    5.300463",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio, level(80)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "          myr: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [80% conf. interval]",
+            "-------------+------------------------------------------------",
+            "         myr |   5.062381   .1189389      4.908198    5.216564",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio (y/x), noheader",
+          "lines": [
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.062381   .1189389      4.824299    5.300463",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio (y/x) if h == 1, nolegend",
+          "lines": [
+            "Ratio estimation                            Number of obs = 32",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.109049   .1695227      4.763305    5.454792",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x, coeflegend",
+          "lines": [
+            "Ratio estimation                            Number of obs = 59",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |      Ratio   Legend",
+            "-------------+----------------------------------------------------------------",
+            "    _ratio_1 |   5.062381  _b[_ratio_1]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x in 1/20, cformat(%9.3f)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 19",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |      4.875      0.184         4.488       5.261",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  18",
+            "             e(N_over) =  1",
+            "                  e(N) =  19",
+            "               e(k_eq) =  1",
+            "               e(rank) =  1",
+            "",
+            "macros:",
+            "            e(cmdline) : \"ratio y/x in 1/20, cformat(%9.3f)\"",
+            "                e(cmd) : \"ratio\"",
+            "                e(vce) : \"linearized\"",
+            "            e(vcetype) : \"Linearized\"",
+            "              e(title) : \"Ratio estimation\"",
+            "           e(namelist) : \"_ratio_1\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"y x\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 1",
+            "                  e(V) :  1 x 1",
+            "                 e(_N) :  1 x 1",
+            "              e(error) :  1 x 1",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "lincom _b[_ratio_1] - 4",
+          "lines": [
+            " ( 1)  _ratio_1 = 4",
+            "",
+            "------------------------------------------------------------------------------",
+            "       Ratio | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .8745625   .1839936     4.75   0.000     .4880063    1.261119",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test _b[_ratio_1] = 4",
+          "lines": [
+            " ( 1)  _ratio_1 = 4",
+            "",
+            "       F(  1,    18) =   22.59",
+            "            Prob > F =    0.0002"
+          ]
+        },
+        {
+          "command": "capture noisily ratio y/x [aw=w]",
+          "lines": ["aweights not allowed"]
+        },
+        {
+          "command": "capture noisily ratio y/x z/x",
+          "lines": ["invalid ratio specification: too many '/'"]
+        },
+        {
+          "command": "capture noisily ratio y",
+          "lines": ["too few variables specified"]
+        },
+        {
+          "command": "capture noisily ratio (y/x) (z)",
+          "lines": ["too few variables specified"]
+        }
+      ]
+    },
+    {
+      "id": "resampling-seed-dots-size",
+      "source": "clear\nset seed 77\nset obs 40\ngenerate id = ceil(_n/4)\ngenerate s = 1 + (id > 5)\ngenerate x = runiform()\ngenerate y = 1 + 2*x + invnormal(runiform())\nbootstrap, reps(20) seed(42): regress y x\ndisplay e(N_reps) \" \" e(N_misreps)\nset seed 42\nbootstrap, reps(20): regress y x\nbootstrap, reps(25) dots(5): regress y x\nbootstrap, reps(120) dots(5): regress y x\nbootstrap m=r(mean), reps(45) dots(2): summarize y\nbootstrap m=r(mean), reps(7) dots(3): summarize y\nbootstrap m=r(mean), reps(7) dots(0): summarize y\ncapture noisily bootstrap, reps(25) dots(10) nodots: regress y x\nset seed 9\nbootstrap m=r(mean), reps(20) size(30): summarize y\nset seed 9\nbootstrap, reps(20) size(25) nodots: regress y x\ndisplay \"`e(size)'\"\ncapture noisily bootstrap m=r(mean), reps(5) size(50): summarize y\ncapture noisily bootstrap m=r(mean), reps(5) size(0): summarize y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate s = 1 + (id > 5)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "bootstrap, reps(20) seed(42): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   2.91",
+            "                                                        Prob > chi2   = 0.0883",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5938921     1.70   0.088    -.1517023    2.176312",
+            "       _cons |   1.451547   .2834533     5.12   0.000     .8959891    2.007106",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(N_reps) \" \" e(N_misreps)",
+          "lines": ["20 0"]
+        },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "bootstrap, reps(20): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   2.91",
+            "                                                        Prob > chi2   = 0.0883",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5938921     1.70   0.088    -.1517023    2.176312",
+            "       _cons |   1.451547   .2834533     5.12   0.000     .8959891    2.007106",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(25) dots(5): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (25): ..... done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     25",
+            "                                                        Wald chi2(1)  =   2.49",
+            "                                                        Prob > chi2   = 0.1146",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .6415376     1.58   0.115    -.2450858    2.269695",
+            "       _cons |   1.451547   .3090207     4.70   0.000     .8458779    2.057217",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(120) dots(5): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (120): .........50.........100.... done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =    120",
+            "                                                        Wald chi2(1)  =   2.87",
+            "                                                        Prob > chi2   = 0.0904",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5978133     1.69   0.090    -.1593878    2.183997",
+            "       _cons |   1.451547   .3504008     4.14   0.000     .7647744     2.13832",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap m=r(mean), reps(45) dots(2): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (45): .........20.........40... done",
+            "",
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  = 45",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1465622    13.26   0.000     1.656611    2.231125",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap m=r(mean), reps(7) dots(3): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (7): ... done",
+            "",
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  =  7",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868    .119276    16.30   0.000     1.710091    2.177645",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap m=r(mean), reps(7) dots(0): summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  =  7",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1406763    13.82   0.000     1.668147    2.219589",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap, reps(25) dots(10) nodots: regress y x",
+          "lines": ["only one of options dots() or nodots is allowed"]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(20) size(30): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1636422    11.88   0.000     1.623135    2.264601",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) size(25) nodots: regress y x",
+          "lines": [
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   2.59",
+            "                                                        Prob > chi2   = 0.1076",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .6291898     1.61   0.108    -.2208846    2.245494",
+            "       _cons |   1.451547   .2780193     5.22   0.000     .9066396    1.996455",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display \"`e(size)'\"", "lines": ["25"] },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) size(50): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (5): resample size must not be greater than number of observations"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) size(0): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (5): resample size must be greater than zero"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resampling-strata-cluster",
+      "source": "clear\nset seed 77\nset obs 40\ngenerate id = ceil(_n/4)\ngenerate s = 1 + (id > 5)\ngenerate x = runiform()\ngenerate y = 1 + 2*x + invnormal(runiform())\nset seed 9\nbootstrap m=r(mean), reps(20) strata(s): summarize y\ndisplay e(N_strata) \" `e(strata)'\"\nset seed 9\nbootstrap, reps(20) strata(s): regress y x\ndisplay e(N_strata) \" `e(strata)'\"\nset seed 9\nbootstrap, reps(20) cluster(id): regress y x\ndisplay e(N_clust) \" `e(clustvar)' `e(cluster)'\"\nset seed 9\nbootstrap, reps(20) cluster(id) idcluster(nid): regress y x\nlist id nid in 1/6\nset seed 9\nbootstrap, reps(20) cluster(id) strata(s) nodots: regress y x\nset seed 9\nbootstrap m=r(mean), reps(20) cluster(id) size(6): summarize y\nset seed 9\nbootstrap m=r(mean), reps(20) strata(s) size(8): summarize y\nset seed 9\nbootstrap m=r(mean), reps(20) cluster(id) strata(s) size(3) nodots: summarize y\ngenerate s12 = mod(_n, 12)\nset seed 9\nbootstrap m=r(mean), reps(10) strata(s12) nodots: summarize y\ncapture noisily bootstrap m=r(mean), reps(5) cluster(id) size(11): summarize y\ncapture noisily bootstrap m=r(mean), reps(5) idcluster(nid2): summarize y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate s = 1 + (id > 5)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*x + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(20) strata(s): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results",
+            "",
+            "Number of strata = 2                                        Number of obs = 40",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1011714    19.21   0.000     1.745576     2.14216",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(N_strata) \" `e(strata)'\"", "lines": ["2 s"] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) strata(s): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression",
+            "",
+            "Number of strata = 2                                    Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   3.08",
+            "                                                        Prob > chi2   = 0.0792",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5766366     1.76   0.079    -.1178821    2.142492",
+            "       _cons |   1.451547   .2795947     5.19   0.000     .9035519    1.999543",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(N_strata) \" `e(strata)'\"", "lines": ["2 s"] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) cluster(id): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   3.55",
+            "                                                        Prob > chi2   = 0.0596",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5372881     1.88   0.060    -.0407605     2.06537",
+            "       _cons |   1.451547   .2904305     5.00   0.000     .8823142    2.020781",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(N_clust) \" `e(clustvar)' `e(cluster)'\"",
+          "lines": ["10 id id"]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) cluster(id) idcluster(nid): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   3.55",
+            "                                                        Prob > chi2   = 0.0596",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5372881     1.88   0.060    -.0407605     2.06537",
+            "       _cons |   1.451547   .2904305     5.00   0.000     .8823142    2.020781",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list id nid in 1/6",
+          "lines": [
+            "     +----------+",
+            "     | id   nid |",
+            "     |----------|",
+            "  1. |  1     1 |",
+            "  2. |  1     1 |",
+            "  3. |  1     1 |",
+            "  4. |  1     1 |",
+            "  5. |  2     2 |",
+            "     |----------|",
+            "  6. |  2     2 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) cluster(id) strata(s) nodots: regress y x",
+          "lines": [
+            "Linear regression",
+            "",
+            "Number of strata = 2                                    Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   3.71",
+            "                                                        Prob > chi2   = 0.0542",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5258822     1.92   0.054    -.0184055    2.043015",
+            "       _cons |   1.451547   .2591723     5.60   0.000      .943579    1.959516",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(20) cluster(id) size(6): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868    .217282     8.95   0.000     1.518003    2.369733",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(20) strata(s) size(8): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results",
+            "",
+            "Number of strata = 2                                        Number of obs = 40",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1944327    10.00   0.000     1.562787    2.324949",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(20) cluster(id) strata(s) size(3) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results",
+            "",
+            "Number of strata = 2                                        Number of obs = 40",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1853589    10.49   0.000     1.580571    2.307165",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate s12 = mod(_n, 12)", "lines": [] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(10) strata(s12) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results",
+            "",
+            "Number of strata = 12                                       Number of obs = 40",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1714387    11.34   0.000     1.607854    2.279882",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) cluster(id) size(11): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "size() must not be greater than number of clusters"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) idcluster(nid2): summarize y",
+          "lines": ["option idcluster() requires option cluster()"]
+        }
+      ]
+    },
+    {
+      "id": "resampling-bsample-options",
+      "source": "clear\nset obs 12\ngenerate id = ceil(_n/3)\ngenerate s = 1 + (_n > 6)\ngenerate k = _n\nset seed 5\npreserve\nbsample, strata(s)\nlist k s, clean noobs\nrestore\npreserve\nbsample 4, strata(s)\nlist k s, clean noobs\nrestore\npreserve\nbsample, cluster(id)\nlist k id, clean noobs\nrestore\npreserve\nbsample, cluster(id) idcluster(nid)\nlist k id nid, clean noobs\nrestore\npreserve\nbsample 2, cluster(id) idcluster(nid)\nlist k id nid, clean noobs\nrestore\npreserve\nbsample, cluster(id) strata(s) idcluster(nid)\nlist k id s nid, clean noobs\nrestore\ncapture noisily bsample, idcluster(nid)\ncapture noisily bsample 7, strata(s)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate id = ceil(_n/3)", "lines": [] },
+        { "command": "generate s = 1 + (_n > 6)", "lines": [] },
+        { "command": "generate k = _n", "lines": [] },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "bsample, strata(s)", "lines": [] },
+        {
+          "command": "list k s, clean noobs",
+          "lines": [
+            "     k   s",
+            "     2   1",
+            "     2   1",
+            "     4   1",
+            "     2   1",
+            "     4   1",
+            "     3   1",
+            "    10   2",
+            "     7   2",
+            "     8   2",
+            "     7   2",
+            "    12   2",
+            "     8   2"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "bsample 4, strata(s)", "lines": [] },
+        {
+          "command": "list k s, clean noobs",
+          "lines": [
+            "     k   s",
+            "     5   1",
+            "     1   1",
+            "     2   1",
+            "     1   1",
+            "     8   2",
+            "    11   2",
+            "    11   2",
+            "     7   2"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "bsample, cluster(id)", "lines": [] },
+        {
+          "command": "list k id, clean noobs",
+          "lines": [
+            "     k   id",
+            "     4    2",
+            "     5    2",
+            "     6    2",
+            "     7    3",
+            "     8    3",
+            "     9    3",
+            "    10    4",
+            "    11    4",
+            "    12    4",
+            "     4    2",
+            "     5    2",
+            "     6    2"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "bsample, cluster(id) idcluster(nid)", "lines": [] },
+        {
+          "command": "list k id nid, clean noobs",
+          "lines": [
+            "     k   id   nid",
+            "     1    1     1",
+            "     2    1     1",
+            "     3    1     1",
+            "     7    3     2",
+            "     8    3     2",
+            "     9    3     2",
+            "    10    4     3",
+            "    11    4     3",
+            "    12    4     3",
+            "    10    4     4",
+            "    11    4     4",
+            "    12    4     4"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "bsample 2, cluster(id) idcluster(nid)", "lines": [] },
+        {
+          "command": "list k id nid, clean noobs",
+          "lines": [
+            "     k   id   nid",
+            "    10    4     1",
+            "    11    4     1",
+            "    12    4     1",
+            "     7    3     2",
+            "     8    3     2",
+            "     9    3     2"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "bsample, cluster(id) strata(s) idcluster(nid)",
+          "lines": []
+        },
+        {
+          "command": "list k id s nid, clean noobs",
+          "lines": [
+            "     k   id   s   nid",
+            "     1    1   1     1",
+            "     2    1   1     1",
+            "     3    1   1     1",
+            "     4    2   1     2",
+            "     5    2   1     2",
+            "     6    2   1     2",
+            "     7    3   2     3",
+            "     8    3   2     3",
+            "     9    3   2     3",
+            "    10    4   2     4",
+            "    11    4   2     4",
+            "    12    4   2     4"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "capture noisily bsample, idcluster(nid)",
+          "lines": ["option idcluster() requires option cluster()"]
+        },
+        {
+          "command": "capture noisily bsample 7, strata(s)",
+          "lines": [
+            "resample sizes must not be greater than number of observations with strata"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resampling-jackknife-cluster",
+      "source": "clear\nset seed 77\nset obs 40\ngenerate id = ceil(_n/4)\ngenerate x = runiform()\ngenerate y = 1 + 2*x + invnormal(runiform())\njackknife, cluster(id): regress y x\ndisplay e(N_clust) \" `e(clustvar)' `e(cluster)'\"\njackknife m=r(mean), cluster(id) nodots: summarize y\njackknife m=r(mean) s=r(sd), cluster(id): summarize y\njackknife, cluster(id) idcluster(nid) nodots: regress y x\ncapture noisily jackknife, idcluster(nid): regress y x\njackknife m=r(mean), dots(10): summarize y\njackknife m=r(mean), dots(3): summarize y\ncapture noisily jackknife m=r(mean), dots(3) nodots: summarize y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "jackknife, cluster(id): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (10): .........10 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     10",
+            "                                                        F(1, 9)       =   2.46",
+            "                                                        Prob > F      = 0.1511",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .6451218     1.57   0.151    -.4470622    2.471672",
+            "       _cons |   1.451547   .3784662     3.84   0.004     .5953974    2.307697",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(N_clust) \" `e(clustvar)' `e(cluster)'\"",
+          "lines": ["10 id id"]
+        },
+        {
+          "command": "jackknife m=r(mean), cluster(id) nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 40",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1695433    11.47   0.000     1.560334    2.327402",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean) s=r(sd), cluster(id): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (10): .........10 done",
+            "",
+            "Jackknife results                                           Number of obs = 40",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "          n(): r(N)",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1695433    11.47   0.000     1.560334    2.327402",
+            "           s |     .98173   .1223347     8.02   0.000     .7049897     1.25847",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, cluster(id) idcluster(nid) nodots: regress y x",
+          "lines": [
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     10",
+            "                                                        F(1, 9)       =   2.46",
+            "                                                        Prob > F      = 0.1511",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .6451218     1.57   0.151    -.4470622    2.471672",
+            "       _cons |   1.451547   .3784662     3.84   0.004     .5953974    2.307697",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily jackknife, idcluster(nid): regress y x",
+          "lines": [
+            "(running regress on estimation sample)",
+            "option idcluster() requires the cluster() option"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), dots(10): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (40): .... done",
+            "",
+            "Jackknife results                                           Number of obs = 40",
+            "                                                            Replications  = 40",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1552251    12.52   0.000     1.629896     2.25784",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), dots(3): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (40): .........30.... done",
+            "",
+            "Jackknife results                                           Number of obs = 40",
+            "                                                            Replications  = 40",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1552251    12.52   0.000     1.629896     2.25784",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily jackknife m=r(mean), dots(3) nodots: summarize y",
+          "lines": ["only one of options dots() or nodots is allowed"]
+        }
+      ]
+    },
+    {
+      "id": "resampling-saving",
+      "source": "clear\nset seed 77\nset obs 40\ngenerate x = runiform()\ngenerate y = 1 + 2*x + invnormal(runiform())\nset seed 9\nbootstrap m=r(mean) sd=r(sd), reps(20) saving(p7bsout, replace): summarize y\ncapture noisily bootstrap m=r(mean), reps(5) saving(p7bsout): summarize y\nsummarize y\npreserve\nuse p7bsout, clear\ndisplay \"`: data label'\"\ndisplay \"`: variable label m'\" \" | \" \"`: variable label sd'\"\nlist in 1/3\nrestore\nset seed 9\nbootstrap _b, reps(5) saving(p7bsb, replace) nodots: regress y x\npreserve\nuse p7bsb, clear\ndisplay \"`: data label'\"\ndescribe, simple\ndisplay \"`: variable label _b_x'\" \" | \" \"`: variable label _b_cons'\"\nlist\nrestore\njackknife m=r(mean), saving(p7jkout, replace) nodots: summarize y\npreserve\nuse p7jkout, clear\ndisplay \"`: data label'\"\nlist in 1/3\nrestore\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*x + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean) sd=r(sd), reps(20) saving(p7bsout, replace): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "(file p7bsout.dta not found)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "           sd: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1764152    11.02   0.000     1.598101    2.289635",
+            "          sd |     .98173   .1128999     8.70   0.000     .7604503     1.20301",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) saving(p7bsout): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "file p7bsout.dta already exists"
+          ]
+        },
+        {
+          "command": "summarize y",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           y |         40    1.943868      .98173  -.2734268    4.52232"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "use p7bsout, clear",
+          "lines": ["(bootstrap: summarize)"]
+        },
+        {
+          "command": "display \"`: data label'\"",
+          "lines": ["bootstrap: summarize"]
+        },
+        {
+          "command": "display \"`: variable label m'\" \" | \" \"`: variable label sd'\"",
+          "lines": ["r(mean) | r(sd)"]
+        },
+        {
+          "command": "list in 1/3",
+          "lines": [
+            "     +---------------------+",
+            "     |        m         sd |",
+            "     |---------------------|",
+            "  1. | 1.979825   1.234441 |",
+            "  2. | 2.012244   1.011363 |",
+            "  3. | 1.900047   .9880944 |",
+            "     +---------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap _b, reps(5) saving(p7bsb, replace) nodots: regress y x",
+          "lines": [
+            "(file p7bsb.dta not found)",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =      5",
+            "                                                        Wald chi2(1)  =   4.41",
+            "                                                        Prob > chi2   = 0.0357",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305    .481908     2.10   0.036     .0677825    1.956827",
+            "       _cons |   1.451547   .3018074     4.81   0.000     .8600159    2.043079",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        { "command": "use p7bsb, clear", "lines": ["(bootstrap: regress)"] },
+        {
+          "command": "display \"`: data label'\"",
+          "lines": ["bootstrap: regress"]
+        },
+        { "command": "describe, simple", "lines": ["_b_x     _b_cons"] },
+        {
+          "command": "display \"`: variable label _b_x'\" \" | \" \"`: variable label _b_cons'\"",
+          "lines": ["_b[x] | _b[_cons]"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------+",
+            "     |     _b_x    _b_cons |",
+            "     |---------------------|",
+            "  1. | 2.012758   1.057999 |",
+            "  2. | 1.161818   1.485227 |",
+            "  3. | 1.322909   1.277153 |",
+            "  4. | .9628108   1.719209 |",
+            "  5. | .7480845   1.778676 |",
+            "     +---------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "jackknife m=r(mean), saving(p7jkout, replace) nodots: summarize y",
+          "lines": [
+            "(file p7jkout.dta not found)",
+            "",
+            "Jackknife results                                           Number of obs = 40",
+            "                                                            Replications  = 40",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   1.943868   .1552251    12.52   0.000     1.629896     2.25784",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "use p7jkout, clear",
+          "lines": ["(jackknife: summarize)"]
+        },
+        {
+          "command": "display \"`: data label'\"",
+          "lines": ["jackknife: summarize"]
+        },
+        {
+          "command": "list in 1/3",
+          "lines": [
+            "     +----------+",
+            "     |        m |",
+            "     |----------|",
+            "  1. | 1.933477 |",
+            "  2. | 1.918192 |",
+            "  3. | 1.975873 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "restore", "lines": [] }
+      ]
+    },
+    {
+      "id": "resampling-simulate-options",
+      "source": "clear\nset seed 1\nset obs 30\ngenerate y = runiform()\nsimulate m=r(mean), reps(5) seed(3): summarize y\nlist\nclear\nset obs 40\ngenerate y = runiform()\nsimulate m=r(mean) v=r(Var), reps(12) dots(4) saving(p7simout, replace): summarize y\ndisplay \"`: data label'\"\ndisplay _N\nlist in 1/2\nuse p7simout, clear\ndisplay \"`: data label'\"\ndisplay \"`: variable label v'\"\nlist in 1/2\ncapture noisily simulate m=r(mean), reps(3) dots(2) nodots: summarize y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        {
+          "command": "simulate m=r(mean), reps(5) seed(3): summarize y",
+          "lines": [
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "Simulations (5): ..... done"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     |        m |",
+            "     |----------|",
+            "  1. | .3895113 |",
+            "  2. | .3895113 |",
+            "  3. | .3895113 |",
+            "  4. | .3895113 |",
+            "  5. | .3895113 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        {
+          "command": "simulate m=r(mean) v=r(Var), reps(12) dots(4) saving(p7simout, replace): summarize y",
+          "lines": [
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "            v: r(Var)",
+            "(file p7simout.dta not found)",
+            "",
+            "Simulations (12): ... done"
+          ]
+        },
+        {
+          "command": "display \"`: data label'\"",
+          "lines": ["simulate: summarize"]
+        },
+        { "command": "display _N", "lines": ["12"] },
+        {
+          "command": "list in 1/2",
+          "lines": [
+            "     +---------------------+",
+            "     |        m          v |",
+            "     |---------------------|",
+            "  1. | .4601274   .0734818 |",
+            "  2. | .4601274   .0734818 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "use p7simout, clear",
+          "lines": ["(simulate: summarize)"]
+        },
+        {
+          "command": "display \"`: data label'\"",
+          "lines": ["simulate: summarize"]
+        },
+        { "command": "display \"`: variable label v'\"", "lines": ["r(Var)"] },
+        {
+          "command": "list in 1/2",
+          "lines": [
+            "     +---------------------+",
+            "     |        m          v |",
+            "     |---------------------|",
+            "  1. | .4601274   .0734818 |",
+            "  2. | .4601274   .0734818 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "capture noisily simulate m=r(mean), reps(3) dots(2) nodots: summarize y",
+          "lines": ["only one of options dots() or nodots is allowed"]
+        }
+      ]
+    },
+    {
+      "id": "resampling-vce-design-options",
+      "source": "clear\nset seed 77\nset obs 40\ngenerate id = ceil(_n/4)\ngenerate s = 1 + (id > 5)\ngenerate x = runiform()\ngenerate y = 1 + 2*x + invnormal(runiform())\nregress y x, vce(bootstrap, reps(20) cluster(id) seed(3))\nregress y x, vce(bootstrap, reps(20) strata(s) seed(3) nodots)\nregress y x, vce(jackknife, cluster(id))\nbootstrap, reps(20) cluster(id) idcluster(nid) seed(4) nodots: regress y x i.nid\ncapture noisily by s, sort: bootstrap m=r(mean), reps(10) seed(1) nodots: summarize y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate s = 1 + (id > 5)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "regress y x, vce(bootstrap, reps(20) cluster(id) seed(3))",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   5.98",
+            "                                                        Prob > chi2   = 0.0145",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .4141027     2.44   0.015     .2006784    1.823931",
+            "       _cons |   1.451547   .2579105     5.63   0.000     .9460521    1.957043",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x, vce(bootstrap, reps(20) strata(s) seed(3) nodots)",
+          "lines": [
+            "Linear regression",
+            "",
+            "Number of strata = 2                                    Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(1)  =   3.01",
+            "                                                        Prob > chi2   = 0.0825",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .5830557     1.74   0.083    -.1304634    2.155073",
+            "       _cons |   1.451547   .3436527     4.22   0.000     .7780006    2.125094",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x, vce(jackknife, cluster(id))",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (10): .........10 done",
+            "",
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     10",
+            "                                                        F(1, 9)       =   2.46",
+            "                                                        Prob > F      = 0.1511",
+            "                                                        R-squared     = 0.0693",
+            "                                                        Adj R-squared = 0.0448",
+            "                                                        Root MSE      = 0.9595",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.012305   .6451218     1.57   0.151    -.4470622    2.471672",
+            "       _cons |   1.451547   .3784662     3.84   0.004     .5953974    2.307697",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(20) cluster(id) idcluster(nid) seed(4) nodots: regress y x i.nid",
+          "lines": [
+            "Linear regression                                       Number of obs =     40",
+            "                                                        Replications  =     20",
+            "                                                        Wald chi2(10) = 103.49",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.3539",
+            "                                                        Adj R-squared = 0.1311",
+            "                                                        Root MSE      = 0.9151",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    1.13815    .567909     2.00   0.045     .0250685    2.251231",
+            "             |",
+            "         nid |",
+            "          2  |  -.1260071   .1808658    -0.70   0.486    -.4804976    .2284834",
+            "          3  |   .2403432   .1980073     1.21   0.225    -.1477439    .6284304",
+            "          4  |  -.1084939   .2089639    -0.52   0.604    -.5180557    .3010679",
+            "          5  |   .1894236    .210297     0.90   0.368    -.2227511    .6015982",
+            "          6  |  -.3117836   .2756504    -1.13   0.258    -.8520485    .2284812",
+            "          7  |   .1991004   .4047167     0.49   0.623    -.5941298    .9923305",
+            "          8  |  -.7393687   .6751285    -1.10   0.273    -2.062596    .5838589",
+            "          9  |   .8303936    .846144     0.98   0.326    -.8280182    2.488805",
+            "         10  |  -1.132038   .8847258    -1.28   0.201    -2.866069    .6019925",
+            "             |",
+            "       _cons |   1.486188    .264033     5.63   0.000     .9686925    2.003683",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily by s, sort: bootstrap m=r(mean), reps(10) seed(1) nodots: summarize y",
+          "lines": ["bootstrap may not be combined with by"]
+        }
+      ]
+    },
+    {
+      "id": "resampling-cluster-likelihood",
+      "source": "clear\nset seed 77\nset obs 40\ngenerate id = ceil(_n/4)\ngenerate x = runiform()\ngenerate d = runiform() < .5\nbootstrap, reps(10) cluster(id) seed(5) dots(5): logit d x\njackknife, cluster(id) nodots: logit d x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate d = runiform() < .5", "lines": [] },
+        {
+          "command": "bootstrap, reps(10) cluster(id) seed(5) dots(5): logit d x",
+          "lines": [
+            "(running logit on estimation sample)",
+            "",
+            "Bootstrap replications (10): .. done",
+            "",
+            "Logistic regression                                     Number of obs =     40",
+            "                                                        Replications  =     10",
+            "                                                        Wald chi2(1)  =   9.96",
+            "                                                        Prob > chi2   = 0.0016",
+            "Log likelihood = -26.035599                             Pseudo R2     = 0.0541",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           d | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.265039   .7178677     3.16   0.002     .8580442    3.672034",
+            "       _cons |  -.8858705   .4634934    -1.91   0.056    -1.794301    .0225599",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, cluster(id) nodots: logit d x",
+          "lines": [
+            "Logistic regression                                     Number of obs =     40",
+            "                                                        Replications  =     10",
+            "                                                        F(1, 9)       =   3.18",
+            "                                                        Prob > F      = 0.1081",
+            "Log likelihood = -26.035599                             Pseudo R2     = 0.0541",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           d | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.265039   1.269601     1.78   0.108    -.6069989    5.137077",
+            "       _cons |  -.8858705   .7626721    -1.16   0.275    -2.611155    .8394137",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ratio-resampled",
+      "source": "clear\nset seed 2468\nset obs 60\ngenerate h = floor(runiform()*2)\ngenerate id = ceil(_n/6)\ngenerate y = 10 + 5*runiform()\ngenerate x = 2 + runiform()\nset seed 1\nbootstrap, reps(10): ratio y/x\nset seed 1\nbootstrap _b, reps(10) nodots: ratio y/x, over(h)\njackknife, nodots: ratio y/x\nset seed 1\nratio y/x, vce(bootstrap, reps(10))\nratio y/x, vce(jackknife) over(h)\nset seed 1\nbootstrap, reps(10) cluster(id) nodots: ratio (a: y/x) (b: x/y)\ncapture noisily ratio y/x, vce(robust)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate h = floor(runiform()*2)", "lines": [] },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate y = 10 + 5*runiform()", "lines": [] },
+        { "command": "generate x = 2 + runiform()", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap, reps(10): ratio y/x",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "",
+            "Bootstrap replications (10): .........10 done",
+            "",
+            "Ratio estimation                            Number of obs = 60",
+            "                                            Replications  = 10",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.037125    .123095      4.795864    5.278387",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap _b, reps(10) nodots: ratio y/x, over(h)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 60",
+            "                                            Replications  = 10",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@h |",
+            "          0  |   4.993959    .188454      4.624596    5.363322",
+            "          1  |   5.076041   .1449885      4.791869    5.360213",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: ratio y/x",
+          "lines": [
+            "Ratio estimation                            Number of obs = 60",
+            "                                            Replications  = 60",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.037125   .1024471      4.832129    5.242121",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "ratio y/x, vce(bootstrap, reps(10))",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "",
+            "Bootstrap replications (10): .........10 done",
+            "",
+            "Ratio estimation                            Number of obs = 60",
+            "                                            Replications  = 10",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   5.037125    .123095      4.795864    5.278387",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x, vce(jackknife) over(h)",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "",
+            "Jackknife replications (60): .........10.........20.........30.........40.........50.........60 done",
+            "",
+            "Ratio estimation                            Number of obs = 60",
+            "                                            Replications  = 60",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@h |",
+            "          0  |   4.993959   .1434847      4.706847    5.281071",
+            "          1  |   5.076041   .1496917      4.776508    5.375573",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap, reps(10) cluster(id) nodots: ratio (a: y/x) (b: x/y)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 60",
+            "                                            Replications  = 10",
+            "",
+            "            a: y/x",
+            "            b: x/y",
+            "",
+            "                     (Replications based on 10 clusters in id)",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           a |   5.037125   .0972072      4.846603    5.227648",
+            "           b |   .1985259   .0038379      .1910038     .206048",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily ratio y/x, vce(robust)",
+          "lines": ["vcetype robust not allowed"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
