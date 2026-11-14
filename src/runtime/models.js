@@ -35,6 +35,7 @@ import {
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
+import { poissonStart } from "./likelihood.js";
 import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -398,10 +399,7 @@ function maximumLikelihood(kind) {
       } = design(session, parsed.anything, rows, constant),
       logged = !/\bnolog\b/.test(splitAtComma(text)[1] ?? "");
     // [w=exp] is a frequency weight, and Stata says so.
-    if (
-      wtype === "fweight" &&
-      /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0])
-    )
+    if (wtype === "fweight" && bareWeight(text))
       ctx.out("(frequency weights assumed)");
     let sample = complete,
       n = sample.length,
@@ -522,16 +520,16 @@ function maximumLikelihood(kind) {
       return { gradient, hessian };
     };
     if (kind === "poisson") {
-      // Stata starts poisson from a weighted least-squares step, so its
-      // first reported value is already close to the maximum.
-      for (let k = 0; k < 2; k++) {
-        const { gradient, hessian } = derivatives(),
-          inverse = invertSymmetric(hessian);
-        if (!inverse) break;
-        b = b.map(
-          (v, a) => v + inverse[a].reduce((t, h, c) => t + h * gradient[c], 0),
-        );
-      }
+      // Stata starts poisson from poisson.ado's starting values, a
+      // reweighted least-squares step, so its first reported value is
+      // already close to the maximum.
+      b = poissonStart(
+        x,
+        y,
+        y.map((v) => lnfactorial(v)),
+        constant,
+        w,
+      );
       ll = logLikelihood(b);
     }
     log.push(ll);
@@ -950,7 +948,28 @@ function ivColumns(listed, rows) {
   return notes;
 }
 
+/** Whether a command's weight is typed as [weight=exp] or [w=exp]. */
+export const bareWeight = (text) =>
+  /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0]);
+
 function ivregress(session, text, ctx) {
+  // A weight, [pweight=w], may stand anywhere after the varlist; it is
+  // taken out before the varlist is read and handed to the parser.
+  let weightClause = "";
+  const outside = splitAtComma(text)[0];
+  let depth = 0;
+  for (let k = 0; k < outside.length; k++) {
+    const c = outside[k];
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    else if (c === "[" && !depth && (k === 0 || /\s|\)/.test(outside[k - 1]))) {
+      const close = outside.indexOf("]", k);
+      if (close < 0) break;
+      weightClause = outside.slice(k, close + 1);
+      text = `${text.slice(0, k)} ${text.slice(close + 1)}`;
+      break;
+    }
+  }
   const m =
     /^\s*(2sls|liml|gmm)\s+(\S+)\s+([^()]*)\(([^=()]+)=([^()]+)\)((?:(?!\b(?:if|in)\b)[^(),])*)([\s\S]*)$/.exec(
       text,
@@ -960,11 +979,13 @@ function ivregress(session, text, ctx) {
       "ivregress needs an estimator and (endogenous = instruments)",
       198,
     );
-  const estimator = m[1],
+  const [head, tail] = splitAtComma(m[7]),
+    estimator = m[1],
     parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels | noCONStant SMALL Igmm]",
-      m[7],
+      "[if] [in] [aweight fweight pweight iweight] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels | noCONStant SMALL Igmm]",
+      `${head} ${weightClause}${tail == null ? "" : `,${tail}`}`,
     ),
+    wtype = parsed.weight?.type ?? null,
     // The exogenous regressors and the instruments are read as regress reads
     // its varlist, factor variables and interactions included; the
     // endogenous regressors may not be factor variables, as in Stata.
@@ -978,6 +999,7 @@ function ivregress(session, text, ctx) {
     cluster = asked.cluster,
     robust =
       asked.robust ||
+      wtype === "pweight" ||
       (estimator === "gmm" && /^r/.test(weighting) && !parsed.options.vce),
     column = (name) => {
       const data = session.data.get(name).data;
@@ -995,12 +1017,38 @@ function ivregress(session, text, ctx) {
         columnsOf(part, first).flatMap((c) => c.term.variables),
       ),
     ],
+    weightOf = wtype
+      ? (() => {
+          const compiled = session.compile(parsed.weight.exp);
+          if (compiled.type !== "numeric")
+            throw new StataError("type mismatch", 109);
+          return evaluateAll(compiled, session.data.n);
+        })()
+      : null,
     rows = first.filter(
       (i) =>
         all.every((variable) => !isMissing(variable.data[i])) &&
-        !(cluster && noCluster(cluster, i)),
+        !(cluster && noCluster(cluster, i)) &&
+        (!weightOf || (!isMissing(weightOf[i]) && weightOf[i] !== 0)),
     ),
-    n = rows.length,
+    // Each observation's weight, in the order of rows; analytic and
+    // sampling weights scaled to sum to the number of observations.
+    rawWeights = weightOf && rows.map((i) => weightOf[i]),
+    weightSum = rawWeights ? rawWeights.reduce((t, v) => t + v, 0) : 0,
+    w = !rawWeights
+      ? null
+      : wtype === "aweight" || wtype === "pweight"
+        ? rawWeights.map((v) => (v * rows.length) / weightSum)
+        : rawWeights,
+    // A frequency weight counts its observation that many times; Stata
+    // counts importance weights by the whole part of their sum.
+    n =
+      wtype === "fweight"
+        ? weightSum
+        : wtype === "iweight"
+          ? Math.trunc(weightSum)
+          : rows.length,
+    weightAt = (i) => (w ? w[i] : 1),
     // Every column over the estimation sample, base levels and columns
     // collinear with those before them included; those fitted are active.
     // Stata finds the levels of an exogenous factor in the whole dataset,
@@ -1034,7 +1082,29 @@ function ivregress(session, text, ctx) {
       "equation not identified; must have at least as many instruments not in\nthe regression as there are instrumented variables",
       481,
     );
-  if (!n) throw new StataError("no observations", 2000);
+  if (!rows.length) throw new StataError("no observations", 2000);
+  if (wtype) {
+    if (rawWeights.some((v) => v < 0) && wtype !== "iweight")
+      throw new StataError("negative weights encountered", 402);
+    if (wtype === "fweight" && rawWeights.some((v) => !Number.isInteger(v)))
+      throw new StataError("may not use noninteger frequency weights", 401);
+    if (estimator !== "2sls")
+      throw new StataError(
+        `ivregress ${estimator} with weights is not available yet; ivregress 2sls takes them`,
+        198,
+      );
+    if (parsed.options.first)
+      throw new StataError(
+        "option first is not available yet with weights; fit the first stage with regress and the same weights",
+        198,
+      );
+    // [w=exp] is an analytic weight, and Stata says so.
+    if (wtype === "aweight" && bareWeight(weightClause))
+      ctx.out("(analytic weights assumed)");
+    // ivregress.ado shows the sum in %12.4e.
+    if (wtype === "aweight" || wtype === "pweight")
+      ctx.out(`(sum of wgt is ${applyFormat(weightSum, "%12.4e")})`);
+  }
   const dep = depName,
     y = rows.map((i) => column(dep)[i]),
     matrix = (list) => rows.map((i) => [...list.map((c) => c.value(i)), 1]),
@@ -1042,7 +1112,9 @@ function ivregress(session, text, ctx) {
     Z = matrix([...exogenousColumns, ...instrumentColumns]),
     cross = (A, B) =>
       A[0].map((_, a) =>
-        B[0].map((_, b) => A.reduce((t, row, i) => t + row[a] * B[i][b], 0)),
+        B[0].map((_, b) =>
+          A.reduce((t, row, i) => t + weightAt(i) * row[a] * B[i][b], 0),
+        ),
       ),
     multiply = (A, B) =>
       A.map((row) =>
@@ -1060,7 +1132,7 @@ function ivregress(session, text, ctx) {
     bread = invertSymmetric(cross(fitted, fitted));
   if (!bread) throw new StataError("the model is not identified", 481);
   const xy = fitted[0].map((_, a) =>
-      fitted.reduce((t, row, i) => t + row[a] * y[i], 0),
+      fitted.reduce((t, row, i) => t + weightAt(i) * row[a] * y[i], 0),
     ),
     twoStage = bread.map((row) => row.reduce((t, v, k) => t + v * xy[k], 0)),
     residualsOf = (beta) =>
@@ -1144,9 +1216,16 @@ function ivregress(session, text, ctx) {
     gmm = { W, A, xzW, momentCovariance };
   }
   const residuals = residualsOf(b),
-    rss = residuals.reduce((t, e) => t + e * e, 0),
-    mean = y.reduce((a, c) => a + c, 0) / n,
-    tss = y.reduce((t, v) => t + (v - mean) ** 2, 0);
+    rss = residuals.reduce((t, e, i) => t + weightAt(i) * e * e, 0),
+    mean =
+      y.reduce((a, c, i) => a + weightAt(i) * c, 0) /
+      y.reduce((a, _, i) => a + weightAt(i), 0),
+    // With importance weights the total is summarize's variance times
+    // the number of observations less one, which counts the whole part
+    // of the weights' sum.
+    tss =
+      y.reduce((t, v, i) => t + weightAt(i) * (v - mean) ** 2, 0) *
+      (wtype === "iweight" ? (n - 1) / (weightSum - 1) : 1);
   let V,
     clusters = null;
   if (gmm) {
@@ -1183,7 +1262,7 @@ function ivregress(session, text, ctx) {
     const { meat, clusters: G } = clusterMeat(
       cluster,
       rows,
-      (i) => fitted[i].map((v) => v * residuals[i]),
+      (i) => fitted[i].map((v) => v * weightAt(i) * residuals[i]),
       b.length,
     );
     clusters = G;
@@ -1192,10 +1271,15 @@ function ivregress(session, text, ctx) {
   } else if (robust) {
     const size = b.length,
       meat = Array.from({ length: size }, () => new Array(size).fill(0));
+    // A frequency weight counts its observation's outer product that many
+    // times; the others weight its score.
     fitted.forEach((row, i) => {
+      const scale =
+        wtype === "fweight"
+          ? weightAt(i) * residuals[i] ** 2
+          : (weightAt(i) * residuals[i]) ** 2;
       for (let a = 0; a < size; a++)
-        for (let c = 0; c < size; c++)
-          meat[a][c] += residuals[i] ** 2 * row[a] * row[c];
+        for (let c = 0; c < size; c++) meat[a][c] += scale * row[a] * row[c];
     });
     V = multiply(multiply(bread, meat), bread);
   } else V = bread.map((row) => row.map((v) => (v * rss) / n));
@@ -1228,6 +1312,11 @@ function ivregress(session, text, ctx) {
       clusterName: cluster?.name,
       kind: "ivregress",
       sample: rows,
+      // The weight type and expression, and each observation's weight in
+      // the order of sample, which margins averages by.
+      wtype,
+      wexp: wtype ? `= ${parsed.weight.exp}` : undefined,
+      weights: w,
       iv: {
         dep,
         endogenous,
@@ -1281,6 +1370,7 @@ function ivregress(session, text, ctx) {
     ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
     ...(kClass ? { kappa: kClass.kappa } : {}),
     ...(gmm ? { J: gmm.J } : {}),
+    ...(wtype ? { wtype, wexp: model.wexp } : {}),
   };
   for (const c of listed.endogenous)
     if (c.collinear)
@@ -1827,7 +1917,21 @@ function estat(session, text, ctx) {
         ss = values.reduce((t, v) => t + (v - mean) ** 2, 0);
       vifs.push([name, (model.V[k][k] * ss) / s2]);
     });
-    vifs.sort((a, b) => b[1] - a[1]);
+    // vif.ado sorts by VIF, largest first, unless the model has factor
+    // variables. It keeps each VIF in a float variable.
+    if (!model.columns.some((c) => c?.term?.components?.some((p) => p.factor)))
+      vifs.sort((a, b) => b[1] - a[1]);
+    vifs.forEach((v) => (v[1] = Math.fround(v[1])));
+    // r(vif_#) and r(name_#), numbered in the order shown; return list
+    // shows the last set first, as vif.ado sets them.
+    session.results.r = Object.fromEntries(
+      vifs
+        .flatMap(([name, vif], k) => [
+          [`vif_${k + 1}`, vif],
+          [`name_${k + 1}`, name],
+        ])
+        .reverse(),
+    );
     ctx.out("");
     ctx.out("    Variable |       VIF       1/VIF  ");
     ctx.out("-------------+----------------------");

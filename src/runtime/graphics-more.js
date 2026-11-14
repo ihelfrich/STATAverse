@@ -41,7 +41,9 @@ import {
   densityGrid,
   kernelDensity,
   lowess,
+  weightedMeanSd,
 } from "./smoothers.js";
+import { lngamma } from "./distributions.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -79,19 +81,27 @@ function store(session, name, values, label) {
 function kdensity(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varname [if] [in] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal LColor(string) COLor(string) ${LOOKS}]`,
+      `varname [if] [in] [fweight aweight iweight] [, Kernel(string) BWidth(real 0) N(integer 0) Generate(string) AT(varname) NOGRaph NORmal STUdent(integer 0) LColor(string) COLor(string) ${LOOKS}]`,
       text,
     ),
-    options = parsed.options,
-    variable = numeric(session, parsed.varlist[0]),
-    values = session
-      .rows(parsed, null)
-      .map((i) => variable.data[i])
-      .filter((v) => !isMissing(v));
+    options = parsed.options;
+  // kdensity has no by() in Stata, which says so before anything else,
+  // with or without nograph.
+  if (options.by !== undefined)
+    throw new StataError("option by() not allowed", 191);
+  const variable = numeric(session, parsed.varlist[0]),
+    // Weighted, each value counts as its weight does (kernelDensity).
+    weighted = weightedRows(session, parsed, session.rows(parsed, null), {
+      expand: false,
+    }),
+    kept = weighted.rows.filter((i) => !isMissing(variable.data[i])),
+    values = kept.map((i) => variable.data[i]),
+    weights = weighted.weights ? kept.map((i) => weighted.weights[i]) : null,
+    type = parsed.weight?.type ?? null;
   if (values.length < 2)
     throw new StataError("insufficient observations", 2001);
   const kernel = kernelName(options.kernel),
-    bandwidth = options.bwidth || defaultBandwidth(values),
+    bandwidth = options.bwidth || defaultBandwidth(values, weights, type),
     data = session.data,
     names = (options.generate ?? "").trim().split(/\s+/).filter(Boolean);
   let grid, heights;
@@ -99,7 +109,9 @@ function kdensity(session, text, ctx) {
     const at = numeric(session, session.varlist(options.at)[0]);
     grid = Array.from(at.data);
     heights = grid.map((v) =>
-      isMissing(v) ? MISSING : kernelDensity(values, [v], bandwidth, kernel)[0],
+      isMissing(v)
+        ? MISSING
+        : kernelDensity(values, [v], bandwidth, kernel, weights, type)[0],
     );
     if (names.length !== (names.length ? 1 : 0))
       throw new StataError("generate() takes one name with at()", 198);
@@ -113,7 +125,7 @@ function kdensity(session, text, ctx) {
     } else if (!options.n && n === data.n && data.n < 50)
       ctx.out(`(n() set to ${n})`);
     grid = densityGrid(values, bandwidth, n);
-    heights = kernelDensity(values, grid, bandwidth, kernel);
+    heights = kernelDensity(values, grid, bandwidth, kernel, weights, type);
     if (names.length && names.length !== 2)
       throw new StataError("generate() takes two names", 198);
     if (names.length) {
@@ -126,8 +138,13 @@ function kdensity(session, text, ctx) {
       store(session, names[0], pad(grid), titleOf(variable));
     }
   }
+  // r(scale) is 1 over n times the mean density, missing when that is 0.
+  const drawn = heights.filter((h) => !isMissing(h)),
+    count = Math.max(1, drawn.length),
+    mean = drawn.reduce((a, b) => a + b, 0) / count;
   session.results.r = {
-    n: grid.length,
+    scale: mean > 0 ? 1 / (count * mean) : MISSING,
+    n: count,
     bwidth: bandwidth,
     kernel,
   };
@@ -151,8 +168,14 @@ function kdensity(session, text, ctx) {
         yFormat: "%10.0g",
       },
     ];
-  if (options.normal) {
-    const m = moments(values);
+  // normal and student(#) draw the normal and t densities with the mean
+  // and sd of the values, weighted as summarize weights them (iweights
+  // not), over the points of the estimate, as Stata draws them.
+  const m =
+    weights && type !== "iweight"
+      ? weightedMeanSd(values, weights, type)
+      : moments(values);
+  if (options.normal)
     layers.push({
       kind: "line",
       points: points.map(([v]) => [
@@ -162,14 +185,37 @@ function kdensity(session, text, ctx) {
       ]),
       label: "Normal density",
     });
+  if (options.student > 0) {
+    const df = options.student,
+      scale = Math.exp(
+        lngamma((df + 1) / 2) - lngamma(df / 2) - 0.5 * Math.log(df * Math.PI),
+      );
+    layers.push({
+      kind: "line",
+      points: points.map(([v]) => [
+        v,
+        (scale * (1 + ((v - m.mean) / m.sd) ** 2 / df) ** (-(df + 1) / 2)) /
+          m.sd,
+      ]),
+      label: `t density, df = ${df}`,
+    });
   }
+  // Stata notes the kernel and the bandwidth below the graph, the
+  // bandwidth in %6.4f (or %10.3e when it rounds to 0); note() replaces it.
+  const looks = drawnLooks(options),
+    rounded = Math.round(bandwidth / 0.0001) * 0.0001,
+    shown =
+      bandwidth === 0
+        ? "0"
+        : applyFormat(bandwidth, rounded === 0 ? "%10.3e" : "%6.4f");
   ctx.graph({
     svg: draw({
-      ...drawnLooks(options),
+      ...looks,
       layers,
       xTitle: options.xtitle ?? titleOf(variable),
       yTitle: options.ytitle ?? "Density",
       title: options.title ?? "Kernel density estimate",
+      note: looks.note ?? `kernel = ${kernel}, bandwidth = ${shown}`,
     }),
     description: `Kernel density estimate of ${titleOf(variable)}: ${kernel} kernel, bandwidth ${g(bandwidth)}, ${values.length} observations.`,
   });
@@ -186,25 +232,42 @@ function lowessCommand(session, text, ctx) {
     rows = session
       .rows(parsed, null)
       .filter((i) => !isMissing(y.data[i]) && !isMissing(x.data[i]));
-  if (rows.length < 3) throw new StataError("insufficient observations", 2001);
-  const smooth = lowess(
-    rows.map((i) => x.data[i]),
-    rows.map((i) => y.data[i]),
-    {
-      bwidth: options.bwidth,
-      mean: !!options.mean,
-      weight: !options.noweight,
-    },
-  );
+  // lowess.ado smooths with .8 when bwidth() is not between 0 and 1, and
+  // notes .8; with fewer than 3 points, or one value of x, it draws the
+  // points without a smooth and generate() is missing.
+  const bwidth =
+      options.bwidth <= 0 || options.bwidth >= 1 ? 0.8 : options.bwidth,
+    xs = rows.map((i) => x.data[i]),
+    smooth =
+      rows.length >= 3 && greatest(xs) - least(xs) >= 1e-30
+        ? lowess(
+            xs,
+            rows.map((i) => y.data[i]),
+            {
+              bwidth,
+              mean: !!options.mean,
+              weight: !options.noweight,
+            },
+          )
+        : rows.map(() => MISSING);
   if (options.generate) {
     const out = new Array(session.data.n).fill(MISSING);
     rows.forEach((i, k) => (out[i] = smooth[k]));
     store(session, options.generate, out, "");
   }
   if (options.nograph) return;
+  // As Stata draws it: no legend unless legend() asks for one, the
+  // bandwidth noted below the graph (note() replaces it), and the title
+  // named for the smoother that mean and noweight make.
+  // With no points the graph is drawn empty, its titles and note only.
+  const looks = drawnLooks(options);
   ctx.graph({
     svg: draw({
-      ...drawnLooks(options),
+      ...looks,
+      allowEmpty: true,
+      legend:
+        looks.legend.on || looks.legend.order ? looks.legend : { off: true },
+      note: looks.note ?? `bandwidth = ${g(bwidth)}`,
       layers: [
         {
           kind: "scatter",
@@ -215,15 +278,19 @@ function lowessCommand(session, text, ctx) {
           kind: "line",
           points: rows
             .map((i, k) => [x.data[i], smooth[k]])
+            .filter((p) => !isMissing(p[1]))
             .sort((a, b) => a[0] - b[0]),
-          label: "lowess",
+          label: `lowess: ${titleOf(y)}`,
         },
       ],
       xTitle: options.xtitle ?? titleOf(x),
       yTitle: options.ytitle ?? titleOf(y),
-      title: options.title ?? "Lowess smoother",
+      // Stata titles noweight's smooth a lowess smoother too.
+      title:
+        options.title ??
+        (options.mean ? "Running mean smoother" : "Lowess smoother"),
     }),
-    description: `Lowess smoother of ${titleOf(y)} on ${titleOf(x)}, bandwidth ${g(options.bwidth)}, ${rows.length} points.`,
+    description: `Lowess smoother of ${titleOf(y)} on ${titleOf(x)}, bandwidth ${g(bwidth)}, ${rows.length} points.`,
   });
 }
 
@@ -271,6 +338,11 @@ function statisticOf(text) {
         ),
     };
   }
+  if (name === "asis")
+    throw new StataError(
+      "(asis) is not drawn on this page; graph bar draws statistics of the groups, such as (mean) or (sum)",
+      198,
+    );
   if (NOT_DRAWN.test(name))
     throw new StataError(
       `(${name}) is not drawn on this page; graph bar draws mean, median, p1 to p99, sum, count, percent, min, max and sd`,
@@ -1101,9 +1173,15 @@ function graphBox(session, text, ctx) {
       points: [],
       label: names[s],
     }));
+  // Stata notes that outside values are left out, unless note() says
+  // otherwise.
+  const looks = drawnLooks(options);
   ctx.graph({
     svg: draw({
-      ...drawnLooks(options),
+      ...looks,
+      note:
+        looks.note ??
+        (options.nooutsides ? "excludes outside values" : undefined),
       layers,
       xTitle: "",
       yTitle:

@@ -49,11 +49,9 @@ function sameText(actual, expected, tolerant) {
   return a.length === b.length && a.every((line, k) => sameLine(line, b[k]));
 }
 
-// Commands whose printed text is not compared, with the reason.
-const SKIP = [
-  // Data entry echoes the typed rows with line numbers in Stata's log.
-  /^input\b/,
-];
+// Commands whose printed text is not compared, with the reason. (input
+// echoes its rows as Stata's log does, and is compared.)
+const SKIP = [];
 
 for (const c of fixture.cases)
   test(`Results text matches native Stata: ${c.id}`, () => {
@@ -144,6 +142,8 @@ for (const c of fixture.cases)
             "redteam5-estat-vce-equations",
             "redteam5b-estat-vce-interactions-logit",
             "redteam5b-estat-classification-gof",
+            // margins after ologit takes its gradients by differencing.
+            "models6-ordered-margins-factors",
           ].includes(c.id),
         )
       )

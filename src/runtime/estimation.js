@@ -4,9 +4,11 @@
 // they will serve later estimators without change.
 import { evaluateAll } from "./expression.js";
 import { leverageStatistic } from "./diagnostics.js";
+import { greatest, least } from "./extremes.js";
+import { fold } from "./data-commands.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
-import { applyFormat, parseFormat } from "./format.js";
+import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
 import { FUNCTIONS } from "./functions.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -15,11 +17,19 @@ import {
   count,
   labelled,
   percentile,
+  perGroup,
   weightedRows,
 } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
-import { MISSING, isMissing, isName, isStringType } from "./values.js";
+import {
+  MISSING,
+  byteLength,
+  isMissing,
+  isName,
+  isStringType,
+  missingValue,
+} from "./values.js";
 import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -710,7 +720,8 @@ export function fit(session, parsed, by) {
  * (1.union) when the variable has no value label: it is alone. When it
  * has one, even without a label for that level, the factor is headed by
  * its name and the row shows the level (union, then Yes), but like a plain
- * variable it has no blank row after it: it is single.
+ * variable it has no blank row after it when the level comes after the
+ * base: it is single.
  */
 function tableBlocks(session, model) {
   const blocks = [];
@@ -738,7 +749,9 @@ function tableBlocks(session, model) {
       !session.data.valueLabels?.has(
         block.term.components[0].variable.valueLabel,
       );
-    block.single = one && !block.alone;
+    // A level shown before its base (ib1. with levels 0 and 1) is followed
+    // by a blank row all the same.
+    block.single = one && !block.alone && block.shown[0] === block.items.at(-1);
   }
   return blocks;
 }
@@ -770,9 +783,22 @@ function levelLabel(session, column) {
  * count: the z-tables of the likelihood models count their dependent
  * variable, which names their first equation, and tobit its var(e.y) row.
  */
-export function tableWidth(session, table, extra = []) {
+export function tableWidth(
+  session,
+  table,
+  extra = [],
+  columns = 66,
+  // The table of mean and its kin sets its stub as though the line were
+  // never under 79 (floor), wants a space before a broken label's # as
+  // room allows (breakPad 2), and heads the table by the width it wants
+  // (needed), which the line may then cap.
+  { floor = 0, breakPad = 1, needed = false } = {},
+) {
   const model = withBaseSetting(session, table),
-    cap = (session.settings?.linesize ?? 80) - 67,
+    // columns: the width of the table to the right of the stub's last
+    // character, rule included (66 for a coefficient table, 50 for the
+    // table of mean, total, ratio and proportion).
+    cap = Math.max(session.settings?.linesize ?? 80, floor) - columns - 1,
     // A name counts whole when the line allows it; an interaction that does
     // not fit is broken after a # as it would be in a column that wide,
     // and then its longest line counts, with the # that ends it.
@@ -802,10 +828,16 @@ export function tableWidth(session, table, extra = []) {
     for (const k of block.shown) {
       const { pieces, text } = levelLabel(session, model.columns[k]);
       if (text.length + 1 <= cap) lengths.push(text.length + 1);
-      else lengths.push(...pieces.map((piece) => piece.length + 1));
+      else
+        lengths.push(
+          ...pieces.map(
+            (piece, j) => piece.length + (j < pieces.length - 1 ? breakPad : 1),
+          ),
+        );
     }
   }
-  return Math.max(12, Math.min(Math.max(0, ...lengths), cap));
+  const widest = Math.max(0, ...lengths);
+  return Math.max(12, needed ? widest : Math.min(widest, cap));
 }
 /**
  * A base level is not shown in a coefficient table, unless no observation
@@ -1398,6 +1430,101 @@ export function predict(session, text, ctx) {
  * values and covariances of all of them.
  */
 const spaces = new WeakMap();
+
+/**
+ * r(table), which an estimation command leaves as its only r() result
+ * (with mean, proportion, ratio and total, r(mcmethod) too): a column for
+ * each coefficient of e(b) and the rows b, se, the t or z statistic, its
+ * p-value, the confidence interval, the residual degrees of freedom
+ * (missing after a z test), the critical value and whether the table was
+ * shown exponentiated. A base level or omitted coefficient has only its b;
+ * an ancillary parameter, such as a cut point, has no test, shown .b.
+ * body is what was typed after the command, which may ask for a level or
+ * an exponentiated form.
+ */
+export function tableResults(session, model, body, command) {
+  const space = coefficientSpace(model),
+    [, options = ""] = splitAtComma(body ?? ""),
+    asked = /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\(\s*([\d.]+)\s*\)/.exec(options),
+    level = asked ? Number(asked[1]) : (session.settings?.level ?? 95),
+    // regress and others that report t without saying so keep df_r.
+    t = model.dist ? model.dist === "t" : model.df_r !== undefined,
+    df = t ? model.df_r : MISSING,
+    critical = t
+      ? invttail(df, (1 - level / 100) / 2)
+      : invnormal(1 - (1 - level / 100) / 2),
+    eform =
+      (command === "logistic" && !/(?:^|[\s,])coef\b/.test(options)) ||
+      /(?:^|[\s,])(?:or|irr|rrr|hr|eform(?:\([^)]*\))?)(?=$|[\s,])/.test(
+        options,
+      ),
+    noTest = missingValue("b"),
+    rows = Array.from({ length: 9 }, () => []);
+  space.entries.forEach((entry, k) => {
+    const b = space.b[k],
+      variance = space.V[k][k],
+      // A base level has no variance; 0b.female#c.age, which Stata names
+      // so, is estimated all the same.
+      base =
+        (/^\d+b\./.test(entry.name) || /#\d+b\./.test(entry.name)) &&
+        !(variance > 0),
+      shown = (v) => (eform && entry.aux === undefined ? Math.exp(v) : v);
+    let column;
+    if (entry.omitted || base || !(variance > 0) || isMissing(variance))
+      column = [
+        shown(b),
+        MISSING,
+        MISSING,
+        MISSING,
+        MISSING,
+        MISSING,
+        df,
+        critical,
+        Number(eform),
+      ];
+    else {
+      const se = Math.sqrt(variance),
+        z = b / se,
+        test = entry.aux === undefined,
+        // A variance, as tobit's var(e.y), has its interval on the log
+        // scale.
+        spread = /^var\(/.test(entry.name)
+          ? (sign) => b * Math.exp((sign * critical * se) / b)
+          : (sign) => shown(b + sign * critical * se);
+      column = [
+        shown(b),
+        eform && test ? Math.exp(b) * se : se,
+        test ? z : noTest,
+        test
+          ? t
+            ? 2 * ttail(df, Math.abs(z))
+            : 2 * normal(-Math.abs(z))
+          : noTest,
+        spread(-1),
+        spread(1),
+        df,
+        critical,
+        Number(eform),
+      ];
+    }
+    column.forEach((v, r) => rows[r].push(v));
+  });
+  const results = {
+    "matrix:table": {
+      rowNames: ["b", "se", t ? "t" : "z", "pvalue", "ll", "ul", "df"].concat([
+        "crit",
+        "eform",
+      ]),
+      // An omitted coefficient is named as e(b) names it, o.age2.
+      colNames: space.entries.map(stripeName),
+      values: rows,
+    },
+  };
+  if (["mean", "proportion", "ratio", "total"].includes(model.command))
+    results.mcmethod = "noadjust";
+  return results;
+}
+
 export function coefficientSpace(model) {
   if (spaces.has(model)) return spaces.get(model);
   const entries = [],
@@ -1482,6 +1609,15 @@ export function coefficientSpace(model) {
   spaces.set(model, space);
   return space;
 }
+
+/**
+ * A coefficient's name in the stripe of e(b) and r(table): the equation
+ * and the name, an omitted coefficient written as Stata writes it.
+ */
+export const stripeName = (entry) => {
+  const name = entry.omitted ? omittedName(entry.name) : entry.name;
+  return entry.equation ? `${entry.equation}:${name}` : name;
+};
 
 /**
  * How Stata writes an omitted coefficient: o.k, 3o.reg, 1o.a#co.x; a base
@@ -2876,61 +3012,190 @@ export function lincom(session, text, ctx) {
   };
 }
 
+/**
+ * The covariances correlate computes from columns of complete observations:
+ * the mean cross-product of deviations rescaled by n/(n - 1), in that order,
+ * which is how Stata rounds them (1, ..., 6 has variance 3.5 - 2^-51 and
+ * 1, ..., 10 one ulp above 82.5/9; recorded from Stata 19). Analytic
+ * weights are taken to add up to the number of observations, frequency
+ * weights (frequency true) to their own sum.
+ */
+export function covarianceMatrix(columns, weights = null, frequency = false) {
+  const rows = columns[0]?.length ?? 0,
+    total = weights ? weights.reduce((t, w) => t + w, 0) : rows,
+    n = frequency ? total : rows,
+    means = columns.map(
+      (c) =>
+        (weights
+          ? c.reduce((t, v, i) => t + weights[i] * v, 0)
+          : c.reduce((t, v) => t + v, 0)) / total,
+    ),
+    C = columns.map(() => new Array(columns.length));
+  for (let a = 0; a < columns.length; a++)
+    for (let b = 0; b <= a; b++) {
+      let t = 0;
+      for (let i = 0; i < rows; i++)
+        t +=
+          (weights ? weights[i] : 1) *
+          (columns[a][i] - means[a]) *
+          (columns[b][i] - means[b]);
+      C[a][b] = C[b][a] = (t / total) * (n / (n - 1));
+    }
+  return { C, means };
+}
+/**
+ * A correlation as Stata's correlate gives it: the covariance over the
+ * product of the two standard deviations, so that two observations of 3, 7
+ * and 5, 9 correlate at 1 - 2^-52. A constant variable has none.
+ */
+export const correlationOf = (C, a, b) =>
+  C[a][a] > 0 && C[b][b] > 0
+    ? C[a][b] / (Math.sqrt(C[a][a]) * Math.sqrt(C[b][b]))
+    : MISSING;
+/**
+ * A name in a column of nine, as abbrev(name, 8) shortens it: trailing
+ * digits are kept, so measurement_2019 is mea~2019, and the abbreviation
+ * is one that no other variable in names would match. Widths are screen
+ * columns, so a Chinese name takes two to a character.
+ */
+export const columnName = (name, names = [], measure = displayWidth) =>
+  padColumns(abbreviateAmong(name, 8, names), 9, measure);
+/** A name in the first column, as abbrev(name, 12) shortens it. */
+export const rowName = (name, names = [], measure = displayWidth) =>
+  padColumns(abbreviateAmong(name, 12, names), 12, measure);
+const padColumns = (text, width, measure = displayWidth) =>
+  " ".repeat(Math.max(0, width - measure(text))) + text;
+
+/**
+ * The format correlate, means shows a variable's statistics in: its own
+ * fixed or general format at width 9, a date format as it is, and %9.0g
+ * for any other or with noformat. Recorded from Stata 19.
+ */
+function meansFormat(variable, plain) {
+  const spec = parseFormat(variable.format ?? "%9.0g");
+  if (plain || !spec) return "%9.0g";
+  if (spec.kind === "date") return variable.format;
+  if (spec.kind !== "number" || spec.style === "e") return "%9.0g";
+  return `%9.${Math.min(spec.digits, 9)}${spec.style}${spec.commas ? "c" : ""}`;
+}
+
+/**
+ * The observations correlate uses and their weights. Stata leaves out an
+ * observation whose weight is missing, zero or negative, so a survey
+ * weight that codes missing as -1 drops those observations rather than
+ * stopping, and refuses frequency weights that are not whole numbers.
+ * frequency says the weights count observations.
+ */
+export function correlationRows(session, parsed, rows) {
+  if (!parsed.weight) return { rows, weights: null, frequency: false };
+  const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n),
+    used = rows.filter((i) => !isMissing(all[i]) && all[i] > 0),
+    frequency = parsed.weight.type === "fweight";
+  if (frequency && used.some((i) => !Number.isInteger(all[i])))
+    throw new StataError("may not use noninteger frequency weights", 401);
+  return { rows: used, weights: used.map((i) => all[i]), frequency };
+}
+
 function correlate(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Covariance | Means WRAP]",
+      "[varlist] [if] [in] [aweight fweight] [, Covariance Means noFormat Wrap]",
       text,
     ),
-    variables = parsed.varlist
-      .map((name) => session.data.get(name))
-      .filter((v) => !isStringType(v.type)),
-    rows = session
-      .rows(parsed, null)
+    options = parsed.options,
+    named = parsed.varlist.map((name) => session.data.get(name)),
+    variables = named.filter((v) => !isStringType(v.type));
+  for (const v of named)
+    if (isStringType(v.type))
+      ctx.out(`(${v.name} ignored because string variable)`);
+  const complete = session
+      .rows(parsed, ctx.group ? { groups: [ctx.group] } : null)
       .filter((i) => variables.every((v) => !isMissing(v.data[i]))),
-    n = rows.length;
+    { rows, weights, frequency } = correlationRows(session, parsed, complete),
+    n = frequency ? weights.reduce((t, w) => t + w, 0) : rows.length;
   if (!n) throw new StataError("no observations", 2000);
+  if (n < 2) throw new StataError("insufficient observations", 2001);
   const columns = variables.map((v) => rows.map((i) => v.data[i])),
-    means = columns.map((c) => c.reduce((a, b) => a + b, 0) / n),
-    covariance = (a, b) =>
-      columns[a].reduce(
-        (t, v, i) => t + (v - means[a]) * (columns[b][i] - means[b]),
-        0,
-      ) /
-      (n - 1),
-    C = columns.map((_, a) => columns.map((_, b) => covariance(a, b))),
+    { C, means } = covarianceMatrix(columns, weights, frequency),
     shown = (a, b) =>
-      parsed.options.covariance
-        ? g(C[a][b], "%9.6g").padStart(9)
-        : applyFormat(C[a][b] / Math.sqrt(C[a][a] * C[b][b]), "%9.4f"),
-    short = (name) =>
-      name.length > 8 ? name.slice(0, 6) + "~" + name.at(-1) : name;
+      options.covariance
+        ? " " + applyFormat(C[a][b], "%8.0g")
+        : applyFormat(correlationOf(C, a, b), "%9.4f");
+  const sumW = weights && !frequency && weights.reduce((t, w) => t + w, 0),
+    names = session.data.names,
+    // correlate pads its names by bytes, so that a Chinese name sits further
+    // left than its column, as Stata 19 shows it; pwcorr pads by columns.
+    row = (name) => rowName(name, names, byteLength),
+    column = (name) => columnName(name, names, byteLength);
+  if (sumW) ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out(`(obs=${count(n)})`);
-  ctx.out("");
-  ctx.out(
-    `             |${variables.map((v) => short(v.name).padStart(9)).join("")}`,
-  );
-  ctx.out(`-------------+${"-".repeat(9 * variables.length)}`);
-  variables.forEach((v, a) =>
+  if (options.means) {
+    ctx.out("");
     ctx.out(
-      `${(v.name.length > 12 ? v.name.slice(0, 10) + "~" + v.name.at(-1) : v.name).padStart(12)} |${variables
-        .slice(0, a + 1)
-        .map((_, b) => shown(a, b))
-        .join("")}`,
-    ),
-  );
+      "    Variable |         Mean    Std. dev.          Min          Max",
+    );
+    ctx.out(`-------------+${"-".repeat(52)}`);
+    variables.forEach((v, a) => {
+      const format = meansFormat(v, options.format === false),
+        cell = (value) => applyFormat(value, format).padStart(13);
+      ctx.out(
+        `${row(v.name)} |${[
+          means[a],
+          Math.sqrt(C[a][a]),
+          least(columns[a]),
+          greatest(columns[a]),
+        ]
+          .map(cell)
+          .join("")}`,
+      );
+    });
+    ctx.out("");
+  }
+  // Panels as wide as the line allows. With wrap there is one, and a line
+  // wider than the linesize goes on after "> ".
+  const linesize = session.settings.linesize ?? 80,
+    across = options.wrap
+      ? variables.length
+      : Math.max(1, Math.floor((linesize - 14) / 9)),
+    out = (line) => fold(line, linesize).forEach((part) => ctx.out(part));
+  for (let start = 0; start < variables.length; start += across) {
+    const block = variables.slice(start, start + across);
+    ctx.out("");
+    out(`             |${block.map((v) => column(v.name)).join("")}`);
+    out(`-------------+${"-".repeat(9 * block.length)}`);
+    for (let a = start; a < variables.length; a++)
+      out(
+        `${row(variables[a].name)} |${block
+          .slice(0, a - start + 1)
+          .map((_, k) => shown(a, start + k))
+          .join("")}`,
+      );
+  }
   ctx.out("");
+  // Under by, Stata's by adds a blank line before the next group's rule.
+  if (ctx.group) ctx.out("");
   session.results.r = {
+    ...(sumW ? { sum_w: sumW } : {}),
     N: n,
     // rho is returned without the covariance option, the moments with it.
-    ...(variables.length > 1 && !parsed.options.covariance
-      ? { rho: C[0][1] / Math.sqrt(C[0][0] * C[1][1]) }
+    ...(variables.length > 1 && !options.covariance
+      ? { rho: correlationOf(C, 0, 1) }
       : {}),
-    ...(parsed.options.covariance
+    ...(options.covariance && variables.length
       ? {
-          Var_1: C[0][0],
+          // In the order return list shows them.
           ...(variables.length > 1 ? { cov_12: C[0][1], Var_2: C[1][1] } : {}),
+          Var_1: C[0][0],
         }
       : {}),
+    "matrix:C": {
+      rowNames: variables.map((v) => v.name),
+      colNames: variables.map((v) => v.name),
+      values: C.map((row, a) =>
+        row.map((value, b) =>
+          options.covariance ? value : correlationOf(C, a, b),
+        ),
+      ),
+    },
   };
 }
 
@@ -3261,7 +3526,7 @@ function tabstat(session, text, ctx) {
     const width = to - from;
     if (incol === "statistics")
       ctx.out(
-        `${by ? `${align(abbreviate(by.name, byw), byw)} ` : ""}${descr ? `${"Variable".padStart(varwidth)} ` : ""}|${names
+        `${by ? `${align(abbreviateAmong(by.name, byw, session.data.names), byw)} ` : ""}${descr ? `${"Variable".padStart(varwidth)} ` : ""}|${names
           .slice(from, to)
           .map((name) => name.padStart(colwidth))
           .join("")}`,
@@ -3270,7 +3535,12 @@ function tabstat(session, text, ctx) {
       ctx.out(
         `${by ? `${align(by.name, byw)} ` : ""}${descr ? "   Stats " : ""}|${variables
           .slice(from, to)
-          .map((v) => abbreviate(v.name, 8).padStart(colwidth))
+          .map((v) =>
+            padColumns(
+              abbreviateAmong(v.name, 8, session.data.names),
+              colwidth,
+            ),
+          )
           .join("")}`,
       );
     ctx.out(rule(width));
@@ -3278,7 +3548,7 @@ function tabstat(session, text, ctx) {
       if (incol === "statistics")
         variables.forEach((v, i) =>
           ctx.out(
-            `${groupLabel(g, i === 0)}${descr ? `${abbreviate(v.name, varwidth).padStart(varwidth)} ` : ""}|${names
+            `${groupLabel(g, i === 0)}${descr ? `${padColumns(abbreviateAmong(v.name, varwidth, session.data.names), varwidth)} ` : ""}|${names
               .slice(from, to)
               .map((name) => cell(tabstatValue(g.stats[i], name), formats[i]))
               .join("")}`,
@@ -3309,6 +3579,6 @@ export const ESTIMATION_COMMANDS = [
   { name: "predict", minimum: 7, run: predict },
   { name: "test", minimum: 4, run: test },
   { name: "lincom", minimum: 6, run: lincom },
-  { name: "correlate", minimum: 3, run: correlate },
+  { name: "correlate", minimum: 3, run: perGroup(correlate), byable: true },
   { name: "tabstat", minimum: 7, run: tabstat },
 ];

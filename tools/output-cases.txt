@@ -10773,6 +10773,55 @@ histogram w, color(red%40)
 twoway lfitci y w, color(red%20)
 twoway bar y w, color(red) lcolor(blue)
 kdensity w, lcolor(red%50)
+=== graph-redteam6
+clear
+input byte g double x double y double c byte w
+0 1 50.5 5 1
+0 2 55 5 2
+0 3 61 5 1
+0 4 58 5 3
+0 5 70 5 1
+0 6 72.5 5 2
+1 1 35.8 5 1
+1 2 47 5 1
+1 3 52 5 2
+1 4 66 5 1
+1 5 69 5 1
+1 6 92.3 5 2
+. 7 80 5 1
+end
+histogram c
+histogram c, frequency
+histogram c, bin(4)
+histogram c, width(2)
+histogram c, start(3)
+histogram y [fw=w]
+histogram y [fw=w], discrete
+histogram y, by(g) start(30) width(10)
+histogram y, by(g) bin(5) frequency
+capture noisily kdensity y, by(g)
+display _rc
+capture noisily kdensity y, by(g) nograph
+display _rc
+kdensity y
+lowess y x
+graph box y, over(g) nooutsides
+scatter y x || lfit y x
+scatter y x || lfit y x ||, by(g)
+line y x || scatter y x
+twoway (scatter y x) (function z = 50 + 4*x, range(0 8))
+twoway function y = sqrt(x), range(-5 5)
+line y x in 1/6
+twoway bar y x
+twoway bar y x, base(0) barwidth(.5)
+twoway area y x, base(40)
+capture noisily twoway scatter y x, base(3)
+capture noisily twoway line y x, barwidth(2)
+scatter y x, by(g, missing)
+scatter y x, by(g, colfirst holes(2) ixaxes iyaxes noedgelabel)
+scatter y x, by(g, rescale)
+scatter y x, by(g, xrescale yrescale noixaxes)
+scatter y x, xlabel(0(3)11) ylabel(30(25)120)
 === xtreg-collinear-within
 clear
 set seed 4211
@@ -13137,3 +13186,4254 @@ use frh, clear
 collapse (mean) lninc, by(female)
 capture noisily save, replace
 describe, short
+=== graph-redteam6-weights
+clear
+set seed 2718
+set obs 90
+gen id = _n
+gen region = 1 + mod(_n, 5)
+label define rl 1 "North" 2 "South" 3 "East" 4 "West" 5 "Central"
+label values region rl
+gen sex = cond(runiform() < .5, "M", "F")
+gen income = round(1000 + 20000*runiform()^2, 1)
+replace income = income*10 if region == 3
+gen age = 18 + floor(50*runiform())
+gen wt = round(50 + 40*runiform(), .1)
+replace wt = . in 5/7
+gen yr = 1990 + mod(_n, 30)
+gen c3 = 7
+gen treat = _n > 45
+label variable income "Household income"
+label variable age "Age (years)"
+gen grp = mod(_n, 4)
+replace grp = . if mod(_n, 9) == 0
+replace grp = .a in 2
+gen str8 city = cond(mod(_n,3)==0, "", cond(mod(_n,3)==1, "Rome", "Oslo"))
+gen neg = wt - 70
+gen big = income * 1000
+gen tiny = wt / 100000
+capture noisily scatter wt age, by(region, holes(0))
+capture noisily scatter wt age, by(region, holes(-1.5))
+capture noisily scatter wt age, by(region, holes(2.5 0))
+capture noisily scatter wt age, by(region, holes(0 2.5))
+capture noisily scatter wt age, by(region, cols(0) holes(2.5))
+scatter wt age, by(region, holes(3 3))
+lowess wt age, bwidth(1) generate(s1) nograph
+summarize s1
+lowess wt age, bwidth(-.2) generate(s3) nograph
+summarize s3
+lowess wt age, bwidth(1.5)
+lowess wt age in 1/2, generate(s2)
+summarize s2
+lowess wt c3, generate(s4)
+summarize s4
+lowess wt age if id < 0
+kdensity c3, generate(kx kd)
+summarize kx kd
+kdensity c3, nograph
+display "scale " r(scale) " " r(n) " " r(bwidth)
+kdensity wt [aw=region], generate(x1 d1) n(6) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+list x1 d1 in 1/6
+kdensity wt [fw=region], generate(x2 d2) n(6) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+list x2 d2 in 1/6
+kdensity wt [iw=region], generate(x3 d3) n(6) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+list x3 d3 in 1/6
+kdensity wt [aw=income], generate(x4 d4) n(6) nograph
+list x4 d4 in 1/6
+kdensity wt, at(age) nograph
+display %12.8f r(scale) " " r(n) " " %12.8f r(bwidth)
+kdensity wt, student(5) normal
+capture noisily kdensity wt [pw=region]
+twoway kdensity wt [aw=region]
+twoway kdensity wt [fw=region]
+capture noisily twoway kdensity wt [iw=region]
+capture noisily twoway kdensity wt [pw=region]
+twoway histogram wt [fw=region]
+capture noisily twoway histogram wt [aw=region]
+twoway (histogram wt [fw=region]), by(treat)
+twoway lfit wt age [aw=region]
+twoway lfit wt age [pw=region]
+twoway qfit wt age [aw=region]
+twoway lfitci wt age [fw=region]
+twoway lfitci wt age [pw=region]
+twoway qfitci wt age [pw=income]
+capture noisily twoway lfit wt age [iw=region]
+capture noisily twoway lowess wt age [aw=region]
+twoway line wt age [aw=region]
+twoway line wt age [fw=region]
+twoway area wt id [pw=region]
+twoway bar wt id [fw=region]
+capture noisily twoway line wt age [iw=region]
+histogram age, gap(20)
+histogram age, gap(99.5)
+capture noisily histogram age, gap(100)
+capture noisily histogram age, gap(-1)
+twoway histogram age, gap(20)
+histogram age, by(treat) gap(50)
+line wt yr, cmissing(n)
+line wt neg yr, cmissing(y n)
+line wt yr, cmissing(n) sort
+scatter wt yr, cmissing(n)
+twoway lfit wt yr, cmissing(n)
+capture noisily line wt yr, cmis(n)
+line wt income in 1/15, sort(age)
+line wt income in 1/15, sort(age id)
+line wt income, sort(city)
+capture noisily line wt income, sort(nosuch)
+twoway (line wt age, sort(id)) (scatter wt age)
+=== graph-redteam6-axes
+clear
+set seed 31337
+set obs 137
+gen g = cond(_n <= 15, 1, cond(_n <= 70, 2, 3))
+gen h = mod(_n, 2)
+gen v1 = round(100*runiform(), .1)
+gen v2 = round(runiform()^3 * 50, .01)
+gen v3 = round(1000 + 500*runiform() + 500*runiform(), 1)
+gen v4 = floor(6*runiform())
+gen v5 = round(-20 + 15*runiform(), .5)
+gen v6 = runiform()/1000
+gen v7 = floor(3*runiform()) + 10*g
+gen v8 = round(exp(5*runiform()), .1)
+histogram v5, by(g)
+histogram v5, by(g) ylabel(#4)
+histogram v5 if g==1, start(-20) width(1.3636364) ylabel(#4)
+histogram v5, by(h) discrete
+scatter v5 v1, xlabel(10(5)0)
+scatter v5 v1, xlabel(10(3)0)
+scatter v5 v1, xlabel(0(-25)100)
+scatter v5 v1, ylabel(-5(5)-20)
+scatter v5 v1, xlabel(100(30)-20)
+=== files-delimited-rows-count-empty-lines-and-separators
+clear
+input str30 line
+"Report generated 2024"
+""
+"region,sales,units"
+"East,1200.50,10"
+"West,980,"
+""
+"North,NA,7"
+end
+export delimited using f6blank.csv, replace novarnames delimiter(tab)
+import delimited using f6blank.csv, clear varnames(3)
+list
+describe
+import delimited using f6blank.csv, clear rowrange(3:5)
+list
+import delimited using f6blank.csv, clear varnames(3) rowrange(5)
+list
+import delimited using f6blank.csv, clear varnames(3) rowrange(3:5)
+describe
+list
+import delimited using f6blank.csv, clear varnames(2) emptylines(include)
+list
+import delimited using f6blank.csv, clear rowrange(2:4) emptylines(include)
+list
+import delimited using f6blank.csv, clear rowrange(6:6)
+list
+import delimited using f6blank.csv, clear varnames(1) rowrange(3:5)
+describe
+clear
+input str30 line
+"a,b"
+""
+""
+"1,2"
+end
+export delimited using f6two.csv, replace novarnames delimiter(tab)
+import delimited using f6two.csv, clear rowrange(2:3)
+list
+import delimited using f6two.csv, clear varnames(2)
+describe
+clear
+input str30 line
+"ville;revenu"
+"Paris;35 123,50"
+"Lyon;29 800,25"
+"Nice;980,00"
+end
+export delimited using f6espace.csv, replace novarnames delimiter(tab)
+import delimited using f6espace.csv, clear delimiters(";") decimalseparator(,) groupseparator(" ")
+describe
+list
+import delimited using f6espace.csv, clear delimiters(";") decimalseparator(" , ") groupseparator(" ")
+list
+capture noisily import delimited using f6espace.csv, clear delimiters(";") decimalseparator(,) groupseparator(..)
+capture noisily import delimited using f6espace.csv, clear delimiters(";") decimalseparator(,,) groupseparator(.)
+=== files-sasxport5-extended-missing-labels
+clear
+set obs 6
+generate id = _n
+generate byte sex = cond(_n <= 2, 1, cond(_n <= 4, 2, .a))
+label define f6sexlbl 1 "Male" 2 "Female" .a "Refused"
+label values sex f6sexlbl
+export sasxport5 f6survey.xpt, replace
+capture noisily import sasxport5 f6survey.xpt, clear
+display _rc
+describe
+label list
+import sasxport5 f6survey.xpt, clear novallabels
+describe
+capture noisily export sasxport5 f6back.xpt, replace
+display _rc
+export sasxport5 f6back.xpt, replace vallabfile(none)
+capture noisily export sasxport5 id using f6back.xpt, replace
+display _rc
+label define f6zz 3 "c" 1 "a" .z "zed" .b "bee"
+generate byte q = cond(_n == 1, 3, cond(_n == 2, .b, 1))
+label values q f6zz
+export sasxport5 q using f6q.xpt, replace
+capture noisily import sasxport5 f6q.xpt, clear
+display _rc
+clear
+set obs 2
+generate byte q = _n * 2 - 1
+label define f6ok 3 "c" 1 "a"
+label values q f6ok
+export sasxport5 f6ok.xpt, replace
+import sasxport5 f6ok.xpt, clear
+label list
+list
+=== files-infix-and-infile
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+"  3 21F2.75Physics"
+""
+"  5  xF -1e1Art"
+" 61,0 F 1,5Law extra text"
+"  7"
+end
+export delimited using f6fix.dat, replace novarnames delimiter(tab)
+infix id 1-3 age 4-5 str sex 6 gpa 7-10 str major 11-20 using f6fix.dat, clear
+describe
+list
+infix int id 1-3 byte age 4-5 str1 sex 6 double gpa 7-10 str3 major 11-20 using f6fix.dat, clear
+describe
+infix id 1-3 age 4-5 using f6fix.dat in 2/3, clear
+list
+infix id 1-3 age 4-5 using f6fix.dat if age > 19, clear
+list
+capture noisily infix id 1-3 age 4-5 using f6fix.dat
+capture noisily infix id 1-3 age 4-5 using f6fix, clear
+capture noisily infix id 3-1 using f6fix.dat, clear
+capture noisily infix id 1-3, clear
+infix 2 lines 1: id 1-3 2: age 1-2 using f6fix.dat, clear
+list
+capture noisily infix id 1-3 id 4-5 using f6fix.dat, clear
+infix str20 s 1-50 using f6fix.dat, clear
+describe
+capture noisily infix 1x 1-3 using f6fix.dat, clear
+capture noisily infix id 1-3 using f6fix.dat, clear foo
+clear
+input str40 line
+"1 Ann 3.5"
+"2 Bob 3.9"
+"3,Cal,2.75"
+"4 Dee .a"
+""
+"5   Ed 1e1 6"
+"Fay x 7 Gus"
+end
+export delimited using f6free.raw, replace novarnames delimiter(tab)
+infile id str10 name gpa using f6free.raw, clear
+describe
+list
+infile id str2 name gpa using f6free, clear
+list
+infile id name gpa using f6free.raw in 2/4, clear
+list
+infile id str10 name gpa using f6free.raw in 6/9, clear
+infile id str10 name gpa using f6free.raw if gpa > 3, clear
+list
+infile int id str name double gpa using f6free.raw, clear
+describe
+infile id str10 name gpa using f6free.raw, clear byvariable(2)
+list
+capture noisily infile id str10 name gpa using f6free.raw in 0/3, clear
+capture noisily infile id str10 name gpa using f6free.raw in 3/2, clear
+infile x1-x3 using f6free.raw, clear
+describe, simple
+clear
+input str40 line
+"infile dictionary using f6fix.dat {"
+"* columns 1 to 5"
+"  _column(1) int id %3f"
+"  _column(4) byte age %2f"
+"  _skip(1) str4 code %4s"
+"}"
+end
+export delimited using f6dict.dct, replace novarnames delimiter(tab)
+infile using f6dict.dct, clear
+describe
+list
+infile using f6dict in 5/7, clear
+list
+clear
+input str40 line
+"infix dictionary using f6fix.dat {"
+"  id 1-3"
+"  str sex 6"
+"}"
+end
+export delimited using f6idict.dct, replace novarnames delimiter(tab)
+infix using f6idict.dct, clear
+list
+=== files-r6-infile-free-empty-lines
+clear
+input str20 line
+"1 Ann 3.5"
+""
+"2 Bob 4"
+"   "
+"3 Cal 5"
+end
+export delimited using r6em.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6em.raw, clear
+list
+clear
+input str20 line
+"1 Ann 3.5"
+""
+"2,Bob,4"
+"3 Cal 5"
+end
+export delimited using r6c2.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6c2.raw, clear
+list
+clear
+input str20 line
+"1,Ann,3.5"
+""
+"2 Bob 4"
+"3 Cal 5"
+end
+export delimited using r6c1.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6c1.raw, clear
+list
+clear
+input str20 line
+"1 A 3"
+"2,B,4"
+""
+""
+"3 C 5"
+end
+export delimited using r6cm.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6cm.raw, clear
+list
+clear
+input str20 line
+",1 A 3"
+"2 B 4"
+end
+export delimited using r6lead.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6lead.raw, clear
+list
+clear
+input str20 line
+"1 A 3"
+"2 B 4,"
+end
+export delimited using r6trail.raw, replace novarnames delimiter(tab)
+infile id str5 name score using r6trail.raw, clear
+list
+=== files-r6-infile-dictionary-decimals-and-records
+clear
+input str40 line
+"infile dictionary {"
+"  a %5.2f"
+"  b %5.2g"
+"  c %5.2e"
+"  d %5.1f"
+"  e %6.2f"
+"  f %4.0f"
+"}"
+"  123  123  123 -123 1.5e2  12 "
+"  1 2    7 . 12   .5   1  "
+end
+export delimited using r6dec.dct, replace novarnames delimiter(tab)
+infile using r6dec.dct, clear
+format a-f %12.4f
+list
+clear
+input str40 line
+"infile dictionary {"
+"  a %5.2f"
+"  b %3.1f"
+"}"
+"  .a  12"
+" 1e2 1."
+"  1,5 -12"
+end
+export delimited using r6nums.dct, replace novarnames delimiter(tab)
+infile using r6nums.dct, clear
+list
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+"  3 21F2.75Physics"
+end
+export delimited using r6data.dat, replace novarnames delimiter(tab)
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"_lrecl(20)"
+"  id %3f"
+"}"
+end
+export delimited using r6lrecl.dct, replace novarnames delimiter(tab)
+infile using r6lrecl.dct, clear
+list
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"_lrecl(4)"
+"  id %3f"
+"  age %3f"
+"}"
+end
+export delimited using r6lrecl4.dct, replace novarnames delimiter(tab)
+infile using r6lrecl4.dct, clear
+list
+clear
+input str40 line
+"infile dictionary {"
+"_firstlineoffile(2)"
+"  id %3f"
+"  age %3f"
+"}"
+"skip me"
+"  1 20"
+"  2 19"
+end
+export delimited using r6first.dct, replace novarnames delimiter(tab)
+infile using r6first.dct, clear
+list
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"_firstline(2)"
+"  id %3f"
+"}"
+end
+export delimited using r6first2.dct, replace novarnames delimiter(tab)
+infile using r6first2.dct, clear
+list
+clear
+input str40 line
+"infile dictionary using r6data.dat {"
+"  int major %5s"
+"}"
+end
+export delimited using r6mis.dct, replace novarnames delimiter(tab)
+infile using r6mis.dct, clear
+list
+=== files-r6-infile-infix-dictionary-errors
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+"  3 21F2.75Physics"
+end
+export delimited using r6derr.dat, replace novarnames delimiter(tab)
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"_col(1) int id %3f"
+"_col(7) str1 sex %1s"
+"}"
+end
+export delimited using r6col.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6col.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  id %3f"
+"  age %2f"
+"  ?bad %2f"
+"  x %2f"
+"}"
+end
+export delimited using r6mid.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6mid.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  id %3f"
+"* c"
+"  id %2f"
+"}"
+end
+export delimited using r6dup.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6dup.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  1x %3f"
+"}"
+end
+export delimited using r6num.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6num.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary using r6derr.dat {"
+"  str3 id %3.1f"
+"  age %3.1s"
+"}"
+end
+export delimited using r6sdec.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6sdec.dct, clear
+display _rc
+clear
+input str40 line
+"infile dictionary {"
+"// a comment"
+"  id %3f"
+"}"
+"  1"
+end
+export delimited using r6cmt.dct, replace novarnames delimiter(tab)
+capture noisily infile using r6cmt.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"_lrecl(20)"
+"  id 1-3"
+"}"
+end
+export delimited using r6ixl.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixl.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"  ?x 4-5"
+"}"
+end
+export delimited using r6ixq.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixq.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"  id 4-5"
+"}"
+end
+export delimited using r6ixd.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixd.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"  age 4-x"
+"}"
+end
+export delimited using r6ixm.dct, replace novarnames delimiter(tab)
+capture noisily infix using r6ixm.dct, clear
+display _rc
+clear
+input str40 line
+"infix dictionary using r6derr.dat {"
+"  id 1-3"
+"/"
+"  age 4-5"
+"}"
+end
+export delimited using r6ixs.dct, replace novarnames delimiter(tab)
+infix using r6ixs.dct, clear
+list
+infix id 1-3 / age 4-5 using r6derr.dat, clear
+list
+capture noisily infix id using r6derr.dat, clear
+display _rc
+capture noisily infix id 1-3 age using r6derr.dat, clear
+display _rc
+=== files-r6-infile-infix-clear-first
+clear
+input str40 line
+"  1 20M3.50Economics"
+"  2 19F3.90History"
+end
+export delimited using r6dclr.dat, replace novarnames delimiter(tab)
+clear
+label define r6yn 1 "yes"
+set obs 2
+generate keepme = 1
+capture noisily infix id 1-3 using r6nothere.dat, clear
+display _rc
+describe, short
+label list
+infix id 1-3 using r6dclr.dat
+list
+set obs 3
+capture noisily infix id 1-3 id 4-5 using r6dclr.dat, clear
+describe, short
+generate x = 1
+capture noisily infile id id using r6dclr.dat, clear
+describe, short
+generate x = 1
+capture noisily infile id using r6dclr.dat, clear foo
+display _rc
+describe, short
+generate x = 1
+infix id 1-3 using r6dclr.dat, clear
+label list
+=== files-r6-sasxport5-label-names-and-widths
+clear
+set obs 2
+generate byte educ = _n
+generate byte empl = 2 - _n
+label define education_level 1 "High school" 2 "College"
+label define education_other 0 "No" 1 "Yes"
+label values educ education_level
+label values empl education_other
+capture noisily export sasxport5 r6c.xpt, replace
+display _rc
+export sasxport5 r6c.xpt, replace rename
+import sasxport5 r6c.xpt, clear
+describe
+label list
+clear
+set obs 2
+generate byte q = _n
+label define r6big 1 "a label that is quite long indeed, more than forty characters long" 2 "short"
+label values q r6big
+export sasxport5 r6e.xpt, replace
+import sasxport5 r6e.xpt, clear
+label list
+clear
+set obs 4
+generate id = _n
+generate byte sex = cond(_n <= 2, 1, 2)
+label values sex r6nolbl
+capture noisily export sasxport5 r6a.xpt, replace vallabfile(sascode)
+display _rc
+capture noisily export sasxport5 r6a.xpt, replace vallabfile(both)
+display _rc
+=== files-r6-delimited-columns-separators
+clear
+input str20 line
+"a,b"
+"1,2,3,4"
+"5,6"
+"7,8"
+end
+export delimited using r6wide.csv, replace novarnames delimiter(tab)
+import delimited using r6wide.csv, clear varnames(1) rowrange(3:4)
+list
+clear
+input str20 line
+"a,b"
+"1,2,3"
+""
+"5,6"
+"7,8"
+"9,10,11,12,13"
+end
+export delimited using r6wide2.csv, replace novarnames delimiter(tab)
+import delimited using r6wide2.csv, clear varnames(1) rowrange(4:5)
+list
+clear
+input str20 line
+"a;b"
+"x;1.234.567"
+"y;2.5"
+end
+export delimited using r6same.csv, replace novarnames delimiter(tab)
+import delimited using r6same.csv, clear delimiters(";") groupseparator(.)
+describe
+list
+clear
+input str20 line
+"a;b"
+"x;1x234"
+"y;2"
+end
+export delimited using r6letters.csv, replace novarnames delimiter(tab)
+import delimited using r6letters.csv, clear delimiters(";") groupseparator(x)
+describe
+list
+=== list-value-labels-cut-to-format-width
+clear
+set obs 6
+generate id = _n
+generate sex = mod(_n,2)+1
+label define sexlbl 1 "Male respondent long" 2 "Female respondent"
+label values sex sexlbl
+describe sex
+generate q1 = mod(_n,4)+1
+label define agr 1 "Strongly disagree" 2 "Disagree" 3 "Agree" 4 "Strongly agree"
+label values q1 agr
+format q1 %8.2f
+format sex %4.0g
+generate grp = mod(_n,3)
+label define g 0 "Control group" 1 "Treatment A" 2 "Treatment B (high dose)"
+label values grp g
+format grp %12.0g
+list sex q1 grp
+list q1 in 1/5
+list sex q1 grp, clean
+list sex q1 grp, nolabel
+list sex in 1/3, string(2)
+format sex %6.0g
+list sex, string(5)
+generate x = mod(_n,2)+1
+label define xl 1 "zero label long" 2 "one label long"
+label values x xl
+format x %5.2fc
+list x in 1/2
+format x %3.1e
+list x in 1/2
+format x %05.0f
+list x in 1/2
+format x %tc
+list x in 1/2
+format x %-4.0g
+list x in 1/2
+format x %-5.2f
+list x in 1/2
+format x %10.0g
+list x in 1/2
+generate longname = _n
+label values longname xl
+format longname %3.0g
+list longname in 1/2
+list longname in 1/2, abbreviate(4)
+format longname %-3.0g
+list longname x in 1/2
+describe x longname
+generate d = 12345 + _n
+label define dl 12346 "twelve"
+label values d dl
+format d %4.0g
+list d in 1/3
+generate j = .a
+replace j = 1 in 1
+label define jl 1 "one" .a "missing a long label"
+label values j jl
+format j %5.0g
+list j in 1/3
+generate f = mod(_n,2)+1
+label define fl 1 "中文标签很长的" 2 "abc"
+label values f fl
+format f %5.0g
+list f in 1/2
+format f %6.0g
+list f in 1/2
+generate byte z = mod(_n,2)+1
+label define zl 1 "é accent lab" 2 "ü"
+label values z zl
+describe z
+format z %4.0g
+list z in 1/2
+generate h = 1
+label define hl 1 "A label that is longer than the line allows in a boxed list at the default linesize of 79 here"
+label values h hl
+set linesize 79
+list h in 1
+format h %75.0g
+list h in 1
+list id h in 1, clean
+format h %12.0g
+list h in 1
+list id sex q1 grp x longname d j f z h in 1/2
+set linesize 200
+=== label-values-widens-only-new-variables
+clear
+set obs 2
+generate x = _n
+generate y = _n
+generate z = _n
+label define L 1 "abcdefghijklmn"
+label values x L
+format x %4.0g
+label values y L
+describe x y
+label values z L
+format x %4.0g
+format y %5.0g
+format z %6.0g
+label define L 2 "abcdefghijklmnopq", add
+describe x y z
+format x %4.0g
+format y %5.0g
+format z %6.0g
+label values x y L
+describe x y z
+label values x
+label values x L
+describe x y z
+format x %-4.0g
+label define M 1 "a much longer label than the others are"
+label values x M
+describe x
+=== list-clean-wrapped-at-linesize
+clear
+set obs 6
+set seed 42
+generate id = _n
+generate double income = round(runiform()*50000+20000, .01)
+generate age = 20 + _n
+generate female = mod(_n,2)
+generate str45 region = cond(mod(_n,2), "South", "Northeast and Mid-Atlantic")
+generate str12 grp = "treatment B"
+generate str18 name = "Bob  Smith"
+generate score = 70 + _n/10
+generate w = 1
+generate double pw = 1.9299875
+generate pass = 1
+generate double before = 20 + runiform()
+generate double after = 21 + runiform()
+generate str5 sid = string(_n, "%05.0f")
+generate str11 edu = "High school"
+set linesize 79
+list in 1/3, clean
+list in 1/3, clean noobs
+list in 1/2, clean noheader
+list region name in 1/2, clean
+set linesize 100
+list in 1/3, clean
+list in 1/2, clean linesize(200)
+set linesize 120
+list in 1/2, clean
+set linesize 200
+=== list-clean-long-strings-wrapped
+clear
+set obs 3
+generate id = 1000 + _n
+generate str240 essay = "This is a long essay text for student " + string(_n) + " lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
+generate str200 s2 = substr(essay, 1, 200)
+generate str72 v = "v" * 72
+generate str71 w = "w" * 71
+generate str70 w2 = "w" * 70
+generate str75 w3 = "w" * 75
+generate str74 w4 = "w" * 74
+generate str73 u = "u" * 73
+generate str90 c = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+set linesize 80
+list id essay in 1, clean noobs
+list id s2 in 1, clean noobs
+set linesize 120
+list id essay in 1, clean noobs
+set linesize 79
+list v in 1/2, clean
+list w in 1/2, clean
+list w2 in 1/2, clean
+list w3 in 1/2, clean noobs
+list w4 in 1/2, clean noobs
+list id u in 1/2, clean noobs
+list id c in 1/2, clean
+set linesize 200
+=== list-table-wrapped-at-linesize
+clear
+set obs 3
+generate id = _n
+generate str60 s = "abcdefghij" * 6
+generate str20 t = "x"
+set linesize 79
+list id s s t, table
+list id s s t, linesize(200)
+list id s s t, table divider separator(2)
+list id s s t, linesize(100)
+list id s t, clean divider separator(1)
+set linesize 200
+list id s s t, linesize(79)
+list id s s t, clean linesize(79)
+=== by-headings-wrapped-at-linesize
+clear
+set obs 6
+generate id = _n
+generate region = mod(_n,3)+1
+generate grp = mod(_n,2)
+label define reg 1 "North" 2 "Midwest region of the United States of America and Canada and Mexico together" 3 "South"
+label values region reg
+generate str80 lab = "Midwest region of the United States of America and Canada and Mexico"
+replace lab = "abcdefghijklmnopqrstuvwxyzabcdefghijklmn" in 2
+replace lab = "abcdefghijklmnopqrstuvwxyzabcdefghijklmno" in 3
+generate str30 a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+generate str30 b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+generate x = 1
+label define xl 1 "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+label values x xl
+generate 中文 = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+generate double v = 1.5 + _n
+format v %6.2f
+set linesize 79
+bysort region (id): list id
+by region grp (id), sort: list id, clean
+by region grp, sort: count
+by lab (id), sort: list id, noobs
+by a b id, sort: count
+by x id, sort: count
+by 中文 id, sort: count
+by v, sort: count
+set linesize 60
+by region grp, sort: count
+set linesize 200
+by lab, sort: count
+=== numlabel-widens-formats
+clear
+set obs 4
+generate x = mod(_n,4)+1
+label define l 1 "Strongly agree" 2 "Agree" 3 "Disagree" 4 "Strongly disagree"
+label values x l
+describe x
+numlabel l, add
+describe x
+list x
+numlabel l, remove
+describe x
+list x
+format x %-5.0g
+numlabel l, add mask("(#) ")
+describe x
+list x
+generate y = _n
+label define a 1 "1. Uno" 2 "Dos" .a "Missing"
+label define b 1 "One" 2 "Two"
+label values y a
+capture noisily numlabel, add
+capture noisily numlabel a, add detail
+capture noisily numlabel b, add mask("[#] ")
+label list b
+numlabel a, add force
+label list a
+describe y
+capture noisily numlabel a, add
+capture noisily numlabel a, remove mask("##")
+capture noisily numlabel a, add remove
+capture noisily numlabel a
+capture noisily numlabel a, add foo
+capture noisily numlabel zz, add
+numlabel a b, remove force
+label list a
+=== label-values-stops-at-string-variable
+clear
+set obs 3
+generate q1 = _n
+generate q2 = _n
+generate str5 q3 = "a"
+generate q4 = _n
+label define l 1 "A fairly long label one" 2 "Two"
+capture noisily label values q1-q4 l
+describe q1 q2 q4
+list q1 q2 q4
+=== label-nofix-option
+clear
+set obs 4
+generate y = _n
+generate x = _n
+generate z = _n
+label define m 1 "Low income household" 2 "Middle"
+label values y m, nofix
+describe y
+list y
+label define m 3 "Highest income household bracket", add nofix
+describe y
+list y
+format x %-20.0g
+generate y2 = _n
+label define l 1 "Seventeen chars!!" 2 "B"
+label values x y2 l
+label define l 3 "Third value with a long label", add nofix
+describe x y2
+list y2
+capture noisily label define l 4 "Four", foo
+capture noisily label define l 4 "Four", add nof
+capture noisily label values z l, foo
+capture noisily label values z l nofix
+capture noisily label values z, nofix
+capture noisily label values z ., nofix
+capture noisily label values z l, nofix nofix
+label values z l,nofix
+describe z
+label define l 5 "Five is also quite long", modify nofix
+describe z
+label define l 6 "another long one here, too", replace
+describe x y2 z
+=== label-copy
+clear
+set obs 2
+generate x = _n
+label define l 1 "A fairly long label one" 2 "Two"
+label define k 1 "K"
+label values x k
+capture noisily label copy l k
+capture noisily label copy l k, foo
+capture noisily label copy zz k2
+capture noisily label copy l
+capture noisily label copy l 1bad
+capture noisily label copy l k m
+capture noisily label copy l k, replace replace
+label copy l k, replace
+describe x
+label list k
+label copy k k3
+label list k3
+list x
+=== value-labels-lose-blanks-at-both-ends
+clear
+set obs 5
+generate x = _n
+label define l 1 "  lead" 2 "trail   " 3 "  both  " 4 "mid  dle"
+label values x l
+list x
+list x, clean
+list x in 1/2, display
+list x, string(4)
+generate str8 s = "  ab"
+replace s = "cd  " in 2
+list s
+format x %-9.0g
+list x
+format x %td
+list x
+format x %4.0g
+list x
+label define l 1 "   Indented label" 2 "Plain", replace
+format x %9.0g
+list x, string(3)
+format x %8.0g
+list x, string(3)
+list x, string(6)
+format x %-20.0g
+list x
+=== by-headings-cut-labels-to-format
+clear
+set obs 5
+generate x = _n
+generate q = _n
+label define l 1 "A fairly long label one" 2 "Two" 3 "  lead" 4 "trail   "
+label values x l
+format x %3.0g
+list x
+sort x
+by x: count
+format x %5.0g
+by x: count
+format x %5.2f
+by x: summarize q
+format x %-9.0g
+by x: count
+format x %td
+by x: count
+generate double d = _n
+label values d l
+format d %4.0g
+by d, sort: count
+=== list-display-wrapped-at-linesize
+clear
+set obs 2
+generate id = _n
+generate str12 v1 = "value1_" + string(_n) + "xxxx"
+generate str12 v2 = "value2_" + string(_n) + "xxxx"
+generate str12 v3 = "value3_" + string(_n) + "xxxx"
+generate str12 v4 = "value4_" + string(_n) + "xxxx"
+generate str12 v5 = "value5_" + string(_n) + "xxxx"
+generate str12 v6 = "value6_" + string(_n) + "xxxx"
+generate str12 v7 = "value7_" + string(_n) + "xxxx"
+generate str12 v8 = "value8_" + string(_n) + "xxxx"
+generate str12 v9 = "value9_" + string(_n) + "xxxx"
+generate str12 v10 = "value10_" + string(_n) + "xxxx"
+generate str12 v11 = "value11_" + string(_n) + "xxxx"
+generate str12 v12 = "value12_" + string(_n) + "xxxx"
+set linesize 79
+list, display linesize(200)
+list in 1, display linesize(120)
+list in 1, separator(0) linesize(150)
+list in 1, display noobs linesize(100)
+set linesize 200
+=== tab1-tab2-headings-wrapped
+clear
+set obs 12
+generate id = _n
+generate grp = mod(_n,2)
+generate region = mod(_n,3)+1
+generate income = _n * 1000 + 0.5
+local c income > 2000 & income < 9000 & id != 4 & id != 5 & id != 7
+set linesize 79
+tab1 grp region if `c'
+tab2 grp region if `c'
+tab2 grp region if id > 2
+tab2 grp region in 2/7
+tab2 grp region id if id > 9 in 8/12
+tab1 grp region if id > 2 in 1/7
+set linesize 60
+tab2 grp region if `c'
+set linesize 200
+=== narrow-g-formats
+clear
+set obs 3
+generate x = _n * 3
+generate double y = _n + 0.5
+generate z = _n * 50
+replace z = .a in 3
+format x %3.0g
+format y %3.0g
+list x y
+format x %2.0g
+format y %1.0g
+list x y
+format x %3.1g
+format y %2.1g
+format z %3.2g
+list x y z
+format x %-3.1g
+format y %-3.0g
+list x y
+format x %4.0g
+list x
+format z %3.0g
+list z
+display "[" %3.0g 3 "]"
+display "[" %3.0g 0 "]"
+display "[" %3.0g -1.5 "]"
+display "[" %-3.0g 0.25 "]"
+display "[" %2.1g 12.5 "]"
+display "[" %3.2g 1234 "]"
+display "[" %-2.1g -15 "]"
+display "[" %3.0gc 999 "]"
+display "[" %03.0g 7 "]"
+display "[" %3.0g . "]"
+display "[" %2.1g . "]"
+display "[" %-2.1g .a "]"
+=== fix6-correlate-panels-and-covariance
+=== redteam6-display-commas
+display 1, 2
+display 1,2
+display "a", "b"
+display date("15mar2021","DMY"), 3
+display %9.2f 3.14159, %9.2f 2.71
+display 1,,2
+display 1,,,2
+display 1 _n , 2
+display "x" _col(5), "y"
+display max(1,2), 3
+display _char(65) _char(66) "c"
+display "[" _char(233) "]"
+display %5.2f "a"
+display %10s 5
+display "a" "unterminated
+display %tdMonth_dd,_CCYY mdy(1,1,2020)
+=== redteam6-display-columns
+display "西部" _col(10) "|"
+display %10s "西部" "|"
+display %10s "é" "|"
+display %-10s "西部" "|"
+display %~10s "西部" "|"
+display %-10s "é" "|"
+display "é" _col(10) "|"
+display udstrlen("西部地区")
+display udstrlen("abc西部é")
+display "[" udsubstr("西部地区",2,3) "]"
+display "[" udsubstr("西部地区",-2,4) "]"
+display "[" udsubstr("ab西部",1.7,2.6) "]"
+=== redteam6-smcl-directives
+set linesize 79
+display "{c 124}"
+display "A{c 124}B"
+display "{c |}{c -}{c +}{c TT}{c BT}{c LT}{c RT}{c TLC}{c BRC}"
+display "{c S|}{c -(}{c )-}{c a'}{c e'g}{c a:}{c 0x41}{c 233}{c 150}|"
+display "{col 10}x"
+display "ab{col 10}x{col 3}y"
+display "{ralign 10:x}|{lalign 10:x}|{center 10:x}|"
+display "{rcenter 9:xy}|{center 9:xy}|{ralign 3:abcdef}|"
+display "{p}" "paragraph"
+local a "Lorem ipsum dolor sit amet, consectetur adipiscing elit,"
+local b "sed do eiusmod tempor incididunt ut labore et dolore"
+display "{p 4 8 2}`a' `b' `a'{p_end}"
+display "{pstd}`a' `b'{p_end}" "next"
+display "{phang}`a' `b'{p_end}"
+display "{p 4 6 30}`a' `b'{p_end}"
+display "{p}{bf:`a'} `b' `a'"
+display "{hline 5}|{hline}"
+display "a{space 3}b{dup 3:ab}|"
+display "{bf:bold} {it:it} {cmd:cmd} {res:res} {txt:txt} {err:err}"
+display "{help regress:Regress} {help regress} {manlink R regress}"
+display "{foo}|{foo:bar}|{c xyz}|{help}|"
+display "{title:Title}|"
+display "x{p}y"
+display "{p}x{break}y z"
+display "{p}ab" "cd" "{p_end}" "e" "{p}f"
+display "{lalign 4:西部}|"
+display "{center:mid}"
+display "{right:right}"
+display "{bf}a{sf}" _col(10) "|"
+display "{ralign 6:{c 124}}|"
+display "{txt}{hline 3}{c +}" _col(10) "|"
+local x : display "{c 124}"
+display strlen(`"`x'"')
+set linesize 200
+=== redteam6-syntax-errors
+clear
+set obs 5
+generate score = _n
+generate income = 100 * _n
+generate region = mod(_n, 2)
+capture noisily display score[
+display _rc
+capture noisily display (1,2)
+display _rc
+capture noisily display "a" foo
+capture noisily display "tab" _tab "x"
+display _rc
+capture noisily list income in 0
+capture noisily list income in 5/0
+capture noisily list income in -100
+capture noisily list income in 2/100
+capture noisily summarize income,, detail
+summarize income,,
+capture noisily tabulate region,, missing
+summarize income, detail,
+capture noisily summarize income, detail, meanonly
+capture noisily summarize income, by(region)
+capture noisily regress income score, foo(1)
+capture noisily ci means income, by(region)
+capture noisily egen m = mean(income), by(region
+display _rc
+capture noisily summarize income, level(95
+capture noisily summarize income if region = 1
+capture noisily generate y = income if region = 1
+capture noisily rename income
+capture noisily rename
+capture noisily rename a b c
+capture noisily rename , upper
+capture noisily rename (income score region) (a b)
+capture noisily rename (income) (a b c)
+=== redteam6-ttest-qualifier-first
+clear
+set seed 4
+set obs 20
+generate income = 20000 + 8000 * runiform()
+generate female = runiform() < .4
+ttest income in 1/5 == 0
+prtest female in 1/10 == .5
+ttest income in 1/1 == 0
+ttest income in 1/5 == 20000, level(90)
+ttest income in 2/9 == female
+prtest female in 1/10 == .4, level(90)
+capture noisily ttest income in 1/5 if female == 0
+=== redteam6-ttest-prtest-wide-labels
+clear
+set seed 12345
+set obs 58
+generate byte region = cond(_n <= 15, 4, 1 + mod(_n, 3))
+generate score = round(50 + 8 * runiform(), 0.01)
+generate byte pass = runiform() < 0.5
+generate byte cj = region == 4
+label define cjl 0 "其他地区" 1 "西部地区的城市"
+label values cj cjl
+ttest score, by(cj)
+prtest pass, by(cj)
+label define cjl 0 "é地区" 1 "西部", modify
+ttest score, by(cj)
+prtest pass, by(cj)
+label define cjl 0 "abcdefghijklmnopq" 1 "西部地区的城市西部地区的城市", modify
+ttest score, by(cj)
+prtest pass, by(cj)
+generate str20 s = cond(cj, "西部地区的城市", "其他地区")
+ttest score, by(s)
+prtest pass, by(s)
+=== redteam6-mean-over-wide-labels
+set linesize 79
+clear
+set seed 4242
+set obs 200
+generate region = 1 + floor(runiform() * 4)
+generate cj = 1 + floor(runiform() * 3)
+generate income = 20000 + 10000 * runiform()
+generate score = 40 + 20 * runiform()
+generate w = 1 + floor(runiform() * 3)
+label define rl 1 "North" 2 "South" 3 "East" 4 "西部地区"
+label values region rl
+label define cjl 1 "东部" 2 "其他地区" 3 "西部地区的城市"
+label values cj cjl
+mean income, over(region)
+mean income score, over(cj)
+proportion cj
+total income, over(cj)
+total income [pw=w], over(region)
+mean income [pw=w], over(region)
+label define cjl 3 "西部地区的城市西部地区的城市西部地区的城市", modify
+mean income, over(cj)
+proportion cj
+label define cjl 3 "西部地区的城市 西部地区的城市西部地区的城市", modify
+mean income, over(cj)
+set linesize 200
+=== redteam6-mean-over-long-names
+set linesize 79
+clear
+set seed 4242
+set obs 60
+generate id = _n
+generate income = 20000 + 60000*runiform()
+generate score = 40 + 30*runiform()
+generate age = 20 + floor(50*runiform())
+generate before = 10*runiform()
+generate after = before + runiform()
+generate pw = runiform()*3
+generate w = 1 + floor(4*runiform())
+generate x1 = runiform()
+generate x2 = runiform()
+generate x3 = runiform()
+generate x4 = runiform()
+generate x5 = runiform()
+replace income = . in 3
+replace score = . in 7
+generate big = income*1000
+set linesize 79
+correlate income score age before after pw w id
+correlate income score age before after pw w id, covariance
+correlate big income score, covariance
+corr income score
+correlate
+correlate income score age before after pw w id x1, wrap
+correlate income score age before after pw w id x1, covariance wrap
+set linesize 100
+correlate income score age before after pw w id x1 x2 x3
+correlate income score age before after pw w id x1 x2, cov
+set linesize 60
+correlate x1 x2 x3 x4 x5 id, c
+set linesize 200
+correlate
+=== fix6-correlate-weights-strings-means
+clear
+set seed 99
+set obs 40
+generate id = _n
+generate y = 100*runiform()
+generate x = y + 50*runiform()
+generate z = runiform()
+generate k = 3
+generate w = 1 + floor(4*runiform())
+generate double aw = w*1.37
+generate double big = w*12345678.9
+generate str5 name = "n" + string(_n)
+replace y = . in 4
+replace x = . in 9
+correlate y x [aw=aw]
+correlate y x [aw=big]
+correlate y x [fw=w]
+correlate y x [aw=w], covariance
+correlate y x [fw=w], covariance
+capture noisily correlate y x [iw=w]
+capture noisily correlate y x [pw=w]
+correlate name y x
+correlate y x z, means
+correlate y x z [aw=w], means
+correlate k y
+correlate y in 1/3
+capture noisily correlate y x in 1/1
+format z %9.2f
+format x %8.0gc
+correlate y x z, means
+correlate y x z, means noformat
+=== fix6-pwcorr-weights-tests-and-layout
+clear
+set seed 99
+set obs 40
+generate id = _n
+generate y = 100*runiform()
+generate x = y + 50*runiform()
+generate z = runiform()
+generate k = 3
+generate w = 1 + floor(4*runiform())
+generate str5 name = "n" + string(_n)
+replace y = . in 4
+replace x = . in 9
+pwcorr y x z k, sig obs
+pwcorr y x [aw=w], sig obs
+pwcorr y x [fw=w], sig obs
+pwcorr name y x, star(.05)
+pwcorr
+capture noisily pwcorr name y
+capture noisily pwcorr y
+capture noisily pwcorr y x z [iw=w]
+pwcorr y x z, bonferroni sig
+pwcorr y x z, sidak sig
+capture noisily pwcorr y x z, sidak bonferroni
+pwcorr y x z, listwise obs
+pwcorr y x z, casewise obs
+pwcorr y x z, print(.05) star(.5) sig
+pwcorr y x z, print(5) star(50)
+capture noisily pwcorr y x z, star(100)
+pwcorr y x z if id > 100
+capture noisily pwcorr y x if id > 100
+pwcorr y x in 1/2, sig
+pwcorr y x in 4/5, sig obs
+generate yy = -y
+pwcorr y yy x, sig
+generate a_really_long_variable_name = y/1000
+generate twelve_chars = x
+generate thirteen_char = z
+pwcorr y twelve_chars thirteen_char a_really_long_variable_name, sig
+pwcorr y x z k id w yy a_really_long_variable_name twelve_chars, obs
+set linesize 60
+pwcorr y x z k id w yy a_really_long_variable_name
+set linesize 200
+clear
+input income score
+3 5
+7 9
+2 1
+end
+pwcorr income score in 1/2, sig
+pwcorr income score, sig
+=== fix6-ci-means-weights
+clear
+set seed 99
+set obs 40
+generate y = 100*runiform()
+generate x = y + 50*runiform()
+generate w = 1 + floor(4*runiform())
+generate double aw = w*1.37
+replace y = . in 4
+replace x = . in 9
+ci means y x [fw=w]
+ci means y x [aw=aw]
+ci means y [aw=w], level(90)
+ci means y x [fweight=w] if w > 1
+capture noisily ci means y [iw=w]
+=== fix6-codebook-wrapping-range-and-empty
+clear
+set obs 6
+generate v = mod(_n,3)+1
+generate float score = 21.9 + _n*.1
+replace score = 78.1 in 1
+generate float frac = mod(_n,7)/10
+generate float big = 1e7 + _n*.25
+generate double dd = _n/3
+generate float ff = 100 + _n*.0001
+generate float cst = 1.1
+generate float ex = .1 in 1/3
+replace ex = .a in 4
+label define L 1 "Très satisfait — vraiment, beaucoup plus que prévu dans tous les cas possibles" 2 "中中中中中中中中中中中中中中中中中中中中" 3 "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ end"
+label values v L
+generate v2 = v
+label define L2 1 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b" 2 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b" 3 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b"
+label values v2 L2
+generate a = 1
+generate bb = 2
+generate c = 3
+generate d = 4
+generate e = 5
+generate ccc_long_name_for_the_header_xx = 6
+label variable a "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable bb "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable c "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable d "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable e "one two three four five six seven eight nine ten eleven twelve thirteen fourteen"
+label variable ccc_long_name_for_the_header_xx "Exactly the label that makes the sum reach the edge of l"
+label variable score "中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签"
+set linesize 79
+codebook v v2
+codebook a bb c d e ccc_long_name_for_the_header_xx score
+codebook frac big dd ff cst ex
+set linesize 80
+codebook a bb c d
+set linesize 120
+codebook e v
+set linesize 200
+codebook v
+capture noisily codebook v if v > 5
+drop if _n > 0
+capture noisily codebook v
+capture noisily codebook
+capture noisily codebook, compact
+=== fix6-tabulate-option-forms
+clear
+set seed 7
+set obs 200
+generate region = 1+floor(4*runiform())
+generate grp = 1+floor(3*runiform())
+generate income = 100*runiform()
+tabulate region grp, row nokey
+tabulate region grp, row key
+tabulate region grp, r co ce nof
+tabulate region grp, ch
+tabulate region grp, chi2 row cel nokey
+tabulate region grp, ro col
+tabulate region, su(income) nost
+tabulate region grp, s(income) noo nofr
+tabulate region grp, su(income) me
+tabulate region, summ(income) st f o mi nol
+tabulate region, f
+tabulate region grp, m nol f
+capture noisily tabulate region, nom
+capture noisily tabulate region, me
+capture noisily tabulate region, noo
+capture noisily tabulate region, nome
+capture noisily tabulate region, exact(2)
+capture noisily tabulate region, matcol(C)
+capture noisily tabulate region grp, gen(zz)
+capture noisily tabulate region, row
+capture noisily tabulate region, col
+capture noisily tabulate region, cell
+capture noisily tabulate region, chi2
+capture noisily tabulate region, exact
+capture noisily tabulate region if grp == 1, chi2
+capture noisily tabulate region, cl
+capture noisily tabulate region grp, cl
+capture noisily tabulate region grp, c
+capture noisily tabulate region grp, cch
+capture noisily tabulate region grp, nok
+capture noisily tabulate region, su(income) nom
+capture noisily tabulate region, su(income) m
+capture noisily tabulate region, su(income) row
+capture noisily tabulate region, su(income) g(zz)
+capture noisily tabulate region, su(income) sort
+capture noisily tabulate region, su(income) nokey
+capture noisily tabulate region grp, sort
+capture noisily tabulate region grp, first
+capture noisily tabulate region, key
+capture noisily tabulate region, so
+list region grp in 1/3, c
+list region grp in 1/3, clean
+capture noisily list region grp in 1/3, cl
+=== fix6-summarize-without-variables
+clear
+summarize
+summarize, detail
+set obs 3
+summarize
+generate x = _n
+generate w = _n
+capture noisily summarize x [iw=w], detail
+summarize x [iw=w]
+summarize x [fw=w], detail
+drop x w
+summarize
+=== fix6-summaries-correlate-rounding-at-minus-one
+clear
+set obs 6
+generate y = _n
+generate yy = -y
+pwcorr y yy, sig
+correlate y yy
+display %21.0g r(rho)
+correlate y yy, covariance
+display %21.0g r(Var_1)
+set obs 10
+replace y = _n
+replace yy = -y
+pwcorr y yy, sig
+correlate y yy
+display %21.0g r(rho)
+pwcorr y yy in 1/8, sig
+clear
+set seed 11
+set obs 50
+generate q1 = 1 + floor(5*runiform())
+generate q1r = 6 - q1
+pwcorr q1 q1r in 1/30, sig star(.05)
+pwcorr q1 q1r, sig obs
+=== fix6-summaries-unique-abbreviations
+clear
+set seed 3
+set obs 20
+generate household_income_2019 = runiform()
+generate household_size_2019 = runiform()
+generate household_income_2020 = runiform()
+generate respondent_age_years = runiform()
+generate respondent_edu_years = runiform()
+correlate respondent_age_years respondent_edu_years
+correlate respondent_age_years respondent_edu_years, means
+pwcorr household_income_2019 household_size_2019 household_income_2020
+summarize
+ci means household_income_2019 household_size_2019
+codebook, compact
+tabstat household_income_2019 household_size_2019 household_income_2020 respondent_age_years
+tabstat household_income_2019 household_size_2019, columns(statistics)
+generate aaaa_pppp_zzzz_end = 1
+generate aaaa_qqqq_zzzz_end = 2
+generate aaaa_pppp_zzzz_x = 3
+summarize aaaa*
+=== fix6-summaries-chinese-names
+clear
+set obs 6
+generate y = _n
+generate 变量名称很长的名字 = _n^2
+generate 收入 = _n^3
+pwcorr y 变量名称很长的名字 收入
+correlate y 变量名称很长的名字 收入
+summarize
+=== fix6-summaries-correlate-weight-signs
+clear
+set seed 2468
+set obs 40
+generate income = 20000 + 60000*runiform()
+generate score = 100*runiform()
+generate age = 18 + 50*runiform()
+generate w = 1 + floor(4*runiform())
+generate aw = runiform()*3
+replace income = . in 3
+replace score = . in 5
+generate double wneg = aw - 1
+generate wfneg = w - 2
+correlate income score [aw=wneg]
+pwcorr income score [aw=wneg]
+correlate income score [fw=wfneg]
+pwcorr income score age [fw=wfneg], obs sig
+correlate income score [fw=w], covariance
+pwcorr income score [fw=aw]
+pwcorr income score age [fw=aw], sig obs
+capture noisily correlate income score [fw=aw]
+generate zw = aw
+replace zw = 0 in 1/10
+correlate income score [aw=zw]
+pwcorr income score [aw=zw], obs
+generate allneg = -1
+capture noisily correlate income score [aw=allneg]
+pwcorr income score [aw=allneg]
+=== fix6-summaries-by-correlate-pwcorr
+clear
+set seed 8
+set obs 30
+generate g = _n > 15
+generate a = runiform()
+generate b = a + runiform()
+generate aw = runiform()
+by g, sort: correlate a b [aw=aw]
+by g: pwcorr a b, sig obs
+by g: correlate a b, covariance
+=== fix6-summaries-tabulate-key-and-tab2-firstonly
+clear
+set obs 4
+generate grp = mod(_n,2)
+generate k = _n > 2
+tabulate grp k, key
+tabulate grp k, key nofreq cell
+tabulate grp k, key row
+capture noisily tabulate grp, key
+capture noisily tabulate grp k, key nokey
+generate income = _n
+generate score = _n^2
+capture noisily tabulate grp, summarize(income score)
+capture noisily tabulate grp, su(inc*)
+tabulate grp, su(inco)
+capture noisily tabulate grp, su(income-score)
+capture noisily tabulate grp, su(inc~)
+clear
+set obs 6
+generate g = _n > 3
+generate a = mod(_n,2)
+generate b = _n
+tab2 g a, firstonly
+tab2 g a, chi2 first
+tab2 g a b, first
+tab2 g a b, firs
+display _rc
+=== fix6-summaries-codebook-single-values-and-narrow-lines
+clear
+set obs 4
+generate float f = 78.1 in 1
+generate x = 2.5 in 1
+generate double d = 0.123456789 in 1
+generate c = 3 in 1/2
+generate float cf = 78.1 in 1/3
+codebook f x d c cf
+clear
+set obs 2
+generate a_thirty_two_character_name_xyz = _n
+label variable a_thirty_two_character_name_xyz "label that is exactly long enough to reach the line"
+set linesize 50
+codebook a_thirty_two_character_name_xyz
+set linesize 58
+codebook a_thirty_two_character_name_xyz
+set linesize 59
+codebook a_thirty_two_character_name_xyz
+clear
+set obs 8
+generate v = _n
+label define L 1 "abcdefghij abcdefghij abcdefghi" 7 "x"
+label values v L
+set linesize 60
+codebook v
+set linesize 50
+codebook v
+set linesize 200
+clear
+set obs 4
+generate lab = _n
+label define yn 1 "1" 2 "Two" 4 "4"
+label values lab yn
+codebook lab
+=== fix6-summaries-summarize-meanonly-detail
+clear
+set obs 6
+generate y = _n
+capture noisily summarize y, meanonly detail
+display _rc
+clear
+capture noisily summarize, meanonly detail
+display _rc
+generate thirteen_char = id
+generate another_long_group_variable = 1 + mod(_n, 2)
+generate score = 40 + 20 * runiform()
+mean thirteen_char, over(another_long_group_variable)
+total thirteen_char score, over(another_long_group_variable)
+generate a_very_long_variable_name_x = score
+mean a_very_long_variable_name_x, over(another_long_group_variable)
+generate abcdefghij = score
+generate abcdefghijk = score
+generate grp_var_x_abcde = 1 + mod(_n, 3)
+mean abcdefghij, over(grp_var_x_abcde)
+mean abcdefghijk, over(grp_var_x_abcde)
+generate abcdefghijklmnopqrstuvwxyz_abcd = score
+mean abcdefghijklmnopqrstuvwxyz_abcd, over(grp_var_x_abcde)
+set linesize 200
+=== redteam6-cii-total
+clear
+set seed 31
+set obs 12
+generate income = round(runiform() * 200000)
+generate g = 1 + (runiform() < .4)
+generate w = 1 + floor(runiform() * 3)
+generate sc = runiform() * 10
+replace sc = . in 3
+cii means 30 5 2
+return list
+cii means 30 5 2, level(90)
+cii mean 100 -3.25 1.75
+cii means 30 12345678 99999
+capture noisily cii means 30 5
+capture noisily cii means 0 5 2
+capture noisily cii means 30 5 -1
+capture noisily cii 30 5 2
+total income
+total income sc
+total income, over(g)
+total income [fw=w]
+total income [pw=w]
+total income [iw=w]
+capture noisily total income [aw=w]
+total income sc, over(g) level(90)
+total income if g == 1
+total income [pw=w], over(g)
+=== redteam6b-display-items
+display _char(65)_char(66)
+display "x"_char(65)
+display _char(65)"x"
+display _skip(2)_char(65)
+display _col(5)"x"
+display "a"_n"b"
+display _dup(3)"a"
+display "a"1
+display "a"(1+1)
+display "a""b"
+display `"a"'"b"
+display _quote "q" _quote
+display _quote"q"_quote
+display _quote(2)
+display _col(-3) "x"
+display _col(0) "x"
+display _col(+3) "x"
+display _col( 3 ) "x"
+display _col (5) "x"
+display _skip(-2) "x"
+display _skip "x"
+display "a" _s "b"
+display _dup(0) "a" "|"
+display _du(2) "a"
+display _dup(2) _col(3) "x"
+display _dup(2) _skip(1) "x"
+display _dup(2) , "x"
+display _dup(2) _dup(2) "x"
+display _dup(2) %5.2f 1
+display _dup(2) as res "x"
+display _n(0) "a"
+display _newli "x"
+display _ski(2) "x"
+display _colu(2) "x"
+display _co(2) "a"
+display "ab" _char(9) "|"
+display "abcdefgh" _char(9) "|"
+display "a" _char(10) "b"
+display "[" _char(128) "|" _char(159) "|" _char(255) "]"
+display _char( 65 ) _char(065) _char(+65)
+display `"unterminated
+display "abc" "
+display "abc""
+display `"a"' `"
+display `"a `"b"' c"'
+display "a" as txt "b" as r "b" as err "b" as inp "b" as smcl "b"
+display "a" in g "b" in smcl "b"
+display 3 _col(10) "y"
+display %5.2f 3 _col(1) "x"
+display "x" +1 "y" -1
+display 3 + 4 "x"
+display "a" == "b"
+local m : display _col(5) "x" _skip(-2) _char(66)
+display `"[`m']"'
+local m : display _char(9) "x"
+display `"[`m']"'
+=== redteam6b-display-item-errors
+scalar s = "a"
+capture noisily display _col(3.7) "x"
+display _rc
+capture noisily display _col(2+1) "x"
+capture noisily display _skip(.) "x"
+capture noisily display _dup(-2) "a"
+capture noisily display _n(-1) "a"
+capture noisily display _char(256)
+capture noisily display _char(0) "|"
+capture noisily display _char(-1)
+capture noisily display _char(65.7)
+capture noisily display _char(.)
+capture noisily display _char("a")
+capture noisily display _char(66+1)
+capture noisily display _char()
+capture noisily display _char(65
+display _rc
+capture noisily display _char(65)_char(66
+capture noisily display _col "x"
+capture noisily display _dup "x"
+capture noisily display _ch(65)
+capture noisily display _quotex
+capture noisily display "a"1"b"
+display _rc
+capture noisily display 1"a"
+capture noisily display sx"a"
+capture noisily display 1+2"x"
+capture noisily display "T: " + string(5)
+display _rc
+capture noisily display "T: " + "b"
+capture noisily display "T: " + s
+capture noisily display "x" * "b"
+capture noisily display "a" != "b"
+capture noisily display "a" < "b"
+capture noisily display "a" foo(1)
+capture noisily display "a" _n "b" foo(1)
+capture noisily display "a" nosuch
+capture noisily display "a" as foo "b"
+capture noisily display "a" as te "b"
+capture noisily display "a" in "b"
+capture noisily display "abc"" "x"
+display _rc
+=== redteam6b-smcl-negative-and-links
+set linesize 79
+display "{col -2}x"
+display "abc{col -2}x"
+display "{col 3.7}x"
+display "{hline -3}x"
+display "abc{hline -3}x"
+display "{hline 3}{hline -3}x"
+display "{hline -79}x"
+display "{hline -100}x"
+display "abc{hline -77}x"
+display "{hline 0}x"
+display "{p}{hline -3}x{p_end}"
+display "{space -2}x{dup -2:ab}{ralign -3:ab}"
+display `"{browse "http://www.stata.com":Stata}"'
+display `"{browse "http://www.stata.com"}"'
+display `"{help "summarize"}"'
+display `"{browse "http://www.stata.com/a b":Stata site}"'
+display `"{help "sum mar"}"'
+display `"{stata "summarize x":run it}"'
+display `"{stata "summarize x"}"'
+display `"{help "summarize"##syntax:syn}"'
+display `"{view "a.log"}"'
+display `"{browse http://www.stata.com}"'
+display `"{browse "a":b:c}"'
+display `"{browse "a"x:b}"'
+display `"{browse "a" "b"}"'
+display `"{browse a "b"}"'
+display `"{help "a:b"}"'
+display `"{bf:"a:b"}"'
+display `"{browse "unclosed}"'
+display `"{stata `"sum x"':run}"'
+display `"{dialog "a"}"'
+set linesize 200
+=== redteam6b-mean-labels-tilde
+set linesize 79
+clear
+set seed 2024
+set obs 30
+generate score = round(50 + 20*runiform(), .01)
+generate byte g = mod(_n, 2)
+label define gl 0 "east" 1 "abcdefghijklmnopqrstuvwxyz_abcd"
+label values g gl
+mean score, over(g)
+proportion g
+total score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_ab", modify
+mean score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_abcdef", modify
+mean score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_", modify
+mean score, over(g)
+label define gl 1 "1bcdefghijklm.opqrstu-wxyz_abcd", modify
+mean score, over(g)
+label define gl 1 "Ölçek_ölçüm_değeri_çok_uzun_bir_x", modify
+mean score, over(g)
+proportion g
+label define gl 1 "Ölçek_ölçüm_değeri_çok_uzun_bir", modify
+mean score, over(g)
+label define gl 1 "Ölçek ölçüm değeri çok uzun bir", modify
+mean score, over(g)
+label define gl 1 "éééééééééééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "éééééééééééééééééééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "abc ééééééééééééééééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€", modify
+mean score, over(g)
+label define gl 1 "aa€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€", modify
+mean score, over(g)
+label define gl 1 "ддддддддддддддддддддддддддддддддддддддддд", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市西部地区的城市西部地区的城市", modify
+mean score, over(g)
+label define gl 1 "a西部地区的城市西部地区的城市西部地区的城市西部地区的城市", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市西部地区的城市西部地区的城市西部地区", modify
+mean score, over(g)
+label define gl 1 "éééééééééééééééééééé西部地区的城市西部地区的城市西部地区", modify
+mean score, over(g)
+label define gl 1 "西部地区的城市西部地区的城市西部地区 éééééééééééééééééééé", modify
+mean score, over(g)
+label define gl 1 "é é é é é é 西部地区的城市西部地区的城市西部地区", modify
+mean score, over(g)
+proportion g
+set linesize 100
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcd", modify
+mean score, over(g)
+label define gl 1 "abcdefghijklmnopqrstuvwxyz_abcdefghij", modify
+mean score, over(g)
+set linesize 200
+=== redteam6b-total-mean-options
+clear
+set seed 99
+set obs 25
+generate income = round(1000 + 5000*runiform(), .01)
+generate byte region = 1 + floor(4*runiform())
+generate w = 1 + floor(3*runiform())
+generate s = cond(_n < 10, "a", "b")
+generate byte grp = mod(_n, 3)
+generate c = 5
+label define rl 1 "North" 2 "South" 3 "East" 4 "West"
+label values region rl
+capture noisily total income region, over(region)
+capture noisily mean income region, over(region)
+total income, level(99.5)
+mean income, level(99.5)
+total income, level(90)
+total income, noheader
+mean income, noheader level(90) cformat(%8.1f)
+total income, cformat(%9.2f)
+mean income, over(region) cformat(%9.3f)
+mean income, cformat(%9.2fc)
+capture noisily mean income, cformat(%9s)
+display _rc
+capture noisily mean income, cformat(abc)
+total income, coeflegend
+mean income, over(region) coeflegend
+mean income, coeflegend level(90)
+total income, nolegend
+total income, over(region) nolegend
+total income, over(region) nofvlabel
+total income, over(region, nolabel)
+total income, vce(cluster region)
+mean income, vce(cluster region)
+total income, cluster(region)
+mean income, vce(cl region)
+total income, vce(cluster s)
+capture noisily total income, vce(cluster nosuch)
+capture noisily total income, vce(robust)
+display _rc
+total income [pw=w], vce(cluster region)
+total income [fw=w], vce(cluster region)
+total income [iw=w], vce(cluster region)
+mean income [pw=w], vce(cluster region)
+mean income if region < 3, vce(cluster region)
+total income, vce(cluster region) noheader
+total income, vce(cluster region) coeflegend
+total income, over(grp) vce(cluster region)
+mean income, over(grp) vce(cluster region) cformat(%9.2f)
+ereturn list
+return list
+total
+capture noisily total, over(region)
+capture noisily mean, over(region)
+capture noisily mean
+display _rc
+mean income
+ereturn list
+mean, level(90) noheader
+total income, over(region)
+ereturn list
+return list
+mean income, over(region grp)
+total income, over(region grp)
+mean income, over(region grp) coeflegend
+mean c
+mean c, over(grp)
+total c
+generate income2 = income / 3
+replace income2 = . in 4
+mean income income2, vce(cluster region)
+total income income2, vce(cluster region) level(90)
+=== redteam6b-cii-arguments
+cii means 30 5 2
+capture noisily cii means 30 . 2
+display _rc
+return list
+cii means 30 5 2
+capture noisily cii means . 5 2
+display _rc
+capture noisily cii means 30 5 .
+display _rc
+capture noisily cii means 30 a 2
+display _rc
+capture noisily cii means 30 5 a
+display _rc
+capture noisily cii means a 5 2
+display _rc
+capture noisily cii means 30 .a 2
+display _rc
+cii means 30 2+3 2
+cii means 30 1e3 2
+capture noisily cii means 30 5 0
+display _rc
+cii means 30 5 2
+capture noisily cii means 30 5
+return list
+clear
+set obs 25
+generate income = _n
+cii means 30 5 2
+total income
+display "[" r(N) "]"
+return list
+cii means 30 5 2
+proportion income in 1/3
+return list
+=== redteam6b-ttest-qualifiers
+clear
+set seed 4
+set obs 20
+generate income = 20000 + 8000 * runiform()
+generate female = runiform() < .4
+ttest income in 1 / 5 == 0
+prtest female in 1 / 10 == .5
+ttest income if female in 1/10 == 0
+capture noisily ttest income in 1/5 ==
+display _rc
+capture noisily prtest female in 1/10 ==
+capture noisily ttest income in 1/5 if female == 0
+ttest income if female==1 in 1/12 == 20000, level(90)
+ttest income in 1/5 = 0
+ttest income in 1/8==20000
+=== redteam6b-single-equals
+clear
+set obs 40
+generate region = 1 + mod(_n,4)
+generate income = _n
+capture noisily keep if region = 1
+display _rc
+capture noisily drop if region = 1
+display _rc
+capture noisily list income if region = 1
+display _rc
+capture noisily count if region = 1
+display _rc
+capture noisily assert region = 1
+display _rc
+capture noisily keep if region = 1 & income > 3
+capture noisily drop in 1/2 if region = 1
+capture noisily list income if region = 1 in 1/3
+capture noisily summarize income if region = 1
+display _rc
+capture noisily tabulate region if region = 1
+capture noisily replace income = 2 if region = 1
+capture noisily generate y = 1 if region = 1
+capture noisily assert region == 1 if income = 3
+display _rc
+capture noisily summarize income if (region = 1)
+display _rc
+capture noisily count if (region = 1)
+capture noisily list income if (region = 1)
+capture noisily drop if (region = 1)
+capture noisily assert (region = 1)
+capture noisily summarize income if (region = 1) & income > 2
+capture noisily summarize income if region == (1 = 1)
+capture noisily display (region = 1)
+capture noisily display (1, 2)
+capture noisily display (1, 2, 3)
+count
+clear
+set obs 20
+generate inc = _n
+capture noisily summarize inc, detail ,, meanonly
+display _rc
+capture noisily summarize inc, detail meanonly
+capture noisily summarize inc, meanonly detail
+capture noisily summarize inc, meanonly ,, detail
+=== fix6-datamgmt-numlabel
+clear
+input byte sex
+1
+2
+.
+.a
+.b
+end
+label define sexlbl 1 "Male" 2 "Female" .a "Refused"
+label values sex sexlbl
+label define b 1 "one" 2 "two"
+numlabel sexlbl, add
+label list sexlbl
+list sex
+tabulate sex, missing
+describe sex
+numlabel, add
+numlabel sexlbl, remove
+label list
+numlabel sexlbl, add mask("[#] ")
+label list sexlbl
+numlabel, remove mask("[#] ")
+label define b 1 "1. one", modify
+capture noisily numlabel b, add
+capture noisily numlabel b, add detail
+numlabel b, add force
+label list b
+capture noisily numlabel b, add remove
+capture noisily numlabel b
+capture noisily numlabel b, add mask("##")
+capture noisily numlabel nosuch, add
+label dir
+=== fix6-datamgmt-compress-strl
+clear
+set obs 5
+generate strL essay = "short text " + string(_n)
+replace essay = essay + "x" in 3
+generate long id = _n
+compress
+describe essay
+clear
+set obs 4
+generate strL s = "x" + string(_n)
+generate str20 t = "y"
+generate long id = _n
+generate double d = 1.5
+compress
+describe
+clear
+set obs 5
+generate strL s = "same value here"
+compress s
+clear
+set obs 5
+generate strL s = ""
+replace s = "abc" in 4/5
+compress
+clear
+set obs 4
+generate strL s = cond(mod(_n, 2), "aaaa", "bbbb")
+compress
+clear
+set obs 3
+generate strL s = 3000 * "a"
+compress
+describe
+=== fix6-datamgmt-rename-groups
+clear
+set obs 1
+generate inc2019 = 1
+generate inc2020 = 1
+generate x1 = 1
+generate janstat = 1
+generate janinc = 1
+generate jans = 1
+generate v1 = 1
+generate v10 = 1
+generate v2 = 1
+generate v01 = 1
+generate stat10 = 1
+generate a12 = 1
+generate a13 = 1
+generate bpstata = 1
+generate mid_jan_inc = 1
+generate _tmp = 1
+preserve
+capture noisily rename inc* income*
+describe, simple
+restore, preserve
+capture noisily rename * *_v
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) =_z
+describe, simple
+restore, preserve
+capture noisily rename i* I*
+describe, simple
+restore, preserve
+capture noisily rename *2019 y2019*
+describe, simple
+restore, preserve
+capture noisily rename jan* *1
+describe, simple
+restore, preserve
+capture noisily rename jan? ?1
+describe, simple
+restore, preserve
+capture noisily rename *jan* **
+describe, simple
+restore, preserve
+capture noisily rename *jan* *
+describe, simple
+restore, preserve
+capture noisily rename *jan* .*
+describe, simple
+restore, preserve
+capture noisily rename *stat pre=
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 x1) admit=
+describe, simple
+restore, preserve
+capture noisily rename x1 pre=fix
+describe, simple
+restore, preserve
+capture noisily rename v# stat#
+describe, simple
+restore, preserve
+capture noisily rename v(#) stat(#)
+describe, simple
+restore, preserve
+capture noisily rename v# v(##)
+describe, simple
+restore, preserve
+capture noisily rename v(##) v(#)
+describe, simple
+restore, preserve
+capture noisily rename stat(##) stat_20(##)
+describe, simple
+restore, preserve
+capture noisily rename v(#)# (a b)
+describe, simple
+restore, preserve
+capture noisily rename v# v#, renumber
+describe, simple
+restore, preserve
+capture noisily rename jan* v#, renumber
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020 x1) v#, addnumber
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020 x1) v#, addnumber(5)
+describe, simple
+restore, preserve
+capture noisily rename a(#)(#) a(#)[2](#)[1]
+describe, simple
+restore, preserve
+capture noisily rename *stat* *[2]stat*[1]
+describe, simple
+restore, preserve
+capture noisily rename nosuch* y*
+describe, simple
+restore, preserve
+capture noisily rename inc2019 x1
+describe, simple
+restore, preserve
+capture noisily rename inc2019 1abc
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (a)
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (a b c)
+describe, simple
+restore, preserve
+capture noisily rename inc2019 inc2019
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (inc2020 inc2019)
+describe, simple
+restore, preserve
+capture noisily rename inc2019 income, dryrun
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (inc2020 inc2019), dryrun
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 x1 v1) (inc2019 x1 v1), dryrun
+describe, simple
+restore, preserve
+capture noisily rename inc* y*, dryrun
+describe, simple
+restore, preserve
+capture noisily rename inc*, upper
+describe, simple
+restore, preserve
+capture noisily rename *, proper
+describe, simple
+restore, preserve
+capture noisily rename inc*, upper lower
+describe, simple
+restore, preserve
+capture noisily rename i*20* *20*_*
+describe, simple
+restore, preserve
+capture noisily rename inc# inc_#
+describe, simple
+restore, preserve
+capture noisily rename inc#9 inc#
+describe, simple
+restore, preserve
+capture noisily rename inc* a?
+describe, simple
+restore, preserve
+capture noisily rename inc* a#b#, renumber
+describe, simple
+restore, preserve
+capture noisily rename inc** a
+describe, simple
+restore, preserve
+capture noisily rename inc= a
+describe, simple
+restore, preserve
+capture noisily rename v(###) w(###)
+describe, simple
+restore, preserve
+capture noisily rename inc2019 x1 v1
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 x1 v1) (1a 2b 3c)
+describe, simple
+restore, preserve
+capture noisily rename * x#, addnumber
+describe, simple
+restore, preserve
+rename inc* y*, r
+return list
+restore
+=== fix6-datamgmt-collapse-weight
+clear
+set seed 12345
+set obs 12
+generate id = _n
+generate sex = mod(_n, 2)
+generate score = 20 + 15 * runiform()
+generate income = 1000 * runiform()
+preserve
+collapse (mean) score [w=id], by(sex)
+list
+restore, preserve
+collapse (mean) score [weight=income], by(sex)
+list
+restore, preserve
+collapse (sum) score (count) n=score [w=id], by(sex)
+list
+restore, preserve
+collapse (mean) score [freq=id], by(sex)
+list
+restore
+=== fix6-datamgmt-decode-maxlength
+clear
+set obs 4
+generate byte g = mod(_n, 2)
+label define gl 0 "Alpha" 1 "Betaville"
+label values g gl
+label variable g "Group"
+decode g, generate(s) maxlength(2)
+describe s
+list g s
+decode g, generate(t) maxlength(3)
+describe t
+capture noisily decode g, generate(u) maxlength(0)
+capture noisily decode g, generate(u) maxlength(-1)
+decode g, generate(u) maxlength(2046)
+describe u
+=== fix6-datamgmt-label-copy-save
+clear
+set obs 5
+generate sex = mod(_n, 2)
+label define sexl 0 "male" 1 "female"
+label values sex sexl
+label define new 1 "a" 2 "b" .a "missing"
+label copy new new2
+label list new2
+capture noisily label copy new new2
+label copy sexl new2, replace
+label list new2
+capture noisily label copy nosuch new3
+label dir
+label save sexl using dm6lab, replace
+label save using dm6lab2
+capture noisily label save using dm6lab2
+label drop _all
+run dm6lab2
+label list
+label rename new2 other
+label values sex other
+label rename other sexl2
+describe sex
+label dir
+=== fix6-datamgmt-label-language
+clear
+set obs 4
+generate byte sex = mod(_n, 2)
+generate float gpa = 2 + _n / 2
+generate z = 1
+label define sexen 0 "Male" 1 "Female"
+label values sex sexen
+label variable sex "Sex"
+label variable gpa "Grade point average"
+label data "English data"
+label language
+return list
+char list
+label language en, rename
+char list
+label language fr, new
+char list
+describe
+label define sexfr 0 "Homme" 1 "Femme with a much longer label"
+label values sex sexfr
+label variable sex "Sexe"
+label variable gpa "Moyenne"
+label language
+label language en
+char list
+describe
+label language fr
+label language de, new copy
+char list
+describe
+label language
+return list
+capture noisily label language xx
+capture noisily label language fr, new
+capture noisily label language en, rename
+capture noisily label language de
+capture noisily label language q1, new copy rename
+capture noisily label language q1, copy
+capture noisily label language abcdefghijklmnopqrstuvwxyz, new
+label language fr, delete
+char list
+label language de, delete
+label language
+char list
+describe
+capture noisily label language en, delete
+=== fix6-datamgmt-labelbook
+clear
+set obs 3
+generate byte sex = mod(_n, 2)
+generate q = _n
+generate r = _n
+label define sexen 0 "Male" 1 "Female"
+label define qq 1 "Strongly agree with it all" 2 "Strongly agree with it" 5 "3" .a "Refused" -3 " " 4 " pad" 10 "Strongly agree"
+label define unused 1 "x"
+label define zz 1 "same" 2 "same"
+label values sex sexen
+label values q qq
+label values r qq
+labelbook
+return list
+labelbook sexen, problems
+labelbook, problems
+labelbook qq, length(5) alpha
+set seed 5
+labelbook qq, list(2)
+display runiform()
+labelbook sexen, list(0)
+display runiform()
+capture noisily labelbook nosuch
+capture noisily labelbook, length(0)
+capture noisily labelbook, list(-1)
+label language en, rename
+label language fr, new
+label values sex zz
+labelbook sexen zz
+=== fix6-datamgmt-merge-joinby-sort
+clear
+set obs 4
+generate k = _n
+generate u = 10 * _n
+quietly save dm6u4, replace
+clear
+set obs 6
+generate k = _n
+generate u = 10 * _n
+quietly save dm6u6, replace
+clear
+set obs 8
+generate id = _n
+generate k = mod(_n, 4) + 1
+generate score = runiform()
+quietly save dm6m8, replace
+use dm6m8, clear
+merge m:1 k using dm6u6, keep(match) nogenerate
+local s : sortedby
+display "A [`s']"
+capture noisily by k: generate n = _n
+use dm6m8, clear
+sort k id
+merge m:1 k using dm6u4, nogenerate
+local s : sortedby
+display "B [`s']"
+use dm6u6, clear
+merge 1:m k using dm6m8, nogenerate keep(3)
+local s : sortedby
+display "C [`s']"
+use dm6u4, clear
+merge 1:1 k using dm6u6, nogenerate
+local s : sortedby
+display "D [`s']"
+use dm6u6, clear
+merge 1:1 k using dm6u4, nogenerate
+local s : sortedby
+display "E [`s']"
+use dm6u4, clear
+merge 1:1 k using dm6u6, nogenerate keep(1 3)
+local s : sortedby
+display "F [`s']"
+use dm6m8, clear
+sort k id
+joinby k using dm6u4
+local s : sortedby
+display "G [`s']"
+by k: generate n = _n
+list id k n in 1/4
+use dm6m8, clear
+sort score
+joinby k using dm6u6, unmatched(both)
+local s : sortedby
+display "H [`s']"
+use dm6m8, clear
+joinby using dm6u4
+capture noisily joinby k using dm6u4, unmatched(foo)
+=== fix6-datamgmt-xtset-panel-only
+clear
+set seed 4242
+set obs 12
+generate id = ceil(_n / 3)
+generate year = 2018 + mod(_n - 1, 3) + 1
+generate inc = runiform() * 100
+sort inc
+xtset id
+list id year in 1/4
+local s : sortedby
+display "[`s']"
+xtset id year
+local s : sortedby
+display "[`s']"
+sort inc
+xtset, clear
+xtset id
+local s : sortedby
+display "[`s']"
+=== fix6-datamgmt-strl-keys
+clear
+set obs 2
+generate strL s = "abc" + string(_n)
+generate x = _n
+quietly save dm6outL, replace
+clear
+set obs 3
+generate str4 s = "abc" + string(_n)
+generate y = _n
+quietly save dm6out4, replace
+use dm6out4, clear
+capture noisily merge 1:1 s using dm6outL
+use dm6outL, clear
+capture noisily merge 1:1 s using dm6out4
+use dm6outL, clear
+capture noisily merge 1:1 s using dm6outL
+use dm6out4, clear
+capture noisily merge m:1 s using dm6outL
+use dm6outL, clear
+capture noisily merge m:1 s using dm6out4
+use dm6outL, clear
+capture noisily merge m:1 s using dm6outL
+use dm6out4, clear
+capture noisily merge 1:m s using dm6outL
+use dm6outL, clear
+capture noisily merge 1:m s using dm6out4
+use dm6outL, clear
+capture noisily merge 1:m s using dm6outL
+use dm6out4, clear
+capture noisily joinby s using dm6outL
+use dm6outL, clear
+capture noisily joinby s using dm6out4
+capture noisily joinby s using dm6outL
+=== fix6-datamgmt-promotion-order
+clear
+set obs 2
+generate double c = 1.5
+generate e = 1
+generate str1 a = "x"
+generate long d = 100000
+generate str9 b = "abcdefghi"
+generate id = _n
+quietly save dm6using1, replace
+clear
+set obs 2
+generate id = _n
+generate byte a = 1
+generate str2 b = "ab"
+generate int c = 1
+generate byte d = 1
+generate str1 e = "z"
+quietly save dm6master1, replace
+capture noisily append using dm6using1
+append using dm6using1, force
+use dm6master1, clear
+merge 1:1 id using dm6using1, force nogenerate
+use dm6master1, clear
+capture noisily merge 1:1 id using dm6using1
+=== fix6-datamgmt-input-echo
+clear
+input x y
+1 2
+3 4
+end
+clear
+input str12 a str12 b
+"1" "1,234"
+"2.5" "2,000.5"
+end
+list
+clear
+input byte b int i long l float f double d str1 s1 str5 s5 str20 s20 strL sl str s
+1 2 3 4 5 a bb ccc dddd e
+6 7 8 9 10 a bb ccc dddd 11 12
+end
+list
+clear
+input averyveryverylongname another_long_name_here x2
+1 2 3
+end
+clear
+input x
+end
+describe, short
+clear
+input x
+     1
+  2
+3 e
+abc
+4
+5
+6
+7
+8
+9
+10
+end
+list, clean
+=== fix6-datamgmt-expand-split-egen
+clear
+set obs 10
+generate v = 2
+replace v = . in 3/4
+generate score = _n * 1.5
+generate str10 dob = "2001-0" + string(_n) + "-1"
+generate str5 name = "a b c"
+preserve
+expand v
+count
+restore, preserve
+replace v = 0 in 5
+replace v = -1 in 6
+replace v = .a in 7
+replace v = 0.5 in 1
+replace v = 2.7 in 2
+replace v = -0.3 in 8
+expand v
+count
+restore, preserve
+replace v = 1
+expand v
+restore
+split dob, parse(-) generate(d)
+capture noisily split dob, parse(-) generate(d)
+capture noisily split dob, parse(-) generate(e) limit(0)
+capture noisily split dob, parse(-) generate(e) limit(-2)
+split dob, parse(-) generate(f) limit(1)
+capture noisily egen x = pctile(score), p(-5)
+capture noisily egen x = pctile(score), p(100)
+capture noisily egen x = pctile(score), p(0)
+egen x4 = pctile(score), p(50.5)
+capture noisily egen c1 = cut(score), group(100)
+egen c2 = cut(score), group(11)
+capture noisily egen c3 = cut(score), group(12)
+capture noisily egen c4 = cut(score), group(0)
+capture noisily egen c5 = cut(score), group(1)
+capture noisily egen c6 = cut(score), group(-1)
+egen c7 = cut(score) if score > 6, group(8)
+=== fix6-datamgmt-generate-before-after
+clear
+set seed 7
+set obs 5
+generate id = _n
+generate income = runiform() * 1000
+generate age = 20 + _n
+generate y = income, after(id)
+generate y2 = income, before(id)
+capture noisily generate y3 = income, after(nosuch)
+capture noisily generate z = 1, last
+generate double w = 2 * age, after(age)
+capture noisily generate q = 1, after(id) before(age)
+generate str5 qq = "a", before(income)
+generate r = cond(id > 2, 1, 0), after(y2)
+describe, simple
+list in 1/2
+=== fix6b-datamgmt-decode-width
+clear
+set obs 5
+generate byte c = _n
+label define cl 1 "Ébène" 2 "Zürich" 3 "日本語テキスト" 4 ""
+label values c cl
+decode c if c > 3, generate(a1)
+decode c if c == 1, generate(a2)
+decode c if c == 2, generate(a3) maxlength(3)
+decode c in 1, generate(a5) maxlength(30)
+decode c if c > 3, generate(s10) maxl(5)
+describe
+list
+clear
+set obs 3
+generate c = _n
+local q = 3000*"q"
+label define cl 1 "`q'" 2 "short" 3 "ab"
+label values c cl
+decode c, generate(s)
+decode c if c == 2, generate(s1)
+decode c, generate(s2) maxlength(2045)
+decode c, generate(s3) maxlength(2046)
+decode c, generate(s4) maxlength(3)
+describe
+generate n = strlen(s)
+generate n2 = strlen(s2)
+list n n2 s4
+label define e2 7 "abcdefghijk"
+label values c e2
+decode c, generate(s6)
+label define e4 1 "abcdefghi" 2 "abcdefghij" .a "abcdefghijklmnopqrst"
+label values c e4
+decode c, generate(s8)
+label define e1 1 ""
+label values c e1
+decode c, generate(s5)
+describe s6 s8 s5
+capture noisily decode c, generate(s9) maxlength(32001)
+=== fix6b-datamgmt-compress-strl-memory
+clear
+set obs 2
+generate strL a = 97 * "x" if _n == 1
+generate strL b = 96 * "x" if _n == 1
+generate strL c = 98 * "x" if _n == 1
+compress a
+compress b
+compress c
+describe
+clear
+set obs 6
+generate strL a = 2045 * "x" if _n == 1
+compress a
+generate strL b = 2000 * "x" + string(_n)
+compress b
+generate strL c = 300 * "x" if _n == 1
+compress c
+generate strL h = 2045 * "y"
+compress h
+describe
+clear
+set obs 50
+generate strL g = "same"
+replace g = "different" in 10
+compress g
+generate strL g3 = "same"
+replace g3 = "different" in 10/12
+compress g3
+generate strL h = "same"
+replace h = "different" in 10
+replace h = "different" in 11
+compress h
+generate strL k = "same"
+replace k = "different" in 10
+replace k = "same" in 10
+compress k
+generate strL m = "same"
+replace m = "different" if mod(_n, 2)
+compress m
+generate strL r = "zz"
+replace r = "zzz" in 5
+replace r = "zz" in 5
+compress r
+generate strL t = "x" if mod(_n, 2)
+compress t
+generate strL u = cond(mod(_n, 2), "x", "")
+compress u
+generate strL v = "y"
+replace v = "x" in 20/30
+compress v
+generate strL w = "abc"
+replace w = cond(mod(_n, 2), "q", "r") in 1/10
+compress w
+generate strL y = "abc"
+replace y = "abc" in 1/10
+compress y
+generate strL z = "abc"
+replace z = "q" in 5
+sort z
+compress z
+generate strL p = cond(_n < 20, "aaa", "bbb")
+gsort -p
+compress p
+generate strL s = "abc"
+replace s = s + "d" in 1/10
+compress s
+=== fix6b-datamgmt-input-continue
+clear
+input str20 name age
+"John Smith" 34
+"Mary" .
+end
+input
+"Again" 60
+end
+list
+clear
+input x y
+1 2
+end
+input
+3 4
+5 6
+end
+list
+clear
+input byte b str3 s
+1 "ab"
+end
+input
+300 "abcdefg"
+2.5 "x"
+end
+describe
+list
+clear
+input a b
+1 2
+end
+label define al 1 "one"
+label values a al
+input
+one 5
+3 4
+end
+list
+=== fix6b-datamgmt-input-separators
+clear
+input x y z
+1 2 3 4
+5 6
+7
+8 9 10
+end
+list
+clear
+input x
+1e3
+-.5
++3
+1,000
+1d3
+.b
+2+3
+(3)
+-
+1e
+x
+end
+list
+clear
+input str10 s x
+a,b 3
+"c,d" 4
+e,5
+f
+end
+list
+clear
+input x str5 s
+3
+4 "q"
+end
+list
+clear
+input x y z
+1,,3
+4, 5, 6
+7 . 9
+1 2 3,
+end
+list
+=== fix6b-datamgmt-input-labels
+clear
+label define sexl 1 "male" 2 "female"
+input byte sex:sexl
+1
+female
+"male"
+3
+end
+list
+list, nolabel
+describe
+clear
+input y:undefl
+3
+end
+describe
+clear
+input x:ql, automatic
+apple
+banana
+apple
+end
+list
+label list
+clear
+label define ql 5 "x"
+input y:ql, automatic
+apple
+x
+7
+end
+list
+label list
+clear
+label define sexl 1 "male" 2 "female"
+input byte s:sexl, label
+male
+2
+other
+end
+list
+clear
+input z, automatic
+apple
+end
+describe, short
+clear
+input z:verylonglabelname, automatic
+"a very long label text here"
+end
+describe
+list
+clear
+input z, lab
+1
+end
+clear
+input z, a
+1
+end
+clear
+input z, nolabel
+1
+end
+clear
+label define sexl 1 "male"
+input str5 s:sexl
+abc
+end
+=== fix6b-datamgmt-input-defined
+clear
+input str20 name age
+"John Smith" 34
+"Mary" .
+end
+input name age
+"Extra" 50
+end
+list
+=== fix6b-datamgmt-input-mixed
+clear
+input x
+1
+2
+end
+input x y
+3 4
+end
+list
+=== fix6b-datamgmt-input-nothing
+clear
+input str5 s
+end
+describe, short
+input
+end
+=== fix6b-datamgmt-input-new-variables
+clear
+input x
+1
+2
+end
+input z
+7
+8
+end
+list
+=== fix6b-datamgmt-joinby-stack-file
+clear
+input k u
+3 30
+1 10
+2 20
+end
+save ub, replace
+clear
+input k m
+2 200
+1 100
+3 300
+end
+save mb, replace
+use mb, clear
+joinby k using ub
+capture noisily save, replace
+describe, short
+use mb, clear
+joinby k using ub, unmatched(both)
+capture noisily save, replace
+describe, short
+use mb, clear
+stack k m, into(v) clear
+capture noisily save, replace
+describe, short
+use mb, clear
+list
+=== fix6b-datamgmt-expand-checks
+clear
+set obs 4
+generate str5 s = "2"
+replace s = "abc" in 2
+generate n = 2
+capture noisily expand s
+count
+capture noisily expand "3"
+count
+capture noisily expand n + s
+count
+capture noisily expand n if s == "2"
+count
+capture noisily expand n, clear
+count
+clear
+set obs 3
+generate id = _n
+capture noisily expand 2, generate(id)
+capture noisily expand 2, generate(1x)
+count
+expand 2 in 1/2, generate(dup)
+list, nolabel
+describe dup
+label list
+capture noisily expand 2, gen(dup2) foo
+clear
+set obs 2
+generate k = _n
+label define _merge 0 "zero" 5 "five"
+expand 2, generate(e1)
+label list
+list
+describe e1
+=== fix6b-datamgmt-numlabel-all
+clear
+set obs 3
+generate byte a = _n
+label define al 1 "one" 2 "two"
+label define bl 3 "three"
+label define cl 4 "four"
+label values a al
+label list
+preserve
+restore
+label list
+preserve
+restore
+label list
+capture noisily numlabel zz, add
+label list
+numlabel _all, add
+label list
+numlabel _all, remove mask("#: ")
+label list
+numlabel _all bl, remove
+label list
+capture noisily numlabel a*, add
+capture noisily numlabel _all, add mask("x")
+label list
+=== fix6b-datamgmt-labelbook-empty
+clear
+labelbook
+set obs 2
+generate x = _n
+labelbook
+label define al 1 "one"
+label define bl 2 "two"
+label values x al
+quietly labelbook al
+label list
+capture noisily labelbook zz
+label list
+capture noisily labelbook, length(0)
+label list
+=== fix6b-datamgmt-label-language-delete
+clear
+set obs 3
+generate byte a = _n
+label define al 1 "one"
+label values a al
+label language fr, new
+label language es, new copy
+label language spanish, rename
+label language default
+label language zz, rename
+label language fr
+label language es2, new
+label language spanish
+label language fr, delete
+char list _dta[]
+label language
+return list
+clear
+set obs 3
+generate byte a = _n
+label define al 1 "one"
+label values a al
+label language m, rename
+label language b, new
+label language c, new
+label language b
+label language z, rename
+char list _dta[]
+preserve
+label language z, delete
+char list _dta[]
+label language
+restore
+label language m, delete
+char list _dta[]
+=== fix6b-datamgmt-egen-cut
+clear
+set seed 7
+set obs 15
+generate score = round(runiform()*100, 0.1)
+replace score = . in 3
+egen k1 = cut(score), at(0(20)60) icodes
+egen k2 = cut(score), group(3) label
+egen k3 = cut(score), at(10 30 50 90) label
+label define k4 1 "x"
+egen k4 = cut(score), group(4) label
+egen k5 = cut(score) if score > 20, group(3)
+egen k6 = cut(score), at(0.1(0.1)0.5)
+capture noisily egen k7 = cut(score), group(2.5)
+capture noisily egen k7 = cut(score), group(-2)
+list
+list k2 k3 k4, nolabel
+label list
+describe k1-k6
+=== fix6b-datamgmt-generate-anchor
+clear
+set obs 3
+generate id = _n
+generate g = 1
+generate z = 2
+generate a = 1, after(i)
+describe, simple
+capture noisily generate b1 = 1, after(nosuch)
+capture noisily generate b2 = 1, before()
+capture noisily generate b3 = 1, before(1x)
+capture noisily generate b4 = 1, after(id,)
+capture noisily generate b5 = 1, after(_n)
+capture noisily generate b6 = 1, after(id-z)
+capture noisily generate b7 = 1, after(i?)
+capture noisily generate b8 = 1, before(a) after(g)
+capture noisily generate b9 = 1, after( )
+capture noisily generate b10 = 1, before(id g)
+capture noisily generate b11 = 1, after(_all)
+capture noisily generate b12 = 1, after(i*)
+capture noisily generate a = 1, before(1x)
+describe, simple
+capture noisily replace a = 2, foo
+capture noisily replace a = 2, foo(x)
+capture noisily replace a = 2, after
+capture noisily replace a = 2, after(id)
+capture noisily egen m = mean(id), after(id)
+=== fix6b-datamgmt-weights-assumed
+clear
+set seed 11
+set obs 12
+generate y = round(runiform()*100, 0.1)
+generate g = mod(_n,3)
+generate h = mod(_n,2)
+generate wt = 1 + mod(_n,4)
+summarize y [w=wt]
+summarize y [weight=wt]
+summarize y [aw=wt]
+summarize y [w=wt], meanonly
+display r(mean)
+by h, sort: summarize y [w=wt]
+capture noisily summarize y [w=nosuch]
+tabulate g [w=wt]
+tabulate g h [we=wt]
+tabulate g [fw=wt]
+capture noisily tabulate g [w=nosuch]
+tabulate g [w=wt], summarize(y)
+tabulate g [aw=wt], summarize(y)
+capture noisily collapse y [w=], by(g)
+capture noisily collapse y [w=nosuch], by(g)
+generate nw = wt - 3
+capture noisily collapse y [w=nw], by(g)
+=== models6-wide-t-statistics
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+xtset pid year
+xtreg bigy xit, fe
+xtreg bigy xit, re
+xtreg bigy xit, fe vce(robust)
+areg bigy xit, absorb(pid)
+areg lninc age i.educ [aweight=pw], absorb(stratum)
+=== models6-margins-labelled-factor-effects
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+regress lninc age i.female i.smoker
+margins, dydx(*)
+margins, dydx(female)
+logit employed age i.female i.educ
+margins, dydx(*) at(age=(30 50))
+margins, dydx(*) at(age=30)
+margins, dydx(female) at(age=30 educ=2)
+margins, dydx(female educ) at(age=30)
+margins, dydx(age) at(female=1 educ=2)
+margins, dydx(age female) at(age=(30 50) educ=2)
+regress lninc age i.female
+margins, dydx(female) at(age=30)
+=== models6-svy-over-and-tabulate-labels
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+set linesize 79
+svyset psu [pweight=pw], strata(stratum)
+svy: mean lninc, over(female)
+svy: mean hours, over(region female)
+svy: total nkids, over(female)
+svy: mean lninc hours, over(educ)
+svy: tabulate educ
+svy: tabulate educ female, row
+svy: tabulate female
+svy: tabulate region educ
+set linesize 200
+=== models6-glm-weights
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+glm lninc age i.female [pweight=pw], family(gaussian)
+glm lninc age i.female [aweight=pw], family(gaussian)
+glm lninc age i.female [fweight=nkids], family(gaussian)
+glm lninc age i.female [iweight=pw], family(gaussian)
+glm employed age i.female [pweight=pw], family(binomial) link(probit)
+glm employed age i.female [fweight=nkids], family(binomial)
+glm employed age i.female [aweight=pw], family(binomial)
+glm employed age i.female [iweight=pw], family(binomial)
+glm nkids age i.female [pweight=pw], family(poisson)
+glm employed age i.female, family(binomial) vce(robust)
+glm employed age i.female, family(binomial) vce(cluster stratum)
+glm lninc age [pw=pw], vce(cluster pid)
+=== models6-xtreg-weights
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+generate w3 = 1 + mod(pid*7, 5) + .5*(pid > 30)
+xtset pid year
+xtreg yit xit [aweight=stratum], fe
+xtreg yit xit age [fweight=stratum], fe
+xtreg yit xit age [pweight=w3], fe
+xtreg yit xit [aweight=w3], fe vce(cluster pid)
+capture noisily xtreg yit xit [iweight=stratum], fe
+capture noisily xtreg yit xit [aweight=stratum], re
+capture noisily xtreg yit xit [pweight=stratum], re
+capture noisily xtreg yit xit [aweight=stratum], be
+capture noisily xtreg yit xit [aweight=pw], fe
+=== models6-ivregress-weights
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+ivregress 2sls lninc i.region (hours = z i.educ) [pweight=pw]
+ivregress 2sls lninc i.region (hours = z i.educ) [aweight=pw]
+ivregress 2sls lninc i.region (hours = z i.educ) [fweight=nkids]
+ivregress 2sls lninc i.region (hours = z i.educ) [iweight=pw]
+ivregress 2sls lninc i.region (hours = z i.educ) [pw=pw], vce(cluster stratum)
+ivregress 2sls lninc age (hours = z) [aweight=pw], vce(robust)
+ivregress 2sls lninc (hours = z) if age > 30 [pweight=pw]
+=== models6-estat-summarize-factors
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+regress lninc age i.female hours
+estat summarize
+regress lninc age i.female i.educ i.smoker
+estat summarize
+regress lninc c.age##c.age i.female#c.hours
+estat summarize
+regress lninc i.female##i.smoker
+estat summarize
+logit employed age i.educ
+estat summarize
+=== models6-estimates-table-statistics
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+quietly regress lninc age i.female
+estimates store a1
+quietly logit employed age i.female
+estimates store a3
+estimates table a1 a3, stats(N)
+estimates table a1 a3, stats(N ll) se
+estimates table a1, stats(N)
+quietly ologit sat age
+estimates store o1
+estimates table a1 o1, stats(N)
+=== models6-svy-likelihood-steps
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+svyset psu [pweight=pw], strata(stratum)
+svy: logit employed age i.female i.educ
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+logit employed age i.female i.educ [pweight=pw]
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+poisson nkids age i.female i.educ, irr
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+svy: poisson nkids age i.female i.educ, irr
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+poisson nkids age i.educ##i.region
+display %20.12f _b[3.educ] " " %20.12f _b[_cons]
+=== models6-r-table
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+summarize age
+quietly regress lninc age i.female
+return list
+quietly logit employed age i.female
+return list
+quietly ologit sat age
+return list
+svyset psu [pweight=pw], strata(stratum)
+quietly svy: mean lninc
+return list
+quietly regress lninc age, level(90)
+return list
+matrix T = r(table)
+display T[3,1] " " T[8,2]
+=== models6-ordered-margins-factors
+clear
+set seed 4242
+set obs 600
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10)+1
+generate age = 18 + floor(runiform()*47)
+generate byte female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate byte smoker = runiform() < .3
+generate byte educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some coll" 4 "Graduate"
+label values educ edl
+label variable educ "Education"
+label variable female "Female indicator"
+generate hours = 20 + runiform()*20
+generate lninc = 10 + .005*age - .15*female + .01*hours + invnormal(runiform())*.4
+generate pw = 1 + runiform()*4
+generate stratum = 1 + mod(pid,3)
+generate psu = pid
+generate byte employed = runiform() < invlogit(-1 + .02*age - .3*female)
+generate nkids = 1 + floor(runiform()*3)
+generate lat = .03*age + .5*female + invnormal(runiform())
+generate byte sat = 1 + (lat > .8) + (lat > 1.5) + (lat > 2.2)
+generate xit = runiform()
+generate yit = .5*xit + pid/10 + .01*invnormal(runiform())
+generate bigy = yit + 1000
+generate z = invnormal(runiform())
+replace hours = hours + 3*z
+generate byte region = 1 + floor(runiform()*4)
+label define regl 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region regl
+set linesize 79
+ologit sat age i.female
+margins
+margins female
+margins female, predict(outcome(4))
+margins, dydx(age)
+margins, dydx(*)
+margins, dydx(female) predict(outcome(2))
+margins, atmeans predict(outcome(1))
+margins, at(age=(30 50)) predict(outcome(3))
+margins, dydx(*) at(age=40)
+capture noisily margins educ
+ologit sat i.educ i.female age
+margins female, predict(outcome(4))
+margins educ, predict(outcome(1))
+margins educ#female, predict(outcome(1))
+margins, dydx(educ) predict(outcome(1))
+predict p1-p4, pr
+summarize p1-p4
+predict q2, outcome(2)
+summarize q2
+oprobit sat age i.female
+margins female
+margins, dydx(female)
+ologit sat c.age##i.female
+margins female, predict(outcome(1))
+margins, dydx(age) predict(outcome(1))
+mlogit educ age i.female
+margins female, predict(outcome(2))
+margins, dydx(*) predict(outcome(3))
+set linesize 200
+=== models7-margins-blank-rows
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+generate byte one = female
+label define onel 1 "Yes" 0 "No"
+label values one onel
+label define half 0 "Zero only"
+generate fh = female
+label values fh half
+generate f12 = female + 1
+label define f12l 1 "Man" 2 "Woman"
+label values f12 f12l
+generate f12u = female + 1
+set linesize 79
+logit employed age i.female c.hours
+margins, dydx(*)
+margins, dydx(*) at(age=30 hours=30)
+regress lninc i.female age i.smoker hours
+margins, dydx(*)
+regress lninc age i.female i.smoker i.educ
+margins, dydx(*)
+margins, dydx(*) atmeans
+capture noisily margins, dydx(female) at(age=40 hours=30)
+regress lninc i.female i.educ i.smoker
+margins, dydx(*)
+regress lninc age i.fh
+margins, dydx(fh)
+regress lninc age ib1.one hours
+margins, dydx(*)
+regress lninc age ib1.smoker hours
+margins, dydx(*)
+regress lninc age ib2.f12 hours
+margins, dydx(*)
+regress lninc age ib2.f12u hours
+margins, dydx(*)
+set linesize 200
+=== models7-margins-titles-estimability
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+logit employed age i.female i.educ
+margins, dydx(*) at(age=30 educ=2)
+margins, dydx(age female) at(age=30 educ=2)
+margins, dydx(female educ) at(age=30)
+margins, dydx(female educ) at(age=30 educ=2)
+margins, dydx(educ female) at(age=30 female=1)
+margins, dydx(age educ) at(age=30 female=1)
+margins, dydx(age educ) at(age=30 female=1 educ=3)
+margins, dydx(*) at(age=30 female=1)
+margins, dydx(*) at(age=30 educ=2 female=0)
+regress lninc age i.female, noconstant
+margins, dydx(female)
+margins female
+margins
+margins, dydx(*)
+regress lninc age i.female i.smoker, noconstant
+margins smoker
+regress lninc c.age#i.female, noconstant
+margins female
+xtset pid year
+xtreg yit hours age [pweight=pwc], fe
+margins
+matrix list r(table)
+set linesize 200
+=== models7-ordered-margins
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+ologit sat age i.female [pweight=pw]
+margins female, predict(outcome(4))
+margins, predict(outcome(4))
+oprobit sat age i.female [pweight=pw]
+margins female, predict(outcome(2))
+ologit sat age i.female, vce(cluster psu)
+margins, dydx(female) predict(outcome(4))
+ologit sat c.age##i.female i.educ
+margins female, atmeans predict(outcome(3))
+ologit sat i.educ##i.female age
+margins educ, predict(outcome(4)) atmeans
+ologit sat age ib1.female
+margins female, predict(outcome(4))
+margins, dydx(female) predict(outcome(4))
+margins female, predict(outcome(#2))
+ologit sat age i.female
+quietly margins, dydx(*) predict(outcome(2))
+matrix list r(b)
+set linesize 200
+=== models7-weighted-areg-margins
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+areg lninc age i.female [aweight=pw], absorb(stratum)
+margins female
+areg lninc age i.female [pweight=pw], absorb(stratum)
+margins female
+margins, dydx(age)
+=== models7-estat-summarize-weights
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+label variable hours "Hours worked per week in the main job of the respondent"
+regress lninc age i.female hours i.smoker [aweight=pw]
+estat summarize
+estat summarize, labels
+estat summarize, equation
+estat summarize, noweights
+estat summarize, labels equation noheader
+regress lninc age i.educ hours [fweight=fw]
+estat summarize, labels
+estat summarize, equation noheader
+regress lninc age i.female, vce(cluster psu)
+estat summarize
+estat summarize, labels
+logit employed age i.female [pweight=pw], vce(cluster stratum)
+estat summarize
+logit employed age i.educ
+estat summarize, labels
+estat summarize, noheader
+estat summarize, equation
+probit employed age i.smoker c.age#i.female
+estat summarize, labels
+estat summarize, equation
+tobit lninc age i.female, ll(9)
+estat summarize, equation
+estat summarize, vsquish
+estat summarize age
+ivregress 2sls lninc age i.female (endo = z) [pweight=pw]
+estat summarize
+glm employed age i.female [fweight=fw], family(binomial)
+estat summarize
+set linesize 200
+=== models7-assumed-weights
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+ivregress 2sls lninc age (endo = z) [weight=fw]
+glm employed age [weight=fw], family(binomial)
+=== models7-svy-mean-narrow-lines
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+label define regl 1 "Northeast region of country" 2 "Midwest" 3 "South"
+label values region regl
+svyset psu [pweight=pw], strata(stratum)
+set linesize 79
+svy: mean lninc, over(region educ)
+set linesize 80
+svy: mean lninc, over(region educ)
+set linesize 66
+svy: mean lninc, over(region)
+svy: mean lninc, over(region educ)
+set linesize 60
+svy: mean lninc, over(female)
+svy: mean lninc, over(educ female)
+svy: mean lninc, over(region educ)
+set linesize 55
+svy: mean lninc, over(female)
+svy: mean lninc, over(region)
+set linesize 200
+=== models7-matrix-list-stripes
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+matrix B = J(2,8,1)
+matrix list B
+matrix C = J(2,9,1.234567)
+matrix list C
+matrix E = J(7,7,2)
+matrix list E
+generate age2 = age
+quietly regress lninc age age2 ib2.educ
+matrix A = r(table)
+matrix list A
+quietly regress lninc age i.female hours i.educ
+matrix V = e(V)
+matrix list V
+matrix list e(b)
+quietly mlogit sat age
+matrix list e(b)
+matrix list r(table)
+quietly regress lninc c.age#i.female hours
+matrix list r(table)
+quietly logit employed age i.female
+matrix list e(V)
+quietly ologit sat age i.female
+matrix list r(table)
+quietly regress lninc age i.female
+quietly margins, dydx(female)
+matrix list r(table)
+quietly regress lninc age hours i.female
+estat vif
+return list
+quietly regress lninc age i.female
+estimates store m1
+quietly logit employed age i.female
+estimates store m2
+estimates table m1
+return list
+matrix list r(coef)
+estimates table m1 m2, stats(N)
+return list
+matrix list r(coef)
+matrix list r(stats)
+set linesize 200
+=== models7-r-results
+clear
+set seed 90210
+set obs 800
+generate pid = ceil(_n/10)
+generate year = mod(_n-1,10) + 2000
+generate double u = invnormal(runiform())
+bysort pid: replace u = u[1]
+generate female = runiform() < .5
+label define sexl 0 "Male" 1 "Female"
+label values female sexl
+generate educ = 1 + floor(runiform()*4)
+label define edl 1 "Less HS" 2 "High school" 3 "Some college" 4 "Graduate"
+label values educ edl
+generate region = 1 + floor(runiform()*3)
+generate smoker = runiform() < .3
+generate age = 18 + floor(runiform()*47)
+generate hours = 20 + 20*runiform()
+generate z = invnormal(runiform())
+generate double endo = .5*z + .3*invnormal(runiform())
+generate double lninc = 9 + .01*age - .15*female + .1*educ + .02*hours + .3*endo + .5*invnormal(runiform())
+generate double ystar = .03*age + .5*female - .2*educ + invnormal(runiform())*1.8
+generate sat = 1 + (ystar > .3) + (ystar > 1.2) + (ystar > 2.1)
+generate employed = (ystar + invnormal(runiform())) > .9
+generate nkids = floor(runiform()*3) + (female==1)*floor(runiform()*2)
+generate stratum = 1 + mod(pid, 5)
+generate psu = pid
+generate pw = 1 + 4*runiform()
+generate pwc = 1 + mod(pid,4)
+generate fw = 1 + floor(runiform()*3)
+generate double yit = .5*hours + u + .01*invnormal(runiform())
+generate double bigy = yit + 1000
+label variable educ "Education level of respondent"
+label variable female "Female indicator"
+label variable lninc "Log income"
+drop ystar
+set linesize 79
+quietly regress lninc age i.female, noconstant
+quietly margins, dydx(female)
+matrix list r(b)
+matrix list r(table)
+quietly margins female
+matrix list r(b)
+matrix list r(table)
+quietly regress lninc age i.female
+quietly estimates table
+return list
+matrix list r(coef)
+estimates store m1
+estimates table m1 .
+return list
+quietly regress lninc age i.female [aweight=pw]
+quietly estat summarize
+return list
+matrix list r(stats), format(%12.0g)
+quietly estat summarize, equation
+matrix list r(stats)
+quietly logit employed age i.educ c.age#i.female
+quietly estat summarize
+matrix list r(stats)
+set linesize 200

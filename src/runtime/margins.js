@@ -73,8 +73,22 @@ export function nullSpace(model, rows) {
         ? rows.map(() => 1)
         : rows.map((i) => model.columns[j].value(i)),
     basis = [],
-    nulls = [];
-  for (let j = 0; j < k; j++) {
+    nulls = [],
+    // The columns the fit estimated come first, then those it dropped
+    // (base levels and omitted columns). A dropped column that is not a
+    // combination of the estimated ones (a base level without a constant)
+    // was set to zero by restriction, not by collinearity: a row is
+    // estimable only when its weight on that column is what its projection
+    // on the estimated columns gives, which is Stata's test that L times
+    // (X'X)-(X'X) is L.
+    dropped = (j) =>
+      model.names[j] !== "_cons" &&
+      (!!model.columns[j]?.base || model.estimable?.[j] === false),
+    order = [
+      ...model.names.map((_, j) => j).filter((j) => !dropped(j)),
+      ...model.names.map((_, j) => j).filter((j) => dropped(j)),
+    ];
+  for (const j of order) {
     let rest = column(j);
     const coefficients = new Array(k).fill(0),
       original = rest.reduce((t, v) => t + v * v, 0);
@@ -86,9 +100,10 @@ export function nullSpace(model, rows) {
       q.coefficients.forEach((c, m) => (coefficients[m] -= weight * c));
     }
     const norm = rest.reduce((t, v) => t + v * v, 0);
-    if (original > 0 && norm > 1e-9 * original)
-      basis.push({ vector: rest, norm, coefficients });
-    else nulls.push(coefficients);
+    if (original > 0 && norm > 1e-9 * original) {
+      if (model.columns[j]?.base) nulls.push(coefficients);
+      else basis.push({ vector: rest, norm, coefficients });
+    } else nulls.push(coefficients);
   }
   return nulls;
 }
@@ -101,13 +116,16 @@ export function nullSpace(model, rows) {
  * estimable. Returns a function of a row, or null when every row is.
  */
 export function estimability(model, rows) {
-  const restricted = model.columns.some(
-      (c, j) =>
-        c &&
-        (c.empty ||
-          c.omittedCell ||
-          (!c.base && model.estimable?.[j] === false)),
-    ),
+  const restricted =
+      model.columns.some(
+        (c, j) =>
+          c &&
+          (c.empty ||
+            c.omittedCell ||
+            (!c.base && model.estimable?.[j] === false)),
+      ) ||
+      // Without a constant, a factor's base level is a restriction.
+      (!model.names.includes("_cons") && model.columns.some((c) => c?.base)),
     nulls = restricted ? nullSpace(model, rows) : [],
     lone = model.columns
       .map((c, j) =>
@@ -179,6 +197,223 @@ export function marginTermsOf(session, text, factors) {
     (term, k) =>
       terms.findIndex((other) => other.join("#") === term.join("#")) === k,
   );
+}
+
+/**
+ * The estimates margins leaves in r(b), r(V) and r(table): those it shows,
+ * with the base level of a factor whose effects dydx() takes, which Stata
+ * keeps as 0b.female, at its place among the levels.
+ */
+export function withBaseLevels(values, k) {
+  const stored = [],
+    emitted = new Set(),
+    baseOf = (r) => ({
+      value: 0,
+      gradient: new Array(k).fill(0),
+      se: MISSING,
+      column: r.base.column,
+      wrt: r.base.column,
+      label: r.base.column,
+    });
+  values.forEach((r, j) => {
+    if (r.base && !emitted.has(r.base.column) && r.level > r.base.level) {
+      stored.push(baseOf(r));
+      emitted.add(r.base.column);
+    }
+    stored.push(r);
+    const next = values[j + 1];
+    if (
+      r.base &&
+      !emitted.has(r.base.column) &&
+      next?.base?.column !== r.base.column
+    ) {
+      stored.push(baseOf(r));
+      emitted.add(r.base.column);
+    }
+  });
+  return stored;
+}
+
+/**
+ * The table of margins: results are the rows in order, each a heading
+ * (with a note, as (base outcome)), a rule, a group's name, or an estimate
+ * with its label, value and gradient; variance(gradient) gives an
+ * estimate's variance. Each estimate's standard error is kept in it as se.
+ * margins after ologit, oprobit and mlogit lays out its table here too.
+ */
+export function marginsTable(
+  session,
+  results,
+  { dydx, t, level, critical, tail, variance },
+  ctx,
+) {
+  // With dydx(), a factor with one level to show is one row, as 1.female,
+  // when the variable has no value label. One with a value label, even
+  // one that does not name the level, keeps its group heading, as the
+  // coefficient table does (termRows).
+  const labelledFactor = (name) => {
+    const variable = session.data.has?.(name) ? session.data.get(name) : null;
+    return !!session.data.valueLabels?.has(variable?.valueLabel);
+  };
+  if (dydx)
+    for (let k = 0; k < results.length - 1; k++) {
+      const [head, row, after] = [results[k], results[k + 1], results[k + 2]];
+      if (
+        !head.group ||
+        head.heading ||
+        !row.factor ||
+        row.group ||
+        row.factor !== head.group ||
+        labelledFactor(head.group) ||
+        (after && after.factor === row.factor && !after.group)
+      )
+        continue;
+      row.label = `${row.label}.${head.group}`;
+      row.plain = true;
+      row.single = true;
+      results.splice(k, 1);
+    }
+  // The first column is twelve wide, widened to the longest name or label
+  // in it while the line allows (linesize - 67). A label counts with the
+  // space after it; one too long for the column is broken after a #, and
+  // then its longest piece counts. As tableWidth sets a coefficient table.
+  const cap = (session.settings?.linesize ?? 80) - 67,
+    needs = (text, extra) =>
+      text.length + extra <= cap || !text.includes("#")
+        ? text.length + extra
+        : Math.max(...text.split("#").map((piece) => piece.length + extra)),
+    w = Math.max(
+      12,
+      Math.min(
+        cap,
+        Math.max(
+          0,
+          ...results.map((r) =>
+            r.rule
+              ? 0
+              : r.heading
+                ? r.heading.length
+                : r.group
+                  ? needs(r.group, 0)
+                  : needs(r.label, r.plain ? 0 : 1),
+          ),
+        ),
+      ),
+    ),
+    bar = `${" ".repeat(w + 1)}|`,
+    split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
+    rule = "-".repeat(66 + w),
+    // A label too long for the column is cut and marked with two dots.
+    cut = (text) => (text.length > w - 1 ? `${text.slice(0, w - 3)}..` : text);
+  // The lines that label a row, the last of which carries the numbers: a
+  // group name too long for the column is broken after a #, its pieces
+  // joined while they fit; a level's label likewise, piece by piece.
+  const groupLines = (text) => {
+      if (text.length <= w) return [`${text.padStart(w)} |`];
+      const pieces = [];
+      for (const part of text.split("#")) {
+        const last = pieces.at(-1);
+        if (last !== undefined && `${last}#${part}`.length <= w)
+          pieces[pieces.length - 1] = `${last}#${part}`;
+        else pieces.push(part);
+      }
+      return pieces.map((piece, k) =>
+        k < pieces.length - 1
+          ? `${`${piece}#`.padStart(w + 1)}|`
+          : `${abbreviate(piece, w).padStart(w)} |`,
+      );
+    },
+    labelLines = (result) => {
+      if (result.plain) return [`${abbreviate(result.label, w).padStart(w)} `];
+      if (result.label.length <= w - 1 || !result.label.includes("#"))
+        return [`${cut(result.label)}  `.padStart(w + 1)];
+      const pieces = result.label.split("#");
+      return [
+        ...pieces
+          .slice(0, -1)
+          .map((piece) => `${`${cut(piece)} #`.padStart(w + 1)}`),
+        `${cut(pieces.at(-1))}  `.padStart(w + 1),
+      ];
+    };
+  ctx.out("");
+  ctx.out(rule);
+  ctx.out(`${bar}            Delta-method`);
+  ctx.out(
+    `${bar} ${(dydx ? "dy/dx" : "Margin").padStart(10)}   std. err.      ${t ? "t" : "z"}    P>|${t ? "t" : "z"}|     [${g(level)}% conf. interval]`,
+  );
+  ctx.out(split);
+  // Blank rows separate the blocks of rows as in a coefficient table: none
+  // between two plain rows (a variable, or a factor shown as 1.female), and
+  // one before every other block; a factor headed by its name with one
+  // level shown has none after it (termRows).
+  let previous = null,
+    // Whether the block before ends as a plain row does, and how many rows
+    // of the current group remain to be printed.
+    plainBefore = false,
+    groupLeft = 0;
+  for (const [index, result] of results.entries()) {
+    if (result.rule) {
+      ctx.out(split);
+      previous = null;
+      continue;
+    }
+    if (result.heading) {
+      if (previous) ctx.out(split);
+      ctx.out(`${result.heading.padEnd(w + 1)}|${result.note ?? ""}`);
+      previous = { group: "heading" };
+      continue;
+    }
+    if (result.group) {
+      if (previous && !previous.group) ctx.out(bar);
+      groupLines(result.group).forEach((line) => ctx.out(line));
+      groupLeft = 0;
+      for (const next of results.slice(index + 1)) {
+        if (next.group || next.heading || next.rule || next.plain) break;
+        groupLeft++;
+      }
+      // That is so only when the level shown comes after the base level.
+      plainBefore = !!dydx && groupLeft === 1 && !results[index + 1].beforeBase;
+    } else {
+      if (groupLeft > 0) groupLeft--;
+      else {
+        if (previous && !previous.group && !plainBefore) ctx.out(bar);
+        plainBefore = true;
+      }
+      const lines = labelLines(result);
+      lines.slice(0, -1).forEach((line) => ctx.out(`${line}|`));
+      // A level left out after perfect prediction, or an empty base level,
+      // has no estimate to print.
+      if (result.estimable === false || result.empty || result.omitted) {
+        ctx.out(
+          `${lines.at(-1)}|          ${result.estimable === false ? ".  (not estimable)" : `0  (${result.empty ? "empty" : "omitted"})`}`,
+        );
+        result.se = MISSING;
+        previous = result;
+        continue;
+      }
+      // A variance that is zero, or below zero by rounding, leaves the
+      // standard error, the test and the interval missing, as in Stata.
+      const v = variance(result.gradient),
+        known = v > 0 && !isMissing(v),
+        se = known ? Math.sqrt(v) : MISSING,
+        z = known ? result.value / se : MISSING,
+        bound = (sign) =>
+          known ? result.value + sign * critical * se : MISSING;
+      ctx.out(
+        `${lines.at(-1)}|${g(result.value).padStart(11)}${g(se).padStart(11)}${zColumn(z)}${applyFormat(known ? tail(z) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`,
+      );
+      result.se = se;
+    }
+    previous = result;
+  }
+  ctx.out(rule);
+  if (
+    dydx &&
+    results.some((r) => r.discrete || (r.factor && r.factor !== "_at"))
+  )
+    ctx.out(
+      "Note: dy/dx for factor levels is the discrete change from the base level.",
+    );
 }
 
 function margins(session, text, ctx) {
@@ -367,6 +602,16 @@ function margins(session, text, ctx) {
       ? { levels: own.map((c) => c.level), emptyBase: !!own[0].empty }
       : { levels: levelsOf(name), emptyBase: false };
   };
+  // A factor's base level as the fit chose it (ib1. makes 1 the base), and
+  // its other levels in order: effects are taken from the base.
+  const baseFirst = (name, levels) => {
+    const base = model.columns.find(
+      (c) => c?.term.factor?.name === name && c.base,
+    )?.level;
+    return base === undefined || !levels.includes(base)
+      ? levels
+      : [base, ...levels.filter((lv) => lv !== base)];
+  };
   // A variable all of whose coefficients were omitted has no effect to
   // estimate; Stata shows it as (omitted).
   const omittedVariable = (name) => {
@@ -454,7 +699,7 @@ function margins(session, text, ctx) {
       const name = session.varlist(m[1])[0];
       if (!covariates.includes(name))
         throw new StataError(
-          `variable ${name} not found in list of covariates`,
+          `invalid at() option;\nvariable ${name} not found in list of covariates`,
           322,
         );
       entries.push([name, parseNumlist(m[2].replace(/^\(|\)$/g, ""))]);
@@ -510,34 +755,48 @@ function margins(session, text, ctx) {
   // Covariates are all fixed when at() sets them or they are the factors
   // whose effects are asked for. A factor whose margins are taken counts as
   // fixed only in its own block; the title rule below adds it block by block.
-  const allFixed = (set) =>
-    covariates.every(
-      (name) => set.has(name) || (factors.has(name) && !!dydx?.includes(name)),
+  // Every covariate is fixed by at(), but for one factor whose effect
+  // dydx() takes (which its levels then fix); a second such factor, or a
+  // continuous variable left free, makes the effects averages. So does a
+  // dydx() factor that at() fixes, when another is left free, as Stata 19
+  // titles dydx(*) at(age=30 educ=2) with female free.
+  const allFixed = (set) => {
+    const free = covariates.filter((name) => !set.has(name));
+    return (
+      !free.length ||
+      (free.length === 1 &&
+        factors.has(free[0]) &&
+        !!dydx?.includes(free[0]) &&
+        !dydx.some((name) => factors.has(name) && set.has(name)))
     );
+  };
 
   // What to compute.
   const results = [];
   let dydx = null;
   if (options.dydx) {
-    const wanted = /^(\*|_all)$/.test(options.dydx.trim())
-      ? covariates
-      : options.dydx
-          .trim()
-          .split(/\s+/)
-          .map((word) => {
-            let name;
-            try {
-              name = session.varlist(word)[0];
-            } catch {
-              name = word;
-            }
-            if (!covariates.includes(name))
-              throw new StataError(
-                `invalid dydx() option;\n${word} not found in list of covariates`,
-                322,
-              );
-            return name;
-          });
+    // Effects are listed in the model's order, whatever order dydx() names
+    // the variables in.
+    const typed = /^(\*|_all)$/.test(options.dydx.trim())
+        ? covariates
+        : options.dydx
+            .trim()
+            .split(/\s+/)
+            .map((word) => {
+              let name;
+              try {
+                name = session.varlist(word)[0];
+              } catch {
+                name = word;
+              }
+              if (!covariates.includes(name))
+                throw new StataError(
+                  `invalid dydx() option;\n${word} not found in list of covariates`,
+                  322,
+                );
+              return name;
+            }),
+      wanted = covariates.filter((name) => typed.includes(name));
     dydx = wanted;
     // Effects can be asked for at each at() setting or at each level of one
     // factor; either way they are listed under the variable they belong to.
@@ -566,7 +825,7 @@ function margins(session, text, ctx) {
     for (const name of wanted) {
       const set = sets[0];
       if (factors.has(name) && several) {
-        const [first, ...others] = levelsOf(name);
+        const [first, ...others] = baseFirst(name, levelsOf(name));
         results.push({
           heading: `${first}.${name}`,
           note: "  (base outcome)",
@@ -595,7 +854,7 @@ function margins(session, text, ctx) {
         const { levels, emptyBase } = check
             ? modelLevels(name)
             : { levels: levelsOf(name), emptyBase: false },
-          [first, ...others] = levels,
+          [first, ...others] = baseFirst(name, levels),
           atBase = prediction(new Map(set).set(name, first)),
           // Plain text: the printer pads it to the table's width.
           label = (lv) => labelled(session, factors.get(name), lv);
@@ -619,6 +878,12 @@ function margins(session, text, ctx) {
             ...contrast,
             factor: name,
             wrt: `${lv}.${name}`,
+            beforeBase: lv < first,
+            // r(b) and r(table) hold the base level too, at its place.
+            ...(!emptyBase && {
+              base: { level: first, column: `${first}b.${name}` },
+            }),
+            level: lv,
             ...(contrast.estimable === false
               ? { column: `${lv}o.${name}` }
               : {}),
@@ -927,150 +1192,30 @@ function margins(session, text, ctx) {
       ctx,
     );
   printHead();
-  // With dydx(), a factor with one level to show is one row, as 1.female.
-  if (dydx)
-    for (let k = 0; k < results.length - 1; k++) {
-      const [head, row, after] = [results[k], results[k + 1], results[k + 2]];
-      if (
-        !head.group ||
-        head.heading ||
-        !row.factor ||
-        row.group ||
-        (after && after.factor === row.factor && !after.group)
-      )
-        continue;
-      row.label = `${row.label}.${head.group}`;
-      row.plain = true;
-      row.single = true;
-      results.splice(k, 1);
-    }
-  // The first column is twelve wide, widened to the longest name or label
-  // in it while the line allows (linesize - 67). A label counts with the
-  // space after it; one too long for the column is broken after a #, and
-  // then its longest piece counts. As tableWidth sets a coefficient table.
-  const cap = (session.settings?.linesize ?? 80) - 67,
-    needs = (text, extra) =>
-      text.length + extra <= cap || !text.includes("#")
-        ? text.length + extra
-        : Math.max(...text.split("#").map((piece) => piece.length + extra)),
-    w = Math.max(
-      12,
-      Math.min(
-        cap,
-        Math.max(
-          0,
-          ...results.map((r) =>
-            r.rule
-              ? 0
-              : r.heading
-                ? r.heading.length
-                : r.group
-                  ? needs(r.group, 0)
-                  : needs(r.label, r.plain ? 0 : 1),
-          ),
-        ),
-      ),
-    ),
-    bar = `${" ".repeat(w + 1)}|`,
-    split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
-    rule = "-".repeat(66 + w),
-    // A label too long for the column is cut and marked with two dots.
-    cut = (text) => (text.length > w - 1 ? `${text.slice(0, w - 3)}..` : text);
-  // The lines that label a row, the last of which carries the numbers: a
-  // group name too long for the column is broken after a #, its pieces
-  // joined while they fit; a level's label likewise, piece by piece.
-  const groupLines = (text) => {
-      if (text.length <= w) return [`${text.padStart(w)} |`];
-      const pieces = [];
-      for (const part of text.split("#")) {
-        const last = pieces.at(-1);
-        if (last !== undefined && `${last}#${part}`.length <= w)
-          pieces[pieces.length - 1] = `${last}#${part}`;
-        else pieces.push(part);
-      }
-      return pieces.map((piece, k) =>
-        k < pieces.length - 1
-          ? `${`${piece}#`.padStart(w + 1)}|`
-          : `${abbreviate(piece, w).padStart(w)} |`,
-      );
+  marginsTable(
+    session,
+    results,
+    {
+      dydx: !!dydx,
+      t,
+      level,
+      critical,
+      tail,
+      variance: (gradient) => quadratic(gradient, model.V),
     },
-    labelLines = (result) => {
-      if (result.plain) return [`${abbreviate(result.label, w).padStart(w)} `];
-      if (result.label.length <= w - 1 || !result.label.includes("#"))
-        return [`${cut(result.label)}  `.padStart(w + 1)];
-      const pieces = result.label.split("#");
-      return [
-        ...pieces
-          .slice(0, -1)
-          .map((piece) => `${`${cut(piece)} #`.padStart(w + 1)}`),
-        `${cut(pieces.at(-1))}  `.padStart(w + 1),
-      ];
-    };
-  ctx.out("");
-  ctx.out(rule);
-  ctx.out(`${bar}            Delta-method`);
-  ctx.out(
-    `${bar} ${(dydx ? "dy/dx" : "Margin").padStart(10)}   std. err.      ${t ? "t" : "z"}    P>|${t ? "t" : "z"}|     [${g(level)}% conf. interval]`,
+    ctx,
   );
-  ctx.out(split);
-  let previous = null;
-  for (const result of results) {
-    if (result.rule) {
-      ctx.out(split);
-      previous = null;
-      continue;
-    }
-    if (result.heading) {
-      if (previous) ctx.out(bar);
-      ctx.out(`${result.heading.padEnd(w + 1)}|${result.note ?? ""}`);
-      previous = { group: "heading" };
-      continue;
-    }
-    if (result.group) {
-      if (previous && !previous.group && !previous.single) ctx.out(bar);
-      groupLines(result.group).forEach((line) => ctx.out(line));
-    } else {
-      if (previous && previous.factor && !previous.single && !result.factor)
-        ctx.out(bar);
-      const lines = labelLines(result);
-      lines.slice(0, -1).forEach((line) => ctx.out(`${line}|`));
-      // A level left out after perfect prediction, or an empty base level,
-      // has no estimate to print.
-      if (result.estimable === false || result.empty || result.omitted) {
-        ctx.out(
-          `${lines.at(-1)}|          ${result.estimable === false ? ".  (not estimable)" : `0  (${result.empty ? "empty" : "omitted"})`}`,
-        );
-        result.se = MISSING;
-        previous = result;
-        continue;
-      }
-      const se = Math.sqrt(quadratic(result.gradient, model.V)),
-        z = result.value / se;
-      ctx.out(
-        `${lines.at(-1)}|${g(result.value).padStart(11)}${g(se).padStart(11)}${zColumn(z)}${applyFormat(tail(z), "%8.3f")}${g(result.value - critical * se).padStart(13)}${g(result.value + critical * se).padStart(12)}`,
-      );
-      result.se = se;
-    }
-    previous = result;
-  }
-  ctx.out(rule);
-  if (
-    dydx &&
-    results.some((r) => r.discrete || (r.factor && r.factor !== "_at"))
-  )
-    ctx.out(
-      "Note: dy/dx for factor levels is the discrete change from the base level.",
-    );
   ctx.out("");
-  const values = results.filter((r) => !r.group && !r.heading && !r.rule);
+  const values = results.filter((r) => !r.group && !r.heading && !r.rule),
+    stored = withBaseLevels(values, k);
   // r(b) and r(V): the estimates and their covariance, from the same
   // gradients that gave the standard errors.
-  const labels = values.map(
+  const labels = stored.map(
       (r, j) => (r.column ?? r.name ?? r.wrt ?? r.label.trim()) || `m${j + 1}`,
     ),
     unmarked = labels.map((label) => label.replace(/^(\d+)o\./, "$1.")),
-    covariance = values.map((a) =>
-      values.map((b2) =>
+    covariance = stored.map((a) =>
+      stored.map((b2) =>
         a.gradient.reduce(
           (t, ga, i) =>
             t +
@@ -1082,16 +1227,50 @@ function margins(session, text, ctx) {
   session.results.r = {
     N: n,
     level,
+    // Effects are a row y1, margins a row r1, as Stata names them.
     "matrix:b": {
-      rowNames: ["r1"],
+      rowNames: [dydx ? "y1" : "r1"],
       colNames: labels,
-      values: [values.map((r) => r.value)],
+      values: [stored.map((r) => r.value)],
     },
     // r(V) marks base levels but not the levels left out (1.g, not 1o.g).
     "matrix:V": {
       rowNames: unmarked,
       colNames: unmarked,
       values: covariance,
+    },
+    // r(table): each margin with its test and interval, as the table
+    // shows them; one with no estimate has only its value, and one that is
+    // not estimable not even that, its level marked o (0o.female).
+    "matrix:table": {
+      rowNames: ["b", "se", t ? "t" : "z", "pvalue", "ll", "ul", "df"].concat([
+        "crit",
+        "eform",
+      ]),
+      colNames: labels.map((label, j) =>
+        stored[j].estimable === false
+          ? label.replace(/(^|#)(\d+)\.(?!_at)/g, "$1$2o.")
+          : label,
+      ),
+      values: (() => {
+        const columns = stored.map((r) => {
+          const se = r.se,
+            known = !isMissing(se) && se > 0,
+            z = known ? r.value / se : MISSING;
+          return [
+            r.estimable === false ? MISSING : r.value,
+            known ? se : MISSING,
+            z,
+            known ? tail(z) : MISSING,
+            known ? r.value - critical * se : MISSING,
+            known ? r.value + critical * se : MISSING,
+            t ? model.df_r : MISSING,
+            critical,
+            0,
+          ];
+        });
+        return Array.from({ length: 9 }, (_, k) => columns.map((c) => c[k]));
+      })(),
     },
   };
   // Kept for marginsplot: each estimate with its interval and where it

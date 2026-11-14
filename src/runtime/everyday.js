@@ -2,12 +2,41 @@
 // clonevar, and the ones that have no meaning in a browser (help, browse,
 // ssc install) but should say so plainly rather than stop a do-file.
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { splitAtComma } from "./syntax.js";
+import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
-import { abbreviate } from "./estimation.js";
-import { count, labelled, moments, perGroup } from "./reports.js";
+import {
+  abbreviate,
+  columnName,
+  correlationOf,
+  correlationRows,
+  covarianceMatrix,
+  rowName,
+} from "./estimation.js";
+import {
+  count,
+  labelled,
+  moments,
+  perGroup,
+  widenForLabel,
+  weightedMoments,
+  weightedRows,
+} from "./reports.js";
 import { mean } from "./tables.js";
-import { MISSING, displayWidth, isMissing, isStringType } from "./values.js";
+import {
+  MISSING,
+  byteLength,
+  displayWidth,
+  isMissing,
+  isName,
+  isStringType,
+  missingName,
+  padDisplay,
+  parseNumber,
+} from "./values.js";
+import { Generator } from "./random.js";
+import { fileName, fold, load } from "./data-commands.js";
+import { smclParagraph } from "./data-utilities.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -39,11 +68,19 @@ function ci(session, text, ctx) {
     );
   }
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Level(cilevel) SEParator(integer 5) | Poisson Exposure(varname) Total]",
+      "[varlist] [if] [in] [aweight fweight] [, Level(cilevel) SEParator(integer 5) | Poisson Exposure(varname) Total]",
       m[2],
     ),
     level = parsed.options.level,
-    rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    // ci means summarizes with the weights: frequency weights repeat
+    // observations, and analytic ones give summarize's weighted mean and
+    // variance over the number of observations.
+    weighted = weightedRows(
+      session,
+      parsed,
+      session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    ),
+    rows = weighted.rows,
     // The level's digits move the bracket: three spaces more for 95, one
     // for 99.5, as ci lays it out.
     digits = String(level).length,
@@ -59,9 +96,9 @@ function ci(session, text, ctx) {
   for (const name of parsed.varlist) {
     const variable = session.data.get(name);
     if (isStringType(variable.type)) continue;
-    const stats = moments(
-      rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
-    );
+    const stats = weighted.weights
+      ? weightedMoments(variable, rows, weighted.weights)
+      : moments(rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)));
     if (
       shown &&
       parsed.options.separator &&
@@ -81,7 +118,7 @@ function ci(session, text, ctx) {
       // Each number starts at its column, as display's _col() places it,
       // after anything wider that ran past it.
       columns = (cells) => {
-        let line = `${abbreviate(name, 12).padStart(12)} |`;
+        let line = `${padDisplay(abbreviateAmong(name, 12, session.data.names), 12)} |`;
         for (const [column, text] of cells)
           line = line.padEnd(column - 1) + text;
         return line;
@@ -90,7 +127,7 @@ function ci(session, text, ctx) {
     // With no observations Stata shows dots and still posts the row.
     if (!stats.n) {
       ctx.out(
-        `${abbreviate(name, 12).padStart(12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
+        `${padDisplay(abbreviateAmong(name, 12, session.data.names), 12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
       );
       last = {
         N: 0,
@@ -133,6 +170,86 @@ function ci(session, text, ctx) {
   if (last) session.results.r = last;
 }
 
+/**
+ * cii means #obs #mean #sd: ci's table from summary statistics, the row
+ * unnamed and the numbers in %9.0g; r() as ci leaves it. Its checks and
+ * messages are cii.ado's, recorded from Stata 19.
+ */
+function cii(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    words = head.trim().split(/\s+/).filter(Boolean),
+    kind = words.shift() ?? "";
+  // r() is emptied first, so a cii that fails leaves none.
+  session.results.r = {};
+  if (!/^(means?|prop|var)/.test(kind) || kind.length < 4)
+    throw new StataError(
+      "you must specify one of means, proportions, or variances following cii",
+      198,
+    );
+  if (!/^means?$/.test(kind))
+    throw new StataError(`cii ${kind} is not available yet; cii means is`, 198);
+  const parsed = session.parse(
+      "[, Level(cilevel) | Poisson]",
+      optionText === null ? "" : `,${optionText}`,
+    ),
+    level = parsed.options.level;
+  if (words.length !== 3)
+    throw new StataError(
+      "you must specify 3 arguments with cii means: #obs, #mean, and #sd",
+      198,
+    );
+  // Each argument is checked as it is read: a missing value is r(7), and
+  // a name that is not a number, r(111).
+  const n = session.scalar(words[0]);
+  if (isMissing(n) || !(Number.isInteger(n) && n > 0))
+    throw new StataError(
+      "first argument, #obs, must be a positive integer",
+      isMissing(n) || n > 0 ? 7 : 198,
+    );
+  let m;
+  try {
+    m = session.scalar(words[1]);
+  } catch (error) {
+    if (error instanceof StataError && error.code === 111)
+      throw new StataError("second argument, #mean, must be a number", 111);
+    throw error;
+  }
+  if (typeof m !== "number" || isMissing(m))
+    throw new StataError("second argument, #mean, must be a number", 7);
+  const s = session.scalar(words[2]);
+  if (isMissing(s) || !(s > 0))
+    throw new StataError(
+      "third argument, #sd, must be a positive number",
+      isMissing(s) ? 7 : 198,
+    );
+  const se = s / Math.sqrt(n),
+    critical = n > 1 ? invttail(n - 1, (100 - level) / 200) : MISSING,
+    lb = n > 1 ? m - critical * se : MISSING,
+    ub = n > 1 ? m + critical * se : MISSING,
+    digits = String(level).length,
+    shape = (value) => applyFormat(value, "%9.0g");
+  ctx.out("");
+  ctx.out(
+    `    Variable |        Obs        Mean    Std. err.    ${digits === 2 ? "   " : digits === 4 ? " " : ""}[${g(level)}% conf. interval]`,
+  );
+  ctx.out(
+    "-------------+---------------------------------------------------------------",
+  );
+  ctx.out(
+    `             |${applyFormat(n, "%11.0fc")}${shape(m).padStart(12)}${shape(se).padStart(12)}${shape(lb).padStart(16)}${shape(ub).padStart(12)}`,
+  );
+  ctx.out("");
+  session.results.r = {
+    N: n,
+    mean: m,
+    se,
+    lb,
+    ub,
+    level,
+    citype: "normal",
+  };
+}
+
 function pearson(x, y) {
   const n = x.length,
     mx = x.reduce((a, b) => a + b, 0) / n,
@@ -154,71 +271,161 @@ const significance = (rho, n) =>
       ? 0
       : 2 * ttail(n - 2, Math.abs(rho) * Math.sqrt((n - 2) / (1 - rho * rho)));
 
+// Stata's min(), which passes over a missing argument.
+const smaller = (a, b) =>
+  isMissing(a) ? b : isMissing(b) ? a : Math.min(a, b);
+
+/**
+ * pwcorr, as pwcorr.ado computes and lays it out: each pair from its own
+ * complete observations through correlate (with the weights), seven
+ * columns to a panel whatever the linesize, a string variable named and
+ * left out, and the significance level ado's way: 0 for a correlation of
+ * 1, and min(2 ttail(), 1) otherwise, which is 1 when there is no
+ * statistic (two observations, or a correlation of -1).
+ */
 function pwcorr(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Obs SIG STar(real 0) Print(real 0) | Listwise CASEwise Bonferroni SIDak]",
+      "[varlist(min=2)] [if] [in] [aweight fweight] [, Bonferroni Obs Print(real -1) SIDak SIG STar(real -1) LISTwise CASEwise]",
       text,
     ),
     options = parsed.options,
-    variables = numeric(session, parsed.varlist),
-    rows = session.rows(parsed, null),
+    linesize = session.settings.linesize ?? 80,
+    out = (line) => fold(line, linesize).forEach((part) => ctx.out(part));
+  let { star, print } = options;
+  for (const [name, value] of [
+    ["star", star],
+    ["print", print],
+  ])
+    if (value >= 1 && value / 100 >= 1)
+      throw new StataError(`${name}() out of range`, 198);
+  if (star >= 1) star /= 100;
+  if (print >= 1) print /= 100;
+  if (options.bonferroni && options.sidak)
+    throw new StataError("invalid syntax", 198);
+  const named = parsed.varlist.map((name) => session.data.get(name)),
+    blank = (v, i) =>
+      isStringType(v.type) ? v.data[i] === "" : isMissing(v.data[i]);
+  let rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null);
+  if (options.listwise || options.casewise)
+    rows = rows.filter((i) => named.every((v) => !blank(v, i)));
+  for (const v of named)
+    if (isStringType(v.type))
+      ctx.out(`(${v.name} ignored because string variable)`);
+  const variables = named.filter((v) => !isStringType(v.type)),
+    k = variables.length;
+  if (k < 2) throw new StataError("too few variables specified", 102);
+  const complete = (a, b) =>
+    rows.filter((i) => !isMissing(a.data[i]) && !isMissing(b.data[i]));
+  if (k === 2 && !complete(variables[0], variables[1]).length)
+    throw new StataError("no observations", 2000);
+  const pairs = (k * (k - 1)) / 2,
+    adjust = options.bonferroni ? pairs : 1,
+    // correlate over the pair's observations, as pwcorr.ado runs it under
+    // capture: when it fails, with fewer than two observations or with
+    // frequency weights that are not whole numbers, the pair has no
+    // correlation and no observations.
     pair = (a, b) => {
-      const use = rows.filter(
-          (i) => !isMissing(a.data[i]) && !isMissing(b.data[i]),
+      let used;
+      try {
+        used = correlationRows(session, parsed, complete(a, b));
+      } catch (error) {
+        if (error instanceof StataError && error.code === 401)
+          return { n: 0, rho: MISSING, p: MISSING };
+        throw error;
+      }
+      const { rows: kept, weights, frequency } = used,
+        n = frequency ? weights.reduce((t, w) => t + w, 0) : kept.length;
+      if (n < 2) return { n: 0, rho: MISSING, p: MISSING };
+      const { C } = covarianceMatrix(
+          [a, b].map((v) => kept.map((i) => v.data[i])),
+          weights,
+          frequency,
         ),
-        rho = pearson(
-          use.map((i) => a.data[i]),
-          use.map((i) => b.data[i]),
-        );
-      return { n: use.length, rho, p: significance(rho, use.length) };
+        rho = correlationOf(C, 0, 1);
+      let p;
+      if (isMissing(rho)) p = MISSING;
+      else if (rho >= 1) p = 0;
+      else {
+        const t =
+          n > 2 && rho * rho < 1
+            ? (Math.abs(rho) * Math.sqrt(n - 2)) / Math.sqrt(1 - rho * rho)
+            : MISSING;
+        p = smaller(isMissing(t) ? MISSING : 2 * adjust * ttail(n - 2, t), 1);
+      }
+      if (options.sidak)
+        p = smaller(1, isMissing(p) ? MISSING : 1 - (1 - p) ** pairs);
+      return { n, rho, p };
     },
-    short = (name) =>
-      name.length > 8 ? name.slice(0, 6) + "~" + name.at(-1) : name;
-  let first = null;
-  // Seven variables to a block, as the Results window shows them.
-  for (let start = 0; start < variables.length; start += 7) {
-    const block = variables.slice(start, start + 7);
+    shownP = (p) => p <= print || print === -1,
+    C = variables.map(() => variables.map(() => MISSING)),
+    N = variables.map(() => variables.map(() => 0)),
+    S = variables.map(() => variables.map(() => MISSING));
+  for (let start = 0; start < k; start += 7) {
+    const end = Math.min(start + 7, k);
     ctx.out("");
-    ctx.out(
-      `             |${block.map((v) => short(v.name).padStart(9)).join("")}`,
+    out(
+      `             |${variables
+        .slice(start, end)
+        .map((v) => columnName(v.name, session.data.names))
+        .join("")}`,
     );
-    ctx.out(`-------------+${"-".repeat(9 * block.length)}`);
-    variables.slice(start).forEach((row, r) => {
-      const across = block.slice(0, r + 1),
-        results = across.map((column) => pair(row, column));
-      first ??= variables.length > 1 && r === 1 ? results[0] : null;
-      ctx.out(
-        `${short(row.name).padStart(12)} | ${results
-          .map((result, k) =>
-            isMissing(result.rho) ||
-            (options.print && across[k] !== row && !(result.p <= options.print))
-              ? " ".repeat(9)
-              : applyFormat(result.rho, "%8.4f") +
-                (options.star && across[k] !== row && result.p <= options.star
-                  ? "*"
-                  : " "),
+    out(`-------------+${"-".repeat(9 * (end - start))}`);
+    for (let i = start; i < k; i++) {
+      const results = [];
+      for (let j = start; j < Math.min(end, i + 1); j++) {
+        const result = pair(variables[i], variables[j]);
+        results.push(result);
+        if (result.n) {
+          C[i][j] = C[j][i] = result.rho;
+          N[i][j] = N[j][i] = result.n;
+        }
+        if (j < i && shownP(result.p)) S[i][j] = S[j][i] = result.p;
+      }
+      out(
+        `${rowName(variables[i].name, session.data.names)} | ${results
+          .map(({ rho, p }, j) =>
+            shownP(p) || start + j === i
+              ? " " +
+                applyFormat(rho, "%7.4f") +
+                (p <= star && start + j !== i ? "*" : " ")
+              : " ".repeat(9),
           )
           .join("")}`,
       );
       if (options.sig)
-        ctx.out(
-          `             | ${results
-            .map((result, k) =>
-              across[k] === row || isMissing(result.p)
-                ? " ".repeat(9)
-                : applyFormat(result.p, "%8.4f") + " ",
+        out(
+          `             |${results
+            .filter((_, j) => start + j < i)
+            .map(({ p }) =>
+              shownP(p) ? "  " + applyFormat(p, "%7.4f") : " ".repeat(9),
             )
-            .join("")}`.trimEnd(),
+            .join("")}`,
         );
       if (options.obs)
-        ctx.out(
-          `             | ${results.map((result) => count(result.n).padStart(8) + " ").join("")}`.trimEnd(),
+        out(
+          `             |${results
+            .map(({ n, p }, j) =>
+              shownP(p) || start + j === i
+                ? "  " + applyFormat(n, "%7.0g")
+                : " ".repeat(9),
+            )
+            .join("")}`,
         );
-      if (options.sig || options.obs) ctx.out("             |");
-    });
+      if (options.sig || options.obs) out("             |");
+    }
   }
-  if (!options.sig && !options.obs) ctx.out("");
-  if (first) session.results.r = { N: first.n, rho: first.rho };
+  // Under by, Stata's by adds a blank line before the next group's rule.
+  if (ctx.group) ctx.out("");
+  const names = variables.map((v) => v.name),
+    matrix = (values) => ({ rowNames: names, colNames: names, values });
+  session.results.r = {
+    N: N[0][1],
+    rho: C[0][1],
+    // The matrices in the order return list shows them.
+    "matrix:Nobs": matrix(N),
+    "matrix:C": matrix(C),
+    ...(options.sig ? { "matrix:sig": matrix(S) } : {}),
+  };
 }
 
 /** Ranks with ties given their average rank. */
@@ -702,25 +909,114 @@ function charText(text) {
   return text;
 }
 
-/** numlabel: puts each value in front of its label, or takes it away. */
+/** A labelled value as Stata writes it: 1, -5, 100000, .a. */
+const valueText = (value) =>
+  isMissing(value) ? missingName(value) : applyFormat(value, "%20.0g").trim();
+
+/**
+ * numlabel, as numlabel.ado does it: puts each value, through mask(), in
+ * front of its label, or takes it away. A label that is only partly
+ * prefixed is refused unless force is given. Every label named is then
+ * defined again, in alphabetical order, so formats widen as label define
+ * widens them.
+ */
 function numlabel(session, text, ctx) {
-  const m = /^\s*([^,]*),\s*(add|remove)\b([\s\S]*)$/i.exec(text);
-  if (!m) throw new StataError("either add or remove must be specified", 198);
-  const labels = session.data.valueLabels,
-    names = m[1].trim() ? m[1].trim().split(/\s+/) : [...labels.keys()],
-    adding = m[2].toLowerCase() === "add";
-  if (/\bmask\s*\(/.test(m[3]))
-    throw new StataError("numlabel, mask() is not available yet", 198);
+  const parsed = session.parse(
+      "[anything] [, Add Remove Mask(string) Detail force]",
+      text,
+    ),
+    { options } = parsed,
+    head = parsed.anything ?? "";
+  if (options.add && options.remove)
+    throw new StataError(
+      "options add and remove must not be both specified",
+      198,
+    );
+  if (!options.add && !options.remove)
+    throw new StataError("option add or remove should be specified", 198);
+  const mask = options.mask ? options.mask : "#. ";
+  if (options.mask && mask.split("#").length !== 2)
+    throw new StataError(
+      `mask ${mask} should contain 1 substitution char #`,
+      198,
+    );
+  // numlabel.ado works between preserve and restore, and restore reads the
+  // value labels back in reverse order, whatever happens next.
+  const labels = (session.data.valueLabels = new Map(
+      [...session.data.valueLabels].reverse(),
+    )),
+    named = head.trim() ? head.trim().split(/\s+/) : [];
+  // matalabel takes _all, or names, which it confirms before it looks for
+  // them.
+  for (const name of named) {
+    const bad = /^[A-Za-z_]\w*(.+)$/.exec(name)?.[1] ?? name;
+    if (!/^[A-Za-z_]\w{0,31}$/.test(name))
+      throw new StataError(`${bad} invalid name`, 198);
+  }
+  const all = named.includes("_all");
+  for (const name of named)
+    if (name !== "_all" && !labels.has(name))
+      throw new StataError(`value label ${name} not found`, 111);
   if (!labels.size) return ctx.out("(dataset has no value labels)");
-  for (const name of names) {
-    const map = labels.get(name);
-    if (!map) throw new StataError(`value label ${name} not found`, 111);
-    for (const [value, label] of map) {
-      const prefix = `${value}. `;
-      if (adding && !label.startsWith(prefix)) map.set(value, prefix + label);
-      else if (!adding && label.startsWith(prefix))
-        map.set(value, label.slice(prefix.length));
+  const names = [
+      ...new Set(named.length && !all ? named : labels.keys()),
+    ].sort(),
+    prefixOf = (value) => mask.replace("#", () => valueText(value)),
+    has = (value, label) => label.startsWith(prefixOf(value));
+  if (!options.force) {
+    const partial = names.filter((name) => {
+      const marks = [...labels.get(name)].map(([v, l]) => has(v, l));
+      return marks.some(Boolean) && !marks.every(Boolean);
+    });
+    if (partial.length) {
+      if (options.detail) {
+        ctx.out("");
+        ctx.out("The following value labels are only partially numlabel-ed");
+        for (const name of partial) {
+          ctx.out("-".repeat(session.settings.linesize ?? 80));
+          ctx.out(`-> lname = ${name}`);
+          ctx.out("");
+          ctx.out("  value         label");
+          for (const [value, label] of [...labels.get(name)].sort(
+            (a, b) => a[0] - b[0],
+          ))
+            ctx.out(`  ${valueText(value).padStart(9)}     ${label}`);
+          ctx.out("");
+        }
+      } else {
+        ctx.out("there are value labels that are only partially numlabel-ed");
+        ctx.out("specify option detail for a list of these value labels");
+      }
+      throw new StataError(
+        "specify option force to modify value labels anyway",
+        180,
+      );
     }
+  }
+  let changed = 0;
+  const made = names.map((name) => {
+    const map = new Map();
+    for (const [value, label] of labels.get(name)) {
+      const prefix = prefixOf(value),
+        next = options.add
+          ? has(value, label)
+            ? label
+            : prefix + label
+          : has(value, label)
+            ? label.slice(prefix.length)
+            : label;
+      if (next !== label) changed++;
+      map.set(value, next);
+    }
+    return [name, map];
+  });
+  if (!changed) return ctx.out("(no value label to be modified)");
+  // Each label is defined again with label define, modify: it becomes the
+  // most recently defined, and formats widen to its longest text.
+  for (const [name, map] of made) {
+    labels.delete(name);
+    labels.set(name, map);
+    widenForLabel(session, name);
   }
 }
 
@@ -728,6 +1024,7 @@ export const EVERYDAY_COMMANDS = [
   { name: "notes", minimum: 4, run: notes },
   { name: "char", minimum: 4, run: char },
   { name: "numlabel", minimum: 8, run: numlabel },
+  { name: "labelbook", minimum: 9, run: labelbook },
   {
     name: "which",
     minimum: 5,
@@ -752,7 +1049,8 @@ export const EVERYDAY_COMMANDS = [
   { name: "mean", minimum: 4, run: mean },
   // ci is byable(recall) in Stata: under by it runs once per group.
   { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
-  { name: "pwcorr", minimum: 6, run: pwcorr },
+  { name: "cii", minimum: 3, run: cii },
+  { name: "pwcorr", minimum: 6, run: perGroup(pwcorr), byable: true },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },
   {
@@ -815,3 +1113,510 @@ export const EVERYDAY_COMMANDS = [
     ),
   },
 ];
+
+// ----- label copy, rename, save and language; labelbook -----
+
+/** The value-label text of a do-file: `"text"', as Stata writes it. */
+const compound = (text) => '`"' + text + "\"'";
+const sortedEntries = (map) => [...map].sort((a, b) => a[0] - b[0]);
+
+/** label copy lblname lblname [, replace] */
+function labelCopy(session, text) {
+  const parsed = session.parse("anything [, replace]", text),
+    names = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean),
+    labels = session.data.valueLabels;
+  if (names.length !== 2) throw new StataError("invalid syntax", 198);
+  const [from, to] = names;
+  if (!labels.has(from)) throw new StataError(`label ${from} not found`, 111);
+  if (!isName(to)) throw new StataError(`${to} invalid name`, 198);
+  if (labels.has(to) && !parsed.options.replace)
+    throw new StataError(`label ${to} already defined`, 110);
+  const map = new Map(labels.get(from));
+  labels.delete(to);
+  labels.set(to, map);
+  widenForLabel(session, to);
+}
+
+/** label rename lblname newlblname [, replace]: renames and reattaches. */
+function labelRename(session, text) {
+  const parsed = session.parse("anything [, replace]", text),
+    names = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean),
+    data = session.data,
+    labels = data.valueLabels;
+  if (names.length !== 2) throw new StataError("invalid syntax", 198);
+  const [from, to] = names;
+  if (!labels.has(from)) throw new StataError(`label ${from} not found`, 111);
+  if (!isName(to)) throw new StataError(`${to} invalid name`, 198);
+  if (from === to) return;
+  if (labels.has(to) && !parsed.options.replace)
+    throw new StataError(`label ${to} already defined`, 110);
+  const map = labels.get(from);
+  labels.delete(from);
+  labels.delete(to);
+  labels.set(to, map);
+  for (const variable of data.variables)
+    if (variable.valueLabel === from) variable.valueLabel = to;
+}
+
+/** label save [lblnames] using filename [, replace]: a do-file of label define. */
+function labelSave(session, text, ctx) {
+  const m = /^([\s\S]*?)\busing\b([\s\S]*)$/.exec(text);
+  if (!m) throw new StataError("using required", 100);
+  const parsed = session.parse("anything [, replace]", m[2]),
+    target = (parsed.anything ?? "")
+      .trim()
+      .replace(/^`"([\s\S]*)"'$|^"([\s\S]*)"$/, "$1$2"),
+    labels = session.data.valueLabels,
+    named = m[1].trim() ? m[1].trim().split(/\s+/) : [];
+  if (!target) throw new StataError("invalid file specification", 198);
+  const name = /\.[A-Za-z0-9]+$/.test(target) ? target : target + ".do";
+  for (const label of named)
+    if (!labels.has(label))
+      throw new StataError(`value label ${label} not found`, 111);
+  if (!labels.size) throw new StataError("no value labels found", 111);
+  const files = (session.files ??= new Map());
+  if (files.has(name) && !parsed.options.replace)
+    throw new StataError(`file ${name} already exists`, 602);
+  if (parsed.options.replace && !files.has(name))
+    ctx.out(`(file ${name} not found)`);
+  // Without names, every label, the most recently defined first, as label
+  // dir lists them.
+  const lines = [];
+  for (const label of named.length ? named : [...labels.keys()].reverse())
+    for (const [value, text] of sortedEntries(labels.get(label)))
+      lines.push(
+        `label define ${label} ${isMissing(value) ? missingName(value) : valueText(value)} ${compound(text)}, modify`,
+      );
+  files.set(name, { text: lines.map((line) => line + "\n").join("") });
+  ctx.out(`file ${name} saved`);
+}
+
+// ----- label language -----
+const langChar = (kind, language) => `_lang_${kind}_${language}`;
+function languages(data) {
+  const own = new Map(characteristicsOf(data, "_dta"));
+  return {
+    current: own.get("_lang_c") ?? "default",
+    list: (own.get("_lang_list") ?? "default").split(/\s+/).filter(Boolean),
+  };
+}
+/** The labels in use go into characteristics of the language they are in. */
+function storeLanguage(data, language) {
+  defineCharacteristic(data, "_dta", langChar("v", language), data.label ?? "");
+  for (const variable of data.variables) {
+    defineCharacteristic(
+      data,
+      variable.name,
+      langChar("v", language),
+      variable.label ?? "",
+    );
+    defineCharacteristic(
+      data,
+      variable.name,
+      langChar("l", language),
+      variable.valueLabel ?? "",
+    );
+  }
+}
+/** The labels of a language come out of the characteristics into use. */
+function loadLanguage(session, language) {
+  const data = session.data,
+    take = (owner, kind) => {
+      const name = langChar(kind, language),
+        text = new Map(characteristicsOf(data, owner)).get(name) ?? "";
+      defineCharacteristic(data, owner, name, "");
+      return text;
+    };
+  data.label = take("_dta", "v");
+  for (const variable of data.variables) {
+    variable.label = take(variable.name, "v");
+    variable.valueLabel = take(variable.name, "l");
+    if (variable.valueLabel) widenForLabel(session, variable.valueLabel);
+  }
+}
+function dropLanguage(data, language) {
+  for (const owner of ["_dta", ...data.names])
+    for (const kind of ["v", "l"])
+      defineCharacteristic(data, owner, langChar(kind, language), "");
+}
+
+function labelLanguage(session, text, ctx) {
+  const data = session.data,
+    linesize = session.settings.linesize ?? 80,
+    [head, optionText] = splitAtComma(text),
+    words = head.trim().split(/\s+/).filter(Boolean);
+  // The first use of label language names the labels in use "default".
+  if (!new Map(characteristicsOf(data, "_dta")).has("_lang_c")) {
+    defineCharacteristic(data, "_dta", "_lang_c", "default");
+    defineCharacteristic(data, "_dta", "_lang_list", "default");
+  }
+  const { current, list } = languages(data);
+  if (words.length > 1) throw new StataError("varlist not allowed", 101);
+  if (!words.length && optionText !== null)
+    throw new StataError(", invalid name", 198);
+  if (!words.length) {
+    const out = (line) => fold(line, linesize).forEach((l) => ctx.out(l));
+    ctx.out("");
+    ctx.out("Language for variable and value labels");
+    ctx.out("-".repeat(38));
+    ctx.out("");
+    if (list.length === 1)
+      smclParagraph(
+        [
+          "In this dataset, value and variable labels have been defined in only one language:",
+          current,
+        ],
+        linesize,
+      ).forEach((line) => ctx.out(line));
+    else {
+      ctx.out("    Available languages:");
+      for (const name of [...list].sort()) ctx.out(`            ${name}`);
+      ctx.out("");
+      out(`    Currently set is:               . label language ${current}`);
+      ctx.out("");
+      out("    To select different language:   . label language <name>");
+    }
+    ctx.out("");
+    out("    To create new language:         . label language <name>, new");
+    out("    To rename current language:     . label language <name>, rename");
+    session.results.r = {
+      k: list.length,
+      languages: [...list].sort().join(" "),
+      language: current,
+    };
+    return;
+  }
+  const options = session.parse(
+      "[, new copy rename delete]",
+      optionText ? "," + optionText : "",
+    ).options,
+    language = words[0],
+    chosen = ["delete", "new", "rename"].filter((option) => options[option]);
+  if (chosen.length > 1)
+    throw new StataError(
+      "options -delete-, -new-, and -rename- may be not be combined",
+      198,
+    );
+  if (options.copy && !options.new)
+    ctx.out("option -copy- may only be specified with option -new-");
+  if (
+    (options.new || options.rename) &&
+    !(isName(language) && language.length <= 24)
+  )
+    throw new StataError(`${language} invalid name`, 198);
+  if (options.new || options.rename) {
+    if (list.includes(language))
+      throw new StataError(`language ${language} already exists`, 110);
+    if (options.rename) {
+      defineCharacteristic(
+        data,
+        "_dta",
+        "_lang_list",
+        list.map((name) => (name === current ? language : name)).join(" "),
+      );
+      defineCharacteristic(data, "_dta", "_lang_c", language);
+      ctx.out(`(language ${current} renamed ${language})`);
+      return;
+    }
+    // The languages there were, in alphabetical order, then the new one.
+    defineCharacteristic(
+      data,
+      "_dta",
+      "_lang_list",
+      [...[...list].sort(), language].join(" "),
+    );
+    storeLanguage(data, current);
+    if (!options.copy) {
+      data.label = "";
+      for (const variable of data.variables) {
+        variable.label = "";
+        variable.valueLabel = "";
+      }
+    }
+    defineCharacteristic(data, "_dta", "_lang_c", language);
+    ctx.out(`(language ${language} now current language)`);
+    return;
+  }
+  if (!list.includes(language))
+    throw new StataError(`language ${language} not defined`, 111);
+  if (options.delete) {
+    if (list.length === 1)
+      throw new StataError(
+        `language ${language} is the only language defined; it may not be deleted`,
+        119,
+      );
+    // The languages left are listed in alphabetical order, and the first
+    // of them becomes current when the current one goes.
+    const left = list
+      .filter((name) => name !== language)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    if (language === current) {
+      loadLanguage(session, left[0]);
+      defineCharacteristic(data, "_dta", "_lang_c", left[0]);
+      ctx.out(`(language ${left[0]} now current language)`);
+    } else dropLanguage(data, language);
+    defineCharacteristic(data, "_dta", "_lang_list", left.join(" "));
+    return;
+  }
+  if (language === current)
+    return ctx.out(`(${language} already current language)`);
+  storeLanguage(data, current);
+  loadLanguage(session, language);
+  defineCharacteristic(data, "_dta", "_lang_c", language);
+}
+
+/**
+ * label subcommands beyond those label() itself handles; false when the
+ * subcommand is not one of them.
+ */
+export function labelSubcommand(session, text, ctx) {
+  const m = /^(\S+)\s*([\s\S]*)$/.exec(text.trim());
+  if (!m) return false;
+  const [, word, rest] = m;
+  if (word === "copy") labelCopy(session, rest);
+  else if (word === "rename") labelRename(session, rest);
+  else if (word === "save") labelSave(session, rest, ctx);
+  else if (word.length >= 4 && "language".startsWith(word))
+    labelLanguage(session, rest, ctx);
+  else return false;
+  return true;
+}
+
+// ----- labelbook -----
+
+/**
+ * labelbook, as labelbook.ado reports: for each value label, its values
+ * and labels, the checks it makes of them, its definition and the
+ * variables that use it in each language; problems lists the labels each
+ * check finds wanting.
+ */
+function labelbook(session, text, ctx) {
+  const parsed = session.parse(
+      "[anything] [using/] [, Alpha Detail LEngth(integer 12) LIst(integer 32000) Problems]",
+      text,
+    ),
+    { options } = parsed,
+    sh = options.length,
+    show = options.list,
+    linesize = session.settings.linesize ?? 80;
+  if (!(sh >= 1 && sh <= 2045))
+    throw new StataError("length() should be in range [1,2045]", 198);
+  if (show < 0) throw new StataError("list() should be positive", 198);
+  // labelbook.ado works between preserve and restore, and restore reads the
+  // value labels back in reverse order.
+  session.data.valueLabels = new Map([...session.data.valueLabels].reverse());
+  const detail = options.detail || !options.problems,
+    data = parsed.using ? load(session, fileName(parsed.using)) : session.data,
+    labels = data.valueLabels,
+    named = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean);
+  for (const name of named)
+    if (!labels.has(name))
+      throw new StataError(`value label ${name} not found`, 111);
+  const names = [...new Set(named.length ? named : labels.keys())].sort(
+      (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+    ),
+    rows = names.flatMap((name) =>
+      sortedEntries(labels.get(name)).map(([value, label]) => ({
+        name,
+        value,
+        label,
+      })),
+    );
+  if (!rows.length) return void ctx.out("(dataset has no value labels)");
+  // list() picks that many labels of each at random, by uniform() draws
+  // made for every label in turn.
+  if (show !== 32000) {
+    const state = session.state;
+    for (const row of rows)
+      row.draw = (state.rng ??= new Generator(state.seed)).uniform();
+  }
+  // The variables that use each label: in the language in use, then in
+  // the others.
+  const { current, list } = languages(data),
+    others = list.filter((name) => name !== current),
+    users = (name, language) =>
+      data.variables
+        .filter((variable) =>
+          language === current
+            ? variable.valueLabel === name
+            : new Map(characteristicsOf(data, variable.name)).get(
+                langChar("l", language),
+              ) === name,
+        )
+        .map((variable) => variable.name),
+    found = {
+      gaps: [],
+      numeric: [],
+      blanks: [],
+      null: [],
+      nuniq: [],
+      ntruniq: [],
+      nuniq_sh: [],
+    },
+    notused = names
+      .filter((name) =>
+        [current, ...others].every((l) => !users(name, l).length),
+      )
+      .sort();
+  const g = (value) =>
+      isMissing(value)
+        ? missingName(value)
+        : applyFormat(value, "%9.0g").trim(),
+    at = (line, column) => line.padEnd(column - 1),
+    yes = (flag) => (flag ? "yes" : "no");
+  for (const name of names) {
+    const mine = rows.filter((row) => row.name === name),
+      present = mine.filter((row) => !isMissing(row.value)),
+      lengths = mine.map((row) => byteLength(row.label)),
+      texts = mine.map((row) => row.label),
+      unique = (list) => new Set(list).size === list.length,
+      full = unique(texts),
+      short = unique(texts.map((t) => [...t].slice(0, sh).join(""))),
+      nmiss = mine.length - present.length,
+      low = present.length ? present[0].value : mine[0].value,
+      high = present.length ? present.at(-1).value : MISSING,
+      // With no nonmissing value the gap is missing, which counts as one.
+      gaps = present.length ? high - low + 1 - present.length > 0 : true,
+      isNull = texts.some((t) => t.trim() === ""),
+      blanks = texts.some((t) => t.replace(/^ +| +$/g, "") !== t),
+      numeric = texts.some((t) => !isMissing(parseNumber(t.trim()) ?? MISSING));
+    if (gaps) found.gaps.push(name);
+    if (numeric) found.numeric.push(name);
+    if (blanks) found.blanks.push(name);
+    if (isNull) found.null.push(name);
+    if (!full) found.nuniq.push(name);
+    if (!short) found.nuniq_sh.push(name);
+    if (!detail) continue;
+    ctx.out("");
+    ctx.out("-".repeat(linesize));
+    ctx.out(`Value label ${name}`);
+    ctx.out("-".repeat(linesize));
+    ctx.out("");
+    ctx.out(at("      Values", 49) + "Labels");
+    ctx.out(
+      at(`       Range:  [${g(low)},${g(high)}]`, 42) +
+        `String length:  [${Math.min(...lengths)},${Math.max(...lengths)}]`,
+    );
+    ctx.out(
+      at(`           N:  ${mine.length}`, 34) +
+        `Unique at full length:  ${yes(full)}`,
+    );
+    ctx.out(
+      at(`        Gaps:  ${yes(gaps)}`, 36) +
+        `Unique at length ${sh}:`.padStart(20) +
+        `  ${yes(short)}`,
+    );
+    ctx.out(at(`  Missing .*:  ${nmiss}`, 44) + `Null string:  ${yes(isNull)}`);
+    ctx.out(`${" ".repeat(31)}Leading/trailing blanks:  ${yes(blanks)}`);
+    ctx.out(`${" ".repeat(36)}Numeric -> numeric:  ${yes(numeric)}`);
+    if (show > 0) {
+      ctx.out("  Definition");
+      let shown = mine;
+      if (mine.length > show) {
+        ctx.out(`       ${show} random examples out of ${mine.length} labels`);
+        ctx.out("");
+        const picked = new Set(
+          [...mine].sort((a, b) => a.draw - b.draw).slice(0, show),
+        );
+        shown = mine.filter((row) => picked.has(row));
+      }
+      if (options.alpha)
+        shown = [...shown].sort((a, b) =>
+          a.label < b.label ? -1 : a.label > b.label ? 1 : a.value - b.value,
+        );
+      for (const row of shown) {
+        const v = g(row.value);
+        if (row.label.trim() === "") {
+          ctx.out(v.padStart(12));
+          continue;
+        }
+        // {p 0 15 2}: the value, then the label's words, filled.
+        const words = row.label.split(/ +/).filter(Boolean),
+          width = linesize - 2;
+        let line = `${" ".repeat(Math.max(0, 12 - v.length))}${v}   ${words.shift()}`;
+        for (const word of words)
+          if (line.length + 1 + word.length <= width) line += " " + word;
+          else {
+            ctx.out(line);
+            line = " ".repeat(15) + word;
+          }
+        ctx.out(line);
+      }
+    }
+    ctx.out("");
+    const fill = (lead, rest, items) => {
+      let line = lead;
+      for (const item of items)
+        if (line.length + 1 + item.length <= linesize || line === lead)
+          line += (line.endsWith(" ") ? "" : " ") + item;
+        else {
+          ctx.out(line);
+          line = " ".repeat(rest) + item;
+        }
+      ctx.out(line.trimEnd());
+    };
+    if (list.length === 1) fill("   Variables:  ", 15, users(name, current));
+    else {
+      let used = false;
+      for (const language of [current, ...others]) {
+        const vars = users(name, language);
+        if (!vars.length) continue;
+        used = true;
+        fill(`   in ${language} attached to `, 23, vars);
+      }
+      if (!used) ctx.out("  not attached to any variable in any language");
+    }
+    ctx.out("");
+  }
+  if (options.problems) {
+    const dataset = data.filename || "[unnamed]",
+      checks = [
+        [found.numeric, "Numeric -> numeric"],
+        [found.gaps, "Gaps in mapped values"],
+        [found.blanks, "Leading or trailing blanks"],
+        [found.null, "Numeric -> null str"],
+        [found.nuniq, "Duplicate labels"],
+        [found.ntruniq, "Duplicate lab. at length 2045"],
+        [found.nuniq_sh, `Duplicate lab. at length ${sh}`],
+        [notused, "Not used by variables"],
+      ],
+      longest = Math.max(...checks.map(([items]) => items.join(" ").length));
+    ctx.out("");
+    if (!longest) ctx.out(`no potential problems in dataset ${dataset}`);
+    else {
+      ctx.out(`   Potential problems in dataset   ${dataset}`);
+      ctx.out("");
+      ctx.out(`${" ".repeat(15)}Potential problem   Value labels`);
+      const rule = "-".repeat(Math.min(Math.max(35 + longest, 50), linesize));
+      ctx.out(rule);
+      for (const [items, label] of checks) {
+        if (!items.length) continue;
+        let line = `${label.padStart(32)}   ${items[0]}`;
+        for (const item of items.slice(1))
+          if (line.length + 1 + item.length <= linesize) line += " " + item;
+          else {
+            ctx.out(line);
+            line = " ".repeat(35) + item;
+          }
+        ctx.out(line);
+      }
+      ctx.out(rule);
+    }
+  }
+  // labelbook.ado returns names first and notused last; return list shows
+  // them the other way round.
+  const r = {};
+  for (const [key, items] of [
+    ["notused", notused],
+    ["nuniq_sh", found.nuniq_sh],
+    ["ntruniq", found.ntruniq],
+    ["nuniq", found.nuniq],
+    ["null", found.null],
+    ["blanks", found.blanks],
+    ["numeric", found.numeric],
+    ["gaps", found.gaps],
+    ["names", names],
+  ])
+    if (items.length) r[key] = items.join(" ");
+  session.results.r = r;
+}

@@ -234,7 +234,7 @@ function tssmooth(session, text, ctx) {
 }
 
 export const TIMESERIES_COMMANDS = [
-  { name: "corrgram", minimum: 4, run: corrgram },
+  { name: "corrgram", minimum: 8, run: corrgram },
   { name: "ac", minimum: 2, run: correlationPlot("ac") },
   { name: "pac", minimum: 3, run: correlationPlot("pac") },
   { name: "tssmooth", minimum: 8, run: tssmooth },

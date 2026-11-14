@@ -37,6 +37,9 @@ export function splitCommands(source) {
       continue;
     }
     if (atCommandStart() && !/\s/.test(c)) startLine = line;
+    // A compound string left open ends with its line, as in Stata, unless
+    // #delimit ; joins the lines.
+    if (compound && c === "\n" && delimiter === "\n") compound = 0;
     if (compound) {
       if (c === "`" && next === '"') compound++;
       else if (c === '"' && next === "'") compound--;
@@ -139,13 +142,18 @@ export function parseBlocks(commands) {
           line,
         });
       } else if (/^inp(?:ut?)?(\s|$)/.test(text)) {
-        const rows = [];
-        while (at < commands.length && commands[at].text !== "end")
+        // The rows, and the line each starts on, so that input can echo
+        // them as they were typed.
+        const rows = [],
+          rowLines = [];
+        while (at < commands.length && commands[at].text !== "end") {
+          rowLines.push(commands[at].line);
           rows.push(commands[at++].text);
+        }
         if (at >= commands.length)
           throw new StataError("input has no end", 198);
         at++;
-        nodes.push({ kind: "input", text, rows, line });
+        nodes.push({ kind: "input", text, rows, rowLines, line });
       } else if (OPENS.test(text)) {
         const body = block("}");
         nodes.push({

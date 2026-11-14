@@ -235,11 +235,10 @@ test("a continuous variable named twice is fitted once and shown as omitted", ()
   assert.equal(display(s, "b[1,1]"), "1.8816753");
   assert.equal(display(s, "b[1,2]"), "0");
   assert.equal(display(s, "b[1,3]"), "-5.7506789");
-  assert.ok(
-    lines(s.run("matrix list e(b)")).some((l) =>
-      /\beducation\s+o\.education\s+_cons\b/.test(l),
-    ),
-  );
+  // matrix list heads the o. of o.education on a line of its own.
+  const listed = lines(s.run("matrix list e(b)"));
+  assert.ok(listed.some((l) => /^\s+o\.$/.test(l)));
+  assert.ok(listed.some((l) => /\beducation\s+education\s+_cons\b/.test(l)));
 
   out = lines(s.run("regress wage education c.education##c.education"));
   rows = rowsOf(out, "education");

@@ -60,22 +60,101 @@ export const KERNELS = {
   triangle: (z) => (Math.abs(z) < 1 ? 1 - Math.abs(z) : 0),
   biweight: (z) => (Math.abs(z) < 1 ? (15 / 16) * (1 - z * z) ** 2 : 0),
 };
-/** Stata's default bandwidth: 0.9 min(sd, IQR/1.349) n^(-1/5). */
-export function defaultBandwidth(values) {
-  const n = values.length,
-    sorted = [...values].sort((a, b) => a - b),
-    mean = values.reduce((a, b) => a + b, 0) / n,
-    sd = Math.sqrt(values.reduce((t, v) => t + (v - mean) ** 2, 0) / (n - 1)),
-    iqr = percentile(sorted, 75) - percentile(sorted, 25);
-  return (0.9 * Math.min(sd, iqr / 1.349)) / n ** 0.2;
+/**
+ * Stata's default bandwidth: 0.9 min(sd, IQR/1.349) n^(-1/5), or 0.9 sd
+ * n^(-1/5) when the smaller is not above 0, as kdensity.ado computes it.
+ * With weights (one for each value) and their type, the sd, the quartiles
+ * and n are summarize's with those weights: n is the number of values with
+ * aweights and the sum of the weights with fweights; iweights do not
+ * change it.
+ */
+export function defaultBandwidth(values, weights = null, type = null) {
+  if (!weights || type === "iweight") {
+    const n = values.length,
+      sorted = [...values].sort((a, b) => a - b),
+      mean = values.reduce((a, b) => a + b, 0) / n,
+      sd = Math.sqrt(values.reduce((t, v) => t + (v - mean) ** 2, 0) / (n - 1)),
+      iqr = percentile(sorted, 75) - percentile(sorted, 25);
+    return bandwidthOf(sd, iqr, n);
+  }
+  const { sd, n } = weightedMeanSd(values, weights, type),
+    iqr =
+      weightedPercentile(values, weights, 75) -
+      weightedPercentile(values, weights, 25);
+  return bandwidthOf(sd, iqr, n);
 }
-export function kernelDensity(values, at, bandwidth, kernel = "epanechnikov") {
+/**
+ * summarize's mean, sd and N of values with fweights or aweights: the
+ * variance divides by the sum of fweights less one, and by n - 1 for
+ * aweights, which are scaled to sum to n.
+ */
+export function weightedMeanSd(values, weights, type) {
+  const total = weights.reduce((a, b) => a + b, 0),
+    mean = values.reduce((t, v, k) => t + weights[k] * v, 0) / total,
+    squares = values.reduce((t, v, k) => t + weights[k] * (v - mean) ** 2, 0);
+  return {
+    mean,
+    n: type === "fweight" ? total : values.length,
+    sd: Math.sqrt(
+      type === "fweight"
+        ? squares / (total - 1)
+        : (squares / total) * (values.length / (values.length - 1)),
+    ),
+  };
+}
+function bandwidthOf(sd, iqr, n) {
+  let width = Math.min(sd, iqr / 1.349);
+  if (!(width > 0)) width = sd;
+  return (0.9 * width) / n ** 0.2;
+}
+/**
+ * The pth percentile of values with weights, as summarize, detail gives it:
+ * the first value whose running sum of weights passes p% of their total,
+ * or halfway to the next when the running sum is p% of it exactly.
+ */
+export function weightedPercentile(values, weights, p) {
+  const order = values.map((_, k) => k).sort((a, b) => values[a] - values[b]),
+    total = weights.reduce((a, b) => a + b, 0),
+    target = (total * p) / 100;
+  let running = 0;
+  for (let k = 0; k < order.length; k++) {
+    running += weights[order[k]];
+    if (Math.abs(running - target) <= 1e-12 * total && k + 1 < order.length)
+      return (values[order[k]] + values[order[k + 1]]) / 2;
+    if (running > target) return values[order[k]];
+  }
+  return values[order.at(-1)];
+}
+/**
+ * The density at each point of at. With weights (one for each value), each
+ * value counts as its weight: aweights and fweights as a share of their
+ * sum, iweights as they are, as Stata's kdensity counts them. A bandwidth
+ * of 0, as of a variable with one value, gives a density of 0 everywhere,
+ * as in Stata.
+ */
+export function kernelDensity(
+  values,
+  at,
+  bandwidth,
+  kernel = "epanechnikov",
+  weights = null,
+  type = null,
+) {
   const K = KERNELS[kernel],
-    n = values.length;
+    total = !weights
+      ? values.length
+      : type === "iweight"
+        ? 1
+        : weights.reduce((a, b) => a + b, 0);
+  if (!(bandwidth > 0)) return at.map(() => 0);
   return at.map(
     (point) =>
-      values.reduce((t, v) => t + K((point - v) / bandwidth), 0) /
-      (n * bandwidth),
+      values.reduce(
+        (t, v, k) =>
+          t + (weights ? weights[k] : 1) * K((point - v) / bandwidth),
+        0,
+      ) /
+      (total * bandwidth),
   );
 }
 /** The evaluation grid kdensity uses: n points from min - h to max + h. */
@@ -94,16 +173,28 @@ export function densityGrid(values, bandwidth, n) {
  * powers of x are collinear, as with x taking two values in qfit, the
  * highest are left out, as regress omits them, and the fit is of a lower
  * degree.
+ *
+ * With weights (one for each point) and their type, the fit is regress's
+ * with those weights: fweights count each point as often as they say,
+ * aweights are scaled to sum to the number of points, and pweights give
+ * the robust variance of the fitted mean, as regress with pweights does.
  */
-export function polynomialFit(x, y, degree) {
+export function polynomialFit(x, y, degree, weights = null, type = null) {
   for (let d = degree; d >= 0; d--) {
-    const fitted = fitOfDegree(x, y, d);
+    const fitted = fitOfDegree(x, y, d, weights, type);
     if (fitted) return fitted;
   }
   return null;
 }
-function fitOfDegree(x, y, degree) {
-  const n = x.length,
+function fitOfDegree(x, y, degree, given, type) {
+  const total = given ? given.reduce((a, b) => a + b, 0) : x.length,
+    // aweights and pweights scaled to sum to the number of points.
+    w = given
+      ? type === "fweight"
+        ? given
+        : given.map((value) => (value * x.length) / total)
+      : x.map(() => 1),
+    n = type === "fweight" ? total : x.length,
     size = degree + 1,
     row = (v) => Array.from({ length: size }, (_, p) => v ** p),
     xtx = Array.from({ length: size }, () => new Array(size).fill(0)),
@@ -111,8 +202,8 @@ function fitOfDegree(x, y, degree) {
   x.forEach((v, i) => {
     const r = row(v);
     for (let a = 0; a < size; a++) {
-      xty[a] += r[a] * y[i];
-      for (let b = 0; b < size; b++) xtx[a][b] += r[a] * r[b];
+      xty[a] += w[i] * r[a] * y[i];
+      for (let b = 0; b < size; b++) xtx[a][b] += w[i] * r[a] * r[b];
     }
   });
   // Gauss-Jordan inverse; the systems here are two or three wide. A pivot
@@ -136,22 +227,44 @@ function fitOfDegree(x, y, degree) {
       for (let j = 0; j < 2 * size; j++) inverse[r][j] -= f * inverse[c][j];
     }
   }
-  const v = inverse.map((r) => r.slice(size)),
-    b = v.map((r) => r.reduce((t, value, j) => t + value * xty[j], 0)),
+  const inv = inverse.map((r) => r.slice(size)),
+    b = inv.map((r) => r.reduce((t, value, j) => t + value * xty[j], 0)),
     predict = (value) => row(value).reduce((t, r, p) => t + r * b[p], 0),
-    rss = x.reduce((t, value, i) => t + (y[i] - predict(value)) ** 2, 0),
+    rss = x.reduce((t, value, i) => t + w[i] * (y[i] - predict(value)) ** 2, 0),
     df = n - size,
-    s2 = df > 0 ? rss / df : 0;
+    s2 = df > 0 ? rss / df : 0,
+    times = (a, m) =>
+      a.map((r) =>
+        m[0].map((_, j) => r.reduce((t, value, k) => t + value * m[k][j], 0)),
+      ),
+    // The variance of the coefficients: s² (X'WX)⁻¹, or with pweights the
+    // sandwich (X'WX)⁻¹ Σ (wᵢeᵢ)² xᵢxᵢ' (X'WX)⁻¹ × n/(n − k).
+    v =
+      type === "pweight"
+        ? (() => {
+            const meat = Array.from({ length: size }, () =>
+              new Array(size).fill(0),
+            );
+            x.forEach((value, i) => {
+              const r = row(value),
+                u = (w[i] * (y[i] - predict(value))) ** 2;
+              for (let a = 0; a < size; a++)
+                for (let c = 0; c < size; c++) meat[a][c] += u * r[a] * r[c];
+            });
+            return times(times(inv, meat), inv).map((r) =>
+              r.map((value) => (df > 0 ? (value * n) / df : 0)),
+            );
+          })()
+        : inv.map((r) => r.map((value) => value * s2));
   return {
     predict,
     band(value, level = 95) {
       const r = row(value),
         se = Math.sqrt(
-          s2 *
-            r.reduce(
-              (t, a, i) => t + a * r.reduce((u, c, j) => u + v[i][j] * c, 0),
-              0,
-            ),
+          r.reduce(
+            (t, a, i) => t + a * r.reduce((u, c, j) => u + v[i][j] * c, 0),
+            0,
+          ),
         ),
         critical = df > 0 ? invttail(df, (1 - level / 100) / 2) : 0,
         fitted = predict(value);

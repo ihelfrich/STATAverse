@@ -59,6 +59,16 @@ const NOT_DRAWN = [
   "xcommon",
   "iscale",
   "imargin",
+  // graph box's boxes and medians, a fit's interval drawn another way,
+  // histogram turned on its side, and the looks of histogram's curves.
+  "box",
+  "medtype",
+  "medline",
+  "medmarker",
+  "ciplot",
+  "horizontal",
+  "normopts",
+  "kdenopts",
 ];
 /**
  * Parses a graph command's options against its declaration. When one is
@@ -234,7 +244,7 @@ function parseDeclared(session, declaration, text) {
   try {
     return session.parse(declaration, text);
   } catch (error) {
-    const m = /^option (\w+) not allowed$/.exec(error?.message ?? "");
+    const m = /^option (\w+)(?:\(\))? not allowed$/.exec(error?.message ?? "");
     const word = m?.[1].toLowerCase(),
       name =
         word &&
@@ -244,7 +254,7 @@ function parseDeclared(session, declaration, text) {
         );
     if (name)
       throw new StataError(
-        `option ${name}() is not drawn on this page; remove it to draw the graph. Graphs here draw titles, notes, axis labels and lines, colours, marker sizes and labels, and legends.`,
+        `option ${name}${givenWithArgument(text, m[1]) ? "()" : ""} is not drawn on this page; remove it to draw the graph. Graphs here draw titles, notes, axis labels and lines, colours, marker sizes and labels, and legends.`,
         198,
       );
     // An option Stata does not know, given with an argument, is named with
@@ -778,11 +788,31 @@ function labelRule(text) {
   } else if (first === "minmax") spec.rule = { minmax: true };
   else if (first === "none" || first === ".") spec.rule = { none: true };
   else if (first && /[([]/.test(first)) {
+    // A rule a(b)c steps from a toward c by the size of b, whatever its
+    // sign: 10(3)0 labels 10 7 4 1, as Stata labels it. A step whose sign
+    // leads away from c, 0(-25)100, labels nothing. A rule that rises
+    // draws one label more than the numlist when c lies more than half a
+    // step past its last value: 0(3)11 labels 0 3 6 9 12, as Stata labels
+    // it, where 0(3)10 stops at 9.
+    const signed = String.raw`[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?`,
+      stepped = new RegExp(`^(${signed})\\((${signed})\\)(${signed})$`).exec(
+        first,
+      ),
+      [a, b, c] = stepped ? stepped.slice(1, 4).map(Number) : [];
     let values;
-    try {
-      values = parseNumlist(first);
-    } catch {
-      throw new StataError(`invalid label specifier, :  ${text}:`, 198);
+    if (stepped && b < 0 && c > a) values = [];
+    else
+      try {
+        values = parseNumlist(
+          stepped && b > 0 && c < a ? `${a}(${-b})${c}` : first,
+        );
+      } catch {
+        throw new StataError(`invalid label specifier, :  ${text}:`, 198);
+      }
+    if (stepped && b > 0 && c > a) {
+      const steps = (c - a) / b;
+      if (steps - Math.floor(steps + 1e-9) > 0.5 + 1e-9)
+        values.push(Number((a + values.length * b).toPrecision(15)));
     }
     spec.rule = { values };
   }

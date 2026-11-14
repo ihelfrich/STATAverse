@@ -397,7 +397,9 @@ export function mountMap({
         for (const entry of Object.values(library))
           site.append(new Option(`${entry.id}: ${entry.title}`, entry.id));
         control.append(site);
-        const own = uploads().filter((name) => !/\.do$/i.test(name));
+        // Do-files and formats.xpf (value labels for import sasxport5) are
+        // not datasets.
+        const own = uploads().filter((name) => !/\.(do|xpf)$/i.test(name));
         // A file named by a saved map is offered even before it is added
         // again, so that the choice is not silently changed.
         const wanted = fileOf(step.fields.dataset ?? "");

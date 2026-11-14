@@ -15,6 +15,7 @@ import { SNIPPETS } from "./console-snippets.js";
 import { projectZip } from "./console-project.js";
 import { doName } from "./console-map-model.js";
 import {
+  ACCEPT,
   fileKind,
   giveFile,
   loadCommand,
@@ -1262,7 +1263,9 @@ function showUploads() {
         ),
       );
       buttons.push(download);
-    } else {
+    } else if (loadCommand(name)) {
+      // formats.xpf holds value labels for import sasxport5; it is not
+      // loaded on its own.
       const load = document.createElement("button"),
         build = document.createElement("button"),
         command = loadCommand(name);
@@ -1400,7 +1403,7 @@ async function takeFiles(list) {
         notes.push(
           `${name} could not be kept in this browser (its storage is full), so it is here for this visit only.`,
         );
-      loaded = loadCommand(name);
+      loaded = loadCommand(name) || loaded;
     } catch (error) {
       notes.push(`${file.name}: ${error.message}.`);
     }
@@ -1451,6 +1454,8 @@ async function restoreFiles() {
   showUploads();
   return { count: uploads.size, lost };
 }
+// The picker offers every kind of file the page takes.
+$("console-file").accept = ACCEPT;
 $("console-file").addEventListener("change", async (event) => {
   const list = [...event.target.files];
   event.target.value = "";

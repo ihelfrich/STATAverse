@@ -10,6 +10,7 @@ import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
 import { findFile } from "./files.js";
 import {
+  MAX_STRING_WIDTH,
   MISSING,
   byteLength,
   coerce,
@@ -21,6 +22,7 @@ import {
   isStringType,
   parseNumber,
   stringWidth,
+  truncateBytes,
 } from "./values.js";
 
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
@@ -347,7 +349,10 @@ function paragraph(session, text) {
  * already define. Returns the names whose using values are dropped.
  */
 function reconcile(session, command, data, other, names, options, ctx) {
-  const shared = data.variables.filter((v) => names.includes(v.name)),
+  // Stata goes through the shared variables in the using data's order.
+  const shared = other.variables
+      .filter((v) => names.includes(v.name) && data.has(v.name))
+      .map((v) => data.get(v.name)),
     ignored = new Set(),
     widened = [];
   for (const variable of shared) {
@@ -532,6 +537,17 @@ function hanging(session, text) {
   lines.push(line);
   return lines.join("\n");
 }
+/** merge's refusal of a strL key; where is " in master data." or the like. */
+export function strLKey(session, key, where) {
+  return new StataError(
+    `key variable ${key} is strL${where}\n` +
+      paragraph(
+        session,
+        "The key variables (on which observations are matched) can be str#, but they cannot be strLs.",
+      ),
+    106,
+  );
+}
 function merge(session, text, ctx) {
   const m = /^\s*(1:1|m:1|1:m|m:m)\s+([\s\S]*)$/.exec(text);
   if (!m) throw invalid("merge needs 1:1, m:1, 1:m or m:m");
@@ -595,6 +611,21 @@ function merge(session, text, ctx) {
       throw new StataError(
         `key variable ${key} is str in one dataset and numeric in the other`,
         106,
+      );
+  }
+  // A key may be str# but not strL, in either dataset.
+  for (const key of keys) {
+    const mine = data.get(key).type === "strL",
+      theirs = other.get(key).type === "strL";
+    if (mine || theirs)
+      throw strLKey(
+        session,
+        key,
+        mine && theirs && m[1] === "m:1"
+          ? ""
+          : mine
+            ? " in master data."
+            : " in using data.",
       );
   }
   if (!sequential) other.sort(keys);
@@ -769,12 +800,12 @@ function merge(session, text, ctx) {
       label: "Matching result from merge",
     });
   }
-  // The result is in key order only when no using rows were added below.
-  result.sortedBy = all.some(
-    (row) => row.master === null || extra.includes(row),
-  )
-    ? []
-    : [...keys];
+  // merge.ado sorts a 1:1 result on the key when no observation from the
+  // using data alone is left; any other result is not marked as sorted.
+  result.sortedBy =
+    m[1] === "1:1" && !sequential && !all.some((row) => row.master === null)
+      ? [...keys]
+      : [];
   remade(session, result);
   if (failed) {
     const words = asserted.map((code) => MERGE_TEXT[code]),
@@ -1744,20 +1775,67 @@ function expandCommand(session, text, ctx) {
   if (!text.trim() || /^(if|in)\b/.test(text.trim()))
     throw new StataError("=exp required", 100);
   const parsed = session.parse(
-      "=exp [if] [in] [, | Generate(name)]",
+      "=exp [if] [in] [, Generate(name) clear]",
       "= " + text.replace(/^\s*=?/, ""),
     ),
     compiled = session.compile(parsed.exp),
     data = session.data,
     order = Array.from({ length: data.n }, (_, i) => i),
-    before = data.n;
+    before = data.n,
+    marker = parsed.options.generate;
+  if (compiled.type === "string") throw new StataError("type mismatch", 109);
+  if (marker && data.has(marker))
+    throw new StataError(`variable ${marker} already defined`, 110);
+  // A count is rounded to an integer; one that is missing, negative or
+  // zero keeps its observation, and Stata says how many were.
+  let missing = 0,
+    fractional = 0,
+    negative = 0,
+    zero = 0;
   session.select(parsed, ctx.by, (i, env) => {
-    const copies = compiled.evaluate(i, env);
-    if (isMissing(copies)) return;
-    for (let k = 1; k < Math.trunc(copies); k++) order.push(i);
+    const value = compiled.evaluate(i, env);
+    if (isMissing(value)) return void missing++;
+    const copies = Math.floor(value + 0.5);
+    if (copies !== value) fractional++;
+    if (copies < 0) negative++;
+    else if (copies === 0) zero++;
+    for (let k = 1; k < copies; k++) order.push(i);
   });
+  const ignored = (n, kind) =>
+    n &&
+    ctx.out(
+      `(${count(n)} ${kind} count${n === 1 ? "" : "s"} ignored; observation${n === 1 ? "" : "s"} not deleted)`,
+    );
+  ignored(missing, "missing");
+  if (fractional)
+    ctx.out(
+      `(${count(fractional)} noninteger count${fractional === 1 ? "" : "s"} rounded to integer)`,
+    );
+  ignored(negative, "negative");
+  ignored(zero, "zero");
   data.reorder(order);
   data.sortedBy = [];
+  // generate() marks the original observations 0 and the copies 1, with
+  // the value label _merge unless a label of that name is already defined.
+  if (marker) {
+    data.generate(
+      marker,
+      order.map((_, r) => Number(r >= before)),
+      { type: "byte" },
+    );
+    const variable = data.get(marker);
+    variable.label = "Expanded observation type";
+    if (!data.valueLabels.has("_merge")) {
+      data.valueLabels.set(
+        "_merge",
+        new Map([
+          [0, "Original observation"],
+          [1, "Duplicated observation"],
+        ]),
+      );
+      variable.valueLabel = "_merge";
+    }
+  }
   ctx.out(`(${plural(data.n - before, "observation")} created)`);
 }
 
@@ -2193,21 +2271,32 @@ function encode(session, text) {
 }
 function decode(session, text) {
   const parsed = session.parse(
-      "varname [if] [in] , Generate(name) [ MAXLength(integer 0) ]",
+      "varname [if] [in] , Generate(name) [ MAXLength(integer 32000) ]",
       text,
     ),
     data = session.data,
     source = data.get(parsed.varlist[0]),
-    map = data.valueLabels.get(source.valueLabel);
+    map = data.valueLabels.get(source.valueLabel),
+    // Each label is cut to maxlength() bytes, 32,000 by default.
+    longest = parsed.options.maxlength;
+  if (!(longest >= 1 && longest <= 32000))
+    throw new StataError("maxlength must be between 1 and 32000", 198);
   if (isStringType(source.type))
     throw new StataError("not possible with string variable", 108);
   if (!map) throw new StataError(`${source.name} not labeled`, 182);
+  // The new variable is as wide as the longest label in the value label,
+  // whichever observations are decoded, cut to maxlength(); past 2,045
+  // bytes it is a strL.
   const rows = new Set(session.rows(parsed, null)),
-    sorted = [...data.sortedBy];
+    sorted = [...data.sortedBy],
+    width = Math.min(longest, greatest([...map.values()].map(byteLength))),
+    type = width > MAX_STRING_WIDTH ? "strL" : `str${Math.max(1, width)}`;
   data.generate(
     parsed.options.generate,
-    Array.from(source.data, (v, i) => (rows.has(i) ? (map.get(v) ?? "") : "")),
-    { string: true },
+    Array.from(source.data, (v, i) =>
+      rows.has(i) ? truncateBytes(map.get(v) ?? "", longest) : "",
+    ),
+    { string: true, type },
   );
   data.sortedBy = sorted;
   data.get(parsed.options.generate).label = source.label;

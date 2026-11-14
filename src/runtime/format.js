@@ -4,7 +4,13 @@
 // codes. The rules were read off output recorded from installed Stata;
 // tests/runtime-format.test.mjs compares every case.
 import { StataError } from "./errors.js";
-import { byteLength, isMissing, missingName } from "./values.js";
+import {
+  byteLength,
+  displayWidth,
+  isMissing,
+  missingName,
+  truncateColumns,
+} from "./values.js";
 import {
   FIRST_DAY,
   LAST_DAY,
@@ -240,6 +246,14 @@ function exponential(value, { width, digits }) {
 }
 
 export function formatNumber(value, spec) {
+  // A %g format narrower than four columns is laid out as %4.dg, except
+  // that one with no digits shows every number, zero too, in scientific
+  // notation with one decimal.
+  if (spec.style === "g" && spec.width < 4 && !isMissing(value)) {
+    if (!spec.digits)
+      return formatNumber(value, { ...spec, style: "e", digits: 1 });
+    spec = { ...spec, width: 4 };
+  }
   if (isMissing(value)) return pad(missingName(value), spec.width, spec.left);
   capped = false;
   const negative = value < 0 || Object.is(value, -0),
@@ -589,6 +603,79 @@ export function abbreviateName(text, width) {
         ? `${operators.slice(0, Math.max(0, n - room - 2))}.`
         : operators;
   return `${kept}.${shortened(text.slice(dot + 1), room)}`;
+}
+
+/**
+ * abbrev(name, width) for a variable in memory, as Stata 19 computes it:
+ * an abbreviation is good only when, read as a varlist with ~ standing for
+ * any characters, it matches this variable and no other in names. Widths
+ * are screen columns. Stata tries, in order:
+ *   - the usual start~end, the end being the name's run of final digits
+ *     while one column is left for the start, or else its last character;
+ *   - start~end with one, two, ... characters of the end;
+ *   - first~middle~last, the middle starting where the name leaves the
+ *     longest start it shares with another variable (r~age_~s for
+ *     respondent_age_years beside respondent_edu_years);
+ *   - ~end with the whole width but one for the end (~me_2019);
+ *   - and otherwise the name cut, with ".." for the rest (hou..).
+ * Recorded from Stata 19, display abbrev() over sets of colliding names.
+ */
+export function abbreviateAmong(name, width, names = []) {
+  if (displayWidth(name) <= width) return name;
+  const characters = Array.from(name),
+    others = names.filter((other) => other !== name),
+    escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    unique = (...parts) => {
+      const pattern = new RegExp(`^${parts.map(escape).join(".*")}$`, "u");
+      return pattern.test(name) && !others.some((o) => pattern.test(o));
+    },
+    // The end of so many characters, and the start that fills the columns
+    // left before the ~.
+    tail = (k) => characters.slice(-k).join(""),
+    head = (columns) => truncateColumns(name, Math.max(0, columns)),
+    single = (end) => {
+      const start = head(width - 1 - displayWidth(end));
+      return start && unique(start, end) ? `${start}~${end}` : null;
+    },
+    digits = /\d*$/.exec(name)[0].length,
+    standard =
+      digits && digits < characters.length && width - 1 - digits >= 1
+        ? tail(digits)
+        : tail(1),
+    found = single(standard);
+  if (found) return found;
+  for (let k = 1; k < characters.length; k++) {
+    const end = tail(k);
+    if (displayWidth(end) > width - 2) break;
+    const attempt = single(end);
+    if (attempt) return attempt;
+  }
+  // first~middle~last, the middle as wide as the width allows.
+  const shared = Math.max(
+      1,
+      ...others.map((other) => {
+        const o = Array.from(other);
+        let i = 0;
+        while (i < o.length && i < characters.length && o[i] === characters[i])
+          i++;
+        return i;
+      }),
+    ),
+    first = characters[0],
+    last = characters.at(-1),
+    middle = truncateColumns(
+      characters.slice(shared).join(""),
+      width - 2 - displayWidth(first) - displayWidth(last),
+    );
+  if (middle && unique(first, middle, last))
+    return `${first}~${middle}~${last}`;
+  let end = "";
+  for (let k = 1; k < characters.length; k++) {
+    if (displayWidth(tail(k)) > width - 1) break;
+    end = tail(k);
+  }
+  if (end && unique("", end)) return `~${end}`;
+  return `${head(width - 2)}..`;
 }
 
 // ----- display columns -----

@@ -374,7 +374,9 @@ export function importSpss(session, text, ctx) {
     options.case === undefined ? "preserve" : unquote(options.case);
   if (!["preserve", "lower", "upper"].includes(letterCase))
     throw new StataError(`case(${letterCase}) invalid`, 198);
-  const { name, stored } = findFile(session, using, [".sav", ".zsav"]);
+  // As in Stata, a name without an extension is looked for as name.sav
+  // only; a .zsav file is named in full.
+  const { name, stored } = findFile(session, using, [".sav"]);
   if (!stored) {
     const shown = /\.[A-Za-z0-9]+$/.test(name) ? name : `${name}.sav`;
     throw new StataError(`file ${shown} not found`, 601);

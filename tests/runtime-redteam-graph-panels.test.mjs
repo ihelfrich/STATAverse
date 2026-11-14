@@ -103,39 +103,44 @@ test("by(, total): the Total panel leaves out a missing by-variable", () => {
   assert.equal(circles(panels(scatter.svg)[2]), 547);
   // Stata's bars, read from its SVG: the bins are those of all 586 wages
   // (24 of width 1.915), the panels count their own rows, and Total counts
-  // the 547 rows of the two panels.
-  const counts = (panel) => {
-    const at = new Map(
-        [
-          ...panel.matchAll(
-            /<text x="[\d.]+" y="([\d.]+)" text-anchor="end">([^<]*)<\/text>/g,
-          ),
-        ].map((m) => [m[2], Number(m[1])]),
-      ),
-      unit = (at.get("0") - at.get("20")) / 20;
-    return [
-      ...panel.matchAll(
-        /height="([\d.]+)" fill="#[0-9a-f]+" fill-opacity="0.75"/g,
-      ),
-    ].map((m) => Math.round(Number(m[1]) / unit));
-  };
-  const bars = panels(
-    graph(s, "histogram wage, by(fem2, total) frequency").svg,
-  ).map(counts);
-  assert.deepEqual(bars, [
-    [
-      2, 8, 25, 16, 30, 29, 33, 26, 18, 21, 13, 14, 13, 14, 7, 4, 3, 1, 2, 3, 2,
-      1, 0, 1,
-    ],
-    [
-      5, 15, 19, 31, 30, 32, 23, 22, 18, 11, 14, 9, 9, 7, 7, 3, 3, 0, 0, 0, 0,
-      3, 0, 0,
-    ],
-    [
-      7, 23, 44, 47, 60, 61, 56, 48, 36, 32, 27, 23, 22, 21, 14, 7, 6, 1, 2, 3,
-      2, 4, 0, 1,
-    ],
-  ]);
+  // the 547 rows of the two panels. Stata draws no bar for an empty bin.
+  // The panels share one y scale, labelled in the first panel only.
+  const drawn = panels(
+      graph(s, "histogram wage, by(fem2, total) frequency").svg,
+    ),
+    at = new Map(
+      [
+        ...drawn[0].matchAll(
+          /<text x="[\d.]+" y="([\d.]+)" text-anchor="end">([^<]*)<\/text>/g,
+        ),
+      ].map((m) => [m[2], Number(m[1])]),
+    ),
+    unit = (at.get("0") - at.get("20")) / 20,
+    counts = (panel) =>
+      [
+        ...panel.matchAll(
+          /height="([\d.]+)" fill="#[0-9a-f]+" fill-opacity="0.75"/g,
+        ),
+      ].map((m) => Math.round(Number(m[1]) / unit));
+  const bars = drawn.map(counts),
+    perBin = [
+      [
+        2, 8, 25, 16, 30, 29, 33, 26, 18, 21, 13, 14, 13, 14, 7, 4, 3, 1, 2, 3,
+        2, 1, 0, 1,
+      ],
+      [
+        5, 15, 19, 31, 30, 32, 23, 22, 18, 11, 14, 9, 9, 7, 7, 3, 3, 0, 0, 0, 0,
+        3, 0, 0,
+      ],
+      [
+        7, 23, 44, 47, 60, 61, 56, 48, 36, 32, 27, 23, 22, 21, 14, 7, 6, 1, 2,
+        3, 2, 4, 0, 1,
+      ],
+    ];
+  assert.deepEqual(
+    bars,
+    perBin.map((panel) => panel.filter((count) => count > 0)),
+  );
 });
 
 test("a by-group with nothing to draw still gets its panel", () => {
@@ -180,16 +185,16 @@ test("an empty by-panel with lfit leaves the other panels drawn", () => {
   const s = labor("gen y2 = wage if female==0");
   const g = graph(s, "twoway (scatter y2 educ) (lfit y2 educ), by(female)");
   // Stata notes once, for the empty panel, and draws both panels with
-  // labelled axes; the 302 markers are all in panel 0.
+  // labelled x axes, the y axis labelled at the left of the row only; the
+  // 302 markers are all in panel 0.
   assert.deepEqual(g.lines, ["(note:  regress could not fit model)"]);
   assert.doesNotMatch(g.svg, /NaN|Infinity/);
   const [male, female] = panels(g.svg);
   assert.equal(circles(male), 302);
   assert.equal(circles(female), 0);
-  for (const panel of [male, female]) {
-    assert.ok(yLabels(panel).length > 0);
-    assert.ok(xLabels(panel).includes("10"));
-  }
+  assert.ok(yLabels(male).length > 0);
+  assert.deepEqual(yLabels(female), []);
+  for (const panel of [male, female]) assert.ok(xLabels(panel).includes("10"));
   // Three empty panels, three notes, as in Stata.
   const regions = graph(
     labor('gen y3 = wage if region=="East"'),
@@ -423,8 +428,9 @@ test("a by() panel whose fit cannot be made is left out", () => {
   assert.deepEqual(g.lines, why.slice(0, 1));
   assert.deepEqual(panelNames(g.svg), ["East", "North", "West"]);
   // Stata's East panel reaches x = 10, the schooling of id 7, whose wage
-  // is missing: the axes span each variable over the plot's rows.
-  assert.ok(xLabels(panels(g.svg)[0]).includes("10"));
+  // is missing: the axes span each variable over the plot's rows. The
+  // panels share the x axis, which Stata labels in the bottom row.
+  assert.ok(xLabels(panels(g.svg).at(-1)).includes("10"));
   // No panel left: nothing to graph, r(198); without by(), r(2001).
   let out = s.run(
     "twoway (scatter wage educ) (lfit wage educ) if id==1, by(region)",

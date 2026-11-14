@@ -2,7 +2,7 @@
 // that combine or rearrange datasets: cross, joinby and stack.
 import { greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
-import { fileName, load } from "./data-commands.js";
+import { fileName, load, strLKey } from "./data-commands.js";
 import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
 import { findFile } from "./files.js";
@@ -140,26 +140,48 @@ function cross(session, text) {
     if (!data.has(variable.name)) bring(data, variable, using);
 }
 
-function joinby(session, text) {
+function joinby(session, text, ctx) {
   const parsed = session.parse(
       "[varlist] using/ [, UNMatched(string) _merge(name) | UPDATE REPLACE noLabel]",
       text,
     ),
-    other = load(session, fileName(parsed.using)),
+    // varlist(default=none): no names before using means the common ones.
+    named = !/^\s*using\b/.test(text),
     data = session.data,
-    unmatched = (parsed.options.unmatched ?? "none").trim(),
-    keys = parsed.varlist.length
-      ? parsed.varlist
-      : data.names.filter((name) => other.has(name));
-  if (!/^(none|both|master|using)$/.test(unmatched))
-    throw new StataError(
-      "unmatched() must be none, both, master or using",
-      198,
-    );
-  if (!keys.length) throw new StataError("no common variables", 111);
+    typed = (parsed.options.unmatched ?? "").trim(),
+    unmatched = typed
+      ? ["both", "master", "using", "none"].find((word) =>
+          word.startsWith(typed.toLowerCase()),
+        )
+      : "none";
+  if (!unmatched)
+    throw new StataError(`${typed} is invalid value for unmatch()`, 198);
+  let keys = parsed.varlist;
+  const other = load(session, fileName(parsed.using));
+  if (!named) {
+    keys = data.names.filter((name) => other.has(name));
+    if (!keys.length)
+      throw new StataError(
+        "no variables in common to master and using data\nthus a join is not possible",
+        198,
+      );
+    ctx.out(`join on common variables: ${keys.join(" ")}`);
+  }
   for (const key of keys)
-    if (!other.has(key))
-      throw new StataError(`variable ${key} not found in using data`, 111);
+    if (!other.has(key)) throw new StataError(`variable ${key} not found`, 111);
+  // A key may be str# but not strL, as in merge.
+  for (const key of keys) {
+    const mine = data.get(key).type === "strL",
+      theirs = other.get(key).type === "strL";
+    if (mine || theirs)
+      throw strLKey(
+        session,
+        key,
+        mine && theirs ? "" : mine ? " in master data." : " in using data.",
+      );
+  }
+  // joinby is sortpreserve: the data keep the master's sort order.
+  const sorted = [...data.sortedBy];
   const keyOf = (set, i) => JSON.stringify(keys.map((k) => set.get(k).data[i])),
     groups = new Map();
   for (let j = 0; j < other.n; j++) {
@@ -207,7 +229,7 @@ function joinby(session, text) {
       if (i === null) here.data[r] = there.data[using[r]];
     });
   }
-  data.sortedBy = [];
+  data.sortedBy = sorted;
   if (unmatched !== "none") {
     const name = parsed.options._merge ?? "_merge";
     data.generate(name, merge, { type: "byte" });
@@ -223,6 +245,15 @@ function joinby(session, text) {
   }
   for (const variable of other.variables)
     if (!data.has(variable.name)) bring(data, variable, using);
+  unfiled(data);
+}
+/**
+ * joinby and stack build their result in a temporary file, so the data are
+ * no longer those of any file: describe names none, and save needs a name.
+ */
+function unfiled(data) {
+  data.filename = "";
+  data.filedate = "";
 }
 
 function stack(session, text, ctx) {
@@ -284,6 +315,7 @@ function stack(session, text, ctx) {
     });
     data.get(column.name).format = column.format;
   }
+  unfiled(data);
 }
 
 export const MORE_DATA_COMMANDS = [

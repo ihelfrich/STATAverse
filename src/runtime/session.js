@@ -7,16 +7,26 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import { applySyntax } from "./syntax.js";
+import { applySyntax, loneEquals, splitAtComma } from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
-import { applyFormat, stringOf } from "./format.js";
-import { formatNumber } from "./values.js";
+import { applyFormat, parseFormat, stringOf } from "./format.js";
+import {
+  byteLength,
+  coerce,
+  defaultFormat,
+  formatNumber,
+  parseNumber,
+  stringWidth,
+  truncateBytes,
+} from "./values.js";
+import { greatest } from "./extremes.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
-import { changed, markChanged } from "./data-commands.js";
+import { changed, fold, markChanged } from "./data-commands.js";
+import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
-import { coefficientIndex } from "./estimation.js";
+import { coefficientIndex, tableResults } from "./estimation.js";
 import { echoOf } from "./echo.js";
 
 const MAX_STEPS = 200000;
@@ -231,6 +241,39 @@ const FAILED_R = new Map([
   ],
 ]);
 
+/** The weight type a word in [word=exp] names, "weight" for the bare one. */
+const weightOf = (word) =>
+  [
+    ["weight", 1, "weight"],
+    ["aweight", 2, "aweight"],
+    ["fweight", 2, "fweight"],
+    ["frequency", 2, "fweight"],
+    ["pweight", 2, "pweight"],
+    ["iweight", 2, "iweight"],
+  ].find(
+    ([full, minimum]) => word.length >= minimum && full.startsWith(word),
+  )?.[2];
+
+// Commands that change or read the last estimates without fitting or
+// showing them, which leave r() as they set it.
+const NO_TABLE = new Set([
+  "estimates",
+  "margins",
+  "marginsplot",
+  "predict",
+  "test",
+  "testparm",
+  "lincom",
+  "nlcom",
+  "testnl",
+  "estat",
+  "contrast",
+  "pwcompare",
+  "lrtest",
+  "hausman",
+  "ereturn",
+]);
+
 // Graph commands clear r() when they draw, as Stata's do; kdensity and
 // avplot post their own results instead. graph clears it for the graphs it
 // draws and for graph display, not for export, drop or dir.
@@ -336,7 +379,35 @@ export class Session {
     };
   }
   compile(text) {
-    return compileExpression(text, this.scope());
+    try {
+      return compileExpression(text, this.scope());
+    } catch (error) {
+      // Stata calls a lone = in an expression invalid syntax, and reads a
+      // parenthesis holding one, as (region = 1), as a name, region=1.
+      if (
+        error instanceof StataError &&
+        error.message === "= is not a comparison; use =="
+      ) {
+        const lone = loneEquals(text);
+        if (
+          lone &&
+          lone.close > 0 &&
+          text[lone.open] === "(" &&
+          !/[\w$.]/.test(text[lone.open - 1] ?? "")
+        )
+          throw new StataError(
+            `${text.slice(lone.open + 1, lone.close).replace(/\s+/g, "")} invalid name`,
+            198,
+            "A single = assigns; to compare two values, write ==.",
+          );
+        throw new StataError(
+          "invalid syntax",
+          198,
+          "A single = assigns; to compare two values, write ==.",
+        );
+      }
+      throw error;
+    }
   }
   /** The value of an expression outside any observation. */
   scalar(text) {
@@ -711,6 +782,7 @@ export class Session {
           190,
         );
       let value;
+      const before = this.estimates;
       try {
         value = command.run(this, body, ctx);
       } catch (error) {
@@ -729,6 +801,30 @@ export class Session {
         if (!READ_ONLY.has(command.name)) markChanged(this);
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
+      const model = this.estimates;
+      // A fit's weight expression, which estat summarize weights with, kept
+      // where the command did not keep it.
+      if (model && model !== before && !model.wexp) {
+        const weight =
+          /(?:^|\s)\[\s*([A-Za-z]+)\s*=\s*([^\]]+)\]/.exec(
+            splitAtComma(body)[0],
+          ) ?? [];
+        const type = weight[1] && weightOf(weight[1].toLowerCase());
+        if (type && (type !== "weight" || model.wtype)) {
+          model.wexp = `= ${weight[2].trim()}`;
+          if (type !== "weight") model.wtype ??= type;
+        }
+      }
+      // An estimation command, or one that shows the last estimates again,
+      // leaves r(table) as its r().
+      if (
+        model &&
+        !NO_TABLE.has(command.name) &&
+        (model !== before ||
+          (!splitAtComma(body)[0].trim() &&
+            [model.command, model.kind].includes(command.name)))
+      )
+        this.results.r = tableResults(this, model, body, command.name);
       return value;
     }
     if (this.programs.has(word)) return this.call(word, body, ctx);
@@ -955,60 +1051,231 @@ export class Session {
   }
 
   // ----- data entry -----
+  /**
+   * input: the rows of an input block become observations. As in Stata's
+   * log, input echoes a header of the variables, each right-aligned in its
+   * display width plus two, then each row as typed, numbered, and the end
+   * that closes it. A row with a value that cannot be read is reported and
+   * left out, and the next row takes its number. With no variables named,
+   * input adds observations to the variables there are; new variables named
+   * for data already there take one row for each observation.
+   */
   input(node, frame, output) {
-    const header = this.expand(node.text, frame).replace(/^inp(ut?)?\s*/, ""),
+    const lines = [];
+    try {
+      this.inputRows(node, frame, output, lines);
+    } catch (error) {
+      if (error instanceof StataError && !error.recorded) {
+        error.recorded = true;
+        this.record(
+          output,
+          node.text,
+          [...lines, ...(error.message ? [error.message] : [])].concat(
+            `r(${error.code});`,
+          ),
+          error.code,
+        );
+      }
+      throw error;
+    }
+  }
+  inputRows(node, frame, output, lines) {
+    const command = this.expand(node.text, frame).replace(/^inp(ut?)?/, ""),
+      comma = command.indexOf(","),
+      header = comma < 0 ? command : command.slice(0, comma),
+      options = { automatic: false, label: false };
+    for (const word of (comma < 0 ? "" : command.slice(comma + 1))
+      .split(/\s+/)
+      .filter(Boolean)) {
+      if (/^a(u(t(o(m(a(t(ic?)?)?)?)?)?)?)?$/.test(word))
+        options.automatic = true;
+      else if (/^l(a(b(el?)?)?)?$/.test(word)) options.label = true;
+      else if (!/^nol(a(b(el?)?)?)?$/.test(word))
+        throw new StataError(`option ${word} not allowed`, 198);
+    }
+    const data = this.data,
       specs = [];
     let type = null;
     for (const token of header.split(/\s+/).filter(Boolean)) {
-      if (/^(byte|int|long|float|double|str\d*|strL)$/.test(token))
+      if (/^(byte|int|long|float|double|str\d+|strL)$/.test(token))
         type = token;
       else {
-        specs.push({ name: token, type });
+        const [name, label = ""] = token.split(":");
+        if (label && /^str/.test(type ?? ""))
+          throw new StataError("may not label strings", 181);
+        specs.push({ name, type, label });
         type = null;
       }
     }
-    const fresh = specs.filter((s) => !this.data.has(s.name));
-    if (fresh.length !== specs.length && fresh.length)
-      throw new StataError("input may not mix new and existing variables", 198);
-    const rows = node.rows.map((row) => macroWords(this.expand(row, frame)));
-    const start = fresh.length ? 0 : this.data.n;
-    if (
-      fresh.length &&
-      this.data.variables.length &&
-      rows.length !== this.data.n
-    )
+    // Named variables must be new; with none named, input continues the
+    // variables there are.
+    const existing = specs.find((spec) => data.has(spec.name));
+    if (existing)
+      throw new StataError(`variable ${existing.name} already defined`, 110);
+    const continuing = !specs.length;
+    if (continuing) {
+      if (!data.variables.length) throw new StataError("nothing to input", 104);
+      for (const variable of data.variables)
+        specs.push({
+          name: variable.name,
+          type: variable.type,
+          label: variable.valueLabel ?? "",
+          format: variable.format,
+        });
+    }
+    const adding = !continuing && data.variables.length > 0 && data.n > 0,
+      text = specs.map((spec) => /^str/.test(spec.type ?? "")),
+      width = (spec) =>
+        parseFormat(spec.format ?? defaultFormat(spec.type ?? data.defaultType))
+          ?.width ?? 9,
+      linesize = this.settings.linesize ?? 80;
+    lines.push("");
+    fold(
+      "   " +
+        specs
+          .map((spec) =>
+            abbreviateName(spec.name, width(spec)).padStart(width(spec) + 2),
+          )
+          .join(""),
+      linesize,
+    ).forEach((line) => lines.push(line));
+    // A row as it was typed: the source line when it is the row, with tabs
+    // set to every eighth column.
+    const typed = (row, r) => {
+      const raw = this.sourceLines?.[(node.rowLines?.[r] ?? 0) - 1];
+      if (raw === undefined || raw.replace(/\s+/g, " ").trim() !== row)
+        return row;
+      let out = "";
+      for (const c of raw.trimEnd())
+        out += c === "\t" ? " ".repeat(8 - (out.length % 8)) : c;
+      return out;
+    };
+    // Text for a labelled variable: its code in the value label, under the
+    // label and automatic options, or a new code under automatic.
+    const coded = (spec, word) => {
+      if (!spec.label || !(options.label || options.automatic)) return null;
+      const map = data.valueLabels.get(spec.label);
+      for (const [value, label] of map ?? []) if (label === word) return value;
+      if (!options.automatic) return null;
+      const value = Math.max(0, greatest(map?.keys() ?? [])) + 1;
+      data.valueLabels.set(spec.label, (map ?? new Map()).set(value, word));
+      return value;
+    };
+    const rows = [],
+      start = continuing ? data.n : 0,
+      wanted = adding ? data.n : Infinity;
+    let r = 0;
+    for (; r < node.rows.length && rows.length < wanted; r++) {
+      const row = node.rows[r];
+      lines.push(
+        `${String(start + rows.length + 1).padStart(3)}. ${typed(row, r)}`,
+      );
+      const cells = inputWords(this.expand(row, frame)),
+        values = [];
+      let bad = null;
+      for (let k = 0; k < specs.length && bad === null; k++) {
+        const cell = cells[k];
+        if (text[k]) values.push(cell?.text ?? "");
+        else {
+          const word = cell?.text ?? "",
+            value = cell?.quoted
+              ? undefined
+              : parseNumber(word.replace(/^([^dD]*\d)[dD]/, "$1e"));
+          if (value !== undefined) values.push(value);
+          else {
+            const code = cell ? coded(specs[k], word) : null;
+            if (code === null) bad = word;
+            else values.push(code);
+          }
+        }
+      }
+      if (bad !== null) {
+        lines.push(`'${bad}' cannot be read as a number`);
+        continue;
+      }
+      rows.push(values);
+    }
+    // New variables for data already there take one row per observation;
+    // Stata reads that many rows and no end.
+    if (adding && rows.length !== data.n)
       throw new StataError("input must supply every observation", 198);
-    if (!this.data.variables.length || !fresh.length)
-      this.data.setObservations(start + rows.length);
+    if (!adding)
+      lines.push(`${String(start + rows.length + 1).padStart(3)}. end`);
+    // New variables that get no values are not created.
+    if (!continuing && !rows.length && !adding)
+      return this.record(output, node.text, lines, 0);
+    if (!adding) data.setObservations(start + rows.length);
     specs.forEach((spec, k) => {
-      const text = spec.type ? /^str/.test(spec.type) : false,
-        values = rows.map((row) => {
-          const cell = row[k];
-          if (text) return cell?.text ?? "";
-          if (!cell) return this.scalar(".");
-          const value = this.scalar(cell.text);
-          if (typeof value === "string")
-            throw new StataError(
-              `'${cell.text}' cannot be read as a number`,
-              198,
-            );
-          return value;
-        });
-      if (fresh.length)
-        this.data.generate(spec.name, values, {
-          type: spec.type && spec.type !== "str" ? spec.type : undefined,
-          string: text,
-        });
-      else {
-        const all = Array.from(this.data.get(spec.name).data);
-        values.forEach((v, i) => (all[start + i] = v));
-        this.data.replace(
+      const values = rows.map((row) => row[k]);
+      if (continuing) {
+        // Values are stored as the variable's type holds them.
+        const variable = data.get(spec.name),
+          held = text[k]
+            ? values.map((v) => truncateBytes(v, stringWidth(variable.type)))
+            : values.map((v) => coerce(variable.type, v)),
+          all = Array.from(variable.data);
+        held.forEach((v, i) => (all[start + i] = v));
+        data.replace(
           spec.name,
           all,
-          values.map((_, i) => start + i),
+          held.map((_, i) => start + i),
         );
+      } else {
+        data.generate(spec.name, values, {
+          type: spec.type ?? undefined,
+          string: text[k],
+        });
+        const variable = data.get(spec.name);
+        if (spec.label) {
+          variable.valueLabel = spec.label;
+          // automatic widens the display format to its longest label.
+          const longest = greatest(
+            [...(data.valueLabels.get(spec.label)?.values() ?? [])].map(
+              byteLength,
+            ),
+          );
+          if (options.automatic && longest > width(spec))
+            variable.format = `%${longest}.0g`;
+        }
       }
     });
-    this.record(output, node.text, [], 0);
+    this.record(output, node.text, lines, 0);
+    // Rows past the observations are commands, and so is end.
+    if (adding)
+      for (const extra of [...node.rows.slice(r), "end"])
+        this.runLine(extra, frame, output);
   }
+}
+
+/**
+ * The values on a row of input: words apart at blanks, a quoted string as
+ * one, and a comma or parenthesis a word of its own.
+ */
+function inputWords(text) {
+  const out = [];
+  let i = 0;
+  while (i < text.length) {
+    if (/\s/.test(text[i])) {
+      i++;
+      continue;
+    }
+    if (text[i] === "`" && text[i + 1] === '"') {
+      const end = text.indexOf("\"'", i + 2),
+        j = end < 0 ? text.length : end;
+      out.push({ text: text.slice(i + 2, j), quoted: true });
+      i = j + 2;
+    } else if (text[i] === '"') {
+      const end = text.indexOf('"', i + 1),
+        j = end < 0 ? text.length : end;
+      out.push({ text: text.slice(i + 1, j), quoted: true });
+      i = j + 1;
+    } else if (",()".includes(text[i])) out.push({ text: text[i++] });
+    else {
+      let j = i;
+      while (j < text.length && !/[\s,()"]/.test(text[j])) j++;
+      out.push({ text: text.slice(i, j) });
+      i = j;
+    }
+  }
+  return out;
 }
