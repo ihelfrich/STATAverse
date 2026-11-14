@@ -4,7 +4,8 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
-import { count, labelled, moments } from "./reports.js";
+import { count, moments } from "./reports.js";
+import { mean } from "./tables.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -21,63 +22,7 @@ function numeric(session, names) {
   });
 }
 
-function mean(session, text, ctx) {
-  const parsed = session.parse(
-      "varlist [if] [in] [, Level(cilevel) OVer(varname) | VCE(string)]",
-      text,
-    ),
-    level = parsed.options.level,
-    variables = numeric(session, parsed.varlist),
-    // mean uses the observations complete on every variable named.
-    rows = session
-      .rows(parsed, null)
-      .filter((i) => variables.every((v) => !isMissing(v.data[i]))),
-    n = rows.length;
-  if (!n) throw new StataError("no observations", 2000);
-  const critical = invttail(n - 1, (1 - level / 100) / 2),
-    rule = "-".repeat(62);
-  ctx.out("");
-  ctx.out(`Mean estimation${`Number of obs = ${count(n)}`.padStart(47)}`);
-  ctx.out("");
-  ctx.out(rule);
-  ctx.out(
-    `             |       Mean   Std. err.     [${g(level)}% conf. interval]`,
-  );
-  ctx.out("-------------+------------------------------------------------");
-  const line = (label, m) => {
-    const se = m.sd / Math.sqrt(m.n);
-    return `${label}|${g(m.mean).padStart(11)}${g(se).padStart(11)}${g(m.mean - critical * se).padStart(14)}${g(m.mean + critical * se).padStart(12)}`;
-  };
-  if (parsed.options.over) {
-    if (variables.length > 1)
-      throw new StataError("mean with over() takes one variable here", 198);
-    const over = session.data.get(session.varlist(parsed.options.over)[0]),
-      levels = [...new Set(rows.map((i) => over.data[i]))]
-        .filter((v) => (typeof v === "string" ? v !== "" : !isMissing(v)))
-        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-    ctx.out(`${`c.${variables[0].name}@${over.name}`.padStart(12)} |`);
-    for (const level of levels)
-      ctx.out(
-        line(
-          `${labelled(session, over, level)}  `.padStart(13),
-          moments(
-            rows
-              .filter((i) => over.data[i] === level)
-              .map((i) => variables[0].data[i]),
-          ),
-        ),
-      );
-  } else
-    for (const variable of variables)
-      ctx.out(
-        line(
-          `${variable.name.padStart(12)} `,
-          moments(rows.map((i) => variable.data[i])),
-        ),
-      );
-  ctx.out(rule);
-  ctx.out("");
-}
+// mean is in tables.js with proportion, whose weights it shares.
 
 function ci(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);

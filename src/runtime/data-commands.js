@@ -287,13 +287,17 @@ function merge(session, text, ctx) {
   for (const variable of data.variables) {
     const text = isStringType(variable.type),
       theirs = other.has(variable.name) ? other.get(variable.name) : null,
-      shared = theirs && isStringType(theirs.type) === text,
+      shared =
+        theirs &&
+        isStringType(theirs.type) === text &&
+        (keys.includes(variable.name) || wanted.includes(variable.name)),
       type =
         shared && keys.includes(variable.name)
           ? widerType(variable.type, theirs.type)
           : variable.type,
       // A row with a master observation keeps the master's values; a
-      // using-only row takes shared variables from the using data.
+      // using-only row takes shared variables from the using data (a key,
+      // or a variable keepusing() keeps; the others are missing there).
       values = all.map((row) =>
         row.master !== null
           ? variable.data[row.master]
@@ -331,12 +335,16 @@ function merge(session, text, ctx) {
       result.valueLabels.set(name, new Map(map));
   if (!noMarker) {
     result.generate(marker, all.map(code), { type: "byte" });
+    // Stata defines all five codes, used or not; tabulate sizes its
+    // column from the longest.
     result.valueLabels.set(
       "_merge",
       new Map([
         [1, "Master only (1)"],
         [2, "Using only (2)"],
         [3, "Matched (3)"],
+        [4, "Missing updated (4)"],
+        [5, "Nonmissing conflict (5)"],
       ]),
     );
     Object.assign(result.get(marker), {
