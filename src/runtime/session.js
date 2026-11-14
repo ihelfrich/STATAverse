@@ -222,7 +222,7 @@ export class Session {
     this.results = { r: {}, e: {}, s: {} };
     this.globals = new Map();
     this.programs = new Map();
-    this.settings = { level: 95, seed: 123456789 };
+    this.settings = { level: 95, seed: 123456789, linesize: 79 };
     this.preserved = [];
     this.rc = 0;
     this.steps = 0;

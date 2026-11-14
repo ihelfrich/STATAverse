@@ -124,6 +124,8 @@ for (const c of fixture.cases)
             "table-unlabelled-levels-and-one-level-factors",
             "constraint-lines-wrapped",
             "table-width-xtreg-and-resampling",
+            "redteam5-estimates-table-equations",
+            "redteam5-estat-vce-equations",
           ].includes(c.id),
         )
       )

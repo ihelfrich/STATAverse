@@ -100,7 +100,7 @@ desc|labor||misstable patterns
 desc|labor||centile wage, centile(10 50 90)
 desc|labor||ci means wage, level(90)
 desc|labor||ci proportions union
-desc|labor||ci wage
+desc|labor||ci means wage
 desc|labor||mean wage, over(female)
 desc|labor||proportion union
 desc|labor||levelsof region

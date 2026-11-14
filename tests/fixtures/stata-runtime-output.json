@@ -50169,6 +50169,2203 @@
       ]
     },
     {
+      "id": "redteam5-stub-linesize-79",
+      "source": "set seed 4101\nset obs 600\ngenerate g = 1 + floor(runiform() * 4)\nlabel define gl5 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"Twenty characters xx\"\nlabel values g gl5\nset linesize 79\ngenerate x = runiform() * 40 + 20\ngenerate averyveryverylongname = runiform()\ngenerate y = 1000 * g + 20 * x + 500 * invnormal(runiform())\ndisplay c(linesize)\nregress y x i.g\nregress y x i.g averyveryverylongname\nregress y x i.g, vce(robust)\nregress y c.x##i.g\nset linesize 80\nregress y x i.g averyveryverylongname\nset linesize 120\nregress y x i.g\nset linesize 200\n",
+      "commands": [
+        { "command": "set seed 4101", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        {
+          "command": "label define gl5 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"Twenty characters xx\"",
+          "lines": []
+        },
+        { "command": "label values g gl5", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "generate x = runiform() * 40 + 20", "lines": [] },
+        {
+          "command": "generate averyveryverylongname = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate y = 1000 * g + 20 * x + 500 * invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "display c(linesize)", "lines": ["79"] },
+        {
+          "command": "regress y x i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(4, 595)       =    779.50",
+            "       Model |   783179133         4   195794783   Prob > F        =    0.0000",
+            "    Residual |   149452840       595  251181.244   R-squared       =    0.8398",
+            "-------------+----------------------------------   Adj R-squared   =    0.8387",
+            "       Total |   932631973       599  1556981.59   Root MSE        =    501.18",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   21.03729   1.750642    12.02   0.000      17.5991    24.47548",
+            "             |",
+            "           g |",
+            "High school  |   1020.589   56.04748    18.21   0.000     910.5144    1130.664",
+            "Some coll..  |   1924.135   57.22529    33.62   0.000     1811.747    2036.523",
+            "Twenty ch..  |   3013.878   57.69702    52.24   0.000     2900.563    3127.192",
+            "             |",
+            "       _cons |   964.7792   78.84416    12.24   0.000     809.9325    1119.626",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x i.g averyveryverylongname",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(5, 594)       =    623.04",
+            "       Model |   783278354         5   156655671   Prob > F        =    0.0000",
+            "    Residual |   149353619       594  251437.069   R-squared       =    0.8399",
+            "-------------+----------------------------------   Adj R-squared   =    0.8385",
+            "       Total |   932631973       599  1556981.59   Root MSE        =    501.44",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   21.09944   1.754325    12.03   0.000       17.654    24.54487",
+            "             |",
+            "           g |",
+            "High school  |   1020.729   56.07645    18.20   0.000     910.5966    1130.861",
+            "Some coll..  |   1923.534    57.2624    33.59   0.000     1811.073    2035.996",
+            "Twenty ch..  |   3014.293   57.73018    52.21   0.000     2900.913    3127.673",
+            "             |",
+            "averyveryv~e |   44.27293    70.4777     0.63   0.530    -94.14287    182.6887",
+            "       _cons |   939.6403   88.45456    10.62   0.000     765.9186    1113.362",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x i.g, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =        600",
+            "                                                F(4, 595)         =     756.42",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.8398",
+            "                                                Root MSE          =     501.18",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   21.03729   1.857328    11.33   0.000     17.38957      24.685",
+            "             |",
+            "           g |",
+            "High school  |   1020.589    56.0156    18.22   0.000      910.577    1130.602",
+            "Some coll..  |   1924.135   58.23971    33.04   0.000     1809.754    2038.515",
+            "Twenty ch..  |   3013.878   58.66498    51.37   0.000     2898.662    3129.093",
+            "             |",
+            "       _cons |   964.7792   84.00644    11.48   0.000      799.794    1129.764",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y c.x##i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(7, 592)       =    446.30",
+            "       Model |   784057782         7   112008255   Prob > F        =    0.0000",
+            "    Residual |   148574191       592  250969.918   R-squared       =    0.8407",
+            "-------------+----------------------------------   Adj R-squared   =    0.8388",
+            "       Total |   932631973       599  1556981.59   Root MSE        =    500.97",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   24.54728   3.230384     7.60   0.000     18.20287    30.89168",
+            "             |",
+            "           g |",
+            "High school  |   1175.016   200.5662     5.86   0.000      781.108    1568.924",
+            "Some coll..  |   2004.178   204.5717     9.80   0.000     1602.403    2405.952",
+            "Twenty ch..  |   3356.634   197.1373    17.03   0.000      2969.46    3743.807",
+            "             |",
+            "       g#c.x |",
+            "High school  |  -3.921804   4.824354    -0.81   0.417    -13.39674    5.553128",
+            "Some coll..  |  -2.106248   4.873359    -0.43   0.666    -11.67742    7.464928",
+            "Twenty ch..  |  -8.780052   4.826826    -1.82   0.069    -18.25984    .6997354",
+            "             |",
+            "       _cons |   827.0144   132.5507     6.24   0.000     566.6876    1087.341",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "regress y x i.g averyveryverylongname",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(5, 594)       =    623.04",
+            "       Model |   783278354         5   156655671   Prob > F        =    0.0000",
+            "    Residual |   149353619       594  251437.069   R-squared       =    0.8399",
+            "-------------+----------------------------------   Adj R-squared   =    0.8385",
+            "       Total |   932631973       599  1556981.59   Root MSE        =    501.44",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   21.09944   1.754325    12.03   0.000       17.654    24.54487",
+            "              |",
+            "            g |",
+            " High school  |   1020.729   56.07645    18.20   0.000     910.5966    1130.861",
+            "Some college  |   1923.534    57.2624    33.59   0.000     1811.073    2035.996",
+            "Twenty cha..  |   3014.293   57.73018    52.21   0.000     2900.913    3127.673",
+            "              |",
+            "averyveryve~e |   44.27293    70.4777     0.63   0.530    -94.14287    182.6887",
+            "        _cons |   939.6403   88.45456    10.62   0.000     765.9186    1113.362",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 120", "lines": [] },
+        {
+          "command": "regress y x i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       600",
+            "-------------+----------------------------------   F(4, 595)       =    779.50",
+            "       Model |   783179133         4   195794783   Prob > F        =    0.0000",
+            "    Residual |   149452840       595  251181.244   R-squared       =    0.8398",
+            "-------------+----------------------------------   Adj R-squared   =    0.8387",
+            "       Total |   932631973       599  1556981.59   Root MSE        =    501.18",
+            "",
+            "---------------------------------------------------------------------------------------",
+            "                    y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "----------------------+----------------------------------------------------------------",
+            "                    x |   21.03729   1.750642    12.02   0.000      17.5991    24.47548",
+            "                      |",
+            "                    g |",
+            "         High school  |   1020.589   56.04748    18.21   0.000     910.5144    1130.664",
+            "        Some college  |   1924.135   57.22529    33.62   0.000     1811.747    2036.523",
+            "Twenty characters xx  |   3013.878   57.69702    52.24   0.000     2900.563    3127.192",
+            "                      |",
+            "                _cons |   964.7792   78.84416    12.24   0.000     809.9325    1119.626",
+            "---------------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam5-regress-huge-statistics",
+      "source": "set seed 4102\nset obs 2000\ngenerate x = runiform()\ngenerate y = 2 * x + 0.001 * invnormal(runiform())\ngenerate w = 1 + floor(runiform() * 3)\ngenerate w2 = runiform() / 3\ngenerate w3 = runiform() * 1000\nregress y x\nregress y x, vce(robust)\nregress y x [aweight = w]\nregress y x [aweight = w2]\nregress y x [aweight = w3]\nregress y x [pweight = w2]\nsummarize y x [aweight = w3]\nsummarize y x [aweight = w2]\nsummarize y [aweight = w]\n",
+      "commands": [
+        { "command": "set seed 4102", "lines": [] },
+        {
+          "command": "set obs 2000",
+          "lines": ["Number of observations (_N) was 0, now 2,000."]
+        },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = 2 * x + 0.001 * invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate w = 1 + floor(runiform() * 3)", "lines": [] },
+        { "command": "generate w2 = runiform() / 3", "lines": [] },
+        { "command": "generate w3 = runiform() * 1000", "lines": [] },
+        {
+          "command": "regress y x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =     2,000",
+            "-------------+----------------------------------   F(1, 1998)      >  99999.00",
+            "       Model |  635.478829         1  635.478829   Prob > F        =    0.0000",
+            "    Residual |  .002084541     1,998  1.0433e-06   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  635.480913     1,999  .317899406   Root MSE        =    .00102",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.000003    .000081  2.5e+04   0.000     1.999844    2.000162",
+            "       _cons |   8.71e-06    .000047     0.19   0.853    -.0000834    .0001008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =      2,000",
+            "                                                F(1, 1998)        >   99999.00",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     1.0000",
+            "                                                Root MSE          =     .00102",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.000003    .000081  2.5e+04   0.000     1.999844    2.000162",
+            "       _cons |   8.71e-06    .000047     0.19   0.853    -.0000835     .000101",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x [aweight = w]",
+          "lines": [
+            "(sum of wgt is 4,031)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =     2,000",
+            "-------------+----------------------------------   F(1, 1998)      >  99999.00",
+            "       Model |  628.726634         1  628.726634   Prob > F        =    0.0000",
+            "    Residual |  .002074161     1,998  1.0381e-06   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  628.728708     1,999  .314521615   Root MSE        =    .00102",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.999995   .0000813  2.5e+04   0.000     1.999835    2.000154",
+            "       _cons |   .0000144    .000047     0.31   0.759    -.0000777    .0001066",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x [aweight = w2]",
+          "lines": [
+            "(sum of wgt is 335.2161735230766)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =     2,000",
+            "-------------+----------------------------------   F(1, 1998)      >  99999.00",
+            "       Model |  630.869504         1  630.869504   Prob > F        =    0.0000",
+            "    Residual |  .002032478     1,998  1.0173e-06   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  630.871536     1,999  .315593565   Root MSE        =    .00101",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.000054   .0000803  2.5e+04   0.000     1.999896    2.000211",
+            "       _cons |  -.0000221   .0000464    -0.48   0.633     -.000113    .0000688",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x [aweight = w3]",
+          "lines": [
+            "(sum of wgt is 1,015,560.7979076)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =     2,000",
+            "-------------+----------------------------------   F(1, 1998)      >  99999.00",
+            "       Model |  633.796533         1  633.796533   Prob > F        =    0.0000",
+            "    Residual |  .002074597     1,998  1.0383e-06   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  633.798608     1,999  .317057833   Root MSE        =    .00102",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.999985    .000081  2.5e+04   0.000     1.999826    2.000144",
+            "       _cons |   .0000279   .0000464     0.60   0.547     -.000063    .0001189",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x [pweight = w2]",
+          "lines": [
+            "(sum of wgt is 335.2161735230766)",
+            "",
+            "Linear regression                               Number of obs     =      2,000",
+            "                                                F(1, 1998)        >   99999.00",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     1.0000",
+            "                                                Root MSE          =     .00101",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.000054   .0000929  2.2e+04   0.000     1.999872    2.000236",
+            "       _cons |  -.0000221   .0000533    -0.42   0.678    -.0001266    .0000823",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "summarize y x [aweight = w3]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "           y |   2,000   1015560.8    .9976363   .5630789   .0005775    1.99509",
+            "           x |   2,000   1015560.8     .498808   .2815411   .0001506   .9971365"
+          ]
+        },
+        {
+          "command": "summarize y x [aweight = w2]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "           y |   2,000  335.216174    1.008433   .5617771   .0005775    1.99509",
+            "           x |   2,000  335.216174    .5042142   .2808806   .0001506   .9971365"
+          ]
+        },
+        {
+          "command": "summarize y [aweight = w]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "           y |   2,000        4031    1.011886   .5608223   .0005775    1.99509"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5-ci-formats",
+      "source": "set seed 4103\nset obs 120\ngenerate double inc = 50000 + 20000 * runiform()\nformat inc %12.2fc\ngenerate price = 100 * runiform()\nformat price %8.2f\ngenerate big = 1e7 * runiform()\nformat big %12.3f\ngenerate odd = runiform()\nformat odd %12.10f\ngenerate d = 20000 + floor(100 * runiform())\nformat d %td\ngenerate averyveryverylongname = runiform()\ngenerate int k = floor(10 * runiform())\nci means inc price big odd d averyveryverylongname k\nci means inc, level(99.5)\nci means price, level(90)\nci means inc price big odd d k, separator(2)\ncapture noisily ci inc price\ngenerate byte grp = runiform() < .3\nsdtest price, by(grp)\nsdtest price == 30\nsdtest price in 1/40, by(grp)\n",
+      "commands": [
+        { "command": "set seed 4103", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        {
+          "command": "generate double inc = 50000 + 20000 * runiform()",
+          "lines": []
+        },
+        { "command": "format inc %12.2fc", "lines": [] },
+        { "command": "generate price = 100 * runiform()", "lines": [] },
+        { "command": "format price %8.2f", "lines": [] },
+        { "command": "generate big = 1e7 * runiform()", "lines": [] },
+        { "command": "format big %12.3f", "lines": [] },
+        { "command": "generate odd = runiform()", "lines": [] },
+        { "command": "format odd %12.10f", "lines": [] },
+        {
+          "command": "generate d = 20000 + floor(100 * runiform())",
+          "lines": []
+        },
+        { "command": "format d %td", "lines": [] },
+        {
+          "command": "generate averyveryverylongname = runiform()",
+          "lines": []
+        },
+        { "command": "generate int k = floor(10 * runiform())", "lines": [] },
+        {
+          "command": "ci means inc price big odd d averyveryverylongname k",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "         inc |        120   59,796.94      543.23       58,721.29   60,872.58",
+            "       price |        120       49.88        2.48           44.96       54.79",
+            "         big |        120    5.14e+06    2.62e+05        4.62e+06    5.66e+06",
+            "         odd |        120           0           0               0           1",
+            "           d |        120    20053.27    2.734768        20047.85    20058.68",
+            "-------------+---------------------------------------------------------------",
+            "averyveryv~e |        120    .4533652    .0262956        .4012973    .5054331",
+            "           k |        120    4.141667    .2539039        3.638912    4.644422"
+          ]
+        },
+        {
+          "command": "ci means inc, level(99.5)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.     [99.5% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "         inc |        120   59,796.94      543.23       58,243.13   61,350.74"
+          ]
+        },
+        {
+          "command": "ci means price, level(90)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [90% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "       price |        120       49.88        2.48           45.76       53.99"
+          ]
+        },
+        {
+          "command": "ci means inc price big odd d k, separator(2)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "         inc |        120   59,796.94      543.23       58,721.29   60,872.58",
+            "       price |        120       49.88        2.48           44.96       54.79",
+            "-------------+---------------------------------------------------------------",
+            "         big |        120    5.14e+06    2.62e+05        4.62e+06    5.66e+06",
+            "         odd |        120           0           0               0           1",
+            "-------------+---------------------------------------------------------------",
+            "           d |        120    20053.27    2.734768        20047.85    20058.68",
+            "           k |        120    4.141667    .2539039        3.638912    4.644422"
+          ]
+        },
+        {
+          "command": "capture noisily ci inc price",
+          "lines": [
+            "you must specify one of means, proportions, or variances following ci"
+          ]
+        },
+        { "command": "generate byte grp = runiform() < .3", "lines": [] },
+        {
+          "command": "sdtest price, by(grp)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       0 |      76    49.11221    3.109446    27.10753    42.91788    55.30655",
+            "       1 |      44    51.19347    4.156404    27.57047    42.81129    59.57566",
+            "---------+--------------------------------------------------------------------",
+            "Combined |     120    49.87534     2.48127    27.18095    44.96218     54.7885",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(0) / sd(1)                                         f =   0.9667",
+            "H0: ratio = 1                                    Degrees of freedom =   75, 43",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.4406         2*Pr(F < f) = 0.8813           Pr(F > f) = 0.5594"
+          ]
+        },
+        {
+          "command": "sdtest price == 30",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "   price |     120    49.87534     2.48127    27.18095    44.96218     54.7885",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(price)                                         c = chi2 =  97.6863",
+            "H0: sd = 30                                      Degrees of freedom =      119",
+            "",
+            "     Ha: sd < 30                 Ha: sd != 30                   Ha: sd > 30",
+            "  Pr(C < c) = 0.0764         2*Pr(C < c) = 0.1527           Pr(C > c) = 0.9236"
+          ]
+        },
+        {
+          "command": "sdtest price in 1/40, by(grp)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       0 |      25    49.35009    6.152313    30.76157    36.65234    62.04784",
+            "       1 |      15    47.95512    7.461838    28.89957    31.95106    63.95917",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      40    48.82697    4.697341    29.70859    39.32571    58.32824",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(0) / sd(1)                                         f =   1.1330",
+            "H0: ratio = 1                                    Degrees of freedom =   24, 14",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.5853         2*Pr(F > f) = 0.8294           Pr(F > f) = 0.4147"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5-tabstat-layouts",
+      "source": "set seed 4104\nset obs 200\ngenerate g = 1 + floor(runiform() * 3)\ngenerate x = round(100 * runiform(), .1)\ngenerate z = floor(10 * runiform())\ngenerate w = 0.5 + runiform()\ngenerate f = 1 + floor(3 * runiform())\nreplace x = . in 5\nreplace g = . in 7\nlabel define tsg5 1 \"Low\" 2 \"Middle income group\" 3 \"High\"\nlabel values g tsg5\nlabel variable g \"Income group\"\ntabstat x [aweight = w], statistics(n sum mean sd var min max range cv semean)\ntabstat x [aweight = w], statistics(skew kurt p1 p5 p10 p25 p50 p75 p90 p95 p99 iqr)\ntabstat x [fweight = f], statistics(n sum mean sd p25 p50 p75 skew kurt)\ntabstat x z [aweight = w], by(g) stats(mean p50)\ntabstat x z, by(g) stats(q iqr) format(%6.2f)\ntabstat x z, by(g) stats(mean sd) columns(statistics)\ntabstat x, by(g) missing\ntabstat x z, by(g) longstub\ntabstat x z, by(g) nototal stats(n mean)\ntabstat x z, stats(mean) format\ntabstat x, stats(sdmean semean median count me v)\ntabstat x z, by(g) same\ntabstat x, by(g) noseparator stats(mean sd)\ntabstat x z, by(g) stats(mean sd) noseparator\nformat x %7.3f\ntabstat x z, format stats(mean sd)\ntabstat x z, format(%12.4f) stats(mean sd)\ngenerate str5 s = cond(g == 1, \"aa\", cond(g == 2, \"bbbbb\", \"c\"))\ntabstat x, by(s)\ngenerate d = 20000 + g\nformat d %td\ntabstat x, by(d)\ngenerate h = g + 0.5\ntabstat x, by(h)\ntabstat x, by(g) varwidth(10)\ntabstat x z, by(g) labelwidth(10) stats(mean)\n",
+      "commands": [
+        { "command": "set seed 4104", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 3)", "lines": [] },
+        { "command": "generate x = round(100 * runiform(), .1)", "lines": [] },
+        { "command": "generate z = floor(10 * runiform())", "lines": [] },
+        { "command": "generate w = 0.5 + runiform()", "lines": [] },
+        { "command": "generate f = 1 + floor(3 * runiform())", "lines": [] },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace g = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "label define tsg5 1 \"Low\" 2 \"Middle income group\" 3 \"High\"",
+          "lines": []
+        },
+        { "command": "label values g tsg5", "lines": [] },
+        { "command": "label variable g \"Income group\"", "lines": [] },
+        {
+          "command": "tabstat x [aweight = w], statistics(n sum mean sd var min max range cv semean)",
+          "lines": [
+            "    Variable |         N       Sum      Mean        SD  Variance       Min       Max     Range        CV  se(mean)",
+            "-------------+----------------------------------------------------------------------------------------------------",
+            "           x |       199  9304.632  47.71005  29.29387  858.1306        .6      99.9      99.3  .6139978  2.076587",
+            "------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x [aweight = w], statistics(skew kurt p1 p5 p10 p25 p50 p75 p90 p95 p99 iqr)",
+          "lines": [
+            "    Variable |  Skewness  Kurtosis        p1        p5       p10       p25       p50       p75       p90       p95       p99       IQR",
+            "-------------+------------------------------------------------------------------------------------------------------------------------",
+            "           x |  .1811172  1.844264         1       4.6         9      23.5      43.3      72.9      91.5      95.7      99.4      49.4",
+            "--------------------------------------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x [fweight = f], statistics(n sum mean sd p25 p50 p75 skew kurt)",
+          "lines": [
+            "    Variable |         N       Sum      Mean        SD       p25       p50       p75  Skewness  Kurtosis",
+            "-------------+------------------------------------------------------------------------------------------",
+            "           x |       410   19972.9  48.71439  28.59067      26.1      44.7      71.7  .1619893  1.932676",
+            "--------------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z [aweight = w], by(g) stats(mean p50)",
+          "lines": [
+            "Summary statistics: Mean, p50",
+            "Group variable: g (Income group)",
+            "",
+            "               g |         x         z",
+            "-----------------+--------------------",
+            "             Low |  51.22235  4.918429",
+            "                 |      44.7         6",
+            "-----------------+--------------------",
+            "Middle income gr |  46.32924  4.280401",
+            "                 |      43.3         4",
+            "-----------------+--------------------",
+            "            High |  46.51787  4.988664",
+            "                 |      41.1         5",
+            "-----------------+--------------------",
+            "           Total |  47.93093  4.709851",
+            "                 |      43.3         5",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) stats(q iqr) format(%6.2f)",
+          "lines": [
+            "Summary statistics: p25, p50, p75, IQR",
+            "Group variable: g (Income group)",
+            "",
+            "               g |         x         z",
+            "-----------------+--------------------",
+            "             Low |     21.40      2.00",
+            "                 |     47.25      6.00",
+            "                 |     79.85      8.00",
+            "                 |     58.45      6.00",
+            "-----------------+--------------------",
+            "Middle income gr |     28.35      2.00",
+            "                 |     45.80      4.50",
+            "                 |     68.75      7.00",
+            "                 |     40.40      5.00",
+            "-----------------+--------------------",
+            "            High |     26.70      2.00",
+            "                 |     43.45      5.00",
+            "                 |     70.90      8.00",
+            "                 |     44.20      6.00",
+            "-----------------+--------------------",
+            "           Total |     24.50      2.00",
+            "                 |     45.40      5.00",
+            "                 |     73.80      7.00",
+            "                 |     49.30      5.00",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) stats(mean sd) columns(statistics)",
+          "lines": [
+            "Summary for variables: x z",
+            "Group variable: g (Income group)",
+            "",
+            "               g |      Mean        SD",
+            "-----------------+--------------------",
+            "             Low |  51.63125  31.88528",
+            "                 |  4.984615  2.847654",
+            "-----------------+--------------------",
+            "Middle income gr |  48.14167  26.65878",
+            "                 |  4.319444  2.772228",
+            "-----------------+--------------------",
+            "            High |  47.30323  29.20447",
+            "                 |  4.983871  2.966987",
+            "-----------------+--------------------",
+            "           Total |  49.00707  29.13394",
+            "                 |  4.743719  2.862091",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x, by(g) missing",
+          "lines": [
+            "Summary for variables: x",
+            "Group variable: g (Income group)",
+            "",
+            "               g |      Mean",
+            "-----------------+----------",
+            "             Low |  51.63125",
+            "Middle income gr |  48.14167",
+            "            High |  47.30323",
+            "               . |       1.3",
+            "-----------------+----------",
+            "           Total |  48.76734",
+            "----------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) longstub",
+          "lines": [
+            "g                   Stats |         x         z",
+            "--------------------------+--------------------",
+            "Low                  Mean |  51.63125  4.984615",
+            "Middle income gr     Mean |  48.14167  4.319444",
+            "High                 Mean |  47.30323  4.983871",
+            "--------------------------+--------------------",
+            "Total                Mean |  49.00707  4.743719",
+            "-----------------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) nototal stats(n mean)",
+          "lines": [
+            "Summary statistics: N, Mean",
+            "Group variable: g (Income group)",
+            "",
+            "               g |         x         z",
+            "-----------------+--------------------",
+            "             Low |        64        65",
+            "                 |  51.63125  4.984615",
+            "-----------------+--------------------",
+            "Middle income gr |        72        72",
+            "                 |  48.14167  4.319444",
+            "-----------------+--------------------",
+            "            High |        62        62",
+            "                 |  47.30323  4.983871",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, stats(mean) format",
+          "lines": [
+            "   Stats |         x         z",
+            "---------+--------------------",
+            "    Mean |  48.76734     4.765",
+            "------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x, stats(sdmean semean median count me v)",
+          "lines": [
+            "    Variable |  se(mean)  se(mean)       p50         N      Mean  Variance",
+            "-------------+------------------------------------------------------------",
+            "           x |  2.073931  2.073931      45.2       199  48.76734  855.9365",
+            "--------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) same",
+          "lines": [
+            "Summary statistics: Mean",
+            "Group variable: g (Income group)",
+            "",
+            "               g |         x         z",
+            "-----------------+--------------------",
+            "             Low |  51.63125    4.9375",
+            "Middle income gr |  48.14167  4.319444",
+            "            High |  47.30323  4.983871",
+            "-----------------+--------------------",
+            "           Total |  49.00707  4.727273",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x, by(g) noseparator stats(mean sd)",
+          "lines": [
+            "Summary for variables: x",
+            "Group variable: g (Income group)",
+            "",
+            "               g |      Mean        SD",
+            "-----------------+--------------------",
+            "             Low |  51.63125  31.88528",
+            "Middle income gr |  48.14167  26.65878",
+            "            High |  47.30323  29.20447",
+            "-----------------+--------------------",
+            "           Total |  49.00707  29.13394",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) stats(mean sd) noseparator",
+          "lines": [
+            "Summary statistics: Mean, SD",
+            "Group variable: g (Income group)",
+            "",
+            "               g |         x         z",
+            "-----------------+--------------------",
+            "             Low |  51.63125  4.984615",
+            "                 |  31.88528  2.847654",
+            "Middle income gr |  48.14167  4.319444",
+            "                 |  26.65878  2.772228",
+            "            High |  47.30323  4.983871",
+            "                 |  29.20447  2.966987",
+            "-----------------+--------------------",
+            "           Total |  49.00707  4.743719",
+            "                 |  29.13394  2.862091",
+            "--------------------------------------"
+          ]
+        },
+        { "command": "format x %7.3f", "lines": [] },
+        {
+          "command": "tabstat x z, format stats(mean sd)",
+          "lines": [
+            "   Stats |         x         z",
+            "---------+--------------------",
+            "    Mean |    48.767     4.765",
+            "      SD |    29.256  2.870711",
+            "------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, format(%12.4f) stats(mean sd)",
+          "lines": [
+            "   Stats |            x            z",
+            "---------+--------------------------",
+            "    Mean |      48.7673       4.7650",
+            "      SD |      29.2564       2.8707",
+            "------------------------------------"
+          ]
+        },
+        {
+          "command": "generate str5 s = cond(g == 1, \"aa\", cond(g == 2, \"bbbbb\", \"c\"))",
+          "lines": []
+        },
+        {
+          "command": "tabstat x, by(s)",
+          "lines": [
+            "Summary for variables: x",
+            "Group variable: s",
+            "",
+            "     s |      Mean",
+            "-------+----------",
+            "    aa |  51.63125",
+            " bbbbb |  48.14167",
+            "     c |  46.57302",
+            "-------+----------",
+            " Total |  48.76734",
+            "------------------"
+          ]
+        },
+        {
+          "command": "generate d = 20000 + g",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "format d %td", "lines": [] },
+        {
+          "command": "tabstat x, by(d)",
+          "lines": [
+            "Summary for variables: x",
+            "Group variable: d",
+            "",
+            "        d |      Mean",
+            "----------+----------",
+            "05oct2014 |  51.63125",
+            "06oct2014 |  48.14167",
+            "07oct2014 |  47.30323",
+            "----------+----------",
+            "    Total |  49.00707",
+            "---------------------"
+          ]
+        },
+        {
+          "command": "generate h = g + 0.5",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "tabstat x, by(h)",
+          "lines": [
+            "Summary for variables: x",
+            "Group variable: h",
+            "",
+            "       h |      Mean",
+            "---------+----------",
+            "     1.5 |  51.63125",
+            "     2.5 |  48.14167",
+            "     3.5 |  47.30323",
+            "---------+----------",
+            "   Total |  49.00707",
+            "--------------------"
+          ]
+        },
+        {
+          "command": "tabstat x, by(g) varwidth(10)",
+          "lines": [
+            "g                  Variable |      Mean",
+            "----------------------------+----------",
+            "Low                       x |  51.63125",
+            "Middle income gr          x |  48.14167",
+            "High                      x |  47.30323",
+            "----------------------------+----------",
+            "Total                     x |  49.00707",
+            "---------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x z, by(g) labelwidth(10) stats(mean)",
+          "lines": [
+            "Summary statistics: Mean",
+            "Group variable: g (Income group)",
+            "",
+            "         g |         x         z",
+            "-----------+--------------------",
+            "       Low |  51.63125  4.984615",
+            "Middle inc |  48.14167  4.319444",
+            "      High |  47.30323  4.983871",
+            "-----------+--------------------",
+            "     Total |  49.00707  4.743719",
+            "--------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5-estimates-table-factors",
+      "source": "set seed 4105\nset obs 300\ngenerate g = 1 + floor(runiform() * 4)\ngenerate h = floor(runiform() * 3)\ngenerate x = runiform()\ngenerate z = runiform()\ngenerate y = g + h + x + invnormal(runiform())\nlabel define etg5 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"BA+\"\nlabel values g etg5\nregress y x i.g\nestimates store a\nregress y x i.g i.h c.x#i.h\nestimates store b\nregress y z x i.h\nestimates store e\nestimates table a b\nestimates table a b, se stats(N r2)\nestimates table b, star\nestimates table a e b, stats(N r2_a ll)\nestimates table a b, b(%7.2f) se(%7.2f) stats(N)\nestimates table a b, star(.1 .05 .01) b(%7.3f)\nestimates table\nregress y x i.h\nestimates table\nestimates table .\n",
+      "commands": [
+        { "command": "set seed 4105", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        { "command": "generate h = floor(runiform() * 3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        {
+          "command": "generate y = g + h + x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "label define etg5 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"BA+\"",
+          "lines": []
+        },
+        { "command": "label values g etg5", "lines": [] },
+        {
+          "command": "regress y x i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(4, 295)       =     55.89",
+            "       Model |  379.772585         4  94.9431463   Prob > F        =    0.0000",
+            "    Residual |  501.116884       295   1.6987013   R-squared       =    0.4311",
+            "-------------+----------------------------------   Adj R-squared   =    0.4234",
+            "       Total |   880.88947       299  2.94611863   Root MSE        =    1.3033",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   .5746508   .2618103     2.19   0.029     .0593982    1.089903",
+            "              |",
+            "            g |",
+            " High school  |   1.030643    .220128     4.68   0.000     .5974227    1.463863",
+            "Some college  |   2.035777   .2054935     9.91   0.000     1.631358    2.440196",
+            "         BA+  |   2.961264   .2122911    13.95   0.000     2.543467    3.379061",
+            "              |",
+            "        _cons |   2.167483   .1939629    11.17   0.000     1.785757    2.549209",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store a", "lines": [] },
+        {
+          "command": "regress y x i.g i.h c.x#i.h",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(8, 291)       =     71.65",
+            "       Model |  584.273472         8  73.0341839   Prob > F        =    0.0000",
+            "    Residual |  296.615998       291  1.01929896   R-squared       =    0.6633",
+            "-------------+----------------------------------   Adj R-squared   =    0.6540",
+            "       Total |   880.88947       299  2.94611863   Root MSE        =    1.0096",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   .3499041   .3418233     1.02   0.307    -.3228553    1.022664",
+            "              |",
+            "            g |",
+            " High school  |   1.027239   .1714071     5.99   0.000     .6898845    1.364594",
+            "Some college  |   2.046703   .1594232    12.84   0.000     1.732934    2.360471",
+            "         BA+  |   2.956578   .1656159    17.85   0.000     2.630621    3.282534",
+            "              |",
+            "            h |",
+            "           1  |   .5108363   .3007179     1.70   0.090    -.0810216    1.102694",
+            "           2  |   1.825209   .2904485     6.28   0.000     1.253563    2.396855",
+            "              |",
+            "        h#c.x |",
+            "           1  |   .8960333   .4954695     1.81   0.072    -.0791248    1.871191",
+            "           2  |    .236233   .4914803     0.48   0.631    -.7310737     1.20354",
+            "              |",
+            "        _cons |   1.272775   .2294635     5.55   0.000     .8211567    1.724394",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store b", "lines": [] },
+        {
+          "command": "regress y z x i.h",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(4, 295)       =     23.00",
+            "       Model |   209.40515         4  52.3512874   Prob > F        =    0.0000",
+            "    Residual |   671.48432       295  2.27621803   R-squared       =    0.2377",
+            "-------------+----------------------------------   Adj R-squared   =    0.2274",
+            "       Total |   880.88947       299  2.94611863   Root MSE        =    1.5087",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           z |   -.148889   .3104337    -0.48   0.632    -.7598344    .4620564",
+            "           x |   .7764391   .3016189     2.57   0.011     .1828415    1.370037",
+            "             |",
+            "           h |",
+            "          1  |   1.170083   .2201201     5.32   0.000     .7368784    1.603288",
+            "          2  |   1.949432   .2092581     9.32   0.000     1.537604     2.36126",
+            "             |",
+            "       _cons |   2.585944   .2646005     9.77   0.000       2.0652    3.106688",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store e", "lines": [] },
+        {
+          "command": "estimates table a b",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     a            b",
+            "-------------+--------------------------",
+            "           x |  .57465084    .34990413",
+            "             |",
+            "           g |",
+            "          2  |  1.0306429    1.0272393",
+            "          3  |  2.0357766    2.0467026",
+            "          4  |  2.9612638    2.9565775",
+            "             |",
+            "           h |",
+            "          1  |                .5108363",
+            "          2  |               1.8252091",
+            "             |",
+            "       h#c.x |",
+            "          1  |               .89603332",
+            "          2  |                 .236233",
+            "             |",
+            "       _cons |  2.1674829    1.2727751",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table a b, se stats(N r2)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     a            b",
+            "-------------+--------------------------",
+            "           x |  .57465084    .34990413",
+            "             |  .26181028    .34182332",
+            "             |",
+            "           g |",
+            "          2  |  1.0306429    1.0272393",
+            "             |    .220128    .17140708",
+            "          3  |  2.0357766    2.0467026",
+            "             |  .20549352     .1594232",
+            "          4  |  2.9612638    2.9565775",
+            "             |   .2122911    .16561585",
+            "             |",
+            "           h |",
+            "          1  |                .5108363",
+            "             |               .30071793",
+            "          2  |               1.8252091",
+            "             |               .29044845",
+            "             |",
+            "       h#c.x |",
+            "          1  |               .89603332",
+            "             |               .49546951",
+            "          2  |                 .236233",
+            "             |               .49148031",
+            "             |",
+            "       _cons |  2.1674829    1.2727751",
+            "             |  .19396291    .22946345",
+            "-------------+--------------------------",
+            "           N |        300          300",
+            "          r2 |  .43112399    .66327671",
+            "----------------------------------------",
+            "                            Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table b, star",
+          "lines": [
+            "------------------------------",
+            "    Variable |       b",
+            "-------------+----------------",
+            "           x |  .34990413",
+            "             |",
+            "           g |",
+            "          2  |  1.0272393***",
+            "          3  |  2.0467026***",
+            "          4  |  2.9565775***",
+            "             |",
+            "           h |",
+            "          1  |   .5108363",
+            "          2  |  1.8252091***",
+            "             |",
+            "       h#c.x |",
+            "          1  |  .89603332",
+            "          2  |    .236233",
+            "             |",
+            "       _cons |  1.2727751***",
+            "------------------------------",
+            "Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table a e b, stats(N r2_a ll)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |     a            e            b",
+            "-------------+---------------------------------------",
+            "           x |  .57465084    .77643906    .34990413",
+            "             |",
+            "           g |",
+            "          2  |  1.0306429                 1.0272393",
+            "          3  |  2.0357766                 2.0467026",
+            "          4  |  2.9612638                 2.9565775",
+            "             |",
+            "           z |                -.148889",
+            "             |",
+            "           h |",
+            "          1  |               1.1700832     .5108363",
+            "          2  |               1.9494321    1.8252091",
+            "             |",
+            "       h#c.x |",
+            "          1  |                            .89603332",
+            "          2  |                              .236233",
+            "             |",
+            "       _cons |  2.1674829    2.5859441    1.2727751",
+            "-------------+---------------------------------------",
+            "           N |        300          300          300",
+            "        r2_a |  .42341042    .22738412    .65401972",
+            "          ll |  -502.6401   -546.53779   -423.97994",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table a b, b(%7.2f) se(%7.2f) stats(N)",
+          "lines": [
+            "----------------------------------",
+            "    Variable |    a         b",
+            "-------------+--------------------",
+            "           x |    0.57      0.35",
+            "             |    0.26      0.34",
+            "             |",
+            "           g |",
+            "          2  |    1.03      1.03",
+            "             |    0.22      0.17",
+            "          3  |    2.04      2.05",
+            "             |    0.21      0.16",
+            "          4  |    2.96      2.96",
+            "             |    0.21      0.17",
+            "             |",
+            "           h |",
+            "          1  |              0.51",
+            "             |              0.30",
+            "          2  |              1.83",
+            "             |              0.29",
+            "             |",
+            "       h#c.x |",
+            "          1  |              0.90",
+            "             |              0.50",
+            "          2  |              0.24",
+            "             |              0.49",
+            "             |",
+            "       _cons |    2.17      1.27",
+            "             |    0.19      0.23",
+            "-------------+--------------------",
+            "           N |     300       300",
+            "----------------------------------",
+            "                      Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table a b, star(.1 .05 .01) b(%7.3f)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     a            b",
+            "-------------+--------------------------",
+            "           x |   0.575**      0.350",
+            "             |",
+            "           g |",
+            "          2  |   1.031***     1.027***",
+            "          3  |   2.036***     2.047***",
+            "          4  |   2.961***     2.957***",
+            "             |",
+            "           h |",
+            "          1  |                0.511*",
+            "          2  |                1.825***",
+            "             |",
+            "       h#c.x |",
+            "          1  |                0.896*",
+            "          2  |                0.236",
+            "             |",
+            "       _cons |   2.167***     1.273***",
+            "----------------------------------------",
+            "     Legend: * p<.1; ** p<.05; *** p<.01"
+          ]
+        },
+        {
+          "command": "estimates table",
+          "lines": [
+            "---------------------------",
+            "    Variable |     e",
+            "-------------+-------------",
+            "           z |   -.148889",
+            "           x |  .77643906",
+            "             |",
+            "           h |",
+            "          1  |  1.1700832",
+            "          2  |  1.9494321",
+            "             |",
+            "       _cons |  2.5859441",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "regress y x i.h",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(3, 296)       =     30.67",
+            "       Model |  208.881548         3  69.6271825   Prob > F        =    0.0000",
+            "    Residual |  672.007922       296  2.27029703   R-squared       =    0.2371",
+            "-------------+----------------------------------   Adj R-squared   =    0.2294",
+            "       Total |   880.88947       299  2.94611863   Root MSE        =    1.5068",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7704305   .3009664     2.56   0.011     .1781253    1.362736",
+            "             |",
+            "           h |",
+            "          1  |    1.16516   .2195945     5.31   0.000     .7329959    1.597324",
+            "          2  |   1.939672   .2079951     9.33   0.000     1.530335    2.349008",
+            "             |",
+            "       _cons |   2.516179   .2207429    11.40   0.000     2.081754    2.950603",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table",
+          "lines": [
+            "---------------------------",
+            "    Variable |   Active",
+            "-------------+-------------",
+            "           x |  .77043046",
+            "             |",
+            "           h |",
+            "          1  |  1.1651602",
+            "          2  |  1.9396716",
+            "             |",
+            "       _cons |  2.5161787",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table .",
+          "lines": [
+            "---------------------------",
+            "    Variable |   Active",
+            "-------------+-------------",
+            "           x |  .77043046",
+            "             |",
+            "           h |",
+            "          1  |  1.1651602",
+            "          2  |  1.9396716",
+            "             |",
+            "       _cons |  2.5161787",
+            "---------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5-estimates-table-equations",
+      "source": "set seed 4106\nset obs 300\ngenerate g = 1 + floor(runiform() * 4)\ngenerate x = runiform()\ngenerate y = g + x + invnormal(runiform())\ngenerate yb = y > 3.5\ngenerate yo = 1 + (y > 2.5) + (y > 4)\nlabel define eqg5 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"BA+\"\nlabel values g eqg5\nregress y x i.g\nestimates store R\nlogit yb x i.g, nolog\nestimates store L\nprobit yb x i.g, nolog\nestimates store P\nestimates table L\nestimates table L P, se\nestimates table R L\nologit yo x i.g, nolog\nestimates store O\nestimates table O\nestimates table R O\ntobit y x i.g, ll(2) nolog\nestimates store T\nestimates table T\nestimates table R T, se\n",
+      "commands": [
+        { "command": "set seed 4106", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = g + x + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate yb = y > 3.5", "lines": [] },
+        { "command": "generate yo = 1 + (y > 2.5) + (y > 4)", "lines": [] },
+        {
+          "command": "label define eqg5 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"BA+\"",
+          "lines": []
+        },
+        { "command": "label values g eqg5", "lines": [] },
+        {
+          "command": "regress y x i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(4, 295)       =     99.82",
+            "       Model |  386.221657         4  96.5554142   Prob > F        =    0.0000",
+            "    Residual |  285.341922       295  .967260752   R-squared       =    0.5751",
+            "-------------+----------------------------------   Adj R-squared   =    0.5693",
+            "       Total |  671.563578       299  2.24603204   Root MSE        =    .98349",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   .7780389   .1969609     3.95   0.000     .3904124    1.165665",
+            "              |",
+            "            g |",
+            " High school  |   1.084815   .1672234     6.49   0.000     .7557131    1.413917",
+            "Some college  |   2.208752   .1597026    13.83   0.000     1.894451    2.523053",
+            "         BA+  |   2.962629   .1588118    18.65   0.000     2.650082    3.275177",
+            "              |",
+            "        _cons |   1.051372   .1536683     6.84   0.000     .7489467    1.353797",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store R", "lines": [] },
+        {
+          "command": "logit yb x i.g, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(4)    = 153.88",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -125.7458                              Pseudo R2     = 0.3796",
+            "",
+            "-------------------------------------------------------------------------------",
+            "           yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   2.083987   .5971719     3.49   0.000     .9135511    3.254422",
+            "              |",
+            "            g |",
+            " High school  |   2.163044   .7871272     2.75   0.006     .6203034    3.705785",
+            "Some college  |   3.703163   .7650709     4.84   0.000     2.203651    5.202674",
+            "         BA+  |   5.675092   .8097825     7.01   0.000     4.087948    7.262237",
+            "              |",
+            "        _cons |  -4.826415   .8277288    -5.83   0.000    -6.448733   -3.204096",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store L", "lines": [] },
+        {
+          "command": "probit yb x i.g, nolog",
+          "lines": [
+            "Probit regression                                       Number of obs =    300",
+            "                                                        LR chi2(4)    = 154.10",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -125.63843                             Pseudo R2     = 0.3801",
+            "",
+            "-------------------------------------------------------------------------------",
+            "           yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   1.216804   .3402944     3.58   0.000     .5498395    1.883769",
+            "              |",
+            "            g |",
+            " High school  |   1.051041   .3567999     2.95   0.003     .3517263    1.750356",
+            "Some college  |   1.978344   .3428647     5.77   0.000     1.306341    2.650346",
+            "         BA+  |   3.163734   .3666144     8.63   0.000     2.445183    3.882285",
+            "              |",
+            "        _cons |   -2.63625   .3792023    -6.95   0.000    -3.379473   -1.893027",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store P", "lines": [] },
+        {
+          "command": "estimates table L",
+          "lines": [
+            "---------------------------",
+            "    Variable |     L",
+            "-------------+-------------",
+            "           x |  2.0839865",
+            "             |",
+            "           g |",
+            "High school  |  2.1630444",
+            "Some coll..  |  3.7031626",
+            "        BA+  |  5.6750921",
+            "             |",
+            "       _cons | -4.8264146",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table L P, se",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     L            P",
+            "-------------+--------------------------",
+            "           x |  2.0839865    1.2168042",
+            "             |  .59717192    .34029435",
+            "             |",
+            "           g |",
+            "High school  |  2.1630444    1.0510412",
+            "             |  .78712719    .35679987",
+            "Some coll..  |  3.7031626    1.9783438",
+            "             |  .76507087    .34286472",
+            "        BA+  |  5.6750921    3.1637342",
+            "             |  .80978245     .3666144",
+            "             |",
+            "       _cons | -4.8264146   -2.6362497",
+            "             |  .82772884    .37920231",
+            "----------------------------------------",
+            "                            Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table R L",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     R            L",
+            "-------------+--------------------------",
+            "_            |",
+            "           x |  .77803892",
+            "             |",
+            "           g |",
+            "High school  |  1.0848151",
+            "Some coll..  |  2.2087521",
+            "        BA+  |  2.9626293",
+            "             |",
+            "       _cons |  1.0513719",
+            "-------------+--------------------------",
+            "yb           |",
+            "           x |               2.0839865",
+            "             |",
+            "           g |",
+            "High school  |               2.1630444",
+            "Some coll..  |               3.7031626",
+            "        BA+  |               5.6750921",
+            "             |",
+            "       _cons |              -4.8264146",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "ologit yo x i.g, nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    300",
+            "                                                        LR chi2(4)    = 214.40",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -220.11586                             Pseudo R2     = 0.3275",
+            "",
+            "-------------------------------------------------------------------------------",
+            "           yo | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   1.806559   .4512845     4.00   0.000     .9220576     2.69106",
+            "              |",
+            "            g |",
+            " High school  |   1.668563   .3911965     4.27   0.000     .9018323    2.435295",
+            "Some college  |   3.947102   .4437647     8.89   0.000     3.077339    4.816865",
+            "         BA+  |   5.427694   .4904463    11.07   0.000     4.466437    6.388951",
+            "--------------+----------------------------------------------------------------",
+            "        /cut1 |    2.45355   .4102306                      1.649513    3.257587",
+            "        /cut2 |   5.538034   .5243797                      4.510269    6.565799",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store O", "lines": [] },
+        {
+          "command": "estimates table O",
+          "lines": [
+            "---------------------------",
+            "    Variable |     O",
+            "-------------+-------------",
+            "yo           |",
+            "           x |   1.806559",
+            "             |",
+            "           g |",
+            "High school  |  1.6685634",
+            "Some coll..  |  3.9471021",
+            "        BA+  |  5.4276938",
+            "-------------+-------------",
+            "       /cut1 |  2.4535497",
+            "       /cut2 |  5.5380339",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table R O",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     R            O",
+            "-------------+--------------------------",
+            "_            |",
+            "           x |  .77803892",
+            "             |",
+            "           g |",
+            "High school  |  1.0848151",
+            "Some coll..  |  2.2087521",
+            "        BA+  |  2.9626293",
+            "             |",
+            "       _cons |  1.0513719",
+            "-------------+--------------------------",
+            "yo           |",
+            "           x |                1.806559",
+            "             |",
+            "           g |",
+            "High school  |               1.6685634",
+            "Some coll..  |               3.9471021",
+            "        BA+  |               5.4276938",
+            "-------------+--------------------------",
+            "       /cut1 |               2.4535497",
+            "       /cut2 |               5.5380339",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit y x i.g, ll(2) nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    230",
+            "Limits: Lower =    2                                    Left-censored =     70",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(4)        = 246.33",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -356.32958                         Pseudo R2         = 0.2569",
+            "",
+            "-------------------------------------------------------------------------------",
+            "            y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "            x |   .8000082   .1980899     4.04   0.000     .4101652    1.189851",
+            "              |",
+            "            g |",
+            " High school  |   1.038388   .1810629     5.73   0.000     .6820543    1.394722",
+            "Some college  |   2.084708   .1743424    11.96   0.000       1.7416    2.427815",
+            "         BA+  |   2.844796   .1742178    16.33   0.000     2.501933    3.187658",
+            "              |",
+            "        _cons |   1.159327   .1775783     6.53   0.000     .8098507    1.508803",
+            "--------------+----------------------------------------------------------------",
+            "      var(e.y)|   .8756273   .0840876                      .7248392    1.057784",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store T", "lines": [] },
+        {
+          "command": "estimates table T",
+          "lines": [
+            "---------------------------",
+            "    Variable |     T",
+            "-------------+-------------",
+            "y            |",
+            "           x |  .80000823",
+            "             |",
+            "           g |",
+            "High school  |   1.038388",
+            "Some coll..  |  2.0847077",
+            "        BA+  |  2.8447956",
+            "             |",
+            "       _cons |  1.1593266",
+            "-------------+-------------",
+            "     var(e.y)|  .87562728",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table R T, se",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     R            T",
+            "-------------+--------------------------",
+            "_            |",
+            "           x |  .77803892",
+            "             |  .19696087",
+            "             |",
+            "           g |",
+            "High school  |  1.0848151",
+            "             |  .16722337",
+            "Some coll..  |  2.2087521",
+            "             |  .15970261",
+            "        BA+  |  2.9626293",
+            "             |  .15881179",
+            "             |",
+            "       _cons |  1.0513719",
+            "             |  .15366834",
+            "-------------+--------------------------",
+            "y            |",
+            "           x |               .80000823",
+            "             |               .19808987",
+            "             |",
+            "           g |",
+            "High school  |                1.038388",
+            "             |               .18106286",
+            "Some coll..  |               2.0847077",
+            "             |               .17434236",
+            "        BA+  |               2.8447956",
+            "             |               .17421783",
+            "             |",
+            "       _cons |               1.1593266",
+            "             |               .17757827",
+            "-------------+--------------------------",
+            "     var(e.y)|               .87562728",
+            "             |               .08408765",
+            "----------------------------------------",
+            "                            Legend: b/se"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5-estat-vce",
+      "source": "set linesize 79\nset seed 4107\nset obs 300\ngenerate g = 1 + floor(runiform() * 4)\ngenerate h = floor(runiform() * 3)\ngenerate x = runiform()\ngenerate averyveryverylongname = runiform()\ngenerate y = g + h + x + invnormal(runiform())\nregress y x\nestat vce\nregress y c.x##c.x i.g\nestat vce\nestat vce, correlation\nestat vce, format(%9.3f)\nestat vce, covariance\nregress y x averyveryverylongname i.g i.h\nestat vce\nregress y i.g#c.x\nestat vce\nregress y x i.g, vce(robust)\nestat vce\nregress y x, noconstant\nestat vce, corr\nset linesize 120\nregress y c.x##c.x i.g i.h\nestat vce\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "set seed 4107", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        { "command": "generate h = floor(runiform() * 3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate averyveryverylongname = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate y = g + h + x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "regress y x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(1, 298)       =      7.88",
+            "       Model |  23.3700572         1  23.3700572   Prob > F        =    0.0053",
+            "    Residual |  883.562057       298  2.96497334   R-squared       =    0.0258",
+            "-------------+----------------------------------   Adj R-squared   =    0.0225",
+            "       Total |  906.932114       299  3.03321777   Root MSE        =    1.7219",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9434358   .3360415     2.81   0.005     .2821208    1.604751",
+            "       _cons |    3.52631   .1984064    17.77   0.000     3.135855    3.916765",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "        e(V) |          x       _cons",
+            "-------------+-----------------------",
+            "           x |  .11292386",
+            "       _cons | -.05769926    .0393651"
+          ]
+        },
+        {
+          "command": "regress y c.x##c.x i.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(5, 294)       =     45.75",
+            "       Model |  396.858539         5  79.3717077   Prob > F        =    0.0000",
+            "    Residual |  510.073575       294  1.73494413   R-squared       =    0.4376",
+            "-------------+----------------------------------   Adj R-squared   =    0.4280",
+            "       Total |  906.932114       299  3.03321777   Root MSE        =    1.3172",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3194658   1.039962     0.31   0.759    -1.727247    2.366179",
+            "             |",
+            "     c.x#c.x |   .6664471   1.003022     0.66   0.507    -1.307566     2.64046",
+            "             |",
+            "           g |",
+            "          2  |    .986405   .2120289     4.65   0.000     .5691181    1.403692",
+            "          3  |   1.995023   .2255866     8.84   0.000     1.551054    2.438992",
+            "          4  |   2.871421   .2059663    13.94   0.000     2.466066    3.276776",
+            "             |",
+            "       _cons |   2.150346   .2614423     8.22   0.000     1.635811    2.664882",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                    c.x#          2.          3.          4.",
+            "        e(V) |          x         c.x           g           g           g",
+            "-------------+------------------------------------------------------------",
+            "           x |  1.0815203",
+            "     c.x#c.x | -1.0106105   1.0060533",
+            "         2.g |  .00136594   .00191449   .04495627",
+            "         3.g |  .00197741  -.00111798   .02200155    .0508893",
+            "         4.g |  .00580995  -.00436119   .02202388   .02198457   .04242212",
+            "       _cons | -.20270088   .16664423  -.02339466  -.02260119  -.02344423",
+            "",
+            "             |",
+            "        e(V) |      _cons",
+            "-------------+-----------",
+            "       _cons |   .0683521"
+          ]
+        },
+        {
+          "command": "estat vce, correlation",
+          "lines": [
+            "Correlation matrix of coefficients of regress model",
+            "",
+            "             |                c.x#        2.        3.        4.",
+            "        e(V) |        x       c.x         g         g         g     _cons",
+            "-------------+-----------------------------------------------------------",
+            "           x |   1.0000",
+            "     c.x#c.x |  -0.9688    1.0000",
+            "         2.g |   0.0062    0.0090    1.0000",
+            "         3.g |   0.0084   -0.0049    0.4600    1.0000",
+            "         4.g |   0.0271   -0.0211    0.5043    0.4732    1.0000",
+            "       _cons |  -0.7455    0.6355   -0.4220   -0.3832   -0.4354    1.0000"
+          ]
+        },
+        {
+          "command": "estat vce, format(%9.3f)",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                  c.x#         2.         3.         4.",
+            "        e(V) |         x        c.x          g          g          g",
+            "-------------+-------------------------------------------------------",
+            "           x |     1.082",
+            "     c.x#c.x |    -1.011      1.006",
+            "         2.g |     0.001      0.002      0.045",
+            "         3.g |     0.002     -0.001      0.022      0.051",
+            "         4.g |     0.006     -0.004      0.022      0.022      0.042",
+            "       _cons |    -0.203      0.167     -0.023     -0.023     -0.023",
+            "",
+            "             |",
+            "        e(V) |     _cons",
+            "-------------+----------",
+            "       _cons |     0.068"
+          ]
+        },
+        {
+          "command": "estat vce, covariance",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                    c.x#          2.          3.          4.",
+            "        e(V) |          x         c.x           g           g           g",
+            "-------------+------------------------------------------------------------",
+            "           x |  1.0815203",
+            "     c.x#c.x | -1.0106105   1.0060533",
+            "         2.g |  .00136594   .00191449   .04495627",
+            "         3.g |  .00197741  -.00111798   .02200155    .0508893",
+            "         4.g |  .00580995  -.00436119   .02202388   .02198457   .04242212",
+            "       _cons | -.20270088   .16664423  -.02339466  -.02260119  -.02344423",
+            "",
+            "             |",
+            "        e(V) |      _cons",
+            "-------------+-----------",
+            "       _cons |   .0683521"
+          ]
+        },
+        {
+          "command": "regress y x averyveryverylongname i.g i.h",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(7, 292)       =     86.46",
+            "       Model |  611.764091         7  87.3948702   Prob > F        =    0.0000",
+            "    Residual |  295.168023       292  1.01084939   R-squared       =    0.6745",
+            "-------------+----------------------------------   Adj R-squared   =    0.6667",
+            "       Total |  906.932114       299  3.03321777   Root MSE        =    1.0054",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |     .94519   .1985377     4.76   0.000     .5544437    1.335936",
+            "averyveryv~e |  -.0038419   .2047686    -0.02   0.985    -.4068513    .3991675",
+            "             |",
+            "           g |",
+            "          2  |   .9947483   .1627515     6.11   0.000     .6744337    1.315063",
+            "          3  |   2.229265   .1729352    12.89   0.000     1.888908    2.569623",
+            "          4  |   2.937146   .1575602    18.64   0.000     2.627048    3.247243",
+            "             |",
+            "           h |",
+            "          1  |   1.105335   .1435959     7.70   0.000     .8227207    1.387949",
+            "          2  |   2.071696   .1420657    14.58   0.000     1.792093    2.351298",
+            "             |",
+            "       _cons |   .9285827   .1972865     4.71   0.000      .540299    1.316866",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                                  2.          3.          4.",
+            "        e(V) |          x  averyver~e           g           g           g",
+            "-------------+------------------------------------------------------------",
+            "           x |   .0394172",
+            "averyveryv~e | -.00536269   .04193017",
+            "         2.g |   .0023802  -.00349844   .02648804",
+            "         3.g |  .00047735  -.00024647    .0128501   .02990658",
+            "         4.g |  .00054567   .00183849   .01267667   .01286627    .0248252",
+            "         1.h |  .00083787  -.00010844   .00031627   .00115995  -.00022606",
+            "         2.h | -.00064253   .00136874  -.00003331   .00226099   .00069156",
+            "       _cons | -.01840571  -.01790755    -.012458   -.0141561  -.01416608",
+            "",
+            "             |          1.          2.",
+            "        e(V) |          h           h       _cons",
+            "-------------+-----------------------------------",
+            "         1.h |  .02061978",
+            "         2.h |  .01019323   .02018267",
+            "       _cons | -.01078957  -.01120994   .03892195"
+          ]
+        },
+        {
+          "command": "regress y i.g#c.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(4, 295)       =     34.94",
+            "       Model |  291.534372         4   72.883593   Prob > F        =    0.0000",
+            "    Residual |  615.397742       295  2.08609404   R-squared       =    0.3215",
+            "-------------+----------------------------------   Adj R-squared   =    0.3123",
+            "       Total |  906.932114       299  3.03321777   Root MSE        =    1.4443",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       g#c.x |",
+            "          1  |   -1.14321   .3595361    -3.18   0.002    -1.850791   -.4356295",
+            "          2  |   .2840805   .3881951     0.73   0.465    -.4799022    1.048063",
+            "          3  |   1.703708   .3949557     4.31   0.000     .9264206    2.480996",
+            "          4  |   2.933601   .3581454     8.19   0.000     2.228757    3.638445",
+            "             |",
+            "       _cons |   3.532445   .1665315    21.21   0.000     3.204705    3.860186",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |       1b.g#        2.g#        3.g#        4.g#",
+            "        e(V) |        c.x         c.x         c.x         c.x       _cons",
+            "-------------+-----------------------------------------------------------",
+            "    1b.g#c.x |   .1292662",
+            "     2.g#c.x |  .06085119   .15069542",
+            "     3.g#c.x |  .05816646   .06134489   .15598998",
+            "     4.g#c.x |  .05808722   .06126132    .0585585    .1282681",
+            "       _cons | -.04000167  -.04218751  -.04032621  -.04027128   .02773275"
+          ]
+        },
+        {
+          "command": "regress y x i.g, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =        300",
+            "                                                F(4, 295)         =      66.02",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.4367",
+            "                                                Root MSE          =     1.3159",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9889318   .2584148     3.83   0.000     .4803615    1.497502",
+            "             |",
+            "           g |",
+            "          2  |   .9851368   .2149337     4.58   0.000      .562139    1.408134",
+            "          3  |   1.995764   .2171799     9.19   0.000     1.568345    2.423182",
+            "          4  |    2.87431   .1863522    15.42   0.000     2.507562    3.241058",
+            "             |",
+            "       _cons |   2.039955   .1877873    10.86   0.000     1.670382    2.409528",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                      2.          3.          4.",
+            "        e(V) |          x           g           g           g       _cons",
+            "-------------+-----------------------------------------------------------",
+            "           x |  .06677823",
+            "         2.g |  .00267499   .04619649",
+            "         3.g |  .00089558   .01611825   .04716711",
+            "         4.g |  .00329366   .01623165   .01612523   .03472715",
+            "       _cons | -.03579114  -.01751815  -.01656191  -.01784035   .03526407"
+          ]
+        },
+        {
+          "command": "regress y x, noconstant",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(1, 299)       =    641.79",
+            "       Model |  3906.87603         1  3906.87603   Prob > F        =    0.0000",
+            "    Residual |  1820.15401       299   6.0874716   R-squared       =    0.6822",
+            "-------------+----------------------------------   Adj R-squared   =    0.6811",
+            "       Total |  5727.03004       300  19.0901001   Root MSE        =    2.4673",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   6.112113   .2412654    25.33   0.000      5.63732    6.586906",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce, corr",
+          "lines": [
+            "Correlation matrix of coefficients of regress model",
+            "",
+            "        e(V) |        x",
+            "-------------+---------",
+            "           x |   1.0000"
+          ]
+        },
+        { "command": "set linesize 120", "lines": [] },
+        {
+          "command": "regress y c.x##c.x i.g i.h",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       300",
+            "-------------+----------------------------------   F(7, 292)       =     86.74",
+            "       Model |  612.406879         7  87.4866971   Prob > F        =    0.0000",
+            "    Residual |  294.525234       292  1.00864806   R-squared       =    0.6753",
+            "-------------+----------------------------------   Adj R-squared   =    0.6675",
+            "       Total |  906.932114       299  3.03321777   Root MSE        =    1.0043",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3302123    .794248     0.42   0.678    -1.232964    1.893389",
+            "             |",
+            "     c.x#c.x |   .6113993   .7656683     0.80   0.425    -.8955288    2.118327",
+            "             |",
+            "           g |",
+            "          2  |   .9955076   .1616816     6.16   0.000     .6772986    1.313717",
+            "          3  |   2.228515    .172745    12.90   0.000     1.888531    2.568498",
+            "          4  |   2.934818   .1571639    18.67   0.000       2.6255    3.244135",
+            "             |",
+            "           h |",
+            "          1  |   1.100358   .1435733     7.66   0.000     .8177879    1.382927",
+            "          2  |   2.071417   .1417547    14.61   0.000     1.792427    2.350408",
+            "             |",
+            "       _cons |   1.030109   .2188566     4.71   0.000      .599373    1.460846",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                    c.x#          2.          3.          4.          1.          2.",
+            "        e(V) |          x         c.x           g           g           g           h           h       _cons",
+            "-------------+-----------------------------------------------------------------------------------------------",
+            "           x |  .63082985",
+            "     c.x#c.x | -.58920792   .58624792",
+            "         2.g |  .00088794   .00103539   .02614093",
+            "         3.g |  .00114656  -.00069818   .01280037   .02984084",
+            "         4.g |  .00318482  -.00239363   .01279789   .01285189   .02470048",
+            "         1.h |  .00560923  -.00476297   .00029814   .00116246  -.00020138   .02061329",
+            "         2.h | -.00007721  -.00038729   .00008003   .00226456   .00063175   .01017771   .02009439",
+            "       _cons | -.12007378   .09892337  -.01374702  -.01434812  -.01375566  -.01161599  -.01066759   .04789819"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam5-estat-vce-equations",
+      "source": "set linesize 79\nset seed 4108\nset obs 300\ngenerate g = 1 + floor(runiform() * 4)\ngenerate x = runiform()\ngenerate y = g + x + invnormal(runiform())\ngenerate yb = y > 3.5\ngenerate yo = 1 + (y > 2.5) + (y > 4)\nlogit yb x i.g, nolog\nestat vce\nologit yo x i.g, nolog\nestat vce\ntobit y x i.g, ll(2) nolog\nestat vce\npoisson yo x, nolog\nestat vce\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "set seed 4108", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y = g + x + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate yb = y > 3.5", "lines": [] },
+        { "command": "generate yo = 1 + (y > 2.5) + (y > 4)", "lines": [] },
+        {
+          "command": "logit yb x i.g, nolog",
+          "lines": [
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(4)    = 161.52",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -117.45356                             Pseudo R2     = 0.4074",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yb | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.424149    .614788     3.94   0.000     1.219187    3.629111",
+            "             |",
+            "           g |",
+            "          2  |   2.723579   1.058267     2.57   0.010     .6494133    4.797745",
+            "          3  |   4.435414   1.038859     4.27   0.000     2.399287    6.471541",
+            "          4  |    6.25072   1.084809     5.76   0.000     4.124533    8.376908",
+            "             |",
+            "       _cons |  -5.698795   1.094096    -5.21   0.000    -7.843183   -3.554406",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of logit model",
+            "",
+            "             | yb",
+            "             |                      2.          3.          4.",
+            "        e(V) |          x           g           g           g       _cons",
+            "-------------+-----------------------------------------------------------",
+            "yb           |",
+            "           x |  .37796434",
+            "         2.g |  .03194462   1.1199295",
+            "         3.g |  .04280339   1.0241794   1.0792286",
+            "         4.g |  .10600345   1.0295209   1.0325663   1.1768114",
+            "       _cons | -.25827256  -1.0423903  -1.0498104  -1.0929966   1.1970459"
+          ]
+        },
+        {
+          "command": "ologit yo x i.g, nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    300",
+            "                                                        LR chi2(4)    = 219.21",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -216.30008                             Pseudo R2     = 0.3363",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yo | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.525523   .4796788     5.27   0.000     1.585369    3.465676",
+            "             |",
+            "           g |",
+            "          2  |   1.615001   .4129682     3.91   0.000     .8055985    2.424404",
+            "          3  |   3.713371   .4391065     8.46   0.000     2.852738    4.574004",
+            "          4  |   5.392938   .5148924    10.47   0.000     4.383767    6.402109",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |   3.166986   .4558326                       2.27357    4.060401",
+            "       /cut2 |   5.743843   .5505103                      4.664863    6.822824",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of ologit model",
+            "",
+            "             | yo                                             | /",
+            "             |                      2.          3.          4.|",
+            "        e(V) |          x           g           g           g |       cut1",
+            "-------------+------------------------------------------------+------------",
+            "yo           |                                                |",
+            "           x |  .23009177                                     |",
+            "         2.g |  .02581441   .17054272                         |",
+            "         3.g |   .0341637   .12187755    .1928145             |",
+            "         4.g |  .06843983   .12717501   .16179239   .26511423 |",
+            "-------------+------------------------------------------------+------------",
+            "/            |                                                |",
+            "        cut1 |  .14699613   .13022125   .13486778   .15648558 |  .20778333",
+            "        cut2 |  .17282788   .13934202   .18033977   .22021892 |  .22308701",
+            "",
+            "             | /",
+            "             |",
+            "        e(V) |       cut2",
+            "-------------+-----------",
+            "/            |",
+            "        cut2 |  .30306163"
+          ]
+        },
+        {
+          "command": "tobit y x i.g, ll(2) nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    214",
+            "Limits: Lower =    2                                    Left-censored =     86",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(4)        = 251.11",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -366.51951                         Pseudo R2         = 0.2552",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.299094   .2284088     5.69   0.000     .8495829    1.748605",
+            "             |",
+            "           g |",
+            "          2  |   .8906955   .1979474     4.50   0.000      .501133    1.280258",
+            "          3  |   2.049564   .1946751    10.53   0.000     1.666441    2.432686",
+            "          4  |   3.180015   .2045282    15.55   0.000     2.777501    3.582528",
+            "             |",
+            "       _cons |   .8051351   .2024585     3.98   0.000     .4066945    1.203576",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.086701   .1086556                      .8925899    1.323026",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of tobit model",
+            "",
+            "             | y",
+            "             |                      2.          3.          4.",
+            "        e(V) |          x           g           g           g       _cons",
+            "-------------+------------------------------------------------------------",
+            "y            |",
+            "           x |  .05217056",
+            "         2.g |  .00213522   .03918316",
+            "         3.g | -.00103199   .02401789   .03789839",
+            "         4.g |  .00105069   .02415929   .02470838   .04183178",
+            "       _cons | -.02903447   -.0253046  -.02415483  -.02541565   .04098945",
+            "-------------+------------------------------------------------------------",
+            "/            |",
+            "    var(e.y) |  .00172933   .00246008   .00401849   .00436366  -.00529126",
+            "",
+            "             | /",
+            "             |",
+            "        e(V) |   var(e.y)",
+            "-------------+-----------",
+            "/            |",
+            "    var(e.y) |  .01180605"
+          ]
+        },
+        {
+          "command": "poisson yo x, nolog",
+          "lines": [
+            "Poisson regression                                      Number of obs =    300",
+            "                                                        LR chi2(1)    =   7.91",
+            "                                                        Prob > chi2   = 0.0049",
+            "Log likelihood = -420.52358                             Pseudo R2     = 0.0093",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yo | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4164046   .1487088     2.80   0.005     .1249408    .7078684",
+            "       _cons |   .4029823   .0929021     4.34   0.000     .2208975    .5850671",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of poisson model",
+            "",
+            "             | yo",
+            "        e(V) |          x       _cons",
+            "-------------+-----------------------",
+            "yo           |",
+            "           x |   .0221143",
+            "       _cons | -.01230913    .0086308"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam5-qreg-labels-about",
+      "source": "set seed 4109\nset obs 401\ngenerate g = 1 + floor(runiform() * 4)\nlabel define qg5 1 \"LessHS\" 2 \"HS\" 3 \"Some college\" 4 \"Bachelor's degree\"\nlabel values g qg5\ngenerate x = 18 + floor(runiform() * 50)\ngenerate y = 15000 + 600 * x + 8000 * g + 12000 * invnormal(runiform())\nqreg y x i.g, nolog\ndisplay %18.10g e(q_v)\nqreg y x i.g in 1/400, nolog\ndisplay %18.10g e(q_v)\nqreg y x, quantile(.25) nolog\ndisplay %18.10g e(q_v)\nqreg y x in 1/100, quantile(.1) nolog\ndisplay %18.10g e(q_v)\n",
+      "commands": [
+        { "command": "set seed 4109", "lines": [] },
+        {
+          "command": "set obs 401",
+          "lines": ["Number of observations (_N) was 0, now 401."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        {
+          "command": "label define qg5 1 \"LessHS\" 2 \"HS\" 3 \"Some college\" 4 \"Bachelor's degree\"",
+          "lines": []
+        },
+        { "command": "label values g qg5", "lines": [] },
+        { "command": "generate x = 18 + floor(runiform() * 50)", "lines": [] },
+        {
+          "command": "generate y = 15000 + 600 * x + 8000 * g + 12000 * invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "qreg y x i.g, nolog",
+          "lines": [
+            "Median regression                                   Number of obs =        401",
+            "  Raw sum of deviations  2778771 (about 61148.332)",
+            "  Min sum of deviations  1977919                    Pseudo R2     =     0.2882",
+            "",
+            "------------------------------------------------------------------------------------",
+            "                 y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "                 x |   702.3283   58.06108    12.10   0.000     588.1818    816.4748",
+            "                   |",
+            "                 g |",
+            "               HS  |   8772.168   2350.142     3.73   0.000     4151.853    13392.48",
+            "     Some college  |   14459.74   2466.339     5.86   0.000     9610.983    19308.49",
+            "Bachelor's degree  |   23425.33   2261.189    10.36   0.000      18979.9    27870.77",
+            "                   |",
+            "             _cons |   18304.59    3115.79     5.87   0.000     12179.04    24430.15",
+            "------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display %18.10g e(q_v)",
+          "lines": ["       61148.33203"]
+        },
+        {
+          "command": "qreg y x i.g in 1/400, nolog",
+          "lines": [
+            "Median regression                                   Number of obs =        400",
+            "  Raw sum of deviations  2773692 (about 60866.27)",
+            "  Min sum of deviations  1976909                    Pseudo R2     =     0.2873",
+            "",
+            "------------------------------------------------------------------------------------",
+            "                 y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "                 x |   702.3283   57.97538    12.11   0.000     588.3494    816.3072",
+            "                   |",
+            "                 g |",
+            "               HS  |   8772.168   2344.982     3.74   0.000     4161.962    13382.38",
+            "     Some college  |   13916.19   2470.098     5.63   0.000      9060.01    18772.38",
+            "Bachelor's degree  |   23425.33   2256.237    10.38   0.000      18989.6    27861.07",
+            "                   |",
+            "             _cons |   18304.59   3110.582     5.88   0.000     12189.23    24419.96",
+            "------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display %18.10g e(q_v)",
+          "lines": ["       60866.26953"]
+        },
+        {
+          "command": "qreg y x, quantile(.25) nolog",
+          "lines": [
+            ".25 Quantile regression                             Number of obs =        401",
+            "  Raw sum of deviations  2184191 (about 49825.156)",
+            "  Min sum of deviations  1907793                    Pseudo R2     =     0.1265",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    605.712   82.59787     7.33   0.000     443.3306    768.0934",
+            "       _cons |   24475.91   3814.226     6.42   0.000     16977.42     31974.4",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display %18.10g e(q_v)",
+          "lines": ["       49825.15625"]
+        },
+        {
+          "command": "qreg y x in 1/100, quantile(.1) nolog",
+          "lines": [
+            ".1 Quantile regression                              Number of obs =        100",
+            "  Raw sum of deviations   302926 (about 38285.832)",
+            "  Min sum of deviations 225142.3                    Pseudo R2     =     0.2568",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   817.6113   157.0055     5.21   0.000      506.039    1129.184",
+            "       _cons |   10742.13   7212.691     1.49   0.140    -3571.223    25055.48",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display %18.10g e(q_v)", "lines": ["       38285.83203"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

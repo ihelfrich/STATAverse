@@ -198,7 +198,7 @@ export function summarize(session, text, ctx) {
     ctx.out(
       analytic
         ? m.n
-          ? `${label} |${count(m.n).padStart(8)}${g9(m.sumW, 12)}${g9(m.mean, 12)}${g9(m.sd, 11)}${g9(m.min, 11)}${g9(m.max, 11)}`
+          ? `${label} |${count(m.n).padStart(8)}${applyFormat(m.sumW, "%11.0g").trim().padStart(12)}${g9(m.mean, 12)}${g9(m.sd, 11)}${g9(m.min, 11)}${g9(m.max, 11)}`
           : `${label} |${"0".padStart(8)}${"0".padStart(12)}`
         : m.n
           ? `${label} |${count(m.n).padStart(11)}${g9(m.mean, 12)}${g9(m.sd, 12)}${g9(m.min, 11)}${g9(m.max, 11)}`

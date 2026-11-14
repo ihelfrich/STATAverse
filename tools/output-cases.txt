@@ -6940,3 +6940,218 @@ generate byte y = 1 + (lat > -3) + (lat > 4)
 ologit y x
 oprobit y x, nolog
 ologit y x, or nolog
+=== redteam5-stub-linesize-79
+set seed 4101
+set obs 600
+generate g = 1 + floor(runiform() * 4)
+label define gl5 1 "Less than HS" 2 "High school" 3 "Some college" 4 "Twenty characters xx"
+label values g gl5
+set linesize 79
+generate x = runiform() * 40 + 20
+generate averyveryverylongname = runiform()
+generate y = 1000 * g + 20 * x + 500 * invnormal(runiform())
+display c(linesize)
+regress y x i.g
+regress y x i.g averyveryverylongname
+regress y x i.g, vce(robust)
+regress y c.x##i.g
+set linesize 80
+regress y x i.g averyveryverylongname
+set linesize 120
+regress y x i.g
+set linesize 200
+=== redteam5-regress-huge-statistics
+set seed 4102
+set obs 2000
+generate x = runiform()
+generate y = 2 * x + 0.001 * invnormal(runiform())
+generate w = 1 + floor(runiform() * 3)
+generate w2 = runiform() / 3
+generate w3 = runiform() * 1000
+regress y x
+regress y x, vce(robust)
+regress y x [aweight = w]
+regress y x [aweight = w2]
+regress y x [aweight = w3]
+regress y x [pweight = w2]
+summarize y x [aweight = w3]
+summarize y x [aweight = w2]
+summarize y [aweight = w]
+=== redteam5-ci-formats
+set seed 4103
+set obs 120
+generate double inc = 50000 + 20000 * runiform()
+format inc %12.2fc
+generate price = 100 * runiform()
+format price %8.2f
+generate big = 1e7 * runiform()
+format big %12.3f
+generate odd = runiform()
+format odd %12.10f
+generate d = 20000 + floor(100 * runiform())
+format d %td
+generate averyveryverylongname = runiform()
+generate int k = floor(10 * runiform())
+ci means inc price big odd d averyveryverylongname k
+ci means inc, level(99.5)
+ci means price, level(90)
+ci means inc price big odd d k, separator(2)
+capture noisily ci inc price
+generate byte grp = runiform() < .3
+sdtest price, by(grp)
+sdtest price == 30
+sdtest price in 1/40, by(grp)
+=== redteam5-tabstat-layouts
+set seed 4104
+set obs 200
+generate g = 1 + floor(runiform() * 3)
+generate x = round(100 * runiform(), .1)
+generate z = floor(10 * runiform())
+generate w = 0.5 + runiform()
+generate f = 1 + floor(3 * runiform())
+replace x = . in 5
+replace g = . in 7
+label define tsg5 1 "Low" 2 "Middle income group" 3 "High"
+label values g tsg5
+label variable g "Income group"
+tabstat x [aweight = w], statistics(n sum mean sd var min max range cv semean)
+tabstat x [aweight = w], statistics(skew kurt p1 p5 p10 p25 p50 p75 p90 p95 p99 iqr)
+tabstat x [fweight = f], statistics(n sum mean sd p25 p50 p75 skew kurt)
+tabstat x z [aweight = w], by(g) stats(mean p50)
+tabstat x z, by(g) stats(q iqr) format(%6.2f)
+tabstat x z, by(g) stats(mean sd) columns(statistics)
+tabstat x, by(g) missing
+tabstat x z, by(g) longstub
+tabstat x z, by(g) nototal stats(n mean)
+tabstat x z, stats(mean) format
+tabstat x, stats(sdmean semean median count me v)
+tabstat x z, by(g) same
+tabstat x, by(g) noseparator stats(mean sd)
+tabstat x z, by(g) stats(mean sd) noseparator
+format x %7.3f
+tabstat x z, format stats(mean sd)
+tabstat x z, format(%12.4f) stats(mean sd)
+generate str5 s = cond(g == 1, "aa", cond(g == 2, "bbbbb", "c"))
+tabstat x, by(s)
+generate d = 20000 + g
+format d %td
+tabstat x, by(d)
+generate h = g + 0.5
+tabstat x, by(h)
+tabstat x, by(g) varwidth(10)
+tabstat x z, by(g) labelwidth(10) stats(mean)
+=== redteam5-estimates-table-factors
+set seed 4105
+set obs 300
+generate g = 1 + floor(runiform() * 4)
+generate h = floor(runiform() * 3)
+generate x = runiform()
+generate z = runiform()
+generate y = g + h + x + invnormal(runiform())
+label define etg5 1 "Less than HS" 2 "High school" 3 "Some college" 4 "BA+"
+label values g etg5
+regress y x i.g
+estimates store a
+regress y x i.g i.h c.x#i.h
+estimates store b
+regress y z x i.h
+estimates store e
+estimates table a b
+estimates table a b, se stats(N r2)
+estimates table b, star
+estimates table a e b, stats(N r2_a ll)
+estimates table a b, b(%7.2f) se(%7.2f) stats(N)
+estimates table a b, star(.1 .05 .01) b(%7.3f)
+estimates table
+regress y x i.h
+estimates table
+estimates table .
+=== redteam5-estimates-table-equations
+set seed 4106
+set obs 300
+generate g = 1 + floor(runiform() * 4)
+generate x = runiform()
+generate y = g + x + invnormal(runiform())
+generate yb = y > 3.5
+generate yo = 1 + (y > 2.5) + (y > 4)
+label define eqg5 1 "Less than HS" 2 "High school" 3 "Some college" 4 "BA+"
+label values g eqg5
+regress y x i.g
+estimates store R
+logit yb x i.g, nolog
+estimates store L
+probit yb x i.g, nolog
+estimates store P
+estimates table L
+estimates table L P, se
+estimates table R L
+ologit yo x i.g, nolog
+estimates store O
+estimates table O
+estimates table R O
+tobit y x i.g, ll(2) nolog
+estimates store T
+estimates table T
+estimates table R T, se
+=== redteam5-estat-vce
+set linesize 79
+set seed 4107
+set obs 300
+generate g = 1 + floor(runiform() * 4)
+generate h = floor(runiform() * 3)
+generate x = runiform()
+generate averyveryverylongname = runiform()
+generate y = g + h + x + invnormal(runiform())
+regress y x
+estat vce
+regress y c.x##c.x i.g
+estat vce
+estat vce, correlation
+estat vce, format(%9.3f)
+estat vce, covariance
+regress y x averyveryverylongname i.g i.h
+estat vce
+regress y i.g#c.x
+estat vce
+regress y x i.g, vce(robust)
+estat vce
+regress y x, noconstant
+estat vce, corr
+set linesize 120
+regress y c.x##c.x i.g i.h
+estat vce
+set linesize 200
+=== redteam5-estat-vce-equations
+set linesize 79
+set seed 4108
+set obs 300
+generate g = 1 + floor(runiform() * 4)
+generate x = runiform()
+generate y = g + x + invnormal(runiform())
+generate yb = y > 3.5
+generate yo = 1 + (y > 2.5) + (y > 4)
+logit yb x i.g, nolog
+estat vce
+ologit yo x i.g, nolog
+estat vce
+tobit y x i.g, ll(2) nolog
+estat vce
+poisson yo x, nolog
+estat vce
+set linesize 200
+=== redteam5-qreg-labels-about
+set seed 4109
+set obs 401
+generate g = 1 + floor(runiform() * 4)
+label define qg5 1 "LessHS" 2 "HS" 3 "Some college" 4 "Bachelor's degree"
+label values g qg5
+generate x = 18 + floor(runiform() * 50)
+generate y = 15000 + 600 * x + 8000 * g + 12000 * invnormal(runiform())
+qreg y x i.g, nolog
+display %18.10g e(q_v)
+qreg y x i.g in 1/400, nolog
+display %18.10g e(q_v)
+qreg y x, quantile(.25) nolog
+display %18.10g e(q_v)
+qreg y x in 1/100, quantile(.1) nolog
+display %18.10g e(q_v)

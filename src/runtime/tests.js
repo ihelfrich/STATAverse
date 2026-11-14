@@ -796,8 +796,17 @@ function sdtest(session, text, ctx) {
     ctx.out(
       `${`    ratio = sd(${two.labels[0]}) / sd(${two.labels[1]})`.padEnd(66)}f =${applyFormat(f, "%9.4f")}`,
     );
+    // sdtest places the two degrees of freedom by their length: short ones
+    // end at column 78, longer ones push the label to the left.
+    const df1 = String(a.n - 1),
+      df2 = String(b.n - 1),
+      digits = Math.min(df1.length, 9) + Math.min(df2.length, 9);
     ctx.out(
-      `${"H0: ratio = 1".padEnd(49)}Degrees of freedom =${`${a.n - 1}, ${b.n - 1}`.padStart(9)}`,
+      digits < 7
+        ? `${"H0: ratio = 1".padEnd(49)}Degrees of freedom = `.padEnd(
+            76 - digits,
+          ) + `${df1}, ${df2}`
+        : `${"H0: ratio = 1".padEnd(55 - digits)}Degrees of freedom = ${df1}, ${df2}`,
     );
     ctx.out("");
     ctx.out(alternatives("Ha: ratio < 1", "Ha: ratio != 1", "Ha: ratio > 1"));
@@ -838,7 +847,7 @@ function sdtest(session, text, ctx) {
     `${`    sd = sd(${variable.name})`.padEnd(59)}c = chi2 =${applyFormat(chi2, "%9.4f")}`,
   );
   ctx.out(
-    `${`H0: sd = ${shown}`.padEnd(49)}Degrees of freedom =${count(df).padStart(9)}`,
+    `${`H0: sd = ${shown}`.padEnd(49)}Degrees of freedom = ${applyFormat(df, "%8.0f")}`,
   );
   ctx.out("");
   ctx.out(
