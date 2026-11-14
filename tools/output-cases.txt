@@ -6940,3 +6940,364 @@ generate byte y = 1 + (lat > -3) + (lat > 4)
 ologit y x
 oprobit y x, nolog
 ologit y x, or nolog
+=== delimited-export-import
+clear
+set obs 4
+generate id = _n
+generate double big = 123456789.123456 * _n
+generate float f = 63078.11 + _n
+generate g = 0.1 * _n
+generate d = mdy(3,12,2020) + _n
+format d %td
+generate str10 s = "a,b" if _n == 1
+replace s = "  sp  " in 3
+label define yn 0 "No" 1 "Yes, sure"
+generate lab = mod(_n,2)
+label values lab yn
+generate m = _n
+replace m = .a in 3
+export delimited using rt.csv, replace
+export delimited using rt.csv
+import delimited using rt.csv, clear
+list
+count if g == 0.3
+count if f == 63079.11
+summarize big f g m
+import delimited id b2 using rt.csv, clear stringcols(4) colrange(1:4)
+list
+import delimited using rt.csv, clear varnames(nonames) rowrange(2:3)
+list
+=== delimited-export-options
+clear
+set obs 3
+generate id = _n
+generate d = mdy(1,15,2021) + 30*_n
+format d %tdCCYY-NN-DD
+generate float x = _n / 3
+format x %5.2f
+label define grp 1 "one" 2 "two"
+generate grp = _n
+label values grp grp
+export delimited using o1.csv, replace datafmt nolabel
+import delimited using o1.csv, clear
+list
+export delimited x grp using o2.txt if id > 1, replace delimiter(tab) quote
+import delimited using o2.txt, clear encoding("utf-8")
+list
+outsheet using o3.out, replace
+insheet using o3.out, clear
+list
+outsheet id grp using o4.csv, comma nolabel noquote nonames replace
+insheet using o4.csv, clear
+list
+=== delimited-unmatched-quote
+clear
+set obs 2
+generate str20 s = `"x"y"' + char(10) + "z" in 1
+replace s = "plain" in 2
+generate id = _n
+export delimited using nl.csv, replace
+set linesize 80
+import delimited using nl.csv, clear
+list
+import delimited using nl.csv, clear bindquotes(strict)
+list
+set linesize 200
+=== delimited-varlist-names
+clear
+set obs 2
+generate str20 s = "a,b" in 1
+replace s = "1,2" in 2
+outsheet s using dlm_g18.csv, noquote nonames replace
+clear
+set obs 4
+generate str30 s = "id,name,score" in 1
+replace s = "1,smithj,71.5" in 2
+replace s = "2,doe,80" in 3
+replace s = "3,roe," in 4
+outsheet s using dlm_basic.csv, noquote nonames replace
+clear
+set obs 2
+generate str40 s = "First Name,Income ($),age" in 1
+replace s = "Ann,10,3" in 2
+outsheet s using dlm_messy.csv, noquote nonames replace
+capture noisily import delimited 1a b using dlm_g18.csv, clear
+capture noisily import delimited a-b c using dlm_g18.csv, clear
+capture noisily import delimited _cons b using dlm_g18.csv, clear
+capture noisily import delimited a a using dlm_g18.csv, clear
+capture noisily import delimited score using dlm_basic.csv, clear
+capture noisily import delimited name x using dlm_basic.csv, clear
+capture noisily import delimited name id using dlm_basic.csv, clear
+capture noisily import delimited b using dlm_g18.csv, clear
+import delimited x id using dlm_basic.csv, clear
+describe, fullnames
+import delimited x y id using dlm_basic.csv, clear
+list
+import delimited A a using dlm_g18.csv, clear
+list
+import delimited fn inc using dlm_messy.csv, clear
+describe, fullnames
+import delimited a B using dlm_g18.csv, clear case(upper)
+describe, fullnames
+import delimited id nm sc using dlm_basic.csv, clear
+describe, fullnames
+capture noisily insheet 1a b using dlm_g18.csv, clear
+capture noisily insheet a a using dlm_g18.csv, clear
+capture noisily insheet _n b using dlm_g18.csv, clear
+insheet A a using dlm_g18.csv, clear
+describe, fullnames
+insheet fn inc age using dlm_messy.csv, clear
+describe, fullnames
+=== delimited-header-columns
+clear
+set obs 3
+generate str30 s = "id,name,city" in 1
+replace s = "1,Ann,Boston" in 2
+replace s = "2,Bob,NYC" in 3
+outsheet s using dlm_c.csv, noquote nonames replace
+clear
+set obs 2
+generate str30 s = "ID,Name" in 1
+replace s = "1,a" in 2
+outsheet s using dlm_g17.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "id,v" in 1
+replace s = "1,2.5" in 2
+replace s = "3,4" in 3
+outsheet s using dlm_p2.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "id,zip,amt,name" in 1
+replace s = "1,02134,1.5,ab" in 2
+replace s = "2,10001,2,cd" in 3
+outsheet s using dlm_m01.csv, noquote nonames replace
+import delimited using dlm_c.csv, clear colrange(2:3)
+list
+import delimited using dlm_g17.csv, clear colrange(2)
+list
+import delimited using dlm_g17.csv, clear colrange(2) case(upper)
+describe, fullnames
+import delimited using dlm_g17.csv, clear colrange(2:2) varnames(1)
+describe, fullnames
+import delimited using dlm_p2.csv, clear varnames(2)
+describe, fullnames
+import delimited using dlm_m01.csv, clear stringcols(2) numericcols(2)
+describe, fullnames
+list
+import delimited using dlm_c.csv, clear stringcols(1) numericcols(1)
+describe, fullnames
+=== delimited-overflow-reserved
+clear
+set obs 3
+generate str30 s = "id,x" in 1
+replace s = "1,1e400" in 2
+replace s = "2,3" in 3
+outsheet s using dlm_o.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "x,y" in 1
+replace s = "1D3,1e39" in 2
+replace s = "2.5d-1,1e400" in 3
+outsheet s using dlm_f08.csv, noquote nonames replace
+import delimited using dlm_o.csv, clear
+describe, fullnames
+list
+import delimited using dlm_f08.csv, clear
+describe, fullnames
+list
+insheet using dlm_o.csv, clear
+list
+clear
+set obs 2
+generate str30 s = "_cons,zz" in 1
+replace s = "1,2" in 2
+outsheet s using dlm_r1.csv, noquote nonames replace
+replace s = "_skip,zz" in 1
+outsheet s using dlm_r2.csv, noquote nonames replace
+replace s = "strL,zz" in 1
+outsheet s using dlm_r3.csv, noquote nonames replace
+replace s = "strL,strl" in 1
+outsheet s using dlm_r4.csv, noquote nonames replace
+replace s = "Byte,_all" in 1
+outsheet s using dlm_r5.csv, noquote nonames replace
+capture noisily import delimited using dlm_r1.csv, clear
+import delimited using dlm_r1.csv, clear case(upper)
+describe, fullnames
+import delimited using dlm_r2.csv, clear
+describe, fullnames
+import delimited using dlm_r3.csv, clear
+describe, fullnames
+import delimited using dlm_r4.csv, clear
+describe, fullnames
+import delimited using dlm_r4.csv, clear case(upper)
+describe, fullnames
+import delimited using dlm_r5.csv, clear
+describe, fullnames
+import delimited using dlm_r5.csv, clear case(preserve)
+describe, fullnames
+capture noisily insheet using dlm_r1.csv, clear
+insheet using dlm_r2.csv, clear
+describe, fullnames
+=== delimited-option-checks
+clear
+set obs 5
+generate str30 s = "a,b" in 1
+replace s = "1,2" in 2
+replace s = "3,4" in 3
+replace s = "5,6" in 4
+replace s = "7,8" in 5
+outsheet s using dlm_g05.csv, noquote nonames replace
+import delimited using dlm_g05.csv, clear case(l)
+import delimited using dlm_g05.csv, clear case(u)
+describe, fullnames
+import delim using dlm_g05.csv, clear varn(1) delim(",") case(pres) stringc(1)
+describe, fullnames
+capture noisily import delimited using dlm_g05.csv, clear case(p)
+capture noisily import delimited using dlm_g05.csv, clear rowrange(3:2)
+capture noisily import delimited using dlm_g05.csv, clear colrange(3:2)
+capture noisily import delimited using dlm_g05.csv, clear rowrange(abc)
+capture noisily import delimited using dlm_g05.csv, clear colrange(0)
+capture noisily import delimited using dlm_g05.csv, clear rowrange(2:abc)
+capture noisily import delimited using dlm_g05.csv, clear colrange(2:3:4)
+capture noisily import delimited using dlm_g05.csv, clear rowrange(:)
+capture noisily import delimited using dlm_g05.csv, clear colrange(:)
+import delimited using dlm_g05.csv, clear rowrange(10)
+import delimited using dlm_g05.csv, clear colrange(3)
+import delimited using dlm_g05.csv, clear maxquotedrows(-1)
+capture noisily import delimited using dlm_g05.csv, clear maxquotedrows(abc)
+capture noisily import delimited, clear
+capture noisily import delimited my dlm_g05.csv, clear
+capture noisily import delimited using my dlm_data.csv, clear
+capture noisily import delimited using dlm_g05.csv more, clear
+capture noisily insheet dlm_g05.csv, clear
+capture noisily insheet, clear
+capture noisily insheet using my dlm_data.csv, clear
+capture noisily import delimited using dlm_g05.csv, clear encoding(windows1252)
+capture noisily import delimited using dlm_g05.csv, clear encoding(latin-1)
+capture noisily import delimited using dlm_g05.csv, clear encoding(macintosh)
+import delimited using dlm_g05.csv, clear encoding(cp1252)
+import delimited using dlm_g05.csv, clear encoding(ISO_8859-1)
+import delimited using dlm_g05.csv, clear encoding(MacRoman)
+capture noisily insheet using dlm_g05.csv, clear names comma tab
+capture noisily insheet using dlm_g05.csv, clear delimiter(";") comma
+capture noisily insheet using dlm_g05.csv, clear delimiter(";;")
+capture noisily insheet using dlm_g05.csv, clear delimiter(tab)
+insheet using dlm_g05.csv, clear delimiter("")
+clear
+capture noisily export delimited using dlm_x4.csv, replace
+set obs 3
+capture noisily export delimited using dlm_x4.csv, replace
+=== insheet-hand-typed
+clear
+set obs 2
+generate str30 s = "id,c" in 1
+replace s = `"1, "a,b""' in 2
+outsheet s using dlm_q04.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "id,c" in 1
+replace s = `"1,"a ""q"" b""' in 2
+replace s = `"2,"x"y"' in 3
+outsheet s using dlm_q07.csv, noquote nonames replace
+clear
+set obs 5
+generate str30 s = "id,c" in 1
+replace s = `"1,"a"' in 2
+replace s = `"b""' in 4
+replace s = "2,z" in 5
+outsheet s using dlm_q08.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "id,x" in 1
+replace s = `""1" ,2"' in 2
+replace s = `"2,"3" "' in 3
+outsheet s using dlm_q10.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "a,b" in 1
+replace s = "1, " in 2
+replace s = "2,3" in 3
+outsheet s using dlm_r13.csv, noquote nonames replace
+clear
+set obs 4
+generate str30 s = "a,b,c" in 1
+replace s = "1,x ,3" in 2
+replace s = "4,5,6" in 3
+replace s = "7,  ,9" in 4
+outsheet s using dlm_t3.csv, noquote nonames replace
+clear
+set obs 2
+generate str30 s = ""
+outsheet s using dlm_z2.csv, noquote nonames replace
+replace s = ",,"
+outsheet s using dlm_z4.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = ",," in 1
+replace s = "1,2,3" in 3
+outsheet s using dlm_t23.csv, noquote nonames replace
+insheet using dlm_q04.csv, clear
+list
+import delimited using dlm_q04.csv, clear
+list
+insheet using dlm_q07.csv, clear
+describe, fullnames
+list
+insheet using dlm_q08.csv, clear
+describe, fullnames
+list
+insheet using dlm_q10.csv, clear
+describe, fullnames
+list
+insheet using dlm_r13.csv, clear
+describe, fullnames
+count if b == ""
+insheet using dlm_t3.csv, clear
+describe, fullnames
+count if b == "x"
+capture noisily insheet using dlm_z2.csv, clear
+capture noisily insheet using dlm_z4.csv, clear
+import delimited using dlm_z4.csv, clear
+insheet using dlm_t23.csv, clear
+list
+=== delimited-encoding-scan
+clear
+set obs 3
+generate str30 s = "id,name" in 1
+replace s = `"1,"Smith, J""' in 2
+replace s = `"2,"Doe""' in 3
+outsheet s using dlm_f02.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "id,big" in 1
+replace s = "1,2147483621" in 2
+replace s = "2,3" in 3
+outsheet s using dlm_f06.csv, noquote nonames replace
+clear
+set obs 6002
+generate str30 s = string(_n - 1) + ",Paris"
+replace s = "id,city" in 1
+replace s = "6001,Montréal" in 6002
+outsheet s using dlm_h02.csv, noquote nonames replace
+clear
+set obs 3
+generate str30 s = "id,name" in 1
+replace s = "1,Zoë" in 2
+replace s = "2,José" in 3
+outsheet s using dlm_u8.csv, noquote nonames replace
+clear
+set obs 200
+generate a = _n
+generate b = _n * 3
+export delimited using dlm_nums.csv, replace
+import delimited using dlm_f02.csv, clear
+import delimited using dlm_f06.csv, clear
+import delimited using dlm_h02.csv, clear
+describe city
+list in -2/l, noobs
+import delimited using dlm_h02.csv, clear encoding(utf-8)
+list in -1, noobs
+import delimited using dlm_u8.csv, clear
+list
+import delimited using dlm_nums.csv, clear
