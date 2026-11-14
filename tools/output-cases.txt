@@ -10634,3 +10634,142 @@ use caseleft, clear
 merge 1:1 id using CASELEFT
 list
 capture noisily use "nosuchdir/caseleft.dta", clear
+=== graph-over-pie-matrix
+clear
+input byte g byte h byte k double y double z str3 s
+1 1 1 2 5 "b"
+1 1 2 4 6 "b"
+1 2 1 6 7 "a"
+1 2 2 8 1 "a"
+2 1 1 3 2 "c"
+2 1 2 5 3 "c"
+2 2 1 7 4 "d"
+2 2 2 9 9 "d"
+3 1 1 1 2 "e"
+3 1 2 2 3 "e"
+end
+label define gl 1 "One" 2 "Two" 3 "Three"
+label values g gl
+label define hl 1 "No" 2 "Yes"
+label values h hl
+graph bar y, over(g) over(h)
+graph bar y, over(g) over(h) over(k) blabel(bar)
+graph bar (count), over(g) over(h) over(k)
+graph bar (percent), over(g) over(h) blabel(bar)
+graph bar y, over(g, sort(1) descending) over(h, descending)
+graph bar y, over(g) over(h, sort(1))
+graph bar y, over(g) over(h) nofill
+graph bar y, over(g) asyvars
+graph hbar y, over(g) over(h) over(k)
+graph box y z, over(g) over(h)
+graph box y, over(g) over(h) over(k)
+capture noisily graph bar y, over(g) over(h) over(k) over(g)
+display _rc
+capture noisily graph bar y z, over(g) over(h) over(k)
+display _rc
+capture noisily graph box y z, over(g) over(h) over(k)
+display _rc
+graph pie, over(g)
+graph pie y z
+graph pie y, over(g) plabel(_all percent) sort descending
+graph pie z, over(s) plabel(_all sum) plabel(2 "two")
+graph pie z, over(s) noclockwise angle0(0) legend(off) title(Pie)
+capture noisily graph pie z, over(s) plabel(9 sum)
+display _rc
+capture noisily graph pie y z, over(g)
+display _rc
+capture noisily graph pie z, over(s) plabel(_all value)
+display _rc
+capture noisily graph pie z, over(s) plabel(0 sum)
+display _rc
+capture noisily graph pie (count) y, over(g)
+display _rc
+capture noisily graph pie
+display _rc
+capture noisily graph pie z, ov(s)
+display _rc
+capture noisily graph pie s
+display _rc
+capture noisily graph pie y if y > 100, over(g)
+display _rc
+capture noisily graph pie y if y < 0
+display _rc
+graph matrix y z g
+graph matrix y z g, half ms(Oh) msize(small) mcolor(red%50)
+graph matrix y z, ms(Q)
+capture noisily graph matrix y
+display _rc
+capture noisily graph matrix y s
+display _rc
+capture noisily graph matrix y z, ha
+display _rc
+scatter y z, mcolor(red%30) title(T, color(green*0.4))
+scatter y z, mcolor("255 0 0%50")
+scatter y z, mcolor(navy*0.3%50)
+scatter y z, mcolor(%30)
+scatter y z, mcolor(red%130)
+scatter y z, mcolor(foo%30)
+line y z, lcolor(blue*1.5%40)
+generate double w = -y
+capture noisily graph pie w, over(g)
+display _rc
+=== graph-negative-nofill-weights-colours
+clear
+input byte g byte h double y byte w str2 s
+1 1 -2 2 "a"
+1 2 3 1 "a"
+2 1 -4 3 "b"
+2 2 5 1 "b"
+3 1 7 1 ""
+3 2 . 2 "c"
+. 1 5 1 "a"
+end
+label define gl 1 "One" 2 "Two" 3 "Three"
+label values g gl
+label variable y "Hours worked per week last year"
+graph bar y, over(g) over(h)
+graph bar y, over(g) asyvars blabel(bar)
+graph bar y, over(g) over(h) nofill
+graph bar y, over(g, sort(1)) over(h) nofill
+graph box y, over(g) over(h) nofill
+graph bar y, over(g) missing
+graph bar y, over(g) over(h) missing nofill
+graph box y, over(g) missing
+graph bar y, over(s) missing
+graph bar y [fw=w], over(g)
+graph hbar (sum) y [fw=w], over(g) over(h)
+graph box y [fweight=w], over(g)
+graph pie w [fw=w], over(g)
+graph pie w [aw=w], over(g) plabel(_all sum)
+graph pie w [pw=w], over(g h)
+graph pie [fw=w], over(g) missing
+graph pie w, over()
+graph pie w, over(g s)
+capture noisily graph pie, over()
+display _rc
+capture noisily graph pie w, over(g, sort(1))
+display _rc
+capture noisily graph pie w, over(g,)
+display _rc
+capture noisily graph pie w [iw=w], over(g)
+display _rc
+capture noisily graph bar y [iw=w], over(g)
+display _rc
+capture noisily graph bar y, over(g h) over(h)
+display _rc
+capture noisily graph bar y, over(s) over(s)
+display _rc
+capture noisily graph box y, over(g) over(h) over(g)
+display _rc
+graph matrix y w if y > 100
+graph matrix y w h, half
+scatter y w, mcolor(Red)
+scatter y w, mcolor(gs20)
+scatter y w, mcolor(red%) mfcolor(blue%30)
+scatter y w, mcolor(red%50.9)
+graph matrix y w, mcolor("1 2")
+line y w, lcolor(RED%50)
+histogram w, color(red%40)
+twoway lfitci y w, color(red%20)
+twoway bar y w, color(red) lcolor(blue)
+kdensity w, lcolor(red%50)

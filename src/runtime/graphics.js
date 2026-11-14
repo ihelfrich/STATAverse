@@ -12,7 +12,9 @@ import { isMissing, isStringType } from "./values.js";
 import {
   LOOKS,
   PLOT_LOOKS,
+  barColours,
   colourOf,
+  paint,
   fixedLabels,
   looksOf,
   parseGraph,
@@ -33,6 +35,14 @@ const WIDTH = 640,
   HEIGHT = 460,
   PLOT = { left: 72, right: 24, top: 44, bottom: 64 },
   COLORS = ["#1a476f", "#90353b", "#55752f", "#e37e00", "#6e8e84", "#c10534"];
+/** The lengths of the plot's axes, in pixels, of a graph with no subtitle,
+ * note or caption: the category axis of graph bar and box runs across the
+ * width, that of graph hbar down the height. */
+export const CANVAS = { width: WIDTH, height: HEIGHT, colors: COLORS };
+export const PLOT_SPANS = {
+  width: WIDTH - PLOT.left - PLOT.right,
+  height: HEIGHT - PLOT.top - PLOT.bottom,
+};
 const escape = (text) =>
   String(text).replace(
     /[&<>"]/g,
@@ -189,7 +199,7 @@ function extents(layers) {
 
 /** The attributes that draw a text in the size and colour asked for. */
 function textLook(style, size) {
-  return ` font-size="${style?.size ?? size}"${style?.color ? ` fill="${style.color}"` : ""}`;
+  return ` font-size="${style?.size ?? size}"${style?.color ? paint(style.color, "#222222") : ""}`;
 }
 /**
  * Where a title, subtitle, note or caption is drawn across the graph: its x
@@ -210,7 +220,7 @@ function across(style, side) {
       : { x: WIDTH / 2, anchor: ' text-anchor="middle"' };
 }
 /** A title, subtitle, note or caption at height y, as across() places it. */
-function placedText(text, style, side, y, size) {
+export function placedText(text, style, side, y, size) {
   const at = across(style, side);
   return `<text x="${at.x}" y="${y}"${at.anchor}${textLook(style, size)}>${escape(text)}</text>`;
 }
@@ -236,10 +246,35 @@ function legendEntries(layers, legend) {
     .filter((entry) => entry.text);
 }
 function legendParts(layers, legend, x, y) {
-  return legendEntries(layers, legend).flatMap(({ layer, text }, k) => [
-    `<rect x="${x + 8 + k * 150}" y="${y - 8}" width="12" height="8" fill="${layer.color ?? COLORS[layers.indexOf(layer) % COLORS.length]}"/>`,
-    `<text x="${x + 26 + k * 150}" y="${y}">${escape(text)}</text>`,
+  const entries = legendEntries(layers, legend),
+    at = legendPlaces(
+      x,
+      entries.map((entry) => entry.text),
+    );
+  return entries.flatMap(({ layer, text }, k) => [
+    `<rect x="${n2(at[k])}" y="${y - 8}" width="12" height="8"${paint(layer.color, COLORS[layers.indexOf(layer) % COLORS.length])}/>`,
+    `<text x="${n2(at[k] + 18)}" y="${y}">${escape(text)}</text>`,
   ]);
+}
+const n2 = (v) => Number(v.toFixed(2));
+/**
+ * Where the keys of a legend in one row from x start: 150 apart, or, when
+ * that would run off the graph (as the levels of an over() drawn as
+ * colours may), each as wide as its text.
+ */
+function legendPlaces(x, texts) {
+  const room = (text) => 18 + 6.5 * String(text).length + 14;
+  if (
+    !texts.length ||
+    x + 8 + (texts.length - 1) * 150 + room(texts.at(-1)) <= WIDTH
+  )
+    return texts.map((_, k) => x + 8 + k * 150);
+  let at = x + 8;
+  return texts.map((text) => {
+    const here = at;
+    at += room(text);
+    return here;
+  });
 }
 
 /**
@@ -686,8 +721,14 @@ export function draw({
             `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${P.top}" y2="${P.top + h}" stroke="#e6e6e6"/>`,
           ]
         : []),
-      `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${P.top + h}" y2="${P.top + h + 5}" stroke="#333333"/>`,
-      `<text x="${n(px(tick.at))}" y="${P.top + h + 20}" text-anchor="middle">${escape(tick.text)}</text>`,
+      // The labels of the groups of an outer over() are a second row,
+      // under the labels of the categories, without ticks.
+      ...(tick.row
+        ? []
+        : [
+            `<line x1="${n(px(tick.at))}" x2="${n(px(tick.at))}" y1="${P.top + h}" y2="${P.top + h + 5}" stroke="#333333"/>`,
+          ]),
+      `<text x="${n(px(tick.at))}" y="${P.top + h + 20 + (tick.row ? 18 : 0)}" text-anchor="middle"${tick.row ? ' font-size="13"' : ""}>${escape(tick.text)}</text>`,
     );
   parts.push(
     `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${P.top + h}" y2="${P.top + h}" stroke="#333333"/>`,
@@ -705,38 +746,60 @@ export function draw({
         `<line x1="${P.left}" x2="${WIDTH - P.right}" y1="${n(py(v))}" y2="${n(py(v))}" stroke="#333333" stroke-width="1"/>`,
       );
   layers.forEach((layer, k) => {
-    const color = layer.color ?? COLORS[k % COLORS.length];
+    // A colour that mcolor() or lcolor() gave, perhaps with an opacity,
+    // which then replaces the drawing's own.
+    const color = layer.color?.rgb ?? COLORS[k % COLORS.length],
+      opacity = (own) => layer.color?.opacity ?? own,
+      // The outline of bars and areas that color() or lcolor() gave.
+      edge = layer.edge
+        ? paint(layer.edge, color, "stroke")
+        : layer.bars
+          ? ' stroke="#ffffff"'
+          : ` stroke="${color}"${
+              layer.color?.opacity === undefined
+                ? ""
+                : ` stroke-opacity="${layer.color.opacity}"`
+            }`,
+      strokeOpacity =
+        layer.color?.opacity === undefined
+          ? ""
+          : ` stroke-opacity="${layer.color.opacity}"`;
     if (layer.bars)
       for (const bar of layer.bars) {
+        // A bar rises from 0, or below 0 hangs down from it.
         parts.push(
-          `<rect x="${n(px(bar.x0))}" y="${n(py(bar.height))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(py(0) - py(bar.height))}" fill="${color}" fill-opacity="0.75" stroke="#ffffff"/>`,
+          `<rect x="${n(px(bar.x0))}" y="${n(Math.min(py(bar.height), py(0)))}" width="${n(Math.max(0, px(bar.x1) - px(bar.x0)))}" height="${n(Math.abs(py(0) - py(bar.height)))}" fill="${color}" fill-opacity="${opacity(0.75)}"${edge}/>`,
         );
-        // blabel(bar): the bar's height written above it.
+        // blabel(bar): the bar's height written past its end, above a bar
+        // that rises and below one that hangs down.
         if (layer.barLabels)
           parts.push(
-            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) - 4)}" text-anchor="middle" font-size="10">${escape(barLabel(bar.height))}</text>`,
+            `<text x="${n((px(bar.x0) + px(bar.x1)) / 2)}" y="${n(py(bar.height) + (bar.height < 0 ? 12 : -4))}" text-anchor="middle" font-size="10">${escape(barLabel(bar.height))}</text>`,
           );
       }
     else if (layer.boxes)
       for (const box of layer.boxes) {
         const left = px(box.x - box.width),
           right = px(box.x + box.width),
-          middle = px(box.x);
+          middle = px(box.x),
+          // The whiskers' caps are two thirds of the box's width, as
+          // Stata draws them.
+          cap = (2 / 3) * (right - middle);
         parts.push(
-          `<line x1="${n(middle)}" x2="${n(middle)}" y1="${n(py(box.lower))}" y2="${n(py(box.upper))}" stroke="${color}" stroke-width="1.5"/>`,
-          `<line x1="${n(middle - 8)}" x2="${n(middle + 8)}" y1="${n(py(box.lower))}" y2="${n(py(box.lower))}" stroke="${color}" stroke-width="1.5"/>`,
-          `<line x1="${n(middle - 8)}" x2="${n(middle + 8)}" y1="${n(py(box.upper))}" y2="${n(py(box.upper))}" stroke="${color}" stroke-width="1.5"/>`,
-          `<rect x="${n(left)}" y="${n(py(box.q3))}" width="${n(right - left)}" height="${n(Math.max(0, py(box.q1) - py(box.q3)))}" fill="${color}" fill-opacity="0.6" stroke="${color}"/>`,
+          `<line x1="${n(middle)}" x2="${n(middle)}" y1="${n(py(box.lower))}" y2="${n(py(box.upper))}" stroke="${color}"${strokeOpacity} stroke-width="1.5"/>`,
+          `<line x1="${n(middle - cap)}" x2="${n(middle + cap)}" y1="${n(py(box.lower))}" y2="${n(py(box.lower))}" stroke="${color}"${strokeOpacity} stroke-width="1.5"/>`,
+          `<line x1="${n(middle - cap)}" x2="${n(middle + cap)}" y1="${n(py(box.upper))}" y2="${n(py(box.upper))}" stroke="${color}"${strokeOpacity} stroke-width="1.5"/>`,
+          `<rect x="${n(left)}" y="${n(py(box.q3))}" width="${n(right - left)}" height="${n(Math.max(0, py(box.q1) - py(box.q3)))}" fill="${color}" fill-opacity="${opacity(0.6)}" stroke="${color}"${strokeOpacity}/>`,
           `<line x1="${n(left)}" x2="${n(right)}" y1="${n(py(box.median))}" y2="${n(py(box.median))}" stroke="#ffffff" stroke-width="2"/>`,
           ...box.outside.map(
             (v) =>
-              `<circle cx="${n(middle)}" cy="${n(py(v))}" r="3" fill="${color}"/>`,
+              `<circle cx="${n(middle)}" cy="${n(py(v))}" r="3" fill="${color}"${opacity(undefined) === undefined ? "" : ` fill-opacity="${opacity()}"`}/>`,
           ),
         );
       }
     else if (layer.kind === "band")
       parts.push(
-        `<polygon fill="${color}" fill-opacity="0.25" stroke="none" points="${[
+        `<polygon fill="${color}" fill-opacity="${opacity(0.25)}" stroke="none" points="${[
           ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
           ...[...layer.points]
             .reverse()
@@ -746,7 +809,7 @@ export function draw({
     else if (layer.kind === "area") {
       if (layer.points.length)
         parts.push(
-          `<polygon fill="${color}" fill-opacity="0.5" stroke="${color}" points="${[
+          `<polygon fill="${color}" fill-opacity="${opacity(0.5)}"${edge} points="${[
             `${n(px(layer.points[0][0]))},${n(py(0))}`,
             ...layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`),
             `${n(px(layer.points.at(-1)[0]))},${n(py(0))}`,
@@ -757,24 +820,28 @@ export function draw({
       for (let p = 0; p + 1 < layer.points.length; p += 2) {
         const [a, b] = [layer.points[p], layer.points[p + 1]];
         parts.push(
-          `<line x1="${n(px(a[0]))}" x2="${n(px(b[0]))}" y1="${n(py(a[1]))}" y2="${n(py(b[1]))}" stroke="${color}" stroke-width="1.5"/>`,
-          `<line x1="${n(px(a[0]) - 4)}" x2="${n(px(a[0]) + 4)}" y1="${n(py(a[1]))}" y2="${n(py(a[1]))}" stroke="${color}" stroke-width="1.5"/>`,
-          `<line x1="${n(px(b[0]) - 4)}" x2="${n(px(b[0]) + 4)}" y1="${n(py(b[1]))}" y2="${n(py(b[1]))}" stroke="${color}" stroke-width="1.5"/>`,
+          `<line x1="${n(px(a[0]))}" x2="${n(px(b[0]))}" y1="${n(py(a[1]))}" y2="${n(py(b[1]))}" stroke="${color}"${strokeOpacity} stroke-width="1.5"/>`,
+          `<line x1="${n(px(a[0]) - 4)}" x2="${n(px(a[0]) + 4)}" y1="${n(py(a[1]))}" y2="${n(py(a[1]))}" stroke="${color}"${strokeOpacity} stroke-width="1.5"/>`,
+          `<line x1="${n(px(b[0]) - 4)}" x2="${n(px(b[0]) + 4)}" y1="${n(py(b[1]))}" y2="${n(py(b[1]))}" stroke="${color}"${strokeOpacity} stroke-width="1.5"/>`,
         );
       }
     else if (layer.kind === "line" || layer.kind === "connected") {
       parts.push(
-        `<polyline fill="none" stroke="${color}" stroke-width="${layer.stroke ?? 2}"${layer.dashes ? ` stroke-dasharray="${layer.dashes}"` : ""} points="${layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`).join(" ")}"/>`,
+        `<polyline fill="none" stroke="${color}"${strokeOpacity} stroke-width="${layer.stroke ?? 2}"${layer.dashes ? ` stroke-dasharray="${layer.dashes}"` : ""} points="${layer.points.map((p) => `${n(px(p[0]))},${n(py(p[1]))}`).join(" ")}"/>`,
       );
       if (layer.kind === "connected")
         for (const p of layer.points)
           parts.push(
-            `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5" fill="${color}"/>`,
+            layer.fill
+              ? `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5"${paint(layer.fill, color, "fill", 1)} stroke="${color}"${strokeOpacity}/>`
+              : `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="3.5" fill="${color}"${opacity(undefined) === undefined ? "" : ` fill-opacity="${opacity()}"`}/>`,
           );
     } else
       layer.points.forEach((p, i) => {
         parts.push(
-          `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}" fill="${color}" fill-opacity="0.85"/>`,
+          layer.fill
+            ? `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}"${paint(layer.fill, color, "fill", 1)} stroke="${color}"${strokeOpacity}/>`
+            : `<circle cx="${n(px(p[0]))}" cy="${n(py(p[1]))}" r="${layer.radius ?? 4}" fill="${color}" fill-opacity="${opacity(0.85)}"/>`,
         );
         // mlabel(): the label to the right of its marker, as Stata puts it.
         if (layer.labels?.[i])
@@ -814,33 +881,47 @@ export function draw({
 }
 
 /**
- * Horizontal bars: one group of bars per category, values along the x axis.
- * groups: [{ label, values }], one value per series. The values are
- * labelled in %8.0gc, as Stata labels them.
+ * Horizontal bars, as graph hbar draws them: layers as graph bar's, one
+ * per colour, each bar { x0, x1, height } with x0 and x1 its place down the
+ * category axis, which runs over range from the top; labels { at, text,
+ * row } the categories' names at the left, those of row 1 (an outer
+ * over()'s groups) further left. The values are labelled in %8.0gc, as
+ * Stata labels them.
  */
 export function drawHorizontalBars({
-  groups,
-  series,
+  layers,
+  labels,
+  range,
   xTitle,
   title,
   labelled,
   styles = {},
 }) {
-  // A null value is a missing statistic: its slot is left empty. With every
-  // value missing or 0, Stata labels the axis only -1 and 1.
-  const all = groups.flatMap((group) => group.values).filter((v) => v !== null);
-  if (!groups.length) throw new StataError("no observations", 2000);
-  const xt = all.some((v) => v !== 0)
+  // With every value missing or 0, Stata labels the axis only -1 and 1.
+  const all = layers.flatMap((layer) => layer.bars.map((bar) => bar.height));
+  if (!layers.length) throw new StataError("no observations", 2000);
+  const inner = labels.filter((label) => !label.row),
+    outer = labels.filter((label) => label.row),
+    widest = (list, size) =>
+      list.length ? greatest(list.map((l) => l.text.length)) * size : 0,
+    // Room at the left for the labels of the categories, and of the outer
+    // groups beside them.
+    left = Math.min(
+      WIDTH / 2,
+      Math.max(
+        120,
+        16 + widest(inner, 6.5) + (outer.length ? 14 + widest(outer, 7) : 0),
+      ),
+    ),
+    xt = all.some((v) => v !== 0)
       ? ticks(Math.min(0, least(all)), Math.max(0, greatest(all)))
       : [-1, 1],
     x0 = xt[0],
     x1 = xt.at(-1),
-    left = 120,
     w = WIDTH - left - PLOT.right,
     h = HEIGHT - PLOT.top - PLOT.bottom,
     px = (v) => left + ((v - x0) / (x1 - x0)) * w,
-    band = h / groups.length,
-    thick = (band * 0.8) / series.length,
+    py = (u) => PLOT.top + ((u - range[0]) / (range[1] - range[0])) * h,
     n = (v) => v.toFixed(2),
     parts = [
       `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="#ffffff"/>`,
@@ -850,22 +931,45 @@ export function drawHorizontalBars({
       `<line x1="${n(px(v))}" x2="${n(px(v))}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#e6e6e6"/>`,
       `<text x="${n(px(v))}" y="${PLOT.top + h + 20}" text-anchor="middle">${escape(applyFormat(v, "%8.0gc").trim())}</text>`,
     );
-  groups.forEach((group, k) => {
-    const top = PLOT.top + k * band + band * 0.1;
-    parts.push(
-      `<text x="${left - 8}" y="${n(PLOT.top + (k + 0.5) * band + 4)}" text-anchor="end">${escape(group.label)}</text>`,
-    );
-    group.values.forEach((value, s) => {
-      if (value === null) return;
+  // Each category's label, then its bars, from the top; a bar goes with
+  // the label nearest it.
+  const bars = layers.flatMap((layer, s) =>
+      layer.bars.map((bar) => ({ ...bar, s })),
+    ),
+    nearest = (bar) => {
+      const middle = (bar.x0 + bar.x1) / 2;
+      return inner.reduce(
+        (best, label, k) =>
+          best === -1 ||
+          Math.abs(label.at - middle) < Math.abs(inner[best].at - middle)
+            ? k
+            : best,
+        -1,
+      );
+    },
+    drawBar = (bar) => {
+      const top = py(bar.x0),
+        thick = py(bar.x1) - py(bar.x0);
       parts.push(
-        `<rect x="${n(Math.min(px(0), px(value)))}" y="${n(top + s * thick)}" width="${n(Math.abs(px(value) - px(0)))}" height="${n(thick)}" fill="${COLORS[s % COLORS.length]}" fill-opacity="0.75" stroke="#ffffff"/>`,
+        `<rect x="${n(Math.min(px(0), px(bar.height)))}" y="${n(top)}" width="${n(Math.abs(px(bar.height) - px(0)))}" height="${n(thick)}" fill="${COLORS[bar.s % COLORS.length]}" fill-opacity="0.75" stroke="#ffffff"/>`,
       );
       if (labelled)
         parts.push(
-          `<text x="${n(Math.max(px(0), px(value)) + 4)}" y="${n(top + s * thick + thick / 2 + 4)}" font-size="10">${escape(barLabel(value))}</text>`,
+          `<text x="${n(Math.max(px(0), px(bar.height)) + 4)}" y="${n(top + thick / 2 + 4)}" font-size="10">${escape(barLabel(bar.height))}</text>`,
         );
-    });
+    },
+    owner = bars.map(nearest);
+  inner.forEach((label, k) => {
+    parts.push(
+      `<text x="${left - 8}" y="${n(py(label.at) + 4)}" text-anchor="end">${escape(label.text)}</text>`,
+    );
+    bars.filter((_, b) => owner[b] === k).forEach(drawBar);
   });
+  bars.filter((_, b) => owner[b] === -1).forEach(drawBar);
+  for (const label of outer)
+    parts.push(
+      `<text x="${n(left - 22 - widest(inner, 6.5))}" y="${n(py(label.at) + 4)}" text-anchor="end" font-size="13">${escape(label.text)}</text>`,
+    );
   parts.push(
     `<line x1="${n(px(0))}" x2="${n(px(0))}" y1="${PLOT.top}" y2="${PLOT.top + h}" stroke="#333333"/>`,
     `<line x1="${left}" x2="${WIDTH - PLOT.right}" y1="${PLOT.top + h}" y2="${PLOT.top + h}" stroke="#333333"/>`,
@@ -873,16 +977,22 @@ export function drawHorizontalBars({
     `<text x="${left + w / 2}" y="${HEIGHT - 22}" text-anchor="middle"${styles.ytitle ? textLook(styles.ytitle, 12) : ""}>${escape(xTitle)}</text>`,
   );
   if (title) parts.push(placedText(title, styles.title, "middle", 24, 16));
-  if (series.length > 1)
-    series.forEach((name, s) =>
+  if (layers.length > 1) {
+    const at = legendPlaces(
+      left,
+      layers.map((layer) => layer.label),
+    );
+    layers.forEach((layer, s) =>
       parts.push(
-        `<rect x="${left + 8 + s * 150}" y="${HEIGHT - 14}" width="12" height="8" fill="${COLORS[s % COLORS.length]}"/>`,
-        `<text x="${left + 26 + s * 150}" y="${HEIGHT - 6}">${escape(name)}</text>`,
+        `<rect x="${n2(at[s])}" y="${HEIGHT - 14}" width="12" height="8" fill="${COLORS[s % COLORS.length]}"/>`,
+        `<text x="${n2(at[s] + 18)}" y="${HEIGHT - 6}">${escape(layer.label)}</text>`,
       ),
     );
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
 }
 
+export { escape as escapeText };
 export const titleOf = (variable) => variable.label || variable.name;
 function numeric(session, name) {
   const variable = session.data.get(session.varlist(name)[0]);
@@ -937,7 +1047,9 @@ function functionPlot(session, text) {
   return [
     {
       kind: "line",
-      color: colourOf(options.lcolor, "lcolor", 2),
+      color:
+        colourOf(options.lcolor, "lcolor", 2) ??
+        colourOf(options.color, "color", 2),
       stroke: widthOf(options.lwidth),
       dashes: patternOf(options.lpattern),
       points,
@@ -1069,15 +1181,51 @@ export function histogramBars(values, options, text, note, float = true) {
   return { bars, bins, width, start, yTitle, curveScale, n };
 }
 
+/**
+ * The colours of a twoway plot's layers: color() for the whole plot, its
+ * bars and areas filled at Stata's intensity with the colour as their
+ * outline; mcolor() for markers and mfcolor() for their fill; lcolor()
+ * for lines and the outlines of bars and areas. A confidence band takes
+ * only color(). markers and linesColour are mcolor() and lcolor() read.
+ */
+function paintPlot(layers, options, { markers, linesColour } = {}) {
+  const general = colourOf(options.color, "color", 2),
+    fills = colourOf(options.mfcolor, "mfcolor", 2);
+  markers ??= colourOf(options.mcolor, "mcolor", 2);
+  linesColour ??= colourOf(options.lcolor, "lcolor", 2);
+  for (const layer of layers) {
+    if (layer.bars || layer.kind === "area") {
+      Object.assign(
+        layer,
+        barColours(general, layer.bars && layer.histogram ? 0.9 : 0.8),
+      );
+      if (linesColour) layer.edge = linesColour;
+    } else if (layer.kind === "band") {
+      if (general?.rgb)
+        layer.color = { ...general, opacity: general.opacity ?? 1 };
+    } else if (layer.kind === "scatter" || layer.kind === "connected") {
+      if (markers ?? general) layer.color = markers ?? general;
+      if (fills) layer.fill = fills;
+    } else if (linesColour ?? general) layer.color = linesColour ?? general;
+  }
+  return layers;
+}
+
 const DENSITY = { name: "Density", label: "Density" };
 // A plot of one variable: twoway histogram and twoway kdensity.
 function univariatePlot(session, kind, text) {
   const parsed = parseGraph(
-      session,
-      `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
-      text,
-    ),
-    variable = numeric(session, parsed.varlist[0]),
+    session,
+    `varname [if] [in] [, ${OWN.univariate} ${PLOT_LOOKS} ${LOOKS}]`,
+    text,
+  );
+  return paintPlot(
+    univariateLayers(session, kind, text, parsed),
+    parsed.options,
+  );
+}
+function univariateLayers(session, kind, text, parsed) {
+  const variable = numeric(session, parsed.varlist[0]),
     values = session
       .rows(parsed, null)
       .map((i) => variable.data[i])
@@ -1136,6 +1284,7 @@ function univariatePlot(session, kind, text) {
     return [
       {
         bars: made.bars,
+        histogram: true,
         points: [],
         label: made.yTitle,
         y: { name: made.yTitle, label: made.yTitle },
@@ -1357,17 +1506,17 @@ function plot(session, kind, text, note = () => {}) {
       yFormat: y.format,
     });
   }
-  // mcolor() and msize() are for markers, lcolor() for lines.
+  // mcolor(), mfcolor() and msize() are for markers, lcolor() for lines
+  // and outlines, and color() for all of a plot, as Stata draws them.
   const markers = colourOf(parsed.options.mcolor, "mcolor", 2),
     linesColour = colourOf(parsed.options.lcolor, "lcolor", 2),
     radius = sizeOf(parsed.options.msize),
     stroke = widthOf(parsed.options.lwidth),
     dashes = patternOf(parsed.options.lpattern);
+  paintPlot(layers, parsed.options, { markers, linesColour });
   for (const layer of layers) {
     const marked = layer.kind === "scatter" || layer.kind === "connected";
-    if (marked && markers) layer.color = markers;
     if (marked && radius) layer.radius = radius;
-    if (!marked && linesColour) layer.color = linesColour;
     if (stroke !== undefined && layer.kind !== "scatter") layer.stroke = stroke;
     if (dashes && layer.kind !== "scatter") layer.dashes = dashes;
   }
@@ -1733,7 +1882,7 @@ function twoway(session, text, ctx, single) {
 function histogram(session, text, ctx) {
   const parsed = parseGraph(
       session,
-      `varname [if] [in] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity ${LOOKS} | ADDLabels]`,
+      `varname [if] [in] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity COLor(string) ${LOOKS} | ADDLabels]`,
       text,
     ),
     options = parsed.options,
@@ -1761,6 +1910,9 @@ function histogram(session, text, ctx) {
     layers = [
       {
         bars,
+        // color() fills the bars at nine tenths of the colour, outlined
+        // in it.
+        ...barColours(colourOf(options.color, "color", 2), 0.9),
         points: [],
         label: yTitle,
         tickSpan: histogramSpan(bars, true),
@@ -1928,6 +2080,7 @@ function histogramBy(session, parsed, variable, values, by, ctx) {
       return [
         {
           bars,
+          ...barColours(colourOf(options.color, "color", 2), 0.9),
           points: [],
           label: yTitle,
           // The panels' axis is labelled over the bars' edges, which
