@@ -117,7 +117,8 @@ function columnParts(name) {
     hash = rest.lastIndexOf("#"),
     // A statistic over groups, c.y@1.g, is broken after its @.
     at = rest.lastIndexOf("@"),
-    operator = /^[0-9]*[A-Za-z]*\./.exec(rest),
+    // An operator as 2bn., L2. or a contrast's r1vs0.
+    operator = /^(?:r\d+vs\d+|[0-9]*[A-Za-z]*)\./.exec(rest),
     // A pair's name in r(table) after mixed, as cov(x,_cons), is broken
     // after its comma, the first part placed as an operator.
     pair = /^\w+\([^(),]+,[^(),]+\)$/.test(rest) ? rest.indexOf(",") : -1,

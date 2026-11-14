@@ -19047,3 +19047,460 @@ xtmixed y x || id:, nolog
 display e(cmd)
 xtmixed, variance
 by g, sort: mixed y x || id:, nolog
+=== causal-teffects-estimators
+clear
+set seed 4242
+set obs 300
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*4
+generate g = floor(runiform()*3)
+generate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)
+generate y = 1 + 0.5*x1 + 0.3*x2 + 1.2*t + 0.4*t*x1 + invnormal(runiform())
+teffects ra (y x1 x2) (t)
+matrix list e(b)
+teffects ra (y x1 x2) (t), atet
+teffects ra (y x1 x2) (t), pomeans
+teffects ipw (y) (t x1 x2)
+teffects ipw (y) (t x1 x2, probit), atet
+teffects ipw (y) (t x1 x2), pomeans
+teffects ipwra (y x1 x2) (t x1 x2)
+teffects ipwra (y x1 x2) (t x1 x2, probit), atet
+teffects aipw (y x1 x2) (t x1 x2)
+teffects aipw (y x1 x2) (t x1 x2), pomeans
+teffects aipw (y x1 x2) (t x1 x2, probit)
+teffects aipw (y x1 x2) (t x1 x2), atet
+teffects ra (y x1 x2) (t), aequations
+teffects ipw (y) (t x1 x2), aequations
+teffects ipwra (y x1 x2) (t x1 x2), aequations
+matrix list e(b)
+teffects aipw (y x1 x2) (t x1 x2), aequations
+teffects ra (y x1 i.g) (t), aequations
+teffects ra (y x1 x2) (t), coeflegend
+teffects ipwra (y x1 x2) (t), nolog
+teffects
+teffects, aequations level(90)
+=== causal-teffects-options
+clear
+set seed 4242
+set obs 300
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*4
+generate g = floor(runiform()*3)
+generate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)
+generate y = 1 + 0.5*x1 + 0.3*x2 + 1.2*t + 0.4*t*x1 + invnormal(runiform())
+generate t2 = t + 1
+label define tl 1 "untreated" 2 "treated"
+label values t2 tl
+teffects ra (y x1 x2) (t2)
+matrix list e(b)
+teffects ipw (y) (t2 x1 x2), pomeans
+teffects ra (y x1 x2, noconstant) (t)
+teffects ipw (y) (t x1 x2, noconstant)
+teffects ra (y x1 x2) (t) if x2 > 1, atet nolog
+teffects ra (y x1 x2) (t), vce(cluster g)
+teffects ra (y x1 x2) (t), control(1)
+teffects ra (y x1 x2) (t), atet tlevel(1) level(90)
+teffects ra (y x1 x2) (t) [pweight=x2]
+generate fw = 1 + floor(runiform()*3)
+teffects aipw (y x1 x2) (t x1 x2) [fweight=fw]
+generate t3 = floor(runiform()*3)
+teffects ra (y x1 x2) (t3)
+teffects ipw (y) (t x1 i.g), aequations
+teffects aipw (y x1 i.g) (t x1 i.g, probit), aequations
+test _b[ATE:r1vs0.t] = 0.5
+lincom _b[ATE:r1vs0.t] + _b[POmean:0.t]
+generate verylongtreatmentname = t
+teffects ra (y x1 x2) (verylongtreatmentname)
+set linesize 79
+teffects ra (y x1 x2) (t2), aequations
+set linesize 200
+replace y = . in 1/5
+replace x1 = . in 10
+teffects ra (y x1 x2) (t), nolog
+capture noisily teffects ra (y x1 x2) (t) (x1)
+capture noisily teffects ra (y x1 x2)
+capture noisily teffects ipw (y x1) (t x1 x2)
+capture noisily teffects ra (y x1 x2) (t x1)
+capture noisily teffects ra (y t x1) (t)
+generate tfrac = t + 0.5
+capture noisily teffects ra (y x1) (tfrac)
+capture noisily teffects ra (y x1 x2) (t), tlevel(1)
+=== causal-heckman
+clear
+set seed 777
+set obs 400
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*3
+generate z = invnormal(runiform())
+generate u1 = invnormal(runiform())
+generate u2 = 0.6*u1 + 0.8*invnormal(runiform())
+generate s = (0.3 + 0.8*z + 0.4*x1 + u1) > 0
+generate y = 2 + 0.7*x1 - 0.5*x2 + u2 if s
+heckman y x1 x2, select(x1 z)
+matrix list e(b)
+heckman y x1 x2, select(x1 z) twostep
+matrix list e(b)
+matrix list e(V)
+heckman y x1 x2, select(s = x1 z) nolog
+heckman y x1 x2, select(x1 z) vce(robust) nolog
+generate cl = floor(runiform()*40)
+heckman y x1 x2, select(x1 z) vce(cluster cl) nolog
+heckman y x1 x2, select(x1 z) twostep mills(imr)
+summarize imr
+heckman y x1 x2, select(x1 z) nolog level(90)
+heckman
+test x1
+test [select]z
+lincom [y]x1 + [select]x1
+estat ic
+set linesize 79
+heckman y x1 x2, select(x1 z) nolog
+set linesize 200
+=== causal-heckman-forms
+clear
+set seed 2468
+set obs 500
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*3
+generate g = 1 + floor(runiform()*3)
+generate z = invnormal(runiform())
+generate u1 = invnormal(runiform())
+generate u2 = -0.4*u1 + 0.9*invnormal(runiform())
+generate s = (0.2 + 0.7*z + 0.3*x1 + 0.2*(g==2) + u1) > 0
+generate y = 1 + 0.5*x1 + 0.3*(g==3) + u2 if s
+generate s2 = s
+replace s2 = . in 1/7
+heckman y x1 i.g, select(x1 z i.g) nolog
+heckman y x1 i.g, select(x1 z i.g) twostep
+heckman y, select(z) nolog
+heckman y x1, select(s2 = x1 z) nolog
+heckman y x1, select(x1 z, noconstant) nolog
+heckman y x1, select(x1 z) twostep rhotrunc
+predict yc, ycond
+predict ye, yexpected
+predict ps, psel
+predict mr, mills
+predict xbs, xbsel
+predict xbo
+predict sp, stdp
+predict sf, stdf
+summarize yc ye ps mr xbs xbo sp sf
+heckman y x1, select(x1 z) nolog
+predict yc2, ycond
+predict ps2, psel
+predict sps, stdpsel
+summarize yc2 ps2 sps
+capture noisily heckman y x1, select(x1 z) twostep mle
+capture noisily heckman y x1
+capture noisily heckman y x1, select(x1 z) mills(x2)
+=== causal-didregress
+clear
+set seed 99
+set obs 30
+generate id = _n
+generate grp = ceil(_n/3)
+generate treatedgrp = grp > 6
+generate a = invnormal(runiform())
+expand 8
+bysort id: generate year = 2000 + _n
+generate x = invnormal(runiform())
+generate d = treatedgrp & year >= 2005
+generate y = a + 0.2*year - 400 + 0.5*x + 1.5*d + invnormal(runiform())
+didregress (y x) (d), group(grp) time(year)
+matrix list e(b)
+matrix list e(V)
+estat ptrends
+return list
+estat granger
+return list
+didregress (y) (d), group(grp) time(year)
+estat ptrends
+didregress (y x) (d), group(grp) time(year) nogteffects
+didregress (y x) (d), group(grp) time(year) level(90)
+didregress (y x) (d), group(grp) time(year) aequations
+didregress (y x) (d), group(grp) time(year) coeflegend
+didregress (y x) (d), group(grp) time(year) vce(robust)
+didregress (y x) (d), group(grp) time(year) vce(cluster id)
+estat ptrends
+replace y = . in 3
+replace x = . in 50
+didregress (y x) (d) if year > 2001, group(grp) time(year)
+estat ptrends
+generate dstag = treatedgrp & year >= 2004 + mod(grp,3)
+didregress (y x) (dstag), group(grp) time(year)
+capture noisily estat ptrends
+generate dsw = treatedgrp & inlist(year, 2005, 2006)
+didregress (y x) (dsw), group(grp) time(year)
+generate dnone = 0
+capture noisily didregress (y x) (dnone), group(grp) time(year)
+capture noisily didregress (y x) (d), group(grp)
+capture noisily didregress (y x) (d), time(year)
+generate averyveryverylonggroupname = grp
+didregress (y x) (d), group(averyveryverylonggroupname) time(year)
+didregress
+set linesize 79
+didregress (y x) (dstag), group(grp) time(year)
+set linesize 200
+=== causal-xtdidregress
+clear
+set seed 99
+set obs 30
+generate id = _n
+generate grp = ceil(_n/3)
+generate treatedgrp = grp > 6
+generate a = invnormal(runiform())
+expand 8
+bysort id: generate year = 2000 + _n
+generate x = invnormal(runiform())
+generate d = treatedgrp & year >= 2005
+generate y = a + 0.2*year - 400 + 0.5*x + 1.5*d + invnormal(runiform())
+capture noisily xtdidregress (y x) (d), group(grp) time(year)
+xtset id year
+xtdidregress (y x) (d), group(grp) time(year)
+matrix list e(b)
+xtdidregress (y x) (d), group(id) time(year)
+estat ptrends
+estat granger
+xtdidregress (y x) (d), group(grp) time(year) nogteffects
+xtdidregress (y) (d), group(grp) time(year)
+xtdidregress (y x) (d), group(grp) time(year) aequations
+xtdidregress (y x) (d), group(grp) time(year) vce(robust)
+generate otherg = mod(id, 4)
+capture noisily xtdidregress (y x) (d), group(otherg) time(year)
+replace y = . in 7
+xtdidregress (y x) (d), group(grp) time(year)
+xtdidregress
+=== causal7-teffects-samples-and-options
+clear
+set seed 404
+set obs 200
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*3
+generate x3 = 2*x1
+generate t = runiform() < invlogit(-0.2 + 0.7*x1)
+generate t3 = floor(runiform()*3)
+generate yb = runiform() < invlogit(-0.5 + 0.4*x1 + 0.8*t)
+generate y = 1 + x1 + 0.4*x2 + t + invnormal(runiform())
+replace x2 = . in 7
+teffects aipw (y x1 x2) (t x1 x2), atet
+predict a1, te
+predict a2 a3, cmean
+summarize a1-a3
+predict a4 if x1 > 0, te
+summarize a4
+teffects aipw (y x2) (t x1), atet aequations
+teffects aipw (y x1 x2) (t x1 x2) if x1 > -1, atet
+teffects aipw (yb x1, logit) (t x1 x2)
+predict h1, te
+predict h2 h3, cmean
+summarize h1-h3
+teffects ra (y x1 x2 x3) (t)
+teffects ipw (y) (t x1 x3)
+teffects ipwra (y x1 x3) (t x1 x2 x3), aequations
+teffects aipw (y x1) (t x1), nls
+ereturn list
+teffects aipw (y x1) (t x1), wnls aequations
+teffects aipw (yb x1, logit) (t x1), nls
+teffects aipw (yb x1, probit) (t x1), wnls atet
+teffects ra (y x1) (t), cformat(%9.2f)
+teffects, pformat(%5.2f) sformat(%7.3f)
+label define tl 0 "Control" 1 "Treated"
+label values t tl
+teffects ra (y x1 x2) (t), atet tlevel(Treated)
+estimates store m1
+teffects ipw (y) (t x1 x2)
+estimates store m2
+estimates table m1 m2
+teffects ra (y x1) (t), nofvlabel
+teffects ra (y x1 x2) (t3), atet
+ereturn list
+teffects ra (y x1 x2) (t3), atet tlevel(2) control(1)
+teffects ipwra (y x1 x2) (t x1 x2), iterate(50) tolerance(1e-7) pstolerance(1e-6)
+capture noisily teffects ra (y x1) (t), noheader bogus
+display _rc
+capture noisily teffects ra (y x1) (t), pstolerance(1e-8)
+display _rc
+capture noisily teffects aipw (y x1) (t x1), nls wnls
+display _rc
+capture noisily teffects ipw (y) (t x1), nls
+display _rc
+capture noisily teffects ra (y x1 x2) (t3), control(2) pomeans
+display _rc
+capture noisily teffects ra (y x1 x2) (t), atet pomeans
+display _rc
+capture noisily teffects ra (y x1 x2) (t3), control(Placebo)
+display _rc
+capture noisily teffects ra (y x1 x2) (t), control(Nothing)
+display _rc
+capture noisily teffects ra y x1 x2 t
+display _rc
+capture noisily teffects ra (y x1 x2) (t), vce(cluster)
+display _rc
+generate str3 ts = cond(t, "yes", "no")
+capture noisily teffects ra (y x1 x2) (ts)
+display _rc
+capture noisily teffects ra (ts x1 x2) (t)
+display _rc
+teffects ra (y x1 x2) (t)
+capture noisily estat overlap
+display _rc
+capture noisily estat ic
+display _rc
+capture noisily margins
+display _rc
+regress y x1
+capture noisily teffects
+display _rc
+capture noisily teffects bogus (y x1) (t)
+display _rc
+=== causal7-teffects-overlap-and-identification
+clear
+set seed 1010
+set obs 300
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*3
+generate t = runiform() < invlogit(-0.5 + 5*x1)
+generate y = 1 + x1 + 0.4*x2 + t + invnormal(runiform())
+set linesize 79
+capture noisily teffects ipw (y) (t x1 x2)
+display _rc
+capture noisily teffects aipw (y x1) (t x1 x2, probit)
+display _rc
+capture noisily teffects ipwra (y x1) (t x1 x2), atet
+display _rc
+capture noisily teffects ipw (y) (t x1 x2), osample(viol)
+display _rc
+tabulate viol
+capture noisily teffects ipw (y) (t x1 x2), osample(viol)
+display _rc
+set linesize 200
+teffects ipw (y) (t x1 x2), pstolerance(1e-12)
+generate yp = (x1 > 0.3)
+capture noisily teffects ra (yp x1, logit) (t)
+display _rc
+generate tsep = x1 > 0
+capture noisily teffects ipw (y) (tsep x1, probit)
+display _rc
+generate t2 = runiform() < invlogit(-0.5 + 9*x1)
+capture noisily teffects ipw (y) (t2 x1)
+display _rc
+capture noisily teffects ipw (y) (t2 x1, probit)
+display _rc
+=== causal7-heckman-forms-and-predictions
+clear
+set seed 662
+set obs 80
+generate x1 = invnormal(runiform())
+generate z = invnormal(runiform())
+generate u1 = invnormal(runiform())
+generate u2 = 0.5*u1 + 0.85*invnormal(runiform())
+generate s = (0.2 + 0.8*z + 0.3*x1 + u1) > 0
+generate y = 2 + 0.6*x1 + u2 if s
+generate s2 = 2*s
+generate x3 = 2*x1
+capture noisily heckman y x1, select(s2 = x1 z)
+display _rc
+capture noisily heckman y x1, select()
+display _rc
+heckman y, select(z) twostep
+heckman y x1, select(z) twostep
+heckman y x1, select(x1 z) twostep
+ereturn list
+heckman y, select(z) nolog
+heckman y x1 x3, select(x1 z) nolog
+heckman y x1, select(x1 z x3) nolog
+heckman y x1, select(x1 z) nolog cformat(%9.3f) pformat(%5.2f)
+heckman y x1, select(x1 z) nolog noheader
+heckman y x1, select(x1 z) nolog nocnsreport iterate(100)
+heckman, noheader cformat(%8.2f)
+predict p1, e(0,3)
+predict p2, pr(0,3)
+predict p3, ystar(0,3)
+predict p4, pr(.,2)
+predict p5, e(1,.)
+summarize p1-p5
+predict q*, scores
+tabstat q1 q2 q3 q4, statistics(sd min max) columns(statistics)
+predict r1, scores
+predict r2, scoresel
+tabstat r1 r2, statistics(sd min max) columns(statistics)
+heckman y x1 [pweight=1+z^2], select(x1 z) nolog
+generate str3 sv = "a"
+capture noisily heckman y x1 sv, select(x1 z)
+display _rc
+heckman y x1, select(x1 z) twostep
+capture noisily estat ic
+display _rc
+capture noisily predict w1, scores
+display _rc
+=== causal7-didregress-checks-and-weights
+clear
+set seed 808
+set obs 20
+generate id = _n
+generate grp = ceil(_n/2)
+generate treatedgrp = grp == 10
+generate a = invnormal(runiform())
+expand 5
+bysort id: generate t = _n
+generate x = invnormal(runiform())
+generate z = runiform() < 0.5
+generate x2 = 2*x
+generate d = treatedgrp & t >= 4
+generate y = a + 0.3*t + 0.5*x + 1.2*d + invnormal(runiform())
+didregress (y x) (d), group(grp) time(t)
+ereturn list
+display e(rank)
+didregress (y x i.z) (d), group(grp) time(t)
+display e(rank)
+didregress (y x x2) (d), group(grp) time(t)
+didregress (y x i.z##c.x) (d), group(grp) time(t) aequations
+estimates store did1
+estimates table did1
+predict yhat
+predict yres, residuals
+predict yhat2 if grp > 3, xb
+summarize yhat yres yhat2
+didregress (y x) (d) [aweight=1+z], group(grp) time(t)
+didregress (y x) (d) [fweight=1+z], group(grp) time(t)
+didregress (y x) (d) [pweight=1+z], group(grp) time(t) aequations
+predict wres, residuals
+summarize wres
+didregress (y x) (d), group(grp) time(t) cformat(%9.3f) nofvlabel
+capture noisily didregress (y x) (d), group(grp) time(t) noheader
+display _rc
+capture noisily estat ic
+display _rc
+capture noisily margins
+display _rc
+xtset id t
+xtdidregress (y x) (d), group(grp) time(t)
+ereturn list
+xtdidregress (y x) (d), group(id) time(t)
+display e(rank)
+predict xres, residuals
+summarize xres
+generate dv = d
+replace dv = 1 - d if id == 19 & t == 5
+set linesize 79
+capture noisily didregress (y x) (dv), group(grp) time(t)
+display _rc
+capture noisily xtdidregress (y x) (dv), group(grp) time(t)
+display _rc
+set linesize 200
+generate d2 = 2*d
+capture noisily didregress (y x) (d2), group(grp) time(t)
+display _rc
+generate dall = 1
+capture noisily didregress (y x) (dall), group(grp) time(t)
+display _rc
+generate tf = t + 0.5
+capture noisily didregress (y x) (d), group(grp) time(tf)
+display _rc
+generate str2 sg = string(grp)
+capture noisily didregress (y x) (d), group(sg) time(t)
+display _rc
+capture noisily didregress (y x) d, group(grp) time(t)
+display _rc
+capture noisily didregress (y x) (d x), group(grp) time(t)
+display _rc

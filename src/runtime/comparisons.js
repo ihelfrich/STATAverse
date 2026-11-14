@@ -2,9 +2,14 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, ttail } from "./distributions.js";
-import { coefficientSpace, stripeName, termRows } from "./estimation.js";
+import {
+  abbreviate,
+  coefficientSpace,
+  stripeName,
+  termRows,
+} from "./estimation.js";
 import { normal } from "./functions.js";
-import { count } from "./reports.js";
+import { count, labelled as labelledValue } from "./reports.js";
 import { renderSmcl } from "./smcl.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, missingValue } from "./values.js";
@@ -287,8 +292,14 @@ export function estimatesTable(session, text, ctx) {
             : (column?.base ?? read.base)
               ? "base"
               : "omitted";
-      if (!rows.has(read.key)) rows.set(read.key, { ...read, cells: [] });
-      rows.get(read.key).cells[m] = {
+      // A model that names a coefficient twice (x, then o.x where it is
+      // repeated) has a row for each, matched by order with the others.
+      let key = read.key;
+      for (let n = 1; rows.get(key)?.cells[m]; n++)
+        key = `${read.key}\u0001${n}`;
+      if (!rows.has(key))
+        rows.set(key, { ...read, key, display: read.key, cells: [] });
+      rows.get(key).cells[m] = {
         status,
         b: space.b[i],
         se: Math.sqrt(space.V[i][i]),
@@ -373,12 +384,50 @@ export function estimatesTable(session, text, ctx) {
         return;
       }
       if (headed) ctx.out(`${equation.padEnd(13)}|`);
+      // A contrast of a treatment's levels (r1vs0.t, from teffects and
+      // didregress) is shown under its variable's name as (1 vs 0), in
+      // its labels, broken at its blanks onto lines two short of the
+      // column.
+      const contrastRows = ordered.filter((row) =>
+        /^r\d+vs\d+\.[^#]+$/.test(row.key),
+      );
+      let headedBy = null;
+      for (const row of contrastRows) {
+        const [, a, b, variable] = /^r(\d+)vs(\d+)\.(.+)$/.exec(row.key),
+          v = session.data.has(variable) ? session.data.get(variable) : null,
+          label = (level) =>
+            String(v ? labelledValue(session, v, Number(level)) : level),
+          lines = [];
+        if (variable !== headedBy)
+          ctx.out(`${abbreviate(variable, 12).padStart(12)} |`);
+        headedBy = variable;
+        for (const word of `(${label(a)} vs ${label(b)})`.split(/\s+/))
+          if (lines.length && `${lines.at(-1)} ${word}`.length <= 10)
+            lines[lines.length - 1] += ` ${word}`;
+          else lines.push(word);
+        const cut = (text) =>
+          text.length <= 11 ? text : `${text.slice(0, 9)}..`;
+        lines
+          .slice(0, -1)
+          .forEach((line) => ctx.out(`${`${cut(line)}  `.padStart(13)}|`));
+        ctx.out(
+          `${`${cut(lines.at(-1))}  `.padStart(13)}|${joined(row, coefficientCell)}`,
+        );
+        if (withSe) ctx.out(`${" ".repeat(13)}|${joined(row, seCell)}`);
+      }
+      if (contrastRows.length === ordered.length) return;
+      if (contrastRows.length)
+        ordered.splice(
+          0,
+          ordered.length,
+          ...ordered.filter((row) => !contrastRows.includes(row)),
+        );
       // The rows are laid out as a coefficient table lays them out, twelve
       // characters wide: factors under their name, labelled levels, blank
       // rows between groups. A base level that every model has as its base
       // is not shown.
       const table = {
-        names: ordered.map((row) => row.key),
+        names: ordered.map((row) => row.display ?? row.key),
         columns: ordered.map((row) =>
           row.term
             ? {
@@ -450,7 +499,9 @@ export function estimatesTable(session, text, ctx) {
     ),
     rowName = ({ equation, row }) => {
       const name =
-        entries.length === 1 && row.cells[0] ? row.cells[0].stripe : row.key;
+        entries.length === 1 && row.cells[0]
+          ? row.cells[0].stripe
+          : (row.display ?? row.key);
       return equation === "_" ? name : `${equation}:${name}`;
     },
     statNames = options.stats ? options.stats.trim().split(/\s+/) : [];

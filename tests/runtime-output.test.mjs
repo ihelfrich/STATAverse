@@ -185,6 +185,22 @@ for (const c of fixture.cases)
             "mixed-pass7-predict-checks",
             "mixed-pass7-estat-results",
             "mixed-pass7-margins-xtmixed-by",
+            // teffects logs gmm's criterion, which is rounding noise near
+            // zero; heckman's two-step variance carries the last digits of
+            // the first-step probit.
+            "causal-teffects-estimators",
+            "causal-teffects-options",
+            "causal-heckman",
+            "causal-heckman-forms",
+            "causal7-teffects-samples-and-options",
+            "causal7-teffects-overlap-and-identification",
+            // heckman's scores and its ML estimates carry the last digits
+            // of the optimizer's final step.
+            "causal7-heckman-forms-and-predictions",
+            // estat ptrends regresses on group trends in the time variable
+            // itself (values near 2000), whose F statistic, shown whole by
+            // return list, agrees with Stata's to about eight digits.
+            "causal-didregress",
           ].includes(c.id),
         )
       )

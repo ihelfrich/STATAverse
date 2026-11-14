@@ -324,7 +324,7 @@ function vce(session, model, text, ctx) {
         ? name.lastIndexOf("#") + 1
         : name.includes("@")
           ? name.lastIndexOf("@") + 1
-          : (/^(\d+[bno]*|c?o)\./.exec(name)?.[0].length ?? 0);
+          : (/^(\d+[bno]*|c?o|r\d+vs\d+)\./.exec(name)?.[0].length ?? 0);
       return [name.slice(0, cut), abbreviate(name.slice(cut), width)];
     },
     heads = shown.map((s) => split(s.name)),
