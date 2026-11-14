@@ -5849,3 +5849,124 @@ capture noisily graph bar (mean) y, over(g, Desc)
 capture noisily graph bar (mean) y, over(g, SORT(1))
 capture noisily graph bar (mean) y, over(g, Sort(1))
 capture noisily graph box y, over(g, SORT(1))
+=== graph-axes
+@EST
+graph drop _all
+capture noisily graph combine
+capture noisily graph combine, cols(2)
+scatter y x1, name(g1)
+histogram y, name(g2)
+graph dir
+scatter y x1, name(alongergraphname)
+scatter y x1, name(abcdefghi)
+scatter y x1, name(abcdefgh)
+graph dir
+scatter y x1, name(g3)
+scatter y x1, name(g4)
+scatter y x1, name(g5)
+scatter y x1, name(g6)
+scatter y x1, name(g7)
+scatter y x1, name(g8)
+scatter y x1, name(g9)
+scatter y x1, name(g10)
+graph dir
+set linesize 40
+graph dir
+set linesize 56
+graph dir
+set linesize 57
+graph dir
+set linesize 80
+graph dir
+set linesize 200
+graph drop _all
+capture noisily scatter y x1, by(g, cols(2) rows(2))
+capture noisily scatter y x1, by(g, rows(1) cols(3))
+capture noisily scatter y x1, yline(abc)
+capture noisily scatter y x1, yline(1 abc)
+capture noisily scatter y x1, xline(.)
+capture noisily scatter y x1, xline(2(2)6 x)
+capture noisily scatter y x1, ylabel("ten" 10)
+capture noisily scatter y x1, ylabel(10 "ten" "x")
+capture noisily scatter y x1, ylabel(abc)
+capture noisily scatter y x1, ylabel(#)
+scatter y x1, ylabel(none)
+scatter y x1, ylabel(10 "ten" 20 "twenty")
+scatter y x1, ylabel(none 10)
+scatter y x1, xlabel(2 4 8, grid)
+scatter y x1, ylabel(#0) xlabel(#3)
+scatter y x1, ylabel(#-1)
+scatter y x1, yline()
+twoway (scatter y x1) (lfit y x1), by(g, legend(off))
+twoway (scatter y x1) (lfit y x1), by(g) legend(off)
+=== graph-axes-merge
+@EST
+graph drop _all
+scatter y x1, name(g1)
+histogram y, name(g2)
+scatter y x1, name(Alpha)
+scatter y x1, name(gab)
+graph dir
+graph dir g*
+graph dir g?
+graph dir *a*
+graph dir G*
+graph dir zzz
+graph dir, memory
+graph dir g*, m
+graph dir, gph
+graph dir, g
+capture noisily graph dir g1 Alpha
+capture noisily graph dir, bogus
+capture noisily graph dir, MEMORY
+graph drop _all
+capture noisily scatter y x1, by(g, cols(0) rows(2))
+capture noisily scatter y x1, by(g, cols(2) rows(0))
+capture noisily scatter y x1, by(g, cols(-1))
+capture noisily scatter y x1, by(g, cols(1.5))
+capture noisily scatter y x1, by(g, rows(abc))
+capture noisily scatter y x1, by(g, rows(0) cols(0))
+capture noisily scatter y x1, by(g, cols(2) rows(-1))
+scatter y x1, by(g, cols())
+capture noisily twoway (scatter y x1) (lfit y x1), by(g, LEGEND(off))
+capture noisily twoway (scatter y x1) (lfit y x1), by(g, le(off))
+capture noisily scatter y x1, by(g, Bogus(2))
+capture noisily scatter y x1, bogus(2)
+capture noisily scatter y x1, yline("10")
+capture noisily scatter y x1, yline(`"10"')
+capture noisily scatter y x1, xline("10" 12)
+capture noisily scatter y x1, yline( )
+capture noisily scatter y x1, yline(1,2)
+capture noisily scatter y x1, yline(1, bogus)
+capture noisily scatter y x1, yline(1, Lcolor(red))
+capture noisily scatter y x1, yline(abc, bogus)
+scatter y x1, yline(10,)
+scatter y x1, yline(10) yline(20)
+scatter y x1, xline(2) xline(4)
+scatter y x1, xlabel(2) xlabel(4)
+scatter y x1, ylabel(10 20) ylabel(30)
+twoway (scatter y x1, title(a) yline(5)) (lfit y x1, ylabel(10))
+scatter y x1, ylabel(minmax)
+scatter y x1, ylabel(#3 10)
+scatter y x1, ylabel(##3)
+scatter y x1, ylabel(.)
+scatter y x1, ylabel(. 10 "ten")
+scatter y x1, ylabel(10/20 "x")
+scatter y x1, ylabel(10 "a" 10 "b")
+capture noisily scatter y x1, ylabel(#3 #4)
+capture noisily scatter y x1, ylabel(10 "ten" none 30)
+capture noisily scatter y x1, ylabel(none none)
+capture noisily scatter y x1, ylabel(10(5)20 "x")
+capture noisily scatter y x1, ylabel(. "missing")
+capture noisily scatter y x1, ylabel(25 minmax)
+capture noisily scatter y x1, ylabel(10 #3)
+capture noisily scatter y x1, ylabel(minmax #3)
+capture noisily scatter y x1, ylabel(10 . 20)
+capture noisily scatter y x1, ylabel(MINMAX)
+capture noisily scatter y x1, ylabel(#3 "x")
+gen double h = x2 + 100.05855
+histogram h
+histogram h, discrete
+gen float f = x2 / 3
+histogram f, discrete
+histogram f, normal legend(on)

@@ -120,7 +120,17 @@ function kdensity(session, text, ctx) {
       .map((v, k) => [v, heights[k]])
       .filter((p) => !isMissing(p[0]))
       .sort((a, b) => a[0] - b[0]),
-    layers = [{ kind: "line", points, label: "Kernel density estimate" }];
+    // The density and its points are doubles Stata makes, so the axes are
+    // labelled in %10.0g: .00032904 where %9.0g gives .000329.
+    layers = [
+      {
+        kind: "line",
+        points,
+        label: "Kernel density estimate",
+        xFormat: "%10.0g",
+        yFormat: "%10.0g",
+      },
+    ];
   if (options.normal) {
     const m = moments(values);
     layers.push({

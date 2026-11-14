@@ -12,7 +12,7 @@ import { optionItems, splitAtComma } from "./syntax.js";
 
 /** The drawn options, as they appear in a syntax declaration. */
 export const LOOKS =
-  "TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) XTItle(string asis) YTItle(string asis) LEGend(string) XLAbel(string) YLAbel(string) XLIne(string) YLIne(string) NAME(string) NODRAW BY(string)";
+  "TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) XTItle(string asis) YTItle(string asis) LEGend(string) XLAbel(string asis) YLAbel(string asis) XLIne(string asis) YLIne(string asis) NAME(string) NODRAW BY(string)";
 /** Options of one plot in a twoway graph that are drawn. */
 export const PLOT_LOOKS =
   "MColor(string) LColor(string) MSize(string) LWidth(string) LPattern(string) MLABel(varname)";
@@ -101,6 +101,13 @@ export function parseGraph(session, declaration, text, { xAxis = true } = {}) {
     options[name] = read.text;
     if (read.size || read.color || read.position) styles[name] = read;
   }
+  // xlabel(), ylabel(), xline() and yline() come to looksOf as written,
+  // and given more than once as the list of what each gave, which it
+  // merges as Stata does.
+  for (const name of Object.keys(MERGED_ABBREVIATIONS))
+    if (repeated[name])
+      options[name] =
+        repeated[name].length > 1 ? repeated[name] : repeated[name][0];
   options.styles = styles;
   return parsed;
 }
@@ -113,10 +120,14 @@ const TEXT_ABBREVIATIONS = {
   xtitle: 3,
   ytitle: 3,
 };
+// The axis options Stata merges when they are given more than once: the
+// lines of every xline() and yline() are drawn, and a later xlabel() or
+// ylabel() replaces the values of an earlier one and adds its suboptions.
+const MERGED_ABBREVIATIONS = { xlabel: 3, ylabel: 3, xline: 3, yline: 3 };
 /**
- * The text options that a graph command's text gives more than once: the
- * values of each, in order, and the text with only the last of each kept,
- * for the syntax declaration, which allows an option once.
+ * The text and axis options that a graph command's text gives more than
+ * once: the values of each, in order, and the text with only the last of
+ * each kept, for the syntax declaration, which allows an option once.
  */
 function repeatedTexts(text) {
   const [head, rest] = splitAtComma(text ?? "");
@@ -128,12 +139,12 @@ function repeatedTexts(text) {
     // The declaration reports what is wrong with the options.
     return { kept: text, repeated: {} };
   }
-  const nameOf = (item) =>
+  const shortest = { ...TEXT_ABBREVIATIONS, ...MERGED_ABBREVIATIONS },
+    nameOf = (item) =>
       item.argument !== undefined &&
-      Object.keys(TEXT_ABBREVIATIONS).find(
+      Object.keys(shortest).find(
         (name) =>
-          item.name.length >= TEXT_ABBREVIATIONS[name] &&
-          name.startsWith(item.name),
+          item.name.length >= shortest[name] && name.startsWith(item.name),
       ),
     values = {};
   for (const item of items) {
@@ -141,7 +152,9 @@ function repeatedTexts(text) {
     if (name) (values[name] ??= []).push(item.argument);
   }
   const repeated = Object.fromEntries(
-    Object.entries(values).filter(([, list]) => list.length > 1),
+    Object.entries(values).filter(
+      ([name, list]) => list.length > 1 || MERGED_ABBREVIATIONS[name],
+    ),
   );
   if (!Object.keys(repeated).length) return { kept: text, repeated: {} };
   const kept = items.filter((item, k) => {
@@ -166,7 +179,13 @@ function repeatedTexts(text) {
 // graph's), which does not print a note again.
 let pendingNotes = null;
 function unknownStyle(name, kind, times) {
-  const note = `(note:  named style ${name} not found in class ${kind}, default attributes used)`;
+  graphNote(
+    `(note:  named style ${name} not found in class ${kind}, default attributes used)`,
+    times,
+  );
+}
+/** A line the graph command prints, times times, before it draws. */
+function graphNote(note, times = 1) {
   pendingNotes?.set(note, Math.max(times, pendingNotes.get(note) ?? 0));
 }
 /**
@@ -212,7 +231,7 @@ function parseDeclared(session, declaration, text) {
   try {
     return session.parse(declaration, text);
   } catch (error) {
-    const m = /option (\w+) not allowed/.exec(error?.message ?? "");
+    const m = /^option (\w+) not allowed$/.exec(error?.message ?? "");
     const word = m?.[1].toLowerCase(),
       name =
         word &&
@@ -225,7 +244,33 @@ function parseDeclared(session, declaration, text) {
         `option ${name}() is not drawn on this page; remove it to draw the graph. Graphs here draw titles, notes, axis labels and lines, colours, marker sizes and labels, and legends.`,
         198,
       );
+    // An option Stata does not know, given with an argument, is named with
+    // its parentheses: option LEGEND() not allowed.
+    if (m && !declares(declaration, m[1]) && givenWithArgument(text, m[1]))
+      throw new StataError(`option ${m[1]}() not allowed`, 198);
     throw error;
+  }
+}
+/** Whether a syntax declaration has an option that word abbreviates. */
+function declares(declaration, word) {
+  return [
+    ...declaration
+      .slice(declaration.indexOf("[,") + 1)
+      .matchAll(/\b([A-Z]*)([a-z0-9]*)(?=\(|\s|\]|$)/g),
+  ].some(([, caps, rest]) => {
+    const name = (caps + rest).toLowerCase();
+    return (
+      name && word.length >= Math.max(1, caps.length) && name.startsWith(word)
+    );
+  });
+}
+function givenWithArgument(text, word) {
+  try {
+    return optionItems(splitAtComma(text ?? "")[1] ?? "").some(
+      (item) => item.name === word && item.argument !== undefined,
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -556,21 +601,48 @@ export function textOption(value, option) {
 }
 
 /**
- * xlabel() or ylabel(): a numlist of tick positions, with angle(0) or
- * angle(horizontal) allowed, since that is how this page draws them.
+ * xlabel() or ylabel(), as Stata reads them: a rule, then values, each
+ * perhaps followed by the text to write there, then suboptions.
+ *
+ *   ylabel(#7)               about seven values, as Stata's rule picks them
+ *                            (#0 and #1 the two ends of the data);
+ *   ylabel(minmax)           the smallest and largest values of the data;
+ *   ylabel(0(10)50)          the values of a range;
+ *   ylabel(none) ylabel(.)   no rule: only the values that follow;
+ *   ylabel(#3 10 "ten")      a rule and then values with their texts;
+ *   ylabel(10 20/25 "x")     values alone, a text labelling the value
+ *                            before it (the last of a range);
+ *   ylabel(, grid)           the default values, with grid lines.
+ *
+ * Comes back as { rule, entries, grid }: rule is { count }, { minmax },
+ * { values } or { none }, or undefined when none was given; entries are
+ * the values that follow it, { at, text }, in order, a value given twice
+ * drawn twice; grid is whether lines are drawn across the plot at each
+ * label, when grid or nogrid was given. With no rule and no values the
+ * axis gets Stata's default values. angle(0) and angle(horizontal) are
+ * allowed, since that is how this page draws labels. Given more than once
+ * (text is then a list), a later option's rule and values replace the
+ * earlier ones and its suboptions are added to theirs, as Stata merges them.
  */
 function axisLabels(text, option) {
   if (text === undefined) return undefined;
+  if (Array.isArray(text))
+    return text
+      .map((one) => axisLabels(one, option))
+      .reduce((earlier, later) => {
+        const given = later.rule || later.entries.length;
+        return {
+          rule: given ? later.rule : earlier.rule,
+          entries: given ? later.entries : earlier.entries,
+          grid: later.grid ?? earlier.grid,
+        };
+      });
   const [head, rest] = splitAtComma(text),
-    approximate = /^#\s*(\d+)$/.exec(head.trim()),
-    ticks = approximate
-      ? { count: Math.max(1, Number(approximate[1])) }
-      : head.trim()
-        ? parseNumlist(head.trim())
-        : undefined;
-  if (Array.isArray(ticks) && ticks.length > 200)
+    spec = labelRule(head.trim()),
+    count = spec.entries.length + (spec.rule?.values?.length ?? 0);
+  if (count > 200)
     throw new StataError(
-      `${option}(): ${ticks.length} values is more labels than an axis can show; give at most 200`,
+      `${option}(): ${count} values is more labels than an axis can show; give at most 200`,
       198,
     );
   for (const m of (rest ?? "").matchAll(/(\w+)(?:\(([^)]*)\))?/g)) {
@@ -580,23 +652,121 @@ function axisLabels(text, option) {
       /^\s*(0|h|horizontal)\s*$/i.test(value ?? "")
     )
       continue;
+    if ((word === "grid" || word === "nogrid") && value === undefined) {
+      spec.grid = word === "grid";
+      continue;
+    }
     throw new StataError(
-      `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes a list of values, such as ${option}(0(10)50)`,
+      `${option}(…, ${m[0]}) is not drawn on this page; ${option}() takes a rule (#n, minmax, none or a range such as 0(10)50) and values, each perhaps followed by its text in quotes, with angle(0), grid and nogrid`,
       198,
     );
   }
-  return ticks;
+  return spec;
 }
-/** xline() or yline(): the values at which to draw a line. */
+/**
+ * The rule and values of xlabel(), with Stata's refusals: a list that does
+ * not read is named whole, and values after a rule that do not read are
+ * named from where they start.
+ */
+function labelRule(text) {
+  const spec = { rule: undefined, entries: [] },
+    tokens = [...text.matchAll(/`"([\s\S]*?)"'|"([^"]*)"|[^\s"`]+|\S/g)].map(
+      (m) => ({ raw: m[0], quoted: m[1] ?? m[2], at: m.index }),
+    );
+  if (!tokens.length) return spec;
+  const first = tokens[0].quoted === undefined ? tokens[0].raw : null;
+  if (first?.startsWith("##")) {
+    // ##n asks for minor ticks, which a label option does not draw.
+    graphNote(`${first} ignored, only allowed for minor ticks`);
+    spec.rule = { none: true };
+  } else if (first?.startsWith("#")) {
+    const n = first.slice(1);
+    if (!/^-?\d+$/.test(n))
+      throw new StataError(`invalid tick rule, ${n} not an integer`, 198);
+    spec.rule = { count: Math.max(0, Number(n)) };
+  } else if (first === "minmax") spec.rule = { minmax: true };
+  else if (first === "none" || first === ".") spec.rule = { none: true };
+  else if (first && /[([]/.test(first)) {
+    let values;
+    try {
+      values = parseNumlist(first);
+    } catch {
+      throw new StataError(`invalid label specifier, :  ${text}:`, 198);
+    }
+    spec.rule = { values };
+  }
+  const values = spec.rule ? tokens.slice(1) : tokens;
+  if (!values.length) return spec;
+  const shown = text.slice(values[0].at).trim(),
+    invalid = () =>
+      new StataError(`invalid label specifier, :  ${shown}:`, 198);
+  let labelled = true;
+  for (const token of values) {
+    if (token.quoted !== undefined) {
+      // A text labels the value just before it, once; "" leaves it the
+      // value.
+      if (labelled) throw invalid();
+      if (token.quoted !== "") spec.entries.at(-1).text = token.quoted;
+      labelled = true;
+      continue;
+    }
+    let read;
+    try {
+      read = parseNumlist(token.raw);
+    } catch {
+      throw invalid();
+    }
+    if (!read.length) throw invalid();
+    for (const at of read) spec.entries.push({ at });
+    labelled = false;
+  }
+  return spec;
+}
+/**
+ * The values xlabel() or ylabel() fixes, or null when Stata's rule or the
+ * data choose them (#n, minmax, or nothing given).
+ */
+export function fixedLabels(spec) {
+  if (!spec) return null;
+  if (Array.isArray(spec)) return spec;
+  if (spec.rule?.count !== undefined || spec.rule?.minmax) return null;
+  if (!spec.rule && !spec.entries.length) return null;
+  return [...(spec.rule?.values ?? []), ...spec.entries.map((e) => e.at)];
+}
+// The suboptions of an added line that Stata draws and this page does not:
+// lcolor(), lwidth(), lpattern(), lstyle(), lalign(), style(), axis(),
+// noextend and extend.
+const LINE_LOOKS =
+  /^(lc(o(l(or?)?)?)?|lw(i(d(th?)?)?)?|lp(a(t(t(e(rn?)?)?)?)?)?|lsty(le?)?|la(l(i(gn?)?)?)?|style|axis|noextend|extend)$/;
+/**
+ * xline() or yline(): the values at which to draw a line, from every
+ * xline() given. A suboption Stata does not have is refused as Stata
+ * refuses it, one it has as not drawn here, and anything that is not a
+ * list of numbers as an invalid line argument, naming the whole argument.
+ * xline() with nothing in it draws nothing; xline( ) asks for something.
+ */
 function lines(text, option) {
-  if (text === undefined) return [];
-  const [head, rest] = splitAtComma(text);
-  if (rest?.trim())
+  if (text === undefined || text === "") return [];
+  if (Array.isArray(text)) return text.flatMap((one) => lines(one, option));
+  if (!text.trim()) throw new StataError("something required", 100);
+  const [head, rest] = splitAtComma(text),
+    items = optionItems(rest ?? "");
+  for (const item of items)
+    if (!LINE_LOOKS.test(item.name))
+      throw new StataError(
+        `option ${item.name}${item.argument === undefined ? "" : "()"} not allowed`,
+        198,
+      );
+  if (items.length)
     throw new StataError(
-      `${option}(…, ${rest.trim()}): line options are not drawn on this page`,
+      `${option}(…, ${rest.trim()}): line options are not drawn on this page; ${option}() draws its lines in one style`,
       198,
     );
-  return parseNumlist(head.trim());
+  try {
+    return parseNumlist(head.trim());
+  } catch {
+    throw new StataError(`invalid line argument, ${head.trim()}`, 198);
+  }
 }
 /**
  * legend(off), legend(order(1 "a" 2 "b")) and legend(label(1 "a")): which

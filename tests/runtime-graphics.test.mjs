@@ -68,11 +68,15 @@ test("graph commands refuse what they cannot draw", () => {
   assert.equal(run("graph export out.png").result.rc, 0);
 });
 
-test("ticks are round and cover the data", () => {
+test("ticks are the values Stata's natscale picks", () => {
+  // Recorded from Stata 19 (version 17): _natscale 0 10 5 gives 0 to 10 by
+  // 2; _natscale 3.1 25.1 5 gives 5 to 25 by 5, labels inside the data;
+  // _natscale -.3 .42 5 gives -.4 to .4 by .2. A graph of a constant 5 is
+  // labelled 4 and 6.
   assert.deepEqual(ticks(0, 10), [0, 2, 4, 6, 8, 10]);
-  assert.deepEqual(ticks(3.1, 25.1), [0, 5, 10, 15, 20, 25, 30]);
-  assert.deepEqual(ticks(5, 5), [4, 4.5, 5, 5.5, 6]);
-  assert.deepEqual(ticks(-0.3, 0.42), [-0.4, -0.2, 0, 0.2, 0.4, 0.6]);
+  assert.deepEqual(ticks(3.1, 25.1), [5, 10, 15, 20, 25]);
+  assert.deepEqual(ticks(5, 5), [4, 6]);
+  assert.deepEqual(ticks(-0.3, 0.42), [-0.4, -0.2, 0, 0.2, 0.4]);
 });
 
 test("marginsplot draws the last margins with its intervals", () => {
