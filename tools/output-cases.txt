@@ -7175,3 +7175,141 @@ regress income i.region##i.employed age
 pwcompare region, effects
 pwcompare region#employed, effects
 set linesize 200
+=== empty-interaction-cells
+clear
+set seed 777
+set obs 500
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "Northeast" 2 "South" 3 "Midwest region long" 4 "West"
+label values region reg
+generate byte educ = 1 + floor(runiform() * 5)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "BA" 5 "Graduate"
+label values educ ed
+generate byte employed = runiform() < .55
+generate age = 18 + floor(runiform() * 50)
+replace age = . in 3/7
+generate z1 = invnormal(runiform())
+generate hours = 25 + 4 * z1 + .1 * age + invnormal(runiform()) * 5
+generate income = 800 + 60 * hours + 200 * educ + 300 * region + invnormal(runiform()) * 700
+generate byte g = cond(runiform() < .3, 0, cond(runiform() < .5, 2, 5))
+replace g = 5 if region == 4
+generate byte d = income > 3600 if !missing(income)
+regress income i.g##i.region
+margins g#region
+margins g
+margins region
+contrast g#region
+contrast g@region
+contrast r.g
+contrast r.region
+pwcompare g#region
+regress income i.region##i.employed##i.g
+margins region#employed#g
+contrast region#employed#g
+contrast region#employed
+logit d i.g##i.region, nolog
+margins g#region
+poisson educ i.g##i.region, nolog
+regress income i.region##i.employed if region == 3
+margins region#employed
+margins employed
+regress income i.region i.educ if region == 3
+margins educ
+ivregress 2sls income (hours = z1) i.region if region >= 2
+margins region
+=== ivregress-sample-and-variance
+clear
+set seed 777
+set obs 500
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "Northeast" 2 "South" 3 "Midwest region long" 4 "West"
+label values region reg
+generate byte educ = 1 + floor(runiform() * 5)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "BA" 5 "Graduate"
+label values educ ed
+generate byte employed = runiform() < .55
+generate age = 18 + floor(runiform() * 50)
+replace age = . in 3/7
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate hours = 25 + 4 * z1 + 2 * z2 + .1 * age + invnormal(runiform()) * 5
+replace hours = . in 20/22
+generate income = 800 + 60 * hours + 200 * educ + 300 * region + invnormal(runiform()) * 700
+replace educ = . in 30
+generate byte grp = 1 + floor(runiform() * 3)
+replace grp = . in 40/45
+generate e3 = z1 + z2 > 0
+generate y2 = income
+replace y2 = . if educ == 1
+ivregress 2sls y2 (hours = z1) i.educ
+ivregress 2sls income (hours = z1) i.educ in 1/12
+ivregress 2sls income (hours = z1) i.educ if educ == 2
+ivregress 2sls income (hours = z1) i.region##i.employed if region >= 2
+ivregress 2sls income (hours = z1 i.grp) c.age##i.region if region > 2
+ivregress 2sls income (hours = z1 i.region) i.region age
+ivregress 2sls income (hours = z1 i.region) i.educ i.region if region != 2
+ivregress 2sls income (hours = z1 z1) age
+ivregress 2sls income (hours = z1 z2 age) age
+ivregress 2sls income (hours = z1 z2) i.educ age, allbaselevels
+ivregress 2sls income (hours = z1 z2) i.educ i.region, baselevels
+ivregress 2sls income (hours = z1 z2) i.educ age, vce(cluster region)
+ivregress 2sls income (hours = z1 z2) i.region, vce(cluster educ)
+ivregress liml income region (hours = z1 z2 e3)
+estat overid
+ivregress liml income i.region (hours = z1 z2 i.grp)
+estat overid
+ivregress 2sls income (i.employed = z1 z2 i.grp) age
+estat endogenous
+ivregress 2sls income (i.region = z1 z2 i.grp c.z1#c.z2) age
+estat endogenous
+ivregress 2sls income (hours i.employed = z1 z2 i.grp)
+estat endogenous
+ivregress 2sls income i.region (hours = z1 i.grp)
+estat firststage
+generate weekly_hours_worked_main_job = hours
+ivregress 2sls income (weekly_hours_worked_main_job = z1 z2) age
+estat firststage
+ivregress 2sls income (hours = z1 z2) i.educ age, first
+ivregress 2sls income (hours = z1 z2) i.region, first
+ivregress 2sls income (hours = z1 z2) age, vce(robust) first
+ivregress 2sls income (hours = z1 z2) i.region i.educ, vce(robust) first
+ivregress 2sls income (hours = z1 z2) i.region#c.age, vce(robust) first
+ivregress 2sls income (hours = z1 z2) i.region age, vce(cluster educ) first
+set linesize 80
+ivregress 2sls income (hours = z1 z2) i.educ age, vce(cluster region)
+set linesize 200
+=== margins-over-legend-and-labels
+clear
+set seed 777
+set obs 500
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "Northeast" 2 "South" 3 "Midwest region long" 4 "West"
+label values region reg
+generate byte educ = 1 + floor(runiform() * 5)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "BA" 5 "Graduate"
+label values educ ed
+generate byte employed = runiform() < .55
+generate age = 18 + floor(runiform() * 50)
+replace age = . in 3/7
+generate hours = 25 + .1 * age + invnormal(runiform()) * 5
+generate income = 800 + 60 * hours + 200 * educ + 300 * region + invnormal(runiform()) * 700
+generate byte grp = 1 + floor(runiform() * 3)
+replace grp = . in 60/70
+regress income i.region##i.employed age
+margins region, over(grp)
+margins employed#region, over(grp)
+regress income i.region##i.employed c.age##i.employed
+margins region#employed, at(age=(30 50)) atmeans
+margins region, at(age=(30 50)) atmeans
+regress income i.region##i.employed c.age
+margins region#employed, at(age=(30 50)) atmeans
+set linesize 80
+regress income i.educ##i.employed
+contrast r.educ
+regress income i.region age
+contrast r.region
+regress income i.region##i.employed c.age
+margins region#employed
+contrast region@employed, effects
+pwcompare region, effects
+set linesize 200

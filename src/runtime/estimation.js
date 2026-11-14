@@ -62,9 +62,10 @@ export const quadratic = (v, m) =>
  * Reads "y x1 i.g c.x1#c.x2 i.g##c.x1" into a dependent variable and design
  * columns. Each term is a product of components, a component being a
  * continuous variable or the levels of a factor. A bare name is continuous
- * on its own and a factor inside an interaction, as in Stata.
+ * on its own and a factor inside an interaction, as in Stata. levelRows,
+ * when given, are the observations whose values give each factor's levels.
  */
-export function design(session, text, rows, constant = true) {
+export function design(session, text, rows, constant = true, levelRows) {
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) throw new StataError("varlist required", 100);
   const numeric = (name) => {
@@ -165,9 +166,14 @@ export function design(session, text, rows, constant = true) {
   for (const term of terms)
     for (const c of term.components) {
       if (!c.factor || levelsOf.has(c.variable)) continue;
-      const levels = [...new Set(sample.map((i) => c.variable.data[i]))].sort(
-        (a, b) => a - b,
-      );
+      // ivregress finds the levels of its exogenous factors in the whole
+      // dataset (levelRows), whatever the sample.
+      const from = levelRows
+          ? levelRows.filter((i) => !isMissing(c.variable.data[i]))
+          : sample,
+        levels = [...new Set(from.map((i) => c.variable.data[i]))].sort(
+          (a, b) => a - b,
+        );
       if (levels.some((level) => !Number.isInteger(level) || level < 0))
         throw new StataError(
           `${c.variable.name}: factor variables may not contain noninteger values`,
@@ -175,6 +181,11 @@ export function design(session, text, rows, constant = true) {
         );
       levelsOf.set(c.variable, levels);
     }
+  // A factor's base is its first level, when it has more than one.
+  const isBase = (variable, level) => {
+    const levels = levelsOf.get(variable);
+    return levels.length > 1 && level === levels[0];
+  };
   // Columns already accepted, orthogonalised, to test later ones against.
   const basis = [];
   const independent = (column) => {
@@ -219,8 +230,8 @@ export function design(session, text, rows, constant = true) {
     const factors = term.components.filter((c) => c.factor),
       continuous = term.components.filter((c) => !c.factor),
       made = cells.map((cell) => {
-        const bases = cell.filter(
-          (level, k) => level === levelsOf.get(factors[k].variable)[0],
+        const bases = cell.filter((level, k) =>
+          isBase(factors[k].variable, level),
         ).length;
         return {
           name: term.components
@@ -265,10 +276,11 @@ export function design(session, text, rows, constant = true) {
         };
       });
     if (term.factor)
-      // A factor on its own: the first level is the base.
+      // A factor on its own: the first level is the base, unless it is the
+      // only level, which Stata omits as collinear with the constant.
       made.forEach((column, k) => {
-        column.base = k === 0;
-        if (k === 0) column.name = column.name.replace(".", "b.");
+        column.base = k === 0 && made.length > 1;
+        if (column.base) column.name = column.name.replace(".", "b.");
         // A level that adds nothing, such as 2.g beside a dummy for g == 2,
         // is collinear; the likelihood fitters omit it.
         else if (!independent(column)) column.collinear = true;
@@ -280,6 +292,20 @@ export function design(session, text, rows, constant = true) {
         .sort((a, b) => a.bases - b.bases)
         .forEach((column) => {
           column.base = !independent(column);
+          // A cell set aside is shown as (empty) when no observation has
+          // its levels, and as (omitted) when none of its levels is a base
+          // and it is collinear with the columns before it.
+          if (column.base) {
+            if (
+              !sample.some((i) =>
+                factors.every(
+                  (c, k) => c.variable.data[i] === column.levels[k],
+                ),
+              )
+            )
+              column.empty = column.emptyCell = true;
+            else if (!column.bases) column.omittedCell = true;
+          }
           // A factor at its base level is marked b, as in 0b.a#1.b; in a
           // cell left out, every other part is marked o, as in
           // 0b.a#1o.b and 0b.a#co.x.
@@ -289,12 +315,7 @@ export function design(session, text, rows, constant = true) {
               if (k < 0)
                 return `${column.base ? "co" : "c"}.${c.variable.name}`;
               const level = column.levels[k],
-                mark =
-                  level === levelsOf.get(c.variable)[0]
-                    ? "b"
-                    : column.base
-                      ? "o"
-                      : "";
+                mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
               return `${level}${mark}.${c.variable.name}`;
             })
             .join("#");
@@ -682,7 +703,7 @@ export function tableWidth(session, table, extra = []) {
  * allbaselevels shows every base cell.
  */
 const hiddenBase = (column, model) => {
-  if (!column?.base || column.empty) return false;
+  if (!column?.base || column.empty || column.omittedCell) return false;
   if (model?.baseLevels === "all") return false;
   if (model?.baseLevels !== "base") return true;
   const term = column.term;
@@ -812,7 +833,9 @@ export function termRows(
       out.push(
         model.estimable[k]
           ? `${label}|${cells(k)}`
-          : model.columns[k]?.base && !model.columns[k].empty
+          : model.columns[k]?.base &&
+              !model.columns[k].empty &&
+              !model.columns[k].omittedCell
             ? `${label}|${String(omittedValue).padStart(11)}  (base)${baseTail}`
             : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
       );
@@ -903,6 +926,10 @@ export function coefficientHeader(model, level, label = model.depvar, width) {
   ];
 }
 
+/** A column's name without the o that marks a part omitted: 0b.g#4.region. */
+export const unmarked = (name) =>
+  name.replace(/(^|#)(\d+)(b?)o\./g, "$1$2$3.").replace(/(^|#)co\./g, "$1c.");
+
 /** Set by the resampling module: runs vce(bootstrap) and vce(jackknife). */
 export const hooks = { resamplingVce: null };
 function regress(session, text, ctx) {
@@ -960,9 +987,19 @@ function regress(session, text, ctx) {
     depvar: model.depvar,
     vce: model.vce,
   };
+  // Stata's notes, in the order of the columns; a cell of an interaction
+  // is named without its omitted markers.
   for (const column of model.columns)
     if (column.omitted)
       ctx.out(`note: ${column.name} omitted because of collinearity.`);
+    else if (column.empty)
+      ctx.out(
+        `note: ${unmarked(column.name)} identifies no observations in the sample.`,
+      );
+    else if (column.omittedCell)
+      ctx.out(
+        `note: ${unmarked(column.name)} omitted because of collinearity.`,
+      );
   if (model.wtype && model.wtype !== "fweight")
     ctx.out(`(sum of wgt is ${g(model.sumW, "%10.0g")})`);
   ctx.out("");

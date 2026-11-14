@@ -3,7 +3,7 @@
 // leave the same result object regress leaves, marked dist "z", and the
 // post-estimation commands here read only that object.
 import { least, greatest } from "./extremes.js";
-import { firstStage, ivDiagnostic } from "./more-estimators.js";
+import { firstStage, ivDiagnostic, sweptColumns } from "./more-estimators.js";
 import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
 import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
@@ -132,17 +132,31 @@ function zTable(session, model, level, transform, named = true) {
   return lines;
 }
 
-function waldChi2(model) {
+function waldChi2(model, generalized = false) {
   const k = model.df_m;
   if (!k) return MISSING;
   const at = model.names
       .map((name, i) => (name !== "_cons" && model.estimable[i] ? i : -1))
       .filter((i) => i >= 0),
-    inverse = invertSymmetric(at.map((i) => at.map((j) => model.V[i][j])));
-  return inverse
+    V = at.map((i) => at.map((j) => model.V[i][j])),
+    b = at.map((i) => model.b[i]);
+  if (!generalized) {
+    const inverse = invertSymmetric(V);
+    return inverse ? quadratic(b, inverse) : MISSING;
+  }
+  // ivregress with clusters: with fewer clusters than coefficients the
+  // variance is singular, and Stata inverts it in part, sweeping the
+  // largest remaining diagonal first until none is left; the statistic
+  // keeps its degrees of freedom.
+  const kept = sweptColumns(V);
+  // Stata then prints the p-value but leaves e(p) missing.
+  model.deficient = kept.length < at.length;
+  if (!kept.length) return MISSING;
+  const part = invertSymmetric(kept.map((i) => kept.map((j) => V[i][j])));
+  return part
     ? quadratic(
-        at.map((i) => model.b[i]),
-        inverse,
+        kept.map((i) => b[i]),
+        part,
       )
     : MISSING;
 }
@@ -549,11 +563,19 @@ function maximumLikelihood(kind) {
     // of omitted variables, then the log; without it, the notes and a
     // blank line. poisson, an ado-file, prints the notes first and a blank
     // line after them.
-    const omitted = columns.filter((c) => c.collinear && !c.perfect),
-      notes = () =>
-        omitted.forEach((c) =>
-          ctx.out(`note: ${c.name} omitted because of collinearity.`),
-        );
+    // A cell of an interaction with no observations, or collinear though
+    // none of its levels is a base, is noted too, named without markers.
+    const notes = () =>
+      columns.forEach((c) => {
+        if (c.collinear && !c.perfect)
+          ctx.out(`note: ${c.name} omitted because of collinearity.`);
+        else if (c.emptyCell)
+          ctx.out(
+            `note: ${bareName(c.name)} identifies no observations in the sample.`,
+          );
+        else if (c.omittedCell)
+          ctx.out(`note: ${bareName(c.name)} omitted because of collinearity.`);
+      });
     if (kind === "poisson") {
       notes();
       ctx.out("");
@@ -680,7 +702,89 @@ function smallestRoot(A, B) {
   return least(C.map((row, i) => row[i]));
 }
 
+/** A column's name without base or omitted markers: 0.g#4.region. */
+const bareName = (name) =>
+  name.replace(/(^|#)(\d+)[bo]+\./g, "$1$2.").replace(/(^|#)co\./g, "$1c.");
+
 // ----- two-stage least squares -----
+/**
+ * Sorts ivregress's exogenous regressors and instruments over the sample
+ * as Stata does, and returns its notes. An exogenous column with no
+ * observations is empty; one collinear with the constant and the columns
+ * before it is omitted, and so is a cell of an interaction that design()
+ * set aside although none of its levels is a base. Stata names both in its
+ * notes without base or omitted markers. An instrument that repeats an
+ * exogenous factor or interaction is dropped with a note for each of its
+ * columns, base level included; one collinear with the regressors and
+ * instruments before it is dropped with a note, unless it is a variable
+ * also among the exogenous regressors, which Stata drops silently.
+ */
+function ivColumns(listed, rows) {
+  const basis = [],
+    independent = (column) => {
+      let rest = rows.map((i) => column.value(i));
+      const original = rest.reduce((t, v) => t + v * v, 0);
+      for (const q of basis) {
+        const weight =
+          rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+        rest = rest.map((v, k) => v - weight * q.vector[k]);
+      }
+      const norm = rest.reduce((t, v) => t + v * v, 0);
+      if (!(original > 0 && norm > 1e-9 * original)) return false;
+      basis.push({ vector: rest, norm });
+      return true;
+    },
+    occupied = (c) => {
+      if (!c.levels) return true;
+      const factors = c.term.components.filter((f) => f.factor);
+      return rows.some((i) =>
+        factors.every((f, k) => f.variable.data[i] === c.levels[k]),
+      );
+    },
+    key = (term) =>
+      term.components
+        .map((c) => `${c.factor ? "i" : "c"}.${c.variable.name}`)
+        .sort()
+        .join("#"),
+    notes = [];
+  independent({ value: () => 1 });
+  for (const c of listed.exogenous) {
+    c.collinear = false;
+    if (!occupied(c)) {
+      c.empty = true;
+      notes.push(
+        `note: ${bareName(c.name)} identifies no observations in the sample.`,
+      );
+      continue;
+    }
+    // A base level, or a cell of an interaction at a base level.
+    if (c.base && (c.term.factor || c.bases > 0)) continue;
+    c.base = false;
+    if (!independent(c)) {
+      c.collinear = true;
+      notes.push(`note: ${bareName(c.name)} omitted because of collinearity.`);
+    }
+  }
+  const repeated = new Set(
+      listed.exogenous.filter((c) => !c.term.variable).map((c) => key(c.term)),
+    ),
+    plain = new Set(
+      listed.exogenous.filter((c) => c.term.variable).map((c) => c.name),
+    );
+  for (const c of listed.instruments) {
+    const repeat = !c.term.variable && repeated.has(key(c.term));
+    if (repeat || !(c.base || !occupied(c))) {
+      c.collinear = false;
+      if (repeat || !independent(c)) {
+        c.dropped = true;
+        if (occupied(c) && !(c.term.variable && plain.has(c.name)))
+          notes.push(`note: ${c.name} omitted because of collinearity.`);
+      }
+    }
+  }
+  return notes;
+}
+
 function ivregress(session, text, ctx) {
   const m =
     /^\s*(2sls|liml|gmm)\s+(\S+)\s+([^()]*)\(([^=()]+)=([^()]+)\)((?:(?!\b(?:if|in)\b)[^(),])*)([\s\S]*)$/.exec(
@@ -693,7 +797,7 @@ function ivregress(session, text, ctx) {
     );
   const estimator = m[1],
     parsed = session.parse(
-      "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) | noCONStant SMALL Igmm]",
+      "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels | noCONStant SMALL Igmm]",
       m[7],
     ),
     // The exogenous regressors and the instruments are read as regress reads
@@ -715,8 +819,10 @@ function ivregress(session, text, ctx) {
       return data;
     },
     depName = session.varlist(m[2])[0];
-  const columnsOf = (part, from) =>
-      part ? design(session, `${depName} ${part}`, from).columns : [],
+  const columnsOf = (part, from, levelRows) =>
+      part
+        ? design(session, `${depName} ${part}`, from, true, levelRows).columns
+        : [],
     first = session.rows(parsed, null),
     all = [
       session.data.get(depName),
@@ -732,12 +838,21 @@ function ivregress(session, text, ctx) {
     n = rows.length,
     // Every column over the estimation sample, base levels and columns
     // collinear with those before them included; those fitted are active.
+    // Stata finds the levels of an exogenous factor in the whole dataset,
+    // whatever if, in and missing values leave in the sample; a level with
+    // no observations in the sample is then shown as (empty).
     listed = {
       endogenous: columnsOf(texts.endogenous, rows),
-      exogenous: columnsOf(texts.exogenous, rows),
+      exogenous: columnsOf(
+        texts.exogenous,
+        rows,
+        Array.from({ length: session.data.n }, (_, i) => i),
+      ),
       instruments: columnsOf(texts.instruments, rows),
     },
-    activeOf = (list) => list.filter((c) => !c.base && !c.collinear),
+    notes = ivColumns(listed, rows),
+    activeOf = (list) =>
+      list.filter((c) => !c.base && !c.collinear && !c.empty && !c.dropped),
     endogenousColumns = activeOf(listed.endogenous),
     exogenousColumns = activeOf(listed.exogenous),
     instrumentColumns = activeOf(listed.instruments),
@@ -964,11 +1079,21 @@ function ivregress(session, text, ctx) {
         },
         rows,
         estimator,
+        kappa: kClass?.kappa,
+        // The variance the first-stage regressions use.
+        vce: cluster
+          ? `cluster ${cluster.name}`
+          : robust
+            ? "robust"
+            : undefined,
+        // Stata's count of endogenous regressors, base levels included.
+        endogenousCount: listed.endogenous.filter((c) => c.base || !c.collinear)
+          .length,
         J: gmm?.J,
         robustWeights: !!gmm && /^r/.test(weighting),
       },
     };
-  const chi2 = waldChi2(model),
+  const chi2 = waldChi2(model, !!cluster),
     p = chi2tail(model.df_m, chi2),
     side = (label, value) => `${label.padEnd(16)}=${value.padStart(11)}`;
   Object.assign(model, { chi2, p });
@@ -977,7 +1102,7 @@ function ivregress(session, text, ctx) {
     N: n,
     df_m: model.df_m,
     chi2,
-    p,
+    p: model.deficient ? MISSING : p,
     r2: model.r2,
     rmse: model.rmse,
     rss,
@@ -992,9 +1117,10 @@ function ivregress(session, text, ctx) {
     ...(kClass ? { kappa: kClass.kappa } : {}),
     ...(gmm ? { J: gmm.J } : {}),
   };
-  for (const c of [...listed.endogenous, ...listed.exogenous])
+  for (const c of listed.endogenous)
     if (c.collinear)
       ctx.out(`note: ${c.name} omitted because of collinearity.`);
+  notes.forEach(ctx.out);
   if (parsed.options.first) {
     if (endogenousColumns.some((c) => !c.term.variable))
       throw new StataError(
@@ -1035,7 +1161,16 @@ function ivregress(session, text, ctx) {
       right[k] ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}` : left[k],
     );
   ctx.out("");
-  if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
+  // The note ends where the table does.
+  if (cluster)
+    ctx.out(
+      clusterNote(
+        clusters,
+        cluster.name,
+        count,
+        66 + tableWidth(session, model, []),
+      ),
+    );
   zTable(session, model, parsed.options.level, null, false).forEach(ctx.out);
   // The lists are a paragraph as wide as the table less two (the line,
   // if narrower), continued twelve columns in.

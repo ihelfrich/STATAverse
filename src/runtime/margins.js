@@ -92,6 +92,37 @@ export function nullSpace(model, rows) {
   return nulls;
 }
 
+/**
+ * Whether a row of the design is estimable: orthogonal to each null vector
+ * of the design, and with no weight on a factor that has only one level in
+ * the estimation sample. Stata omits such a factor's level as collinear
+ * with the constant, and reports every margin that involves it as not
+ * estimable. Returns a function of a row, or null when every row is.
+ */
+export function estimability(model, rows) {
+  const restricted = model.columns.some(
+      (c, j) =>
+        c &&
+        (c.empty ||
+          c.omittedCell ||
+          (!c.base && model.estimable?.[j] === false)),
+    ),
+    nulls = restricted ? nullSpace(model, rows) : [],
+    lone = model.columns
+      .map((c, j) =>
+        c?.term.factor &&
+        !c.base &&
+        model.estimable?.[j] === false &&
+        !model.columns.some((d) => d !== c && d?.term === c.term)
+          ? j
+          : -1,
+      )
+      .filter((j) => j >= 0);
+  if (!nulls.length && !lone.length) return null;
+  return (row) =>
+    lone.every((j) => !row[j]) && (!nulls.length || inRowSpace(row, nulls));
+}
+
 /** Whether a row of the design is orthogonal to each null vector. */
 export function inRowSpace(row, nulls) {
   // The tolerance is relative to the sizes of the vector and of the row,
@@ -215,10 +246,7 @@ function margins(session, text, ctx) {
   // the design is not a combination of the rows in the estimation sample.
   // The design's null space, over every column (base levels included),
   // tells which; Stata checks each observation's row as margins does.
-  const restricted = model.columns.some(
-      (c, j) => c && (c.empty || (!c.base && model.estimable?.[j] === false)),
-    ),
-    nulls = restricted ? nullSpace(model, rows) : [];
+  const check = estimability(model, rows);
   // Values of the variables for observation i under a set of fixed values.
   // fixed: Map of variable name to a value, or "mean". Stata holds a fixed
   // value, a mean included, in float precision.
@@ -292,7 +320,7 @@ function margins(session, text, ctx) {
         [v, dv] = each(r, xb(r), i);
       value += v / size;
       dv.forEach((d, j) => (gradient[j] += d / size));
-      if (estimable && nulls.length) estimable = inRowSpace(r, nulls);
+      if (estimable && check) estimable = check(r);
     }
     return estimable
       ? { value, gradient }
@@ -344,8 +372,18 @@ function margins(session, text, ctx) {
   // factors (a#b), and a##b is a, b and a#b, as in Stata.
   // A contrast operator or @ (r.a, a@b) asks for contrasts of the margins
   // instead, which contrastTables makes from the same predictions.
-  const anything = (parsed.anything ?? "").trim(),
-    contrastSpec = anything
+  const anything = (parsed.anything ?? "").trim();
+  // margins takes factors and their interactions, not c. terms.
+  if (
+    anything
+      .split(/\s+/)
+      .some((word) => word.split(/##|#|@/).some((part) => /^c\./i.test(part)))
+  )
+    throw new StataError(
+      "only factor variables and their interactions are allowed",
+      198,
+    );
+  const contrastSpec = anything
       .split(/\s+/)
       .some(
         (word) =>
@@ -541,7 +579,7 @@ function margins(session, text, ctx) {
       } else if (factors.has(name)) {
         // After a fit that omitted levels, every level of the model is
         // listed, as Stata lists it, and an empty base level is shown.
-        const { levels, emptyBase } = restricted
+        const { levels, emptyBase } = check
             ? modelLevels(name)
             : { levels: levelsOf(name), emptyBase: false },
           [first, ...others] = levels,
@@ -679,6 +717,9 @@ function margins(session, text, ctx) {
             ].join("#"),
             ...(!groups && { cell, term }),
             ...(several && { set }),
+            // For marginsplot: the levels of the over() variables and of
+            // the term, and the variables they belong to.
+            plotCell: { levels: cell, parts, groups },
             levelTexts: cell.map((lv, j) =>
               parts[j].labels?.has(lv) ? texts[j] : `${names[j]}=${lv}`,
             ),
@@ -778,20 +819,42 @@ function margins(session, text, ctx) {
     });
   const legend = sets.map(entriesOf),
     everyEntry = legend.flat(),
-    shown = everyEntry.filter((e) => !e.hidden),
     nameWidth = Math.max(0, ...everyEntry.map((e) => e.name.length)),
-    valueWidth = Math.max(0, ...shown.map((e) => e.value.length)),
+    // The values of the factors not listed widen the column too.
+    valueWidth = Math.max(0, ...everyEntry.map((e) => e.value.length)),
     describe = (e) =>
       `${e.name.padEnd(nameWidth)} = ${e.value.padStart(valueWidth)}${e.note}`;
   // The lines above the table, which contrasts of margins share.
+  // Observations that a missing over() variable leaves out of every group:
+  // Stata notes them and counts the rest as the subpopulation.
+  const outside = overNames.length
+    ? rows.filter((i) =>
+        overNames.some((name) => isMissing(overOf.get(name).data[i])),
+      ).length
+    : 0;
   const printHead = () => {
+    if (outside)
+      ctx.out(
+        `note: ${count(outside)} observation${outside === 1 ? "" : "s"} omitted because of missing values in over() variable${overNames.length > 1 ? "s" : ""}.`,
+      );
     ctx.out("");
-    // Number of obs ends at column 78, however wide the count.
-    const observations = `Number of obs = ${count(n)}`;
-    ctx.out(
-      `${(contrastSpec ? `Contrasts of ${title.toLowerCase()}` : title).padEnd(78 - observations.length)}${observations}`,
-    );
-    ctx.out(`Model VCE: ${vce}`);
+    // Number of obs ends at column 78, however wide the count; beside a
+    // subpopulation both labels are as wide and the counts aligned.
+    const heading = contrastSpec
+      ? `Contrasts of ${title.toLowerCase()}`
+      : title;
+    if (outside) {
+      const width = Math.max(count(n).length, count(n - outside).length),
+        side = (label, value) => `${label} = ${value.padStart(width)}`,
+        first = side("Number of obs  ", count(n)),
+        second = side("Subpop. no. obs", count(n - outside));
+      ctx.out(`${heading.padEnd(78 - first.length)}${first}`);
+      ctx.out(`${`Model VCE: ${vce}`.padEnd(78 - second.length)}${second}`);
+    } else {
+      const observations = `Number of obs = ${count(n)}`;
+      ctx.out(`${heading.padEnd(78 - observations.length)}${observations}`);
+      ctx.out(`Model VCE: ${vce}`);
+    }
     ctx.out("");
     ctx.out(`Expression: ${expression}, predict()`);
     if (overNames.length) ctx.out(`Over:       ${overNames.join(" ")}`);
@@ -924,7 +987,7 @@ function margins(session, text, ctx) {
       return [
         ...pieces
           .slice(0, -1)
-          .map((piece) => `${`${piece} #`.padStart(w + 1)}`),
+          .map((piece) => `${`${cut(piece)} #`.padStart(w + 1)}`),
         `${cut(pieces.at(-1))}  `.padStart(w + 1),
       ];
     };
@@ -1030,29 +1093,42 @@ function margins(session, text, ctx) {
         ...others.map((name) => `${name}=${g(r.set.get(name))}`),
         ...(r.levelTexts ?? []),
       ].join(", "),
-    // Margins over an interaction a#b, with nothing varying in at(): the
-    // axis is a, and each level of the others is one line.
+    // Margins of a factor or an interaction a#b, over() groups or not,
+    // with nothing varying in at(): the axis is the (first) factor at its
+    // levels, labelled as its values are, and each level of the others,
+    // over() groups first, is one line.
     crossed =
       !dydx &&
       !varying &&
       marginTerms.length === 1 &&
-      marginTerms[0].length > 1 &&
-      values.every((r) => r.cell),
+      values.every((r) => r.plotCell),
+    axisAt = (r) => r.plotCell.groups,
     groups = bySet
       ? values.map(groupOf)
       : crossed
-        ? values.map((r) => r.levelTexts.slice(1).join(", "))
+        ? values.map((r) =>
+            r.levelTexts.filter((_, j) => j !== axisAt(r)).join(", "),
+          )
         : [],
     lines = new Set(groups).size > 1,
     axis = values.map((r, j) =>
       bySet
         ? r.set.get(varying)
         : crossed
-          ? r.cell[0]
+          ? r.plotCell.levels[axisAt(r)]
           : sets.length > 1 && varying && !r.wrt?.includes(".")
             ? sets[j % sets.length].get(varying)
             : j + 1,
-    );
+    ),
+    axisPart = crossed ? values[0].plotCell.parts[axisAt(values[0])] : null,
+    xTicks = axisPart
+      ? {
+          entries: [...new Set(axis)].map((at) => ({
+            at,
+            text: labelled(session, axisPart.variable, at),
+          })),
+        }
+      : undefined;
   session.margins = {
     points: values.map((r, j) => ({
       x: axis[j],
@@ -1063,7 +1139,8 @@ function margins(session, text, ctx) {
     })),
     // marginsplot names them first: the varying at() variables as typed,
     // then the factors.
-    identify: [...atNames.filter(varies), ...marginVariables],
+    identify: [...atNames.filter(varies), ...marginVariables, ...overNames],
+    xTicks,
     xTitle: bySet
       ? titleOf(variables.find((v) => v.name === varying))
       : sets.length > 1 && varying
@@ -1125,6 +1202,7 @@ export const MARGINS_COMMANDS = [
               },
             ].map((layer) => ({ label: "", ...layer, color }));
           }),
+          xTicks: last.xTicks,
           xTitle: clean(options.xtitle) || last.xTitle,
           yTitle: clean(options.ytitle) || last.yTitle,
           title: clean(options.title) || last.title,

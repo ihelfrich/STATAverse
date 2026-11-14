@@ -18,7 +18,7 @@ import {
   invertSymmetric,
   quadratic,
 } from "./estimation.js";
-import { inRowSpace, nullSpace } from "./margins.js";
+import { estimability } from "./margins.js";
 import { labelled } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING } from "./values.js";
@@ -89,21 +89,20 @@ function marginFrame(session, command, model) {
       });
       return weight;
     });
-  const restricted = model.columns.some(
-      (c, j) => c && (c.empty || (!c.base && model.estimable?.[j] === false)),
-    ),
-    nulls = restricted ? nullSpace(model, rows) : [];
+  // A margin is not estimable when a cell it averages over has no
+  // observations (or its factor only one level); Stata then shows it as
+  // not estimable, and a test that involves it as not testable.
+  const check = estimability(model, rows);
   return {
     factors,
     levels,
     margin,
-    nulls,
     estimate: (cell) => {
       const L = margin(cell);
       return {
         L,
         value: L.reduce((t, v, j) => t + v * model.b[j], 0),
-        estimable: true,
+        estimable: !check || check(L),
       };
     },
   };
@@ -314,9 +313,11 @@ export function statistics(model) {
   return {
     size: model.names.length,
     one: (item) =>
-      zero(item)
-        ? { value: 0, omitted: true }
-        : { value: item.value, se: Math.sqrt(quadratic(item.L, model.V)) },
+      item.estimable === false
+        ? { value: 0, notEstimable: true }
+        : zero(item)
+          ? { value: 0, omitted: true }
+          : { value: item.value, se: Math.sqrt(quadratic(item.L, model.V)) },
     wald: (items) => {
       const R = independent(items);
       if (!R.length) return null;
@@ -369,11 +370,12 @@ function firstWidth(session, numbers, labels, headers) {
       ...labels.map((groups) => {
         const text = groups.join(" ");
         if (text.length + 1 <= cap) return text.length + 1;
+        // A piece cut to fit fills the column.
         return Math.max(
           ...groups.flatMap((group) =>
             group.length + 1 <= cap
               ? [group.length + 1]
-              : group.split(" ").map((word) => word.length + 1),
+              : piecesOf(group).map((piece) => Math.min(cap, piece.length + 1)),
           ),
         );
       }),
@@ -385,14 +387,26 @@ function firstWidth(session, numbers, labels, headers) {
     ];
   return Math.max(12, Math.min(cap, Math.max(0, ...needs)));
 }
-/** The lines that label a row; the last carries the numbers. */
+/** A label too long for its line, broken around " vs " as Stata breaks it. */
+const piecesOf = (group) => {
+  const at = group.indexOf(" vs ");
+  return at < 0 ? [group] : [group.slice(0, at), "vs", group.slice(at + 4)];
+};
+/**
+ * The lines that label a row; the last carries the numbers. Its groups
+ * share a line when they fit, else each has its own, and one still too
+ * long is broken around " vs ", a piece that does not fit then cut and
+ * marked with two dots.
+ */
 function labelLines(groups, w) {
-  const text = groups.join(" ");
+  const text = groups.join(" "),
+    cut = (piece) =>
+      piece.length + 1 > w ? `${piece.slice(0, w - 3)}..` : piece;
   const lines =
     text.length + 1 <= w
       ? [text]
       : groups.flatMap((group) =>
-          group.length + 1 <= w ? [group] : group.split(" "),
+          group.length + 1 <= w ? [group] : piecesOf(group).map(cut),
         );
   return lines.map((line) => `${line}  `.padStart(w + 1));
 }
@@ -495,7 +509,11 @@ function effectsTable(session, blocks, dist, options, ctx, extra = {}) {
     for (const item of block.items) {
       const lines = labelLines(item.groups, w);
       lines.slice(0, -1).forEach((line) => ctx.out(`${line}|`));
-      const { value, se, omitted } = item.estimate;
+      const { value, se, omitted, notEstimable } = item.estimate;
+      if (notEstimable) {
+        ctx.out(`${lines.at(-1)}|          .  (not estimable)`);
+        continue;
+      }
       if (omitted) {
         ctx.out(`${lines.at(-1)}|          0  (omitted)`);
         continue;
@@ -515,11 +533,13 @@ function effectsTable(session, blocks, dist, options, ctx, extra = {}) {
 /** r(b) and r(V) of a list of contrasts. */
 function matrices(model, items) {
   const names = items.map((item) => item.name),
+    // What is not estimable is zero in r(b) and r(V).
+    L = (item) => (item.estimate?.notEstimable ? item.L.map(() => 0) : item.L),
     covariance = items.map((a) =>
       items.map((c) =>
-        a.L.reduce(
+        L(a).reduce(
           (t, v, i) =>
-            t + v * c.L.reduce((u, w, j) => u + model.V[i][j] * w, 0),
+            t + v * L(c).reduce((u, w, j) => u + model.V[i][j] * w, 0),
           0,
         ),
       ),
@@ -536,8 +556,31 @@ function matrices(model, items) {
 
 // ----- contrast -----
 
+/**
+ * Refuses what contrast and pwcompare do not take yet: an operator with a
+ * list of levels, as in r(2 3).region, and contrasts of slopes (c.age).
+ */
+function refuseUnsupported(text) {
+  const listed = /\b([a-z]+)\(([^()]*)\)\.(\w+)/i.exec(text);
+  if (listed)
+    throw new StataError(
+      `${listed[0]}: contrast operators with a list of levels are not available yet; use ${listed[1]}.${listed[3]} or rb#.${listed[3]} and read the rows you need`,
+      198,
+    );
+  const slope = text
+    .split(/\s+/)
+    .flatMap((word) => word.split(/##|#|@/))
+    .find((part) => /^c\./i.test(part));
+  if (slope)
+    throw new StataError(
+      `${slope}: contrasts of slopes are not available yet; contrast and pwcompare take factor variables`,
+      198,
+    );
+}
+
 /** The terms of contrast's varlist. */
 function contrastTerms(session, frame, text) {
+  refuseUnsupported(text);
   const terms = [];
   for (const token of text.trim().split(/\s+/).filter(Boolean)) {
     if (token.startsWith("{"))
@@ -566,6 +609,11 @@ function contrastTerms(session, frame, text) {
         .split("#")
         .filter(Boolean)
         .map((word) => factorPart(session, frame, word, false));
+    if (main.some((part) => part.levels.length < 2))
+      throw new StataError(
+        "invalid contrast;\nfactor with only one level not allowed",
+        322,
+      );
     const named = [...main, ...at].map((part) => part.name);
     if (new Set(named).size < named.length)
       throw new StataError(`${token}: a factor may appear only once`, 198);
@@ -657,7 +705,10 @@ function contrastBlock(session, frame, stats, term) {
     );
   if (rows.length === 1) rows[0].termLine = true;
   else rows.push({ groups: ["Joint"], items });
-  for (const row of rows) row.wald = stats.wald(row.items);
+  for (const row of rows)
+    row.wald = row.items.every((item) => item.estimable)
+      ? stats.wald(row.items)
+      : null;
   for (const item of items) item.estimate = stats.one(item);
   return {
     header,
@@ -682,16 +733,6 @@ export function contrastTables(session, model, frame, spec, options, ctx) {
     stats = statistics(model),
     dist = spec.dist,
     blocks = terms.map((term) => contrastBlock(session, frame, stats, term));
-  for (const block of blocks)
-    for (const item of block.items)
-      if (
-        !item.estimable ||
-        (frame.nulls?.length && !inRowSpace(item.L, frame.nulls))
-      )
-        throw new StataError(
-          `${spec.command} is not available yet when a margin is not estimable`,
-          198,
-        );
   const anyOperator = terms.some((term) => term.main.some((p) => p.op)),
     showWald = options.wald !== false,
     showEffects =
@@ -792,6 +833,7 @@ function pwcompare(session, text, ctx) {
     stats = statistics(model),
     dist = distribution(model, options.level),
     terms = [];
+  refuseUnsupported(parsed.anything);
   for (const token of parsed.anything.trim().split(/\s+/)) {
     if (token.includes("##")) {
       let expanded = [];
@@ -825,28 +867,24 @@ function pwcompare(session, text, ctx) {
         cells.forEach((high, j) => {
           if (j <= i) return;
           const L = vectors[j].L.map((v, m) => v - vectors[i].L[m]),
-            value = vectors[j].value - vectors[i].value;
+            value = vectors[j].value - vectors[i].value,
+            estimable = vectors[i].estimable && vectors[j].estimable;
           items.push({
             L,
             value,
+            estimable,
             groups: single
               ? [label(high).trim(), "vs", label(low).trim()]
               : [`(${label(high)})`, "vs", `(${label(low)})`],
             name: high
               .map((lv, f) => `${lv}vs${low[f]}.${parts[f].name}`)
               .join("#"),
-            estimate: stats.one({ L, value }),
+            estimate: stats.one({ L, value, estimable }),
           });
         }),
       );
       return { header: parts.map((part) => part.name).join("#"), items };
     });
-  for (const item of blocks.flatMap((block) => block.items))
-    if (frame.nulls.length && !inRowSpace(item.L, frame.nulls))
-      throw new StataError(
-        "pwcompare is not available yet when a margin is not estimable",
-        198,
-      );
   ctx.out("");
   ctx.out("Pairwise comparisons of marginal linear predictions");
   ctx.out("");
