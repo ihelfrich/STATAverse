@@ -6940,3 +6940,107 @@ generate byte y = 1 + (lat > -3) + (lat > 4)
 ologit y x
 oprobit y x, nolog
 ologit y x, or nolog
+=== xtreg-collinear-within
+clear
+set seed 4211
+set obs 450
+generate id = ceil(_n/3)
+bysort id: generate wave = _n
+generate age = 20 + floor(runiform()*40)
+by id: replace age = age[1] + wave - 1
+generate ai = 5000*invnormal(runiform())
+by id: replace ai = ai[1]
+generate female = mod(id, 2)
+generate double income = round(30000 + 200*age + 100*wave + 2000*female + ai + 9000*invnormal(runiform()))
+generate double age2 = 2*age
+drop ai
+xtset id wave
+xtreg income age i.wave, fe
+xtreg income age female, fe
+xtreg income age age2 female, fe
+xtreg income female, fe
+xtreg income age female, fe vce(robust)
+xtreg income age female, re
+xtreg income age age2, re
+xtreg income age female i.wave, re
+xtreg income female, re
+xtreg income age i.wave, re vce(cluster id)
+xtreg income age age2, be
+xtreg income age i.wave, be
+display %9.4f e(rmse) " " e(df_r) " " e(rank)
+quietly xtreg income age i.wave, fe
+display e(df_m) " " e(df_b) " " e(df_a) " " e(rank) " " %9.4f e(F_f) " " %9.4f e(corr)
+quietly xtreg income age i.wave, re
+display %9.6f e(theta) " " e(rank)
+drop if runiform() < .15
+xtreg income age i.wave, fe
+xtreg income age i.wave female, re
+xtsum income age female
+=== xtsum-formats
+clear
+set obs 9
+generate id = ceil(_n/3)
+bysort id: generate t = _n
+generate x = _n*1.5
+replace x = . if _n == 3
+generate s = "a"
+generate verylongname = _n^2
+xtset id t
+xtsum x s verylongname
+xtsum x if t < 3
+xtsum x in 4/9
+replace x = . if id == 2
+xtsum x
+return list
+clear
+set seed 771
+set obs 15000
+generate id = ceil(_n/3)
+bysort id: generate t = _n
+generate income = round(50000 + 15000*invnormal(runiform()))
+replace income = . if runiform() < .06
+generate hours = round(40 + 8*invnormal(runiform()))
+xtset id t
+xtsum income hours t
+replace income = income*1000
+generate double tiny = hours/1e6
+xtsum income tiny
+=== areg-absorbed-within
+clear
+set seed 9031
+set obs 400
+generate long firm = ceil(_n/400*70)
+generate age = 20 + floor(runiform()*45)
+generate byte educ = 1 + floor(runiform()*4)
+generate size = mod(firm, 5)
+generate x2 = 3*age - 2
+generate double wage = round(15000 + 300*age + 2000*educ + 150*firm + 4000*invnormal(runiform()), .01)
+generate region = 1 + mod(firm, 3)
+areg wage age, absorb(firm)
+areg wage age i.educ, absorb(firm)
+areg wage age size x2, absorb(firm)
+areg wage age i.firm, absorb(firm)
+areg wage age, absorb(firm) vce(robust)
+areg wage age i.educ, absorb(firm) vce(cluster firm)
+areg wage age, absorb(firm) vce(cluster region)
+areg wage age, absorb(firm) vce(cluster educ)
+areg wage age if educ > 1, absorb(firm) level(90)
+areg wage, absorb(firm)
+generate str5 sfirm = "f" + string(firm)
+areg wage age, absorb(sfirm)
+capture noisily areg wage age, absorb(firm) vce(hc3)
+quietly areg wage age i.educ, absorb(firm)
+display e(df_a) " " e(k_absorb) " " %9.4f e(F_absorb) " " %12.4f e(ll) " " %12.4f e(ll_0) " " e(rank)
+predict double r, residuals
+predict double xb, xb
+quietly summarize r
+display %10.4f r(sd) " " %10.4f r(min) " " %10.4f r(max)
+summarize xb
+clear
+set seed 12345
+set obs 15000
+generate long id = ceil(_n/3)
+generate age = 20 + floor(runiform()*50)
+generate income = round(20000 + 500*age + 3000*invnormal(runiform()) + mod(id,37)*200)
+areg income age, absorb(id)
+areg income age, absorb(id) vce(cluster id)

@@ -8,13 +8,15 @@ import {
   RULE,
   coefficientHeader,
   coefficientRows,
+  design,
   fit,
   invertSymmetric,
   quadratic,
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { STOCK_YOGO } from "./stock-yogo.js";
-import { isMissing } from "./values.js";
+import { MISSING, isMissing } from "./values.js";
+import { clusterMeat, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const six = (value) => g(value, "%8.0g");
@@ -405,161 +407,268 @@ export function ivDiagnostic(session, model, what, ctx) {
   return true;
 }
 
+/**
+ * areg: least squares with the indicators of one categorical variable
+ * absorbed. The indicators are never built; y and the regressors are taken
+ * as deviations from their means within each category (the within
+ * transform), which gives the same slopes and residuals at a cost linear in
+ * the number of observations, so thousands of categories take no longer
+ * than a few.
+ */
 function areg(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] , Absorb(varname) [Level(cilevel) | Robust VCE(string) CLuster(varname)]",
+      "anything [if] [in] , Absorb(varname) [Level(cilevel) Robust VCE(string) CLuster(varname)]",
       text,
     ),
-    absorb = session.data.get(session.varlist(parsed.options.absorb)[0]),
-    full = fit(
+    options = parsed.options,
+    absorb = session.data.get(session.varlist(options.absorb)[0]),
+    asked = readVce(session, options, /^(ols|conventional)$/),
+    { dependent, columns, sample } = design(
       session,
-      {
-        ...parsed,
-        anything: `${parsed.anything} i.${absorb.name}`,
-        options: { level: parsed.options.level },
-      },
-      null,
+      parsed.anything,
+      session.rows(parsed, null),
+      true,
     ),
-    keep = full.names
-      .map((_, k) => k)
-      .filter((k) => full.columns[k] && full.columns[k].term.factor !== absorb),
-    used = keep.filter((k) => full.estimable[k]),
-    n = full.N,
-    groups = new Set(full.sample.map((i) => absorb.data[i])).size,
-    dfResidual = full.dfResidual,
-    s2 = full.rss / dfResidual,
-    dependent = session.data.get(full.depvar),
-    mean = (values) => values.reduce((a, b) => a + b, 0) / values.length,
-    ybar = mean(full.sample.map((i) => dependent.data[i])),
-    xbar = keep.map((k) => mean(full.sample.map(full.columns[k].value))),
-    b = keep.map((k) => full.b[k]),
-    constant = ybar - xbar.reduce((t, v, j) => t + v * b[j], 0),
-    Vb = keep.map((r) => keep.map((c) => full.V[r][c])),
-    Vx = Vb.map((row) => row.reduce((t, v, j) => t + v * xbar[j], 0)),
-    size = keep.length,
-    V = Array.from({ length: size + 1 }, (_, r) =>
-      Array.from({ length: size + 1 }, (_, c) =>
-        r < size && c < size
-          ? Vb[r][c]
-          : r < size
-            ? -Vx[r]
-            : c < size
-              ? -Vx[c]
-              : s2 / n + xbar.reduce((t, v, j) => t + v * Vx[j], 0),
+    rows = sample.filter(
+      (i) =>
+        !noCluster(absorb, i) &&
+        !(asked.cluster && noCluster(asked.cluster, i)),
+    ),
+    n = rows.length;
+  if (!n) throw new StataError("no observations", 2000);
+  const active = columns.filter((c) => !c.base),
+    y = rows.map((i) => dependent.data[i]),
+    xAll = active.map((c) => rows.map(c.value)),
+    // Each observation's category, numbered in order of appearance.
+    index = new Map(),
+    category = rows.map((i) => {
+      const key = absorb.data[i];
+      if (!index.has(key)) index.set(key, index.size);
+      return index.get(key);
+    }),
+    groups = index.size,
+    sizes = new Array(groups).fill(0);
+  for (const c of category) sizes[c]++;
+  const mean = (v) => v.reduce((t, value) => t + value, 0) / v.length,
+    dot = (a, b) => {
+      let t = 0;
+      for (let i = 0; i < a.length; i++) t += a[i] * b[i];
+      return t;
+    },
+    demean = (v) => {
+      const totals = new Array(groups).fill(0);
+      v.forEach((value, i) => (totals[category[i]] += value));
+      return v.map(
+        (value, i) => value - totals[category[i]] / sizes[category[i]],
+      );
+    },
+    ybar = mean(y),
+    yw = demean(y),
+    xw = xAll.map(demean),
+    xbarAll = xAll.map(mean),
+    kept = [],
+    basis = [];
+  // A regressor that the categories and the regressors before it explain
+  // is omitted: the later of two collinear ones, as Stata's _rmcoll does.
+  xAll.forEach((column, k) => {
+    const centre = xbarAll[k],
+      reference = column.reduce((t, v) => t + (v - centre) ** 2, 0),
+      rest = xw[k].slice();
+    for (const q of basis) {
+      const weight = dot(rest, q.vector) / q.norm;
+      for (let i = 0; i < n; i++) rest[i] -= weight * q.vector[i];
+    }
+    const norm = dot(rest, rest);
+    if (reference > 0 && norm > 1e-11 * reference) {
+      basis.push({ vector: rest, norm });
+      kept.push(k);
+    } else active[k].omitted = true;
+  });
+  const size = kept.length,
+    x = kept.map((k) => xw[k]),
+    xbar = kept.map((k) => xbarAll[k]),
+    inverse = invertSymmetric(x.map((a) => x.map((b) => dot(a, b))));
+  if (!inverse)
+    throw new StataError("the regressors are too collinear to fit", 198);
+  const xy = x.map((column) => dot(column, yw)),
+    b = inverse.map((row) => dot(row, xy)),
+    residuals = yw.map(
+      (v, i) => v - b.reduce((t, bj, j) => t + bj * x[j][i], 0),
+    ),
+    rss = dot(residuals, residuals),
+    tss = y.reduce((t, v) => t + (v - ybar) ** 2, 0),
+    dfAbsorbed = groups - 1,
+    dfResidual = n - size - groups,
+    s2 = rss / dfResidual,
+    constant = ybar - dot(xbar, b);
+  if (dfResidual < 1) throw new StataError("insufficient observations", 2001);
+  // (Z'Z)^-1 for Z = [x within plus its overall mean, 1], the design whose
+  // constant is the overall mean of y less the fitted one.
+  const vx = inverse.map((row) => dot(row, xbar)),
+    bread = [
+      ...inverse.map((row, r) => [...row, -vx[r]]),
+      [...vx.map((v) => -v), 1 / n + dot(xbar, vx)],
+    ];
+  let V,
+    dfR = dfResidual,
+    clusters = null;
+  if (!asked.robust) V = bread.map((row) => row.map((v) => v * s2));
+  else {
+    // The sandwich on the same design. The absorbed indicators count among
+    // the parameters in the small-sample factor.
+    const score = (k) => [
+      ...x.map((column, j) => (column[k] + xbar[j]) * residuals[k]),
+      residuals[k],
+    ];
+    let meat, scale;
+    if (asked.cluster) {
+      const result = clusterMeat(asked.cluster, rows, score, size + 1);
+      meat = result.meat;
+      clusters = result.clusters;
+      scale = (clusters / (clusters - 1)) * ((n - 1) / dfResidual);
+      dfR = clusters - 1;
+    } else {
+      meat = Array.from({ length: size + 1 }, () =>
+        new Array(size + 1).fill(0),
+      );
+      for (let k = 0; k < n; k++) {
+        const s = score(k);
+        for (let a = 0; a <= size; a++)
+          for (let c = 0; c <= size; c++) meat[a][c] += s[a] * s[c];
+      }
+      scale = n / dfResidual;
+    }
+    const middle = bread.map((row) =>
+      meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
+    );
+    V = middle.map((row) =>
+      bread[0].map(
+        (_, c) => scale * row.reduce((t, v, k) => t + v * bread[k][c], 0),
       ),
+    );
+  }
+  const slopeV = V.slice(0, size).map((row) => row.slice(0, size)),
+    block = size ? invertSymmetric(slopeV) : null,
+    F = size && block ? quadratic(b, block) / size : MISSING,
+    // The F test of the absorbed indicators sets the fit against least
+    // squares on the regressors alone.
+    pooled = project(
+      kept.map((k) => xAll[k]),
+      y,
     ),
-    block = invertSymmetric(used.map((r) => used.map((c) => full.V[r][c]))),
-    dfModel = used.length,
-    F =
-      dfModel && block
-        ? quadratic(
-            used.map((k) => full.b[k]),
-            block,
-          ) / dfModel
-        : NaN,
-    without = project(
-      used.map((k) => full.sample.map(full.columns[k].value)),
-      full.sample.map((i) => dependent.data[i]),
+    fAbsorb = (pooled.rss - rss) / dfAbsorbed / s2,
+    pAbsorb = Ftail(dfAbsorbed, dfResidual, fAbsorb),
+    r2 = 1 - rss / tss,
+    r2a = 1 - s2 / (tss / (n - 1)),
+    gaussian = (ss) =>
+      -0.5 * n * (Math.log(2 * Math.PI) + Math.log(ss / n) + 1),
+    names = [...columns.map((c) => c.name), "_cons"],
+    // Where each named coefficient sits among the estimated ones: the
+    // constant last, -1 for a base level or an omitted regressor.
+    position = names.map((_, k) =>
+      k === columns.length ? size : kept.indexOf(active.indexOf(columns[k])),
     ),
-    fAbsorb = (without.rss - full.rss) / (groups - 1) / s2,
-    pAbsorb = Ftail(groups - 1, dfResidual, fAbsorb),
-    r2 = 1 - full.rss / full.tss,
-    r2a = 1 - s2 / (full.tss / (n - 1)),
+    vce = asked.cluster ? "cluster" : asked.robust ? "robust" : "ols",
     model = {
       command: "areg",
       title: "Linear regression, absorbing indicators",
       absorb: absorb.name,
-      depvar: full.depvar,
-      names: [...keep.map((k) => full.names[k]), "_cons"],
-      b: [...b, constant],
-      V,
-      columns: keep.map((k) => full.columns[k]),
+      depvar: dependent.name,
+      names,
+      b: position.map((p) => (p < 0 ? 0 : p === size ? constant : b[p])),
+      V: position.map((p) =>
+        position.map((q) => (p < 0 || q < 0 ? 0 : V[p][q])),
+      ),
+      columns,
       constant: true,
-      estimable: [...keep.map((k) => full.estimable[k]), true],
+      estimable: position.map((p) => p >= 0),
       N: n,
-      df_m: dfModel,
-      df_r: dfResidual,
-      dfResidual,
-      rank: dfModel + 1,
+      df_m: size,
+      df_r: dfR,
+      dfResidual: dfR,
+      rank: size + 1,
       F,
-      rss: full.rss,
-      tss: full.tss,
-      ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(full.rss / n) + 1),
+      rss,
+      tss,
+      ll: gaussian(rss),
       // The null model keeps the absorbed indicators.
-      ll_0:
-        -0.5 *
-        n *
-        (Math.log(2 * Math.PI) +
-          Math.log(
-            project(
-              [],
-              (() => {
-                const totals = new Map();
-                for (const i of full.sample) {
-                  const t = totals.get(absorb.data[i]) ?? [0, 0];
-                  t[0] += dependent.data[i];
-                  t[1] += 1;
-                  totals.set(absorb.data[i], t);
-                }
-                return full.sample.map((i) => {
-                  const t = totals.get(absorb.data[i]);
-                  return dependent.data[i] - t[0] / t[1];
-                });
-              })(),
-            ).tss / n,
-          ) +
-          1),
-      mss: full.tss - full.rss,
+      ll_0: gaussian(dot(yw, yw)),
+      mss: tss - rss,
       r2,
       r2_a: r2a,
       rmse: Math.sqrt(s2),
-      vce: "ols",
-      sample: full.sample,
-      level: parsed.options.level,
+      vce,
+      ...(asked.robust ? { vcetype: "Robust" } : {}),
+      sample: rows,
+      level: options.level,
     },
-    side = (label, value) => `${label.padEnd(18)}=${value.padStart(7)}`,
-    lines = [
-      [model.title, "Number of obs", count(n)],
-      [`Absorbed variable: ${absorb.name}`, "No. of categories", count(groups)],
-      ["", `F(${dfModel}, ${dfResidual})`, applyFormat(F, "%7.2f").trim()],
-      ["", "Prob > F", four(Ftail(dfModel, dfResidual, F)).trim()],
-      ["", "R-squared", four(r2).trim()],
-      ["", "Adj R-squared", four(r2a).trim()],
-      ["", "Root MSE", four(model.rmse).trim()],
-    ];
-  if (isMissing(F) || Number.isNaN(F)) lines[2][2] = ".";
+    p = isMissing(F) ? MISSING : Ftail(size, dfR, F),
+    values = [
+      ["Number of obs", count(n)],
+      ["No. of categories", count(groups)],
+      [`F(${size}, ${dfR})`, applyFormat(F, "%9.2f").trim()],
+      ["Prob > F", applyFormat(p, "%6.4f").trim()],
+      ["R-squared", applyFormat(r2, "%6.4f").trim()],
+      ["Adj R-squared", applyFormat(r2a, "%6.4f").trim()],
+      ["Root MSE", applyFormat(model.rmse, "%14.4f").trim()],
+    ],
+    // The column of values is one wider than the widest, and the block
+    // ends at column 78, as Stata's coefficient-table header sets it.
+    width = Math.max(...values.map(([, v]) => v.length)) + 1,
+    left = [model.title, `Absorbed variable: ${absorb.name}`];
   session.estimates = model;
   session.results.e = {
     N: n,
-    df_m: dfModel,
-    df_r: dfResidual,
+    df_m: size,
+    df_r: dfR,
     F,
+    p,
     r2,
     r2_a: r2a,
     rmse: model.rmse,
     mss: model.mss,
-    rss: model.rss,
-    tss: model.tss,
-    rank: model.rank,
-    df_a: groups - 1,
+    rss,
+    tss,
+    ll: model.ll,
+    ll_0: model.ll_0,
+    rank: size + 1,
+    df_a: dfAbsorbed,
     k_absorb: groups,
-    F_absorb: fAbsorb,
-    p_absorb: pAbsorb,
+    ...(asked.robust ? {} : { F_absorb: fAbsorb, p_absorb: pAbsorb }),
+    ...(clusters ? { N_clust: clusters } : {}),
     cmd: "areg",
+    title: model.title,
     depvar: model.depvar,
     absvar: absorb.name,
-    vce: "ols",
+    vce,
+    ...(asked.robust ? { vcetype: "Robust" } : {}),
+    ...(asked.cluster ? { clustvar: asked.cluster.name } : {}),
   };
+  for (const k of active.keys())
+    if (!kept.includes(k))
+      ctx.out(`note: ${active[k].name} omitted because of collinearity.`);
   ctx.out("");
-  for (const [left, label, value] of lines)
-    ctx.out(`${left.padEnd(52)}${side(label, value)}`);
+  values.forEach(([label, value], k) => {
+    const text = left[k] ?? "";
+    ctx.out(
+      `${text.padEnd(Math.max(59 - width, text.length + 1))}${label.padEnd(18)}=${value.padStart(width)}`,
+    );
+  });
   ctx.out("");
-  coefficientHeader(model, parsed.options.level).forEach(ctx.out);
-  coefficientRows(session, model, parsed.options.level).forEach(ctx.out);
+  if (clusters)
+    ctx.out(
+      `(Std. err. adjusted for ${count(clusters)} clusters in ${asked.cluster.name})`.padStart(
+        78,
+      ),
+    );
+  coefficientHeader(model, options.level).forEach(ctx.out);
+  coefficientRows(session, model, options.level).forEach(ctx.out);
   ctx.out(RULE);
-  ctx.out(
-    `${`F test of absorbed indicators: F(${groups - 1}, ${dfResidual}) = ${applyFormat(fAbsorb, "%5.3f")}`.padEnd(62)}Prob > F = ${applyFormat(pAbsorb, "%5.3f")}`,
-  );
+  // areg_footnote prints no F test after a robust variance.
+  if (!asked.robust)
+    ctx.out(
+      `${`F test of absorbed indicators: F(${dfAbsorbed}, ${dfResidual}) = ${applyFormat(fAbsorb, "%4.3f")}`.padEnd(61)} Prob > F = ${applyFormat(pAbsorb, "%4.3f")}`,
+    );
   ctx.out("");
 }
 
