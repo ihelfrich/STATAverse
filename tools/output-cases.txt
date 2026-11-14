@@ -17525,3 +17525,641 @@ capture noisily mlogit x s
 capture noisily ologit x s
 capture noisily oprobit x s
 xtset, clear
+=== normality-swilk-sfrancia
+clear
+set seed 12345
+set obs 200
+generate x = invnormal(runiform())
+generate y = exp(invnormal(runiform()))
+generate g = 1 + floor(runiform()*3)
+generate u = runiform()
+generate double d = round(invnormal(runiform()), .5)
+generate a_rather_long_variable_name = invnormal(runiform())^2
+generate str3 s = "abc"
+replace x = . in 5
+swilk x y u
+swilk d
+swilk d, noties
+swilk x y, lnnormal
+swilk a_rather_long_variable_name s
+swilk x if g == 2, generate(coef)
+summarize coef
+swilk x in 1/3
+swilk x in 1/4
+swilk x in 6/11
+swilk x in 6/12
+swilk x in 1/2
+swilk u in 1/5, lnnormal
+sfrancia x y u
+sfrancia d
+sfrancia d, noties
+sfrancia x y, boxcox
+sfrancia x in 1/9
+sfrancia x in 1/12
+sfrancia x in 1/8, boxcox
+sfrancia s
+bysort g: swilk u
+by g: sfrancia u
+=== normality-sktest
+clear
+set seed 4321
+set obs 150
+generate x = invnormal(runiform())
+generate y = exp(invnormal(runiform()))
+generate w = 1 + floor(runiform()*4)
+generate u = runiform()
+generate a_very_long_variable_name_here = invnormal(runiform())^3
+generate c = 3
+replace x = . in 7
+sktest x y u
+sktest x y, noadjust
+sktest x [fw=w]
+sktest x [aw=w]
+sktest x u in 1/7
+sktest x in 1/8
+sktest u if w > 2
+sktest a_very_long_variable_name_here x
+sktest a_very_long_variable_name_here x, noadjust
+sktest c
+set linesize 79
+sktest a_very_long_variable_name_here x
+set linesize 200
+=== normality-results
+clear
+set seed 12345
+set obs 200
+generate x = invnormal(runiform())
+generate u = runiform()
+swilk x u
+return list
+sfrancia x u
+return list
+sfrancia x, boxcox
+return list
+sktest x u
+return list
+matrix list r(table)
+sktest x, noadjust
+return list
+sktest u in 1/7
+return list
+=== kendall-tau
+clear
+set seed 2468
+set obs 60
+generate g = 1 + floor(runiform()*3)
+generate h = floor(runiform()*2)
+generate y = 10 + 5*runiform()
+generate x = 2 + runiform()
+generate z = 1 + runiform()
+generate str2 s = "ab"
+replace x = . in 7
+ktau y x
+return list
+ktau g h
+return list
+ktau y x z
+return list
+ktau y x z, stats(taua taub score se obs p)
+ktau y x z, stats(taub p) bonferroni star(.5)
+ktau y x z, stats(taub) sidak print(.3)
+ktau y x z, pw
+ktau y x z g h, pw stats(obs)
+ktau y x, matrix stats(taua taub)
+ktau y s x
+ktau y x if h == 1
+bysort h: ktau y z
+capture noisily ktau y
+capture noisily ktau y x in 1/2
+capture noisily ktau y x z, stats(foo)
+capture noisily ktau y x z, star(2)
+=== kendall-tau-wide
+clear
+set seed 97
+set obs 30
+generate v1 = floor(runiform()*6)
+generate v2 = floor(runiform()*6)
+generate v3 = floor(runiform()*6)
+generate v4 = floor(runiform()*6)
+generate v5 = floor(runiform()*6)
+generate v6 = floor(runiform()*6)
+generate v7 = floor(runiform()*6)
+ktau v1-v7
+set linesize 79
+ktau v1-v7
+ktau v1-v7, stats(taub p)
+set linesize 200
+=== contract-basics
+clear
+set seed 2468
+set obs 60
+generate g = 1 + floor(runiform()*3)
+generate h = floor(runiform()*2)
+generate w = 1 + floor(runiform()*4)
+generate s = cond(runiform() < .5, "a", "b")
+replace g = . in 3
+replace s = "" in 9
+label define gl 1 "one" 2 "two" 3 "three"
+label values g gl
+label variable g "Group"
+preserve
+contract g h
+describe
+list
+restore
+preserve
+contract h g, freq(n) percent(pct) cfreq(cf) cpercent(cp)
+describe
+list
+restore
+preserve
+contract g h, zero nomiss
+list
+restore
+preserve
+contract g h, zero
+list
+restore
+preserve
+contract g s [fw=w], percent(p) float format(%9.3f)
+describe
+list
+restore
+preserve
+contract s, nomiss cpercent(cp)
+describe
+list
+restore
+preserve
+contract g if h == 1
+list
+restore
+preserve
+contract h in 1/10, percent(p)
+list
+restore
+capture noisily contract g, float
+capture noisily contract g, format(%9.2f)
+generate _freq = 1
+capture noisily contract g
+capture noisily contract g, freq(h)
+capture noisily contract g if h > 5
+drop _freq
+contract h
+list
+=== ratio-estimation
+clear
+set seed 2468
+set obs 60
+generate g = 1 + floor(runiform()*3)
+generate h = floor(runiform()*2)
+generate w = 1 + floor(runiform()*4)
+replace g = . in 3
+label define gl 1 "one" 2 "two" 3 "three"
+label values g gl
+generate y = 10 + 5*runiform()
+generate x = 2 + runiform()
+generate z = 1 + runiform()
+replace x = . in 7
+ratio y/x
+ereturn list
+matrix list e(b)
+matrix list e(V)
+ratio (r1: y/x) (r2: z/x), over(h)
+matrix list e(V)
+matrix list e(_N)
+ratio y/x, over(g h)
+ratio y/x [pw=w], over(h)
+ratio y/x [fw=w]
+ratio y/x [fw=w], over(h)
+ratio y/x [iw=w]
+ratio y/x, over(h) vce(cluster g)
+ratio y/x, vce(cluster g)
+ereturn list
+ratio y/x [pw=w], vce(cluster g)
+ratio y x
+ratio myr: y/x, level(90)
+ratio
+ratio, level(80)
+ratio (y/x), noheader
+ratio (y/x) if h == 1, nolegend
+ratio y/x, coeflegend
+ratio y/x in 1/20, cformat(%9.3f)
+ereturn list
+lincom _b[_ratio_1] - 4
+test _b[_ratio_1] = 4
+capture noisily ratio y/x [aw=w]
+capture noisily ratio y/x z/x
+capture noisily ratio y
+capture noisily ratio (y/x) (z)
+=== resampling-seed-dots-size
+clear
+set seed 77
+set obs 40
+generate id = ceil(_n/4)
+generate s = 1 + (id > 5)
+generate x = runiform()
+generate y = 1 + 2*x + invnormal(runiform())
+bootstrap, reps(20) seed(42): regress y x
+display e(N_reps) " " e(N_misreps)
+set seed 42
+bootstrap, reps(20): regress y x
+bootstrap, reps(25) dots(5): regress y x
+bootstrap, reps(120) dots(5): regress y x
+bootstrap m=r(mean), reps(45) dots(2): summarize y
+bootstrap m=r(mean), reps(7) dots(3): summarize y
+bootstrap m=r(mean), reps(7) dots(0): summarize y
+capture noisily bootstrap, reps(25) dots(10) nodots: regress y x
+set seed 9
+bootstrap m=r(mean), reps(20) size(30): summarize y
+set seed 9
+bootstrap, reps(20) size(25) nodots: regress y x
+display "`e(size)'"
+capture noisily bootstrap m=r(mean), reps(5) size(50): summarize y
+capture noisily bootstrap m=r(mean), reps(5) size(0): summarize y
+=== resampling-strata-cluster
+clear
+set seed 77
+set obs 40
+generate id = ceil(_n/4)
+generate s = 1 + (id > 5)
+generate x = runiform()
+generate y = 1 + 2*x + invnormal(runiform())
+set seed 9
+bootstrap m=r(mean), reps(20) strata(s): summarize y
+display e(N_strata) " `e(strata)'"
+set seed 9
+bootstrap, reps(20) strata(s): regress y x
+display e(N_strata) " `e(strata)'"
+set seed 9
+bootstrap, reps(20) cluster(id): regress y x
+display e(N_clust) " `e(clustvar)' `e(cluster)'"
+set seed 9
+bootstrap, reps(20) cluster(id) idcluster(nid): regress y x
+list id nid in 1/6
+set seed 9
+bootstrap, reps(20) cluster(id) strata(s) nodots: regress y x
+set seed 9
+bootstrap m=r(mean), reps(20) cluster(id) size(6): summarize y
+set seed 9
+bootstrap m=r(mean), reps(20) strata(s) size(8): summarize y
+set seed 9
+bootstrap m=r(mean), reps(20) cluster(id) strata(s) size(3) nodots: summarize y
+generate s12 = mod(_n, 12)
+set seed 9
+bootstrap m=r(mean), reps(10) strata(s12) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(5) cluster(id) size(11): summarize y
+capture noisily bootstrap m=r(mean), reps(5) idcluster(nid2): summarize y
+=== resampling-bsample-options
+clear
+set obs 12
+generate id = ceil(_n/3)
+generate s = 1 + (_n > 6)
+generate k = _n
+set seed 5
+preserve
+bsample, strata(s)
+list k s, clean noobs
+restore
+preserve
+bsample 4, strata(s)
+list k s, clean noobs
+restore
+preserve
+bsample, cluster(id)
+list k id, clean noobs
+restore
+preserve
+bsample, cluster(id) idcluster(nid)
+list k id nid, clean noobs
+restore
+preserve
+bsample 2, cluster(id) idcluster(nid)
+list k id nid, clean noobs
+restore
+preserve
+bsample, cluster(id) strata(s) idcluster(nid)
+list k id s nid, clean noobs
+restore
+capture noisily bsample, idcluster(nid)
+capture noisily bsample 7, strata(s)
+=== resampling-jackknife-cluster
+clear
+set seed 77
+set obs 40
+generate id = ceil(_n/4)
+generate x = runiform()
+generate y = 1 + 2*x + invnormal(runiform())
+jackknife, cluster(id): regress y x
+display e(N_clust) " `e(clustvar)' `e(cluster)'"
+jackknife m=r(mean), cluster(id) nodots: summarize y
+jackknife m=r(mean) s=r(sd), cluster(id): summarize y
+jackknife, cluster(id) idcluster(nid) nodots: regress y x
+capture noisily jackknife, idcluster(nid): regress y x
+jackknife m=r(mean), dots(10): summarize y
+jackknife m=r(mean), dots(3): summarize y
+capture noisily jackknife m=r(mean), dots(3) nodots: summarize y
+=== resampling-saving
+clear
+set seed 77
+set obs 40
+generate x = runiform()
+generate y = 1 + 2*x + invnormal(runiform())
+set seed 9
+bootstrap m=r(mean) sd=r(sd), reps(20) saving(p7bsout, replace): summarize y
+capture noisily bootstrap m=r(mean), reps(5) saving(p7bsout): summarize y
+summarize y
+preserve
+use p7bsout, clear
+display "`: data label'"
+display "`: variable label m'" " | " "`: variable label sd'"
+list in 1/3
+restore
+set seed 9
+bootstrap _b, reps(5) saving(p7bsb, replace) nodots: regress y x
+preserve
+use p7bsb, clear
+display "`: data label'"
+describe, simple
+display "`: variable label _b_x'" " | " "`: variable label _b_cons'"
+list
+restore
+jackknife m=r(mean), saving(p7jkout, replace) nodots: summarize y
+preserve
+use p7jkout, clear
+display "`: data label'"
+list in 1/3
+restore
+=== resampling-simulate-options
+clear
+set seed 1
+set obs 30
+generate y = runiform()
+simulate m=r(mean), reps(5) seed(3): summarize y
+list
+clear
+set obs 40
+generate y = runiform()
+simulate m=r(mean) v=r(Var), reps(12) dots(4) saving(p7simout, replace): summarize y
+display "`: data label'"
+display _N
+list in 1/2
+use p7simout, clear
+display "`: data label'"
+display "`: variable label v'"
+list in 1/2
+capture noisily simulate m=r(mean), reps(3) dots(2) nodots: summarize y
+=== resampling-vce-design-options
+clear
+set seed 77
+set obs 40
+generate id = ceil(_n/4)
+generate s = 1 + (id > 5)
+generate x = runiform()
+generate y = 1 + 2*x + invnormal(runiform())
+regress y x, vce(bootstrap, reps(20) cluster(id) seed(3))
+regress y x, vce(bootstrap, reps(20) strata(s) seed(3) nodots)
+regress y x, vce(jackknife, cluster(id))
+bootstrap, reps(20) cluster(id) idcluster(nid) seed(4) nodots: regress y x i.nid
+capture noisily by s, sort: bootstrap m=r(mean), reps(10) seed(1) nodots: summarize y
+=== resampling-cluster-likelihood
+clear
+set seed 77
+set obs 40
+generate id = ceil(_n/4)
+generate x = runiform()
+generate d = runiform() < .5
+bootstrap, reps(10) cluster(id) seed(5) dots(5): logit d x
+jackknife, cluster(id) nodots: logit d x
+=== ratio-resampled
+clear
+set seed 2468
+set obs 60
+generate h = floor(runiform()*2)
+generate id = ceil(_n/6)
+generate y = 10 + 5*runiform()
+generate x = 2 + runiform()
+set seed 1
+bootstrap, reps(10): ratio y/x
+set seed 1
+bootstrap _b, reps(10) nodots: ratio y/x, over(h)
+jackknife, nodots: ratio y/x
+set seed 1
+ratio y/x, vce(bootstrap, reps(10))
+ratio y/x, vce(jackknife) over(h)
+set seed 1
+bootstrap, reps(10) cluster(id) nodots: ratio (a: y/x) (b: x/y)
+capture noisily ratio y/x, vce(robust)
+=== ratio-shared-names-and-single-observations
+clear
+set seed 502
+set obs 12
+generate y = 2 + runiform()
+generate x = 1 + runiform()
+ratio (r: y/x) (r: x/y)
+matrix list e(b)
+ratio (r: y/x) (r: x/y), coeflegend
+generate g = cond(_n == 1, 1, cond(_n <= 6, 2, 3))
+ratio (r: y/x) (r: x/y), over(g)
+ratio y/x, over(g)
+matrix list e(V)
+matrix list e(error)
+ereturn list
+ratio y/x [pw=g], over(g)
+ratio y/x in 1/1
+matrix list e(V)
+generate w = 1 + mod(_n, 3)
+ratio y/x [fw=w] in 1/1
+ratio y/x if g == 1, over(g)
+ratio y/x if g == 1, over(g) coeflegend
+capture noisily predict p
+=== ratio-legend-abbreviations
+clear
+set seed 304
+set obs 30
+generate a_very_long_numerator_name = 10*runiform()
+generate another_long_denominator = 1 + runiform()
+generate abcdefghijklmnopqrstuvw = 1 + runiform()
+generate abcdefghijklmnopqrstuvwx = 1 + runiform()
+generate byte grp = 1 + floor(runiform()*2)
+generate y = runiform()
+generate x = 1 + runiform()
+ratio a_very_long_numerator_name/another_long_denominator, over(grp)
+ratio (longname_ratio_label: a_very_long_numerator_name/another_long_denominator)
+ratio a_very_long_numerator_name/another_long_denominator, over(grp) coeflegend
+ratio (abcdefghijklm: y/x)
+ratio abcdefghijklmnopqrstuvw/abcdefghijklmnopqrstuvwx
+ratio y/abcdefghijklmnopqrstuvwx
+ratio (longname_ratio_label: y/x), coeflegend
+ratio (longname_ratio_label: y/x) (r: x/y), over(grp) coeflegend
+=== ratio-vce-parsing-and-estat-vce
+clear
+set seed 307
+set obs 30
+generate g = mod(_n, 3)
+generate y = 3 + runiform()
+generate x = 1 + runiform()
+generate cl = ceil(_n/3)
+capture noisily ratio y/x, vce(lin)
+ratio y/x, vce(linear)
+capture noisily ratio y/x, vce(cluster)
+capture noisily ratio y/x, vce(cluster cl cl)
+capture noisily ratio y/x, vce(cluster cl, foo)
+capture noisily ratio y/x, over(nosuch)
+capture noisily ratio y/x, vce(bootstrap) foo
+capture noisily ratio y/x, vce(jackknife) over(nosuch)
+set seed 3
+capture noisily ratio y/x, vce(bootstrap, reps(5)) nodots over(nosuch)
+ratio y/x, vce(jackknife, mse) nodots
+ratio y/x, over(g)
+estat vce
+ratio (r1: y/x) (r2: x/y), over(g)
+estat vce
+=== kendall-by-too-few
+clear
+set obs 7
+generate g = cond(_n <= 1, 1, cond(_n <= 5, 2, 3))
+generate x = _n^2
+generate y = mod(_n, 3)
+bysort g: ktau y x
+display "reached"
+bysort g: correlate y x
+display "reached"
+=== resampling-header-alignment
+clear
+set seed 801
+set obs 1200
+generate s = 1 + mod(_n, 4)
+generate y = invnormal(runiform())
+set seed 1
+bootstrap m=r(mean), reps(5) strata(s) nodots: summarize y
+set seed 1
+bootstrap m=r(mean), reps(5) nodots: summarize y in 1/8
+set seed 1
+bootstrap, reps(5) strata(s) nodots: ratio y/s
+clear
+set seed 410
+set obs 20
+generate y = runiform()
+generate x = runiform()
+set seed 2
+bootstrap, reps(10) nodots: regress y x
+jackknife, nodots: regress y x
+=== resampling-saving-double
+clear
+set seed 405
+set obs 30
+generate y = runiform()
+set seed 9
+bootstrap m=r(mean), reps(12) saving(p7dbl2, replace double) nodots: summarize y
+preserve
+use p7dbl2, clear
+describe m
+format m %20.0g
+list in 1/3
+restore
+jackknife m=r(mean) s=r(sd), saving(p7dbl4, replace double) nodots: summarize y
+=== resampling-command-if-in
+clear
+set seed 402
+set obs 30
+generate y = runiform()
+generate nc = ceil(_n/3)
+replace nc = . in 1/2
+set seed 7
+bootstrap m=r(mean), reps(12) cluster(nc) nodots: summarize y if nc < .
+jackknife m=r(mean), cluster(nc) nodots: summarize y if nc < .
+clear
+set seed 403
+set obs 40
+generate y = runiform()
+generate x = y + runiform()
+generate s = mod(_n, 3)
+set seed 8
+bootstrap m=r(mean), reps(10) nodots: summarize y in 1/20
+jackknife m=r(mean), nodots: summarize y in 1/8
+jackknife, nodots: regress y x in 1/8
+set seed 8
+bootstrap m=r(mean), reps(10) cluster(s) nodots: summarize y in 5/40
+jackknife m=r(mean), cluster(s) nodots: summarize y if x > .3
+set seed 8
+bootstrap m=r(mean), reps(10) nodots: summarize y if x > .5 in 3/30
+set seed 8
+bootstrap, reps(10) nodots: regress y x in 3/30
+set seed 5
+bootstrap m=r(mean), nodrop reps(5) nodots: summarize y in 1/20
+=== resampling-options-stata-accepts
+clear
+set seed 77
+set obs 30
+generate y = runiform()
+generate w = 1
+generate x = 1 + runiform()
+set seed 3
+bootstrap m=r(mean), reps(5) mse nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) reject(r(mean) > .55) nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) nodrop nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) notable nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) noheader nolegend nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) force nodots: summarize y
+bootstrap m=r(mean), reps(5) seed(-3) nodots: summarize y
+bootstrap m=r(mean), reps(5) seed(1.5) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(5) seed(abc) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(5) group(w) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(4) dots(-1): summarize y
+capture noisily jackknife m=r(mean), strata(w) nodots: summarize y
+jackknife m=r(mean), mse nodots: summarize y
+ereturn list
+jackknife m=r(mean), notable nodots: summarize y
+jackknife m=r(mean), noheader nolegend nodots: summarize y
+jackknife m=r(mean), rclass nodots: summarize y
+jackknife m=r(mean), n(r(N)) nodots: summarize y
+capture noisily jackknife m=r(mean), eclass nodots: summarize y
+capture noisily jackknife m=r(mean), eclass rclass nodots: summarize y
+jackknife m=r(mean) sd=r(sd), keep nodots: summarize y
+describe
+list in 1/3
+=== resampling-failures-and-results
+clear
+set seed 77
+set obs 30
+generate y = runiform()
+generate x = 1 + runiform()
+capture noisily bootstrap m=r(mean), nodots: summarize nosuch
+capture noisily jackknife m=r(mean), nodots: summarize nosuch
+capture noisily bootstrap m=r(nosuch), nodots: summarize y
+capture noisily jackknife m=r(nosuch), nodots: summarize y
+capture noisily jackknife, nodots: ratio y/x, foo
+replace y = . in 4
+jackknife m=r(mean), nodots: summarize y
+generate s = mod(_n, 4)
+jackknife m=r(mean) v=r(Var), keep cluster(s) nodots: summarize y if x > 1.2
+list y x s m v in 1/6
+set seed 5
+bootstrap m=r(mean), reps(5) reject(r(mean) > .45): summarize y
+jackknife m=r(mean), reject(r(mean) > .48): summarize y
+capture noisily bootstrap m=r(mean), reps(5) reject(r(mean) > .1): summarize y
+set seed 5
+bootstrap m=r(mean) s=r(sd), reps(20) nodots: summarize y
+matrix list e(b)
+matrix list e(V)
+matrix list e(b_bs)
+matrix list e(bias)
+matrix list e(z0)
+matrix list e(se)
+matrix list e(ci_normal)
+matrix list e(ci_percentile)
+matrix list e(ci_bc)
+display _b[m]
+display _se[s]
+set seed 5
+bootstrap, mse reps(5) nodots: regress y x
+set seed 5
+bootstrap, reps(5) notable nodots: regress y x
+set seed 5
+bootstrap, reps(5) noheader nodots: regress y x

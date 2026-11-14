@@ -25,6 +25,7 @@ import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { QUANTILE_COMMANDS } from "./quantile.js";
 import { RESAMPLING_COMMANDS } from "./resampling.js";
 import { MORE_DATA_COMMANDS } from "./more-data.js";
+import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS } from "./timeseries.js";
@@ -1368,9 +1369,41 @@ function returns(kind) {
           ctx.out(`${label("_N")} :  1 x ${k}`);
           ctx.out(`${label("error")} :  1 x ${k}`);
         }
+        // Row vectors a model keeps beside e(b), as ratio's e(_N), and
+        // the matrices a prefix stored, as bootstrap's e(b_bs).
+        else {
+          const listed = new Set(session.estimates.eMatrices ?? []);
+          for (const name of listed) ctx.out(`${label(name)} :  1 x ${k}`);
+          for (const [key, v] of entries)
+            if (key.startsWith("matrix:") && v?.values) {
+              const name = key.slice(7);
+              if (listed.has(name) || name === "b" || name === "V") continue;
+              ctx.out(
+                `${label(name)} :  ${v.values.length} x ${v.values[0]?.length ?? 0}`,
+              );
+            }
+        }
         ctx.out("");
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);
+      } else if (kind === "e") {
+        // Matrices without a model, as a bootstrap of statistics keeps.
+        const stored = entries.filter(
+          ([key, v]) => key.startsWith("matrix:") && v?.values,
+        );
+        if (stored.length) {
+          ctx.out("");
+          ctx.out("matrices:");
+          for (const [key, v] of stored)
+            ctx.out(
+              `${label(key.slice(7))} :  ${v.values.length} x ${v.values[0]?.length ?? 0}`,
+            );
+        }
+        if (target["function:sample"]) {
+          ctx.out("");
+          ctx.out("functions:");
+          ctx.out(`${label("sample")}   `);
+        }
       }
       // Matrices a command stored in r(), such as test's r(mtest).
       const matrices = entries.filter(
@@ -2350,6 +2383,7 @@ export const COMMANDS = [
   ...QUANTILE_COMMANDS,
   ...RESAMPLING_COMMANDS,
   ...MORE_DATA_COMMANDS,
+  ...STATS_MORE_COMMANDS,
   ...TABLE_COMMANDS,
   ...GLM_COMMANDS,
   ...TIMESERIES_COMMANDS,

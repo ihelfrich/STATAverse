@@ -10,9 +10,15 @@ import { coefficientSpace, stripeName } from "./estimation.js";
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
 
 function fromEstimates(session, kind, name) {
+  // Without a model, e() may still hold matrices, as after a bootstrap of
+  // statistics.
+  if (kind === "e" && !session.estimates) {
+    const stored = session.results.e?.[`matrix:${name}`];
+    if (stored) return structuredClone(stored);
+    throw new StataError("last estimates not found", 301);
+  }
   if (kind === "e") {
     const model = session.estimates;
-    if (!model) throw new StataError("last estimates not found", 301);
     // Every coefficient as e(b) holds it, with its equation: a variable
     // omitted for collinearity is o.name in the stripe, a factor's level
     // 1o.reg; ancillary parameters (cut points, /sigma) and the base
@@ -109,8 +115,17 @@ function columnParts(name) {
     equation = colon >= 0 ? `${abbreviated(name.slice(0, colon))}:` : "",
     rest = colon >= 0 ? name.slice(colon + 1) : name,
     hash = rest.lastIndexOf("#"),
+    // A statistic over groups, c.y@1.g, is broken after its @.
+    at = rest.lastIndexOf("@"),
     operator = /^[0-9]*[A-Za-z]*\./.exec(rest),
-    cut = hash >= 0 ? hash + 1 : operator ? operator[0].length : 0;
+    cut =
+      hash >= 0
+        ? hash + 1
+        : at >= 0
+          ? at + 1
+          : operator
+            ? operator[0].length
+            : 0;
   return {
     equation,
     operator: rest.slice(0, cut),
@@ -127,7 +142,19 @@ const rowLabel = (name) => {
   const colon = name.indexOf(":"),
     equation = colon >= 0 ? `${abbreviated(name.slice(0, colon))}:` : "",
     rest = colon >= 0 ? name.slice(colon + 1) : name,
-    hash = rest.lastIndexOf("#");
+    hash = rest.lastIndexOf("#"),
+    // A statistic over groups too long for a row, c._ratio_1@1.g, is
+    // broken after its @; the stub is then two narrower than the first
+    // part.
+    at = rest.lastIndexOf("@");
+  if (hash < 0 && at >= 0 && !equation && rest.length > 12) {
+    const before = `${abbreviated(rest.slice(0, at))}@`;
+    return {
+      before,
+      label: abbreviated(rest.slice(at + 1)),
+      stub: before.length - 2,
+    };
+  }
   return hash >= 0 && !equation
     ? {
         before: rest.slice(0, hash + 1),
@@ -163,8 +190,8 @@ function list(session, text, ctx) {
   if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
   const { values, rowNames, colNames } = matrix,
     symmetric =
+      // Stata calls every 1 x 1 matrix symmetric.
       values.length === colNames.length &&
-      values.length > 1 &&
       values.every((row, i) => row.every((v, j) => v === values[j][i])),
     cells = values.map((row) =>
       row.map((v) => applyFormat(v, cellFormat).trim()),
@@ -178,7 +205,7 @@ function list(session, text, ctx) {
           Math.max(p.equation.length, p.operator.length, p.name.length),
         ),
       ) + 2,
-    stub = greatest(rows.map((n) => n.label.length)),
+    stub = greatest(rows.map((n) => Math.max(n.label.length, n.stub ?? 0))),
     linesize = session.settings?.linesize ?? 80,
     perPanel = Math.max(1, Math.floor((linesize - stub) / width)),
     heads = [

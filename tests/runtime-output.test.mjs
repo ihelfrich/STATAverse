@@ -144,6 +144,11 @@ for (const c of fixture.cases)
             "redteam5b-estat-classification-gof",
             // margins after ologit takes its gradients by differencing.
             "models6-ordered-margins-factors",
+            // The tests of normality take correlations and moments whose
+            // last one or two of 16 digits depend on the order of Stata's
+            // sums; and bootstrap and jackknife refit logit by ml.
+            "normality-results",
+            "resampling-cluster-likelihood",
           ].includes(c.id),
         )
       )
