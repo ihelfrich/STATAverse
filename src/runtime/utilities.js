@@ -759,12 +759,26 @@ function codebook(session, text, ctx) {
     ctx.out(
       `${field("Type")}Numeric ${unit ? `${DATE_UNITS[unit][0]} date ` : ""}(${v.type})`,
     );
-    if (v.valueLabel) ctx.out(`${field("Label")}${v.valueLabel}`);
-    ctx.out("");
-    if (present.length)
+    // The label line notes a missing label, or how many distinct
+    // nonmissing values have no text in it.
+    if (v.valueLabel) {
+      const bare = map ? unique.filter((x) => !map.has(x)).length : 0;
       ctx.out(
-        `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present))}`,
+        `${field("Label")}${v.valueLabel}${
+          !map
+            ? ", but label does not exist"
+            : bare
+              ? `, but ${count(bare)} nonmissing value${bare === 1 ? " is" : "s are"} not labeled`
+              : ""
+        }`,
       );
+    }
+    ctx.out("");
+    ctx.out(
+      present.length
+        ? `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present))}`
+        : `${field("Range")}${"[.,.]".padEnd(30)}Units: .`,
+    );
     if (unit)
       ctx.out(
         `${field("Or equivalently")}${`[${present.length ? asDate(unique[0]) : "."},${present.length ? asDate(unique.at(-1)) : "."}]`.padEnd(30)}Units: ${DATE_UNITS[unit][1]}`,

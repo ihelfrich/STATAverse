@@ -6,7 +6,8 @@ import { MISSING, isMissing } from "./runtime/values.js";
 
 const STEP = 2 ** 1011,
   encoder = new TextEncoder(),
-  decoder = new TextDecoder(),
+  // A string that starts with U+FEFF keeps it, as in Stata.
+  decoder = new TextDecoder("utf-8", { ignoreBOM: true }),
   NUMERIC = {
     65526: "double",
     65527: "float",

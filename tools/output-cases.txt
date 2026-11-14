@@ -4861,3 +4861,246 @@ summarize bday, format detail
 summarize e, format detail
 summarize money [aweight = pct], format
 summarize money [aweight = pct]
+=== format-digit-limits
+clear
+display "|" %22.0g 1/3 "|" %25.0g 1e-20 "|" %30.0g 1e300 "|" %24.0gc 1234567.123 "|"
+display "|" %30.0g 123456789012345678901 "|" %30.0g 1234567890123456789 "|" %-30.0g 1.5 "|"
+display "|" %40.20f 12345.678 "|" %40.21f 12345.678 "|" %40.25f 1/3 "|" %40.30f 1.5 "|"
+display "|" %30.0f 1e19 "|" %30.0f 1e30 "|" %-30.0f 1e30 "|" %030.2f 1.5 "|" %30.2f 1.5 "|"
+display "|" %40.30e 1/3 "|" %40.10e 1/3 "|" %9.0e 1/3 "|" %7.0e 1/3 "|" %5.2e 1/3 "|" %8.1e 1e300 "|"
+display "|" %8.7f 1/3 "|" %8.7f 0 "|" %-40.10e 1/3 "|" %26.0g 1e-20 "|" %27.0g 1e-200 "|"
+display %111.0g 1.5
+display %111.0g 1/3
+display %120.105g 1e-20
+capture noisily display %9.9f 1
+capture noisily display %2.2g 1
+set obs 2
+generate x = _n * 1.5
+format x %111.0g
+list
+format x %40.30f
+list
+format x %-30.2f
+list
+=== format-label-widens-variable
+clear
+set obs 2
+generate byte lb = 1
+generate double c = 1.5
+format c %-5.2f
+generate d = 1
+format d %td
+generate e = 2
+format e %9.0gc
+label define lab 1 "A value label that is a good deal longer than one hundred characters, as survey exports often carry it"
+label define short 1 "twelve chars"
+label values lb c d lab
+label values e short
+describe lb c d e
+list lb, nolabel
+list lb c
+label define short 2 "a much longer label than before", add
+describe e
+label values e
+describe e
+=== list-binary-missing-values
+clear
+set obs 10
+generate double x = .
+replace x = 0 in 1
+replace x = -1.5 in 5
+replace x = .a in 6
+replace x = 1/3 in 7
+replace x = .z in 8
+format x %21x
+list x
+format x %16H
+list x
+format x %16L
+list x
+generate float f = x
+format f %8H
+list f
+format f %8L
+list f
+format x %-16H
+list x
+=== tabulate-ignores-binary-formats
+clear
+set obs 10
+generate byte b = _n - 5
+generate double x = cond(_n < 4, 1/3, .a)
+format b %8H
+tabulate b
+format b %21x
+tabulate b
+format b %-8H
+tabulate b
+format b %016L
+tabulate b x, missing
+format x %21x
+tabulate x, missing
+=== list-left-justified-numbers
+clear
+set obs 5
+generate str14 state = "Alabama" in 1
+replace state = "Alaska" in 2
+replace state = "Arizona" in 3
+replace state = "Arkansas" in 4
+replace state = "California" in 5
+format state %-14s
+generate int region = cond(inlist(_n, 1, 4), 3, 4)
+label define cenreg 1 "NE" 2 "N Cntrl" 3 "South" 4 "West"
+label values region cenreg
+format region %-8.0g
+generate long pop = 1000 * _n * _n * 997
+format pop %12.0gc
+list
+list, nolabel
+list region in 1/3, noobs
+list region in 1/3, clean
+list region in 1/2, display
+generate double price = 4099.5 * _n
+format price %-9.0g
+generate double p2 = price
+format p2 %-10.2fc
+generate int d = 21000 + _n
+format d %-td
+list price p2 d
+list price p2 d, display
+list price region, separator(2) divider
+=== list-display-junctions
+clear
+set obs 2
+set seed 9
+generate double v1 = runiform()*10^1
+generate double v2 = runiform()*10^2
+generate double v3 = runiform()*10^3
+generate double v4 = runiform()*10^4
+generate double v5 = runiform()*10^5
+generate double v6 = runiform()*10^6
+generate double v7 = runiform()*10^0
+generate double v8 = runiform()*10^1
+generate double v9 = runiform()*10^2
+generate double v10 = runiform()*10^3
+generate double v11 = runiform()*10^4
+generate double v12 = runiform()*10^5
+generate str12 nm = "name"+string(_n)
+generate byte g = _n
+label define gl 1 "control group" 2 "treatment group arm"
+label values g gl
+set linesize 60
+list
+set linesize 70
+list
+set linesize 80
+list
+list v1-v10, separator(1)
+list v1-v10, divider
+list v1-v6 nm g, linesize(50) noheader
+set linesize 200
+=== list-cut-wide-characters-and-widths
+clear
+set obs 4
+generate id = _n
+generate str30 cjk = 10*"本"
+replace cjk = "日本" in 2
+generate strL t = 900*"日本"
+generate str61 mix = "a" + 20*"日"
+generate str20 name = "Zoë Nuñez" in 1
+replace name = "ｱｲｳ ｴｵ" in 2
+replace name = "Plain name" in 3
+replace name = "한국어" in 4
+set linesize 80
+list id name
+list cjk, string(9)
+list t in 2
+list id cjk, string(10)
+list mix, string(8)
+list id cjk mix in 1, linesize(40)
+set linesize 200
+=== list-compress-and-linesize-bounds
+clear
+set obs 7
+generate id=_n
+generate thisisaverylongvariablename=_n*2
+generate another_long_variable_name_here=_n*3
+generate str3 ts = "a"
+generate sat = _n
+list, compress
+list, compress abbreviate(12)
+list thisisaverylongvariablename ts, compress clean
+list in 1/2, compress display
+generate str30 nm = "Person number 1 with a long na"
+list id nm in 1/2, linesize(39)
+list id nm in 1/2, linesize(30)
+list id nm in 1, linesize(30) noobs
+list id nm in 1, linesize(0)
+=== summarize-format-and-iweights
+clear
+set obs 8
+generate double t = clock("2020-01-01 08:30:00","YMDhms") + (_n-1)*123456789.123
+replace t = -1e15 in 5
+replace t = 1e16 in 6
+replace t=. in 3
+replace t=.a in 4
+format t %tc
+summarize t, format
+generate double d = 21000 + _n*100
+replace d = -1e7 in 2
+format d %td
+summarize d, format
+clear
+set obs 30
+set seed 5
+generate w=1+mod(_n,5)
+generate double fw=1234567.891*runiform()
+generate double x=(runiform()-.5)*5e6
+summarize x [iweight=fw]
+summarize x [iweight=w]
+generate double sw = 0.01*w
+summarize x [iweight=sw]
+=== codebook-label-notes-and-empty-range
+clear
+set obs 6
+generate dm = .
+codebook dm
+format dm %td
+codebook dm
+generate long dlab = 21000+mod(_n,3)
+label define dl 21000 "start" 21001 "middle"
+label values dlab dl
+codebook dlab
+format dlab %td
+codebook dlab
+generate b = mod(_n,4)
+replace b = .a in 6
+label define bl 0 "zero"
+label values b bl
+codebook b
+generate e = _n
+label values e nolab
+codebook e
+generate f = .
+label values f bl
+codebook f
+=== period-functions-separators
+display "values: " monthly("1 March 2020", "MY") " " monthly("1st March 2020", "MY") " " monthly("3rd 2020", "MY") " " monthly("2020 March 1", "YM")
+display "values: " quarterly("1st q 2020", "QY") " " quarterly("2020 Q 1", "YQ") " " quarterly("1 Q2020", "QY") " " quarterly("2020-q1", "YQ")
+display "values: " monthly("March 2020", "MY") " " monthly("3/2020", "MY") " " monthly("2020m3", "YM") " " monthly("2020 x3", "YM") " " monthly("Mar. 2020", "MY")
+display "values: " monthly("2020mo3", "YM") " " monthly("3a 2020", "MY") " " monthly("March-x2020", "MY") " " monthly("Marchx2020", "MY") " " monthly("20203", "YM")
+display "values: " monthly("02020 3", "YM") " " monthly("3 020", "M19Y") " " monthly("3 20", "M19Y") " " weekly("2020 week 5", "YW") " " halfyearly("2020 h 2", "YH")
+=== format-command-messages
+clear
+set obs 2
+generate str3 s = "a"
+generate x = 1
+capture noisily format s %tc
+capture noisily format s %9.2f
+capture noisily format x %5s
+capture noisily format x %-20tc
+capture noisily format x %tcXX
+capture noisily format x %9.2q
+capture noisily format x s %9.2f
+capture noisily format x %9.9f
+capture noisily format x %2046.0g

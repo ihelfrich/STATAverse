@@ -662,6 +662,32 @@ function clear(session, text) {
 
 // ----- reports -----
 
+/**
+ * When a value label is attached or grows, Stata widens the %g, %f or %e
+ * format of each variable carrying it to the bytes of its longest text,
+ * dropping a - or 0 modifier; it never narrows one, and leaves dates and
+ * the binary formats alone.
+ */
+function widenForLabel(session, name) {
+  const map = session.data.valueLabels.get(name);
+  if (!map) return;
+  let longest = 0;
+  for (const text of map.values())
+    longest = Math.max(longest, byteLength(text));
+  for (const variable of session.data.variables ?? []) {
+    if (variable.valueLabel !== name) continue;
+    const spec = parseFormat(variable.format ?? "");
+    if (
+      spec?.kind !== "number" ||
+      !/^%-?0?\d+\.\d+[gfe]c?$/.test(variable.format)
+    )
+      continue;
+    const width = Math.min(longest, 2045);
+    if (width > spec.width)
+      variable.format = `%${width}.${spec.digits}${spec.style}${spec.commas ? "c" : ""}`;
+  }
+}
+
 // ----- labels and formats -----
 function label(session, text, ctx) {
   const data = session.data;
@@ -707,6 +733,7 @@ function label(session, text, ctx) {
     // label dir lists the most recently defined or modified label first.
     data.valueLabels.delete(m[1]);
     data.valueLabels.set(m[1], map);
+    widenForLabel(session, m[1]);
   } else if ((m = /^val(?:u(?:es?)?)?\s+([\s\S]+)$/.exec(text))) {
     const words = m[1].trim().split(/\s+/),
       target = words.length > 1 ? words.pop() : ".",
@@ -717,6 +744,7 @@ function label(session, text, ctx) {
         throw new StataError("may not label strings", 181);
       variable.valueLabel = target === "." ? "" : target;
     }
+    if (target !== ".") widenForLabel(session, target);
   } else if ((m = /^drop\s+([\s\S]+)$/.exec(text))) {
     for (const name of m[1].trim() === "_all"
       ? [...data.valueLabels.keys()]
@@ -770,19 +798,29 @@ function format(session, text) {
     names = session.varlist(words.filter((word) => word !== spec).join(" "));
   if (!spec) throw invalid();
   const parsed = parseFormat(spec);
-  if (!parsed) throw new StataError(`invalid format ${spec}`, 120);
+  if (!parsed) throw new StataError("invalid %format", 120);
   if (parsed.kind === "business")
     throw new StataError(
       `business calendar formats (${spec}) are not available in the browser`,
       198,
       "A %tb format needs a business calendar (.stbcal) file, which the browser runtime cannot read; use a %td format instead.",
     );
-  for (const name of names) {
-    const variable = session.data.get(name);
-    if ((parsed.kind === "string") !== isStringType(variable.type))
-      throw new StataError(`invalid format ${spec} for ${name}`, 120);
-    variable.format = spec;
+  // Every variable is checked before any format changes.
+  const strings = names.map((name) =>
+    isStringType(session.data.get(name).type),
+  );
+  if (strings.some((s) => s !== strings[0]))
+    throw new StataError(
+      "varlist must contain all numeric or all string variables",
+      109,
+    );
+  for (const string of strings) {
+    if (string && parsed.kind !== "string")
+      throw new StataError("string %fmt required for string variables", 120);
+    if (!string && parsed.kind === "string")
+      throw new StataError("numeric %fmt required for numeric variables", 120);
   }
+  for (const name of names) session.data.get(name).format = spec;
 }
 
 // ----- scalars, macros and programs -----

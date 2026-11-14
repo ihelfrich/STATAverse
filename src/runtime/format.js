@@ -29,7 +29,8 @@ function parse(format) {
   if ((m = NUMERIC.exec(format))) {
     const width = Number(m[3]),
       digits = Number(m[4]);
-    if (width < 1 || width > 2045 || digits > width) return null;
+    // Stata wants fewer digits than the width.
+    if (width < 1 || width > 2045 || digits >= width) return null;
     return {
       kind: "number",
       left: !!m[1],
@@ -84,9 +85,21 @@ export const isFormat = (format) => parseFormat(format) !== null;
 const pad = (text, width, left) =>
   left ? text.padEnd(width) : text.padStart(width);
 
+// Stata computes a number's digits to 19 significant places at most, and
+// lays a %f number out in at most 26 columns; a %f format with more than 26
+// decimals shows none.
+const SIGNIFICANT = 19,
+  FIXED_COLUMNS = 26,
+  MOST_DECIMALS = 26;
+
 // Fixed notation rounded to an exact number of decimals. A value exactly
 // halfway between two results goes to the even one, as in Stata's %f.
 function fixed(value, decimals, tiesToEven) {
+  // toFixed writes exponents from 1e21; such a double is a whole number.
+  if (value >= 1e21)
+    return (
+      BigInt(value).toString() + (decimals ? "." + "0".repeat(decimals) : "")
+    );
   const text = value.toFixed(decimals);
   if (!tiesToEven || decimals > 60) return text;
   const longer = value.toFixed(decimals + 30),
@@ -107,17 +120,23 @@ function withCommas(text) {
 }
 
 // Scientific notation as Stata lays it out: at most `wanted` decimals in the
-// mantissa, fewer when the width is short, and one fewer again when the
-// exponent needs three digits. The decimal point is kept even with none.
+// mantissa (and never more than 18), fewer when the width is short, and one
+// fewer again when the exponent needs three digits. The decimal point is
+// kept even with none. When the 18 is what limits the decimals, Stata lays
+// the text out one column short of the format unless the exponent has three
+// digits; `capped` records that for formatNumber.
+let capped = false;
 function scientific(value, width, wanted = Infinity) {
   const exponent = value === 0 ? 0 : Math.floor(Math.log10(value));
   let room = Math.max(1, width - 7);
-  let decimals = Math.min(wanted, room);
+  let decimals = Math.min(wanted, room, SIGNIFICANT - 1);
+  capped = Math.min(wanted, room) > SIGNIFICANT - 1;
   let text = value.toExponential(decimals);
   // Rounding can carry into a longer exponent, so read it back.
   const three = /e[+-]\d{3}$/.test(text) || Math.abs(exponent) >= 100;
   if (three) {
-    decimals = Math.max(0, Math.min(wanted, room - 1));
+    decimals = Math.max(0, Math.min(wanted, room - 1, SIGNIFICANT - 1));
+    capped = Math.min(wanted, room - 1) > SIGNIFICANT - 1;
     text = value.toExponential(decimals);
   }
   const [mantissa, power] = text.split("e");
@@ -147,17 +166,22 @@ function general(value, { width, digits, commas: wantCommas }) {
     const decimals = Math.min(
         most,
         limit === Infinity ? most : limit - exponent - 1,
+        SIGNIFICANT - exponent - 1,
       ),
       text = strip(value.toFixed(Math.max(0, decimals)));
     return text.replace(/^0\./, ".") || "0";
   }
   const integerDigits = exponent + 1;
+  if (integerDigits > SIGNIFICANT) return scientific(value, width, sciDecimals);
   for (const grouped of wantCommas ? [true, false] : [false]) {
     const taken = grouped
       ? integerDigits + Math.floor((integerDigits - 1) / 3)
       : integerDigits;
     if (taken > most) continue;
-    const decimals = Math.max(0, Math.min(most, limit) - taken),
+    const decimals = Math.max(
+        0,
+        Math.min(Math.min(most, limit) - taken, SIGNIFICANT - integerDigits),
+      ),
       text = value.toFixed(decimals),
       whole = text.split(".")[0];
     if (whole.length > integerDigits) {
@@ -176,18 +200,20 @@ function general(value, { width, digits, commas: wantCommas }) {
 }
 
 function fixedStyle(value, spec) {
-  const { width, digits } = spec;
-  // toFixed stops writing digits at 1e21, far past any width that fits.
-  if (value >= 1e21) return scientific(value, width, digits || Infinity);
-  const plain = fixed(value, digits, true);
+  const { width } = spec,
+    digits = spec.digits > MOST_DECIMALS ? 0 : spec.digits,
+    columns = Math.min(width, FIXED_COLUMNS),
+    plain = fixed(value, digits, true),
+    sign = spec.negative ? 1 : 0;
+  // A fraction is always shown in fixed notation.
+  if (value > 0 && value < 1) return plain;
   if (spec.commas) {
     const grouped = withCommas(plain);
-    if (grouped.length + (spec.negative ? 1 : 0) <= width) return grouped;
+    if (grouped.length + sign <= columns) return grouped;
   }
   // Fixed notation is kept until it is wider than both the format and the
   // eight columns scientific notation would need.
-  if (plain.length + (spec.negative ? 1 : 0) <= Math.max(width, 8))
-    return plain;
+  if (plain.length + sign <= Math.max(columns, 8)) return plain;
   return scientific(value, width, digits || Infinity);
 }
 
@@ -201,14 +227,21 @@ function exponential(value, { width, digits }) {
       power.slice(1).padStart(2, "0")
     );
   };
-  let decimals = digits,
-    text = build(decimals);
-  while (text.length + 1 > width && decimals > 0) text = build(--decimals);
-  return text;
+  // %w.0e shows as many decimals as the width holds. Otherwise decimals are
+  // dropped until the text fits beside its sign column; when not even none
+  // would fit, one is kept.
+  const most = digits || Math.max(1, width - 7);
+  let decimals = Math.min(most, SIGNIFICANT - 1);
+  capped = most > SIGNIFICANT - 1;
+  if (digits)
+    while (decimals > 0 && build(decimals).length + 1 > width) decimals--;
+  if (build(decimals).length + 1 > width) decimals = Math.min(1, most);
+  return build(decimals);
 }
 
 export function formatNumber(value, spec) {
   if (isMissing(value)) return pad(missingName(value), spec.width, spec.left);
+  capped = false;
   const negative = value < 0 || Object.is(value, -0),
     magnitude = Math.abs(value),
     body =
@@ -216,32 +249,36 @@ export function formatNumber(value, spec) {
         ? general(magnitude, spec)
         : spec.style === "f"
           ? fixedStyle(magnitude, { ...spec, negative })
-          : exponential(magnitude, spec);
+          : exponential(magnitude, spec),
+    scientificBody = /e[+-]\d+$/.test(body);
+  // %f in fixed notation fills at most 26 columns, and so does a
+  // left-justified number but one in %w.0g that is not capped; capped
+  // scientific notation fills one fewer than the format.
+  let width = spec.width;
+  if (
+    (spec.style === "f" && !scientificBody) ||
+    (spec.left && (spec.style !== "g" || spec.digits || capped))
+  )
+    width = Math.min(width, FIXED_COLUMNS);
+  else if (capped && /e[+-]\d\d$/.test(body)) width--;
   // -0 shows a sign only where rounding produced the zero, as in "-0.00".
   let signed =
     negative && !(spec.style === "g" && body === "0" && value === 0)
       ? "-" + body
       : body;
   // Scientific notation keeps its sign column even when it overflows.
-  if (
-    !negative &&
-    /e[+-]\d+$/.test(body) &&
-    spec.style !== "e" &&
-    body.length >= spec.width &&
-    !spec.left
-  )
+  if (!negative && scientificBody && body.length >= width && !spec.left)
     signed = " " + body;
   if (
     spec.zero &&
     spec.style === "f" &&
-    !/e/.test(body) &&
-    signed.length < spec.width
+    !scientificBody &&
+    signed.length < width
   )
     return (
-      (negative ? "-" : "") +
-      body.padStart(spec.width - (negative ? 1 : 0), "0")
+      (negative ? "-" : "") + body.padStart(width - (negative ? 1 : 0), "0")
     );
-  return pad(signed, spec.width, spec.left);
+  return pad(signed, width, spec.left);
 }
 
 export function formatString(text, spec) {
@@ -518,37 +555,17 @@ export function stringOf(value, format) {
 }
 
 // ----- display columns -----
-// East Asian wide and fullwidth characters take two columns of the Results
-// window and combining marks none, as Stata's udstrlen() counts them.
-const WIDE = [
-  [0x1100, 0x115f],
-  [0x2e80, 0x303e],
-  [0x3041, 0x33ff],
-  [0x3400, 0x4dbf],
-  [0x4e00, 0x9fff],
-  [0xa000, 0xa4cf],
-  [0xa960, 0xa97f],
-  [0xac00, 0xd7a3],
-  [0xf900, 0xfaff],
-  [0xfe10, 0xfe19],
-  [0xfe30, 0xfe6f],
-  [0xff00, 0xff60],
-  [0xffe0, 0xffe6],
-  [0x1f300, 0x1f64f],
-  [0x1f900, 0x1f9ff],
-  [0x20000, 0x2fffd],
-  [0x30000, 0x3fffd],
-];
-const COMBINING = /\p{Mn}|\p{Me}/u;
+// Stata's udstrlen() gives every character from U+2E80 on two columns of
+// the Results window (CJK, halfwidth forms, U+FEFF and emoji alike) but
+// U+FFFD, and every earlier one a column, combining marks and Hangul jamo
+// included. Read off udstrlen(uchar(n)) for every code point in Stata 19.
 function columnsOf(character) {
   const code = character.codePointAt(0);
-  if (code < 0x300) return 1;
-  if (COMBINING.test(character)) return 0;
-  return WIDE.some(([low, high]) => code >= low && code <= high) ? 2 : 1;
+  return code < 0x2e80 || code === 0xfffd ? 1 : 2;
 }
 /** How many columns of the Results window a string takes. */
 export function displayWidth(text) {
-  if (/^[\x00-\x7f]*$/.test(text)) return text.length;
+  if (/^[\x00-⹿]*$/.test(text)) return text.length;
   let width = 0;
   for (const character of text) width += columnsOf(character);
   return width;

@@ -93,3 +93,93 @@ test("unavailable list options and business calendars are refused, not ignored",
   assert.equal(s.run("display tc(01jan2001)").rc, 198);
   assert.equal(s.run("display %20tc 0").rc, 120);
 });
+
+// A survey-style file with a value label longer than 100 characters (Stata
+// widens the variable's format to %109.0g when it is attached), a %21x
+// variable with missing values, and strings with a combining accent,
+// halfwidth katakana and a leading U+FEFF. longlabels.dta was written by
+// Stata 19 from simulated data; longlabels-expected.json holds what Stata 19
+// MP printed for each command (version 17, set processors 1, linesize 80).
+test("a .dta file with a 109-character value label, %21x missing values and U+FEFF lists as in Stata 19", () => {
+  const recorded = JSON.parse(
+      fs.readFileSync(fixture("longlabels-expected.json"), "utf8"),
+    ),
+    s = createConsoleSession();
+  s.addData(
+    "longlabels.dta",
+    new Uint8Array(fs.readFileSync(fixture("longlabels.dta"))),
+  );
+  assert.equal(s.run("set linesize 80").rc, 0);
+  assert.equal(s.run("use longlabels.dta, clear").rc, 0);
+  for (const { command, lines: want } of recorded.cases) {
+    const out = s.run(command);
+    assert.equal(out.rc, 0, command);
+    assert.deepEqual(lines(out), want, command);
+  }
+});
+
+test("label values widens a numeric format to its longest label, as Stata 19 does", () => {
+  const s = createConsoleSession();
+  s.run(
+    'clear\nset obs 2\ngenerate byte a = 1\ngenerate double c = 1.5\nformat c %-5.2f\ngenerate d = 1\nformat d %td\nlabel define l20 1 "abcdefghijklmnopqrst"\nlabel values a c d l20',
+  );
+  // Stata 19: %20.0g, %20.2f (the - is dropped) and %td unchanged.
+  const formats = () =>
+    lines(s.run("describe a c d"))
+      .slice(-3)
+      .map((line) => line.split(/\s+/)[2]);
+  assert.deepEqual(formats(), ["%20.0g", "%20.2f", "%td"]);
+  // A longer text added later widens it again; a label in CJK counts bytes.
+  s.run('label define l20 2 "日本日本日本日本日本日本", add');
+  assert.deepEqual(formats(), ["%36.0g", "%36.2f", "%td"]);
+  // A %111.0g format no longer throws a RangeError in list or display.
+  s.run("format c %111.0g");
+  const out = s.run("list c, nolabel");
+  assert.equal(out.rc, 0);
+  assert.deepEqual(lines(out), [
+    "     +-----+",
+    "     |   c |",
+    "     |-----|",
+    "  1. | 1.5 |",
+    "  2. | 1.5 |",
+    "     +-----+",
+  ]);
+  // Stata 19: display %111.0g 1.5 is 1.5 right-aligned in 111 columns.
+  assert.deepEqual(lines(s.run("display %111.0g 1.5")), [
+    " ".repeat(108) + "1.5",
+  ]);
+});
+
+test("import delimited text with decomposed accents and halfwidth katakana lists in Stata 19's columns", () => {
+  const s = createConsoleSession();
+  s.addFile(
+    "names.csv",
+    `id,name\n1,${"Zoë Nuñez".normalize("NFD")}\n2,ｱｲｳ ｴｵ\n3,Plain name\n4,가x\n5,😀ab\n`,
+  );
+  assert.equal(s.run("set linesize 80").rc, 0);
+  assert.equal(s.run("import delimited using names.csv, clear").rc, 0);
+  // Recorded from Stata 19: a combining mark and a Hangul jamo take a
+  // column, halfwidth katakana and an emoji two.
+  assert.deepEqual(lines(s.run("list")), [
+    "     +------------------+",
+    "     | id          name |",
+    "     |------------------|",
+    `  1. |  1   ${"Zoë Nuñez".normalize("NFD")} |`,
+    "  2. |  2   ｱｲｳ ｴｵ |",
+    "  3. |  3    Plain name |",
+    "  4. |  4           가x |",
+    "  5. |  5          😀ab |",
+    "     +------------------+",
+  ]);
+  assert.deepEqual(lines(s.run("list name, string(4)")), [
+    "     +--------+",
+    "     | name   |",
+    "     |--------|",
+    `  1. | ${"Zoë".normalize("NFD")}.. |`,
+    "  2. | ｱｲ.. |",
+    "  3. | Plai.. |",
+    "  4. | 가x    |",
+    "  5. | 😀ab   |",
+    "     +--------+",
+  ]);
+});

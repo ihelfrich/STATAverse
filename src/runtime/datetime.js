@@ -378,8 +378,11 @@ export function hrfClockC(text, mask, topyear) {
 
 /**
  * monthly(), quarterly(), halfyearly(), weekly() and yearly(): a year and
- * a period in either order (the mask, in any case, says which), separated
- * by anything but digits, with a month also written as a name.
+ * a period in either order (the mask, in any case, says which), with a
+ * month also written as a name. Between them may come anything but letters
+ * and digits, and then one letter right before the second number, as in
+ * 2020m3 or 1 q2020; "1 March 2020", "3rd 2020" and "2020 q 1" are missing.
+ * Recorded from Stata 19.
  */
 export function hrfPeriod(text, mask, topyear, letter, per) {
   const m = new RegExp(
@@ -391,20 +394,24 @@ export function hrfPeriod(text, mask, topyear, letter, per) {
     top = topyear === undefined || isMissing(topyear) ? null : whole(topyear),
     s = text.trim(),
     periodFirst = letter && mask.toUpperCase().startsWith(letter),
-    name = letter === "M" ? "|[A-Za-z]+" : "",
+    name = letter === "M" ? "|[A-Za-z]+(?![A-Za-z])" : "",
+    between = "[^A-Za-z0-9]*",
     found = !letter
       ? /^(\d+)$/.exec(s)
       : periodFirst
-        ? new RegExp(`^(\\d+(?!\\d)${name})[^0-9]*?(\\d+)$`).exec(s)
-        : new RegExp(`^(\\d+)(?!\\d)[^0-9]*?(\\d+${name})$`).exec(s);
+        ? new RegExp(`^(\\d+(?!\\d)${name})${between}[A-Za-z]?(\\d+)$`).exec(s)
+        : new RegExp(
+            `^(\\d+)(?!\\d)${between}(?:[A-Za-z]?(\\d+)${name ? "|([A-Za-z]+)" : ""})$`,
+          ).exec(s);
   if (!found) return MISSING;
   const yearText = !letter ? found[1] : periodFirst ? found[2] : found[1],
-    partText = periodFirst ? found[1] : found[2];
+    partText = periodFirst ? found[1] : (found[2] ?? found[3]);
   let year;
-  if (yearText.length === 4) year = Number(yearText);
-  else if (yearText.length === 2 && century !== undefined)
+  // Leading zeros are allowed; two digits take a century.
+  if (yearText.length !== 2) year = Number(yearText);
+  else if (century !== undefined)
     year = Number(century) * 100 + Number(yearText);
-  else if (yearText.length === 2 && top !== null) {
+  else if (top !== null) {
     const yy = Number(yearText);
     year = top - ((((top - yy) % 100) + 100) % 100);
   } else return MISSING;

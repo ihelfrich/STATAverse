@@ -76,18 +76,20 @@ export const present = (column, rows) => {
   for (const i of rows) if (!isMissing(column[i])) out.push(column[i]);
   return out;
 };
-/** A value as list and tabulate show it: its label, or its format. */
+/**
+ * A value as list shows it: its label, or its format. %21x and the binary
+ * formats show a missing value's bits as well.
+ */
 export function labelled(session, variable, value, useLabels = true) {
   if (typeof value === "string") return value;
   const map = useLabels
     ? session.data.valueLabels.get(variable.valueLabel)
     : null;
-  return (
-    map?.get(value) ??
-    (isMissing(value)
-      ? missingName(value)
-      : applyFormat(value, variable.format).trim())
-  );
+  if (map?.has(value)) return map.get(value);
+  const spec = parseFormat(variable.format ?? "%9.0g");
+  return isMissing(value) && spec?.kind !== "hex" && spec?.kind !== "binary"
+    ? missingName(value)
+    : applyFormat(value, variable.format).trim();
 }
 const scope = (session, parsed, ctx) =>
   session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null);
@@ -120,7 +122,9 @@ export function weightedRows(session, parsed, rows) {
   }
   return { rows: used, weights: all };
 }
-function weightedMoments(variable, rows, weights) {
+// The variance divides by n - 1 with analytic weights, which sum to n, and
+// by the sum of the weights less one with importance weights.
+function weightedMoments(variable, rows, weights, importance = false) {
   if (isStringType(variable.type)) return moments([]);
   const use = rows.filter((i) => !isMissing(variable.data[i])),
     n = use.length,
@@ -135,7 +139,7 @@ function weightedMoments(variable, rows, weights) {
             0,
           ) /
             sumW) *
-          (n / (n - 1))
+          (importance ? sumW / (sumW - 1) : n / (n - 1))
         : MISSING,
     values = use.map((i) => variable.data[i]);
   return {
@@ -169,11 +173,17 @@ function summaryFormats(variable, wanted) {
 }
 /**
  * A statistic in a column of the given width: right-aligned in the last
- * nine, and pushing the line on when its format shows it wider.
+ * nine, and pushing the line on when its format shows it wider. A date
+ * format keeps its whole width, as when a %tc value outside the calendar
+ * is shown as a number.
  */
-const statistic = (value, format, width) =>
-  " ".repeat(Math.max(0, width - 9)) +
-  applyFormat(value, format).trim().padStart(9);
+const statistic = (value, format, width) => {
+  const shown = applyFormat(value, format);
+  return (
+    " ".repeat(Math.max(0, width - 9)) +
+    (parseFormat(format)?.kind === "date" ? shown : shown.trim()).padStart(9)
+  );
+};
 export function summarize(session, text, ctx) {
   const parsed = session.parse(
       "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
@@ -203,7 +213,12 @@ export function summarize(session, text, ctx) {
     const variable = session.data.get(name),
       values = isStringType(variable.type) ? [] : present(variable.data, rows),
       m = analytic
-        ? weightedMoments(variable, rows, weighted.weights)
+        ? weightedMoments(
+            variable,
+            rows,
+            weighted.weights,
+            parsed.weight.type === "iweight",
+          )
         : moments(values);
     last = { values, m };
     const formats = summaryFormats(variable, parsed.options.format),
@@ -354,10 +369,12 @@ function wrapWords(text, width) {
  * with at most two decimals (two for %#.0f); Stata leaves a nonzero number
  * between -1 and 1 in %f however wide it is. A date wider than nine
  * characters is shown as %td, any other time format as its first seven
- * characters and "..". Recorded from Stata 19.
+ * characters and "..". %21x and the binary formats are ignored. Recorded
+ * from Stata 19.
  */
 function tableNumber(value, format) {
   if (isMissing(value)) return missingName(value);
+  if (/^%[-0]?(?:21x|(?:16|8)[HL])$/.test(format ?? "")) format = "%9.0g";
   const spec = /^%-?0?\d*(?:\.(\d+))?([efg])(c?)$/.exec(format ?? "%9.0g");
   if (spec) {
     const decimals = Number(spec[1] ?? 0);
@@ -938,7 +955,16 @@ export function list(session, text, ctx) {
     options = parsed.options,
     rows = scope(session, parsed, ctx),
     variables = parsed.varlist.map((name) => session.data.get(name));
-  const limit = options.abbreviate;
+  const optionText = splitAtComma(text)[1] ?? "",
+    // An explicit compress, without abbreviate(), shortens each name to its
+    // column, and so to five characters at least.
+    limit =
+      /(?:^|[\s,])comp(?:r(?:e(?:ss?)?)?)?(?=$|[\s,])/i.test(optionText) &&
+      !/(?:^|[\s,])ab(?:b(?:r(?:e(?:v(?:i(?:a(?:te?)?)?)?)?)?)?)?\s*\(/i.test(
+        optionText,
+      )
+        ? 1
+        : options.abbreviate;
   if (limit < 1 || limit > 129)
     throw new StataError("abbreviate() must be between 1 and 129", 198);
   if (options.string < 0 || options.string > 100000)
@@ -959,8 +985,11 @@ export function list(session, text, ctx) {
       "may not specify both -table- and -display- options",
       198,
     );
-  if (options.linesize && (options.linesize < 40 || options.linesize > 255))
-    throw new StataError("linesize() must be between 40 and 255", 198);
+  const lineGiven = /(?:^|[\s,])line(?:s(?:i(?:ze?)?)?)?\s*\(/i.test(
+    optionText,
+  );
+  if (lineGiven && (options.linesize < 30 || options.linesize > 255))
+    throw new StataError("linesize() must be between 30 and 255", 198);
   if (!rows.length) return;
   const linesize = options.linesize || session.settings.linesize || 80,
     noobs = options.noobs,
@@ -988,23 +1017,34 @@ export function list(session, text, ctx) {
       cut = true;
       return truncateColumns(text, most) + "..";
     };
+    // A cut text takes the columns of the cut, and "..", even when a wide
+    // character at the cut leaves one of them blank.
     for (const cell of column.cells) {
       if (!cell.textual) continue;
-      if (options.string && displayWidth(cell.text) > options.string + 2)
+      if (options.string && displayWidth(cell.text) > options.string + 2) {
         cell.text = keep(cell.text, options.string);
-      if (boxed && displayWidth(cell.text) > room)
+        cell.columns = options.string + 2;
+      }
+      if (boxed && (cell.columns ?? displayWidth(cell.text)) > room) {
         cell.text = keep(cell.text, room - 2);
+        cell.columns = room;
+      }
     }
     column.cut = cut;
-    column.left = cut || (column.string && /^%-/.test(column.v.format ?? ""));
-    column.valuesLeft = column.string && column.left;
+    // A left-justified format, string or numeric (labels included), puts
+    // the heading and the values on the left.
+    const leftFormat = /^%-/.test(column.v.format ?? "");
+    column.left = cut || leftFormat;
+    column.valuesLeft = leftFormat || (column.string && column.left);
   }
   // A name longer than abbreviate(), and than its column, is shortened as
   // abbrev() shortens it, never below five characters. A temporary
   // variable's heading, which Stata's subvarname gives it, is cut instead.
   for (const column of columns) {
     const { v } = column,
-      widest = greatest(column.cells.map((cell) => displayWidth(cell.text))),
+      widest = greatest(
+        column.cells.map((cell) => cell.columns ?? displayWidth(cell.text)),
+      ),
       space = Math.max(limit, widest);
     if (v.header !== undefined) column.header = v.header.slice(0, space);
     else {
@@ -1102,13 +1142,35 @@ export function list(session, text, ctx) {
           ({ c, before, after }) =>
             " ".repeat(before) + cell(c) + " ".repeat(after),
         )
-        .join(" | ")} |`;
+        .join(" | ")} |`,
+    // Where a column boundary of one block meets one of the next, the rule
+    // between them has a +.
+    boundaries = layouts.map((layout) => {
+      const at = new Set();
+      let position = 1;
+      layout.slice(0, -1).forEach(({ c, before, after }) => {
+        position += before + c.width + after + 3;
+        at.add(position - 1);
+      });
+      return at;
+    }),
+    rules = layouts.map((_, b) =>
+      b
+        ? `|${[...Array(box)]
+            .map((_, k) =>
+              boundaries[b - 1].has(k + 1) && boundaries[b].has(k + 1)
+                ? "+"
+                : "-",
+            )
+            .join("")}|`
+        : "",
+    );
   ctx.out("");
   rows.forEach((i, k) => {
     ctx.out(`${margin}+${"-".repeat(box)}+`);
     let lead = noobs ? margin : number(i);
     layouts.forEach((layout, b) => {
-      if (b) ctx.out(`${margin}|${"-".repeat(box)}|`);
+      if (b) ctx.out(margin + rules[b]);
       if (options.header !== false) {
         ctx.out(lead + row(layout, heading));
         lead = margin;
