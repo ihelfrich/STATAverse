@@ -98,7 +98,6 @@ for (const c of fixture.cases)
             "nonlinear-more",
             "more-postestimation",
             "count-quantile",
-            "glm-models",
             "margins-more",
             "margins-outcomes",
             "predict-defaults",
@@ -135,6 +134,11 @@ for (const c of fixture.cases)
             "weighted-wide-statistics-and-few-clusters",
             "estat-gof-hosmer-lemeshow",
             "resampling-exponentiated-coefficients",
+            // A fit that never converges stops where 300 steps leave it,
+            // and statistics summed from millions of counts carry the
+            // last digits of the estimates: both match Stata to rounding.
+            "glm-unconverged-log-link",
+            "glm-cloglog-large-statistics",
           ].includes(c.id),
         )
       )
