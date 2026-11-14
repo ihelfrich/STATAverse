@@ -2,7 +2,8 @@
 // estat firststage, endogenous and overid.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { Ftail, chi2tail } from "./distributions.js";
+import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
+import { evaluateAll } from "./expression.js";
 import { project } from "./diagnostics.js";
 import {
   RULE,
@@ -12,6 +13,8 @@ import {
   fit,
   invertSymmetric,
   quadratic,
+  tableWidth,
+  termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { STOCK_YOGO } from "./stock-yogo.js";
@@ -413,29 +416,83 @@ export function ivDiagnostic(session, model, what, ctx) {
  * as deviations from their means within each category (the within
  * transform), which gives the same slopes and residuals at a cost linear in
  * the number of observations, so thousands of categories take no longer
- * than a few.
+ * than a few. Analytic, sampling and frequency weights enter every sum.
  */
 function areg(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] , Absorb(varname) [Level(cilevel) Robust VCE(string) CLuster(varname)]",
+      "anything [if] [in] [aweight fweight pweight] , Absorb(string) [Level(cilevel) Robust VCE(string) CLuster(varname)]",
       text,
     ),
     options = parsed.options,
-    absorb = session.data.get(session.varlist(options.absorb)[0]),
-    asked = readVce(session, options, /^(ols|conventional)$/),
+    absorbText = options.absorb.trim();
+  // Stata's own messages for what areg never accepts in absorb().
+  if (/[.#]/.test(absorbText))
+    throw new StataError(
+      "factor-variable and time-series operators not allowed\n    Option absorb() incorrectly specified.",
+      101,
+    );
+  const absorbed = session.varlist(absorbText);
+  if (absorbed.length > 1)
+    throw new StataError(
+      `areg with more than one absorbed variable is not available yet; absorb ${absorbed[0]} and add the others as factor variables, as in i.${absorbed[1]}`,
+      198,
+    );
+  const absorb = session.data.get(absorbed[0]),
+    vceText = (options.vce ?? "").trim(),
+    hc2 = /^hc2$/.test(vceText);
+  if (/^hc2\s/.test(vceText))
+    throw new StataError(
+      "vce(hc2 clustvar) is not available yet after areg; use vce(cluster clustvar) or vce(hc2)",
+      198,
+    );
+  // areg.ado, under version 17, takes one cluster variable.
+  const clustered = /^cl(?:u(?:s(?:t(?:er?)?)?)?)?\s+(.+)$/.exec(vceText);
+  if (clustered && session.varlist(clustered[1]).length > 1)
+    throw new StataError("cluster():  too many variables specified", 103);
+  const asked = hc2
+      ? { robust: !!options.robust, cluster: null }
+      : readVce(session, options, /^(ols|conventional)$/),
+    wtype = parsed.weight?.type ?? null;
+  if (hc2 && (asked.robust || wtype))
+    throw new StataError(
+      `vce(hc2) ${wtype ? "with weights " : "with robust "}is not available yet after areg; use vce(robust)`,
+      198,
+    );
+  const robust = asked.robust || wtype === "pweight",
     { dependent, columns, sample } = design(
       session,
       parsed.anything,
       session.rows(parsed, null),
       true,
-    ),
-    rows = sample.filter(
+    );
+  let rows = sample.filter(
       (i) =>
         !noCluster(absorb, i) &&
         !(asked.cluster && noCluster(asked.cluster, i)),
     ),
-    n = rows.length;
-  if (!n) throw new StataError("no observations", 2000);
+    raw = null;
+  if (wtype) {
+    const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
+    rows = rows.filter((i) => !isMissing(all[i]) && all[i] !== 0);
+    if (rows.some((i) => all[i] < 0))
+      throw new StataError("negative weights encountered", 402);
+    if (wtype === "fweight" && rows.some((i) => !Number.isInteger(all[i])))
+      throw new StataError("may not use noninteger frequency weights", 401);
+    raw = rows.map((i) => all[i]);
+  }
+  const count0 = rows.length;
+  if (!count0) throw new StataError("no observations", 2000);
+  if (count0 === 1) throw new StataError("insufficient observations", 2001);
+  const sumW = raw ? raw.reduce((t, v) => t + v, 0) : count0,
+    // Analytic and sampling weights are rescaled to sum to the number of
+    // observations; a frequency weight counts that many observations.
+    w = raw
+      ? wtype === "fweight"
+        ? raw
+        : raw.map((v) => (v * count0) / sumW)
+      : null,
+    n = wtype === "fweight" ? sumW : count0,
+    weight = (i) => (w ? w[i] : 1);
   const active = columns.filter((c) => !c.base),
     y = rows.map((i) => dependent.data[i]),
     xAll = active.map((c) => rows.map(c.value)),
@@ -447,20 +504,44 @@ function areg(session, text, ctx) {
       return index.get(key);
     }),
     groups = index.size,
-    sizes = new Array(groups).fill(0);
-  for (const c of category) sizes[c]++;
-  const mean = (v) => v.reduce((t, value) => t + value, 0) / v.length,
-    dot = (a, b) => {
+    sizes = new Array(groups).fill(0),
+    weights = new Array(groups).fill(0);
+  category.forEach((c, i) => {
+    sizes[c]++;
+    weights[c] += weight(i);
+  });
+  const dot = (a, b) => {
       let t = 0;
       for (let i = 0; i < a.length; i++) t += a[i] * b[i];
       return t;
     },
+    wdot = (a, b) => {
+      if (!w) return dot(a, b);
+      let t = 0;
+      for (let i = 0; i < a.length; i++) t += w[i] * a[i] * b[i];
+      return t;
+    },
+    // The weighted mean, refined by a second pass, so that a column constant
+    // within a category has a mean equal to that constant.
+    mean = (v) => {
+      let total = 0;
+      v.forEach((value, i) => (total += weight(i) * value));
+      const first = total / n;
+      let rest = 0;
+      v.forEach((value, i) => (rest += weight(i) * (value - first)));
+      return first + rest / n;
+    },
     demean = (v) => {
       const totals = new Array(groups).fill(0);
-      v.forEach((value, i) => (totals[category[i]] += value));
-      return v.map(
-        (value, i) => value - totals[category[i]] / sizes[category[i]],
+      v.forEach((value, i) => (totals[category[i]] += weight(i) * value));
+      const means = totals.map((t, c) => t / weights[c]),
+        rest = new Array(groups).fill(0);
+      v.forEach(
+        (value, i) =>
+          (rest[category[i]] += weight(i) * (value - means[category[i]])),
       );
+      means.forEach((m, c) => (means[c] = m + rest[c] / weights[c]));
+      return v.map((value, i) => value - means[category[i]]);
     },
     ybar = mean(y),
     yw = demean(y),
@@ -469,17 +550,18 @@ function areg(session, text, ctx) {
     kept = [],
     basis = [];
   // A regressor that the categories and the regressors before it explain
-  // is omitted: the later of two collinear ones, as Stata's _rmcoll does.
-  xAll.forEach((column, k) => {
-    const centre = xbarAll[k],
-      reference = column.reduce((t, v) => t + (v - centre) ** 2, 0),
-      rest = xw[k].slice();
+  // is omitted: the later of two collinear ones, as Stata's regress does.
+  // Each is judged against its own within variation, so one whose spread
+  // within the categories is small next to its level is kept.
+  xw.forEach((column, k) => {
+    const own = wdot(column, column),
+      rest = column.slice();
     for (const q of basis) {
-      const weight = dot(rest, q.vector) / q.norm;
-      for (let i = 0; i < n; i++) rest[i] -= weight * q.vector[i];
+      const factor = wdot(rest, q.vector) / q.norm;
+      for (let i = 0; i < count0; i++) rest[i] -= factor * q.vector[i];
     }
-    const norm = dot(rest, rest);
-    if (reference > 0 && norm > 1e-11 * reference) {
+    const norm = wdot(rest, rest);
+    if (own > 0 && norm > 1e-11 * own) {
       basis.push({ vector: rest, norm });
       kept.push(k);
     } else active[k].omitted = true;
@@ -487,42 +569,74 @@ function areg(session, text, ctx) {
   const size = kept.length,
     x = kept.map((k) => xw[k]),
     xbar = kept.map((k) => xbarAll[k]),
-    inverse = invertSymmetric(x.map((a) => x.map((b) => dot(a, b))));
+    inverse = invertSymmetric(x.map((a) => x.map((b) => wdot(a, b))));
   if (!inverse)
     throw new StataError("the regressors are too collinear to fit", 198);
-  const xy = x.map((column) => dot(column, yw)),
+  const xy = x.map((column) => wdot(column, yw)),
     b = inverse.map((row) => dot(row, xy)),
     residuals = yw.map(
       (v, i) => v - b.reduce((t, bj, j) => t + bj * x[j][i], 0),
     ),
-    rss = dot(residuals, residuals),
-    tss = y.reduce((t, v) => t + (v - ybar) ** 2, 0),
+    rss = wdot(residuals, residuals),
+    tss = y.reduce((t, v, i) => t + weight(i) * (v - ybar) ** 2, 0),
     dfAbsorbed = groups - 1,
     dfResidual = n - size - groups,
-    s2 = rss / dfResidual,
+    // With no residual degrees of freedom nothing is estimated but the
+    // coefficients, as with one observation in each category.
+    s2 = dfResidual > 0 ? rss / dfResidual : MISSING,
     constant = ybar - dot(xbar, b);
-  if (dfResidual < 1) throw new StataError("insufficient observations", 2001);
-  // (Z'Z)^-1 for Z = [x within plus its overall mean, 1], the design whose
+  // (Z'WZ)^-1 for Z = [x within plus its overall mean, 1], the design whose
   // constant is the overall mean of y less the fitted one.
   const vx = inverse.map((row) => dot(row, xbar)),
     bread = [
       ...inverse.map((row, r) => [...row, -vx[r]]),
       [...vx.map((v) => -v), 1 / n + dot(xbar, vx)],
-    ];
+    ],
+    z = (k) => [...x.map((column, j) => column[k] + xbar[j]), 1];
   let V,
     dfR = dfResidual,
-    clusters = null;
-  if (!asked.robust) V = bread.map((row) => row.map((v) => v * s2));
-  else {
+    clusters = null,
+    vcetype = "";
+  if (dfResidual < 1) V = bread.map((row) => row.map(() => MISSING));
+  else if (hc2) {
+    // HC2 divides each squared residual by one less its leverage in the
+    // model with the indicators: 1/T for the category plus that of the
+    // regressors within it.
+    const meat = Array.from({ length: size + 1 }, () =>
+      new Array(size + 1).fill(0),
+    );
+    for (let k = 0; k < count0; k++) {
+      const within = x.map((column) => column[k]),
+        h =
+          1 / sizes[category[k]] +
+          within.reduce(
+            (t, a, r) =>
+              t + a * within.reduce((u, c, j) => u + inverse[r][j] * c, 0),
+            0,
+          ),
+        e2 = h < 1 ? residuals[k] ** 2 / (1 - h) : 0,
+        s = z(k);
+      for (let a = 0; a <= size; a++)
+        for (let c = 0; c <= size; c++) meat[a][c] += s[a] * s[c] * e2;
+    }
+    V = sandwichOf(bread, meat, 1);
+    vcetype = "Robust HC2";
+  } else if (robust) {
     // The sandwich on the same design. The absorbed indicators count among
-    // the parameters in the small-sample factor.
-    const score = (k) => [
-      ...x.map((column, j) => (column[k] + xbar[j]) * residuals[k]),
-      residuals[k],
-    ];
+    // the parameters in the small-sample factor. A frequency weight repeats
+    // an observation's score; the other weights scale it.
+    const score = (k) => {
+      const factor = residuals[k] * (w && wtype !== "fweight" ? w[k] : 1);
+      return z(k).map((v) => v * factor);
+    };
     let meat, scale;
     if (asked.cluster) {
-      const result = clusterMeat(asked.cluster, rows, score, size + 1);
+      const result = clusterMeat(
+        asked.cluster,
+        rows,
+        wtype === "fweight" ? (k) => score(k).map((v) => v * w[k]) : score,
+        size + 1,
+      );
       meat = result.meat;
       clusters = result.clusters;
       scale = (clusters / (clusters - 1)) * ((n - 1) / dfResidual);
@@ -531,44 +645,68 @@ function areg(session, text, ctx) {
       meat = Array.from({ length: size + 1 }, () =>
         new Array(size + 1).fill(0),
       );
-      for (let k = 0; k < n; k++) {
-        const s = score(k);
+      for (let k = 0; k < count0; k++) {
+        const s = score(k),
+          repeat = wtype === "fweight" ? w[k] : 1;
         for (let a = 0; a <= size; a++)
-          for (let c = 0; c <= size; c++) meat[a][c] += s[a] * s[c];
+          for (let c = 0; c <= size; c++) meat[a][c] += repeat * s[a] * s[c];
       }
       scale = n / dfResidual;
     }
-    const middle = bread.map((row) =>
-      meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
-    );
-    V = middle.map((row) =>
-      bread[0].map(
-        (_, c) => scale * row.reduce((t, v, k) => t + v * bread[k][c], 0),
-      ),
-    );
-  }
-  const slopeV = V.slice(0, size).map((row) => row.slice(0, size)),
-    block = size ? invertSymmetric(slopeV) : null,
-    F = size && block ? quadratic(b, block) / size : MISSING,
-    // The F test of the absorbed indicators sets the fit against least
-    // squares on the regressors alone.
-    pooled = project(
-      kept.map((k) => xAll[k]),
-      y,
-    ),
-    fAbsorb = (pooled.rss - rss) / dfAbsorbed / s2,
-    pAbsorb = Ftail(dfAbsorbed, dfResidual, fAbsorb),
-    r2 = 1 - rss / tss,
-    r2a = 1 - s2 / (tss / (n - 1)),
+    V = sandwichOf(bread, meat, scale);
+    vcetype = "Robust";
+  } else V = bread.map((row) => row.map((v) => v * s2));
+  // The F test of the absorbed indicators sets the fit against weighted
+  // least squares on the regressors and a constant alone.
+  const pooledRss = (() => {
+      const centred = kept.map((k) => xAll[k].map((v) => v - xbarAll[k])),
+        yc = y.map((v) => v - ybar);
+      if (!size) return wdot(yc, yc);
+      const fitted = invertSymmetric(
+        centred.map((a) => centred.map((c) => wdot(a, c))),
+      );
+      if (!fitted) return MISSING;
+      const coefficients = fitted.map((row) =>
+          dot(
+            row,
+            centred.map((c) => wdot(c, yc)),
+          ),
+        ),
+        e = yc.map(
+          (v, i) =>
+            v - coefficients.reduce((t, bj, j) => t + bj * centred[j][i], 0),
+        );
+      return wdot(e, e);
+    })(),
+    finite = (value) =>
+      Number.isFinite(value) && !isMissing(value) ? value : MISSING,
+    fAbsorb =
+      dfAbsorbed > 0 && dfResidual > 0 && !isMissing(pooledRss)
+        ? finite((pooledRss - rss) / dfAbsorbed / s2)
+        : MISSING,
+    pAbsorb = isMissing(fAbsorb)
+      ? MISSING
+      : Ftail(dfAbsorbed, dfResidual, fAbsorb),
+    slopeV = V.slice(0, size).map((row) => row.slice(0, size)),
+    block = size && dfResidual > 0 ? invertSymmetric(slopeV) : null,
+    F = size && block ? finite(quadratic(b, block) / size) : MISSING,
+    r2 = finite(1 - rss / tss),
+    r2a = dfResidual > 0 ? finite(1 - s2 / (tss / (n - 1))) : MISSING,
+    rmse = dfResidual > 0 ? Math.sqrt(s2) : rss === 0 ? 0 : MISSING,
+    // Each observation's variance is sigma^2 / w under analytic weights,
+    // which adds half the sum of the log weights; Stata adds nothing for
+    // sampling weights.
+    logWeights =
+      wtype === "aweight" ? 0.5 * w.reduce((t, v) => t + Math.log(v), 0) : 0,
     gaussian = (ss) =>
-      -0.5 * n * (Math.log(2 * Math.PI) + Math.log(ss / n) + 1),
+      -0.5 * n * (Math.log(2 * Math.PI) + Math.log(ss / n) + 1) + logWeights,
     names = [...columns.map((c) => c.name), "_cons"],
     // Where each named coefficient sits among the estimated ones: the
     // constant last, -1 for a base level or an omitted regressor.
     position = names.map((_, k) =>
       k === columns.length ? size : kept.indexOf(active.indexOf(columns[k])),
     ),
-    vce = asked.cluster ? "cluster" : asked.robust ? "robust" : "ols",
+    vce = hc2 ? "hc2" : asked.cluster ? "cluster" : robust ? "robust" : "ols",
     model = {
       command: "areg",
       title: "Linear regression, absorbing indicators",
@@ -577,7 +715,7 @@ function areg(session, text, ctx) {
       names,
       b: position.map((p) => (p < 0 ? 0 : p === size ? constant : b[p])),
       V: position.map((p) =>
-        position.map((q) => (p < 0 || q < 0 ? 0 : V[p][q])),
+        position.map((q) => (p < 0 || q < 0 ? 0 : finite(V[p][q]))),
       ),
       columns,
       constant: true,
@@ -592,13 +730,14 @@ function areg(session, text, ctx) {
       tss,
       ll: gaussian(rss),
       // The null model keeps the absorbed indicators.
-      ll_0: gaussian(dot(yw, yw)),
+      ll_0: gaussian(wdot(yw, yw)),
       mss: tss - rss,
       r2,
       r2_a: r2a,
-      rmse: Math.sqrt(s2),
+      rmse,
       vce,
-      ...(asked.robust ? { vcetype: "Robust" } : {}),
+      ...(vcetype ? { vcetype } : {}),
+      ...(wtype ? { wtype, sumW } : {}),
       sample: rows,
       level: options.level,
     },
@@ -609,8 +748,14 @@ function areg(session, text, ctx) {
       [`F(${size}, ${dfR})`, applyFormat(F, "%9.2f").trim()],
       ["Prob > F", applyFormat(p, "%6.4f").trim()],
       ["R-squared", applyFormat(r2, "%6.4f").trim()],
-      ["Adj R-squared", applyFormat(r2a, "%6.4f").trim()],
-      ["Root MSE", applyFormat(model.rmse, "%14.4f").trim()],
+      // A statistic that cannot be computed is left out, as
+      // _coef_table_header leaves it.
+      ...(isMissing(r2a)
+        ? []
+        : [["Adj R-squared", applyFormat(r2a, "%6.4f").trim()]]),
+      // _coef_table_header shows it in %10.4f, which turns to four
+      // significant digits once the number no longer fits.
+      ["Root MSE", applyFormat(rmse, "%10.4f").trim()],
     ],
     // The column of values is one wider than the widest, and the block
     // ends at column 78, as Stata's coefficient-table header sets it.
@@ -625,7 +770,7 @@ function areg(session, text, ctx) {
     p,
     r2,
     r2_a: r2a,
-    rmse: model.rmse,
+    rmse,
     mss: model.mss,
     rss,
     tss,
@@ -634,19 +779,22 @@ function areg(session, text, ctx) {
     rank: size + 1,
     df_a: dfAbsorbed,
     k_absorb: groups,
-    ...(asked.robust ? {} : { F_absorb: fAbsorb, p_absorb: pAbsorb }),
+    ...(robust || hc2 ? {} : { F_absorb: fAbsorb, p_absorb: pAbsorb }),
     ...(clusters ? { N_clust: clusters } : {}),
     cmd: "areg",
     title: model.title,
     depvar: model.depvar,
     absvar: absorb.name,
     vce,
-    ...(asked.robust ? { vcetype: "Robust" } : {}),
+    ...(vcetype ? { vcetype } : {}),
     ...(asked.cluster ? { clustvar: asked.cluster.name } : {}),
+    ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
   };
   for (const k of active.keys())
     if (!kept.includes(k))
       ctx.out(`note: ${active[k].name} omitted because of collinearity.`);
+  if (wtype && wtype !== "fweight")
+    ctx.out(`(sum of wgt is ${sumOfWeights(sumW)})`);
   ctx.out("");
   values.forEach(([label, value], k) => {
     const text = left[k] ?? "";
@@ -655,21 +803,59 @@ function areg(session, text, ctx) {
     );
   });
   ctx.out("");
+  // The first column widens to the longest label shown, as in regress.
+  const w0 = tableWidth(session, model);
   if (clusters)
     ctx.out(
       `(Std. err. adjusted for ${count(clusters)} clusters in ${asked.cluster.name})`.padStart(
-        78,
+        66 + w0,
       ),
     );
-  coefficientHeader(model, options.level).forEach(ctx.out);
-  coefficientRows(session, model, options.level).forEach(ctx.out);
-  ctx.out(RULE);
-  // areg_footnote prints no F test after a robust variance.
-  if (!asked.robust)
+  coefficientHeader(model, options.level, model.depvar, w0).forEach(ctx.out);
+  const critical = invttail(dfR, (1 - options.level / 100) / 2);
+  termRows(
+    session,
+    model,
+    (k) => {
+      const variance = model.V[k][k],
+        se = isMissing(variance) ? MISSING : Math.sqrt(variance),
+        known = !isMissing(se) && se > 0 && dfR > 0,
+        t = known ? model.b[k] / se : MISSING,
+        bound = (sign) => (known ? model.b[k] + sign * critical * se : MISSING);
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(known ? 2 * ttail(dfR, Math.abs(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
+    },
+    w0,
+  ).forEach(ctx.out);
+  ctx.out("-".repeat(66 + w0));
+  // areg_footnote prints no F test after a robust variance, or when the
+  // test cannot be computed.
+  if (!robust && !hc2 && !isMissing(fAbsorb))
     ctx.out(
       `${`F test of absorbed indicators: F(${dfAbsorbed}, ${dfResidual}) = ${applyFormat(fAbsorb, "%4.3f")}`.padEnd(61)} Prob > F = ${applyFormat(pAbsorb, "%4.3f")}`,
     );
   ctx.out("");
+}
+
+/** bread * meat * bread, scaled. */
+function sandwichOf(bread, meat, scale) {
+  const middle = bread.map((row) =>
+    meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
+  );
+  return middle.map((row) =>
+    bread[0].map(
+      (_, c) => scale * row.reduce((t, v, k) => t + v * bread[k][c], 0),
+    ),
+  );
+}
+
+/** The sum of weights as areg reports it, to sixteen significant digits. */
+function sumOfWeights(value) {
+  const text = value.toPrecision(16);
+  return text.includes("e")
+    ? text
+    : text.includes(".")
+      ? text.replace(/0+$/, "").replace(/\.$/, "")
+      : text;
 }
 
 export const MORE_ESTIMATORS = [{ name: "areg", minimum: 4, run: areg }];

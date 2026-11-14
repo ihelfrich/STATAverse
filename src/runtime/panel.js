@@ -13,13 +13,27 @@ import {
   tableWidth,
   termRows,
 } from "./estimation.js";
-import { count } from "./reports.js";
+import { count, perGroup, percentile } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 import { readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const sum = (values) => values.reduce((a, b) => a + b, 0);
 const mean = (values) => sum(values) / values.length;
+/**
+ * The mean, refined by a second pass over what the first leaves. A column
+ * that is constant within a panel then has a mean equal to that constant
+ * and a within deviation of exactly zero, as Stata's sums give, so it can
+ * be told apart from a column whose within variation is merely small next
+ * to its level.
+ */
+function exactMean(values) {
+  const n = values.length,
+    first = sum(values) / n;
+  let rest = 0;
+  for (const v of values) rest += v - first;
+  return first + rest / n;
+}
 
 function xtset(session, text, ctx) {
   const words = text.replace(/,.*$/, "").trim().split(/\s+/).filter(Boolean),
@@ -168,20 +182,26 @@ const dot = (a, b) => {
 };
 /**
  * Keeps each column, in order, unless what is left of it after the columns
- * kept before it is a negligible part of its reference variation; Stata's
- * _rmcoll drops the later of two collinear regressors in the same way.
+ * kept before it is a negligible part of the column itself; Stata's
+ * regress drops the later of two collinear regressors in the same way. A
+ * column that is all zeros, such as the within deviations of a variable
+ * constant in every panel, is dropped. Each column is judged against
+ * itself, not its variation in the data: a regressor whose within-panel
+ * spread is tiny next to its spread between panels, such as a timestamp,
+ * is kept, as Stata keeps it.
  */
-function inOrder(columns, reference) {
+function inOrder(columns) {
   const basis = [],
     kept = [];
   columns.forEach((column, k) => {
-    const rest = column.slice();
+    const own = dot(column, column),
+      rest = column.slice();
     for (const q of basis) {
       const weight = dot(rest, q.vector) / q.norm;
       for (let i = 0; i < rest.length; i++) rest[i] -= weight * q.vector[i];
     }
     const norm = dot(rest, rest);
-    if (reference[k] > 0 && norm > 1e-11 * reference[k]) {
+    if (own > 0 && norm > 1e-11 * own) {
       basis.push({ vector: rest, norm });
       kept.push(k);
     }
@@ -242,10 +262,10 @@ function ols(columns, y) {
 
 function xtreg(session, text, ctx) {
   const panel = session.panel;
-  if (!panel?.id)
-    throw new StataError("panel variable not set; use xtset varname ...", 459);
+  // _xt.ado's message.
+  if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
   const parsed = session.parse(
-      "anything [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel) | MLE PA SA THeta]",
+      "anything [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel) THeta | MLE PA SA]",
       text,
     ),
     options = parsed.options,
@@ -279,7 +299,7 @@ function xtreg(session, text, ctx) {
       const means = new Map(
         groups.map((key) => [
           key,
-          mean(members.get(key).map((i) => values[i])),
+          exactMean(members.get(key).map((i) => values[i])),
         ]),
       );
       return values.map((_, i) => means.get(groupOf[i]));
@@ -288,10 +308,10 @@ function xtreg(session, text, ctx) {
     xBarAll = xAll.map(groupMean),
     useBe = !!options.be,
     useFe = !useBe && !!options.fe,
-    // Each regressor's variation about its overall mean, against which
-    // what is left of it after the others is judged.
+    // Each regressor's deviations from its overall mean, and their
+    // variation, below which a column of panel means counts as constant.
     centred = xAll.map((column) => {
-      const m = mean(column);
+      const m = exactMean(column);
       return column.map((v) => v - m);
     }),
     reference = centred.map((column) => dot(column, column)),
@@ -301,7 +321,7 @@ function xtreg(session, text, ctx) {
     // The within regression drops, in order, a regressor that the panel
     // means and the regressors before it explain: one constant within each
     // panel, or a year indicator made redundant by age.
-    feKept = inOrder(withinAll, reference),
+    feKept = inOrder(withinAll),
     // Random effects drops, in order, what is collinear in the regressors
     // themselves; between effects what is collinear in the panel means,
     // choosing by pivoting as regress does.
@@ -316,7 +336,7 @@ function xtreg(session, text, ctx) {
             }),
             reference.map((v) => (v * G) / N),
           )
-        : inOrder(centred, reference);
+        : inOrder(centred);
   // The notes are printed with the results, after any refusal.
   const notes = [];
   candidates.forEach((column, k) => {
@@ -327,7 +347,6 @@ function xtreg(session, text, ctx) {
     );
   });
   const active = kept.map((k) => candidates[k]),
-    regressors = active.map((c) => c.name),
     K = kept.length,
     x = kept.map((k) => xAll[k]),
     xBar = kept.map((k) => xBarAll[k]),
@@ -338,7 +357,8 @@ function xtreg(session, text, ctx) {
       y.map((v, i) => v - yBar[i]),
     ),
     dfFe = N - G - feKept.length,
-    sigmaE2 = within.rss / dfFe,
+    // Not estimable with no residual degrees of freedom.
+    sigmaE2 = dfFe > 0 ? within.rss / dfFe : NaN,
     asked = readVce(session, options, /^conventional$/),
     clustered = asked.robust,
     level = options.level;
@@ -380,15 +400,56 @@ function xtreg(session, text, ctx) {
     dist,
     corrLine,
     footer = null,
+    betweenR2 = null,
+    thetaLines = null,
     // What e() holds beyond the common results, as Stata stores it.
     extra = {};
   if (useBe) {
     // Least squares on the group means, one observation per group.
     if (clustered)
-      throw new StataError("xtreg, be takes conventional standard errors", 198);
-    const firsts = groups.map((key) => members.get(key)[0]),
-      ym = firsts.map((i) => yBar[i]),
-      xm = xBar.map((column) => firsts.map((i) => column[i])),
+      throw new StataError(
+        `vcetype ${asked.cluster ? "cluster" : "robust"} not allowed`,
+        198,
+      );
+    // xtreg_be.ado replaces each variable of the varlist, in turn, by its
+    // running mean within the panel, in time order, and keeps the last;
+    // a variable named twice is so replaced twice, which turns its panel
+    // mean into the mean of its running means.
+    const named = [dep, ...columns.map((c) => c.term?.variable?.name)],
+      passes = (column) => {
+        const name = column?.term?.variable?.name;
+        return name && column.name === name
+          ? named.filter((other) => other === name).length
+          : 1;
+      },
+      time = panel.time ? data.get(panel.time).data : null,
+      ordered = groups.map((key) =>
+        time
+          ? members
+              .get(key)
+              .slice()
+              .sort((a, b) => time[rows[a]] - time[rows[b]] || a - b)
+          : members.get(key),
+      ),
+      panelMeans = (values, times) =>
+        ordered.map((list) => {
+          let current = list.map((i) => values[i]);
+          for (let pass = 0; pass < times; pass++) {
+            let total = 0;
+            current = current.map((v, j) => (total += v) / (j + 1));
+          }
+          return current.at(-1);
+        }),
+      firsts = groups.map((key) => members.get(key)[0]),
+      depPasses = named.filter((other) => other === dep).length,
+      ym =
+        depPasses > 1 ? panelMeans(y, depPasses) : firsts.map((i) => yBar[i]),
+      xm = xBar.map((column, j) => {
+        const times = passes(active[j]);
+        return times > 1
+          ? panelMeans(x[j], times)
+          : firsts.map((i) => column[i]);
+      }),
       xMeans = xm.map(mean),
       between = ols(
         xm.map((column, k) => column.map((v) => v - xMeans[k])),
@@ -396,6 +457,9 @@ function xtreg(session, text, ctx) {
       );
     df = G - K - 1;
     if (df < 1) throw new StataError("insufficient observations", 2001);
+    // The between R-squared is that of this regression.
+    const ymMean = mean(ym);
+    betweenR2 = 1 - between.rss / ym.reduce((t, v) => t + (v - ymMean) ** 2, 0);
     const s2 = between.rss / df,
       slopeV = between.inverse.map((row) => row.map((v) => v * s2)),
       vx = slopeV.map((row) => row.reduce((t, v, j) => t + v * xMeans[j], 0));
@@ -409,7 +473,12 @@ function xtreg(session, text, ctx) {
       ],
     ];
     sigmaU = MISSING;
-    statistic = K ? quadratic(b, invertSymmetric(slopeV)) / K : 0;
+    const slopeInverse = K ? invertSymmetric(slopeV) : null;
+    statistic = K
+      ? slopeInverse
+        ? quadratic(b, slopeInverse) / K
+        : MISSING
+      : 0;
     statLabel = `F(${K},${df})`;
     p = K ? Ftail(K, df, statistic) : MISSING;
     dist = "t";
@@ -468,7 +537,7 @@ function xtreg(session, text, ctx) {
       uByObs = groupOf.map((key) => uOf.get(key)),
       inverse = invertSymmetric(slopeV);
     // With every regressor omitted the test has nothing to test.
-    statistic = K ? quadratic(b, inverse) / K : 0;
+    statistic = K ? (inverse ? quadratic(b, inverse) / K : MISSING) : 0;
     statLabel = `F(${K}, ${df})`;
     p = K ? Ftail(K, df, statistic) : MISSING;
     dist = "t";
@@ -479,7 +548,8 @@ function xtreg(session, text, ctx) {
     if (clustered) {
       // With clustering the constant's variance comes from the same
       // sandwich, built on the regressors and a column of ones.
-      const design = [
+      const yMean = mean(y),
+        design = [
           ...x.map((column, k) =>
             column.map((v, i) => v - xBar[k][i] + xMeans[k]),
           ),
@@ -487,7 +557,7 @@ function xtreg(session, text, ctx) {
         ],
         full = ols(
           design,
-          y.map((v, i) => v - yBar[i] + mean(y)),
+          y.map((v, i) => v - yBar[i] + yMean),
         ),
         size = K + 1,
         meat = Array.from({ length: size }, () => new Array(size).fill(0));
@@ -509,6 +579,12 @@ function xtreg(session, text, ctx) {
             scale * row.reduce((t, v, k) => t + v * full.inverse[k][c], 0),
         ),
       );
+      // With every regressor omitted the scores of the constant add to
+      // zero in each panel: its variance, and the test, are not estimable.
+      if (!K) {
+        V = [[MISSING]];
+        statistic = MISSING;
+      }
     } else {
       const pooled = ols([...x, y.map(() => 1)], y),
         fStat = (pooled.rss - within.rss) / (G - 1) / sigmaE2;
@@ -520,9 +596,14 @@ function xtreg(session, text, ctx) {
         p_f: Ftail(G - 1, dfFe, fStat),
         rmse: Math.sqrt(sigmaE2),
       };
-      footer = `${`F test that all u_i=0: F(${G - 1}, ${dfFe}) = ${applyFormat(fStat, "%9.2f").trim()}`.padEnd(61)}Prob > F = ${applyFormat(Ftail(G - 1, dfFe, fStat), "%6.4f").trim()}`;
+      // With one panel there is nothing to test, and no footer.
+      if (Number.isFinite(fStat))
+        footer = `${`F test that all u_i=0: F(${G - 1}, ${dfFe}) = ${applyFormat(fStat, "%9.2f").trim()}`.padEnd(61)}Prob > F = ${applyFormat(Ftail(G - 1, dfFe, fStat), "%6.4f").trim()}`;
     }
   } else {
+    // xtreg_re.ado needs residual degrees of freedom in the within
+    // regression, which gives sigma_e.
+    if (!(dfFe > 0)) throw new StataError("insufficient observations", 2001);
     // Swamy-Arora: the between regression on group means gives sigma_u.
     // Group means of some regressors can be collinear (year indicators in a
     // balanced panel all have the same mean), so only independent columns
@@ -571,6 +652,25 @@ function xtreg(session, text, ctx) {
       star = (values, bar) => values.map((v, i) => v - theta[i] * bar[i]);
     // A balanced panel has one theta, which e(theta) holds.
     if (least(sizes) === greatest(sizes)) extra = { theta: theta[0] };
+    // The theta option shows it, or, when panels differ in size, the
+    // percentiles of the panels' thetas as summarize, detail gives them.
+    if (options.theta) {
+      if (least(sizes) === greatest(sizes))
+        // display shows a scalar in %10.0g.
+        thetaLines = [`theta${" ".repeat(8)}= ${g(theta[0], "%10.0g")}`];
+      else {
+        const each = groups
+            .map((key) => theta[members.get(key)[0]])
+            .sort((a, b) => a - b),
+          at = (q) => percentile(each, q);
+        thetaLines = [
+          "",
+          `${"-".repeat(19)} theta ${"-".repeat(20)}`,
+          "  min      5%       median        95%      max",
+          `${applyFormat(each[0], "%6.4f")}${applyFormat(at(5), "%9.4f")}${applyFormat(at(50), "%11.4f")}${applyFormat(at(95), "%11.4f")}${applyFormat(each.at(-1), "%9.4f")}`,
+        ];
+      }
+    }
     const design = [
         ...x.map((column, k) => star(column, xBar[k])),
         theta.map((t) => 1 - t),
@@ -580,6 +680,7 @@ function xtreg(session, text, ctx) {
     constant = gls.b[K];
     // The covariance uses the residual variance of the transformed regression.
     const s2 = gls.rss / (N - K - 1);
+    extra = { ...extra, rmse: Math.sqrt(s2) };
     V = gls.inverse.map((row) => row.map((v) => v * s2));
     if (clustered) {
       // The sandwich on the transformed regression, clustered on the panel.
@@ -608,17 +709,26 @@ function xtreg(session, text, ctx) {
     const inverse = invertSymmetric(
       V.slice(0, K).map((row) => row.slice(0, K)),
     );
-    statistic = quadratic(b, inverse);
+    statistic = inverse ? quadratic(b, inverse) : MISSING;
     statLabel = `Wald chi2(${K})`;
     p = chi2tail(K, statistic);
     dist = "z";
     header = "Random-effects GLS regression";
     corrLine = "corr(u_i, X) = 0 (assumed)";
   }
-  const r2 = rsq(b),
-    names = [...regressors, "_cons"],
-    coefficients = [...b, constant],
-    rho = sigmaU ** 2 / (sigmaU ** 2 + sigmaE2),
+  // What cannot be computed, as with one panel and no residual degrees of
+  // freedom, is missing.
+  const finite = (value) =>
+    Number.isFinite(value) && !isMissing(value) ? value : MISSING;
+  sigmaU = finite(sigmaU);
+  statistic = finite(statistic);
+  p = isMissing(statistic) ? MISSING : finite(p);
+  V = V.map((row) => row.map(finite));
+  for (const key of Object.keys(extra)) extra[key] = finite(extra[key]);
+  const r2 = rsq(b);
+  if (betweenR2 !== null) r2.between = finite(betweenR2);
+  const coefficients = [...b, constant],
+    rho = finite(sigmaU ** 2 / (sigmaU ** 2 + sigmaE2)),
     side = (label, value) => `${label.padEnd(18)}=${value.padStart(11)}`,
     obs = (label, value) => `${label.padStart(17)} =${value.padStart(11)}`,
     critical =
@@ -627,7 +737,13 @@ function xtreg(session, text, ctx) {
         : invnormal(1 - (1 - level / 100) / 2),
     tail = (t) =>
       dist === "t" ? 2 * ttail(df, Math.abs(t)) : 2 * normal(-Math.abs(t));
-  const fullNames = [...columns.map((c) => c.name), "_cons"];
+  const fullNames = [...columns.map((c) => c.name), "_cons"],
+    // Where each coefficient of e(b) sits among those estimated, by column
+    // and not by name: a variable named twice has two columns of one name,
+    // the second omitted. -1 marks a base level or an omitted column.
+    position = fullNames.map((_, k) =>
+      k === columns.length ? K : active.indexOf(columns[k]),
+    );
   session.estimates = {
     command: "xtreg",
     title: header,
@@ -635,25 +751,20 @@ function xtreg(session, text, ctx) {
     depvar: dep,
     // Base levels of factors sit among the coefficients at zero.
     names: fullNames,
-    b: fullNames.map((name) =>
-      names.includes(name) ? coefficients[names.indexOf(name)] : 0,
-    ),
-    V: fullNames.map((r) =>
-      fullNames.map((c) =>
-        names.includes(r) && names.includes(c)
-          ? V[names.indexOf(r)][names.indexOf(c)]
-          : 0,
-      ),
-    ),
+    b: position.map((at) => (at < 0 ? 0 : coefficients[at])),
+    V: position.map((r) => position.map((c) => (r < 0 || c < 0 ? 0 : V[r][c]))),
     columns,
     constant: true,
-    estimable: fullNames.map((name) => names.includes(name)),
+    estimable: position.map((at) => at >= 0),
     N,
     df_m: K,
     df_r: df,
     rank: K + 1,
     kind: "xtreg",
     xt: useBe ? "be" : useFe ? "fe" : "re",
+    ivar: panel.id,
+    sigma_u: sigmaU,
+    sigma_e: finite(Math.sqrt(sigmaE2)),
     sample: rows,
     vce: clustered ? "cluster" : "conventional",
   };
@@ -672,12 +783,7 @@ function xtreg(session, text, ctx) {
         ym = firsts.map((i) => yBar[i]),
         centre = mean(ym),
         fitted = firsts.map(
-          (i) =>
-            model.b.at(-1) +
-            active.reduce(
-              (t, c, k) => t + xBar[k][i] * model.b[fullNames.indexOf(c.name)],
-              0,
-            ),
+          (i) => constant + b.reduce((t, bk, k) => t + xBar[k][i] * bk, 0),
         );
       model.ll = gaussian(
         ym.reduce((t, v, g) => t + (v - fitted[g]) ** 2, 0),
@@ -699,7 +805,7 @@ function xtreg(session, text, ctx) {
     r2_b: r2.between,
     r2_o: r2.overall,
     sigma_u: sigmaU,
-    sigma_e: Math.sqrt(sigmaE2),
+    sigma_e: finite(Math.sqrt(sigmaE2)),
     rho,
     rank: K + 1,
     ...extra,
@@ -712,6 +818,24 @@ function xtreg(session, text, ctx) {
     vce: clustered ? "cluster" : "conventional",
     ...(clustered ? { vcetype: "Robust", N_clust: G, clustvar: panel.id } : {}),
   };
+  // What each estimator's regression adds to e(): the between regression
+  // its R-squared and log likelihood, and no variance components; the
+  // within regression its own; random effects sigma.
+  const stored = session.results.e;
+  if (useBe) {
+    delete stored.sigma_u;
+    delete stored.sigma_e;
+    delete stored.rho;
+    stored.r2 = r2.between;
+    stored.r2_a = finite(1 - ((1 - r2.between) * (G - 1)) / (G - K - 1));
+    stored.ll = session.estimates.ll;
+  } else if (useFe) {
+    stored.r2 = r2.within;
+    stored.rss = within.rss;
+    stored.r2_a = finite(1 - ((1 - r2.within) * (N - 1)) / dfFe);
+    stored.ll = session.estimates.ll;
+    stored.ll_0 = session.estimates.ll_0;
+  } else stored.sigma = finite(Math.sqrt(sigmaU ** 2 + sigmaE2));
   const r4 = (value) => applyFormat(value, "%6.4f").trim();
   notes.forEach(ctx.out);
   ctx.out("");
@@ -740,10 +864,16 @@ function xtreg(session, text, ctx) {
   ctx.out(
     `${"".padEnd(48)}${side(statLabel, applyFormat(statistic, "%9.2f").trim())}`,
   );
-  ctx.out(
-    `${corrLine.padEnd(48)}${side(dist === "t" ? "Prob > F" : "Prob > chi2", r4(p))}`,
-  );
-  ctx.out("");
+  // xtreg_fe_display.ado leaves out corr(u_i, Xb) and the p-value, and the
+  // blank line after them, when sigma_u is missing.
+  const showU = !useFe || !isMissing(sigmaU);
+  if (showU) {
+    ctx.out(
+      `${corrLine.padEnd(48)}${side(dist === "t" ? "Prob > F" : "Prob > chi2", r4(p))}`,
+    );
+    thetaLines?.forEach(ctx.out);
+    ctx.out("");
+  }
   // The first column is as wide as Stata makes it; see tableWidth. The
   // dependent variable does not count.
   const model = session.estimates,
@@ -766,38 +896,134 @@ function xtreg(session, text, ctx) {
     session,
     model,
     (k) => {
-      const se = Math.sqrt(model.V[k][k]),
-        t = model.b[k] / se;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(tail(t), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+      const variance = model.V[k][k],
+        se = isMissing(variance) ? MISSING : Math.sqrt(variance),
+        known = !isMissing(se) && se > 0,
+        t = known ? model.b[k] / se : MISSING,
+        bound = (sign) =>
+          known && Number.isFinite(critical)
+            ? model.b[k] + sign * critical * se
+            : MISSING;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(known ? finite(tail(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
     },
     w,
   ).forEach(ctx.out);
   ctx.out(useBe ? rule : split);
   if (!useBe) {
-    ctx.out(`${"sigma_u".padStart(w)} |  ${g(sigmaU, "%10.0g").padStart(9)}`);
+    if (showU)
+      ctx.out(`${"sigma_u".padStart(w)} |  ${g(sigmaU, "%10.0g").padStart(9)}`);
     ctx.out(
-      `${"sigma_e".padStart(w)} |  ${g(Math.sqrt(sigmaE2), "%10.0g").padStart(9)}`,
+      `${"sigma_e".padStart(w)} |  ${g(finite(Math.sqrt(sigmaE2)), "%10.0g").padStart(9)}`,
     );
-    ctx.out(
-      `${"rho".padStart(w)} |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
-    );
+    if (showU)
+      ctx.out(
+        `${"rho".padStart(w)} |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
+      );
     ctx.out(rule);
   }
   if (footer) ctx.out(footer);
   ctx.out("");
 }
 
+/**
+ * A variable under a string of time-series operators, such as LD or L2,
+ * under the xtset panel and time variables: L and F shift by whole periods,
+ * D differences, S takes the seasonal difference. A period with no
+ * observation is missing, as in Stata.
+ */
+function operatedColumn(session, operators, values) {
+  const panel = session.panel,
+    data = session.data,
+    id = panel.id ? data.get(panel.id).data : null,
+    time = data.get(panel.time).data,
+    index = new Map(),
+    key = (i, shift) => `${id ? id[i] : ""}|${time[i] - shift}`;
+  for (let i = 0; i < data.n; i++)
+    if (!isMissing(time[i])) index.set(key(i, 0), i);
+  const at = (column, i, shift) => {
+      if (isMissing(time[i])) return MISSING;
+      const j = index.get(key(i, shift));
+      return j === undefined ? MISSING : column[j];
+    },
+    difference = (column, shift) =>
+      column.map((v, i) => {
+        const before = at(column, i, shift);
+        return isMissing(v) || isMissing(before) ? MISSING : v - before;
+      });
+  let column = Array.from(values);
+  for (const [, letter, digits] of operators.matchAll(/([LFDS])(\d*)/gi)) {
+    const order = digits === "" ? 1 : Number(digits),
+      source = column;
+    switch (letter.toUpperCase()) {
+      case "L":
+        column = source.map((_, i) => at(source, i, order));
+        break;
+      case "F":
+        column = source.map((_, i) => at(source, i, -order));
+        break;
+      case "S":
+        column = difference(source, order);
+        break;
+      default:
+        for (let r = 0; r < order; r++) column = difference(column, 1);
+    }
+  }
+  return column;
+}
+
 // xtsum follows xtsum.ado: each statistic in %9.0g, N and n in %8.0f, and
 // T or T-bar in %8.0g. A string variable gets a row of missing values.
 function xtsum(session, text, ctx) {
+  const parsed = session.parse("[anything] [if] [in] [, I(varname)]", text),
+    data = session.data;
+  // i() names the panel variable, as _xt.ado takes it: the data are xtset
+  // on it, with the time variable when that still works.
+  if (parsed.options.i) {
+    const name = session.varlist(parsed.options.i)[0],
+      before = session.panel,
+      quiet = { ...ctx, out: () => {} };
+    if (before?.id && before.id !== name)
+      ctx.out(`warning: existing panel variable is not ${name}`);
+    try {
+      xtset(session, before?.time ? `${name} ${before.time}` : name, quiet);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      xtset(session, name, quiet);
+    }
+  }
   const panel = session.panel;
-  if (!panel?.id)
-    throw new StataError("panel variable not set; use xtset varname ...", 459);
-  const parsed = session.parse("[varlist] [if] [in]", text),
-    data = session.data,
-    id = data.get(panel.id).data,
+  if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
+  const id = data.get(panel.id).data,
     time = panel.time ? data.get(panel.time).data : null,
-    marked = new Set(session.rows(parsed, null)),
+    // Each entry is a variable or, as varlist(ts) allows, a time-series
+    // operator applied to one, such as L.w or D2.w.
+    entries = (
+      parsed.anything.trim() ? parsed.anything.trim().split(/\s+/) : ["_all"]
+    ).flatMap((word) => {
+      const operated = /^((?:[LFDS]\d*)+)\.(.+)$/i.exec(word);
+      if (!operated) {
+        if (/[.#()]/.test(word))
+          throw new StataError(
+            `${word}: this time-series operator is not available yet in xtsum`,
+            198,
+          );
+        return session.varlist(word).map((name) => ({ name, label: name }));
+      }
+      return session.varlist(operated[2]).map((name) => {
+        if (isStringType(data.get(name).type))
+          throw new StataError(
+            `${name}:  may not use time-series operators on string variables`,
+            109,
+          );
+        return {
+          name,
+          label: `${operated[1].toUpperCase()}.${name}`,
+          operator: true,
+        };
+      });
+    }),
+    group = ctx.group ? { groups: [ctx.group] } : null,
+    marked = new Set(session.rows(parsed, group)),
     // The panels in the order sort ivar tvar puts them, each with its rows.
     order = Array.from({ length: data.n }, (_, i) => i).sort((a, b) => {
       const compare = (u, v) => (u < v ? -1 : u > v ? 1 : 0);
@@ -809,6 +1035,12 @@ function xtsum(session, text, ctx) {
   for (const i of order)
     if (panels.length && id[panels.at(-1)[0]] === id[i]) panels.at(-1).push(i);
     else panels.push([i]);
+  // Stata evaluates an operator only on data sorted by panel and time.
+  if (entries.some((entry) => entry.operator)) {
+    if (!time) throw new StataError("time variable not set", 111);
+    if (order.some((row, k) => row !== k))
+      throw new StataError("not sorted", 5);
+  }
   const f9 = (value) => applyFormat(value, "%9.0g"),
     sd = (values, count) => {
       if (!(count > 1)) return MISSING;
@@ -827,10 +1059,12 @@ function xtsum(session, text, ctx) {
     "-----------------+--------------------------------------------+----------------",
   );
   let results = null;
-  parsed.varlist.forEach((name, k) => {
+  entries.forEach(({ name, label, operator }, k) => {
     const variable = data.get(name),
-      text = isStringType(variable.type),
-      column = variable.data,
+      text = isStringType(variable.type);
+    const column = operator
+        ? operatedColumn(session, label.split(".")[0], variable.data)
+        : variable.data,
       inSample = (i) => !text && marked.has(i) && !isMissing(column[i]),
       values = text ? [] : order.filter(inSample).map((i) => column[i]),
       N = values.length,
@@ -873,7 +1107,7 @@ function xtsum(session, text, ctx) {
         !lastCounts.length || least(lastCounts) === greatest(lastCounts)
           ? "    T"
           : "T-bar",
-      shown = name.length > 8 ? `${name.slice(0, 6)}~${name.at(-1)}` : name;
+      shown = label.length > 8 ? `${label.slice(0, 6)}~${label.at(-1)}` : label;
     if (k)
       ctx.out(
         "                 |                                            |",
@@ -893,6 +1127,75 @@ function xtsum(session, text, ctx) {
   if (results) session.results.r = results;
 }
 
+/**
+ * xttest0, as xttest0.ado computes it: the Breusch and Pagan Lagrangian
+ * multiplier test for random effects, from the residuals of least squares
+ * on the regressors of the last xtreg, re.
+ */
+function xttest0(session, text, ctx) {
+  const model = session.estimates;
+  if (!model || model.command !== "xtreg")
+    throw new StataError("last estimates not found", 301);
+  if (model.xt !== "re")
+    throw new StataError("last estimates not xtreg, re", 301);
+  if (text.trim()) throw new StataError("invalid syntax", 198);
+  const data = session.data,
+    rows = model.sample,
+    y = rows.map((i) => data.get(model.depvar).data[i]),
+    centre = (v) => {
+      const m = mean(v);
+      return v.map((value) => value - m);
+    },
+    columns = model.columns
+      .filter((column, k) => model.estimable[k] && !column.base)
+      .map((column) => centre(rows.map(column.value))),
+    residuals = columns.length ? ols(columns, centre(y)).residuals : centre(y),
+    id = data.get(model.ivar).data,
+    totals = new Map();
+  rows.forEach((i, k) => {
+    const entry = totals.get(id[i]) ?? { n: 0, sum: 0 };
+    entry.n++;
+    entry.sum += residuals[k];
+    totals.set(id[i], entry);
+  });
+  const N = rows.length,
+    squares = sum(residuals.map((e) => e * e)),
+    panelSquares = sum([...totals.values()].map((entry) => entry.sum ** 2)),
+    M11 = sum([...totals.values()].map((entry) => entry.n ** 2)),
+    A1 = 1 - panelSquares / squares,
+    positive = model.sigma_u > 0,
+    lm = positive ? ((N * N) / 2) * ((A1 * A1) / (M11 - N)) : 0,
+    p = positive ? chi2tail(1, lm) / 2 : 1,
+    centred = centre(y),
+    variance = sum(centred.map((v) => v * v)) / (N - 1),
+    f9 = (value) => applyFormat(value, "%9.0g"),
+    name = abbreviate(model.depvar, 9);
+  ctx.out("");
+  ctx.out("Breusch and Pagan Lagrangian multiplier test for random effects");
+  ctx.out("");
+  ctx.out(
+    `${" ".repeat(8)}${model.depvar}[${model.ivar},t] = Xb + u[${model.ivar}] + e[${model.ivar},t]`,
+  );
+  ctx.out("");
+  ctx.out(`${" ".repeat(8)}Estimated results:`);
+  ctx.out(`${" ".repeat(25)}|       Var     SD = sqrt(Var)`);
+  ctx.out(`${" ".repeat(16)}${"-".repeat(9)}+${"-".repeat(29)}`);
+  ctx.out(
+    `${" ".repeat(15)}${name.padStart(9)} |  ${f9(variance)}${" ".repeat(6)}${f9(Math.sqrt(variance))}`,
+  );
+  ctx.out(
+    `${" ".repeat(23)}e |  ${f9(model.sigma_e ** 2)}${" ".repeat(6)}${f9(model.sigma_e)}`,
+  );
+  ctx.out(
+    `${" ".repeat(23)}u |  ${f9(model.sigma_u ** 2)}${" ".repeat(6)}${f9(model.sigma_u)}`,
+  );
+  ctx.out("");
+  ctx.out(`${" ".repeat(8)}Test: Var(u) = 0`);
+  ctx.out(`${" ".repeat(29)}chibar2(01) = ${applyFormat(lm, "%8.2f")}`);
+  ctx.out(`${" ".repeat(26)}Prob > chibar2 =  ${applyFormat(p, "%7.4f")}`);
+  session.results.r = { p, df: 1, lm };
+}
+
 export const PANEL_COMMANDS = [
   { name: "xtset", minimum: 5, run: xtset },
   {
@@ -902,5 +1205,7 @@ export const PANEL_COMMANDS = [
       xtset(session, text, { ...ctx, timeOnly: true }),
   },
   { name: "xtreg", minimum: 5, run: xtreg },
-  { name: "xtsum", minimum: 5, run: xtsum },
+  // byable(recall), as xtsum.ado is.
+  { name: "xtsum", minimum: 5, run: perGroup(xtsum), byable: true },
+  { name: "xttest0", minimum: 7, run: xttest0 },
 ];

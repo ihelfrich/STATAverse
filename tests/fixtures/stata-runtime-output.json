@@ -51322,6 +51322,1583 @@
       ]
     },
     {
+      "id": "xtreg-within-scale-and-omissions",
+      "source": "clear\nset seed 2024\nset obs 600\ngenerate long session = ceil(_n/6)\nbysort session: generate trial = _n\ngenerate double stamp = 1735722000000 + session*86400000*7 + trial*2000 + 500*runiform()\ngenerate rt = 400 + 0.01*(stamp - 1735722000000 - session*86400000*7) + 50*invnormal(runiform())\nxtset session trial\ngenerate double revenue = 1e8*ceil(session/10) + 100*runiform()\nxtreg rt revenue, fe\nxtreg rt revenue, re\ngenerate double q = 1000*mod(session,7) + 1e-3*runiform()\nxtreg rt q, fe\nxtreg rt q, re\nxtreg rt q revenue, fe\ndisplay e(df_b)\ngenerate double third = mod(session,7)/3\nxtreg rt q third, fe\ndisplay e(df_b)\ndrop if trial == 6 & mod(session, 3) == 0\nxtreg rt q revenue, fe\nxtreg rt q revenue, re\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2024", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate long session = ceil(_n/6)", "lines": [] },
+        { "command": "bysort session: generate trial = _n", "lines": [] },
+        {
+          "command": "generate double stamp = 1735722000000 + session*86400000*7 + trial*2000 + 500*runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate rt = 400 + 0.01*(stamp - 1735722000000 - session*86400000*7) + 50*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "xtset session trial",
+          "lines": [
+            "Panel variable: session (strongly balanced)",
+            " Time variable: trial, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "generate double revenue = 1e8*ceil(session/10) + 100*runiform()",
+          "lines": []
+        },
+        {
+          "command": "xtreg rt revenue, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =        600",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0002                                         min =          6",
+            "     Between = 0.0059                                         avg =        6.0",
+            "     Overall = 0.0008                                         max =          6",
+            "",
+            "                                                F(1, 499)         =       0.11",
+            "corr(u_i, Xb) = -1.0000                         Prob > F          =     0.7387",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "     revenue |   .0314394   .0942155     0.33   0.739    -.1536686    .2165474",
+            "       _cons |  -1.73e+07   5.18e+07    -0.33   0.739    -1.19e+08    8.45e+07",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  9075771.3",
+            "     sigma_e |  60.984123",
+            "         rho |          1   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 499) = 0.76                     Prob > F = 0.9518"
+          ]
+        },
+        {
+          "command": "xtreg rt revenue, re",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =        600",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0002                                         min =          6",
+            "     Between = 0.0059                                         avg =        6.0",
+            "     Overall = 0.0008                                         max =          6",
+            "",
+            "                                                Wald chi2(1)      =       0.46",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.4963",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "     revenue |   5.78e-09   8.49e-09     0.68   0.496    -1.09e-08    2.24e-08",
+            "       _cons |   469.3839    5.27097    89.05   0.000      459.053    479.7148",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |          0",
+            "     sigma_e |  60.984123",
+            "         rho |          0   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "generate double q = 1000*mod(session,7) + 1e-3*runiform()",
+          "lines": []
+        },
+        {
+          "command": "xtreg rt q, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =        600",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0000                                         min =          6",
+            "     Between = 0.0478                                         avg =        6.0",
+            "     Overall = 0.0063                                         max =          6",
+            "",
+            "                                                F(1, 499)         =       0.00",
+            "corr(u_i, Xb) = -1.0000                         Prob > F          =     0.9622",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           q |   437.7021   9230.863     0.05   0.962    -17698.45    18573.85",
+            "       _cons |   -1299503   2.74e+07    -0.05   0.962    -5.52e+07    5.26e+07",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   876414.2",
+            "     sigma_e |  60.990789",
+            "         rho |          1   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 499) = 0.73                     Prob > F = 0.9733"
+          ]
+        },
+        {
+          "command": "xtreg rt q, re",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =        600",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0000                                         min =          6",
+            "     Between = 0.0478                                         avg =        6.0",
+            "     Overall = 0.0063                                         max =          6",
+            "",
+            "                                                Wald chi2(1)      =       3.79",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0516",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           q |  -.0023776   .0012213    -1.95   0.052    -.0047714    .0000162",
+            "       _cons |   479.6241     4.3679   109.81   0.000     471.0632    488.1851",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |          0",
+            "     sigma_e |  60.990789",
+            "         rho |          0   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg rt q revenue, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =        600",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0002                                         min =          6",
+            "     Between = 0.0024                                         avg =        6.0",
+            "     Overall = 0.0003                                         max =          6",
+            "",
+            "                                                F(2, 498)         =       0.06",
+            "corr(u_i, Xb) = -1.0000                         Prob > F          =     0.9442",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           q |   562.5851   9246.575     0.06   0.952    -17604.52    18729.69",
+            "     revenue |   .0316705   .0943862     0.34   0.737    -.1537738    .2171148",
+            "       _cons |  -1.91e+07   5.97e+07    -0.32   0.749    -1.36e+08    9.82e+07",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  9198925.8",
+            "     sigma_e |  61.045094",
+            "         rho |          1   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 498) = 0.72                     Prob > F = 0.9754"
+          ]
+        },
+        { "command": "display e(df_b)", "lines": ["2"] },
+        { "command": "generate double third = mod(session,7)/3", "lines": [] },
+        {
+          "command": "xtreg rt q third, fe",
+          "lines": [
+            "note: third omitted because of collinearity.",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =        600",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0000                                         min =          6",
+            "     Between = 0.0478                                         avg =        6.0",
+            "     Overall = 0.0063                                         max =          6",
+            "",
+            "                                                F(1, 499)         =       0.00",
+            "corr(u_i, Xb) = -1.0000                         Prob > F          =     0.9622",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           q |   437.7021   9230.863     0.05   0.962    -17698.45    18573.85",
+            "       third |          0  (omitted)",
+            "       _cons |   -1299503   2.74e+07    -0.05   0.962    -5.52e+07    5.26e+07",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   876414.2",
+            "     sigma_e |  60.990789",
+            "         rho |          1   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 499) = 0.73                     Prob > F = 0.9733"
+          ]
+        },
+        { "command": "display e(df_b)", "lines": ["1"] },
+        {
+          "command": "drop if trial == 6 & mod(session, 3) == 0",
+          "lines": ["(33 observations deleted)"]
+        },
+        {
+          "command": "xtreg rt q revenue, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =        567",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0001                                         min =          5",
+            "     Between = 0.0003                                         avg =        5.7",
+            "     Overall = 0.0000                                         max =          6",
+            "",
+            "                                                F(2, 465)         =       0.03",
+            "corr(u_i, Xb) = -1.0000                         Prob > F          =     0.9664",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           q |    284.143   9455.931     0.03   0.976    -18297.51    18865.79",
+            "     revenue |   .0252685   .0970014     0.26   0.795    -.1653469     .215884",
+            "       _cons |  -1.47e+07   6.11e+07    -0.24   0.810    -1.35e+08    1.05e+08",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  7310104.4",
+            "     sigma_e |  60.342598",
+            "         rho |          1   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 465) = 0.77                     Prob > F = 0.9469"
+          ]
+        },
+        {
+          "command": "xtreg rt q revenue, re",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =        567",
+            "Group variable: session                         Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0000                                         min =          5",
+            "     Between = 0.0515                                         avg =        5.7",
+            "     Overall = 0.0067                                         max =          6",
+            "",
+            "                                                Wald chi2(2)      =       3.79",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.1504",
+            "",
+            "------------------------------------------------------------------------------",
+            "          rt | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           q |   -.002403   .0012454    -1.93   0.054     -.004844    .0000381",
+            "     revenue |   2.10e-09   8.63e-09     0.24   0.808    -1.48e-08    1.90e-08",
+            "       _cons |   476.3606   6.525646    73.00   0.000     463.5705    489.1506",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |          0",
+            "     sigma_e |  60.342598",
+            "         rho |          0   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xtreg-repeated-regressor-and-one-panel",
+      "source": "clear\nset seed 777\nset obs 300\ngenerate long id = ceil(_n/3)\nbysort id: generate t = _n\ngenerate u = runiform()\nby id: generate g = floor(u[1]*5)\ngenerate double x1 = invnormal(runiform())\ngenerate double x2 = invnormal(runiform())\ngenerate y = 2 + x1 + 0.5*g + invnormal(runiform())\ncapture noisily xtreg y x1\ndisplay _rc\nxtset id t\nxtreg y x1 x2 x1, fe\ndisplay _b[x1] \" \" e(df_b) \" \" e(rank)\nxtreg y x1 x1, re\nxtreg y x1 x1, be\nxtreg y x1 x2 x1 x2, be\nxtreg y x1 g x1, fe\nxtreg y x1 x1, fe vce(robust)\nxtreg y x1 if id <= 1, fe\ndisplay e(N) \" \" e(df_r) \" \" e(sigma_u) \" \" e(sigma_e)\nxtreg y x1 x2 if id <= 2 & t <= 2, fe\ngenerate y2 = y\nreplace y2 = . if t > 1 & mod(id, 2) == 0\ncapture noisily xtreg y2 x1 if mod(id, 2) == 0, re\ndisplay _rc\nxtreg y g, fe vce(robust)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 777", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate long id = ceil(_n/3)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        { "command": "by id: generate g = floor(u[1]*5)", "lines": [] },
+        {
+          "command": "generate double x1 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double x2 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate y = 2 + x1 + 0.5*g + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "capture noisily xtreg y x1",
+          "lines": ["must specify panelvar; use xtset"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 3",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y x1 x2 x1, fe",
+          "lines": [
+            "note: x1 omitted because of collinearity.",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5200                                         min =          3",
+            "     Between = 0.2924                                         avg =        3.0",
+            "     Overall = 0.4208                                         max =          3",
+            "",
+            "                                                F(2, 198)         =     107.27",
+            "corr(u_i, Xb) = 0.0451                          Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9217954   .0643528    14.32   0.000     .7948906      1.0487",
+            "          x2 |    .090298   .0728361     1.24   0.217    -.0533361    .2339321",
+            "          x1 |          0  (omitted)",
+            "       _cons |   3.038495    .058338    52.08   0.000     2.923452    3.153539",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .85970191",
+            "     sigma_e |   1.000142",
+            "         rho |  .42491638   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 198) = 2.18                     Prob > F = 0.0000"
+          ]
+        },
+        {
+          "command": "display _b[x1] \" \" e(df_b) \" \" e(rank)",
+          "lines": [".92179536 2 3"]
+        },
+        {
+          "command": "xtreg y x1 x1, re",
+          "lines": [
+            "note: x1 omitted because of collinearity.",
+            "",
+            "Random-effects GLS regression                   Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5163                                         min =          3",
+            "     Between = 0.3113                                         avg =        3.0",
+            "     Overall = 0.4258                                         max =          3",
+            "",
+            "                                                Wald chi2(1)      =     255.44",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9561044    .059822    15.98   0.000     .8388554    1.073353",
+            "          x1 |          0  (omitted)",
+            "       _cons |   3.031402   .0849969    35.66   0.000     2.864811    3.197993",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .62133613",
+            "     sigma_e |  1.0014904",
+            "         rho |  .27793162   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x1 x1, be",
+          "lines": [
+            "note: x1 omitted because of collinearity",
+            "",
+            "Between regression (regression on group means)  Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5163                                         min =          3",
+            "     Between = 0.1802                                         avg =        3.0",
+            "     Overall = 0.4258                                         max =          3",
+            "",
+            "                                                F(1,98)           =      21.55",
+            "sd(u_i + avg(e_i.)) = .9260334                  Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6686554   .1440526     4.64   0.000     .3827876    .9545231",
+            "          x1 |          0  (omitted)",
+            "       _cons |   3.039662   .0939567    32.35   0.000     2.853208    3.226116",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x1 x2 x1 x2, be",
+          "lines": [
+            "note: x1 omitted because of collinearity",
+            "note: x2 omitted because of collinearity",
+            "",
+            "Between regression (regression on group means)  Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4837                                         min =          3",
+            "     Between = 0.1897                                         avg =        3.0",
+            "     Overall = 0.4121                                         max =          3",
+            "",
+            "                                                F(2,97)           =      11.36",
+            "sd(u_i + avg(e_i.)) = .9253806                  Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6878763    .145074     4.74   0.000     .3999446    .9758081",
+            "          x2 |  -.1417868   .1328942    -1.07   0.289     -.405545    .1219714",
+            "          x1 |          0  (omitted)",
+            "          x2 |          0  (omitted)",
+            "       _cons |   3.030573   .0942761    32.15   0.000     2.843461    3.217685",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x1 g x1, fe",
+          "lines": [
+            "note: g omitted because of collinearity.",
+            "note: x1 omitted because of collinearity.",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5163                                         min =          3",
+            "     Between = 0.3113                                         avg =        3.0",
+            "     Overall = 0.4258                                         max =          3",
+            "",
+            "                                                F(1, 199)         =     212.43",
+            "corr(u_i, Xb) = 0.0560                          Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9317938   .0639315    14.57   0.000     .8057237    1.057864",
+            "           g |          0  (omitted)",
+            "          x1 |          0  (omitted)",
+            "       _cons |   3.029737   .0579867    52.25   0.000      2.91539    3.144084",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .85013932",
+            "     sigma_e |  1.0014904",
+            "         rho |  .41880311   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(99, 199) = 2.15                     Prob > F = 0.0000"
+          ]
+        },
+        {
+          "command": "xtreg y x1 x1, fe vce(robust)",
+          "lines": [
+            "note: x1 omitted because of collinearity.",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5163                                         min =          3",
+            "     Between = 0.3113                                         avg =        3.0",
+            "     Overall = 0.4258                                         max =          3",
+            "",
+            "                                                F(1, 99)          =     254.90",
+            "corr(u_i, Xb) = 0.0560                          Prob > F          =     0.0000",
+            "",
+            "                                   (Std. err. adjusted for 100 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9317938   .0583624    15.97   0.000     .8159901    1.047598",
+            "          x1 |          0  (omitted)",
+            "       _cons |   3.029737    .003998   757.81   0.000     3.021804     3.03767",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .85013932",
+            "     sigma_e |  1.0014904",
+            "         rho |  .41880311   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x1 if id <= 1, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =          3",
+            "Group variable: id                              Number of groups  =          1",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.9967                                         min =          3",
+            "                                                              avg =        3.0",
+            "     Overall = 0.9967                                         max =          3",
+            "",
+            "                                                F(1, 1)           =     303.12",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .7008566    .040255    17.41   0.037     .1893681    1.212345",
+            "       _cons |   1.647929   .0723518    22.78   0.028     .7286118    2.567246",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_e |  .12445749",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(N) \" \" e(df_r) \" \" e(sigma_u) \" \" e(sigma_e)",
+          "lines": ["3 1 . .12445749"]
+        },
+        {
+          "command": "xtreg y x1 x2 if id <= 2 & t <= 2, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =          4",
+            "Group variable: id                              Number of groups  =          2",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 1.0000                                         min =          2",
+            "     Between = 1.0000                                         avg =        2.0",
+            "     Overall = 0.1384                                         max =          2",
+            "",
+            "                                                F(2, 0)           =          .",
+            "corr(u_i, Xb) = -0.4349                         Prob > F          =          .",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.427152          .        .       .            .           .",
+            "          x2 |    2.56044          .        .       .            .           .",
+            "       _cons |   4.740152          .        .       .            .           .",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  2.1441069",
+            "     sigma_e |          .",
+            "         rho |          .   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate y2 = y", "lines": [] },
+        {
+          "command": "replace y2 = . if t > 1 & mod(id, 2) == 0",
+          "lines": ["(100 real changes made, 100 to missing)"]
+        },
+        {
+          "command": "capture noisily xtreg y2 x1 if mod(id, 2) == 0, re",
+          "lines": ["insufficient observations"]
+        },
+        { "command": "display _rc", "lines": ["2001"] },
+        {
+          "command": "xtreg y g, fe vce(robust)",
+          "lines": [
+            "note: g omitted because of collinearity.",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =        300",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  =      .                                         min =          3",
+            "                                                              avg =        3.0",
+            "                                                              max =          3",
+            "",
+            "                                                F(0, 99)          =          .",
+            "corr(u_i, Xb) =      .                          Prob > F          =          .",
+            "",
+            "                                   (Std. err. adjusted for 100 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |          0  (omitted)",
+            "       _cons |   2.965906          .        .       .            .           .",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.0175978",
+            "     sigma_e |  1.4364097",
+            "         rho |  .33416568   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "areg-weights-hc2-and-edge-cases",
+      "source": "clear\nset seed 99\nset obs 600\ngenerate long firm = ceil(_n/4)\ngenerate x = invnormal(runiform())\ngenerate z = runiform()\ngenerate double y = 1e9 + 3e7*x + 1e8*mod(firm,5) + 2e7*invnormal(runiform())\nreplace x = . in 3\ngenerate cl = mod(firm, 9)\nareg y x z, absorb(firm)\nareg y x z, absorb(firm) vce(cluster cl)\ngenerate double huge = (y-1e9)/1e7*1e12\nareg huge x z, absorb(firm)\ngenerate double small = (y-1e9)/1e12\nareg small x z, absorb(firm)\nareg y x if firm <= 1, absorb(firm)\ngenerate one = 1\nareg y x, absorb(one)\ngenerate long single = _n\nareg y x, absorb(single)\ndisplay e(df_r) \" \" e(rmse) \" \" e(r2_a) \" \" e(F_absorb)\nareg y x z, absorb(firm) vce(hc2)\ndisplay e(vce) \" \" e(vcetype) \" \" e(df_r) \" \" %12.0g e(rmse)\ncapture noisily areg y x z, absorb(firm) vce(hc3)\ndisplay _rc\ncapture noisily areg y x z, absorb(firm) vce(cluster firm cl)\ndisplay _rc\ncapture noisily areg y x z, absorb(i.firm)\ndisplay _rc\ngenerate double ys = (y - 1e9)/1e7\nareg ys x z [aweight=z], absorb(firm)\ndisplay %12.0g e(F_absorb) \" \" %12.0g e(r2) \" \" %12.0g e(ll) \" \" e(N)\ndisplay %12.0g e(ll_0)\nareg ys x z [pweight=z], absorb(firm)\ndisplay %12.0g e(ll) \" \" %12.0g e(ll_0) \" \" %12.0g e(F) \" \" %12.0g e(r2_a)\nareg ys x z [aweight=z], absorb(firm) vce(cluster cl)\nareg ys x z [fweight=firm], absorb(firm)\ndisplay %12.0g e(ll) \" \" %12.0g e(ll_0) \" \" e(N) \" \" e(df_r)\ngenerate w = 1 + mod(_n, 3)\nareg ys x z [fweight=w], absorb(firm) vce(robust)\nareg ys x z [fweight=w], absorb(firm) vce(cluster cl)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate long firm = ceil(_n/4)", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        {
+          "command": "generate double y = 1e9 + 3e7*x + 1e8*mod(firm,5) + 2e7*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "replace x = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate cl = mod(firm, 9)", "lines": [] },
+        {
+          "command": "areg y x z, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators          Number of obs     =       599",
+            "Absorbed variable: firm                          No. of categories =       150",
+            "                                                 F(2, 447)         =    554.03",
+            "                                                 Prob > F          =    0.0000",
+            "                                                 R-squared         =    0.9870",
+            "                                                 Adj R-squared     =    0.9826",
+            "                                                 Root MSE          = 1.956e+07",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.01e+07   904869.3    33.28   0.000     2.83e+07    3.19e+07",
+            "           z |    1405480    3166601     0.44   0.657     -4817795     7628754",
+            "       _cons |   1.20e+09    1765471   678.91   0.000     1.20e+09    1.20e+09",
+            "------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(149, 447) = 212.900          Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "areg y x z, absorb(firm) vce(cluster cl)",
+          "lines": [
+            "Linear regression, absorbing indicators          Number of obs     =       599",
+            "Absorbed variable: firm                          No. of categories =       150",
+            "                                                 F(2, 8)           =    987.50",
+            "                                                 Prob > F          =    0.0000",
+            "                                                 R-squared         =    0.9870",
+            "                                                 Adj R-squared     =    0.9826",
+            "                                                 Root MSE          = 1.956e+07",
+            "",
+            "                                     (Std. err. adjusted for 9 clusters in cl)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.01e+07   864958.2    34.81   0.000     2.81e+07    3.21e+07",
+            "           z |    1405480    5568689     0.25   0.807    -1.14e+07    1.42e+07",
+            "       _cons |   1.20e+09    2813265   426.05   0.000     1.19e+09    1.21e+09",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate double huge = (y-1e9)/1e7*1e12", "lines": [] },
+        {
+          "command": "areg huge x z, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators          Number of obs     =       599",
+            "Absorbed variable: firm                          No. of categories =       150",
+            "                                                 F(2, 447)         =    554.03",
+            "                                                 Prob > F          =    0.0000",
+            "                                                 R-squared         =    0.9870",
+            "                                                 Adj R-squared     =    0.9826",
+            "                                                 Root MSE          = 1.956e+12",
+            "",
+            "------------------------------------------------------------------------------",
+            "        huge | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.01e+12   9.05e+10    33.28   0.000     2.83e+12    3.19e+12",
+            "           z |   1.41e+11   3.17e+11     0.44   0.657    -4.82e+11    7.63e+11",
+            "       _cons |   1.99e+13   1.77e+11   112.49   0.000     1.95e+13    2.02e+13",
+            "------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(149, 447) = 212.900          Prob > F = 0.000"
+          ]
+        },
+        { "command": "generate double small = (y-1e9)/1e12", "lines": [] },
+        {
+          "command": "areg small x z, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =    599",
+            "Absorbed variable: firm                             No. of categories =    150",
+            "                                                    F(2, 447)         = 554.03",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.9870",
+            "                                                    Adj R-squared     = 0.9826",
+            "                                                    Root MSE          = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "       small | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0000301   9.05e-07    33.28   0.000     .0000283    .0000319",
+            "           z |   1.41e-06   3.17e-06     0.44   0.657    -4.82e-06    7.63e-06",
+            "       _cons |   .0001986   1.77e-06   112.49   0.000     .0001951    .0002021",
+            "------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(149, 447) = 212.900          Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "areg y x if firm <= 1, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators          Number of obs     =         3",
+            "Absorbed variable: firm                          No. of categories =         1",
+            "                                                 F(1, 1)           =    281.38",
+            "                                                 Prob > F          =    0.0379",
+            "                                                 R-squared         =    0.9965",
+            "                                                 Adj R-squared     =    0.9929",
+            "                                                 Root MSE          = 3.140e+06",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   2.29e+07    1365625    16.77   0.038      5555751    4.03e+07",
+            "       _cons |   1.10e+09    1851981   594.57   0.001     1.08e+09    1.12e+09",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate one = 1", "lines": [] },
+        {
+          "command": "areg y x, absorb(one)",
+          "lines": [
+            "Linear regression, absorbing indicators          Number of obs     =       599",
+            "Absorbed variable: one                           No. of categories =         1",
+            "                                                 F(1, 597)         =     38.13",
+            "                                                 Prob > F          =    0.0000",
+            "                                                 R-squared         =    0.0600",
+            "                                                 Adj R-squared     =    0.0585",
+            "                                                 Root MSE          = 1.438e+08",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.56e+07    5769180     6.17   0.000     2.43e+07    4.70e+07",
+            "       _cons |   1.20e+09    5902907   203.08   0.000     1.19e+09    1.21e+09",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate long single = _n", "lines": [] },
+        {
+          "command": "areg y x, absorb(single)",
+          "lines": [
+            "note: x omitted because of collinearity.",
+            "",
+            "Linear regression, absorbing indicators             Number of obs     =    599",
+            "Absorbed variable: single                           No. of categories =    599",
+            "                                                    F(0, 0)           =      .",
+            "                                                    Prob > F          =      .",
+            "                                                    R-squared         = 1.0000",
+            "                                                    Root MSE          = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          0  (omitted)",
+            "       _cons |   1.20e+09          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_r) \" \" e(rmse) \" \" e(r2_a) \" \" e(F_absorb)",
+          "lines": ["0 0 . ."]
+        },
+        {
+          "command": "areg y x z, absorb(firm) vce(hc2)",
+          "lines": [
+            "Linear regression, absorbing indicators          Number of obs     =       599",
+            "Absorbed variable: firm                          No. of categories =       150",
+            "                                                 F(2, 447)         =    605.13",
+            "                                                 Prob > F          =    0.0000",
+            "                                                 R-squared         =    0.9870",
+            "                                                 Adj R-squared     =    0.9826",
+            "                                                 Root MSE          = 1.956e+07",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Robust HC2",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.01e+07   865684.6    34.79   0.000     2.84e+07    3.18e+07",
+            "           z |    1405480    3134303     0.45   0.654     -4754320     7565279",
+            "       _cons |   1.20e+09    1695327   707.00   0.000     1.20e+09    1.20e+09",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(vce) \" \" e(vcetype) \" \" e(df_r) \" \" %12.0g e(rmse)",
+          "lines": ["hc2 Robust HC2 447  19556733.64"]
+        },
+        {
+          "command": "capture noisily areg y x z, absorb(firm) vce(hc3)",
+          "lines": ["vcetype hc3 not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily areg y x z, absorb(firm) vce(cluster firm cl)",
+          "lines": ["cluster():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily areg y x z, absorb(i.firm)",
+          "lines": [
+            "factor-variable and time-series operators not allowed",
+            "    Option absorb() incorrectly specified."
+          ]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        { "command": "generate double ys = (y - 1e9)/1e7", "lines": [] },
+        {
+          "command": "areg ys x z [aweight=z], absorb(firm)",
+          "lines": [
+            "(sum of wgt is 296.6766790207475)",
+            "",
+            "Linear regression, absorbing indicators             Number of obs     =    599",
+            "Absorbed variable: firm                             No. of categories =    150",
+            "                                                    F(2, 447)         = 546.93",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.9878",
+            "                                                    Adj R-squared     = 0.9836",
+            "                                                    Root MSE          = 1.8934",
+            "",
+            "------------------------------------------------------------------------------",
+            "          ys | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    3.01117   .0910454    33.07   0.000      2.83224      3.1901",
+            "           z |   .1795482   .3778385     0.48   0.635    -.5630122    .9221086",
+            "       _cons |   19.34147   .2626051    73.65   0.000     18.82538    19.85757",
+            "------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(149, 447) = 224.179          Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "display %12.0g e(F_absorb) \" \" %12.0g e(r2) \" \" %12.0g e(ll) \" \" e(N)",
+          "lines": [" 224.1789748  .9877639322 -1235.946283 599"]
+        },
+        { "command": "display %12.0g e(ll_0)", "lines": ["-1606.587388"] },
+        {
+          "command": "areg ys x z [pweight=z], absorb(firm)",
+          "lines": [
+            "(sum of wgt is 296.6766790207475)",
+            "",
+            "Linear regression, absorbing indicators             Number of obs     =    599",
+            "Absorbed variable: firm                             No. of categories =    150",
+            "                                                    F(2, 447)         = 534.57",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.9878",
+            "                                                    Adj R-squared     = 0.9836",
+            "                                                    Root MSE          = 1.8934",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "          ys | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    3.01117   .0922606    32.64   0.000     2.829852    3.192488",
+            "           z |   .1795482   .3725164     0.48   0.630    -.5525528    .9116493",
+            "       _cons |   19.34147   .2533015    76.36   0.000     18.84366    19.83928",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display %12.0g e(ll) \" \" %12.0g e(ll_0) \" \" %12.0g e(F) \" \" %12.0g e(r2_a)",
+          "lines": ["-1144.679591 -1515.320696  534.5652962  .9836304954"]
+        },
+        {
+          "command": "areg ys x z [aweight=z], absorb(firm) vce(cluster cl)",
+          "lines": [
+            "(sum of wgt is 296.6766790207475)",
+            "",
+            "Linear regression, absorbing indicators             Number of obs     =    599",
+            "Absorbed variable: firm                             No. of categories =    150",
+            "                                                    F(2, 8)           = 689.02",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.9878",
+            "                                                    Adj R-squared     = 0.9836",
+            "                                                    Root MSE          = 1.8934",
+            "",
+            "                                     (Std. err. adjusted for 9 clusters in cl)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "          ys | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    3.01117   .0906402    33.22   0.000     2.802153    3.220187",
+            "           z |   .1795482   .6484227     0.28   0.789    -1.315717    1.674814",
+            "       _cons |   19.34147     .43354    44.61   0.000     18.34173    20.34122",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "areg ys x z [fweight=firm], absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators           Number of obs     =   45,299",
+            "Absorbed variable: firm                           No. of categories =      150",
+            "                                                  F(2, 45147)       = 55196.22",
+            "                                                  Prob > F          =   0.0000",
+            "                                                  R-squared         =   0.9868",
+            "                                                  Adj R-squared     =   0.9867",
+            "                                                  Root MSE          =   1.7205",
+            "",
+            "------------------------------------------------------------------------------",
+            "          ys | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    3.07861   .0092689   332.14   0.000     3.060443    3.096778",
+            "           z |   .1650141   .0316001     5.22   0.000     .1030774    .2269508",
+            "       _cons |   19.83733   .0177093  1120.17   0.000     19.80262    19.87204",
+            "------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(149, 45147) =  2.1e+04       Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "display %12.0g e(ll) \" \" %12.0g e(ll_0) \" \" e(N) \" \" e(df_r)",
+          "lines": ["-88781.01416 -116797.8918 45299 45147"]
+        },
+        { "command": "generate w = 1 + mod(_n, 3)", "lines": [] },
+        {
+          "command": "areg ys x z [fweight=w], absorb(firm) vce(robust)",
+          "lines": [
+            "Linear regression, absorbing indicators            Number of obs     =   1,199",
+            "Absorbed variable: firm                            No. of categories =     150",
+            "                                                   F(2, 1047)        = 1361.39",
+            "                                                   Prob > F          =  0.0000",
+            "                                                   R-squared         =  0.9878",
+            "                                                   Adj R-squared     =  0.9861",
+            "                                                   Root MSE          =  1.7492",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "          ys | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.038027   .0582226    52.18   0.000     2.923781    3.152273",
+            "           z |   .3940416   .2169979     1.82   0.070    -.0317587     .819842",
+            "       _cons |   19.69278   .1163804   169.21   0.000     19.46442    19.92115",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "areg ys x z [fweight=w], absorb(firm) vce(cluster cl)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =  1,199",
+            "Absorbed variable: firm                             No. of categories =    150",
+            "                                                    F(2, 8)           = 800.73",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.9878",
+            "                                                    Adj R-squared     = 0.9861",
+            "                                                    Root MSE          = 1.7492",
+            "",
+            "                                     (Std. err. adjusted for 9 clusters in cl)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "          ys | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.038027   .0887263    34.24   0.000     2.833424     3.24263",
+            "           z |   .3940416   .6547093     0.60   0.564    -1.115721    1.903804",
+            "       _cons |   19.69278   .3297279    59.72   0.000     18.93243    20.45314",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "areg-wide-labels",
+      "source": "clear\nset seed 31337\nset obs 2000\ngenerate long firm = ceil(runiform()*400)\ngenerate year = 2010 + floor(runiform()*8)\ngenerate educ = 1 + floor(runiform()*4)\nlabel define el 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"Bachelor or more\"\nlabel values educ el\ngenerate age = 20 + floor(runiform()*45)\ngenerate double wage = 8 + 0.3*age + 2*educ + mod(firm, 13) + 4*invnormal(runiform())\ngenerate double r_longer_name_for_wage = wage\nset linesize 80\nareg wage age i.educ, absorb(firm)\nareg r_longer_name_for_wage age, absorb(firm)\nareg wage age i.educ, absorb(firm) vce(cluster year)\nset linesize 200\nareg wage age i.educ, absorb(firm)\nareg wage age i.educ, absorb(firm) vce(cluster firm)\nareg r_longer_name_for_wage age i.educ, absorb(firm) vce(hc2)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31337", "lines": [] },
+        {
+          "command": "set obs 2000",
+          "lines": ["Number of observations (_N) was 0, now 2,000."]
+        },
+        { "command": "generate long firm = ceil(runiform()*400)", "lines": [] },
+        {
+          "command": "generate year = 2010 + floor(runiform()*8)",
+          "lines": []
+        },
+        { "command": "generate educ = 1 + floor(runiform()*4)", "lines": [] },
+        {
+          "command": "label define el 1 \"Less than HS\" 2 \"High school\" 3 \"Some college\" 4 \"Bachelor or more\"",
+          "lines": []
+        },
+        { "command": "label values educ el", "lines": [] },
+        { "command": "generate age = 20 + floor(runiform()*45)", "lines": [] },
+        {
+          "command": "generate double wage = 8 + 0.3*age + 2*educ + mod(firm, 13) + 4*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double r_longer_name_for_wage = wage",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "areg wage age i.educ, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =  2,000",
+            "Absorbed variable: firm                             No. of categories =    397",
+            "                                                    F(4, 1599)        = 512.73",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.7539",
+            "                                                    Adj R-squared     = 0.6923",
+            "                                                    Root MSE          = 3.9411",
+            "",
+            "-------------------------------------------------------------------------------",
+            "         wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "          age |   .2973296   .0077347    38.44   0.000     .2821585    .3125008",
+            "              |",
+            "         educ |",
+            " High school  |   1.865109   .2773327     6.73   0.000     1.321135    2.409083",
+            "Some college  |   4.012142   .2764854    14.51   0.000      3.46983    4.554454",
+            "Bachelor o..  |   6.132375   .2748636    22.31   0.000     5.593244    6.671506",
+            "              |",
+            "        _cons |   16.32516   .3738887    43.66   0.000     15.59179    17.05852",
+            "-------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(396, 1599) = 5.701           Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "areg r_longer_name_for_wage age, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators            Number of obs     =   2,000",
+            "Absorbed variable: firm                            No. of categories =     397",
+            "                                                   F(1, 1602)        = 1115.30",
+            "                                                   Prob > F          =  0.0000",
+            "                                                   R-squared         =  0.6688",
+            "                                                   Adj R-squared     =  0.5867",
+            "                                                   Root MSE          =  4.5676",
+            "",
+            "------------------------------------------------------------------------------",
+            "r_longer_n~e | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         age |   .2992779   .0089614    33.40   0.000     .2817006    .3168553",
+            "       _cons |   19.20948   .3892357    49.35   0.000     18.44601    19.97294",
+            "------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(396, 1602) = 4.572           Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "areg wage age i.educ, absorb(firm) vce(cluster year)",
+          "lines": [
+            "Linear regression, absorbing indicators            Number of obs     =   2,000",
+            "Absorbed variable: firm                            No. of categories =     397",
+            "                                                   F(4, 7)           = 1908.14",
+            "                                                   Prob > F          =  0.0000",
+            "                                                   R-squared         =  0.7539",
+            "                                                   Adj R-squared     =  0.6923",
+            "                                                   Root MSE          =  3.9411",
+            "",
+            "                                    (Std. err. adjusted for 8 clusters in year)",
+            "-------------------------------------------------------------------------------",
+            "              |               Robust",
+            "         wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "          age |   .2973296   .0039662    74.97   0.000     .2879511    .3067082",
+            "              |",
+            "         educ |",
+            " High school  |   1.865109   .2767043     6.74   0.000     1.210807    2.519411",
+            "Some college  |   4.012142   .3318297    12.09   0.000      3.22749    4.796795",
+            "Bachelor o..  |   6.132375    .360104    17.03   0.000     5.280864    6.983886",
+            "              |",
+            "        _cons |   16.32516   .3395678    48.08   0.000     15.52221    17.12811",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "areg wage age i.educ, absorb(firm)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =  2,000",
+            "Absorbed variable: firm                             No. of categories =    397",
+            "                                                    F(4, 1599)        = 512.73",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.7539",
+            "                                                    Adj R-squared     = 0.6923",
+            "                                                    Root MSE          = 3.9411",
+            "",
+            "-----------------------------------------------------------------------------------",
+            "             wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "------------------+----------------------------------------------------------------",
+            "              age |   .2973296   .0077347    38.44   0.000     .2821585    .3125008",
+            "                  |",
+            "             educ |",
+            "     High school  |   1.865109   .2773327     6.73   0.000     1.321135    2.409083",
+            "    Some college  |   4.012142   .2764854    14.51   0.000      3.46983    4.554454",
+            "Bachelor or more  |   6.132375   .2748636    22.31   0.000     5.593244    6.671506",
+            "                  |",
+            "            _cons |   16.32516   .3738887    43.66   0.000     15.59179    17.05852",
+            "-----------------------------------------------------------------------------------",
+            "F test of absorbed indicators: F(396, 1599) = 5.701           Prob > F = 0.000"
+          ]
+        },
+        {
+          "command": "areg wage age i.educ, absorb(firm) vce(cluster firm)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =  2,000",
+            "Absorbed variable: firm                             No. of categories =    397",
+            "                                                    F(4, 396)         = 354.87",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.7539",
+            "                                                    Adj R-squared     = 0.6923",
+            "                                                    Root MSE          = 3.9411",
+            "",
+            "                                      (Std. err. adjusted for 397 clusters in firm)",
+            "-----------------------------------------------------------------------------------",
+            "                  |               Robust",
+            "             wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "------------------+----------------------------------------------------------------",
+            "              age |   .2973296   .0094703    31.40   0.000     .2787114    .3159479",
+            "                  |",
+            "             educ |",
+            "     High school  |   1.865109   .3189031     5.85   0.000     1.238154    2.492064",
+            "    Some college  |   4.012142   .3209448    12.50   0.000     3.381173    4.643111",
+            "Bachelor or more  |   6.132375   .3116367    19.68   0.000     5.519706    6.745044",
+            "                  |",
+            "            _cons |   16.32516   .4583648    35.62   0.000     15.42402    17.22629",
+            "-----------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "areg r_longer_name_for_wage age i.educ, absorb(firm) vce(hc2)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =  2,000",
+            "Absorbed variable: firm                             No. of categories =    397",
+            "                                                    F(4, 1599)        = 492.23",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.7539",
+            "                                                    Adj R-squared     = 0.6923",
+            "                                                    Root MSE          = 3.9411",
+            "",
+            "-----------------------------------------------------------------------------------",
+            "                  |             Robust HC2",
+            "r_longer_name_f~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "------------------+----------------------------------------------------------------",
+            "              age |   .2973296   .0078488    37.88   0.000     .2819347    .3127246",
+            "                  |",
+            "             educ |",
+            "     High school  |   1.865109   .2795639     6.67   0.000     1.316759    2.413459",
+            "    Some college  |   4.012142   .2828204    14.19   0.000     3.457404     4.56688",
+            "Bachelor or more  |   6.132375   .2728172    22.48   0.000     5.597258    6.667492",
+            "                  |",
+            "            _cons |   16.32516    .387354    42.15   0.000     15.56538    17.08493",
+            "-----------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xtsum-operators-by-and-i",
+      "source": "clear\nset seed 1618\nset obs 120\ngenerate long id = ceil(_n/4)\nbysort id: generate t = _n\ngenerate g = mod(id, 2)\ngenerate double w = 100*runiform()\ngenerate str3 s = \"abc\"\ncapture noisily xtsum w\ndisplay _rc\nxtsum w, i(id)\nxtset id t\nxtsum L.w D.w\nxtsum L2.w F.w LD.w\nbysort g: xtsum w\ncapture noisily xtsum L.w\ndisplay _rc\nsort id t\nby g, sort: xtsum w s if t > 1\nsort id t\ngenerate long other = 100 - id\nxtsum w, i(other)\nxtset\nxtsum w if g == 1\ncapture noisily xtsum L.s\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1618", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate long id = ceil(_n/4)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate g = mod(id, 2)", "lines": [] },
+        { "command": "generate double w = 100*runiform()", "lines": [] },
+        { "command": "generate str3 s = \"abc\"", "lines": [] },
+        {
+          "command": "capture noisily xtsum w",
+          "lines": ["must specify panelvar; use xtset"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "xtsum w, i(id)",
+          "lines": [
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |  54.15035   29.27884    1.49572   99.73423 |     N =     120",
+            "         between |             15.66571   19.67411   88.04892 |     n =      30",
+            "         within  |             24.86007  -7.058814   100.6214 |     T =       4"
+          ]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtsum L.w D.w",
+          "lines": [
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "L.w      overall |  56.19895   28.40197    1.49572   99.73423 |     N =      90",
+            "         between |             16.08336    24.7398   91.32914 |     n =      30",
+            "         within  |             23.53318  -1.009067   113.5603 |     T =       3",
+            "                 |                                            |",
+            "D.w      overall | -3.037151   41.51013  -85.51444   88.82749 |     N =      90",
+            "         between |             13.69602  -23.53869    27.9522 |     n =      30",
+            "         within  |             39.23933  -114.2458   87.17307 |     T =       3"
+          ]
+        },
+        {
+          "command": "xtsum L2.w F.w LD.w",
+          "lines": [
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "L2.w     overall |  56.38327   28.70143    1.49572    97.7369 |     N =      60",
+            "         between |             17.96712   16.15535   91.24263 |     n =      30",
+            "         within  |             22.50392   11.96953    100.797 |     T =       2",
+            "                 |                                            |",
+            "F.w      overall |   53.1618    30.2335    1.49572   99.73423 |     N =      90",
+            "         between |             19.79109   7.392577   95.66802 |     n =      30",
+            "         within  |             23.04733   -.685519   105.1784 |     T =       3",
+            "                 |                                            |",
+            "LD.w     overall | -.6428565   42.52538  -85.51444   88.82749 |     N =      60",
+            "         between |             18.82244  -38.56825   34.29561 |     n =      30",
+            "         within  |             38.21163  -86.68481    85.3991 |     T =       2"
+          ]
+        },
+        {
+          "command": "bysort g: xtsum w",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 0",
+            "",
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |   52.7035   28.22768    1.49572   91.75703 |     N =      60",
+            "         between |              14.4929   19.67411    79.0057 |     n =      15",
+            "         within  |             24.44254  -8.505668   97.22008 |     T =       4",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |  55.59721   30.46263    3.85673   99.73423 |     N =      60",
+            "         between |             17.14143   30.60253   88.04892 |     n =      15",
+            "         within  |             25.47712   4.129257   102.0682 |     T =       4"
+          ]
+        },
+        { "command": "capture noisily xtsum L.w", "lines": ["not sorted"] },
+        { "command": "display _rc", "lines": ["5"] },
+        { "command": "sort id t", "lines": [] },
+        {
+          "command": "by g, sort: xtsum w s if t > 1",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 0",
+            "",
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |  50.43642   30.55989    1.49572   91.75703 |     N =      45",
+            "         between |             18.32741   7.392577   77.98052 |     n =      15",
+            "         within  |             24.76451  -2.670989    102.453 |     T =       3",
+            "                 |                                            |",
+            "s        overall |         .          .          .          . |     N =       0",
+            "         between |                    .          .          . |     n =       0",
+            "         within  |                    .          .          . |     T =       .",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |  55.88717   29.99673   9.446084   99.73423 |     N =      45",
+            "         between |             21.43692   24.59274   95.66802 |     n =      15",
+            "         within  |             21.47441   2.039858    94.7236 |     T =       3",
+            "                 |                                            |",
+            "s        overall |         .          .          .          . |     N =       0",
+            "         between |                    .          .          . |     n =       0",
+            "         within  |                    .          .          . |     T =       ."
+          ]
+        },
+        { "command": "sort id t", "lines": [] },
+        { "command": "generate long other = 100 - id", "lines": [] },
+        {
+          "command": "xtsum w, i(other)",
+          "lines": [
+            "warning: existing panel variable is not other",
+            "",
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |  54.15035   29.27884    1.49572   99.73423 |     N =     120",
+            "         between |             15.66571   19.67411   88.04892 |     n =      30",
+            "         within  |             24.86007  -7.058814   100.6214 |     T =       4"
+          ]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: other (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtsum w if g == 1",
+          "lines": [
+            "Variable         |      Mean   Std. dev.       Min        Max |    Observations",
+            "-----------------+--------------------------------------------+----------------",
+            "w        overall |  55.59721   30.46263    3.85673   99.73423 |     N =      60",
+            "         between |             17.14143   30.60253   88.04892 |     n =      15",
+            "         within  |             25.47712   4.129257   102.0682 |     T =       4"
+          ]
+        },
+        {
+          "command": "capture noisily xtsum L.s",
+          "lines": ["s:  may not use time-series operators on string variables"]
+        },
+        { "command": "display _rc", "lines": ["109"] }
+      ]
+    },
+    {
+      "id": "xtreg-re-theta-e-and-xttest0",
+      "source": "clear\nset seed 4040\nset obs 400\ngenerate long id = ceil(_n/4)\nbysort id: generate t = _n\ngenerate x = invnormal(runiform())\ngenerate a = invnormal(runiform())\nby id: replace a = a[1]\ngenerate y = 1 + 0.5*x + a + invnormal(runiform())\nxtset id t\nxtreg y x, re theta\ndrop if t > 2 & mod(id, 3) == 0\ndrop if t == 4 & mod(id, 5) == 0\nxtreg y x, re theta\ncapture noisily xtreg y x, be vce(robust)\ndisplay _rc\ncapture noisily xtreg y x, be vce(cluster id)\ndisplay _rc\ngenerate z = runiform()\nquietly xtreg y x z, be\ndisplay e(r2_a) \" \" e(ll) \" \" e(r2) \" \" e(sigma_e) \" \" e(sigma_u) \" \" e(rho)\nquietly xtreg y x z, fe\ndisplay e(r2_a) \" \" e(ll) \" \" e(ll_0) \" \" e(rss) \" \" e(r2)\nquietly xtreg y x z, re\ndisplay e(rmse) \" \" e(sigma)\nby id: generate c = z[1]\nxtreg y c, fe vce(robust)\nquietly xtreg y x z, re\nxttest0\nreturn list\nquietly xtreg y x z, fe\ncapture noisily xttest0\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4040", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate long id = ceil(_n/4)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        {
+          "command": "by id: replace a = a[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "generate y = 1 + 0.5*x + a + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y x, re theta",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =        400",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.2681                                         min =          4",
+            "     Between = 0.0597                                         avg =        4.0",
+            "     Overall = 0.1452                                         max =          4",
+            "",
+            "                                                Wald chi2(1)      =     116.03",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "theta        = .57867111",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .6262054   .0581352    10.77   0.000     .5122626    .7401483",
+            "       _cons |   .9406967   .1143623     8.23   0.000     .7165506    1.164843",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.0380826",
+            "     sigma_e |  .96453937",
+            "         rho |  .53667401   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "drop if t > 2 & mod(id, 3) == 0",
+          "lines": ["(66 observations deleted)"]
+        },
+        {
+          "command": "drop if t == 4 & mod(id, 5) == 0",
+          "lines": ["(14 observations deleted)"]
+        },
+        {
+          "command": "xtreg y x, re theta",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =        320",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.3248                                         min =          2",
+            "     Between = 0.0940                                         avg =        3.2",
+            "     Overall = 0.1721                                         max =          4",
+            "",
+            "                                                Wald chi2(1)      =     115.30",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------- theta --------------------",
+            "  min      5%       median        95%      max",
+            "0.4539   0.4539     0.5813     0.5813   0.5813",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .6784371   .0631835    10.74   0.000     .5545997    .8022745",
+            "       _cons |   .9767134   .1148954     8.50   0.000     .7515226    1.201904",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.0140476",
+            "     sigma_e |  .93496068",
+            "         rho |  .54051132   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily xtreg y x, be vce(robust)",
+          "lines": ["vcetype robust not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily xtreg y x, be vce(cluster id)",
+          "lines": ["vcetype cluster not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "generate z = runiform()", "lines": [] },
+        { "command": "quietly xtreg y x z, be", "lines": [] },
+        {
+          "command": "display e(r2_a) \" \" e(ll) \" \" e(r2) \" \" e(sigma_e) \" \" e(sigma_u) \" \" e(rho)",
+          "lines": [".07556882 -155.09899 .0942442 . . ."]
+        },
+        { "command": "quietly xtreg y x z, fe", "lines": [] },
+        {
+          "command": "display e(r2_a) \" \" e(ll) \" \" e(ll_0) \" \" e(rss) \" \" e(r2)",
+          "lines": [".01492783 -371.38224 -434.70006 190.86815 .32681588"]
+        },
+        { "command": "quietly xtreg y x z, re", "lines": [] },
+        {
+          "command": "display e(rmse) \" \" e(sigma)",
+          "lines": [".93334835 1.3844666"]
+        },
+        { "command": "by id: generate c = z[1]", "lines": [] },
+        {
+          "command": "xtreg y c, fe vce(robust)",
+          "lines": [
+            "note: c omitted because of collinearity.",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =        320",
+            "Group variable: id                              Number of groups  =        100",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  =      .                                         min =          2",
+            "                                                              avg =        3.2",
+            "                                                              max =          4",
+            "",
+            "                                                F(0, 99)          =          .",
+            "corr(u_i, Xb) =      .                          Prob > F          =          .",
+            "",
+            "                                   (Std. err. adjusted for 100 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          0  (omitted)",
+            "       _cons |    1.00358          .        .       .            .           .",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.2051081",
+            "     sigma_e |   1.135242",
+            "         rho |  .52982626   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly xtreg y x z, re", "lines": [] },
+        {
+          "command": "xttest0",
+          "lines": [
+            "Breusch and Pagan Lagrangian multiplier test for random effects",
+            "",
+            "        y[id,t] = Xb + u[id] + e[id,t]",
+            "",
+            "        Estimated results:",
+            "                         |       Var     SD = sqrt(Var)",
+            "                ---------+-----------------------------",
+            "                       y |   2.293184       1.514326",
+            "                       e |    .875542        .935704",
+            "                       u |   1.041206       1.020395",
+            "",
+            "        Test: Var(u) = 0",
+            "                             chibar2(01) =   121.70",
+            "                          Prob > chibar2 =   0.0000"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(p) =  1.34274932394e-28",
+            "                 r(df) =  1",
+            "                 r(lm) =  121.6997832013722"
+          ]
+        },
+        { "command": "quietly xtreg y x z, fe", "lines": [] },
+        {
+          "command": "capture noisily xttest0",
+          "lines": ["last estimates not xtreg, re"]
+        },
+        { "command": "display _rc", "lines": ["301"] }
+      ]
+    },
+    {
+      "id": "xttest0-zero-sigma-u",
+      "source": "clear\nset seed 8080\nset obs 240\ngenerate long id = ceil(_n/2)\nbysort id: generate t = _n\ndrop if mod(id, 5) == 0 & t == 2\ngenerate x = invnormal(runiform())\ngenerate u = runiform()\nby id: generate z = floor(u[1]*3)\ngenerate y = 1 + 0.5*x + invnormal(runiform())\nxtset id t\nquietly xtreg y x, re\ndisplay e(sigma_u)\nxttest0\nreturn list\nxtreg y x, re theta\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 8080", "lines": [] },
+        {
+          "command": "set obs 240",
+          "lines": ["Number of observations (_N) was 0, now 240."]
+        },
+        { "command": "generate long id = ceil(_n/2)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        {
+          "command": "drop if mod(id, 5) == 0 & t == 2",
+          "lines": ["(24 observations deleted)"]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate u = runiform()", "lines": [] },
+        { "command": "by id: generate z = floor(u[1]*3)", "lines": [] },
+        {
+          "command": "generate y = 1 + 0.5*x + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 2",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "quietly xtreg y x, re", "lines": [] },
+        { "command": "display e(sigma_u)", "lines": ["0"] },
+        {
+          "command": "xttest0",
+          "lines": [
+            "Breusch and Pagan Lagrangian multiplier test for random effects",
+            "",
+            "        y[id,t] = Xb + u[id] + e[id,t]",
+            "",
+            "        Estimated results:",
+            "                         |       Var     SD = sqrt(Var)",
+            "                ---------+-----------------------------",
+            "                       y |   1.311976       1.145415",
+            "                       e |   1.134677       1.065212",
+            "                       u |          0              0",
+            "",
+            "        Test: Var(u) = 0",
+            "                             chibar2(01) =     0.00",
+            "                          Prob > chibar2 =   1.0000"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(p) =  1",
+            "                 r(df) =  1",
+            "                 r(lm) =  0"
+          ]
+        },
+        {
+          "command": "xtreg y x, re theta",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =        216",
+            "Group variable: id                              Number of groups  =        120",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.1892                                         min =          1",
+            "     Between = 0.2341                                         avg =        1.8",
+            "     Overall = 0.2075                                         max =          2",
+            "",
+            "                                                Wald chi2(1)      =      56.02",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------- theta --------------------",
+            "  min      5%       median        95%      max",
+            "0.0000   0.0000     0.0000     0.0000   0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .5348415   .0714579     7.48   0.000     .3947866    .6748965",
+            "       _cons |   .9791295   .0695684    14.07   0.000      .842778    1.115481",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |          0",
+            "     sigma_e |  1.0652123",
+            "         rho |          0   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

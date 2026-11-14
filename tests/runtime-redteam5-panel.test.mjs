@@ -101,3 +101,46 @@ test("xtreg, fe omits a regressor made redundant by the indicators before it", (
   close(sigmaE, 9088.03581938895331);
   assert.equal(dfR, 298);
 });
+
+// Round five, adversarial pass. Values recorded from Stata 19 MP (version 17,
+// set processors 1) on the same generated data.
+test("xtreg, fe with clustered standard errors is linear in the number of observations", () => {
+  const s = createConsoleSession();
+  s.reset("");
+  s.run(
+    [
+      "clear",
+      "set seed 5150",
+      "set obs 40000",
+      "generate long id = ceil(_n/4)",
+      "bysort id: generate t = _n",
+      "generate age = 20 + floor(runiform()*50)",
+      "generate educ = 1 + floor(runiform()*4)",
+      "generate income = 20000 + 500*age + 3000*invnormal(runiform()) + mod(id,37)*200",
+      "xtset id t",
+    ].join("\n"),
+  );
+  for (const command of [
+    "xtreg income age i.educ, fe vce(robust)",
+    "xtreg income age i.educ, fe vce(cluster id)",
+  ]) {
+    const start = performance.now(),
+      out = s.run(command),
+      elapsed = performance.now() - start;
+    assert.equal(out.rc, 0);
+    // It took 7 to 10 seconds when the grand mean was recomputed for every
+    // observation.
+    assert.ok(elapsed < 2000, `${command} took ${elapsed.toFixed(0)} ms`);
+  }
+  const [bAge, seAge, b4, se4, cons, seCons, F] = numbers(
+    s,
+    'display %20.0g _b[age] " " %20.0g _se[age] " " %20.0g _b[4.educ] " " %20.0g _se[4.educ] " " %20.0g _b[_cons] " " %20.0g _se[_cons] " " %20.0g e(F)',
+  );
+  close(bAge, 498.263459129388764);
+  close(seAge, 1.18391751210930463);
+  close(b4, 41.0579327139973032);
+  close(se4, 48.5161864348251299);
+  close(cons, 23691.0878686687356);
+  close(seCons, 60.0092336848156833);
+  close(F, 44299.7742561821578);
+});

@@ -7044,3 +7044,195 @@ generate age = 20 + floor(runiform()*50)
 generate income = round(20000 + 500*age + 3000*invnormal(runiform()) + mod(id,37)*200)
 areg income age, absorb(id)
 areg income age, absorb(id) vce(cluster id)
+=== xtreg-within-scale-and-omissions
+clear
+set seed 2024
+set obs 600
+generate long session = ceil(_n/6)
+bysort session: generate trial = _n
+generate double stamp = 1735722000000 + session*86400000*7 + trial*2000 + 500*runiform()
+generate rt = 400 + 0.01*(stamp - 1735722000000 - session*86400000*7) + 50*invnormal(runiform())
+xtset session trial
+generate double revenue = 1e8*ceil(session/10) + 100*runiform()
+xtreg rt revenue, fe
+xtreg rt revenue, re
+generate double q = 1000*mod(session,7) + 1e-3*runiform()
+xtreg rt q, fe
+xtreg rt q, re
+xtreg rt q revenue, fe
+display e(df_b)
+generate double third = mod(session,7)/3
+xtreg rt q third, fe
+display e(df_b)
+drop if trial == 6 & mod(session, 3) == 0
+xtreg rt q revenue, fe
+xtreg rt q revenue, re
+=== xtreg-repeated-regressor-and-one-panel
+clear
+set seed 777
+set obs 300
+generate long id = ceil(_n/3)
+bysort id: generate t = _n
+generate u = runiform()
+by id: generate g = floor(u[1]*5)
+generate double x1 = invnormal(runiform())
+generate double x2 = invnormal(runiform())
+generate y = 2 + x1 + 0.5*g + invnormal(runiform())
+capture noisily xtreg y x1
+display _rc
+xtset id t
+xtreg y x1 x2 x1, fe
+display _b[x1] " " e(df_b) " " e(rank)
+xtreg y x1 x1, re
+xtreg y x1 x1, be
+xtreg y x1 x2 x1 x2, be
+xtreg y x1 g x1, fe
+xtreg y x1 x1, fe vce(robust)
+xtreg y x1 if id <= 1, fe
+display e(N) " " e(df_r) " " e(sigma_u) " " e(sigma_e)
+xtreg y x1 x2 if id <= 2 & t <= 2, fe
+generate y2 = y
+replace y2 = . if t > 1 & mod(id, 2) == 0
+capture noisily xtreg y2 x1 if mod(id, 2) == 0, re
+display _rc
+xtreg y g, fe vce(robust)
+=== areg-weights-hc2-and-edge-cases
+clear
+set seed 99
+set obs 600
+generate long firm = ceil(_n/4)
+generate x = invnormal(runiform())
+generate z = runiform()
+generate double y = 1e9 + 3e7*x + 1e8*mod(firm,5) + 2e7*invnormal(runiform())
+replace x = . in 3
+generate cl = mod(firm, 9)
+areg y x z, absorb(firm)
+areg y x z, absorb(firm) vce(cluster cl)
+generate double huge = (y-1e9)/1e7*1e12
+areg huge x z, absorb(firm)
+generate double small = (y-1e9)/1e12
+areg small x z, absorb(firm)
+areg y x if firm <= 1, absorb(firm)
+generate one = 1
+areg y x, absorb(one)
+generate long single = _n
+areg y x, absorb(single)
+display e(df_r) " " e(rmse) " " e(r2_a) " " e(F_absorb)
+areg y x z, absorb(firm) vce(hc2)
+display e(vce) " " e(vcetype) " " e(df_r) " " %12.0g e(rmse)
+capture noisily areg y x z, absorb(firm) vce(hc3)
+display _rc
+capture noisily areg y x z, absorb(firm) vce(cluster firm cl)
+display _rc
+capture noisily areg y x z, absorb(i.firm)
+display _rc
+generate double ys = (y - 1e9)/1e7
+areg ys x z [aweight=z], absorb(firm)
+display %12.0g e(F_absorb) " " %12.0g e(r2) " " %12.0g e(ll) " " e(N)
+display %12.0g e(ll_0)
+areg ys x z [pweight=z], absorb(firm)
+display %12.0g e(ll) " " %12.0g e(ll_0) " " %12.0g e(F) " " %12.0g e(r2_a)
+areg ys x z [aweight=z], absorb(firm) vce(cluster cl)
+areg ys x z [fweight=firm], absorb(firm)
+display %12.0g e(ll) " " %12.0g e(ll_0) " " e(N) " " e(df_r)
+generate w = 1 + mod(_n, 3)
+areg ys x z [fweight=w], absorb(firm) vce(robust)
+areg ys x z [fweight=w], absorb(firm) vce(cluster cl)
+=== areg-wide-labels
+clear
+set seed 31337
+set obs 2000
+generate long firm = ceil(runiform()*400)
+generate year = 2010 + floor(runiform()*8)
+generate educ = 1 + floor(runiform()*4)
+label define el 1 "Less than HS" 2 "High school" 3 "Some college" 4 "Bachelor or more"
+label values educ el
+generate age = 20 + floor(runiform()*45)
+generate double wage = 8 + 0.3*age + 2*educ + mod(firm, 13) + 4*invnormal(runiform())
+generate double r_longer_name_for_wage = wage
+set linesize 80
+areg wage age i.educ, absorb(firm)
+areg r_longer_name_for_wage age, absorb(firm)
+areg wage age i.educ, absorb(firm) vce(cluster year)
+set linesize 200
+areg wage age i.educ, absorb(firm)
+areg wage age i.educ, absorb(firm) vce(cluster firm)
+areg r_longer_name_for_wage age i.educ, absorb(firm) vce(hc2)
+=== xtsum-operators-by-and-i
+clear
+set seed 1618
+set obs 120
+generate long id = ceil(_n/4)
+bysort id: generate t = _n
+generate g = mod(id, 2)
+generate double w = 100*runiform()
+generate str3 s = "abc"
+capture noisily xtsum w
+display _rc
+xtsum w, i(id)
+xtset id t
+xtsum L.w D.w
+xtsum L2.w F.w LD.w
+bysort g: xtsum w
+capture noisily xtsum L.w
+display _rc
+sort id t
+by g, sort: xtsum w s if t > 1
+sort id t
+generate long other = 100 - id
+xtsum w, i(other)
+xtset
+xtsum w if g == 1
+capture noisily xtsum L.s
+display _rc
+=== xtreg-re-theta-e-and-xttest0
+clear
+set seed 4040
+set obs 400
+generate long id = ceil(_n/4)
+bysort id: generate t = _n
+generate x = invnormal(runiform())
+generate a = invnormal(runiform())
+by id: replace a = a[1]
+generate y = 1 + 0.5*x + a + invnormal(runiform())
+xtset id t
+xtreg y x, re theta
+drop if t > 2 & mod(id, 3) == 0
+drop if t == 4 & mod(id, 5) == 0
+xtreg y x, re theta
+capture noisily xtreg y x, be vce(robust)
+display _rc
+capture noisily xtreg y x, be vce(cluster id)
+display _rc
+generate z = runiform()
+quietly xtreg y x z, be
+display e(r2_a) " " e(ll) " " e(r2) " " e(sigma_e) " " e(sigma_u) " " e(rho)
+quietly xtreg y x z, fe
+display e(r2_a) " " e(ll) " " e(ll_0) " " e(rss) " " e(r2)
+quietly xtreg y x z, re
+display e(rmse) " " e(sigma)
+by id: generate c = z[1]
+xtreg y c, fe vce(robust)
+quietly xtreg y x z, re
+xttest0
+return list
+quietly xtreg y x z, fe
+capture noisily xttest0
+display _rc
+=== xttest0-zero-sigma-u
+clear
+set seed 8080
+set obs 240
+generate long id = ceil(_n/2)
+bysort id: generate t = _n
+drop if mod(id, 5) == 0 & t == 2
+generate x = invnormal(runiform())
+generate u = runiform()
+by id: generate z = floor(u[1]*3)
+generate y = 1 + 0.5*x + invnormal(runiform())
+xtset id t
+quietly xtreg y x, re
+display e(sigma_u)
+xttest0
+return list
+xtreg y x, re theta
