@@ -13137,3 +13137,245 @@ use frh, clear
 collapse (mean) lninc, by(female)
 capture noisily save, replace
 describe, short
+=== fix6-correlate-panels-and-covariance
+clear
+set seed 4242
+set obs 60
+generate id = _n
+generate income = 20000 + 60000*runiform()
+generate score = 40 + 30*runiform()
+generate age = 20 + floor(50*runiform())
+generate before = 10*runiform()
+generate after = before + runiform()
+generate pw = runiform()*3
+generate w = 1 + floor(4*runiform())
+generate x1 = runiform()
+generate x2 = runiform()
+generate x3 = runiform()
+generate x4 = runiform()
+generate x5 = runiform()
+replace income = . in 3
+replace score = . in 7
+generate big = income*1000
+set linesize 79
+correlate income score age before after pw w id
+correlate income score age before after pw w id, covariance
+correlate big income score, covariance
+corr income score
+correlate
+correlate income score age before after pw w id x1, wrap
+correlate income score age before after pw w id x1, covariance wrap
+set linesize 100
+correlate income score age before after pw w id x1 x2 x3
+correlate income score age before after pw w id x1 x2, cov
+set linesize 60
+correlate x1 x2 x3 x4 x5 id, c
+set linesize 200
+correlate
+=== fix6-correlate-weights-strings-means
+clear
+set seed 99
+set obs 40
+generate id = _n
+generate y = 100*runiform()
+generate x = y + 50*runiform()
+generate z = runiform()
+generate k = 3
+generate w = 1 + floor(4*runiform())
+generate double aw = w*1.37
+generate double big = w*12345678.9
+generate str5 name = "n" + string(_n)
+replace y = . in 4
+replace x = . in 9
+correlate y x [aw=aw]
+correlate y x [aw=big]
+correlate y x [fw=w]
+correlate y x [aw=w], covariance
+correlate y x [fw=w], covariance
+capture noisily correlate y x [iw=w]
+capture noisily correlate y x [pw=w]
+correlate name y x
+correlate y x z, means
+correlate y x z [aw=w], means
+correlate k y
+correlate y in 1/3
+capture noisily correlate y x in 1/1
+format z %9.2f
+format x %8.0gc
+correlate y x z, means
+correlate y x z, means noformat
+=== fix6-pwcorr-weights-tests-and-layout
+clear
+set seed 99
+set obs 40
+generate id = _n
+generate y = 100*runiform()
+generate x = y + 50*runiform()
+generate z = runiform()
+generate k = 3
+generate w = 1 + floor(4*runiform())
+generate str5 name = "n" + string(_n)
+replace y = . in 4
+replace x = . in 9
+pwcorr y x z k, sig obs
+pwcorr y x [aw=w], sig obs
+pwcorr y x [fw=w], sig obs
+pwcorr name y x, star(.05)
+pwcorr
+capture noisily pwcorr name y
+capture noisily pwcorr y
+capture noisily pwcorr y x z [iw=w]
+pwcorr y x z, bonferroni sig
+pwcorr y x z, sidak sig
+capture noisily pwcorr y x z, sidak bonferroni
+pwcorr y x z, listwise obs
+pwcorr y x z, casewise obs
+pwcorr y x z, print(.05) star(.5) sig
+pwcorr y x z, print(5) star(50)
+capture noisily pwcorr y x z, star(100)
+pwcorr y x z if id > 100
+capture noisily pwcorr y x if id > 100
+pwcorr y x in 1/2, sig
+pwcorr y x in 4/5, sig obs
+generate yy = -y
+pwcorr y yy x, sig
+generate a_really_long_variable_name = y/1000
+generate twelve_chars = x
+generate thirteen_char = z
+pwcorr y twelve_chars thirteen_char a_really_long_variable_name, sig
+pwcorr y x z k id w yy a_really_long_variable_name twelve_chars, obs
+set linesize 60
+pwcorr y x z k id w yy a_really_long_variable_name
+set linesize 200
+clear
+input income score
+3 5
+7 9
+2 1
+end
+pwcorr income score in 1/2, sig
+pwcorr income score, sig
+=== fix6-ci-means-weights
+clear
+set seed 99
+set obs 40
+generate y = 100*runiform()
+generate x = y + 50*runiform()
+generate w = 1 + floor(4*runiform())
+generate double aw = w*1.37
+replace y = . in 4
+replace x = . in 9
+ci means y x [fw=w]
+ci means y x [aw=aw]
+ci means y [aw=w], level(90)
+ci means y x [fweight=w] if w > 1
+capture noisily ci means y [iw=w]
+=== fix6-codebook-wrapping-range-and-empty
+clear
+set obs 6
+generate v = mod(_n,3)+1
+generate float score = 21.9 + _n*.1
+replace score = 78.1 in 1
+generate float frac = mod(_n,7)/10
+generate float big = 1e7 + _n*.25
+generate double dd = _n/3
+generate float ff = 100 + _n*.0001
+generate float cst = 1.1
+generate float ex = .1 in 1/3
+replace ex = .a in 4
+label define L 1 "Très satisfait — vraiment, beaucoup plus que prévu dans tous les cas possibles" 2 "中中中中中中中中中中中中中中中中中中中中" 3 "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ end"
+label values v L
+generate v2 = v
+label define L2 1 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b" 2 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b" 3 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b"
+label values v2 L2
+generate a = 1
+generate bb = 2
+generate c = 3
+generate d = 4
+generate e = 5
+generate ccc_long_name_for_the_header_xx = 6
+label variable a "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable bb "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable c "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable d "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+label variable e "one two three four five six seven eight nine ten eleven twelve thirteen fourteen"
+label variable ccc_long_name_for_the_header_xx "Exactly the label that makes the sum reach the edge of l"
+label variable score "中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签"
+set linesize 79
+codebook v v2
+codebook a bb c d e ccc_long_name_for_the_header_xx score
+codebook frac big dd ff cst ex
+set linesize 80
+codebook a bb c d
+set linesize 120
+codebook e v
+set linesize 200
+codebook v
+capture noisily codebook v if v > 5
+drop if _n > 0
+capture noisily codebook v
+capture noisily codebook
+capture noisily codebook, compact
+=== fix6-tabulate-option-forms
+clear
+set seed 7
+set obs 200
+generate region = 1+floor(4*runiform())
+generate grp = 1+floor(3*runiform())
+generate income = 100*runiform()
+tabulate region grp, row nokey
+tabulate region grp, row key
+tabulate region grp, r co ce nof
+tabulate region grp, ch
+tabulate region grp, chi2 row cel nokey
+tabulate region grp, ro col
+tabulate region, su(income) nost
+tabulate region grp, s(income) noo nofr
+tabulate region grp, su(income) me
+tabulate region, summ(income) st f o mi nol
+tabulate region, f
+tabulate region grp, m nol f
+capture noisily tabulate region, nom
+capture noisily tabulate region, me
+capture noisily tabulate region, noo
+capture noisily tabulate region, nome
+capture noisily tabulate region, exact(2)
+capture noisily tabulate region, matcol(C)
+capture noisily tabulate region grp, gen(zz)
+capture noisily tabulate region, row
+capture noisily tabulate region, col
+capture noisily tabulate region, cell
+capture noisily tabulate region, chi2
+capture noisily tabulate region, exact
+capture noisily tabulate region if grp == 1, chi2
+capture noisily tabulate region, cl
+capture noisily tabulate region grp, cl
+capture noisily tabulate region grp, c
+capture noisily tabulate region grp, cch
+capture noisily tabulate region grp, nok
+capture noisily tabulate region, su(income) nom
+capture noisily tabulate region, su(income) m
+capture noisily tabulate region, su(income) row
+capture noisily tabulate region, su(income) g(zz)
+capture noisily tabulate region, su(income) sort
+capture noisily tabulate region, su(income) nokey
+capture noisily tabulate region grp, sort
+capture noisily tabulate region grp, first
+capture noisily tabulate region, key
+capture noisily tabulate region, so
+list region grp in 1/3, c
+list region grp in 1/3, clean
+capture noisily list region grp in 1/3, cl
+=== fix6-summarize-without-variables
+clear
+summarize
+summarize, detail
+set obs 3
+summarize
+generate x = _n
+generate w = _n
+capture noisily summarize x [iw=w], detail
+summarize x [iw=w]
+summarize x [fw=w], detail
+drop x w
+summarize

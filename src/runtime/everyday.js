@@ -4,8 +4,22 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
-import { abbreviate } from "./estimation.js";
-import { count, labelled, moments, perGroup } from "./reports.js";
+import {
+  abbreviate,
+  columnName,
+  correlationOf,
+  covarianceMatrix,
+  rowName,
+} from "./estimation.js";
+import { fold } from "./data-commands.js";
+import {
+  count,
+  labelled,
+  moments,
+  perGroup,
+  weightedMoments,
+  weightedRows,
+} from "./reports.js";
 import { mean } from "./tables.js";
 import { MISSING, displayWidth, isMissing, isStringType } from "./values.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
@@ -39,11 +53,19 @@ function ci(session, text, ctx) {
     );
   }
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Level(cilevel) SEParator(integer 5) | Poisson Exposure(varname) Total]",
+      "[varlist] [if] [in] [aweight fweight] [, Level(cilevel) SEParator(integer 5) | Poisson Exposure(varname) Total]",
       m[2],
     ),
     level = parsed.options.level,
-    rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    // ci means summarizes with the weights: frequency weights repeat
+    // observations, and analytic ones give summarize's weighted mean and
+    // variance over the number of observations.
+    weighted = weightedRows(
+      session,
+      parsed,
+      session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    ),
+    rows = weighted.rows,
     // The level's digits move the bracket: three spaces more for 95, one
     // for 99.5, as ci lays it out.
     digits = String(level).length,
@@ -59,9 +81,9 @@ function ci(session, text, ctx) {
   for (const name of parsed.varlist) {
     const variable = session.data.get(name);
     if (isStringType(variable.type)) continue;
-    const stats = moments(
-      rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
-    );
+    const stats = weighted.weights
+      ? weightedMoments(variable, rows, weighted.weights)
+      : moments(rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)));
     if (
       shown &&
       parsed.options.separator &&
@@ -154,71 +176,147 @@ const significance = (rho, n) =>
       ? 0
       : 2 * ttail(n - 2, Math.abs(rho) * Math.sqrt((n - 2) / (1 - rho * rho)));
 
+// Stata's min(), which passes over a missing argument.
+const smaller = (a, b) =>
+  isMissing(a) ? b : isMissing(b) ? a : Math.min(a, b);
+
+/**
+ * pwcorr, as pwcorr.ado computes and lays it out: each pair from its own
+ * complete observations through correlate (with the weights), seven
+ * columns to a panel whatever the linesize, a string variable named and
+ * left out, and the significance level ado's way: 0 for a correlation of
+ * 1, and min(2 ttail(), 1) otherwise, which is 1 when there is no
+ * statistic (two observations, or a correlation of -1).
+ */
 function pwcorr(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Obs SIG STar(real 0) Print(real 0) | Listwise CASEwise Bonferroni SIDak]",
+      "[varlist(min=2)] [if] [in] [aweight fweight] [, Bonferroni Obs Print(real -1) SIDak SIG STar(real -1) LISTwise CASEwise]",
       text,
     ),
     options = parsed.options,
-    variables = numeric(session, parsed.varlist),
-    rows = session.rows(parsed, null),
+    linesize = session.settings.linesize ?? 80,
+    out = (line) => fold(line, linesize).forEach((part) => ctx.out(part));
+  let { star, print } = options;
+  for (const [name, value] of [
+    ["star", star],
+    ["print", print],
+  ])
+    if (value >= 1 && value / 100 >= 1)
+      throw new StataError(`${name}() out of range`, 198);
+  if (star >= 1) star /= 100;
+  if (print >= 1) print /= 100;
+  if (options.bonferroni && options.sidak)
+    throw new StataError("invalid syntax", 198);
+  const named = parsed.varlist.map((name) => session.data.get(name)),
+    blank = (v, i) =>
+      isStringType(v.type) ? v.data[i] === "" : isMissing(v.data[i]);
+  let rows = session.rows(parsed, null);
+  if (options.listwise || options.casewise)
+    rows = rows.filter((i) => named.every((v) => !blank(v, i)));
+  for (const v of named)
+    if (isStringType(v.type))
+      ctx.out(`(${v.name} ignored because string variable)`);
+  const variables = named.filter((v) => !isStringType(v.type)),
+    k = variables.length;
+  if (k < 2) throw new StataError("too few variables specified", 102);
+  const complete = (a, b) =>
+    rows.filter((i) => !isMissing(a.data[i]) && !isMissing(b.data[i]));
+  if (k === 2 && !complete(variables[0], variables[1]).length)
+    throw new StataError("no observations", 2000);
+  const pairs = (k * (k - 1)) / 2,
+    adjust = options.bonferroni ? pairs : 1,
+    // correlate over the pair's observations: with fewer than two it
+    // fails, leaving no correlation and no observations.
     pair = (a, b) => {
-      const use = rows.filter(
-          (i) => !isMissing(a.data[i]) && !isMissing(b.data[i]),
+      const weighted = weightedRows(session, parsed, complete(a, b)),
+        n = weighted.rows.length;
+      if (n < 2) return { n: 0, rho: MISSING, p: MISSING };
+      const { C } = covarianceMatrix(
+          [a, b].map((v) => weighted.rows.map((i) => v.data[i])),
+          weighted.weights && weighted.rows.map((i) => weighted.weights[i]),
         ),
-        rho = pearson(
-          use.map((i) => a.data[i]),
-          use.map((i) => b.data[i]),
-        );
-      return { n: use.length, rho, p: significance(rho, use.length) };
+        rho = correlationOf(C, 0, 1);
+      let p;
+      if (isMissing(rho)) p = MISSING;
+      else if (rho >= 1) p = 0;
+      else {
+        const t =
+          n > 2 && rho * rho < 1
+            ? (Math.abs(rho) * Math.sqrt(n - 2)) / Math.sqrt(1 - rho * rho)
+            : MISSING;
+        p = smaller(isMissing(t) ? MISSING : 2 * adjust * ttail(n - 2, t), 1);
+      }
+      if (options.sidak)
+        p = smaller(1, isMissing(p) ? MISSING : 1 - (1 - p) ** pairs);
+      return { n, rho, p };
     },
-    short = (name) =>
-      name.length > 8 ? name.slice(0, 6) + "~" + name.at(-1) : name;
-  let first = null;
-  // Seven variables to a block, as the Results window shows them.
-  for (let start = 0; start < variables.length; start += 7) {
-    const block = variables.slice(start, start + 7);
+    shownP = (p) => p <= print || print === -1,
+    C = variables.map(() => variables.map(() => MISSING)),
+    N = variables.map(() => variables.map(() => 0)),
+    S = variables.map(() => variables.map(() => MISSING));
+  for (let start = 0; start < k; start += 7) {
+    const end = Math.min(start + 7, k);
     ctx.out("");
-    ctx.out(
-      `             |${block.map((v) => short(v.name).padStart(9)).join("")}`,
+    out(
+      `             |${variables
+        .slice(start, end)
+        .map((v) => columnName(v.name))
+        .join("")}`,
     );
-    ctx.out(`-------------+${"-".repeat(9 * block.length)}`);
-    variables.slice(start).forEach((row, r) => {
-      const across = block.slice(0, r + 1),
-        results = across.map((column) => pair(row, column));
-      first ??= variables.length > 1 && r === 1 ? results[0] : null;
-      ctx.out(
-        `${short(row.name).padStart(12)} | ${results
-          .map((result, k) =>
-            isMissing(result.rho) ||
-            (options.print && across[k] !== row && !(result.p <= options.print))
-              ? " ".repeat(9)
-              : applyFormat(result.rho, "%8.4f") +
-                (options.star && across[k] !== row && result.p <= options.star
-                  ? "*"
-                  : " "),
+    out(`-------------+${"-".repeat(9 * (end - start))}`);
+    for (let i = start; i < k; i++) {
+      const results = [];
+      for (let j = start; j < Math.min(end, i + 1); j++) {
+        const result = pair(variables[i], variables[j]);
+        results.push(result);
+        if (result.n) {
+          C[i][j] = C[j][i] = result.rho;
+          N[i][j] = N[j][i] = result.n;
+        }
+        if (j < i && shownP(result.p)) S[i][j] = S[j][i] = result.p;
+      }
+      out(
+        `${rowName(variables[i].name)} | ${results
+          .map(({ rho, p }, j) =>
+            shownP(p) || start + j === i
+              ? " " +
+                applyFormat(rho, "%7.4f") +
+                (p <= star && start + j !== i ? "*" : " ")
+              : " ".repeat(9),
           )
           .join("")}`,
       );
       if (options.sig)
-        ctx.out(
-          `             | ${results
-            .map((result, k) =>
-              across[k] === row || isMissing(result.p)
-                ? " ".repeat(9)
-                : applyFormat(result.p, "%8.4f") + " ",
+        out(
+          `             |${results
+            .filter((_, j) => start + j < i)
+            .map(({ p }) =>
+              shownP(p) ? "  " + applyFormat(p, "%7.4f") : " ".repeat(9),
             )
-            .join("")}`.trimEnd(),
+            .join("")}`,
         );
       if (options.obs)
-        ctx.out(
-          `             | ${results.map((result) => count(result.n).padStart(8) + " ").join("")}`.trimEnd(),
+        out(
+          `             |${results
+            .map(({ n, p }, j) =>
+              shownP(p) || start + j === i
+                ? "  " + applyFormat(n, "%7.0g")
+                : " ".repeat(9),
+            )
+            .join("")}`,
         );
-      if (options.sig || options.obs) ctx.out("             |");
-    });
+      if (options.sig || options.obs) out("             |");
+    }
   }
-  if (!options.sig && !options.obs) ctx.out("");
-  if (first) session.results.r = { N: first.n, rho: first.rho };
+  const names = variables.map((v) => v.name),
+    matrix = (values) => ({ rowNames: names, colNames: names, values });
+  session.results.r = {
+    N: N[0][1],
+    rho: C[0][1],
+    ...(options.sig ? { "matrix:sig": matrix(S) } : {}),
+    "matrix:C": matrix(C),
+    "matrix:Nobs": matrix(N),
+  };
 }
 
 /** Ranks with ties given their average rank. */

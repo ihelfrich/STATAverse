@@ -4,6 +4,8 @@
 // they will serve later estimators without change.
 import { evaluateAll } from "./expression.js";
 import { leverageStatistic } from "./diagnostics.js";
+import { greatest, least } from "./extremes.js";
+import { fold } from "./data-commands.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
 import { applyFormat, parseFormat } from "./format.js";
@@ -2876,61 +2878,164 @@ export function lincom(session, text, ctx) {
   };
 }
 
+/**
+ * The covariances correlate computes from columns of complete observations.
+ * Analytic weights give the weighted moments rescaled by n/(n - 1), since
+ * Stata takes them to add up to the number of observations; frequency
+ * weights arrive as repeated observations.
+ */
+export function covarianceMatrix(columns, weights = null) {
+  const n = columns[0]?.length ?? 0,
+    total = weights ? weights.reduce((t, w) => t + w, 0) : n,
+    means = columns.map(
+      (c) =>
+        (weights
+          ? c.reduce((t, v, i) => t + weights[i] * v, 0)
+          : c.reduce((t, v) => t + v, 0)) / total,
+    ),
+    C = columns.map(() => new Array(columns.length));
+  for (let a = 0; a < columns.length; a++)
+    for (let b = 0; b <= a; b++) {
+      let t = 0;
+      for (let i = 0; i < n; i++)
+        t +=
+          (weights ? weights[i] : 1) *
+          (columns[a][i] - means[a]) *
+          (columns[b][i] - means[b]);
+      C[a][b] = C[b][a] = weights ? (t / total) * (n / (n - 1)) : t / (n - 1);
+    }
+  return { C, means };
+}
+/**
+ * A correlation as Stata's correlate gives it: the covariance over the
+ * product of the two standard deviations, so that two observations of 3, 7
+ * and 5, 9 correlate at 1 - 2^-52. A constant variable has none.
+ */
+export const correlationOf = (C, a, b) =>
+  C[a][a] > 0 && C[b][b] > 0
+    ? C[a][b] / (Math.sqrt(C[a][a]) * Math.sqrt(C[b][b]))
+    : MISSING;
+/**
+ * A name in a column of nine, as abbrev(name, 8) shortens it: trailing
+ * digits are kept, so measurement_2019 is mea~2019.
+ */
+export const columnName = (name) => abbreviate(name, 8).padStart(9);
+/** A name in the first column, as abbrev(name, 12) shortens it. */
+export const rowName = (name) => abbreviate(name, 12).padStart(12);
+
+/**
+ * The format correlate, means shows a variable's statistics in: its own
+ * fixed or general format at width 9, a date format as it is, and %9.0g
+ * for any other or with noformat. Recorded from Stata 19.
+ */
+function meansFormat(variable, plain) {
+  const spec = parseFormat(variable.format ?? "%9.0g");
+  if (plain || !spec) return "%9.0g";
+  if (spec.kind === "date") return variable.format;
+  if (spec.kind !== "number" || spec.style === "e") return "%9.0g";
+  return `%9.${Math.min(spec.digits, 9)}${spec.style}${spec.commas ? "c" : ""}`;
+}
+
 function correlate(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Covariance | Means WRAP]",
+      "[varlist] [if] [in] [aweight fweight] [, Covariance Means noFormat Wrap]",
       text,
     ),
-    variables = parsed.varlist
-      .map((name) => session.data.get(name))
-      .filter((v) => !isStringType(v.type)),
-    rows = session
+    options = parsed.options,
+    named = parsed.varlist.map((name) => session.data.get(name)),
+    variables = named.filter((v) => !isStringType(v.type));
+  for (const v of named)
+    if (isStringType(v.type))
+      ctx.out(`(${v.name} ignored because string variable)`);
+  const complete = session
       .rows(parsed, null)
       .filter((i) => variables.every((v) => !isMissing(v.data[i]))),
+    // Frequency weights repeat observations; analytic ones come back as
+    // weights.
+    weighted = weightedRows(session, parsed, complete),
+    rows = weighted.rows,
+    weights = weighted.weights && rows.map((i) => weighted.weights[i]),
     n = rows.length;
   if (!n) throw new StataError("no observations", 2000);
+  if (n < 2) throw new StataError("insufficient observations", 2001);
   const columns = variables.map((v) => rows.map((i) => v.data[i])),
-    means = columns.map((c) => c.reduce((a, b) => a + b, 0) / n),
-    covariance = (a, b) =>
-      columns[a].reduce(
-        (t, v, i) => t + (v - means[a]) * (columns[b][i] - means[b]),
-        0,
-      ) /
-      (n - 1),
-    C = columns.map((_, a) => columns.map((_, b) => covariance(a, b))),
+    { C, means } = covarianceMatrix(columns, weights),
     shown = (a, b) =>
-      parsed.options.covariance
-        ? g(C[a][b], "%9.6g").padStart(9)
-        : applyFormat(C[a][b] / Math.sqrt(C[a][a] * C[b][b]), "%9.4f"),
-    short = (name) =>
-      name.length > 8 ? name.slice(0, 6) + "~" + name.at(-1) : name;
-  ctx.out(`(obs=${count(n)})`);
-  ctx.out("");
-  ctx.out(
-    `             |${variables.map((v) => short(v.name).padStart(9)).join("")}`,
-  );
-  ctx.out(`-------------+${"-".repeat(9 * variables.length)}`);
-  variables.forEach((v, a) =>
+      options.covariance
+        ? " " + applyFormat(C[a][b], "%8.0g")
+        : applyFormat(correlationOf(C, a, b), "%9.4f");
+  if (weights)
     ctx.out(
-      `${(v.name.length > 12 ? v.name.slice(0, 10) + "~" + v.name.at(-1) : v.name).padStart(12)} |${variables
-        .slice(0, a + 1)
-        .map((_, b) => shown(a, b))
-        .join("")}`,
-    ),
-  );
+      `(sum of wgt is ${applyFormat(
+        weights.reduce((t, w) => t + w, 0),
+        "%18.0gc",
+      ).trim()})`,
+    );
+  ctx.out(`(obs=${count(n)})`);
+  if (options.means) {
+    ctx.out("");
+    ctx.out(
+      "    Variable |         Mean    Std. dev.          Min          Max",
+    );
+    ctx.out(`-------------+${"-".repeat(52)}`);
+    variables.forEach((v, a) => {
+      const format = meansFormat(v, options.format === false),
+        cell = (value) => applyFormat(value, format).padStart(13);
+      ctx.out(
+        `${rowName(v.name)} |${[
+          means[a],
+          Math.sqrt(C[a][a]),
+          least(columns[a]),
+          greatest(columns[a]),
+        ]
+          .map(cell)
+          .join("")}`,
+      );
+    });
+    ctx.out("");
+  }
+  // Panels as wide as the line allows. With wrap there is one, and a line
+  // wider than the linesize goes on after "> ".
+  const linesize = session.settings.linesize ?? 80,
+    across = options.wrap
+      ? variables.length
+      : Math.max(1, Math.floor((linesize - 14) / 9)),
+    out = (line) => fold(line, linesize).forEach((part) => ctx.out(part));
+  for (let start = 0; start < variables.length; start += across) {
+    const block = variables.slice(start, start + across);
+    ctx.out("");
+    out(`             |${block.map((v) => columnName(v.name)).join("")}`);
+    out(`-------------+${"-".repeat(9 * block.length)}`);
+    for (let a = start; a < variables.length; a++)
+      out(
+        `${rowName(variables[a].name)} |${block
+          .slice(0, a - start + 1)
+          .map((_, k) => shown(a, start + k))
+          .join("")}`,
+      );
+  }
   ctx.out("");
   session.results.r = {
     N: n,
     // rho is returned without the covariance option, the moments with it.
-    ...(variables.length > 1 && !parsed.options.covariance
-      ? { rho: C[0][1] / Math.sqrt(C[0][0] * C[1][1]) }
+    ...(variables.length > 1 && !options.covariance
+      ? { rho: correlationOf(C, 0, 1) }
       : {}),
-    ...(parsed.options.covariance
+    ...(options.covariance && variables.length
       ? {
           Var_1: C[0][0],
           ...(variables.length > 1 ? { cov_12: C[0][1], Var_2: C[1][1] } : {}),
         }
       : {}),
+    "matrix:C": {
+      rowNames: variables.map((v) => v.name),
+      colNames: variables.map((v) => v.name),
+      values: C.map((row, a) =>
+        row.map((value, b) =>
+          options.covariance ? value : correlationOf(C, a, b),
+        ),
+      ),
+    },
   };
 }
 

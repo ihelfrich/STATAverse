@@ -99004,6 +99004,1888 @@
       ]
     },
     {
+      "id": "fix6-correlate-panels-and-covariance",
+      "source": "clear\nset seed 4242\nset obs 60\ngenerate id = _n\ngenerate income = 20000 + 60000*runiform()\ngenerate score = 40 + 30*runiform()\ngenerate age = 20 + floor(50*runiform())\ngenerate before = 10*runiform()\ngenerate after = before + runiform()\ngenerate pw = runiform()*3\ngenerate w = 1 + floor(4*runiform())\ngenerate x1 = runiform()\ngenerate x2 = runiform()\ngenerate x3 = runiform()\ngenerate x4 = runiform()\ngenerate x5 = runiform()\nreplace income = . in 3\nreplace score = . in 7\ngenerate big = income*1000\nset linesize 79\ncorrelate income score age before after pw w id\ncorrelate income score age before after pw w id, covariance\ncorrelate big income score, covariance\ncorr income score\ncorrelate\ncorrelate income score age before after pw w id x1, wrap\ncorrelate income score age before after pw w id x1, covariance wrap\nset linesize 100\ncorrelate income score age before after pw w id x1 x2 x3\ncorrelate income score age before after pw w id x1 x2, cov\nset linesize 60\ncorrelate x1 x2 x3 x4 x5 id, c\nset linesize 200\ncorrelate\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate income = 20000 + 60000*runiform()",
+          "lines": []
+        },
+        { "command": "generate score = 40 + 30*runiform()", "lines": [] },
+        { "command": "generate age = 20 + floor(50*runiform())", "lines": [] },
+        { "command": "generate before = 10*runiform()", "lines": [] },
+        { "command": "generate after = before + runiform()", "lines": [] },
+        { "command": "generate pw = runiform()*3", "lines": [] },
+        { "command": "generate w = 1 + floor(4*runiform())", "lines": [] },
+        { "command": "generate x1 = runiform()", "lines": [] },
+        { "command": "generate x2 = runiform()", "lines": [] },
+        { "command": "generate x3 = runiform()", "lines": [] },
+        { "command": "generate x4 = runiform()", "lines": [] },
+        { "command": "generate x5 = runiform()", "lines": [] },
+        {
+          "command": "replace income = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace score = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "generate big = income*1000",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "correlate income score age before after pw w id",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score      age   before    after       pw        w",
+            "-------------+---------------------------------------------------------------",
+            "      income |   1.0000",
+            "       score |  -0.1028   1.0000",
+            "         age |   0.3291  -0.2234   1.0000",
+            "      before |   0.0004   0.0923   0.1069   1.0000",
+            "       after |   0.0006   0.1018   0.0978   0.9945   1.0000",
+            "          pw |  -0.0559  -0.0811   0.0014  -0.0481  -0.0419   1.0000",
+            "           w |  -0.1200   0.0691   0.0465   0.0949   0.0970  -0.1578   1.0000",
+            "          id |  -0.2018   0.0908  -0.1715   0.1563   0.1496   0.2083   0.0848",
+            "",
+            "             |       id",
+            "-------------+---------",
+            "          id |   1.0000"
+          ]
+        },
+        {
+          "command": "correlate income score age before after pw w id, covariance",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score      age   before    after       pw        w",
+            "-------------+---------------------------------------------------------------",
+            "      income |  3.0e+08",
+            "       score | -15859.8  78.3235",
+            "         age |  80417.5 -27.7033  196.283",
+            "      before |  21.1798  2.21856  4.06582  7.37192",
+            "       after |  28.5174  2.49086  3.78832  7.46741  7.64868",
+            "          pw | -857.996 -.631728  .016994   -.1149 -.102086  .775617",
+            "           w |  -2442.4  .713558  .760436  .300615  .313074 -.162174  1.36237",
+            "          id | -60140.9  13.7333 -41.0587  7.24968   7.0717  3.13491  1.69026",
+            "",
+            "             |       id",
+            "-------------+---------",
+            "          id |  291.959"
+          ]
+        },
+        {
+          "command": "correlate big income score, covariance",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |      big   income    score",
+            "-------------+---------------------------",
+            "         big |  3.0e+14",
+            "      income |  3.0e+11  3.0e+08",
+            "       score | -1.6e+07 -15859.8  78.3235"
+          ]
+        },
+        {
+          "command": "corr income score",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score",
+            "-------------+------------------",
+            "      income |   1.0000",
+            "       score |  -0.1028   1.0000"
+          ]
+        },
+        {
+          "command": "correlate",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |       id   income    score      age   before    after       pw",
+            "-------------+---------------------------------------------------------------",
+            "          id |   1.0000",
+            "      income |  -0.2018   1.0000",
+            "       score |   0.0908  -0.1028   1.0000",
+            "         age |  -0.1715   0.3291  -0.2234   1.0000",
+            "      before |   0.1563   0.0004   0.0923   0.1069   1.0000",
+            "       after |   0.1496   0.0006   0.1018   0.0978   0.9945   1.0000",
+            "          pw |   0.2083  -0.0559  -0.0811   0.0014  -0.0481  -0.0419   1.0000",
+            "           w |   0.0848  -0.1200   0.0691   0.0465   0.0949   0.0970  -0.1578",
+            "          x1 |   0.2028   0.0245  -0.0673  -0.2212   0.1110   0.1345  -0.0826",
+            "          x2 |   0.1147  -0.0389  -0.0553   0.1693  -0.2830  -0.2923   0.2189",
+            "          x3 |   0.0791   0.0160   0.0383   0.3761   0.2773   0.2674   0.1809",
+            "          x4 |  -0.2296   0.1207   0.1014   0.0149   0.1779   0.1911  -0.0395",
+            "          x5 |   0.1747  -0.2086  -0.2075   0.0387   0.2331   0.2199  -0.0130",
+            "         big |  -0.2018   1.0000  -0.1028   0.3291   0.0004   0.0006  -0.0559",
+            "",
+            "             |        w       x1       x2       x3       x4       x5      big",
+            "-------------+---------------------------------------------------------------",
+            "           w |   1.0000",
+            "          x1 |   0.0142   1.0000",
+            "          x2 |   0.0822  -0.2851   1.0000",
+            "          x3 |   0.0661   0.0394   0.0244   1.0000",
+            "          x4 |   0.1257   0.0530  -0.1097   0.0609   1.0000",
+            "          x5 |   0.1045   0.2424  -0.2288   0.0028  -0.2638   1.0000",
+            "         big |  -0.1200   0.0245  -0.0389   0.0160   0.1207  -0.2086   1.0000"
+          ]
+        },
+        {
+          "command": "correlate income score age before after pw w id x1, wrap",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score      age   before    after       pw        w",
+            ">      id       x1",
+            "-------------+-----------------------------------------------------------------",
+            "> ----------------",
+            "      income |   1.0000",
+            "       score |  -0.1028   1.0000",
+            "         age |   0.3291  -0.2234   1.0000",
+            "      before |   0.0004   0.0923   0.1069   1.0000",
+            "       after |   0.0006   0.1018   0.0978   0.9945   1.0000",
+            "          pw |  -0.0559  -0.0811   0.0014  -0.0481  -0.0419   1.0000",
+            "           w |  -0.1200   0.0691   0.0465   0.0949   0.0970  -0.1578   1.0000",
+            "          id |  -0.2018   0.0908  -0.1715   0.1563   0.1496   0.2083   0.0848",
+            ">  1.0000",
+            "          x1 |   0.0245  -0.0673  -0.2212   0.1110   0.1345  -0.0826   0.0142",
+            ">  0.2028   1.0000"
+          ]
+        },
+        {
+          "command": "correlate income score age before after pw w id x1, covariance wrap",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score      age   before    after       pw        w",
+            ">      id       x1",
+            "-------------+-----------------------------------------------------------------",
+            "> ----------------",
+            "      income |  3.0e+08",
+            "       score | -15859.8  78.3235",
+            "         age |  80417.5 -27.7033  196.283",
+            "      before |  21.1798  2.21856  4.06582  7.37192",
+            "       after |  28.5174  2.49086  3.78832  7.46741  7.64868",
+            "          pw | -857.996 -.631728  .016994   -.1149 -.102086  .775617",
+            "           w |  -2442.4  .713558  .760436  .300615  .313074 -.162174  1.36237",
+            "          id | -60140.9  13.7333 -41.0587  7.24968   7.0717  3.13491  1.69026",
+            "> 291.959",
+            "          x1 |  124.506  -.17352 -.902553  .087762  .108373 -.021194  .004816",
+            ">  1.0094  .084855"
+          ]
+        },
+        { "command": "set linesize 100", "lines": [] },
+        {
+          "command": "correlate income score age before after pw w id x1 x2 x3",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score      age   before    after       pw        w       id       x1",
+            "-------------+---------------------------------------------------------------------------------",
+            "      income |   1.0000",
+            "       score |  -0.1028   1.0000",
+            "         age |   0.3291  -0.2234   1.0000",
+            "      before |   0.0004   0.0923   0.1069   1.0000",
+            "       after |   0.0006   0.1018   0.0978   0.9945   1.0000",
+            "          pw |  -0.0559  -0.0811   0.0014  -0.0481  -0.0419   1.0000",
+            "           w |  -0.1200   0.0691   0.0465   0.0949   0.0970  -0.1578   1.0000",
+            "          id |  -0.2018   0.0908  -0.1715   0.1563   0.1496   0.2083   0.0848   1.0000",
+            "          x1 |   0.0245  -0.0673  -0.2212   0.1110   0.1345  -0.0826   0.0142   0.2028   1.0000",
+            "          x2 |  -0.0389  -0.0553   0.1693  -0.2830  -0.2923   0.2189   0.0822   0.1147  -0.2851",
+            "          x3 |   0.0160   0.0383   0.3761   0.2773   0.2674   0.1809   0.0661   0.0791   0.0394",
+            "",
+            "             |       x2       x3",
+            "-------------+------------------",
+            "          x2 |   1.0000",
+            "          x3 |   0.0244   1.0000"
+          ]
+        },
+        {
+          "command": "correlate income score age before after pw w id x1 x2, cov",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |   income    score      age   before    after       pw        w       id       x1",
+            "-------------+---------------------------------------------------------------------------------",
+            "      income |  3.0e+08",
+            "       score | -15859.8  78.3235",
+            "         age |  80417.5 -27.7033  196.283",
+            "      before |  21.1798  2.21856  4.06582  7.37192",
+            "       after |  28.5174  2.49086  3.78832  7.46741  7.64868",
+            "          pw | -857.996 -.631728  .016994   -.1149 -.102086  .775617",
+            "           w |  -2442.4  .713558  .760436  .300615  .313074 -.162174  1.36237",
+            "          id | -60140.9  13.7333 -41.0587  7.24968   7.0717  3.13491  1.69026  291.959",
+            "          x1 |  124.506  -.17352 -.902553  .087762  .108373 -.021194  .004816   1.0094  .084855",
+            "          x2 | -194.671 -.140602  .680858  -.22062 -.232156  .055344  .027556  .562875 -.023847",
+            "",
+            "             |       x2",
+            "-------------+---------",
+            "          x2 |  .082446"
+          ]
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "correlate x1 x2 x3 x4 x5 id, c",
+          "lines": [
+            "(obs=60)",
+            "",
+            "             |       x1       x2       x3       x4       x5",
+            "-------------+---------------------------------------------",
+            "          x1 |   .08616",
+            "          x2 | -.023814  .084341",
+            "          x3 |  .002673 -.003673  .080196",
+            "          x4 |  .003376 -.010651  .007098  .087638",
+            "          x5 |  .019191 -.018512  .001341 -.020775  .073562",
+            "          id |   .97455  .866826 -.038812 -1.25871     .727",
+            "",
+            "             |       id",
+            "-------------+---------",
+            "          id |      305"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "correlate",
+          "lines": [
+            "(obs=58)",
+            "",
+            "             |       id   income    score      age   before    after       pw        w       x1       x2       x3       x4       x5      big",
+            "-------------+------------------------------------------------------------------------------------------------------------------------------",
+            "          id |   1.0000",
+            "      income |  -0.2018   1.0000",
+            "       score |   0.0908  -0.1028   1.0000",
+            "         age |  -0.1715   0.3291  -0.2234   1.0000",
+            "      before |   0.1563   0.0004   0.0923   0.1069   1.0000",
+            "       after |   0.1496   0.0006   0.1018   0.0978   0.9945   1.0000",
+            "          pw |   0.2083  -0.0559  -0.0811   0.0014  -0.0481  -0.0419   1.0000",
+            "           w |   0.0848  -0.1200   0.0691   0.0465   0.0949   0.0970  -0.1578   1.0000",
+            "          x1 |   0.2028   0.0245  -0.0673  -0.2212   0.1110   0.1345  -0.0826   0.0142   1.0000",
+            "          x2 |   0.1147  -0.0389  -0.0553   0.1693  -0.2830  -0.2923   0.2189   0.0822  -0.2851   1.0000",
+            "          x3 |   0.0791   0.0160   0.0383   0.3761   0.2773   0.2674   0.1809   0.0661   0.0394   0.0244   1.0000",
+            "          x4 |  -0.2296   0.1207   0.1014   0.0149   0.1779   0.1911  -0.0395   0.1257   0.0530  -0.1097   0.0609   1.0000",
+            "          x5 |   0.1747  -0.2086  -0.2075   0.0387   0.2331   0.2199  -0.0130   0.1045   0.2424  -0.2288   0.0028  -0.2638   1.0000",
+            "         big |  -0.2018   1.0000  -0.1028   0.3291   0.0004   0.0006  -0.0559  -0.1200   0.0245  -0.0389   0.0160   0.1207  -0.2086   1.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-correlate-weights-strings-means",
+      "source": "clear\nset seed 99\nset obs 40\ngenerate id = _n\ngenerate y = 100*runiform()\ngenerate x = y + 50*runiform()\ngenerate z = runiform()\ngenerate k = 3\ngenerate w = 1 + floor(4*runiform())\ngenerate double aw = w*1.37\ngenerate double big = w*12345678.9\ngenerate str5 name = \"n\" + string(_n)\nreplace y = . in 4\nreplace x = . in 9\ncorrelate y x [aw=aw]\ncorrelate y x [aw=big]\ncorrelate y x [fw=w]\ncorrelate y x [aw=w], covariance\ncorrelate y x [fw=w], covariance\ncapture noisily correlate y x [iw=w]\ncapture noisily correlate y x [pw=w]\ncorrelate name y x\ncorrelate y x z, means\ncorrelate y x z [aw=w], means\ncorrelate k y\ncorrelate y in 1/3\ncapture noisily correlate y x in 1/1\nformat z %9.2f\nformat x %8.0gc\ncorrelate y x z, means\ncorrelate y x z, means noformat\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate y = 100*runiform()", "lines": [] },
+        { "command": "generate x = y + 50*runiform()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        { "command": "generate k = 3", "lines": [] },
+        { "command": "generate w = 1 + floor(4*runiform())", "lines": [] },
+        { "command": "generate double aw = w*1.37", "lines": [] },
+        { "command": "generate double big = w*12345678.9", "lines": [] },
+        { "command": "generate str5 name = \"n\" + string(_n)", "lines": [] },
+        {
+          "command": "replace y = . in 4",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace x = . in 9",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "correlate y x [aw=aw]",
+          "lines": [
+            "(sum of wgt is 131.52)",
+            "(obs=38)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   0.8470   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y x [aw=big]",
+          "lines": [
+            "(sum of wgt is 1,185,185,174.4)",
+            "(obs=38)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   0.8470   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y x [fw=w]",
+          "lines": [
+            "(obs=96)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   0.8470   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y x [aw=w], covariance",
+          "lines": [
+            "(sum of wgt is 96)",
+            "(obs=38)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |  585.618",
+            "           x |   643.21  984.788"
+          ]
+        },
+        {
+          "command": "correlate y x [fw=w], covariance",
+          "lines": [
+            "(obs=96)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |  576.209",
+            "           x |  632.876  968.966"
+          ]
+        },
+        {
+          "command": "capture noisily correlate y x [iw=w]",
+          "lines": ["iweights not allowed"]
+        },
+        {
+          "command": "capture noisily correlate y x [pw=w]",
+          "lines": ["pweights not allowed"]
+        },
+        {
+          "command": "correlate name y x",
+          "lines": [
+            "(name ignored because string variable)",
+            "(obs=38)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   0.8661   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y x z, means",
+          "lines": [
+            "(obs=38)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           y |     51.48167     26.49716     1.224535     98.99822",
+            "           x |     76.81989     32.13389      5.66231     130.6747",
+            "           z |     .5354279     .3062008       .02709     .9878501",
+            "",
+            "",
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           x |   0.8661   1.0000",
+            "           z |   0.0562  -0.0047   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y x z [aw=w], means",
+          "lines": [
+            "(sum of wgt is 96)",
+            "(obs=38)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           y |     47.33842     24.19955     1.224535     98.99822",
+            "           x |      71.6769     31.38134      5.66231     130.6747",
+            "           z |     .5409939     .2985714       .02709     .9878501",
+            "",
+            "",
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           x |   0.8470   1.0000",
+            "           z |  -0.0407  -0.1000   1.0000"
+          ]
+        },
+        {
+          "command": "correlate k y",
+          "lines": [
+            "(obs=39)",
+            "",
+            "             |        k        y",
+            "-------------+------------------",
+            "           k |        .",
+            "           y |        .   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y in 1/3",
+          "lines": [
+            "(obs=3)",
+            "",
+            "             |        y",
+            "-------------+---------",
+            "           y |   1.0000"
+          ]
+        },
+        {
+          "command": "capture noisily correlate y x in 1/1",
+          "lines": ["insufficient observations"]
+        },
+        { "command": "format z %9.2f", "lines": [] },
+        { "command": "format x %8.0gc", "lines": [] },
+        {
+          "command": "correlate y x z, means",
+          "lines": [
+            "(obs=38)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           y |     51.48167     26.49716     1.224535     98.99822",
+            "           x |     76.81989     32.13389      5.66231     130.6747",
+            "           z |         0.54         0.31         0.03         0.99",
+            "",
+            "",
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           x |   0.8661   1.0000",
+            "           z |   0.0562  -0.0047   1.0000"
+          ]
+        },
+        {
+          "command": "correlate y x z, means noformat",
+          "lines": [
+            "(obs=38)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           y |     51.48167     26.49716     1.224535     98.99822",
+            "           x |     76.81989     32.13389      5.66231     130.6747",
+            "           z |     .5354279     .3062008       .02709     .9878501",
+            "",
+            "",
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           x |   0.8661   1.0000",
+            "           z |   0.0562  -0.0047   1.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-pwcorr-weights-tests-and-layout",
+      "source": "clear\nset seed 99\nset obs 40\ngenerate id = _n\ngenerate y = 100*runiform()\ngenerate x = y + 50*runiform()\ngenerate z = runiform()\ngenerate k = 3\ngenerate w = 1 + floor(4*runiform())\ngenerate str5 name = \"n\" + string(_n)\nreplace y = . in 4\nreplace x = . in 9\npwcorr y x z k, sig obs\npwcorr y x [aw=w], sig obs\npwcorr y x [fw=w], sig obs\npwcorr name y x, star(.05)\npwcorr\ncapture noisily pwcorr name y\ncapture noisily pwcorr y\ncapture noisily pwcorr y x z [iw=w]\npwcorr y x z, bonferroni sig\npwcorr y x z, sidak sig\ncapture noisily pwcorr y x z, sidak bonferroni\npwcorr y x z, listwise obs\npwcorr y x z, casewise obs\npwcorr y x z, print(.05) star(.5) sig\npwcorr y x z, print(5) star(50)\ncapture noisily pwcorr y x z, star(100)\npwcorr y x z if id > 100\ncapture noisily pwcorr y x if id > 100\npwcorr y x in 1/2, sig\npwcorr y x in 4/5, sig obs\ngenerate yy = -y\npwcorr y yy x, sig\ngenerate a_really_long_variable_name = y/1000\ngenerate twelve_chars = x\ngenerate thirteen_char = z\npwcorr y twelve_chars thirteen_char a_really_long_variable_name, sig\npwcorr y x z k id w yy a_really_long_variable_name twelve_chars, obs\nset linesize 60\npwcorr y x z k id w yy a_really_long_variable_name\nset linesize 200\nclear\ninput income score\n3 5\n7 9\n2 1\nend\npwcorr income score in 1/2, sig\npwcorr income score, sig\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate y = 100*runiform()", "lines": [] },
+        { "command": "generate x = y + 50*runiform()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        { "command": "generate k = 3", "lines": [] },
+        { "command": "generate w = 1 + floor(4*runiform())", "lines": [] },
+        { "command": "generate str5 name = \"n\" + string(_n)", "lines": [] },
+        {
+          "command": "replace y = . in 4",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace x = . in 9",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "pwcorr y x z k, sig obs",
+          "lines": [
+            "             |        y        x        z        k",
+            "-------------+------------------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |       39",
+            "             |",
+            "           x |   0.8661   1.0000",
+            "             |   0.0000",
+            "             |       38       39",
+            "             |",
+            "           z |   0.0749   0.0163   1.0000",
+            "             |   0.6502   0.9214",
+            "             |       39       39       40",
+            "             |",
+            "           k |        .        .        .        .",
+            "             |        .        .        .",
+            "             |       39       39       40       40",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x [aw=w], sig obs",
+          "lines": [
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |       39",
+            "             |",
+            "           x |   0.8470   1.0000",
+            "             |   0.0000",
+            "             |       38       39",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x [fw=w], sig obs",
+          "lines": [
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |      100",
+            "             |",
+            "           x |   0.8470   1.0000",
+            "             |   0.0000",
+            "             |       96       99",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr name y x, star(.05)",
+          "lines": [
+            "(name ignored because string variable)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   0.8661*  1.0000"
+          ]
+        },
+        {
+          "command": "pwcorr",
+          "lines": [
+            "(name ignored because string variable)",
+            "",
+            "             |       id        y        x        z        k        w",
+            "-------------+------------------------------------------------------",
+            "          id |   1.0000",
+            "           y |  -0.1064   1.0000",
+            "           x |  -0.1006   0.8661   1.0000",
+            "           z |   0.3688   0.0749   0.0163   1.0000",
+            "           k |        .        .        .        .        .",
+            "           w |  -0.0345  -0.3479  -0.3380   0.0076        .   1.0000"
+          ]
+        },
+        {
+          "command": "capture noisily pwcorr name y",
+          "lines": [
+            "(name ignored because string variable)",
+            "too few variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily pwcorr y",
+          "lines": ["too few variables specified"]
+        },
+        {
+          "command": "capture noisily pwcorr y x z [iw=w]",
+          "lines": ["iweights not allowed"]
+        },
+        {
+          "command": "pwcorr y x z, bonferroni sig",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "           x |   0.8661   1.0000",
+            "             |   0.0000",
+            "             |",
+            "           z |   0.0749   0.0163   1.0000",
+            "             |   1.0000   1.0000",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x z, sidak sig",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "           x |   0.8661   1.0000",
+            "             |   0.0000",
+            "             |",
+            "           z |   0.0749   0.0163   1.0000",
+            "             |   0.9572   0.9995",
+            "             |"
+          ]
+        },
+        {
+          "command": "capture noisily pwcorr y x z, sidak bonferroni",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "pwcorr y x z, listwise obs",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |       38",
+            "             |",
+            "           x |   0.8661   1.0000",
+            "             |       38       38",
+            "             |",
+            "           z |   0.0562  -0.0047   1.0000",
+            "             |       38       38       38",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x z, casewise obs",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |       38",
+            "             |",
+            "           x |   0.8661   1.0000",
+            "             |       38       38",
+            "             |",
+            "           z |   0.0562  -0.0047   1.0000",
+            "             |       38       38       38",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x z, print(.05) star(.5) sig",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "           x |   0.8661*  1.0000",
+            "             |   0.0000",
+            "             |",
+            "           z |                     1.0000",
+            "             |",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x z, print(5) star(50)",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           x |   0.8661*  1.0000",
+            "           z |                     1.0000"
+          ]
+        },
+        {
+          "command": "capture noisily pwcorr y x z, star(100)",
+          "lines": ["star() out of range"]
+        },
+        {
+          "command": "pwcorr y x z if id > 100",
+          "lines": [
+            "             |        y        x        z",
+            "-------------+---------------------------",
+            "           y |        .",
+            "           x |        .        .",
+            "           z |        .        .        ."
+          ]
+        },
+        {
+          "command": "capture noisily pwcorr y x if id > 100",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "pwcorr y x in 1/2, sig",
+          "lines": [
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "           x |   1.0000   1.0000",
+            "             |   0.0000",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x in 4/5, sig obs",
+          "lines": [
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |        .",
+            "             |",
+            "             |        0",
+            "             |",
+            "           x |        .   1.0000",
+            "             |        .",
+            "             |        0        2",
+            "             |"
+          ]
+        },
+        {
+          "command": "generate yy = -y",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "pwcorr y yy x, sig",
+          "lines": [
+            "             |        y       yy        x",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "          yy |  -1.0000   1.0000",
+            "             |   1.0000",
+            "             |",
+            "           x |   0.8661  -0.8661   1.0000",
+            "             |   0.0000   0.0000",
+            "             |"
+          ]
+        },
+        {
+          "command": "generate a_really_long_variable_name = y/1000",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "generate twelve_chars = x",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "generate thirteen_char = z", "lines": [] },
+        {
+          "command": "pwcorr y twelve_chars thirteen_char a_really_long_variable_name, sig",
+          "lines": [
+            "             |        y twelve~s thirte~r a_real~e",
+            "-------------+------------------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "twelve_chars |   0.8661   1.0000",
+            "             |   0.0000",
+            "             |",
+            "thirteen_c~r |   0.0749   0.0163   1.0000",
+            "             |   0.6502   0.9214",
+            "             |",
+            "a_really_l~e |   1.0000   0.8661   0.0749   1.0000",
+            "             |   0.0000   0.0000   0.6502",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr y x z k id w yy a_really_long_variable_name twelve_chars, obs",
+          "lines": [
+            "             |        y        x        z        k       id        w       yy",
+            "-------------+---------------------------------------------------------------",
+            "           y |   1.0000",
+            "             |       39",
+            "             |",
+            "           x |   0.8661   1.0000",
+            "             |       38       39",
+            "             |",
+            "           z |   0.0749   0.0163   1.0000",
+            "             |       39       39       40",
+            "             |",
+            "           k |        .        .        .        .",
+            "             |       39       39       40       40",
+            "             |",
+            "          id |  -0.1064  -0.1006   0.3688        .   1.0000",
+            "             |       39       39       40       40       40",
+            "             |",
+            "           w |  -0.3479  -0.3380   0.0076        .  -0.0345   1.0000",
+            "             |       39       39       40       40       40       40",
+            "             |",
+            "          yy |  -1.0000  -0.8661  -0.0749        .   0.1064   0.3479   1.0000",
+            "             |       39       38       39       39       39       39       39",
+            "             |",
+            "a_really_l~e |   1.0000   0.8661   0.0749        .  -0.1064  -0.3479  -1.0000",
+            "             |       39       38       39       39       39       39       39",
+            "             |",
+            "twelve_chars |   0.8661   1.0000   0.0163        .  -0.1006  -0.3380  -0.8661",
+            "             |       38       39       39       39       39       39       38",
+            "             |",
+            "",
+            "             | a_real~e twelve~s",
+            "-------------+------------------",
+            "a_really_l~e |   1.0000",
+            "             |       39",
+            "             |",
+            "twelve_chars |   0.8661   1.0000",
+            "             |       38       39",
+            "             |"
+          ]
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "pwcorr y x z k id w yy a_really_long_variable_name",
+          "lines": [
+            "             |        y        x        z        k       id",
+            ">        w       yy",
+            "-------------+----------------------------------------------",
+            "> -----------------",
+            "           y |   1.0000",
+            "           x |   0.8661   1.0000",
+            "           z |   0.0749   0.0163   1.0000",
+            "           k |        .        .        .        .",
+            "          id |  -0.1064  -0.1006   0.3688        .   1.0000",
+            "           w |  -0.3479  -0.3380   0.0076        .  -0.0345",
+            ">   1.0000",
+            "          yy |  -1.0000  -0.8661  -0.0749        .   0.1064",
+            ">   0.3479   1.0000",
+            "a_really_l~e |   1.0000   0.8661   0.0749        .  -0.1064",
+            ">  -0.3479  -1.0000",
+            "",
+            "             | a_real~e",
+            "-------------+---------",
+            "a_really_l~e |   1.0000"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input income score",
+          "lines": [
+            "        income      score",
+            "  1. 3 5",
+            "  2. 7 9",
+            "  3. 2 1",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "pwcorr income score in 1/2, sig",
+          "lines": [
+            "             |   income    score",
+            "-------------+------------------",
+            "      income |   1.0000",
+            "             |",
+            "             |",
+            "       score |   1.0000   1.0000",
+            "             |   1.0000",
+            "             |"
+          ]
+        },
+        {
+          "command": "pwcorr income score, sig",
+          "lines": [
+            "             |   income    score",
+            "-------------+------------------",
+            "      income |   1.0000",
+            "             |",
+            "             |",
+            "       score |   0.9449   1.0000",
+            "             |   0.2123",
+            "             |"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-ci-means-weights",
+      "source": "clear\nset seed 99\nset obs 40\ngenerate y = 100*runiform()\ngenerate x = y + 50*runiform()\ngenerate w = 1 + floor(4*runiform())\ngenerate double aw = w*1.37\nreplace y = . in 4\nreplace x = . in 9\nci means y x [fw=w]\nci means y x [aw=aw]\nci means y [aw=w], level(90)\nci means y x [fweight=w] if w > 1\ncapture noisily ci means y [iw=w]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate y = 100*runiform()", "lines": [] },
+        { "command": "generate x = y + 50*runiform()", "lines": [] },
+        { "command": "generate w = 1 + floor(4*runiform())", "lines": [] },
+        { "command": "generate double aw = w*1.37", "lines": [] },
+        {
+          "command": "replace y = . in 4",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace x = . in 9",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "ci means y x [fw=w]",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |        103    50.77464    2.563884        45.68919     55.8601",
+            "           x |        103    75.51078    3.177215        69.20879    81.81277"
+          ]
+        },
+        {
+          "command": "ci means y x [aw=aw]",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         39    50.77464    4.200554        42.27107    59.27822",
+            "           x |         39    75.51078    5.205409        64.97298    86.04858"
+          ]
+        },
+        {
+          "command": "ci means y [aw=w], level(90)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [90% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         39    50.77464    4.200554         43.6927    57.85659"
+          ]
+        },
+        {
+          "command": "ci means y x [fweight=w] if w > 1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         94     50.6527    2.736228        45.21909    56.08631",
+            "           x |         94    74.80258    3.393471        68.06381    81.54134"
+          ]
+        },
+        {
+          "command": "capture noisily ci means y [iw=w]",
+          "lines": ["iweights not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "fix6-codebook-wrapping-range-and-empty",
+      "source": "clear\nset obs 6\ngenerate v = mod(_n,3)+1\ngenerate float score = 21.9 + _n*.1\nreplace score = 78.1 in 1\ngenerate float frac = mod(_n,7)/10\ngenerate float big = 1e7 + _n*.25\ngenerate double dd = _n/3\ngenerate float ff = 100 + _n*.0001\ngenerate float cst = 1.1\ngenerate float ex = .1 in 1/3\nreplace ex = .a in 4\nlabel define L 1 \"Très satisfait — vraiment, beaucoup plus que prévu dans tous les cas possibles\" 2 \"中中中中中中中中中中中中中中中中中中中中\" 3 \"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ end\"\nlabel values v L\ngenerate v2 = v\nlabel define L2 1 \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b\" 2 \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b\" 3 \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b\"\nlabel values v2 L2\ngenerate a = 1\ngenerate bb = 2\ngenerate c = 3\ngenerate d = 4\ngenerate e = 5\ngenerate ccc_long_name_for_the_header_xx = 6\nlabel variable a \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"\nlabel variable bb \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"\nlabel variable c \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"\nlabel variable d \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"\nlabel variable e \"one two three four five six seven eight nine ten eleven twelve thirteen fourteen\"\nlabel variable ccc_long_name_for_the_header_xx \"Exactly the label that makes the sum reach the edge of l\"\nlabel variable score \"中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签\"\nset linesize 79\ncodebook v v2\ncodebook a bb c d e ccc_long_name_for_the_header_xx score\ncodebook frac big dd ff cst ex\nset linesize 80\ncodebook a bb c d\nset linesize 120\ncodebook e v\nset linesize 200\ncodebook v\ncapture noisily codebook v if v > 5\ndrop if _n > 0\ncapture noisily codebook v\ncapture noisily codebook\ncapture noisily codebook, compact\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate v = mod(_n,3)+1", "lines": [] },
+        { "command": "generate float score = 21.9 + _n*.1", "lines": [] },
+        {
+          "command": "replace score = 78.1 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate float frac = mod(_n,7)/10", "lines": [] },
+        { "command": "generate float big = 1e7 + _n*.25", "lines": [] },
+        { "command": "generate double dd = _n/3", "lines": [] },
+        { "command": "generate float ff = 100 + _n*.0001", "lines": [] },
+        { "command": "generate float cst = 1.1", "lines": [] },
+        {
+          "command": "generate float ex = .1 in 1/3",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace ex = .a in 4",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "label define L 1 \"Très satisfait — vraiment, beaucoup plus que prévu dans tous les cas possibles\" 2 \"中中中中中中中中中中中中中中中中中中中中\" 3 \"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ end\"",
+          "lines": []
+        },
+        { "command": "label values v L", "lines": [] },
+        { "command": "generate v2 = v", "lines": [] },
+        {
+          "command": "label define L2 1 \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b\" 2 \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b\" 3 \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa b\"",
+          "lines": []
+        },
+        { "command": "label values v2 L2", "lines": [] },
+        { "command": "generate a = 1", "lines": [] },
+        { "command": "generate bb = 2", "lines": [] },
+        { "command": "generate c = 3", "lines": [] },
+        { "command": "generate d = 4", "lines": [] },
+        { "command": "generate e = 5", "lines": [] },
+        {
+          "command": "generate ccc_long_name_for_the_header_xx = 6",
+          "lines": []
+        },
+        {
+          "command": "label variable a \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"",
+          "lines": []
+        },
+        {
+          "command": "label variable bb \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"",
+          "lines": []
+        },
+        {
+          "command": "label variable c \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"",
+          "lines": []
+        },
+        {
+          "command": "label variable d \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"",
+          "lines": []
+        },
+        {
+          "command": "label variable e \"one two three four five six seven eight nine ten eleven twelve thirteen fourteen\"",
+          "lines": []
+        },
+        {
+          "command": "label variable ccc_long_name_for_the_header_xx \"Exactly the label that makes the sum reach the edge of l\"",
+          "lines": []
+        },
+        {
+          "command": "label variable score \"中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签中文标签\"",
+          "lines": []
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "codebook v v2",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "v                                                                   (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "                 Label: L",
+            "",
+            "                 Range: [1,3]                         Units: 1",
+            "         Unique values: 3                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.   Numeric  Label",
+            "                            2         1  Très satisfait — vraiment,",
+            "                                         beaucoup plus que prévu dans",
+            "                                         tous les cas possibles",
+            "                            2         2  中中中中中中中中中中中中中中中",
+            "                                         中中中中中",
+            "                            2         3  abcdefghijklmnopqrstuvwxyz01234",
+            "                                         56789ABCDEFGHIJ end",
+            "",
+            "-------------------------------------------------------------------------------",
+            "v2                                                                  (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "                 Label: L2",
+            "",
+            "                 Range: [1,3]                         Units: 1",
+            "         Unique values: 3                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.   Numeric  Label",
+            "                            2         1  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "                                         b",
+            "                            2         2  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "                                         b",
+            "                            2         3  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "                                         a b"
+          ]
+        },
+        {
+          "command": "codebook a bb c d e ccc_long_name_for_the_header_xx score",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "a                                      AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [1,1]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  1",
+            "",
+            "-------------------------------------------------------------------------------",
+            "bb                                     AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [2,2]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  2",
+            "",
+            "-------------------------------------------------------------------------------",
+            "c                                      AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [3,3]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  3",
+            "",
+            "-------------------------------------------------------------------------------",
+            "d                                      AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       > A BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [4,4]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  4",
+            "",
+            "-------------------------------------------------------------------------------",
+            "e                                      one two three four five six seven eight",
+            "                                       nine ten eleven twelve thirteen fourteen",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [5,5]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  5",
+            "",
+            "-------------------------------------------------------------------------------",
+            "ccc_long_name_for_the_header_xx        Exactly the label that makes the sum",
+            "                                       reach the edge of l",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [6,6]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  6",
+            "",
+            "-------------------------------------------------------------------------------",
+            "score                                  中文标签中文标签中文标签中文标签中文标签",
+            "                                       > 中文标签中文标签中文标签中文标签",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [22.1,78.1]                   Units: .1",
+            "         Unique values: 6                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            1  22.1",
+            "                            1  22.200001",
+            "                            1  22.299999",
+            "                            1  22.4",
+            "                            1  22.5",
+            "                            1  78.099998"
+          ]
+        },
+        {
+          "command": "codebook frac big dd ff cst ex",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "frac                                                                (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [.1,.6]                       Units: .1",
+            "         Unique values: 6                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            1  .1",
+            "                            1  .2",
+            "                            1  .30000001",
+            "                            1  .40000001",
+            "                            1  .5",
+            "                            1  .60000002",
+            "",
+            "-------------------------------------------------------------------------------",
+            "big                                                                 (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [10000000,10000002]           Units: 1",
+            "         Unique values: 3                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            2  10000000",
+            "                            3  10000001",
+            "                            1  10000002",
+            "",
+            "-------------------------------------------------------------------------------",
+            "dd                                                                  (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (double)",
+            "",
+            "                 Range: [.33333333,2]                 Units: 1.000e-08",
+            "         Unique values: 6                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            1  .33333333",
+            "                            1  .66666667",
+            "                            1  1",
+            "                            1  1.3333333",
+            "                            1  1.6666667",
+            "                            1  2",
+            "",
+            "-------------------------------------------------------------------------------",
+            "ff                                                                  (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [100.0001,100.0006]           Units: .0001",
+            "         Unique values: 6                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            1  100.0001",
+            "                            1  100.0002",
+            "                            1  100.0003",
+            "                            1  100.0004",
+            "                            1  100.0005",
+            "                            1  100.0006",
+            "",
+            "-------------------------------------------------------------------------------",
+            "cst                                                                 (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [1.1,1.1]                     Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  1.1",
+            "",
+            "-------------------------------------------------------------------------------",
+            "ex                                                                  (unlabeled)",
+            "-------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [.1,.1]                       Units: 1",
+            "         Unique values: 1                         Missing .: 2/6",
+            "       Unique mv codes: 2                        Missing .*: 1/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            3  .1",
+            "                            2  .",
+            "                            1  .a"
+          ]
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "codebook a bb c d",
+          "lines": [
+            "--------------------------------------------------------------------------------",
+            "a   AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "--------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [1,1]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  1",
+            "",
+            "--------------------------------------------------------------------------------",
+            "bb                                     AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "--------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [2,2]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  2",
+            "",
+            "--------------------------------------------------------------------------------",
+            "c                                      AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "--------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [3,3]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  3",
+            "",
+            "--------------------------------------------------------------------------------",
+            "d                                      AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "                                       BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "--------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [4,4]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  4"
+          ]
+        },
+        { "command": "set linesize 120", "lines": [] },
+        {
+          "command": "codebook e v",
+          "lines": [
+            "------------------------------------------------------------------------------------------------------------------------",
+            "e                                       one two three four five six seven eight nine ten eleven twelve thirteen fourteen",
+            "------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "",
+            "                 Range: [5,5]                         Units: 1",
+            "         Unique values: 1                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.  Value",
+            "                            6  5",
+            "",
+            "------------------------------------------------------------------------------------------------------------------------",
+            "v                                                                                                            (unlabeled)",
+            "------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "                 Label: L",
+            "",
+            "                 Range: [1,3]                         Units: 1",
+            "         Unique values: 3                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.   Numeric  Label",
+            "                            2         1  Très satisfait — vraiment,",
+            "                                         beaucoup plus que prévu dans",
+            "                                         tous les cas possibles",
+            "                            2         2  中中中中中中中中中中中中中中中",
+            "                                         中中中中中",
+            "                            2         3  abcdefghijklmnopqrstuvwxyz01234",
+            "                                         56789ABCDEFGHIJ end"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "codebook v",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v                                                                                                                                                                                            (unlabeled)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "                  Type: Numeric (float)",
+            "                 Label: L",
+            "",
+            "                 Range: [1,3]                         Units: 1",
+            "         Unique values: 3                         Missing .: 0/6",
+            "",
+            "            Tabulation: Freq.   Numeric  Label",
+            "                            2         1  Très satisfait — vraiment,",
+            "                                         beaucoup plus que prévu dans",
+            "                                         tous les cas possibles",
+            "                            2         2  中中中中中中中中中中中中中中中",
+            "                                         中中中中中",
+            "                            2         3  abcdefghijklmnopqrstuvwxyz01234",
+            "                                         56789ABCDEFGHIJ end"
+          ]
+        },
+        {
+          "command": "capture noisily codebook v if v > 5",
+          "lines": ["no observations"]
+        },
+        { "command": "drop if _n > 0", "lines": ["(6 observations deleted)"] },
+        {
+          "command": "capture noisily codebook v",
+          "lines": ["no observations"]
+        },
+        { "command": "capture noisily codebook", "lines": ["no observations"] },
+        {
+          "command": "capture noisily codebook, compact",
+          "lines": ["no observations"]
+        }
+      ]
+    },
+    {
+      "id": "fix6-tabulate-option-forms",
+      "source": "clear\nset seed 7\nset obs 200\ngenerate region = 1+floor(4*runiform())\ngenerate grp = 1+floor(3*runiform())\ngenerate income = 100*runiform()\ntabulate region grp, row nokey\ntabulate region grp, row key\ntabulate region grp, r co ce nof\ntabulate region grp, ch\ntabulate region grp, chi2 row cel nokey\ntabulate region grp, ro col\ntabulate region, su(income) nost\ntabulate region grp, s(income) noo nofr\ntabulate region grp, su(income) me\ntabulate region, summ(income) st f o mi nol\ntabulate region, f\ntabulate region grp, m nol f\ncapture noisily tabulate region, nom\ncapture noisily tabulate region, me\ncapture noisily tabulate region, noo\ncapture noisily tabulate region, nome\ncapture noisily tabulate region, exact(2)\ncapture noisily tabulate region, matcol(C)\ncapture noisily tabulate region grp, gen(zz)\ncapture noisily tabulate region, row\ncapture noisily tabulate region, col\ncapture noisily tabulate region, cell\ncapture noisily tabulate region, chi2\ncapture noisily tabulate region, exact\ncapture noisily tabulate region if grp == 1, chi2\ncapture noisily tabulate region, cl\ncapture noisily tabulate region grp, cl\ncapture noisily tabulate region grp, c\ncapture noisily tabulate region grp, cch\ncapture noisily tabulate region grp, nok\ncapture noisily tabulate region, su(income) nom\ncapture noisily tabulate region, su(income) m\ncapture noisily tabulate region, su(income) row\ncapture noisily tabulate region, su(income) g(zz)\ncapture noisily tabulate region, su(income) sort\ncapture noisily tabulate region, su(income) nokey\ncapture noisily tabulate region grp, sort\ncapture noisily tabulate region grp, first\ncapture noisily tabulate region, key\ncapture noisily tabulate region, so\nlist region grp in 1/3, c\nlist region grp in 1/3, clean\ncapture noisily list region grp in 1/3, cl\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate region = 1+floor(4*runiform())", "lines": [] },
+        { "command": "generate grp = 1+floor(3*runiform())", "lines": [] },
+        { "command": "generate income = 100*runiform()", "lines": [] },
+        {
+          "command": "tabulate region grp, row nokey",
+          "lines": [
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        16         21         16 |        53",
+            "           |     30.19      39.62      30.19 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         2 |         9         21         16 |        46",
+            "           |     19.57      45.65      34.78 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         3 |        16         21         17 |        54",
+            "           |     29.63      38.89      31.48 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         4 |        12         17         18 |        47",
+            "           |     25.53      36.17      38.30 |    100.00",
+            "-----------+---------------------------------+----------",
+            "     Total |        53         80         67 |       200",
+            "           |     26.50      40.00      33.50 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate region grp, row key",
+          "lines": [
+            "+----------------+",
+            "| Key            |",
+            "|----------------|",
+            "|   frequency    |",
+            "| row percentage |",
+            "+----------------+",
+            "",
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        16         21         16 |        53",
+            "           |     30.19      39.62      30.19 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         2 |         9         21         16 |        46",
+            "           |     19.57      45.65      34.78 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         3 |        16         21         17 |        54",
+            "           |     29.63      38.89      31.48 |    100.00",
+            "-----------+---------------------------------+----------",
+            "         4 |        12         17         18 |        47",
+            "           |     25.53      36.17      38.30 |    100.00",
+            "-----------+---------------------------------+----------",
+            "     Total |        53         80         67 |       200",
+            "           |     26.50      40.00      33.50 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate region grp, r co ce nof",
+          "lines": [
+            "+-------------------+",
+            "| Key               |",
+            "|-------------------|",
+            "|  row percentage   |",
+            "| column percentage |",
+            "|  cell percentage  |",
+            "+-------------------+",
+            "",
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |     30.19      39.62      30.19 |    100.00",
+            "           |     30.19      26.25      23.88 |     26.50",
+            "           |      8.00      10.50       8.00 |     26.50",
+            "-----------+---------------------------------+----------",
+            "         2 |     19.57      45.65      34.78 |    100.00",
+            "           |     16.98      26.25      23.88 |     23.00",
+            "           |      4.50      10.50       8.00 |     23.00",
+            "-----------+---------------------------------+----------",
+            "         3 |     29.63      38.89      31.48 |    100.00",
+            "           |     30.19      26.25      25.37 |     27.00",
+            "           |      8.00      10.50       8.50 |     27.00",
+            "-----------+---------------------------------+----------",
+            "         4 |     25.53      36.17      38.30 |    100.00",
+            "           |     22.64      21.25      26.87 |     23.50",
+            "           |      6.00       8.50       9.00 |     23.50",
+            "-----------+---------------------------------+----------",
+            "     Total |     26.50      40.00      33.50 |    100.00",
+            "           |    100.00     100.00     100.00 |    100.00",
+            "           |     26.50      40.00      33.50 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate region grp, ch",
+          "lines": [
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        16         21         16 |        53",
+            "         2 |         9         21         16 |        46",
+            "         3 |        16         21         17 |        54",
+            "         4 |        12         17         18 |        47",
+            "-----------+---------------------------------+----------",
+            "     Total |        53         80         67 |       200",
+            "",
+            "          Pearson chi2(6) =   2.4661   Pr = 0.872"
+          ]
+        },
+        {
+          "command": "tabulate region grp, chi2 row cel nokey",
+          "lines": [
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        16         21         16 |        53",
+            "           |     30.19      39.62      30.19 |    100.00",
+            "           |      8.00      10.50       8.00 |     26.50",
+            "-----------+---------------------------------+----------",
+            "         2 |         9         21         16 |        46",
+            "           |     19.57      45.65      34.78 |    100.00",
+            "           |      4.50      10.50       8.00 |     23.00",
+            "-----------+---------------------------------+----------",
+            "         3 |        16         21         17 |        54",
+            "           |     29.63      38.89      31.48 |    100.00",
+            "           |      8.00      10.50       8.50 |     27.00",
+            "-----------+---------------------------------+----------",
+            "         4 |        12         17         18 |        47",
+            "           |     25.53      36.17      38.30 |    100.00",
+            "           |      6.00       8.50       9.00 |     23.50",
+            "-----------+---------------------------------+----------",
+            "     Total |        53         80         67 |       200",
+            "           |     26.50      40.00      33.50 |    100.00",
+            "           |     26.50      40.00      33.50 |    100.00",
+            "",
+            "          Pearson chi2(6) =   2.4661   Pr = 0.872"
+          ]
+        },
+        {
+          "command": "tabulate region grp, ro col",
+          "lines": [
+            "+-------------------+",
+            "| Key               |",
+            "|-------------------|",
+            "|     frequency     |",
+            "|  row percentage   |",
+            "| column percentage |",
+            "+-------------------+",
+            "",
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        16         21         16 |        53",
+            "           |     30.19      39.62      30.19 |    100.00",
+            "           |     30.19      26.25      23.88 |     26.50",
+            "-----------+---------------------------------+----------",
+            "         2 |         9         21         16 |        46",
+            "           |     19.57      45.65      34.78 |    100.00",
+            "           |     16.98      26.25      23.88 |     23.00",
+            "-----------+---------------------------------+----------",
+            "         3 |        16         21         17 |        54",
+            "           |     29.63      38.89      31.48 |    100.00",
+            "           |     30.19      26.25      25.37 |     27.00",
+            "-----------+---------------------------------+----------",
+            "         4 |        12         17         18 |        47",
+            "           |     25.53      36.17      38.30 |    100.00",
+            "           |     22.64      21.25      26.87 |     23.50",
+            "-----------+---------------------------------+----------",
+            "     Total |        53         80         67 |       200",
+            "           |     26.50      40.00      33.50 |    100.00",
+            "           |    100.00     100.00     100.00 |    100.00"
+          ]
+        },
+        {
+          "command": "tabulate region, su(income) nost",
+          "lines": [
+            "            |    Summary of income",
+            "     region |        Mean       Freq.",
+            "------------+------------------------",
+            "          1 |   42.335948          53",
+            "          2 |   47.464466          46",
+            "          3 |   48.280688          54",
+            "          4 |   46.492177          47",
+            "------------+------------------------",
+            "      Total |   46.097301         200"
+          ]
+        },
+        {
+          "command": "tabulate region grp, s(income) noo nofr",
+          "lines": [
+            "                  Means and Standard Deviations of income",
+            "",
+            "           |              grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 | 48.902134  44.769043  32.576324 | 42.335948",
+            "           | 27.016754  30.612199  28.096546 | 29.045755",
+            "-----------+---------------------------------+----------",
+            "         2 | 54.642629  50.582253  39.334654 | 47.464466",
+            "           | 32.193744  32.962511  30.780526 | 31.957965",
+            "-----------+---------------------------------+----------",
+            "         3 | 50.172266  51.896843  42.033365 | 48.280688",
+            "           | 29.893631  25.555087  30.387206 | 28.229235",
+            "-----------+---------------------------------+----------",
+            "         4 | 49.330184  46.090157  44.979859 | 46.492177",
+            "           | 36.023626  31.748924   26.82143 | 30.493337",
+            "-----------+---------------------------------+----------",
+            "     Total | 50.357288  48.446795  39.922095 | 46.097301",
+            "           | 30.106092   29.84899    28.7259 | 29.733968"
+          ]
+        },
+        {
+          "command": "tabulate region grp, su(income) me",
+          "lines": [
+            "                              Means of income",
+            "",
+            "           |              grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 | 48.902134  44.769043  32.576324 | 42.335948",
+            "         2 | 54.642629  50.582253  39.334654 | 47.464466",
+            "         3 | 50.172266  51.896843  42.033365 | 48.280688",
+            "         4 | 49.330184  46.090157  44.979859 | 46.492177",
+            "-----------+---------------------------------+----------",
+            "     Total | 50.357288  48.446795  39.922095 | 46.097301"
+          ]
+        },
+        {
+          "command": "tabulate region, summ(income) st f o mi nol",
+          "lines": [
+            "            |          Summary of income",
+            "     region |   Std. dev.       Freq.         Obs",
+            "------------+------------------------------------",
+            "          1 |   29.045755          53          53",
+            "          2 |   31.957965          46          46",
+            "          3 |   28.229235          54          54",
+            "          4 |   30.493337          47          47",
+            "------------+------------------------------------",
+            "      Total |   29.733968         200         200"
+          ]
+        },
+        {
+          "command": "tabulate region, f",
+          "lines": [
+            "     region |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         53       26.50       26.50",
+            "          2 |         46       23.00       49.50",
+            "          3 |         54       27.00       76.50",
+            "          4 |         47       23.50      100.00",
+            "------------+-----------------------------------",
+            "      Total |        200      100.00"
+          ]
+        },
+        {
+          "command": "tabulate region grp, m nol f",
+          "lines": [
+            "           |               grp",
+            "    region |         1          2          3 |     Total",
+            "-----------+---------------------------------+----------",
+            "         1 |        16         21         16 |        53",
+            "         2 |         9         21         16 |        46",
+            "         3 |        16         21         17 |        54",
+            "         4 |        12         17         18 |        47",
+            "-----------+---------------------------------+----------",
+            "     Total |        53         80         67 |       200"
+          ]
+        },
+        {
+          "command": "capture noisily tabulate region, nom",
+          "lines": [
+            "     region |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         53       26.50       26.50",
+            "          2 |         46       23.00       49.50",
+            "          3 |         54       27.00       76.50",
+            "          4 |         47       23.50      100.00",
+            "------------+-----------------------------------",
+            "      Total |        200      100.00"
+          ]
+        },
+        {
+          "command": "capture noisily tabulate region, me",
+          "lines": ["option me not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, noo",
+          "lines": ["option noo not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, nome",
+          "lines": ["option nome not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, exact(2)",
+          "lines": ["option exact() not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, matcol(C)",
+          "lines": ["option matcol() not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, gen(zz)",
+          "lines": ["option gen() not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, row",
+          "lines": ["option row not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, col",
+          "lines": ["option col not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, cell",
+          "lines": ["option cell not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, chi2",
+          "lines": ["option chi2 not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, exact",
+          "lines": ["option exact not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region if grp == 1, chi2",
+          "lines": ["option chi2 not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, cl",
+          "lines": ["option cl not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, cl",
+          "lines": ["option cl not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, c",
+          "lines": ["option c not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, cch",
+          "lines": ["option cch not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, nok",
+          "lines": ["option nok not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, su(income) nom",
+          "lines": ["option nom not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, su(income) m",
+          "lines": ["option m not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, su(income) row",
+          "lines": ["option row not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, su(income) g(zz)",
+          "lines": ["option g() not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, su(income) sort",
+          "lines": ["option sort not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, su(income) nokey",
+          "lines": ["option nokey not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, sort",
+          "lines": ["option sort not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region grp, first",
+          "lines": ["option first not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, key",
+          "lines": ["option key not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate region, so",
+          "lines": ["option so not allowed"]
+        },
+        {
+          "command": "list region grp in 1/3, c",
+          "lines": [
+            "     +-------------+",
+            "     | reg~n   grp |",
+            "     |-------------|",
+            "  1. |     4     3 |",
+            "  2. |     4     2 |",
+            "  3. |     1     3 |",
+            "     +-------------+"
+          ]
+        },
+        {
+          "command": "list region grp in 1/3, clean",
+          "lines": [
+            "       region   grp",
+            "  1.        4     3",
+            "  2.        4     2",
+            "  3.        1     3"
+          ]
+        },
+        {
+          "command": "capture noisily list region grp in 1/3, cl",
+          "lines": ["option cl not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "fix6-summarize-without-variables",
+      "source": "clear\nsummarize\nsummarize, detail\nset obs 3\nsummarize\ngenerate x = _n\ngenerate w = _n\ncapture noisily summarize x [iw=w], detail\nsummarize x [iw=w]\nsummarize x [fw=w], detail\ndrop x w\nsummarize\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "summarize", "lines": [] },
+        { "command": "summarize, detail", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "summarize", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate w = _n", "lines": [] },
+        {
+          "command": "capture noisily summarize x [iw=w], detail",
+          "lines": ["iweights not allowed"]
+        },
+        {
+          "command": "summarize x [iw=w]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "           x |       3           6    2.333333   .8164966          1          3"
+          ]
+        },
+        {
+          "command": "summarize x [fw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   6",
+            "25%            2              .       Sum of wgt.           6",
+            "",
+            "50%          2.5                      Mean           2.333333",
+            "                        Largest       Std. dev.      .8164966",
+            "75%            3              .",
+            "90%            3              1       Variance       .6666667",
+            "95%            3              2       Skewness       -.626099",
+            "99%            3              3       Kurtosis           2.04"
+          ]
+        },
+        { "command": "drop x w", "lines": [] },
+        { "command": "summarize", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -1,7 +1,12 @@
 // Smaller commands: levelsof, ds, unab and ttest.
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
-import { abbreviateName, applyFormat, displayWidth } from "./format.js";
+import {
+  abbreviateName,
+  applyFormat,
+  displayWidth,
+  truncateColumns,
+} from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
 import { FUNCTIONS } from "./functions.js";
@@ -998,30 +1003,83 @@ function six(value) {
   return applyFormat(value, "%8.0g").trim();
 }
 /**
- * The pieces Stata's `: piece # len of` gives: at most len characters each,
- * broken after the last blank when a word would run past the end, and cut
- * where it must when one word is longer than len. Blanks at a break go.
+ * The pieces Stata's `: piece # len of` gives: at most len columns of the
+ * screen each (a Chinese character takes two), broken after the last blank
+ * when a word would run past the end, and cut where it must when one word
+ * is longer than len. Blanks at a break go.
  */
 function pieces(text, len) {
   const out = [];
   let rest = text.replace(/^ +/, "");
   while (rest) {
-    if (rest.length <= len) {
+    if (displayWidth(rest) <= len) {
       out.push(rest.trimEnd());
       break;
     }
-    const cut = rest.slice(0, len),
+    const cut = truncateColumns(rest, len),
       blank = cut.lastIndexOf(" ");
-    if (rest[len] !== " " && blank > 0) {
+    if (rest[cut.length] !== " " && blank > 0) {
       out.push(cut.slice(0, blank).trimEnd());
       rest = rest.slice(blank + 1);
     } else {
       out.push(cut.trimEnd());
-      rest = rest.slice(len);
+      rest = rest.slice(cut.length);
     }
     rest = rest.replace(/^ +/, "");
   }
   return out;
+}
+
+/**
+ * codebook.ado's VarHeader. The label is right-aligned on the name's line
+ * when the two leave more than two columns of the line free. Otherwise
+ * they make an SMCL {p 0 39} paragraph: the name, blanks to column 40 and
+ * the label's words, wrapped at the line size with the later lines
+ * indented 39 columns. A word too long for its line is cut there and
+ * continued on the next line after "> ", as SMCL does. Recorded from
+ * Stata 19.
+ */
+function varHeader(name, label, linesize) {
+  const named = displayWidth(name),
+    labelled = displayWidth(label);
+  if (labelled + named < linesize - 2)
+    return [
+      name + " ".repeat(Math.max(0, linesize - named - labelled)) + label,
+    ];
+  const words = label.split(" ").filter(Boolean),
+    lines = [],
+    indent = " ".repeat(39);
+  words[0] = name + " ".repeat(Math.max(39 - named, 2)) + (words[0] ?? "");
+  let line = "",
+    used = 0,
+    fresh = true;
+  const newLine = (lead) => {
+    lines.push(line);
+    line = indent + lead;
+    used = 39 + lead.length;
+  };
+  for (const word of words) {
+    const width = displayWidth(word);
+    if (!fresh && used + 1 + width <= linesize) {
+      line += " " + word;
+      used += 1 + width;
+      continue;
+    }
+    if (!fresh) newLine("");
+    let rest = word;
+    while (used + displayWidth(rest) > linesize) {
+      const cut =
+        truncateColumns(rest, Math.max(1, linesize - used)) || rest[0];
+      line += cut;
+      rest = rest.slice(cut.length);
+      newLine("> ");
+    }
+    line += rest;
+    used += displayWidth(rest);
+    fresh = false;
+  }
+  lines.push(line);
+  return lines;
 }
 
 // codebook.ado's DoDate: a variable whose format starts %d or %t followed
@@ -1078,8 +1136,9 @@ function codebook(session, text, ctx) {
     linesize = session.settings.linesize ?? 80,
     rule = "-".repeat(linesize),
     field = (label) => `${label.padStart(22)}: `;
+  // Codebook_vars and SummCompact both stop when no observation is left.
+  if (!rows.length) throw new StataError("no observations", 2000);
   if (parsed.options.compact) {
-    if (!rows.length) throw new StataError("no observations", 2000);
     const table = parsed.varlist.map((name) => {
         const v = data.get(name),
           string = isStringType(v.type),
@@ -1146,7 +1205,7 @@ function codebook(session, text, ctx) {
       label = v.label || "(unlabeled)";
     ctx.out("");
     ctx.out(rule);
-    ctx.out(`${v.name}${label.padStart(linesize - v.name.length)}`);
+    varHeader(v.name, label, linesize).forEach((line) => ctx.out(line));
     ctx.out(rule);
     ctx.out("");
     if (string) {
@@ -1240,9 +1299,15 @@ function codebook(session, text, ctx) {
       );
     }
     ctx.out("");
+    // Units also rounds the ends of the range to the units, unless the
+    // variable is constant: a float's 78.099998 is shown as 78.1 when the
+    // units are .1.
+    const unitSize = present.length ? units(present) : MISSING,
+      end = (x) =>
+        unique.length > 1 ? Math.floor(x / unitSize + 0.5) * unitSize : x;
     ctx.out(
       present.length
-        ? `${field("Range")}${`[${ten(unique[0])},${ten(unique.at(-1))}]`.padEnd(30)}Units: ${ten(units(present))}`
+        ? `${field("Range")}${`[${ten(end(unique[0]))},${ten(end(unique.at(-1)))}]`.padEnd(30)}Units: ${ten(unitSize)}`
         : `${field("Range")}${"[.,.]".padEnd(30)}Units: .`,
     );
     if (unit)
@@ -1280,10 +1345,21 @@ function codebook(session, text, ctx) {
       );
       for (const level of levels) {
         const n = count(all.filter((x) => x === level).length).padStart(29);
-        ctx.out(
-          map
-            ? `${n}${show(level).padStart(10)}  ${map.get(level) ?? ""}`.trimEnd()
-            : `${n}  ${show(level)}`,
+        if (!map) {
+          ctx.out(`${n}  ${show(level)}`);
+          continue;
+        }
+        // FullTabValueLabeled shows a label in pieces of 31 columns from
+        // column 42, as its Piece does.
+        const label = map.get(level) ?? "",
+          parts = label ? pieces(label, 31) : [""];
+        parts.forEach((part, j) =>
+          ctx.out(
+            (j
+              ? " ".repeat(41) + part
+              : `${n}${show(level).padStart(10)}  ${part}`
+            ).trimEnd(),
+          ),
         );
       }
       continue;

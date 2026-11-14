@@ -141,7 +141,7 @@ export function weightedRows(session, parsed, rows, { expand = true } = {}) {
 }
 // The variance divides by n - 1 with analytic weights, which sum to n, and
 // by the sum of the weights less one with importance weights.
-function weightedMoments(variable, rows, weights, importance = false) {
+export function weightedMoments(variable, rows, weights, importance = false) {
   if (isStringType(variable.type)) return moments([]);
   const use = rows.filter((i) => !isMissing(variable.data[i])),
     n = use.length,
@@ -203,10 +203,13 @@ const statistic = (value, format, width) => {
 };
 export function summarize(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
-      text,
-    ),
-    weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
+    "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
+    text,
+  );
+  // Stata refuses importance weights with detail.
+  if (parsed.weight?.type === "iweight" && parsed.options.detail)
+    throw new StataError("iweights not allowed", 101);
+  const weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
     rows = weighted.rows,
     analytic = weighted.weights && !parsed.options.detail;
   if (weighted.weights && parsed.options.detail)
@@ -214,6 +217,8 @@ export function summarize(session, text, ctx) {
       "summarize, detail with aweights is not available yet",
       198,
     );
+  // With no variables in memory Stata prints nothing at all.
+  if (!parsed.varlist.length) return;
   let last = null;
   // meanonly computes the results and prints nothing.
   if (parsed.options.meanonly) ctx = { ...ctx, out: () => {} };
@@ -739,10 +744,56 @@ export function tabulate(session, text, ctx) {
       ? `${head}, ${kept.map((item) => item.word).join(" ")}`
       : head;
   }
-  const parsed = session.parse(
-    "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, Missing NOLabel SORT CHI2 ROW COLumn CELL SUMmarize(string) Generate(name) EXact NOFreq NOMeans NOStandard NOObs MEans STandard FREq OBs | LRchi2 Gamma TAUb EXPected plot MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ALL CCHi2 CLRchi2 NOKey Wrap FIRSTonly]",
-    text,
-  );
+  // Each form of tabulate has its own options, with its own abbreviations:
+  // g is generate() one way and gamma two ways, and with summarize() m is
+  // neither missing nor means. An option of another form is refused with
+  // the name as typed. Recorded from Stata 19.
+  const typed = optionItems(splitAtComma(text)[1] ?? ""),
+    summarizing = typed.some(
+      (item) =>
+        item.argument !== undefined &&
+        "summarize".startsWith(item.name.toLowerCase()),
+    ),
+    twoWay =
+      session.parse(
+        "varlist(min=1 max=2) [if] [in] [fweight aweight iweight] [, *]",
+        text,
+      ).varlist.length === 2,
+    weights = "[if] [in] [fweight aweight iweight]",
+    statistics = "NOMEans NOSTandard NOOBs MEans STandard OBs";
+  if (
+    twoWay &&
+    !summarizing &&
+    typed.some(
+      (item) =>
+        item.argument !== undefined &&
+        "exact".startsWith(item.name.toLowerCase()),
+    )
+  )
+    throw new StataError(
+      "option exact(#) is not available in the browser yet",
+      198,
+    );
+  let parsed;
+  try {
+    parsed = session.parse(
+      summarizing
+        ? `varlist(min=1 max=2) ${weights} [, Summarize(string) NOMEans NOSTandard NOFreq NOObs MEans STandard Freq Obs MIssing NOLabel | Wrap]`
+        : twoWay
+          ? `varlist(min=2 max=2) ${weights} [, CHi2 Row COlumn CEll Exact Missing NOLabel NOFreq Freq ${statistics} noKEY | LRchi2 Gamma Taub EXPected All CCHI2 CLRchi2 Wrap MATCell(string) MATRow(string) MATCol(string) SUBpop(string) ROWSORT COLSORT]`
+          : `varname ${weights} [, Generate(name) Missing NOLabel NOFreq Freq SORT ${statistics} | Plot MATCell(string) MATRow(string) SUBpop(string)]`,
+      text,
+    );
+  } catch (error) {
+    // Stata adds () to the name of a refused option typed with one.
+    const m = /^option (\w+) not allowed$/.exec(error.message ?? "");
+    if (
+      m &&
+      typed.some((item) => item.name === m[1] && item.argument !== undefined)
+    )
+      throw new StataError(`option ${m[1]}() not allowed`, 198);
+    throw error;
+  }
   const options = parsed.options;
   // With summarize(), an iweight is taken as a frequency weight. Analytic
   // weights rule out the tests; importance weights rule them out as
@@ -843,16 +894,15 @@ export function tabulate(session, text, ctx) {
     ["noobs", 4],
   ];
   if (!target && summaryOptions.some(([full]) => options[full])) {
+    // Stata names the first of them as it was typed: me, nome.
     const first = optionItems(splitAtComma(text)[1] ?? "")
-      .map((item) => item.name.toLowerCase())
-      .map(
-        (name) =>
-          summaryOptions.find(
-            ([full, minimum]) =>
-              name.length >= minimum && full.startsWith(name),
-          )?.[0],
-      )
-      .find(Boolean);
+      .map((item) => item.name)
+      .find((name) =>
+        summaryOptions.some(
+          ([full, minimum]) =>
+            name.length >= minimum && full.startsWith(name.toLowerCase()),
+        ),
+      );
     throw new StataError(`option ${first} not allowed`, 198);
   }
   for (const each of ["means", "standard", "freq", "obs"])
@@ -1246,7 +1296,7 @@ export function tabulate(session, text, ctx) {
     ...(options.nofreq ? [] : [["frequency", "frequency"]]),
     ...kinds,
   ];
-  if (entries.length > 1) {
+  if (entries.length > 1 && options.key !== false) {
     const names = entries.map(([, text]) => text),
       inner = greatest(names.map((item) => item.length)) + 2,
       centre = (item) => {
@@ -1422,7 +1472,7 @@ export function list(session, text, ctx) {
       "header(#), which repeats the headings every # observations, is not available; list shows them once.",
     );
   const parsed = session.parse(
-      "[varlist] [if] [in] [, Clean NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCOMPress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
+      "[varlist] [if] [in] [, CLEAN NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCompress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
       text,
     ),
     options = parsed.options,
@@ -1432,7 +1482,9 @@ export function list(session, text, ctx) {
     // An explicit compress, without abbreviate(), shortens each name to its
     // column, and so to five characters at least.
     limit =
-      /(?:^|[\s,])comp(?:r(?:e(?:ss?)?)?)?(?=$|[\s,])/i.test(optionText) &&
+      /(?:^|[\s,])c(?:o(?:m(?:p(?:r(?:e(?:ss?)?)?)?)?)?)?(?=$|[\s,])/i.test(
+        optionText,
+      ) &&
       !/(?:^|[\s,])ab(?:b(?:r(?:e(?:v(?:i(?:a(?:te?)?)?)?)?)?)?)?\s*\(/i.test(
         optionText,
       )
