@@ -13751,3 +13751,515 @@ generate str5 qq = "a", before(income)
 generate r = cond(id > 2, 1, 0), after(y2)
 describe, simple
 list in 1/2
+=== fix6b-datamgmt-decode-width
+clear
+set obs 5
+generate byte c = _n
+label define cl 1 "Ébène" 2 "Zürich" 3 "日本語テキスト" 4 ""
+label values c cl
+decode c if c > 3, generate(a1)
+decode c if c == 1, generate(a2)
+decode c if c == 2, generate(a3) maxlength(3)
+decode c in 1, generate(a5) maxlength(30)
+decode c if c > 3, generate(s10) maxl(5)
+describe
+list
+clear
+set obs 3
+generate c = _n
+local q = 3000*"q"
+label define cl 1 "`q'" 2 "short" 3 "ab"
+label values c cl
+decode c, generate(s)
+decode c if c == 2, generate(s1)
+decode c, generate(s2) maxlength(2045)
+decode c, generate(s3) maxlength(2046)
+decode c, generate(s4) maxlength(3)
+describe
+generate n = strlen(s)
+generate n2 = strlen(s2)
+list n n2 s4
+label define e2 7 "abcdefghijk"
+label values c e2
+decode c, generate(s6)
+label define e4 1 "abcdefghi" 2 "abcdefghij" .a "abcdefghijklmnopqrst"
+label values c e4
+decode c, generate(s8)
+label define e1 1 ""
+label values c e1
+decode c, generate(s5)
+describe s6 s8 s5
+capture noisily decode c, generate(s9) maxlength(32001)
+=== fix6b-datamgmt-compress-strl-memory
+clear
+set obs 2
+generate strL a = 97 * "x" if _n == 1
+generate strL b = 96 * "x" if _n == 1
+generate strL c = 98 * "x" if _n == 1
+compress a
+compress b
+compress c
+describe
+clear
+set obs 6
+generate strL a = 2045 * "x" if _n == 1
+compress a
+generate strL b = 2000 * "x" + string(_n)
+compress b
+generate strL c = 300 * "x" if _n == 1
+compress c
+generate strL h = 2045 * "y"
+compress h
+describe
+clear
+set obs 50
+generate strL g = "same"
+replace g = "different" in 10
+compress g
+generate strL g3 = "same"
+replace g3 = "different" in 10/12
+compress g3
+generate strL h = "same"
+replace h = "different" in 10
+replace h = "different" in 11
+compress h
+generate strL k = "same"
+replace k = "different" in 10
+replace k = "same" in 10
+compress k
+generate strL m = "same"
+replace m = "different" if mod(_n, 2)
+compress m
+generate strL r = "zz"
+replace r = "zzz" in 5
+replace r = "zz" in 5
+compress r
+generate strL t = "x" if mod(_n, 2)
+compress t
+generate strL u = cond(mod(_n, 2), "x", "")
+compress u
+generate strL v = "y"
+replace v = "x" in 20/30
+compress v
+generate strL w = "abc"
+replace w = cond(mod(_n, 2), "q", "r") in 1/10
+compress w
+generate strL y = "abc"
+replace y = "abc" in 1/10
+compress y
+generate strL z = "abc"
+replace z = "q" in 5
+sort z
+compress z
+generate strL p = cond(_n < 20, "aaa", "bbb")
+gsort -p
+compress p
+generate strL s = "abc"
+replace s = s + "d" in 1/10
+compress s
+=== fix6b-datamgmt-input-continue
+clear
+input str20 name age
+"John Smith" 34
+"Mary" .
+end
+input
+"Again" 60
+end
+list
+clear
+input x y
+1 2
+end
+input
+3 4
+5 6
+end
+list
+clear
+input byte b str3 s
+1 "ab"
+end
+input
+300 "abcdefg"
+2.5 "x"
+end
+describe
+list
+clear
+input a b
+1 2
+end
+label define al 1 "one"
+label values a al
+input
+one 5
+3 4
+end
+list
+=== fix6b-datamgmt-input-separators
+clear
+input x y z
+1 2 3 4
+5 6
+7
+8 9 10
+end
+list
+clear
+input x
+1e3
+-.5
++3
+1,000
+1d3
+.b
+2+3
+(3)
+-
+1e
+x
+end
+list
+clear
+input str10 s x
+a,b 3
+"c,d" 4
+e,5
+f
+end
+list
+clear
+input x str5 s
+3
+4 "q"
+end
+list
+clear
+input x y z
+1,,3
+4, 5, 6
+7 . 9
+1 2 3,
+end
+list
+=== fix6b-datamgmt-input-labels
+clear
+label define sexl 1 "male" 2 "female"
+input byte sex:sexl
+1
+female
+"male"
+3
+end
+list
+list, nolabel
+describe
+clear
+input y:undefl
+3
+end
+describe
+clear
+input x:ql, automatic
+apple
+banana
+apple
+end
+list
+label list
+clear
+label define ql 5 "x"
+input y:ql, automatic
+apple
+x
+7
+end
+list
+label list
+clear
+label define sexl 1 "male" 2 "female"
+input byte s:sexl, label
+male
+2
+other
+end
+list
+clear
+input z, automatic
+apple
+end
+describe, short
+clear
+input z:verylonglabelname, automatic
+"a very long label text here"
+end
+describe
+list
+clear
+input z, lab
+1
+end
+clear
+input z, a
+1
+end
+clear
+input z, nolabel
+1
+end
+clear
+label define sexl 1 "male"
+input str5 s:sexl
+abc
+end
+=== fix6b-datamgmt-input-defined
+clear
+input str20 name age
+"John Smith" 34
+"Mary" .
+end
+input name age
+"Extra" 50
+end
+list
+=== fix6b-datamgmt-input-mixed
+clear
+input x
+1
+2
+end
+input x y
+3 4
+end
+list
+=== fix6b-datamgmt-input-nothing
+clear
+input str5 s
+end
+describe, short
+input
+end
+=== fix6b-datamgmt-input-new-variables
+clear
+input x
+1
+2
+end
+input z
+7
+8
+end
+list
+=== fix6b-datamgmt-joinby-stack-file
+clear
+input k u
+3 30
+1 10
+2 20
+end
+save ub, replace
+clear
+input k m
+2 200
+1 100
+3 300
+end
+save mb, replace
+use mb, clear
+joinby k using ub
+capture noisily save, replace
+describe, short
+use mb, clear
+joinby k using ub, unmatched(both)
+capture noisily save, replace
+describe, short
+use mb, clear
+stack k m, into(v) clear
+capture noisily save, replace
+describe, short
+use mb, clear
+list
+=== fix6b-datamgmt-expand-checks
+clear
+set obs 4
+generate str5 s = "2"
+replace s = "abc" in 2
+generate n = 2
+capture noisily expand s
+count
+capture noisily expand "3"
+count
+capture noisily expand n + s
+count
+capture noisily expand n if s == "2"
+count
+capture noisily expand n, clear
+count
+clear
+set obs 3
+generate id = _n
+capture noisily expand 2, generate(id)
+capture noisily expand 2, generate(1x)
+count
+expand 2 in 1/2, generate(dup)
+list, nolabel
+describe dup
+label list
+capture noisily expand 2, gen(dup2) foo
+clear
+set obs 2
+generate k = _n
+label define _merge 0 "zero" 5 "five"
+expand 2, generate(e1)
+label list
+list
+describe e1
+=== fix6b-datamgmt-numlabel-all
+clear
+set obs 3
+generate byte a = _n
+label define al 1 "one" 2 "two"
+label define bl 3 "three"
+label define cl 4 "four"
+label values a al
+label list
+preserve
+restore
+label list
+preserve
+restore
+label list
+capture noisily numlabel zz, add
+label list
+numlabel _all, add
+label list
+numlabel _all, remove mask("#: ")
+label list
+numlabel _all bl, remove
+label list
+capture noisily numlabel a*, add
+capture noisily numlabel _all, add mask("x")
+label list
+=== fix6b-datamgmt-labelbook-empty
+clear
+labelbook
+set obs 2
+generate x = _n
+labelbook
+label define al 1 "one"
+label define bl 2 "two"
+label values x al
+quietly labelbook al
+label list
+capture noisily labelbook zz
+label list
+capture noisily labelbook, length(0)
+label list
+=== fix6b-datamgmt-label-language-delete
+clear
+set obs 3
+generate byte a = _n
+label define al 1 "one"
+label values a al
+label language fr, new
+label language es, new copy
+label language spanish, rename
+label language default
+label language zz, rename
+label language fr
+label language es2, new
+label language spanish
+label language fr, delete
+char list _dta[]
+label language
+return list
+clear
+set obs 3
+generate byte a = _n
+label define al 1 "one"
+label values a al
+label language m, rename
+label language b, new
+label language c, new
+label language b
+label language z, rename
+char list _dta[]
+preserve
+label language z, delete
+char list _dta[]
+label language
+restore
+label language m, delete
+char list _dta[]
+=== fix6b-datamgmt-egen-cut
+clear
+set seed 7
+set obs 15
+generate score = round(runiform()*100, 0.1)
+replace score = . in 3
+egen k1 = cut(score), at(0(20)60) icodes
+egen k2 = cut(score), group(3) label
+egen k3 = cut(score), at(10 30 50 90) label
+label define k4 1 "x"
+egen k4 = cut(score), group(4) label
+egen k5 = cut(score) if score > 20, group(3)
+egen k6 = cut(score), at(0.1(0.1)0.5)
+capture noisily egen k7 = cut(score), group(2.5)
+capture noisily egen k7 = cut(score), group(-2)
+list
+list k2 k3 k4, nolabel
+label list
+describe k1-k6
+=== fix6b-datamgmt-generate-anchor
+clear
+set obs 3
+generate id = _n
+generate g = 1
+generate z = 2
+generate a = 1, after(i)
+describe, simple
+capture noisily generate b1 = 1, after(nosuch)
+capture noisily generate b2 = 1, before()
+capture noisily generate b3 = 1, before(1x)
+capture noisily generate b4 = 1, after(id,)
+capture noisily generate b5 = 1, after(_n)
+capture noisily generate b6 = 1, after(id-z)
+capture noisily generate b7 = 1, after(i?)
+capture noisily generate b8 = 1, before(a) after(g)
+capture noisily generate b9 = 1, after( )
+capture noisily generate b10 = 1, before(id g)
+capture noisily generate b11 = 1, after(_all)
+capture noisily generate b12 = 1, after(i*)
+capture noisily generate a = 1, before(1x)
+describe, simple
+capture noisily replace a = 2, foo
+capture noisily replace a = 2, foo(x)
+capture noisily replace a = 2, after
+capture noisily replace a = 2, after(id)
+capture noisily egen m = mean(id), after(id)
+=== fix6b-datamgmt-weights-assumed
+clear
+set seed 11
+set obs 12
+generate y = round(runiform()*100, 0.1)
+generate g = mod(_n,3)
+generate h = mod(_n,2)
+generate wt = 1 + mod(_n,4)
+summarize y [w=wt]
+summarize y [weight=wt]
+summarize y [aw=wt]
+summarize y [w=wt], meanonly
+display r(mean)
+by h, sort: summarize y [w=wt]
+capture noisily summarize y [w=nosuch]
+tabulate g [w=wt]
+tabulate g h [we=wt]
+tabulate g [fw=wt]
+capture noisily tabulate g [w=nosuch]
+tabulate g [w=wt], summarize(y)
+tabulate g [aw=wt], summarize(y)
+capture noisily collapse y [w=], by(g)
+capture noisily collapse y [w=nosuch], by(g)
+generate nw = wt - 3
+capture noisily collapse y [w=nw], by(g)

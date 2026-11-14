@@ -10,6 +10,7 @@ import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
 import { findFile } from "./files.js";
 import {
+  MAX_STRING_WIDTH,
   MISSING,
   byteLength,
   coerce,
@@ -1774,13 +1775,17 @@ function expandCommand(session, text, ctx) {
   if (!text.trim() || /^(if|in)\b/.test(text.trim()))
     throw new StataError("=exp required", 100);
   const parsed = session.parse(
-      "=exp [if] [in] [, | Generate(name)]",
+      "=exp [if] [in] [, Generate(name) clear]",
       "= " + text.replace(/^\s*=?/, ""),
     ),
     compiled = session.compile(parsed.exp),
     data = session.data,
     order = Array.from({ length: data.n }, (_, i) => i),
-    before = data.n;
+    before = data.n,
+    marker = parsed.options.generate;
+  if (compiled.type === "string") throw new StataError("type mismatch", 109);
+  if (marker && data.has(marker))
+    throw new StataError(`variable ${marker} already defined`, 110);
   // A count is rounded to an integer; one that is missing, negative or
   // zero keeps its observation, and Stata says how many were.
   let missing = 0,
@@ -1810,6 +1815,27 @@ function expandCommand(session, text, ctx) {
   ignored(zero, "zero");
   data.reorder(order);
   data.sortedBy = [];
+  // generate() marks the original observations 0 and the copies 1, with
+  // the value label _merge unless a label of that name is already defined.
+  if (marker) {
+    data.generate(
+      marker,
+      order.map((_, r) => Number(r >= before)),
+      { type: "byte" },
+    );
+    const variable = data.get(marker);
+    variable.label = "Expanded observation type";
+    if (!data.valueLabels.has("_merge")) {
+      data.valueLabels.set(
+        "_merge",
+        new Map([
+          [0, "Original observation"],
+          [1, "Duplicated observation"],
+        ]),
+      );
+      variable.valueLabel = "_merge";
+    }
+  }
   ctx.out(`(${plural(data.n - before, "observation")} created)`);
 }
 
@@ -2245,27 +2271,32 @@ function encode(session, text) {
 }
 function decode(session, text) {
   const parsed = session.parse(
-      "varname [if] [in] , Generate(name) [ MAXLength(integer 2045) ]",
+      "varname [if] [in] , Generate(name) [ MAXLength(integer 32000) ]",
       text,
     ),
     data = session.data,
     source = data.get(parsed.varlist[0]),
     map = data.valueLabels.get(source.valueLabel),
-    // Each label is cut to maxlength() bytes, 2,045 by default.
+    // Each label is cut to maxlength() bytes, 32,000 by default.
     longest = parsed.options.maxlength;
   if (!(longest >= 1 && longest <= 32000))
     throw new StataError("maxlength must be between 1 and 32000", 198);
   if (isStringType(source.type))
     throw new StataError("not possible with string variable", 108);
   if (!map) throw new StataError(`${source.name} not labeled`, 182);
+  // The new variable is as wide as the longest label in the value label,
+  // whichever observations are decoded, cut to maxlength(); past 2,045
+  // bytes it is a strL.
   const rows = new Set(session.rows(parsed, null)),
-    sorted = [...data.sortedBy];
+    sorted = [...data.sortedBy],
+    width = Math.min(longest, greatest([...map.values()].map(byteLength))),
+    type = width > MAX_STRING_WIDTH ? "strL" : `str${Math.max(1, width)}`;
   data.generate(
     parsed.options.generate,
     Array.from(source.data, (v, i) =>
       rows.has(i) ? truncateBytes(map.get(v) ?? "", longest) : "",
     ),
-    { string: true },
+    { string: true, type },
   );
   data.sortedBy = sorted;
   data.get(parsed.options.generate).label = source.label;

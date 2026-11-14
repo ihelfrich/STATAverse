@@ -245,6 +245,15 @@ function joinby(session, text, ctx) {
   }
   for (const variable of other.variables)
     if (!data.has(variable.name)) bring(data, variable, using);
+  unfiled(data);
+}
+/**
+ * joinby and stack build their result in a temporary file, so the data are
+ * no longer those of any file: describe names none, and save needs a name.
+ */
+function unfiled(data) {
+  data.filename = "";
+  data.filedate = "";
 }
 
 function stack(session, text, ctx) {
@@ -306,6 +315,7 @@ function stack(session, text, ctx) {
     });
     data.get(column.name).format = column.format;
   }
+  unfiled(data);
 }
 
 export const MORE_DATA_COMMANDS = [

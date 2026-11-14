@@ -772,13 +772,27 @@ function numlabel(session, text, ctx) {
       `mask ${mask} should contain 1 substitution char #`,
       198,
     );
-  const labels = session.data.valueLabels,
+  // numlabel.ado works between preserve and restore, and restore reads the
+  // value labels back in reverse order, whatever happens next.
+  const labels = (session.data.valueLabels = new Map(
+      [...session.data.valueLabels].reverse(),
+    )),
     named = head.trim() ? head.trim().split(/\s+/) : [];
+  // matalabel takes _all, or names, which it confirms before it looks for
+  // them.
+  for (const name of named) {
+    const bad = /^[A-Za-z_]\w*(.+)$/.exec(name)?.[1] ?? name;
+    if (!/^[A-Za-z_]\w{0,31}$/.test(name))
+      throw new StataError(`${bad} invalid name`, 198);
+  }
+  const all = named.includes("_all");
   for (const name of named)
-    if (!labels.has(name))
+    if (name !== "_all" && !labels.has(name))
       throw new StataError(`value label ${name} not found`, 111);
   if (!labels.size) return ctx.out("(dataset has no value labels)");
-  const names = [...new Set(named.length ? named : labels.keys())].sort(),
+  const names = [
+      ...new Set(named.length && !all ? named : labels.keys()),
+    ].sort(),
     prefixOf = (value) => mask.replace("#", () => valueText(value)),
     has = (value, label) => label.startsWith(prefixOf(value));
   if (!options.force) {
@@ -1162,21 +1176,17 @@ function labelLanguage(session, text, ctx) {
         `language ${language} is the only language defined; it may not be deleted`,
         119,
       );
-    let now = current;
+    // The languages left are listed in alphabetical order, and the first
+    // of them becomes current when the current one goes.
+    const left = list
+      .filter((name) => name !== language)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     if (language === current) {
-      now = list.find((name) => name !== current);
-      loadLanguage(session, now);
-      defineCharacteristic(data, "_dta", "_lang_c", now);
-      ctx.out(`(language ${now} now current language)`);
+      loadLanguage(session, left[0]);
+      defineCharacteristic(data, "_dta", "_lang_c", left[0]);
+      ctx.out(`(language ${left[0]} now current language)`);
     } else dropLanguage(data, language);
-    defineCharacteristic(
-      data,
-      "_dta",
-      "_lang_list",
-      [now, ...list.filter((name) => name !== now && name !== language)].join(
-        " ",
-      ),
-    );
+    defineCharacteristic(data, "_dta", "_lang_list", left.join(" "));
     return;
   }
   if (language === current)
@@ -1223,6 +1233,9 @@ function labelbook(session, text, ctx) {
   if (!(sh >= 1 && sh <= 2045))
     throw new StataError("length() should be in range [1,2045]", 198);
   if (show < 0) throw new StataError("list() should be positive", 198);
+  // labelbook.ado works between preserve and restore, and restore reads the
+  // value labels back in reverse order.
+  session.data.valueLabels = new Map([...session.data.valueLabels].reverse());
   const detail = options.detail || !options.problems,
     data = parsed.using ? load(session, fileName(parsed.using)) : session.data,
     labels = data.valueLabels,
@@ -1240,7 +1253,7 @@ function labelbook(session, text, ctx) {
         label,
       })),
     );
-  if (!rows.length) return;
+  if (!rows.length) return void ctx.out("(dataset has no value labels)");
   // list() picks that many labels of each at random, by uniform() draws
   // made for every label in turn.
   if (show !== 32000) {

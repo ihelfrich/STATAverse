@@ -182,3 +182,62 @@ test("the Console's sort flag follows Stata after xtset, merge and joinby", () =
   // joinby is sortpreserve: the master's sort order stays.
   assert.deepEqual(out.memory.sortedBy, ["k", "id"]);
 });
+
+// After the red team's check of the fixes above. Expected text recorded
+// from Stata 19 MP in batch mode, as above.
+test("an input that fails is reported in the Console and in a do-file", () => {
+  for (const doFile of [true, false]) {
+    const s = createConsoleSession();
+    const out = s.run(
+      ["clear", "input x", "1", "2", "end", "input x y", "3 4", "end"].join(
+        "\n",
+      ),
+      { doFile },
+    );
+    assert.equal(out.rc, 110);
+    assert.deepEqual(linesOf(out, "input x y"), [
+      "variable x already defined",
+      "r(110);",
+    ]);
+    assert.equal(out.memory.observations, 2);
+    assert.deepEqual(
+      out.memory.variables.map((v) => v.name),
+      ["x"],
+    );
+  }
+});
+
+test("input reads values for a labelled variable in the Console", () => {
+  const s = createConsoleSession();
+  const out = s.run(
+    [
+      "clear",
+      'label define sexl 1 "male" 2 "female"',
+      "input byte sex:sexl",
+      "1",
+      "2",
+      "end",
+      "list",
+    ].join("\n"),
+  );
+  assert.equal(out.rc, 0);
+  assert.deepEqual(out.memory.variables, [
+    {
+      name: "sex",
+      type: "byte",
+      format: "%8.0g",
+      label: "",
+      valueLabel: "sexl",
+    },
+  ]);
+  assert.deepEqual(linesOf(out, "list"), [
+    "",
+    "     +--------+",
+    "     |    sex |",
+    "     |--------|",
+    "  1. |   male |",
+    "  2. | female |",
+    "     +--------+",
+    "",
+  ]);
+});
