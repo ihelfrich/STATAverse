@@ -3,6 +3,7 @@
 import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { fileName, load } from "./data-commands.js";
+import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
 import { MISSING, isStringType } from "./values.js";
 
@@ -248,4 +249,5 @@ export const MORE_DATA_COMMANDS = [
   { name: "cross", minimum: 5, run: cross },
   { name: "joinby", minimum: 6, run: joinby },
   { name: "stack", minimum: 5, run: stack },
+  ...INSPECT_COMMANDS,
 ];

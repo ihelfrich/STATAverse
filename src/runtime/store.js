@@ -286,11 +286,15 @@ export class Dataset {
         [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
+      // Characteristics, such as the settings reshape keeps with the data.
+      ...(this.chars ? { chars: structuredClone(this.chars) } : {}),
     };
   }
   restore(snapshot) {
+    delete this.chars;
     Object.assign(this, {
       ...snapshot,
+      ...(snapshot.chars ? { chars: structuredClone(snapshot.chars) } : {}),
       sortedBy: [...snapshot.sortedBy],
       valueLabels: new Map(
         [...snapshot.valueLabels].map(([name, map]) => [name, new Map(map)]),

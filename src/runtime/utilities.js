@@ -48,9 +48,56 @@ function levelsof(session, text, ctx) {
   session.results.r = { levels, r: values.length };
 }
 
+/**
+ * abbrev() for a variable name, as Stata 19 abbreviates one: the first
+ * characters, ~ and the end of the name from its last run of digits (or
+ * its last character when there are none, or when the digits leave no room
+ * before the ~), with more of the end kept until the abbreviation matches
+ * no other variable in the data. Never shorter than five characters.
+ */
+export function abbreviateVariable(data, name, width) {
+  const n = Math.max(5, Math.min(32, width));
+  if (name.length <= n) return name;
+  const digits = /\d+\D*$/.exec(name);
+  let k = digits && n - 1 - digits[0].length >= 1 ? digits[0].length : 1;
+  for (;;) {
+    const head = name.slice(0, n - 1 - k),
+      tail = name.slice(-k),
+      matches = data.names.filter(
+        (other) =>
+          other.length >= head.length + tail.length &&
+          other.startsWith(head) &&
+          other.endsWith(tail),
+      );
+    if (matches.length <= 1 || n - 1 - k <= 1) return `${head}~${tail}`;
+    k++;
+  }
+}
+
+/**
+ * ds_util.ado's DisplayInCols: items in as many columns of equal width as
+ * the line holds, filled down each column in turn.
+ */
+export function displayInColumns(session, items, ctx, skip = 2) {
+  if (!items.length) return;
+  const width = greatest(items.map((item) => item.length)) + skip,
+    columns = Math.floor(((session.settings.linesize ?? 80) + 1) / width);
+  if (columns < 2) {
+    items.forEach((item) => ctx.out(item));
+    return;
+  }
+  const lines = Math.ceil(items.length / columns);
+  for (let row = 0; row < lines; row++) {
+    let line = "";
+    for (let k = row; k < items.length; k += lines)
+      line = line.padEnd(Math.floor((k - row) / lines) * width) + items[k];
+    ctx.out(line);
+  }
+}
+
 function ds(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [, HAS(string) NOT(string) Alpha | Detail Varwidth(integer 12) Skip(integer 2)]",
+      "[varlist] [, HAS(string) NOT(string) Alpha Varwidth(integer 12) Skip(integer 2) | Detail]",
       text,
     ),
     filter = (spec, keep) => (variable) => {
@@ -64,6 +111,11 @@ function ds(session, text, ctx) {
             : variable.type === m[1];
       return match === keep;
     };
+  const { varwidth, skip } = parsed.options;
+  if (varwidth < 5 || varwidth > 32)
+    throw new StataError("varwidth() should be in the range 5..32", 198);
+  if (skip < 1 || skip > 10)
+    throw new StataError("skip() should be in the range 1..10", 198);
   let variables = parsed.varlist.map((name) => session.data.get(name));
   if (parsed.options.has)
     variables = variables.filter(filter(parsed.options.has, true));
@@ -71,19 +123,12 @@ function ds(session, text, ctx) {
     variables = variables.filter(filter(parsed.options.not, false));
   let names = variables.map((v) => v.name);
   if (parsed.options.alpha) names = [...names].sort();
-  const width = Math.max(0, ...names.map((name) => name.length)) + 2,
-    perLine = Math.max(
-      1,
-      Math.floor((session.settings.linesize ?? 80) / width),
-    );
-  for (let k = 0; k < names.length; k += perLine)
-    ctx.out(
-      names
-        .slice(k, k + perLine)
-        .map((name) => name.padEnd(width))
-        .join("")
-        .trimEnd(),
-    );
+  displayInColumns(
+    session,
+    names.map((name) => abbreviateVariable(session.data, name, varwidth)),
+    ctx,
+    skip,
+  );
   session.results.r = { varlist: names.join(" ") };
 }
 

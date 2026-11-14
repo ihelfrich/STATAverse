@@ -92,6 +92,26 @@ const STATISTICS = {
 // collapse statistics that pick an observation rather than compute a value;
 // they are the only ones a string variable allows.
 const ORDERED = ["first", "last", "firstnm", "lastnm"];
+// Statistics only collapse has: standard errors of a mean, of a proportion
+// (missing unless every value is 0 or 1) and of a Poisson mean, and the
+// sum of the values whatever the weights.
+const COLLAPSE_ONLY = {
+  semean: (v) => {
+    const sd = moments(v).sd;
+    return v.length > 1 && !isMissing(sd) ? sd / Math.sqrt(v.length) : MISSING;
+  },
+  sebinomial: (v) => {
+    if (!v.length || v.some((x) => x !== 0 && x !== 1)) return MISSING;
+    const p = v.reduce((t, x) => t + x, 0) / v.length;
+    return Math.sqrt((p * (1 - p)) / v.length);
+  },
+  sepoisson: (v) => {
+    if (!v.length) return MISSING;
+    const mean = v.reduce((t, x) => t + x, 0) / v.length;
+    return mean < 0 ? MISSING : Math.sqrt(mean / v.length);
+  },
+  rawsum: (v) => v.reduce((t, x) => t + x, 0),
+};
 const statistic = (name) => {
   if (STATISTICS[name]) return STATISTICS[name];
   const p = /^p(\d{1,2})$/.exec(name);
@@ -1486,7 +1506,12 @@ function collapse(session, text, ctx) {
     []) {
     if (token.startsWith("(")) {
       stat = token.slice(1, -1).trim();
-      if (!statistic(stat) && !ORDERED.includes(stat))
+      if (
+        !statistic(stat) &&
+        !ORDERED.includes(stat) &&
+        !COLLAPSE_ONLY[stat] &&
+        stat !== "percent"
+      )
         throw new StataError(`${stat} is not a collapse statistic`, 198);
       continue;
     }
@@ -1519,13 +1544,41 @@ function collapse(session, text, ctx) {
     weights.some((w) => !isMissing(w) && !Number.isInteger(w))
   )
     throw new StataError("may not use noninteger frequency weights", 401);
-  const unweighted = ["count", "min", "max", ...ORDERED];
+  // With analytic weights a count is of observations; with sampling and
+  // importance weights it is the sum of the weights.
+  const unweighted = [
+    ...(weightType === "aweight" ? ["count"] : []),
+    "min",
+    "max",
+    ...ORDERED,
+  ];
+  const quantile = (stat) =>
+    stat === "median" || stat === "iqr" || /^p\d+$/.test(stat);
+  // The statistics collapse_17.ado's CheckWeight does not allow with each
+  // kind of weight.
+  const barred = {
+      pweight: ["sd", "semean", "sebinomial", "sepoisson"],
+      iweight: ["semean", "sebinomial", "sepoisson"],
+      aweight: ["sebinomial", "sepoisson"],
+    }[weightType],
+    clash = targets.find((t) => barred?.includes(t.stat));
+  if (clash)
+    throw new StataError(`${clash.stat} not allowed with ${weightType}s`, 135);
   if (weightType && weightType !== "fweight") {
     const refused = targets.find(
       (t) =>
         !unweighted.includes(t.stat) &&
-        !["mean", "sum", "total"].includes(t.stat) &&
-        !(t.stat === "sd" && weightType === "aweight"),
+        ![
+          "mean",
+          "sum",
+          "total",
+          "count",
+          "sd",
+          "semean",
+          "rawsum",
+          "percent",
+        ].includes(t.stat) &&
+        !quantile(t.stat),
     );
     if (refused)
       throw new StataError(
@@ -1535,6 +1588,24 @@ function collapse(session, text, ctx) {
     if (weightType === "aweight" && targets.some((t) => t.stat === "count"))
       ctx.out("(note: aweights not used to compute counts)");
   }
+  /**
+   * A weighted percentile as Stata computes it: the first value whose
+   * cumulative weight passes p% of the total, or the average of it and the
+   * next value when the cumulative weight equals that point exactly.
+   */
+  const weightedPercentile = (pairs, p) => {
+    if (!pairs.length) return MISSING;
+    const sorted = [...pairs].sort((a, b) => a[0] - b[0]),
+      point = (p / 100) * sorted.reduce((t, [, w]) => t + w, 0);
+    let running = 0;
+    for (let k = 0; k < sorted.length; k++) {
+      running += sorted[k][1];
+      if (running === point && k + 1 < sorted.length)
+        return (sorted[k][0] + sorted[k + 1][0]) / 2;
+      if (running >= point) return sorted[k][0];
+    }
+    return sorted.at(-1)[0];
+  };
   /** One statistic of a column over a group of rows, with any weights. */
   const weighted = (stat, column, group) => {
     const use = group.filter(
@@ -1542,30 +1613,60 @@ function collapse(session, text, ctx) {
         !isMissing(column[i]) &&
         (!weights || (!isMissing(weights[i]) && weights[i] !== 0)),
     );
+    const plain = weights ? use.map((i) => column[i]) : present(column, group);
+    // (rawsum) ignores the weights; (percent) is the group's share of all
+    // the observations, or of all the weight, with a value.
+    if (stat === "rawsum") return plain.reduce((t, v) => t + v, 0);
+    if (stat === "percent") {
+      const all = shares.get(column),
+        part = weights ? use.reduce((t, i) => t + weights[i], 0) : plain.length;
+      return all ? (100 * part) / all : MISSING;
+    }
+    const compute = statistic(stat) ?? COLLAPSE_ONLY[stat];
     if (!weights || (unweighted.includes(stat) && weightType !== "fweight"))
-      return statistic(stat)(
-        weights ? use.map((i) => column[i]) : present(column, group),
-      );
+      return compute(plain);
     if (weightType === "fweight")
-      return statistic(stat)(
-        use.flatMap((i) => new Array(weights[i]).fill(column[i])),
+      return compute(use.flatMap((i) => new Array(weights[i]).fill(column[i])));
+    if (quantile(stat)) {
+      const pairs = use.map((i) => [column[i], weights[i]]);
+      if (stat === "iqr")
+        return pairs.length
+          ? weightedPercentile(pairs, 75) - weightedPercentile(pairs, 25)
+          : MISSING;
+      return weightedPercentile(
+        pairs,
+        stat === "median" ? 50 : Number(stat.slice(1)),
       );
+    }
     if (!use.length) return stat === "mean" || stat === "sd" ? MISSING : 0;
     const sumW = use.reduce((t, i) => t + weights[i], 0),
       sumWX = use.reduce((t, i) => t + weights[i] * column[i], 0),
       mean = sumWX / sumW;
+    if (stat === "count") return sumW;
     if (stat === "mean") return mean;
+    // An importance weight counts as that many observations.
+    if (stat === "sd" && weightType === "iweight")
+      return sumW > 1
+        ? Math.sqrt(
+            use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
+              (sumW - 1),
+          )
+        : MISSING;
     // An analytic weight is rescaled to sum to the group's size; a
     // sampling weight is used as it is.
     if (stat === "sum" || stat === "total")
       return weightType === "aweight" ? mean * use.length : sumWX;
-    return use.length > 1
-      ? Math.sqrt(
-          (use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
-            sumW) *
-            (use.length / (use.length - 1)),
-        )
-      : MISSING;
+    const sd =
+      use.length > 1
+        ? Math.sqrt(
+            (use.reduce((t, i) => t + weights[i] * (column[i] - mean) ** 2, 0) /
+              sumW) *
+              (use.length / (use.length - 1)),
+          )
+        : MISSING;
+    if (stat === "semean")
+      return isMissing(sd) ? MISSING : sd / Math.sqrt(use.length);
+    return sd;
   };
   // (first) and (last) take the group's first or last observation, missing
   // or not; (firstnm) and (lastnm) skip missing values. Observations without
@@ -1586,15 +1687,36 @@ function collapse(session, text, ctx) {
   if (new Set(names).size !== names.length)
     throw new StataError("a target variable is named twice", 198);
   const by = parsed.options.by ?? [],
-    // cw keeps only observations with every source variable present.
+    // cw keeps only observations with every source variable present. An
+    // observation whose weight is zero or missing is left out, so a group
+    // with no positive weight does not appear.
     rows = session
       .rows(parsed, null)
       .filter(
         (i) =>
-          !parsed.options.cw ||
-          targets.every((t) => !gap(data.get(t.source).data, i)),
+          (!weights || (!isMissing(weights[i]) && weights[i] !== 0)) &&
+          (!parsed.options.cw ||
+            targets.every((t) => !gap(data.get(t.source).data, i))),
       ),
-    groups = new Map();
+    groups = new Map(),
+    // What a (percent) is a share of: every observation, or all the
+    // weight, with a value.
+    shares = new Map(
+      targets
+        .filter((t) => t.stat === "percent")
+        .map((t) => {
+          const column = data.get(t.source).data;
+          let all = 0;
+          for (const i of rows)
+            if (
+              !isMissing(column[i]) &&
+              (!weights || (!isMissing(weights[i]) && weights[i] !== 0))
+            )
+              all += weights ? weights[i] : 1;
+          return [column, all];
+        }),
+    );
+  if (!rows.length) throw new StataError("no observations", 2000);
   for (const i of rows) {
     const key = JSON.stringify(by.map((k) => data.get(k).data[i]));
     if (!groups.has(key)) groups.set(key, []);
@@ -1637,20 +1759,22 @@ function collapse(session, text, ctx) {
           ? byPosition(target.stat, column, group)
           : weighted(target.stat, column, group),
       );
-    // Counts are stored as long and extremes keep the source type. Other
-    // statistics are double when the source is double or long (or a sum),
-    // and float otherwise.
+    // Counts are stored as long, or as double when frequency, sampling or
+    // importance weights make them sums of weights; extremes keep the
+    // source type. Other statistics are double when the source is double
+    // or long (or a sum, raw sum or percent), and of the default type
+    // otherwise.
     const type =
       target.stat === "count"
-        ? weightType === "fweight"
+        ? weightType && weightType !== "aweight"
           ? "double"
           : "long"
         : ["min", "max", ...ORDERED].includes(target.stat)
           ? source.type
-          : ["sum", "total"].includes(target.stat) ||
+          : ["sum", "total", "rawsum", "percent"].includes(target.stat) ||
               ["double", "long"].includes(source.type)
             ? "double"
-            : "float";
+            : data.defaultType;
     result.generate(target.name, values, { type, string });
     Object.assign(result.get(target.name), {
       label: `(${target.stat === "median" ? "p 50" : target.stat.replace(/^p(\d+)$/, "p $1")}) ${target.source}`,
