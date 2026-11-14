@@ -29,6 +29,7 @@ import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS } from "./timeseries.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
+import { CONTRAST_COMMANDS } from "./contrast.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
 import { DATA_COMMANDS } from "./data-commands.js";
@@ -1737,6 +1738,7 @@ export const COMMANDS = [
   ...TIMESERIES_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
+  ...CONTRAST_COMMANDS,
   ...DELIMITED_COMMANDS,
   ...MATRIX_COMMANDS,
   ...ESTIMATION_COMMANDS,

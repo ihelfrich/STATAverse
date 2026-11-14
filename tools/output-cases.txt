@@ -6940,3 +6940,238 @@ generate byte y = 1 + (lat > -3) + (lat > 4)
 ologit y x
 oprobit y x, nolog
 ologit y x, or nolog
+=== ivregress-factor-variables
+clear
+set seed 4321
+set obs 300
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate byte employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate byte educ = 1 + floor(runiform() * 4)
+generate age = 20 + floor(runiform() * 40)
+generate z = invnormal(runiform())
+generate hours = 30 + 3 * z + .1 * age + 2 * employed + invnormal(runiform()) * 4
+generate income = 1000 + 50 * hours + 300 * region + 400 * employed + 150 * region * employed + 80 * educ + invnormal(runiform()) * 500
+ivregress 2sls income (hours = z) i.educ age
+estat firststage
+testparm i.educ
+lincom 2.educ - 4.educ
+predict xb1
+summarize xb1
+ivregress 2sls income (hours = i.region) i.educ age, first
+estat firststage
+estat endogenous
+estat overid
+ivregress 2sls income (hours = z i.region) i.educ c.age#i.employed, robust
+estat firststage
+ivregress liml income (hours = z i.region) i.educ age
+estat firststage
+ivregress gmm income (hours = z i.region) i.educ age
+estat overid
+ivregress gmm income (hours = i.region) i.educ age
+ivregress liml income (hours = i.region) i.educ age
+ivregress 2sls income (hours = z) i.educ##c.age
+margins educ
+margins, dydx(*)
+margins educ, at(age=(30 50))
+ivregress 2sls income (i.employed = z) age
+generate age2 = age
+ivregress 2sls income (hours = z) age age2
+generate a2345678901234567890 = runiform()
+generate b2345678901234567890 = runiform()
+generate c23456789012345678901 = runiform()
+generate c234567890123456789012 = runiform()
+ivregress 2sls income (hours = z) a2345678901234567890 b2345678901234567890 c23456789012345678901
+ivregress 2sls income (hours = z) a2345678901234567890 b2345678901234567890 c234567890123456789012
+set linesize 80
+ivregress 2sls income (hours = z i.region) i.educ c.age#i.employed
+ivregress 2sls income (hours = z) i.educ##i.employed age
+set linesize 200
+=== margins-factor-interactions
+clear
+set seed 4321
+set obs 300
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate byte employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate byte educ = 1 + floor(runiform() * 4)
+generate age = 20 + floor(runiform() * 40)
+generate z = invnormal(runiform())
+generate hours = 30 + 3 * z + .1 * age + 2 * employed + invnormal(runiform()) * 4
+generate income = 1000 + 50 * hours + 300 * region + 400 * employed + 150 * region * employed + 80 * educ + invnormal(runiform()) * 500
+regress income i.region##i.employed
+margins region#employed
+margins region, at(employed=(0 1))
+regress income i.region##i.employed age
+margins region#employed
+margins employed#region
+margins i.region#i.employed, at(age=(30 50))
+margins region##employed
+margins region, over(employed)
+margins region, over(educ)
+margins, over(employed)
+margins region#employed, atmeans
+margins r.employed@region
+margins employed@region
+margins r.region
+margins ar.region, atmeans
+capture noisily margins region#employed educ
+capture noisily margins age
+capture noisily margins r.age
+regress income i.educ##i.employed
+margins educ#employed
+regress income i.educ#i.region
+margins educ#region
+generate byte h = mod(_n, 2)
+generate int k = 1 + mod(_n, 11)
+regress income i.educ##i.h i.k i.employed age
+margins educ#h
+margins educ#k
+margins h#k
+margins educ#h, at(age=(30 50))
+margins educ#employed, at(age=(30 50))
+ivregress 2sls income (hours = z) i.educ##i.employed age
+margins educ#employed
+margins r.educ@employed
+=== margins-factor-interactions-logit
+clear
+set seed 4321
+set obs 300
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate byte employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate age = 20 + floor(runiform() * 40)
+generate z = invnormal(runiform())
+generate hours = 30 + 3 * z + .1 * age + 2 * employed + invnormal(runiform()) * 4
+generate income = 1000 + 50 * hours + 300 * region + 400 * employed + 150 * region * employed + invnormal(runiform()) * 500
+generate byte d = runiform() < invlogit((income - 4100) / 500)
+quietly logit d i.region##i.employed age
+margins region#employed
+margins region#employed, atmeans
+logit d i.region i.employed age
+margins region#employed
+margins r.region
+margins employed@region
+contrast region
+contrast r.region employed
+contrast r.region, effects
+pwcompare region
+pwcompare region, effects
+=== contrast-operators
+clear
+set seed 4321
+set obs 300
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate byte employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate byte educ = 1 + floor(runiform() * 4)
+generate age = 20 + floor(runiform() * 40)
+generate z = invnormal(runiform())
+generate hours = 30 + 3 * z + .1 * age + 2 * employed + invnormal(runiform()) * 4
+generate income = 1000 + 50 * hours + 300 * region + 400 * employed + 150 * region * employed + 80 * educ + invnormal(runiform()) * 500
+regress income i.region##i.employed
+contrast employed@region
+regress income i.region##i.employed age
+contrast region
+contrast region employed
+contrast region##employed
+contrast r.region
+contrast a.region
+contrast ar.region
+contrast employed@region
+contrast r.employed@region
+contrast region#employed
+contrast r.region#r.employed
+contrast r.region, effects
+contrast ar.region, effects level(90)
+contrast g.region
+contrast h.region
+contrast j.region
+contrast p.region
+contrast p.employed
+contrast rb3.region
+contrast region@employed
+contrast region, nowald
+contrast r.region, noeffects
+contrast r.region#employed
+contrast i.region
+contrast employed#region
+contrast r.employed
+capture noisily contrast age
+capture noisily contrast
+capture noisily contrast region educ
+regress income i.region##i.educ c.age
+contrast r.region@educ
+contrast region@educ
+contrast r.region#r.educ
+contrast region#educ, effects
+contrast r.educ#region
+regress income i.region##c.age i.employed
+contrast r.region
+regress income i.educ i.region, vce(robust)
+contrast educ
+contrast ar.educ
+generate byte t3 = 1 + mod(_n, 3)
+generate byte t5 = 1 + mod(_n, 5)
+regress income i.t3 i.t5 i.region
+contrast p.t3 p.t5
+regress income i.region##i.employed##i.educ
+contrast r.region@employed#educ
+ivregress 2sls income (hours = z) i.educ##i.employed age
+contrast educ#employed
+contrast r.educ@employed
+set linesize 80
+regress income i.region##i.employed i.educ age
+contrast r.region, effects
+contrast r.employed@region, effects
+contrast region@educ, effects
+contrast r.educ#r.region, effects
+contrast h.region
+set linesize 200
+=== pwcompare-margins
+clear
+set seed 4321
+set obs 300
+generate byte region = 1 + floor(runiform() * 4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate byte employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate byte educ = 1 + floor(runiform() * 4)
+generate age = 20 + floor(runiform() * 40)
+generate z = invnormal(runiform())
+generate hours = 30 + 3 * z + .1 * age + 2 * employed + invnormal(runiform()) * 4
+generate income = 1000 + 50 * hours + 300 * region + 400 * employed + 150 * region * employed + 80 * educ + invnormal(runiform()) * 500
+regress income i.region##i.employed age
+pwcompare region
+pwcompare region, effects
+pwcompare region#employed
+pwcompare employed
+pwcompare region employed
+generate byte h = mod(_n, 2)
+generate int k = 1 + mod(_n, 11)
+regress income i.educ##i.h i.k i.employed age
+pwcompare educ#h
+pwcompare h#k
+regress income i.region##i.educ c.age
+pwcompare educ#region, effects
+ivregress 2sls income (hours = z) i.educ##i.employed age
+pwcompare educ, effects
+set linesize 80
+regress income i.region##i.employed age
+pwcompare region, effects
+pwcompare region#employed, effects
+set linesize 200

@@ -696,10 +696,14 @@ function ivregress(session, text, ctx) {
       "[if] [in] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) | noCONStant SMALL Igmm]",
       m[7],
     ),
-    names = (part) => (part.trim() ? session.varlist(part) : []),
-    endogenous = names(m[4]),
-    exogenous = [...names(m[3]), ...names(m[6])],
-    instruments = names(m[5]),
+    // The exogenous regressors and the instruments are read as regress reads
+    // its varlist, factor variables and interactions included; the
+    // endogenous regressors may not be factor variables, as in Stata.
+    texts = {
+      endogenous: m[4].trim(),
+      exogenous: `${m[3].trim()} ${m[6].trim()}`.trim(),
+      instruments: m[5].trim(),
+    },
     weighting = (parsed.options.wmatrix ?? "robust").trim(),
     asked = readVce(session, parsed.options, /^un(adjusted)?$/),
     cluster = asked.cluster,
@@ -710,17 +714,36 @@ function ivregress(session, text, ctx) {
       const data = session.data.get(name).data;
       return data;
     },
-    all = [m[2], ...endogenous, ...exogenous, ...instruments].map(
-      (name) => session.varlist(name)[0],
-    ),
-    rows = session
-      .rows(parsed, null)
-      .filter(
-        (i) =>
-          all.every((name) => !isMissing(column(name)[i])) &&
-          !(cluster && noCluster(cluster, i)),
+    depName = session.varlist(m[2])[0];
+  const columnsOf = (part, from) =>
+      part ? design(session, `${depName} ${part}`, from).columns : [],
+    first = session.rows(parsed, null),
+    all = [
+      session.data.get(depName),
+      ...Object.values(texts).flatMap((part) =>
+        columnsOf(part, first).flatMap((c) => c.term.variables),
       ),
-    n = rows.length;
+    ],
+    rows = first.filter(
+      (i) =>
+        all.every((variable) => !isMissing(variable.data[i])) &&
+        !(cluster && noCluster(cluster, i)),
+    ),
+    n = rows.length,
+    // Every column over the estimation sample, base levels and columns
+    // collinear with those before them included; those fitted are active.
+    listed = {
+      endogenous: columnsOf(texts.endogenous, rows),
+      exogenous: columnsOf(texts.exogenous, rows),
+      instruments: columnsOf(texts.instruments, rows),
+    },
+    activeOf = (list) => list.filter((c) => !c.base && !c.collinear),
+    endogenousColumns = activeOf(listed.endogenous),
+    exogenousColumns = activeOf(listed.exogenous),
+    instrumentColumns = activeOf(listed.instruments),
+    endogenous = endogenousColumns.map((c) => c.name),
+    exogenous = exogenousColumns.map((c) => c.name),
+    instruments = instrumentColumns.map((c) => c.name);
   if (cluster && estimator !== "2sls")
     throw new StataError(
       `ivregress ${estimator} with vce(cluster) is not available yet; ivregress 2sls takes it`,
@@ -732,12 +755,11 @@ function ivregress(session, text, ctx) {
       481,
     );
   if (!n) throw new StataError("no observations", 2000);
-  const dep = session.varlist(m[2])[0],
+  const dep = depName,
     y = rows.map((i) => column(dep)[i]),
-    matrix = (list) =>
-      rows.map((i) => [...list.map((name) => column(name)[i]), 1]),
-    X = matrix([...endogenous, ...exogenous]),
-    Z = matrix([...exogenous, ...instruments]),
+    matrix = (list) => rows.map((i) => [...list.map((c) => c.value(i)), 1]),
+    X = matrix([...endogenousColumns, ...exogenousColumns]),
+    Z = matrix([...exogenousColumns, ...instrumentColumns]),
     cross = (A, B) =>
       A[0].map((_, a) =>
         B[0].map((_, b) => A.reduce((t, row, i) => t + row[a] * B[i][b], 0)),
@@ -777,7 +799,7 @@ function ivregress(session, text, ctx) {
     // kappa is the smallest root of |Y'M1 Y - k Y'M Y| = 0, where Y holds
     // the outcome and the endogenous regressors, M1 removes the exogenous
     // regressors and M removes every instrument.
-    const exo = matrix(exogenous),
+    const exo = matrix(exogenousColumns),
       residualOn = (A, v) => {
         const inverse = invertSymmetric(cross(A, A)),
           coefficient = solve(
@@ -897,27 +919,26 @@ function ivregress(session, text, ctx) {
     });
     V = multiply(multiply(bread, meat), bread);
   } else V = bread.map((row) => row.map((v) => (v * rss) / n));
-  const namesOut = [...endogenous, ...exogenous, "_cons"],
+  // Base levels and omitted columns stay in the table, fixed at zero.
+  const shownColumns = [...listed.endogenous, ...listed.exogenous],
+    regressors = [...endogenousColumns, ...exogenousColumns],
+    at = [...shownColumns.map((c) => regressors.indexOf(c)), regressors.length],
+    namesOut = [...shownColumns.map((c) => c.name), "_cons"],
     model = {
       command: "ivregress",
       title: `Instrumental-variables ${estimator === "2sls" ? "2SLS" : estimator.toUpperCase()} regression`,
       dist: "z",
       depvar: dep,
       names: namesOut,
-      b,
-      V,
-      columns: [...endogenous, ...exogenous].map((name) => ({
-        name,
-        value: (i) => column(name)[i],
-        term: { variable: session.data.get(name) },
-        evaluate: (get) => get(session.data.get(name)),
-        partial: (get, variable) => Number(variable === session.data.get(name)),
-      })),
+      b: at.map((j) => (j >= 0 ? b[j] : 0)),
+      V: at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? V[r][c] : 0))),
+      columns: shownColumns,
       constant: true,
-      estimable: namesOut.map(() => true),
+      estimable: at.map((j) => j >= 0),
+      baseLevels: baseLevelsAsked(parsed.options),
       N: n,
-      df_m: namesOut.length - 1,
-      rank: namesOut.length,
+      df_m: regressors.length,
+      rank: regressors.length + 1,
       rss,
       mss: tss - rss,
       r2: 1 - rss / tss,
@@ -932,6 +953,15 @@ function ivregress(session, text, ctx) {
         endogenous,
         exogenous,
         instruments,
+        // What was typed, for the first-stage regressions, and the columns
+        // fitted.
+        texts,
+        b,
+        columns: {
+          endogenous: endogenousColumns,
+          exogenous: exogenousColumns,
+          instruments: instrumentColumns,
+        },
         rows,
         estimator,
         J: gmm?.J,
@@ -962,34 +992,70 @@ function ivregress(session, text, ctx) {
     ...(kClass ? { kappa: kClass.kappa } : {}),
     ...(gmm ? { J: gmm.J } : {}),
   };
+  for (const c of [...listed.endogenous, ...listed.exogenous])
+    if (c.collinear)
+      ctx.out(`note: ${c.name} omitted because of collinearity.`);
   if (parsed.options.first) {
+    if (endogenousColumns.some((c) => !c.term.variable))
+      throw new StataError(
+        "option first is not available yet with a factor-variable endogenous regressor; type estat firststage",
+        198,
+      );
     firstStage(session, model.iv, parsed, ctx);
   }
   ctx.out("");
-  [
-    ["Number of obs", count(n)],
-    [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
-    ["Prob > chi2", applyFormat(p, "%6.4f").trim()],
-    // Stata leaves R-squared out when it would be negative.
-    ...(model.r2 >= 0
-      ? [["R-squared", applyFormat(model.r2, "%6.4f").trim()]]
-      : []),
-    ["Root MSE", "    " + applyFormat(model.rmse, "%7.0g")],
-  ].forEach(([label, value], k, list) =>
+  const right = [
+      ["Number of obs", count(n)],
+      [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
+      ["Prob > chi2", applyFormat(p, "%6.4f").trim()],
+      // When R-squared would be negative, 2SLS shows it missing; LIML and
+      // GMM leave it out.
+      ...(model.r2 >= 0
+        ? [["R-squared", applyFormat(model.r2, "%6.4f").trim()]]
+        : kClass || gmm
+          ? []
+          : [["R-squared", "."]]),
+      ["Root MSE", "    " + applyFormat(model.rmse, "%7.0g")],
+    ],
+    // GMM names its weight matrix on the fifth line, beside Root MSE or
+    // below it.
+    left = [
+      model.title,
+      "",
+      "",
+      "",
+      ...(gmm
+        ? [
+            `GMM weight matrix: ${/^r/.test(weighting) ? "Robust" : "Unadjusted"}`,
+          ]
+        : []),
+    ];
+  for (let k = 0; k < Math.max(left.length, right.length); k++)
     ctx.out(
-      `${(k
-        ? gmm && k === list.length - 1
-          ? `GMM weight matrix: ${/^r/.test(weighting) ? "Robust" : "Unadjusted"}`
-          : ""
-        : model.title
-      ).padEnd(50)}${side(label, value)}`,
-    ),
-  );
+      right[k] ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}` : left[k],
+    );
   ctx.out("");
   if (cluster) ctx.out(clusterNote(clusters, cluster.name, count));
   zTable(session, model, parsed.options.level, null, false).forEach(ctx.out);
-  ctx.out(`Endogenous: ${endogenous.join(" ")}`);
-  ctx.out(`Exogenous:  ${[...exogenous, ...instruments].join(" ")}`);
+  // The lists are a paragraph as wide as the table less two (the line,
+  // if narrower), continued twelve columns in.
+  const limit =
+      Math.min(
+        66 + tableWidth(session, model, []),
+        session.settings?.linesize ?? 80,
+      ) - 2,
+    paragraph = (lead, words) => {
+      let line = lead;
+      words.forEach((word, k) => {
+        if (k && `${line} ${word}`.length > limit) {
+          ctx.out(line);
+          line = `${" ".repeat(12)}${word}`;
+        } else line = k ? `${line} ${word}` : `${line}${word}`;
+      });
+      ctx.out(line);
+    };
+  paragraph("Endogenous: ", endogenous);
+  paragraph("Exogenous:  ", [...exogenous, ...instruments]);
   ctx.out("");
 }
 

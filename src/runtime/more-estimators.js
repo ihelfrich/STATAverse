@@ -29,7 +29,9 @@ export function firstStage(session, iv, parsed, ctx) {
     const model = fit(
         session,
         {
-          anything: [name, ...iv.exogenous, ...iv.instruments].join(" "),
+          anything: [name, iv.texts.exogenous, iv.texts.instruments]
+            .filter(Boolean)
+            .join(" "),
           options: { level: 95 },
           // The first stage uses the observations of the main equation.
           only: new Set(iv.rows),
@@ -63,14 +65,14 @@ export function firstStage(session, iv, parsed, ctx) {
 
 function ivFrame(session, model) {
   const iv = model.iv,
-    column = (name) => iv.rows.map((i) => session.data.get(name).data[i]);
+    column = (c) => iv.rows.map((i) => c.value(i));
   return {
     iv,
     n: iv.rows.length,
-    y: column(iv.dep),
-    endogenous: iv.endogenous.map(column),
-    exogenous: iv.exogenous.map(column),
-    instruments: iv.instruments.map(column),
+    y: iv.rows.map((i) => session.data.get(iv.dep).data[i]),
+    endogenous: iv.columns.endogenous.map(column),
+    exogenous: iv.columns.exogenous.map(column),
+    instruments: iv.columns.instruments.map(column),
   };
 }
 function unadjusted(model, what) {
@@ -137,7 +139,8 @@ function overidGmm(session, model, ctx) {
   const J = model.iv.J,
     p = chi2tail(df, J);
   ctx.out("");
-  ctx.out(`  Test of overidentifying restriction${df > 1 ? "s" : ""}:`);
+  // Stata says restriction, however many there are.
+  ctx.out("  Test of overidentifying restriction:");
   ctx.out("");
   ctx.out(`  Hansen's J chi2(${df}) = ${six(J)} (p = ${four(p)})`);
   ctx.out("");
@@ -177,6 +180,11 @@ function endogenousGmm(session, model, ctx) {
 
 function firststage(session, model, ctx) {
   const f = ivFrame(session, model);
+  if (model.iv.columns.endogenous.some((c) => !c.term.variable))
+    throw new StataError(
+      "estat firststage after a factor-variable endogenous regressor is not available yet",
+      198,
+    );
   if (model.vce !== "unadjusted") {
     if (model.iv.estimator === "liml")
       throw new StataError(
@@ -357,8 +365,8 @@ function overid(session, model, ctx) {
     e = f.y.map(
       (value, i) =>
         value -
-        x.reduce((t, column, k) => t + column[i] * model.b[k], 0) -
-        model.b[x.length],
+        x.reduce((t, column, k) => t + column[i] * model.iv.b[k], 0) -
+        model.iv.b[x.length],
     ),
     z = [...f.exogenous, ...f.instruments],
     fitted = project(z, e),

@@ -124,6 +124,7 @@ for (const c of fixture.cases)
             "table-unlabelled-levels-and-one-level-factors",
             "constraint-lines-wrapped",
             "table-width-xtreg-and-resampling",
+            "margins-factor-interactions-logit",
           ].includes(c.id),
         )
       )
