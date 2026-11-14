@@ -4,6 +4,7 @@ import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail } from "./distributions.js";
+import { abbreviate, coefficientSpace } from "./estimation.js";
 import { count, moments } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -260,60 +261,161 @@ function imtest(session, model, text, ctx) {
   }
 }
 
+/**
+ * estat vce: e(V) laid out as matrix list lays it out. Each column takes
+ * the format's width and two more; a name with a factor level or an
+ * interaction is split over two lines (2. above g, c.x# above c.x); as many
+ * columns as the line holds make a block, and further columns follow in
+ * blocks of their own. A model whose coefficients sit in named equations
+ * (the likelihood models, cut points and var(e.y) in /) shows each
+ * equation's name above its columns and before its rows, its groups of
+ * columns divided by a bar. Base levels are left out; an omitted
+ * coefficient is shown as o.name with zeros.
+ */
 function vce(session, model, text, ctx) {
-  const { options } = session.parse(
-      "[, COVariance CORRelation | EQuation(string) BLOCK DIAG FORmat(string) NOLines]",
+  const parsed = session.parse(
+      "[, COVariance CORRelation Format(string) | EQuation(string) Block Diag noLINes BASElevels ALLBASElevels noOMITted noEMPTYcells]",
       text,
     ),
-    correlation = !!options.correlation;
-  if (correlation && options.covariance)
+    { correlation, covariance } = parsed.options;
+  if (correlation && covariance)
     throw new StataError(
-      "options covariance and correlation may not be combined",
+      "options correlation and covariance may not be combined",
       198,
     );
-  const used = model.names.map((_, k) => k).filter((k) => model.estimable[k]),
-    // The correlation matrix is shown to four decimals in columns of ten,
-    // the covariance matrix in %10.0g in columns of twelve.
-    size = correlation ? 10 : 12,
-    value = (r, c) =>
-      correlation
-        ? model.V[r][c] / Math.sqrt(model.V[r][r] * model.V[c][c])
-        : model.V[r][c],
-    wide = (v) =>
-      (correlation
-        ? applyFormat(v, "%9.4f").trim()
-        : applyFormat(v, "%10.0g").trim()
-      ).padStart(size - 1);
+  const format = parsed.options.format || (correlation ? "%8.4f" : "%10.0g"),
+    width = Number(/^%-?0?(\d+)/.exec(format)?.[1]);
+  if (!width || !/^%-?0?\d+\.\d+[fge]c?$/.test(format))
+    throw new StataError(`invalid format(${format})`, 198);
+  const space = coefficientSpace(model),
+    shown = [];
+  space.entries.forEach((e, i) => {
+    // A cell of an interaction with a base level in it is a base cell, as
+    // 0b.g#co.x or 1o.g#1b.h: Stata leaves those out along with base
+    // levels.
+    const base = e.name.split("#").some((part) => /^\d+b\./.test(part)),
+      estimated =
+        e.index >= 0 ? model.estimable?.[e.index] !== false : !e.omitted;
+    if (!estimated && base) return;
+    shown.push({
+      i,
+      equation: e.equation,
+      name: estimated ? e.name : omittedName(e.name),
+      estimated,
+    });
+  });
+  const named = shown.some((s) => s.equation !== null),
+    cell = width + 2,
+    linesize = session.settings?.linesize ?? 79,
+    value = (r, c) => {
+      if (!r.estimated || !c.estimated)
+        return correlation ? "." : applyFormat(0, format).trim();
+      const v = space.V[r.i][c.i];
+      return applyFormat(
+        correlation ? v / Math.sqrt(space.V[r.i][r.i] * space.V[c.i][c.i]) : v,
+        format,
+      ).trim();
+    },
+    // 2.g as 2. above g, c.x#c.x as c.x# above c.x, o.x as o. above x.
+    split = (name) => {
+      const cut = name.includes("#")
+        ? name.lastIndexOf("#") + 1
+        : (/^(\d+[bno]*|c?o)\./.exec(name)?.[0].length ?? 0);
+      return [name.slice(0, cut), abbreviate(name.slice(cut), width)];
+    },
+    heads = shown.map((s) => split(s.name)),
+    prefixed = heads.some(([prefix]) => prefix);
+  // Blocks of columns, each as wide as the line allows; a change of
+  // equation inside a block takes a bar of its own.
+  const blocks = [];
+  shown.forEach((s, k) => {
+    const block = blocks.at(-1),
+      bars = (cols) =>
+        cols.filter(
+          (c, j) => j && shown[c].equation !== shown[cols[j - 1]].equation,
+        ).length;
+    if (
+      block &&
+      14 + cell * (block.length + 1) + bars([...block, k]) <= linesize
+    )
+      block.push(k);
+    else blocks.push([k]);
+  });
   ctx.out("");
   ctx.out(
     `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.command} model`,
   );
   ctx.out("");
-  // A factor level's name is split over two lines: 2. above g.
-  const parts = used.map((k) => /^(\d+\.)(\w+)$/.exec(model.names[k])),
-    heading = (items) =>
-      items
-        .map((item) => item.padStart(size))
-        .join("")
-        .slice(1);
-  if (parts.some(Boolean))
-    ctx.out(`             | ${heading(parts.map((m) => (m ? m[1] : "")))} `);
-  ctx.out(
-    `${"e(V)".padStart(12)} |${heading(parts.map((m, j) => (m ? m[2] : model.names[used[j]])))} `,
-  );
-  ctx.out(`-------------+${"-".repeat(size * used.length - 1)}`);
-  used.forEach((r, a) =>
-    ctx.out(
-      `${model.names[r].padStart(12)} |${used
-        .map((c, b) =>
-          b <= a ? wide(value(r, c)).padStart(size) : " ".repeat(size),
+  const equationOf = (k) => shown[k].equation ?? "_";
+  blocks.forEach((block) => {
+    // The block's columns grouped by equation.
+    const groups = [];
+    for (const k of block)
+      if (groups.length && equationOf(groups.at(-1).at(-1)) === equationOf(k))
+        groups.at(-1).push(k);
+      else groups.push([k]);
+    const across = (make) => groups.map((g) => g.map(make).join("")).join("|"),
+      stub = " ".repeat(13),
+      rule = `${"-".repeat(13)}+${groups
+        .map((g) =>
+          "-".repeat(cell * g.length - (g.at(-1) === shown.length - 1 ? 1 : 0)),
         )
-        .join("")
-        .slice(1)} `,
-    ),
-  );
-  ctx.out("");
+        .join("+")}`,
+      blank = () => across(() => " ".repeat(cell));
+    if (named)
+      ctx.out(
+        `${stub}|${groups.map((g) => ` ${equationOf(g[0])}`.padEnd(cell * g.length)).join("|")}`,
+      );
+    if (prefixed)
+      ctx.out(`${stub}|${across((k) => heads[k][0].padStart(cell))}`);
+    ctx.out(
+      `${"e(V)".padStart(12)} |${across((k) => `${heads[k][1].padStart(cell - 1)} `)}`,
+    );
+    ctx.out(rule);
+    let equation;
+    for (let r = block[0]; r < shown.length; r++) {
+      if (named && shown[r].equation !== equation) {
+        if (equation !== undefined) ctx.out(rule);
+        equation = shown[r].equation;
+        ctx.out(`${equationOf(r).padEnd(13)}|${blank()}`);
+      }
+      // An interaction too long for the stub is split after its last #,
+      // the first part on a line of its own.
+      const name = shown[r].name,
+        cut =
+          name.length > 12 && name.includes("#")
+            ? name.lastIndexOf("#") + 1
+            : 0;
+      if (cut)
+        ctx.out(
+          `${abbreviate(name.slice(0, cut), 13).padStart(13)}|${blank()}`.trimEnd(),
+        );
+      ctx.out(
+        `${abbreviate(name.slice(cut), 12).padStart(12)} |${across((c) =>
+          c <= r
+            ? `${value(shown[r], shown[c]).padStart(cell - 1)} `
+            : " ".repeat(cell),
+        )}`,
+      );
+    }
+    ctx.out("");
+  });
 }
+
+/** How Stata names an omitted coefficient: o.x, 3o.g, 1o.g#co.x. */
+const omittedName = (name) =>
+  name
+    .split("#")
+    .map((part) =>
+      /^(\d+[bo]|co|o)\./.test(part)
+        ? part
+        : /^\d+\./.test(part)
+          ? part.replace(".", "o.")
+          : /^c\./.test(part)
+            ? `co.${part.slice(2)}`
+            : `o.${part}`,
+    )
+    .join("#");
 
 function summarizeSample(session, model, text, ctx) {
   const rows = model.sample,

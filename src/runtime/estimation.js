@@ -10,7 +10,13 @@ import { applyFormat, parseFormat } from "./format.js";
 import { FUNCTIONS } from "./functions.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
-import { count, labelled, moments, percentile, present } from "./reports.js";
+import {
+  accurateSum,
+  count,
+  labelled,
+  percentile,
+  weightedRows,
+} from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
@@ -49,6 +55,27 @@ export function invertSymmetric(a) {
       out[i][j] = out[j][i] = sum;
     }
   return out;
+}
+/**
+ * The rank of a symmetric nonnegative matrix, found by sweeping each
+ * diagonal element in turn and treating one that has fallen below a
+ * relative tolerance of its original value as zero, as invsym() does.
+ */
+export function symmetricRank(m) {
+  const n = m.length,
+    a = m.map((row) => row.slice());
+  let rank = 0;
+  for (let j = 0; j < n; j++) {
+    const d = a[j][j];
+    if (!(m[j][j] > 0) || !(d > 1e-10 * m[j][j])) continue;
+    rank++;
+    for (let i = 0; i < n; i++)
+      if (i !== j)
+        for (let k = 0; k < n; k++)
+          if (k !== j) a[i][k] -= (a[i][j] * a[j][k]) / d;
+    for (let i = 0; i < n; i++) if (i !== j) a[i][j] = a[j][i] = 0;
+  }
+  return rank;
 }
 export const quadratic = (v, m) =>
   v.reduce(
@@ -440,7 +467,7 @@ export function fit(session, parsed, by) {
     obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
     if (obs.some((i) => all[i] < 0))
       throw new StataError("negative weights encountered", 402);
-    sumW = obs.reduce((t, i) => t + all[i], 0);
+    sumW = accurateSum(obs, (i) => all[i]);
     if (wtype === "fweight") {
       if (obs.some((i) => !Number.isInteger(all[i])))
         throw new StataError("may not use noninteger frequency weights", 401);
@@ -512,12 +539,17 @@ export function fit(session, parsed, by) {
         intercept + kept.reduce((t, k, j) => t + x[k][i] * slopes[j], 0),
     ),
     residuals = y.map((v, i) => v - fitted[i]),
-    rss = cross(residuals, residuals),
-    tss = cross(yc, yc),
-    mss = tss - rss,
     rank = kept.length + (constant ? 1 : 0),
     dfModel = kept.length,
-    dfResidual = n - rank;
+    dfResidual = n - rank,
+    tss = cross(yc, yc),
+    // With as many parameters as observations, or an outcome the
+    // regressors fit exactly, the residual sum of squares is 0, not
+    // rounding noise: Stata's sweep treats what is left of y, as of any
+    // column, as zero below a relative tolerance.
+    noise = cross(residuals, residuals),
+    rss = dfResidual > 0 && noise > 1e-13 * tss ? noise : 0,
+    mss = tss - rss;
   // (Z'Z)^-1 for Z = [kept columns, 1], assembled from the centred inverse.
   const size = rank,
     bread = Array.from({ length: size }, () => new Array(size).fill(0));
@@ -582,8 +614,16 @@ export function fit(session, parsed, by) {
     );
   }
   const dfTest = cluster ? clusters - 1 : dfResidual;
+  // A robust variance can have less than full rank, as with fewer clusters
+  // than coefficients. Stata then leaves F missing and takes e(rank) and
+  // the model degrees of freedom (that rank less the constant) from it. A
+  // variance that is only nearly singular, as for year and year squared,
+  // keeps its F; the tolerance of symmetricRank() separates the two as the
+  // cases recorded from Stata 19 do.
+  const vRank = robust ? symmetricRank(covariance) : rank,
+    shortRank = vRank < rank;
   let F = MISSING;
-  if (dfModel > 0) {
+  if (dfModel > 0 && dfResidual > 0 && !shortRank) {
     if (!robust) F = mss / dfModel / (rss / dfResidual);
     else {
       const block = covariance
@@ -593,6 +633,8 @@ export function fit(session, parsed, by) {
       if (inverse) F = quadratic(slopes, inverse) / dfModel;
     }
   }
+  // An exact fit gives 0/0 or x/0: Stata shows such an F as missing.
+  if (!Number.isFinite(F)) F = MISSING;
   // Coefficients in the order of the design, with base and omitted columns
   // held at zero, then the constant. Positions go by column, not name: a
   // variable named twice has two columns of one name, one of them omitted.
@@ -625,19 +667,25 @@ export function fit(session, parsed, by) {
     constant,
     estimable: names.map((_, k) => position.has(k)),
     N: n,
-    df_m: dfModel,
+    df_m: shortRank ? Math.max(0, vRank - (constant ? 1 : 0)) : dfModel,
     df_r: dfTest,
-    rank,
+    rank: vRank,
     F,
     rss,
     mss,
     tss,
     r2: tss ? mss / tss : MISSING,
-    r2_a: tss
-      ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
-      : MISSING,
-    rmse: Math.sqrt(rss / dfResidual),
-    ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1),
+    // With no residual degrees of freedom (N equal to the parameters) the
+    // adjusted R-squared is missing and the root MSE is 0, as in Stata.
+    r2_a:
+      tss && dfResidual > 0
+        ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
+        : MISSING,
+    rmse: dfResidual > 0 ? Math.sqrt(rss / dfResidual) : 0,
+    ll:
+      rss > 0
+        ? -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1)
+        : MISSING,
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
     sumW,
     wtype,
@@ -678,7 +726,10 @@ function tableBlocks(session, model) {
     block.shown = block.items.filter(
       (k) => !hiddenBase(model.columns[k], model),
     );
+    // estimates table lays out every factor as a block of its own when it
+    // compares several models (model.factorBlocks).
     const one =
+      !model.factorBlocks &&
       block.term !== "_cons" &&
       !block.term.variable &&
       block.term.components.length === 1 &&
@@ -906,8 +957,12 @@ export function termRows(
       previousPlain = false;
       return;
     }
+    // In estimates table a factor shown as one row (1.name) has a blank row
+    // before it, though none after (model.aloneGap).
     const plain =
-      block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
+      block.term === "_cons"
+        ? previousPlain
+        : !!block.term.variable || (alone && !model.aloneGap);
     if (b && !(plain && previousPlain)) blank();
     else if (b && block.term === "_cons" && !previousPlain) blank();
     // A factor headed by its name with one labelled level has a blank row
@@ -915,7 +970,9 @@ export function termRows(
     previousPlain =
       block.term === "_cons"
         ? previousPlain
-        : plain || (block.single && !model.baseLevels);
+        : plain ||
+          (block.single && !model.baseLevels) ||
+          (alone && !!model.aloneGap);
     const row = (label, k) =>
       out.push(
         model.estimable[k]
@@ -984,19 +1041,42 @@ export function termRows(
   return out;
 }
 
+/**
+ * A t or z statistic in its column of nine: two decimals, or from 10,000
+ * on, where two decimals would crowd the column, one digit of mantissa
+ * (2.5e+04), as Stata shows it.
+ */
+export const statisticCell = (value) =>
+  !isMissing(value) && Math.abs(value) >= 9999.995
+    ? applyFormat(value, "%9.1e")
+    : applyFormat(value, "%9.2f");
+
+/**
+ * The standard error, test statistic and two-sided p-value of coefficient
+ * k. A variance of zero or one that is not a number (an exact fit, or no
+ * residual degrees of freedom) leaves all three missing, shown as ".".
+ */
+export function coefficientTest(model, k) {
+  const v = model.V[k][k];
+  if (!(v > 0) || isMissing(v))
+    return { se: MISSING, t: MISSING, p: MISSING, missing: true };
+  const se = Math.sqrt(v),
+    t = model.b[k] / se;
+  return { se, t, p: 2 * ttail(model.df_r, Math.abs(t)), missing: false };
+}
+
 export function coefficientRows(session, model, level, width) {
   const critical = invttail(model.df_r, (1 - level / 100) / 2);
   return termRows(
     session,
     model,
     (k) => {
-      const se = Math.sqrt(model.V[k][k]),
-        t = model.b[k] / se;
-      // A standard error of zero (a perfect fit) is shown as missing, and
-      // so is everything computed from it, as Stata shows them.
-      if (!(se > 0))
-        return `${g(model.b[k]).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+      const { se, t, p, missing } = coefficientTest(model, k),
+        bound = (sign) =>
+          missing || !Number.isFinite(critical)
+            ? MISSING
+            : model.b[k] + sign * critical * se;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
     },
     width,
   );
@@ -1036,16 +1116,19 @@ function regress(session, text, ctx) {
     ),
     model = fit(session, parsed, null),
     level = parsed.options.level,
-    stat = (label, value, wide) =>
+    stat = (label, value, wide, relation = "=") =>
       wide
-        ? `${label.padEnd(18)}=${value.padStart(11)}`
-        : `   ${label.padEnd(16)}=${value.padStart(10)}`,
+        ? `${label.padEnd(18)}${relation}${value.padStart(11)}`
+        : `   ${label.padEnd(16)}${relation}${value.padStart(10)}`,
     fLabel = `F(${model.df_m}, ${model.df_r})`,
     p = isMissing(model.F) ? MISSING : Ftail(model.df_m, model.df_r, model.F),
     wide = model.vce !== "ols",
     side = [
       stat("Number of obs", count(model.N), wide),
-      stat(fLabel, applyFormat(model.F, "%9.2f").trim(), wide),
+      // An F too large for its column is shown as a bound, > 99999.00.
+      !isMissing(model.F) && model.F > 99999
+        ? stat(fLabel, "99999.00", wide, ">")
+        : stat(fLabel, applyFormat(model.F, "%9.2f").trim(), wide),
       stat("Prob > F", applyFormat(p, "%6.4f").trim(), wide),
       stat("R-squared", applyFormat(model.r2, "%6.4f").trim(), wide),
       ...(wide
@@ -1092,7 +1175,7 @@ function regress(session, text, ctx) {
         `note: ${unmarked(column.name)} omitted because of collinearity.`,
       );
   if (model.wtype && model.wtype !== "fweight")
-    ctx.out(`(sum of wgt is ${g(model.sumW, "%10.0g")})`);
+    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   ctx.out("");
   if (wide) {
     side.forEach((line, k) =>
@@ -1147,14 +1230,13 @@ function regress(session, text, ctx) {
       session,
       model,
       (k) => {
-        const se = Math.sqrt(model.V[k][k]),
-          t = model.b[k] / se,
+        const { se, t, p } = coefficientTest(model, k),
           beta =
             model.names[k] === "_cons"
               ? MISSING
               : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
                 sdY;
-        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
+        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(beta).padStart(25)}`;
       },
       width,
       0,
@@ -2854,136 +2936,373 @@ function correlate(session, text, ctx) {
   };
 }
 
-const TABSTAT = {
-  mean: ["Mean", (v) => moments(v).mean],
-  n: ["N", (v) => v.length],
-  count: ["N", (v) => v.length],
-  sum: ["Sum", (v) => moments(v).sum],
-  min: ["Min", (v) => moments(v).min],
-  max: ["Max", (v) => moments(v).max],
-  sd: ["SD", (v) => moments(v).sd],
-  variance: ["Variance", (v) => moments(v).variance],
-  range: [
-    "Range",
-    (v) => (v.length ? moments(v).max - moments(v).min : MISSING),
-  ],
-  cv: ["CV", (v) => (v.length > 1 ? moments(v).sd / moments(v).mean : MISSING)],
-  semean: [
-    "SE(mean)",
-    (v) => (v.length > 1 ? moments(v).sd / Math.sqrt(v.length) : MISSING),
-  ],
-  iqr: [
-    "IQR",
-    (v) => {
-      const s = [...v].sort((a, b) => a - b);
-      return s.length ? percentile(s, 75) - percentile(s, 25) : MISSING;
-    },
-  ],
-};
-for (const p of [1, 5, 10, 25, 50, 75, 90, 95, 99])
-  TABSTAT["p" + p] = [
-    "p" + p,
-    (v) =>
-      percentile(
-        [...v].sort((a, b) => a - b),
-        p,
-      ),
-  ];
-Object.assign(TABSTAT, {
-  median: TABSTAT.p50,
-  q: null,
-  var: TABSTAT.variance,
-  me: TABSTAT.mean,
-});
-delete TABSTAT.q;
-
-function tabstat(session, text, ctx) {
-  const parsed = session.parse(
-      "varlist(numeric) [if] [in] [, Statistics(string) BY(varname) Columns(string) noTotal | Missing Format LONGstub SAVE]",
-      text,
-    ),
-    names = (parsed.options.statistics ?? "mean").split(/\s+/).filter(Boolean),
-    stats = names.map((name) => {
-      const entry = TABSTAT[name.toLowerCase()];
-      if (!entry) throw new StataError(`unknown statistic: ${name}`, 198);
-      return entry;
-    }),
-    variables = parsed.varlist.map((name) => session.data.get(name)),
-    rows = session.rows(parsed, null),
-    cell = (variable, subset, stat) =>
-      g(stat[1](present(variable.data, subset))).padStart(10),
-    byVariable = parsed.options.by ? session.data.get(parsed.options.by) : null;
-  ctx.out("");
-  if (!byVariable) {
-    if (/^s/.test(parsed.options.columns ?? "")) {
-      ctx.out(`    Variable |${stats.map((s) => s[0].padStart(10)).join("")}`);
-      ctx.out(`-------------+${"-".repeat(10 * stats.length)}`);
-      for (const v of variables)
-        ctx.out(
-          `${v.name.padStart(12)} |${stats.map((s) => cell(v, rows, s)).join("")}`,
-        );
-      ctx.out("-".repeat(14 + 10 * stats.length));
-    } else {
-      ctx.out(
-        `   Stats |${variables.map((v) => v.name.padStart(10)).join("")}`,
+/**
+ * tabstat's statistics as its Stats subroutine reads them: each word an
+ * option of syntax, the capitals the least that may be typed. q stands for
+ * p25 p50 p75.
+ */
+const TABSTAT_WORDS = [
+  ["n", 1, ["N"]],
+  ["mean", 2, ["Mean"]],
+  ["sd", 2, ["SD"]],
+  ["variance", 1, ["Variance"]],
+  ["sum", 2, ["Sum"]],
+  ["count", 2, ["N"]],
+  ["min", 2, ["Min"]],
+  ["max", 2, ["Max"]],
+  ["range", 1, ["Range"]],
+  ["skewness", 2, ["Skewness"]],
+  ["kurtosis", 1, ["Kurtosis"]],
+  ["sdmean", 3, ["se(mean)"]],
+  ["semean", 3, ["se(mean)"]],
+  ...[1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => [`p${p}`, 0, [`p${p}`]]),
+  ["iqr", 3, ["IQR"]],
+  ["q", 1, ["p25", "p50", "p75"]],
+  ["median", 3, ["p50"]],
+  ["cv", 2, ["CV"]],
+];
+function tabstatStatistics(text) {
+  const names = [];
+  for (const word of (text || "mean").trim().split(/\s+/).filter(Boolean)) {
+    const typed = word.toLowerCase(),
+      found = TABSTAT_WORDS.find(
+        ([name, least]) =>
+          typed === name ||
+          (least && typed.length >= least && name.startsWith(typed)),
       );
-      ctx.out(`---------+${"-".repeat(10 * variables.length)}`);
-      for (const s of stats)
-        ctx.out(
-          `${s[0].padStart(8)} |${variables.map((v) => cell(v, rows, s)).join("")}`,
-        );
-      ctx.out("-".repeat(10 + 10 * variables.length));
-    }
-    ctx.out("");
+    if (!found) throw new StataError(`unknown statistic: ${word}`, 198);
+    names.push(...found[2]);
+  }
+  return names;
+}
+
+/**
+ * The statistics of one variable over some observations, as summarize
+ * computes them: with aweights the mean, sum and moments are weighted, N
+ * counts observations and percentiles follow the cumulated weights;
+ * fweights arrive as repeated observations.
+ */
+function tabstatSummary(values, weights) {
+  const n = values.length,
+    w = weights ?? values.map(() => 1),
+    W = accurateSum(w);
+  if (!n)
+    return {
+      N: 0,
+      Sum: 0,
+      Mean: MISSING,
+      SD: MISSING,
+      Variance: MISSING,
+      Min: MISSING,
+      Max: MISSING,
+      Skewness: MISSING,
+      Kurtosis: MISSING,
+      p: () => MISSING,
+    };
+  const sum = accurateSum(values, (v, i) => w[i] * v),
+    mean = sum / W,
+    central = (k) => values.reduce((t, v, i) => t + w[i] * (v - mean) ** k, 0),
+    m2 = central(2) / W,
+    variance =
+      n > 1 ? (weights ? m2 * (n / (n - 1)) : central(2) / (n - 1)) : MISSING,
+    order = values.map((v, i) => [v, w[i]]).sort((a, b) => a[0] - b[0]),
+    sorted = order.map(([v]) => v);
+  return {
+    N: n,
+    Sum: sum,
+    Mean: mean,
+    Variance: variance,
+    SD: isMissing(variance) ? MISSING : Math.sqrt(variance),
+    Min: sorted[0],
+    Max: sorted[n - 1],
+    Skewness: m2 > 0 ? central(3) / W / m2 ** 1.5 : MISSING,
+    Kurtosis: m2 > 0 ? central(4) / W / m2 ** 2 : MISSING,
+    // Without weights the p-th percentile is Stata's; with aweights the
+    // first value whose cumulated weight reaches p percent of the total,
+    // averaged with the next when it reaches it exactly.
+    p: (p) => {
+      if (!weights) return percentile(sorted, p);
+      const target = (W * p) / 100;
+      let cumulated = 0;
+      for (let k = 0; k < n; k++) {
+        cumulated += order[k][1];
+        if (Math.abs(cumulated - target) <= 1e-12 * W)
+          return k + 1 < n ? (sorted[k] + sorted[k + 1]) / 2 : sorted[k];
+        if (cumulated > target) return sorted[k];
+      }
+      return sorted[n - 1];
+    },
+  };
+}
+const tabstatValue = (s, name) =>
+  name === "Range"
+    ? s.N
+      ? s.Max - s.Min
+      : MISSING
+    : name === "CV"
+      ? isMissing(s.SD) || isMissing(s.Mean)
+        ? MISSING
+        : s.SD / s.Mean
+      : name === "se(mean)"
+        ? isMissing(s.SD)
+          ? MISSING
+          : s.SD / Math.sqrt(s.N)
+        : name === "IQR"
+          ? s.N
+            ? s.p(75) - s.p(25)
+            : MISSING
+          : /^p\d+$/.test(name)
+            ? s.p(Number(name.slice(1)))
+            : s[name];
+
+/** Whether a code point takes two columns on screen (East Asian wide). */
+const wideCharacter = (code) =>
+  (code >= 0x1100 && code <= 0x115f) ||
+  (code >= 0x2e80 && code <= 0x303e) ||
+  (code >= 0x3041 && code <= 0x33ff) ||
+  (code >= 0x3400 && code <= 0x4dbf) ||
+  (code >= 0x4e00 && code <= 0x9fff) ||
+  (code >= 0xa000 && code <= 0xa4cf) ||
+  (code >= 0xac00 && code <= 0xd7a3) ||
+  (code >= 0xf900 && code <= 0xfaff) ||
+  (code >= 0xfe30 && code <= 0xfe4f) ||
+  (code >= 0xff00 && code <= 0xff60) ||
+  (code >= 0xffe0 && code <= 0xffe6) ||
+  (code >= 0x20000 && code <= 0x3fffd);
+/** The columns a string takes on screen, as udstrlen() counts them. */
+export const displayWidth = (text) =>
+  [...text].reduce((t, c) => t + (wideCharacter(c.codePointAt(0)) ? 2 : 1), 0);
+/** The start of a string that fits in a number of columns: udsubstr(). */
+function displayPrefix(text, columns) {
+  let out = "",
+    used = 0;
+  for (const c of text) {
+    const w = wideCharacter(c.codePointAt(0)) ? 2 : 1;
+    if (used + w > columns) break;
+    out += c;
+    used += w;
+  }
+  return out;
+}
+
+/**
+ * tabstat, laid out as tabstat.ado lays it out: statistics across the top
+ * for one variable (or with columns(statistics)), variables across the top
+ * otherwise; a by() group's label as wide as the longest label of its
+ * value label, up to labelwidth(); blocks as wide as the line allows.
+ */
+function tabstat(session, text, ctx) {
+  const [head, tail] = splitAtComma(text),
+    // format alone takes each variable's own format; format(%fmt) one for
+    // all.
+    options =
+      tail === null
+        ? ""
+        : `,${tail.replace(/\bf(?:o(?:r(?:m(?:at?)?)?)?)?\s*\(/i, "format2(")}`,
+    parsed = session.parse(
+      "varlist(numeric) [if] [in] [aweight fweight] [, BY(varname) CASEwise Columns(string) Format FORMAT2(string) LAbelwidth(integer -1) VArwidth(integer -1) LOngstub Missing SAME noSEParator Statistics(string) STATS(string) noTotal | SAVE]",
+      head + options,
+    ),
+    o = parsed.options,
+    total = o.total !== false,
+    by = o.by ? session.data.get(session.varlist(o.by)[0]) : null;
+  if (!total && !by) {
+    ctx.out("nothing to display");
     return;
   }
-  const levels = [...new Set(rows.map((i) => byVariable.data[i]))]
-      .filter(
-        (value) =>
-          !(typeof value === "number" && isMissing(value)) && value !== "",
-      )
-      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
-    line = `---------+${"-".repeat(10 * variables.length)}`,
-    block = (label, subset) =>
-      stats.forEach((s, k) =>
-        ctx.out(
-          `${(k ? "" : label).slice(0, 8).padStart(8)} |${variables.map((v) => cell(v, subset, s)).join("")}`,
-        ),
-      );
-  ctx.out(
-    stats.length === 1
-      ? `Summary for variables: ${variables.map((v) => v.name).join(" ")}`
-      : `Summary statistics: ${stats.map((s) => s[0]).join(", ")}`,
-  );
-  ctx.out(
-    `Group variable: ${byVariable.name}${byVariable.label ? ` (${byVariable.label})` : ""}`,
-  );
-  ctx.out("");
-  ctx.out(
-    `${byVariable.name.slice(0, 8).padStart(8)} |${(stats.length === 1 &&
-    variables.length === 1
-      ? [stats[0][0]]
-      : variables.map((v) =>
-          // A long name is shortened as Stata's abbrev() does.
-          v.name.length > 8 ? `${v.name.slice(0, 6)}~${v.name.at(-1)}` : v.name,
-        )
-    )
-      .map((item) => item.padStart(10))
-      .join("")}`,
-  );
-  ctx.out(line);
-  levels.forEach((level, k) => {
-    if (k && stats.length > 1) ctx.out(line);
-    block(
-      labelled(session, byVariable, level),
-      rows.filter((i) => byVariable.data[i] === level),
+  if (o.statistics !== undefined && o.stats !== undefined)
+    throw new StataError(
+      "options statistics() and stats() may not be specified together",
+      198,
     );
-  });
-  if (parsed.options.total !== false) {
-    ctx.out(line);
-    block("Total", rows);
+  if (o.format && o.format2)
+    throw new StataError(
+      "options format and format() may not be specified together",
+      198,
+    );
+  if (o.format2 && parseFormat(o.format2)?.kind !== "number")
+    throw new StataError(`invalid %fmt in option format(): ${o.format2}`, 120);
+  const columns = (o.columns ?? "").trim();
+  let incol = "variables";
+  if (columns && "statistics".startsWith(columns)) incol = "statistics";
+  else if (columns === "stats") incol = "statistics";
+  else if (columns && !"variables".startsWith(columns))
+    throw new StataError(
+      `option columns(${columns}) invalid -- specify columns(variables) or columns(statistics)`,
+      198,
+    );
+  const descr = !!o.longstub || !by || o.varwidth !== -1,
+    clip = (value, low, high, name) => {
+      if (value >= low && value <= high) return value;
+      const clipped = Math.min(high, Math.max(low, value));
+      ctx.out(
+        `(option ${name}() outside valid range ${low}..${high}; ${clipped} assumed)`,
+      );
+      return clipped;
+    },
+    varwidth = o.varwidth === -1 ? 12 : clip(o.varwidth, 8, 32, "varwidth"),
+    labelwidth =
+      o.labelwidth === -1 ? 16 : clip(o.labelwidth, 8, 32, "labelwidth"),
+    variables = parsed.varlist.map((name) => session.data.get(name)),
+    formats = variables.map((v) =>
+      o.format ? v.format : o.format2 ? o.format2 : "%9.0g",
+    ),
+    widthOf = (format) => {
+      const spec = parseFormat(format);
+      return spec?.kind === "number"
+        ? spec.width
+        : applyFormat(0, format).length;
+    },
+    ndigit = Math.max(9, ...formats.map(widthOf)),
+    names = tabstatStatistics(o.statistics ?? o.stats);
+  if (variables.length === 1 && !columns) incol = "statistics";
+  const sepline =
+    o.separator === false
+      ? false
+      : (names.length > 1 && incol === "variables") ||
+        (variables.length > 1 && incol === "statistics");
+  // The sample: if and in, nonmissing on every variable with same, and on
+  // the group variable unless missing.
+  const missingBy = (i) =>
+    by && (isStringType(by.type) ? by.data[i] === "" : isMissing(by.data[i]));
+  let rows = session
+    .rows(parsed, null)
+    .filter((i) => o.missing || !missingBy(i));
+  if (o.same || o.casewise)
+    rows = rows.filter((i) => variables.every((v) => !isMissing(v.data[i])));
+  if (!rows.length) throw new StataError("no observations", 2000);
+  const weighted = weightedRows(session, parsed, rows),
+    stat = (subset) =>
+      variables.map((v) => {
+        const use = subset.filter((i) => !isMissing(v.data[i]));
+        return tabstatSummary(
+          use.map((i) => v.data[i]),
+          weighted.weights ? use.map((i) => weighted.weights[i]) : null,
+        );
+      });
+  // The groups, in sort order, and Total.
+  const groups = [];
+  if (by) {
+    const levels = [...new Set(weighted.rows.map((i) => by.data[i]))].sort(
+      (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+    );
+    const labels = session.data.valueLabels?.get(by.valueLabel);
+    for (const level of levels) {
+      let label;
+      if (isStringType(by.type)) label = level;
+      else if (labels?.has(level)) label = labels.get(level);
+      else if (!labels && /^%-?t|^%-?d/.test(by.format) && !isMissing(level))
+        label = applyFormat(level, by.format).trim();
+      else
+        label = isMissing(level)
+          ? labelled(session, { format: "%9.0g" }, level, false)
+          : applyFormat(level, "%18.0g").trim();
+      groups.push({
+        label,
+        stats: stat(weighted.rows.filter((i) => by.data[i] === level)),
+      });
+    }
   }
-  ctx.out("-".repeat(10 + 10 * variables.length));
+  if (total) groups.push({ label: "Total", stats: stat(weighted.rows) });
+  // The width of the group labels.
+  let byw = 8;
+  if (by) {
+    const labels = session.data.valueLabels?.get(by.valueLabel);
+    if (isStringType(by.type)) {
+      const width = Number(/^str(\d+)$/.exec(by.type)?.[1]);
+      byw = width ? Math.min(width, labelwidth) : labelwidth;
+    } else if (labels)
+      byw = Math.min(
+        labelwidth,
+        Math.max(0, ...[...labels.values()].map((l) => l.length)),
+      );
+    if (/^%d/.test(by.format)) byw = /[ML]/.test(by.format) ? 18 : 11;
+    else if (/^%t/.test(by.format)) byw = 9;
+    else byw = Math.max(by.name.length, byw);
+    if (total) byw = Math.max(byw, 6);
+  }
+  const colwidth = ndigit + 1,
+    lleft =
+      incol === "statistics"
+        ? (by ? 1 + byw : 0) + (descr ? varwidth + 1 : 0)
+        : (by ? 1 + byw : 0) + (descr ? 9 : 0),
+    linesize = session.settings?.linesize ?? 79,
+    neblock = Math.max(1, Math.floor((linesize - lleft - 1) / colwidth)),
+    // Labels are cut and aligned by the columns they take on screen, two
+    // for a Chinese, Japanese or Korean character, as udsubstr() and
+    // {ralign} take them.
+    align = (text, width) => {
+      const room = " ".repeat(Math.max(0, width - displayWidth(text)));
+      return descr && by ? text + room : room + text;
+    },
+    groupLabel = (g, first) =>
+      by ? `${align(first ? displayPrefix(g.label, byw) : "", byw)} ` : "",
+    cell = (value, format) => applyFormat(value, format).padStart(colwidth),
+    rule = (n, corner = "+") =>
+      `${"-".repeat(lleft)}${corner}${"-".repeat(colwidth * n)}`,
+    blocks = (count) => {
+      const out = [];
+      for (let k = 0; k < count; k += neblock)
+        out.push([k, Math.min(count, k + neblock)]);
+      return out;
+    };
+  ctx.out("");
+  if (!descr) {
+    ctx.out(
+      incol === "statistics"
+        ? `Summary for variables: ${variables.map((v) => v.name).join(" ")}`
+        : `Summary statistics: ${names.join(", ")}`,
+    );
+    if (by)
+      ctx.out(`Group variable: ${by.name} ${by.label ? `(${by.label})` : ""}`);
+    ctx.out("");
+  }
+  const across = incol === "statistics" ? names.length : variables.length,
+    list = blocks(across);
+  list.forEach(([from, to], b) => {
+    const width = to - from;
+    if (incol === "statistics")
+      ctx.out(
+        `${by ? `${align(abbreviate(by.name, byw), byw)} ` : ""}${descr ? `${"Variable".padStart(varwidth)} ` : ""}|${names
+          .slice(from, to)
+          .map((name) => name.padStart(colwidth))
+          .join("")}`,
+      );
+    else
+      ctx.out(
+        `${by ? `${align(by.name, byw)} ` : ""}${descr ? "   Stats " : ""}|${variables
+          .slice(from, to)
+          .map((v) => abbreviate(v.name, 8).padStart(colwidth))
+          .join("")}`,
+      );
+    ctx.out(rule(width));
+    groups.forEach((g, k) => {
+      if (incol === "statistics")
+        variables.forEach((v, i) =>
+          ctx.out(
+            `${groupLabel(g, i === 0)}${descr ? `${abbreviate(v.name, varwidth).padStart(varwidth)} ` : ""}|${names
+              .slice(from, to)
+              .map((name) => cell(tabstatValue(g.stats[i], name), formats[i]))
+              .join("")}`,
+          ),
+        );
+      else
+        names.forEach((name, s) =>
+          ctx.out(
+            `${groupLabel(g, s === 0)}${descr ? `${name.padStart(8)} ` : ""}|${variables
+              .slice(from, to)
+              .map((v, j) =>
+                cell(tabstatValue(g.stats[from + j], name), formats[from + j]),
+              )
+              .join("")}`,
+          ),
+        );
+      if (k === groups.length - 1) ctx.out(rule(width, "-"));
+      else if (sepline || (k + 1 === groups.length - 1 && total))
+        ctx.out(rule(width));
+    });
+    if (b < list.length - 1) ctx.out("");
+  });
   ctx.out("");
 }
 

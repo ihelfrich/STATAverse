@@ -1890,29 +1890,53 @@ function estat(session, text, ctx) {
       throw new StataError("pweights not allowed", 101);
     if (model.wtype === "iweight" && what !== "gof")
       throw new StataError("iweight not allowed", 101);
-    const options = session.parse(
-      what === "gof"
-        ? "[, Group(integer 0) Table OUTsample ALL]"
-        : "[, CUToff(real 0.5) ALL]",
-      text.trim().slice(what.length),
-    ).options;
-    for (const name of ["table", "all"])
-      if (options[name])
-        throw new StataError(
-          `estat ${what}, ${name} is not available yet`,
-          198,
-        );
-    if (options.cutoff !== undefined && options.cutoff !== 0.5)
-      throw new StataError(`estat ${what}, cutoff() is not available yet`, 198);
+    // The sample is e(sample), unless if, in or all name another: then
+    // every observation there with an outcome and a prediction, as lfit_p
+    // marks it.
+    const parsed = session.parse(
+        what === "gof"
+          ? "[if] [in] [, All Group(integer 0) OUTsample | Table]"
+          : "[if] [in] [, All CUToff(real 0.5)]",
+        text.trim().slice(what.length),
+      ),
+      options = parsed.options;
+    if (options.table)
+      throw new StataError(
+        "option table is not available yet; estat gof shows the test without the table",
+        198,
+      );
+    if (options.all && (parsed.if || parsed.in))
+      throw new StataError("all option not allowed with if or in", 198);
+    if (model.weights && (options.all || parsed.if || parsed.in))
+      throw new StataError(
+        `estat ${what} with if, in or all after a weighted fit is not available yet`,
+        198,
+      );
+    if (what !== "gof" && (options.cutoff < 0 || options.cutoff > 1))
+      throw new StataError("cutoff() must be between 0 and 1", 198);
     const outcome = session.data.get(model.depvar).data,
-      rows = model.sample,
       index = (i) =>
         model.names.reduce(
           (t, name, k) =>
             t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
           0,
         ),
-      p = rows.map((i) => model.family.mean(index(i))),
+      predicted = (i) =>
+        model.names.some(
+          (name, k) =>
+            name !== "_cons" &&
+            model.b[k] !== 0 &&
+            isMissing(model.columns[k].value(i)),
+        )
+          ? MISSING
+          : model.family.mean(index(i)),
+      rows =
+        parsed.if || parsed.in || options.all
+          ? session
+              .rows(parsed, null)
+              .filter((i) => !isMissing(outcome[i]) && !isMissing(predicted(i)))
+          : model.sample,
+      p = rows.map(predicted),
       y = rows.map((i) => Number(outcome[i] !== 0)),
       kind = model.kind === "logit" ? "logistic" : "probit",
       // Each observation's weight. The number of observations is what
@@ -1999,7 +2023,7 @@ function estat(session, text, ctx) {
       tn = 0;
     // A frequency-weighted observation counts that many times.
     y.forEach((actual, r) => {
-      const positive = p[r] >= 0.5,
+      const positive = p[r] >= options.cutoff,
         weight = weightAt(r);
       if (positive && actual) tp += weight;
       else if (positive) fp += weight;
@@ -2030,7 +2054,9 @@ function estat(session, text, ctx) {
     ctx.out("-----------+--------------------------+-----------");
     row("   Total   ", tp + fn, fp + tn);
     ctx.out("");
-    ctx.out("Classified + if predicted Pr(D) >= .5");
+    ctx.out(
+      `Classified + if predicted Pr(D) >= ${applyFormat(options.cutoff, "%18.0g").trim()}`,
+    );
     ctx.out(`True D defined as ${model.depvar} != 0`);
     ctx.out(rule);
     line("Sensitivity", "Pr( +| D)", tp, tp + fn);
@@ -2048,10 +2074,17 @@ function estat(session, text, ctx) {
     );
     ctx.out(rule);
     ctx.out("");
+    const share = (a, b) => (b ? (100 * a) / b : MISSING);
     session.results.r = {
-      P_corr: (100 * (tp + tn)) / (tp + fp + fn + tn),
-      P_p1: (100 * tp) / (tp + fn),
-      P_n0: (100 * tn) / (tn + fp),
+      P_corr: share(tp + tn, tp + fp + fn + tn),
+      P_p1: share(tp, tp + fn),
+      P_n0: share(tn, tn + fp),
+      P_p0: share(fp, fp + tn),
+      P_n1: share(fn, tp + fn),
+      P_1p: share(tp, tp + fp),
+      P_0n: share(tn, fn + tn),
+      P_0p: share(fp, tp + fp),
+      P_1n: share(fn, fn + tn),
     };
   } else if (ivDiagnostic(session, model, what, ctx)) {
     // Printed by the diagnostic.

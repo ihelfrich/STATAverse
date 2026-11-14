@@ -4,7 +4,8 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
-import { count, labelled, moments } from "./reports.js";
+import { abbreviate } from "./estimation.js";
+import { count, labelled, moments, perGroup } from "./reports.js";
 import { mean } from "./tables.js";
 import { MISSING, displayWidth, isMissing, isStringType } from "./values.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
@@ -31,30 +32,65 @@ function ci(session, text, ctx) {
   if (!"means".startsWith(m[1]) || m[1].length < 4) {
     if (/^(prop|var)/.test(m[1]))
       throw new StataError(`ci ${m[1]} is not available yet; ci means is`, 198);
-    // The older form: ci varlist.
-    m[2] = text;
+    // The older form, ci varlist, ended with Stata 14.
+    throw new StataError(
+      "you must specify one of means, proportions, or variances following ci",
+      198,
+    );
   }
-  const parsed = session.parse("[varlist] [if] [in] [, Level(cilevel)]", m[2]),
+  const parsed = session.parse(
+      "[varlist] [if] [in] [, Level(cilevel) SEParator(integer 5) | Poisson Exposure(varname) Total]",
+      m[2],
+    ),
     level = parsed.options.level,
-    rows = session.rows(parsed, null);
+    rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    // The level's digits move the bracket: three spaces more for 95, one
+    // for 99.5, as ci lays it out.
+    digits = String(level).length,
+    rule =
+      "-------------+---------------------------------------------------------------";
   ctx.out("");
   ctx.out(
-    `    Variable |        Obs        Mean    Std. err.       [${g(level)}% conf. interval]`,
+    `    Variable |        Obs        Mean    Std. err.    ${digits === 2 ? "   " : digits === 4 ? " " : ""}[${g(level)}% conf. interval]`,
   );
-  ctx.out(
-    "-------------+---------------------------------------------------------------",
-  );
-  let last = null;
+  ctx.out(rule);
+  let last = null,
+    shown = 0;
   for (const name of parsed.varlist) {
     const variable = session.data.get(name);
     if (isStringType(variable.type)) continue;
     const stats = moments(
       rows.map((i) => variable.data[i]).filter((v) => !isMissing(v)),
     );
+    if (
+      shown &&
+      parsed.options.separator &&
+      shown % parsed.options.separator === 0
+    )
+      ctx.out(rule);
+    shown++;
+    // The numbers take the variable's display format when it is fixed,
+    // %9.2f for %12.2f and %9.2fc for %12.2fc, and %9.0g otherwise. ci
+    // reads the format's last characters, so %12.10f gives %9.0f.
+    const own = variable.format ?? "",
+      shape = own.endsWith("fc")
+        ? `%9.${own.slice(-3)}`
+        : own.endsWith("f")
+          ? `%9.${own.slice(-2)}`
+          : "%9.0g",
+      // Each number starts at its column, as display's _col() places it,
+      // after anything wider that ran past it.
+      columns = (cells) => {
+        let line = `${abbreviate(name, 12).padStart(12)} |`;
+        for (const [column, text] of cells)
+          line = line.padEnd(column - 1) + text;
+        return line;
+      },
+      number = (value) => applyFormat(value, shape);
     // With no observations Stata shows dots and still posts the row.
     if (!stats.n) {
       ctx.out(
-        `${name.padStart(12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
+        `${abbreviate(name, 12).padStart(12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
       );
       last = {
         N: 0,
@@ -67,12 +103,21 @@ function ci(session, text, ctx) {
       };
       continue;
     }
-    const se = stats.sd / Math.sqrt(stats.n),
-      critical = invttail(stats.n - 1, (1 - level / 100) / 2),
-      lb = stats.mean - critical * se,
-      ub = stats.mean + critical * se;
+    // One observation has no standard error: Stata shows it and the
+    // bounds as dots.
+    const one = stats.n < 2,
+      se = one ? MISSING : stats.sd / Math.sqrt(stats.n),
+      critical = one ? MISSING : invttail(stats.n - 1, (1 - level / 100) / 2),
+      lb = one ? MISSING : stats.mean - critical * se,
+      ub = one ? MISSING : stats.mean + critical * se;
     ctx.out(
-      `${name.padStart(12)} |${count(stats.n).padStart(11)}${g(stats.mean).padStart(12)}${g(se).padStart(12)}${g(lb).padStart(16)}${g(ub).padStart(12)}`,
+      columns([
+        [16, applyFormat(stats.n, "%10.0fc")],
+        [29, number(stats.mean)],
+        [41, number(se)],
+        [57, number(lb)],
+        [69, number(ub)],
+      ]),
     );
     last = {
       N: stats.n,
@@ -705,7 +750,8 @@ export const EVERYDAY_COMMANDS = [
     },
   },
   { name: "mean", minimum: 4, run: mean },
-  { name: "ci", minimum: 2, run: ci },
+  // ci is byable(recall) in Stata: under by it runs once per group.
+  { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
   { name: "pwcorr", minimum: 6, run: pwcorr },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },

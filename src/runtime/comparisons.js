@@ -2,6 +2,7 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, ttail } from "./distributions.js";
+import { coefficientSpace, termRows } from "./estimation.js";
 import { normal } from "./functions.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
@@ -94,6 +95,62 @@ function statistic(model, e, name) {
   return typeof value === "number" ? value : MISSING;
 }
 
+/**
+ * A coefficient's name read as Stata writes it, 2.g, 1b.g#c.x, x or o.x:
+ * the term its parts make, shared by every model that has it, its factor
+ * levels, whether it names a base level, and the name without its b and o
+ * marks, by which models are matched.
+ */
+function nameTerm(session, name, terms, labelled) {
+  const parts = name.split("#").map((part) => {
+      const level = /^(\d+)([bno]*)\.(.+)$/.exec(part);
+      return level
+        ? {
+            name: level[3],
+            factor: true,
+            level: Number(level[1]),
+            base: level[2].includes("b"),
+          }
+        : { name: part.replace(/^(c|co|o)\./, ""), factor: false };
+    }),
+    factors = parts.filter((p) => p.factor),
+    header = parts.map((p) => (p.factor ? p.name : `c.${p.name}`)).join("#");
+  if (name !== "_cons" && !terms.has(header)) {
+    // A factor's levels take their value labels only when the active
+    // results have the variable as a factor too, as Stata shows them.
+    const components = parts.map((p) => {
+        const variable = session.data.has(p.name)
+          ? session.data.get(p.name)
+          : { name: p.name, format: "%9.0g" };
+        return {
+          variable:
+            p.factor && !labelled.has(p.name)
+              ? { ...variable, valueLabel: undefined }
+              : variable,
+          factor: p.factor,
+        };
+      }),
+      [only] = components;
+    terms.set(header, {
+      components,
+      variables: components.map((c) => c.variable),
+      variable:
+        components.length === 1 && !only.factor ? only.variable : undefined,
+      factor:
+        components.length === 1 && only.factor ? only.variable : undefined,
+      header,
+    });
+  }
+  return {
+    key: parts
+      .map((p) => (p.factor ? `${p.level}.${p.name}` : p.name))
+      .join("#"),
+    term: name === "_cons" ? undefined : terms.get(header),
+    levels: factors.map((p) => p.level),
+    base: factors.length > 0 && factors.every((p) => p.base),
+  };
+}
+
 export function estimatesTable(session, text, ctx) {
   const [head, optionText] = splitAtComma(text),
     parsed = session.parse(
@@ -120,84 +177,194 @@ export function estimatesTable(session, text, ctx) {
       : ["0.05", "0.01", "0.001"],
     widthOf = (f) => Number(/^%-?0?(\d+)/.exec(f)?.[1] ?? 10),
     field = Math.max(widthOf(format), withSe ? widthOf(seFormat) : 0) + 1,
-    cell = field + (stars ? 3 : 0) + 2,
-    rule = "-".repeat(14 + cell * entries.length),
-    split = `-------------+${"-".repeat(cell * entries.length)}`,
-    variables = [];
+    cell = field + (stars ? 3 : 0) + 2;
   if (stars && levels.length !== 3)
     throw new StataError("star() takes three significance levels", 198);
-  if (stars && withSe)
-    throw new StataError("option star not allowed with se", 198);
-  for (const { model } of entries)
-    model.names.forEach((name, k) => {
-      if (model.columns[k]?.base || !model.estimable[k]) return;
-      if (name !== "_cons" && !variables.includes(name)) variables.push(name);
+  if (stars && (withSe || options.t || options.p))
+    throw new StataError(
+      "option star may not be combined with se, t, or p",
+      198,
+    );
+  // Each model's coefficients by equation, as e(b) names them: regress's
+  // one equation has no name (shown as _ beside others), the likelihood
+  // models name theirs after the dependent variable, and ancillary
+  // parameters (cut points, var(e.y)) sit in the equation /.
+  const terms = new Map(),
+    labelled = new Set(
+      session.estimates
+        ? coefficientSpace(session.estimates).entries.flatMap((e) =>
+            [...e.name.matchAll(/(?:^|#)\d+[bno]*\.([^#]+)/g)].map((m) => m[1]),
+          )
+        : [],
+    ),
+    panels = new Map(),
+    panel = (equation) => {
+      if (!panels.has(equation))
+        panels.set(equation, { equation, rows: new Map() });
+      return panels.get(equation);
+    };
+  entries.forEach(({ model }, m) => {
+    const space = coefficientSpace(model);
+    space.entries.forEach((e, i) => {
+      const equation = e.equation ?? "_",
+        rows = panel(equation).rows,
+        read =
+          equation === "/"
+            ? { key: e.name, levels: [], base: false }
+            : nameTerm(session, e.name, terms, labelled),
+        column =
+          e.index >= 0 && !model.equations
+            ? model.columns?.[e.index]
+            : undefined,
+        estimated =
+          e.index >= 0 ? model.estimable?.[e.index] !== false : !e.omitted,
+        status = column?.empty
+          ? "empty"
+          : estimated && !e.omitted
+            ? "value"
+            : (column?.base ?? read.base)
+              ? "base"
+              : "omitted";
+      if (!rows.has(read.key)) rows.set(read.key, { ...read, cells: [] });
+      rows.get(read.key).cells[m] = {
+        status,
+        b: space.b[i],
+        se: Math.sqrt(space.V[i][i]),
+        model,
+      };
     });
-  if (entries.some(({ model }) => model.names.includes("_cons")))
-    variables.push("_cons");
-  const pValue = (model, k) => {
-      const z = Math.abs(model.b[k] / Math.sqrt(model.V[k][k]));
+  });
+  // _cons ends its equation, after the coefficients any model adds.
+  for (const { rows } of panels.values())
+    if (rows.has("_cons")) {
+      const cons = rows.get("_cons");
+      rows.delete("_cons");
+      rows.set("_cons", cons);
+    }
+  const pValue = (model, b, se) => {
+      const z = Math.abs(b / se);
       return model.dist === "z" || model.family
         ? 2 * normal(-z)
         : 2 * ttail(model.df_r, z);
     },
-    line = (label, make) =>
-      `${label.padStart(12)} |${entries.map((item) => make(item).padEnd(cell)).join("")}`,
-    value = (text) => text.padStart(field),
+    // A number wider than its format pushes the rest of the line right,
+    // as Stata's display does: the blank before it stays.
+    value = (text) => ` ${text.padStart(field - 1)}`,
+    coefficientCell = (c) => {
+      if (!c || c.status === "base") return "";
+      if (c.status !== "value") return value(`(${c.status})`);
+      const p = stars ? pValue(c.model, c.b, c.se) : 1,
+        marks = stars
+          ? "*".repeat(levels.filter((level) => p < Number(level)).length)
+          : "";
+      return value(g(c.b, format)) + marks;
+    },
+    seCell = (c) => (c?.status === "value" ? value(g(c.se, seFormat)) : ""),
+    joined = (row, make) =>
+      columns.map((m) => `${make(row.cells[m]).padEnd(cell - 2)}  `).join(""),
     title = (name) => {
       const inner = field + (stars ? 3 : 0),
         left = Math.ceil((inner - name.length) / 2);
       return " ".repeat(Math.max(0, left)) + name;
+    },
+    // The active results take the name they were stored under.
+    shown = (name) => {
+      if (name !== ".") return name;
+      const stored = nameOf(session, session.estimates);
+      return stored === "." ? "Active" : stored;
     };
-  ctx.out("");
-  ctx.out(rule);
-  ctx.out(
-    `    Variable |${names.map((name) => title(name === "." ? "active" : name).padEnd(cell)).join("")}`,
-  );
-  ctx.out(split);
-  for (const name of variables) {
-    ctx.out(
-      line(name, ({ model }) => {
-        const k = model.names.indexOf(name);
-        if (k < 0 || !model.estimable[k]) return "";
-        const p = stars ? pValue(model, k) : 1,
-          marks = stars
-            ? "*".repeat(levels.filter((level) => p < Number(level)).length)
-            : "";
-        return value(g(model.b[k], format)) + marks;
-      }),
-    );
-    if (withSe)
-      ctx.out(
-        line("", ({ model }) => {
-          const k = model.names.indexOf(name);
-          return k < 0 || !model.estimable[k]
-            ? ""
-            : value(g(Math.sqrt(model.V[k][k]), seFormat));
-        }),
-      );
+  // The models go in panels as wide as the line allows, each a table of
+  // its own with every row.
+  const linesize = session.settings?.linesize ?? 79,
+    perPanel = Math.max(1, Math.floor((linesize - 14) / cell)),
+    list = [...panels.values()],
+    headed = list.length > 1;
+  let columns = [];
+  for (let first = 0; first < entries.length; first += perPanel) {
+    columns = entries.map((_, m) => m).slice(first, first + perPanel);
+    showPanel();
   }
-  if (options.stats) {
+  function showPanel() {
+    const rule = "-".repeat(14 + cell * columns.length),
+      split = `-------------+${"-".repeat(cell * columns.length)}`;
+    ctx.out("");
+    ctx.out(rule);
+    ctx.out(
+      `    Variable |${columns.map((m) => title(shown(names[m])).padEnd(cell)).join("")}`,
+    );
     ctx.out(split);
-    for (const name of options.stats.trim().split(/\s+/))
-      ctx.out(
-        line(name, ({ model, e }) => {
-          const v = statistic(model, e, name);
-          return value(
-            isMissing(v) ? "" : name === "N" ? count(v) : g(v, format),
-          );
-        }),
+    list.forEach(({ equation, rows }, p) => {
+      if (p) ctx.out(split);
+      const ordered = [...rows.values()];
+      if (equation === "/") {
+        // Ancillary parameters: /cut1, or var(e.y) as it is, ending at the bar.
+        for (const row of ordered) {
+          const label = /\(/.test(row.key)
+            ? `${row.key.padStart(13)}|`
+            : `${`/${row.key}`.padStart(12)} |`;
+          ctx.out(`${label}${joined(row, coefficientCell)}`);
+          if (withSe) ctx.out(`${" ".repeat(13)}|${joined(row, seCell)}`);
+        }
+        return;
+      }
+      if (headed) ctx.out(`${equation.padEnd(13)}|`);
+      // The rows are laid out as a coefficient table lays them out, twelve
+      // characters wide: factors under their name, labelled levels, blank
+      // rows between groups. A base level that every model has as its base
+      // is not shown.
+      const table = {
+        names: ordered.map((row) => row.key),
+        columns: ordered.map((row) =>
+          row.term
+            ? {
+                term: row.term,
+                levels: row.levels,
+                base: row.cells.every((c) => !c || c.status === "base"),
+              }
+            : undefined,
+        ),
+        estimable: ordered.map(() => true),
+        factorBlocks: entries.length > 1,
+        aloneGap: true,
+      };
+      const lines = termRows(
+        session,
+        table,
+        (k) =>
+          joined(ordered[k], coefficientCell) +
+          (withSe ? `\n${" ".repeat(13)}|${joined(ordered[k], seCell)}` : ""),
+        12,
       );
+      for (const line of lines)
+        for (const one of line.split("\n")) ctx.out(one);
+    });
+    if (options.stats) {
+      ctx.out(split);
+      for (const name of options.stats.trim().split(/\s+/))
+        ctx.out(
+          `${name.padStart(12)} |${columns
+            .map((m) => entries[m])
+            .map(({ model, e }) => {
+              const v = statistic(model, e, name);
+              return (
+                value(
+                  isMissing(v) ? "" : g(v, name === "N" ? "%10.0g" : format),
+                ).padEnd(cell - 2) + "  "
+              );
+            })
+            .join("")}`,
+        );
+    }
+    ctx.out(rule);
+    if (withSe) ctx.out("Legend: b/se".padStart(rule.length));
+    if (stars)
+      ctx.out(
+        `Legend: * p<${levels[0]}; ** p<${levels[1]}; *** p<${levels[2]}`.padStart(
+          rule.length,
+        ),
+      );
+    ctx.out("");
   }
-  ctx.out(rule);
-  if (withSe) ctx.out("Legend: b/se".padStart(rule.length));
-  if (stars)
-    ctx.out(
-      `Legend: * p<${levels[0]}; ** p<${levels[1]}; *** p<${levels[2]}`.padStart(
-        rule.length,
-      ),
-    );
-  ctx.out("");
 }
 // star(.1 .05 .01) and se(%9.3f) share their names with the bare options.
 const normalise = (text) =>

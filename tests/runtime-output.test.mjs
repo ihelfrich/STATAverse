@@ -140,6 +140,10 @@ for (const c of fixture.cases)
             "glm-unconverged-log-link",
             "glm-cloglog-large-statistics",
             "margins-factor-interactions-logit",
+            "redteam5-estimates-table-equations",
+            "redteam5-estat-vce-equations",
+            "redteam5b-estat-vce-interactions-logit",
+            "redteam5b-estat-classification-gof",
           ].includes(c.id),
         )
       )

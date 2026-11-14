@@ -364,10 +364,13 @@ function existingVariables(text, specs, context) {
   for (const name of names) {
     const type = context.types?.[name];
     if (!type) continue;
-    if (
-      (specs.numeric && isStringType(type)) ||
-      (specs.string && isNumericType(type))
-    )
+    // syntax's own words for a string variable where numbers are wanted.
+    if (specs.numeric && isStringType(type))
+      throw new StataError(
+        `string variables not allowed in varlist;\n${name} is a string variable`,
+        109,
+      );
+    if (specs.string && isNumericType(type))
       throw new StataError("type mismatch", 109);
   }
   return names;
