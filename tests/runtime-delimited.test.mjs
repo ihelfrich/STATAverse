@@ -60,7 +60,8 @@ test("import delimited options and refusals", () => {
   strings.run("import delimited people.csv, stringcols(1)");
   assert.equal(strings.data.get("id").type, "str1");
   assert.equal(session().run("import delimited nosuch.csv").rc, 601);
-  assert.equal(session().run("import excel people.csv").rc, 198);
+  // import excel exists now; Stata 19 cannot load a CSV as a workbook, r(603).
+  assert.equal(session().run("import excel people.csv").rc, 603);
   const busy = session();
   assert.equal(
     busy.run("clear\nset obs 1\ngenerate x = 1\nimport delimited people.csv")

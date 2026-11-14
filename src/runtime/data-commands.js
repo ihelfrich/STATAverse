@@ -59,6 +59,9 @@ export function load(session, name) {
       `${name} is a text file, not a Stata dataset; use import delimited`,
       610,
     );
+  // A workbook, SPSS or SAS file added to the folder is kept as its bytes.
+  if (stored.bytes instanceof Uint8Array)
+    throw new StataError(`file ${name} not Stata format`, 610);
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.restore(stored);
   data.defaultType = session.data.defaultType;

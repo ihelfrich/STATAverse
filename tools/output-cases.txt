@@ -4681,3 +4681,223 @@ label define sl 1 "low" 5 "high"
 label values satisfaction sl
 margins satisfaction, at(education=(12 16))
 set linesize 200
+=== excel-export-import-roundtrip
+clear
+set obs 4
+generate id = _n
+generate str10 name = word("Ann Bob Carla Dee", _n)
+replace name = "" in 4
+generate double income = 1000.5 * _n
+replace income = . in 2
+generate byte female = mod(_n, 2)
+replace female = .a in 3
+label define sexl 0 "male" 1 "female"
+label values female sexl
+generate bdate = mdy(1, 10 * _n, 2020)
+format bdate %td
+generate float share = _n / 8
+label variable income "Annual income"
+label variable name "Student name"
+export excel using rt1.xlsx, firstrow(variables) replace
+capture noisily export excel using rt1.xlsx
+display _rc
+export excel using rt2.xlsx, firstrow(varlabels) nolabel replace
+export excel name income using rt3.xlsx, missing("NA") replace
+import excel using rt1.xlsx, describe
+return list
+import excel using rt1.xlsx, firstrow clear
+list
+local a : type id
+local b : format id
+local c : variable label id
+display "id `a' `b' `c'"
+local a : type name
+local b : format name
+local c : variable label name
+display "name `a' `b' `c'"
+local a : type income
+local b : format income
+local c : variable label income
+display "income `a' `b' `c'"
+local a : type female
+local b : format female
+local c : variable label female
+display "female `a' `b' `c'"
+local a : type bdate
+local b : format bdate
+local c : variable label bdate
+display "bdate `a' `b' `c'"
+local a : type share
+local b : format share
+local c : variable label share
+display "share `a' `b' `c'"
+import excel using rt2.xlsx, firstrow clear
+list
+local a : variable label id
+display "id `a'"
+local a : variable label Studentname
+display "Studentname `a'"
+local a : variable label Annualincome
+display "Annualincome `a'"
+local a : variable label female
+display "female `a'"
+import excel using rt3.xlsx, clear
+list
+=== excel-import-options
+clear
+set obs 5
+generate id = _n
+generate str6 grp = cond(mod(_n, 2), "Treat", "Ctrl")
+generate double score = 60 + 7.25 * _n
+replace score = . in 3
+export excel using opts.xlsx, sheet("first") firstrow(variables) replace
+export excel id score using opts.xlsx, sheet("second") cell(B3) firstrow(variables)
+capture noisily export excel id using opts.xlsx, sheet("second")
+display _rc
+export excel id using opts.xlsx, sheet("second", modify) cell(E2)
+import excel using opts.xlsx, describe
+import excel using opts.xlsx, sheet("second") clear
+list
+import excel using opts.xlsx, sheet("first") cellrange(A2:B4) clear
+list
+import excel using opts.xlsx, sheet("first") firstrow case(upper) clear
+list
+import excel using opts.xlsx, sheet("first") firstrow allstring clear
+list
+import excel using opts.xlsx, sheet("first") firstrow allstring("%6.2f") clear
+list
+import excel C A using opts.xlsx, sheet("first") clear
+list
+import excel x=B y using opts.xlsx, sheet("first") clear
+list
+import excel x y=A z using opts.xlsx, sheet("first") clear
+list
+capture noisily import excel using opts.xlsx, sheet("third") clear
+display _rc
+capture noisily import excel using opts.xlsx, sheet("first") cellrange(Z99) clear
+display _rc
+capture noisily import excel using opts.xlsx, sheet("first") cellrange(A1:C99) clear
+display _rc
+capture noisily import excel using opts.xlsx, sheet("first") cellrange(B2:A1) clear
+display _rc
+capture noisily import excel using opts.xlsx, case(proper) clear
+display _rc
+capture noisily import excel using nosuch.xlsx, clear
+display _rc
+capture noisily import excel A A using opts.xlsx, clear
+display _rc
+capture noisily import excel A using opts.xlsx, firstrow clear
+display _rc
+set obs 3
+capture noisily import excel using opts.xlsx
+display _rc
+=== putexcel-cells-and-expressions
+clear
+putexcel set px.xlsx, replace
+putexcel A1 = "label"
+putexcel B2 = 3.25
+putexcel C3 = 2+2
+scalar s = 7
+putexcel D4 = s
+putexcel E5 = ("text" + "more")
+putexcel F6 = (1/3)
+putexcel A7 = "a" B7 = 2 C7 = "c"
+putexcel A9 = .
+putexcel A10 = formula(SUM(B2:D4))
+capture noisily putexcel A11 = nosuchname
+display _rc
+capture noisily putexcel ZZZZ1 = 1
+display _rc
+capture noisily putexcel A1 =
+display _rc
+putexcel describe
+putexcel set px.xlsx, sheet("two") modify
+putexcel A1 = "on two"
+capture noisily putexcel set px.xlsx
+display _rc
+putexcel clear
+capture noisily putexcel A1 = 1
+display _rc
+import excel using px.xlsx, describe
+import excel using px.xlsx, allstring clear
+list
+import excel using px.xlsx, sheet("two") clear
+list
+=== sasxport5-roundtrip
+clear
+set obs 4
+generate id = _n
+generate str12 name = word("Ann Bob Carla Dee", _n)
+generate double income = 1000.5 * _n
+replace income = .a in 2
+generate byte female = mod(_n, 2)
+label define sexl 0 "male" 1 "female"
+label values female sexl
+generate bdate = mdy(2, _n, 2020)
+format bdate %td
+label variable income "Annual income"
+export sasxport5 sx.xpt, replace
+capture noisily export sasxport5 sx.xpt
+display _rc
+import sasxport5 sx.xpt, clear
+list
+label list
+local a : type id
+local b : format id
+local c : value label id
+display "id `a' `b' `c'"
+local a : type name
+local b : format name
+local c : value label name
+display "name `a' `b' `c'"
+local a : type income
+local b : format income
+local c : value label income
+display "income `a' `b' `c'"
+local a : type female
+local b : format female
+local c : value label female
+display "female `a' `b' `c'"
+local a : type bdate
+local b : format bdate
+local c : value label bdate
+display "bdate `a' `b' `c'"
+generate verylongname = 1
+capture noisily export sasxport5 sx2.xpt, replace
+display _rc
+export sasxport5 sx2.xpt, replace rename vallabfile(none)
+import sasxport5 sx2.xpt, clear
+display c(k)
+capture noisily import sasxport5 nosuch.xpt, clear
+display _rc
+capture noisily import sasxport8 sx.xpt, clear
+display _rc
+=== excel-header-names-and-number-text
+clear
+set obs 4
+generate double a = cond(_n == 1, 1/3, cond(_n == 2, 1e-10, cond(_n == 3, 3e10, -.5)))
+generate double b = cond(_n == 1, 1.23456789012345e15, cond(_n == 2, 123456789.123, cond(_n == 3, 100000, .000015)))
+generate c = _n
+generate d = _n * 2
+generate e = _n * 3
+generate f = _n * 4
+generate g = mdy(_n, 1, 2024)
+format g %td
+label variable a "Age (years)"
+label variable b "%change"
+label variable c "2019"
+label variable d "x y"
+label variable e "Age (years)"
+label variable f "in"
+label variable g "1st date"
+export excel using hdr.xlsx, firstrow(varlabels) replace
+import excel using hdr.xlsx, firstrow clear
+list
+local x : variable label C
+display "`x'"
+local x : variable label E
+display "`x'"
+import excel using hdr.xlsx, allstring clear
+list
+import excel using hdr.xlsx, firstrow case(lower) clear
+list
