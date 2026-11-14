@@ -34,6 +34,17 @@ const refuse = (message) => new StataError(message, 198);
 // A standard error from a variance that may be missing.
 const root = (variance) =>
   isMissing(variance) ? MISSING : Math.sqrt(variance);
+/**
+ * The standard error a survey table shows: missing where the variance is
+ * missing, and also where it is exactly zero, as when every stratum is a
+ * certainty unit, a variable is constant or a proportion is 1. (A variance
+ * that is zero but for rounding error shows as the tiny number it is, in
+ * Stata too, whose rounding differs.)
+ */
+const shownError = (value, variance) => {
+  const se = root(variance);
+  return isMissing(se) || !(se > 0) ? MISSING : se;
+};
 const LINEARIZED_ONLY =
   "only the linearized variance is available for survey data here";
 
@@ -43,6 +54,10 @@ const LINEARIZED_ONLY =
 function designOf(session) {
   const set = session.data.svyset;
   if (!set) throw new StataError("data not set up for svy, use svyset", 119);
+  // The design names its variables; one renamed or dropped since is gone.
+  for (const name of [set.weight, set.strata, set.psu, set.fpc])
+    if (name && !session.data.has(name))
+      throw new StataError(`variable ${name} not found`, 111);
   return set;
 }
 
@@ -53,7 +68,7 @@ function svyset(session, text, ctx) {
     return showDesign(session, ctx);
   }
   const parsed = session.parse(
-      "[anything] [pweight iweight] [, STRata(varname) FPC(varname) SINGLEunit(string) VCE(string) DOF(real 0) CLEAR | POSTStrata(varname) POSTWeight(varname) BRRweight(string) FAY(real 0) BSRweight(string) BSN(integer 1) JKRweight(string) SDRweight(string) SDRFPC(real 0) MSE RAKE(string) REGress(string) NOCLEAR DOFSUBpop]",
+      "[anything] [pweight iweight] [, STRata(string) FPC(string) SINGLEunit(string) VCE(string) DOF(string) CLEAR | POSTStrata(varname) POSTWeight(varname) BRRweight(string) FAY(real 0) BSRweight(string) BSN(integer 1) JKRweight(string) SDRweight(string) SDRFPC(real 0) MSE RAKE(string) REGress(string) NOCLEAR DOFSUBpop]",
       stages[0],
     ),
     options = parsed.options;
@@ -62,11 +77,23 @@ function svyset(session, text, ctx) {
     return;
   }
   const words = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean);
-  if (words.length > 1) throw refuse("too many arguments");
+  if (words.length > 1)
+    throw new StataError("too many variables specified", 103);
+  const named = (word, message) => {
+    try {
+      const found = session.varlist(word);
+      if (found.length !== 1) throw new StataError(message, 103);
+      return session.data.get(found[0]).name;
+    } catch (error) {
+      if (error.code === 111 || error.code === 198)
+        throw new StataError(message ?? error.message, 111);
+      throw error;
+    }
+  };
   const psu =
     !words.length || words[0] === "_n"
       ? null
-      : session.data.get(session.varlist(words[0])[0]).name;
+      : named(words[0], `${words[0]} invalid psu variable name`);
   let weight = null;
   if (parsed.weight) {
     if (parsed.weight.type === "iweight")
@@ -80,18 +107,50 @@ function svyset(session, text, ctx) {
     if (session.data.isString(weight))
       throw new StataError("type mismatch", 109);
   }
-  if (options.fpc && session.data.isString(options.fpc))
-    throw new StataError("type mismatch", 109);
+  // strata() and fpc() name one variable each; Stata says which option
+  // named one it cannot find.
+  const optionVariable = (option) => {
+    const text = options[option]?.trim();
+    if (!text) return null;
+    try {
+      const found = session.varlist(text);
+      if (found.length !== 1)
+        throw new StataError("too many variables specified", 103);
+      return session.data.get(found[0]).name;
+    } catch (error) {
+      throw new StataError(
+        `${error.message}\n(error in option ${option}())`,
+        error.code,
+      );
+    }
+  };
+  const strata = optionVariable("strata"),
+    fpc = optionVariable("fpc");
+  if (fpc && session.data.isString(fpc))
+    throw new StataError(
+      `string variables not allowed in option fpc();\n${fpc} is a string variable`,
+      109,
+    );
   const single = (options.singleunit ?? "missing").trim();
   if (!["missing", "certainty", "scaled", "centered"].includes(single))
-    throw refuse(`singleunit(${single}) invalid`);
+    throw refuse("option singleunit() invalid");
   const vce = (options.vce ?? "linearized").trim();
   if (!/^lin(e(a(r(i(z(ed?)?)?)?)?)?)?$/.test(vce))
     throw refuse(
       `vce(${vce}) is not available here; ${LINEARIZED_ONLY}, so svyset with vce(linearized)`,
     );
-  if (options.dof !== 0 && !(options.dof > 0))
-    throw refuse("dof() must be positive");
+  let dof = null;
+  if (options.dof !== undefined && options.dof.trim() !== "") {
+    const text = options.dof.trim();
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(text))
+      throw new StataError("dof() invalid -- invalid number", 121);
+    dof = Number(text);
+    if (!(dof > 0))
+      throw new StataError(
+        "dof() invalid -- invalid number, outside of allowed range",
+        125,
+      );
+  }
   // A design of several stages: with the first sampled with replacement
   // (no fpc), Stata ignores the later stages for the variance, and so does
   // this; otherwise they matter and are refused.
@@ -116,10 +175,10 @@ function svyset(session, text, ctx) {
   session.data.svyset = {
     psu,
     weight,
-    strata: options.strata ?? null,
-    fpc: options.fpc ?? null,
+    strata,
+    fpc,
     singleunit: single,
-    dof: options.dof || null,
+    dof,
   };
   showDesign(session, ctx);
 }
@@ -159,6 +218,7 @@ function designLines(set) {
 function showDesign(session, ctx) {
   const set = session.data.svyset;
   if (!set) return ctx.out("no survey characteristics are set");
+  designOf(session);
   ctx.out("");
   designLines(set).forEach((line) => ctx.out(line));
 }
@@ -173,7 +233,57 @@ function showDesign(session, ctx) {
  * stay, since they count in the design. With strata, a stratum without
  * subpopulation members is left out altogether.
  */
-function surveySample(session, rows, complete, prefix) {
+/** The observations of rows that have every variable of the design. */
+function inDesign(session, rows) {
+  const set = designOf(session),
+    design = [set.weight, set.psu, set.strata, set.fpc]
+      .filter(Boolean)
+      .map((name) => session.data.get(name));
+  return rows.filter((i) => design.every((v) => !absent(v.data[i])));
+}
+/** Whether a subpop() variable takes values other than 0 and 1 in rows. */
+function subpopNoted(subvar, rows) {
+  return (
+    !!subvar &&
+    rows.some(
+      (i) =>
+        !isMissing(subvar.data[i]) &&
+        subvar.data[i] !== 0 &&
+        subvar.data[i] !== 1,
+    )
+  );
+}
+function noteSubpop(ctx) {
+  ctx.out("");
+  ctx.out("Note: subpop() takes on values other than 0 and 1");
+  ctx.out("      subpop() != 0 indicates subpopulation");
+}
+/**
+ * What svy checks of subpop() before the models and tabulate run, as
+ * their note comes before the line saying so: the option itself, and
+ * whether the variable takes values other than 0 and 1.
+ */
+function checkSubpop(session, rows, prefix, ctx) {
+  if (!prefix.subpop) return;
+  const { variable } = readSubpop(session, prefix.subpop);
+  if (subpopNoted(variable, inDesign(session, rows))) noteSubpop(ctx);
+}
+
+/**
+ * The sample. mean, total, ratio and proportion (notes "summary") note a
+ * subpop() variable of other values than 0 and 1 once, and again when
+ * members of the subpopulation are set aside for missing values; the
+ * models and tabulate have done so already.
+ */
+function surveySample(
+  session,
+  rows,
+  complete,
+  prefix,
+  ctx,
+  required = () => true,
+  notes = "none",
+) {
   const set = designOf(session),
     data = session.data,
     variable = (name) => (name ? data.get(name) : null),
@@ -183,20 +293,49 @@ function surveySample(session, rows, complete, prefix) {
     fpc = variable(set.fpc),
     design = [weight, psu, strata, fpc].filter(Boolean);
   let kept = rows.filter((i) => design.every((v) => !absent(v.data[i])));
-  let inside = null;
+  // Stata looks for a negative weight before it sets aside observations
+  // missing the command's variables.
+  if (weight && kept.some((i) => weight.data[i] < 0))
+    throw new StataError("negative weights encountered", 402);
+  // An observation of zero weight stays in the sample, and counts in its
+  // number of observations, even when it lacks the command's variables:
+  // it adds nothing to the estimates either way. It must still have those
+  // required, as the over() variables of mean and the variables of
+  // tabulate.
+  const usable = (i) =>
+    required(i) && (complete(i) || (!!weight && weight.data[i] === 0));
+  let inside = null,
+    members = null;
   if (prefix.subpop) {
-    const { variable: subvar, condition } = prefix.subpop,
+    const { variable: subvar, condition } = readSubpop(session, prefix.subpop),
       values = condition
         ? evaluateAll(session.compile(condition), data.n)
         : null,
       member = (i) =>
         (!subvar || subvar.data[i] !== 0) && (!values || values[i] !== 0);
+    const noted = notes === "summary" && subpopNoted(subvar, kept);
+    if (noted) noteSubpop(ctx);
     if (subvar) kept = kept.filter((i) => !isMissing(subvar.data[i]));
-    kept = kept.filter((i) => !member(i) || complete(i));
-    inside = new Set(kept.filter(member));
-  } else kept = kept.filter(complete);
-  if (weight && kept.some((i) => weight.data[i] < 0))
-    throw new StataError("negative weights encountered", 402);
+    if (!kept.some(member))
+      throw new StataError(
+        "no observations in subpop() subpopulation\nsubpop() = 1 indicates observation in subpopulation\nsubpop() = 0 indicates observation not in subpopulation",
+        461,
+      );
+    const before = kept.length;
+    kept = kept.filter((i) => !member(i) || usable(i));
+    if (noted && kept.length < before) noteSubpop(ctx);
+    // An observation of zero weight is no member of the subpopulation for
+    // its counts, though it is one of the sample.
+    members = new Set(kept.filter(member));
+    inside = new Set(
+      [...members].filter((i) => !weight || weight.data[i] !== 0),
+    );
+    if (members.size && !inside.size)
+      throw new StataError(
+        "all observations in subpop() subpopulation have zero weights",
+        461,
+      );
+  } else kept = kept.filter(usable);
   let omitted = 0;
   if (inside && strata) {
     const all = new Set(kept.map((i) => strata.data[i])),
@@ -210,6 +349,7 @@ function surveySample(session, rows, complete, prefix) {
     unit = kept.map((i, j) => (psu ? psu.data[i] : i)),
     w = kept.map((i) => (weight ? weight.data[i] : 1)),
     sub = kept.map((i) => (inside ? inside.has(i) : true)),
+    member = kept.map((i) => (members ? members.has(i) : true)),
     // The design's units: a sampling unit is named within its stratum.
     units = new Map();
   kept.forEach((_, j) => {
@@ -245,6 +385,8 @@ function surveySample(session, rows, complete, prefix) {
     unit,
     w,
     sub,
+    // Whether each observation is of the subpopulation, zero weight or not.
+    member,
     // The weight each observation carries in the estimate: none outside
     // the subpopulation.
     ew: w.map((v, j) => (sub[j] ? v : 0)),
@@ -361,7 +503,11 @@ const SVY_ELSEWHERE =
 
 function svy(session, text, ctx) {
   const colon = topColon(text);
-  if (colon < 0) throw refuse("invalid syntax");
+  if (colon < 0) {
+    // svy alone, or with options, shows the last survey estimates again.
+    if (/^\s*(,|$)/.test(text)) return replaySvy(session, text, ctx);
+    throw new StataError("'' found where ':' expected", 198);
+  }
   const before = text.slice(0, colon),
     after = text.slice(colon + 1).trim(),
     [vcetype, optionText] = splitAtComma(before);
@@ -395,19 +541,97 @@ function svy(session, text, ctx) {
   }
   designOf(session);
   const prefix = {
-    subpop: options.subpop ? readSubpop(session, options.subpop) : null,
+    // Read where the command has said what it runs, as Stata reads it.
+    subpop: options.subpop ?? null,
     level: options.level,
     dof: options.dof || null,
     header: options.header !== false,
   };
-  const rest = after.slice(word.length);
+  const rest = after.slice(word.length),
+    [main, commandOptions] = splitAtComma(rest);
+  // The survey weights come from svyset, and the variance from the design.
+  if (
+    /\[\s*(?:p|pw|pwe|pwei|pweig|pweigh|pweight|a|aw|awe|awei|aweig|aweigh|aweight|f|fw|fwe|fwei|fweig|fweigh|fweight|i|iw|iwe|iwei|iweig|iweigh|iweight|w|we|wei|weig|weigh|weight)\s*=/.test(
+      main,
+    )
+  )
+    throw new StataError(
+      "weights not allowed with the svy prefix\n    The svy prefix assumes survey weights were already specified using svyset.",
+      101,
+    );
+  const own = commandOptions ?? "";
   // The command's own vce() is Stata's error, not a refusal.
-  if (/,[\s\S]*\bvce\s*\(/.test(rest))
+  if (/(^|\s)vce\s*\(/.test(own))
     throw refuse(
       `option vce() of ${found[0]} is not allowed with the svy prefix`,
     );
+  if (/(^|\s)rob(u(st?)?)?(?=\s|$)/.test(own))
+    throw refuse("option robust not allowed with the svy prefix");
+  if (/(^|\s)cl(u(s(t(er?)?)?)?)?\s*\(/.test(own))
+    throw refuse("option cluster() not allowed with the svy prefix");
   found[2](session, rest, ctx, prefix);
 }
+
+/**
+ * svy, mean, regress and the others typed alone after a survey estimate
+ * show it again, with level() and noheader as asked.
+ */
+function replaySvy(session, text, ctx, command = null) {
+  const model = session.estimates;
+  if (!model?.svy || !model.svyDisplay)
+    throw new StataError("last estimates not found", 301);
+  if (command && !model.replayedBy?.includes(command))
+    throw new StataError("last estimates not found", 301);
+  const exponentiated = model.exponentiated,
+    { options } = session.parse(
+      `[, Level(cilevel) noHEADer${exponentiated ? ` ${exponentiated === "irr" ? "IRr" : "OR"}` : ""} | COEFLegend NOLEGend NOCNSReport CFORMAT(string) PFORMAT(string) SFORMAT(string) NOFVLabel]`,
+      text,
+    );
+  model.svyDisplay(ctx, {
+    level: options.level,
+    header: options.header !== false,
+    // logistic shows odds ratios again, logit its coefficients unless
+    // asked for odds ratios; svy shows what the estimate showed.
+    transform: exponentiated
+      ? !!options[exponentiated] ||
+        (command ? command === "logistic" : model.transformed)
+      : model.transformed,
+  });
+}
+
+/**
+ * Commands that, typed alone after a survey estimate, show it again, and
+ * ereturn display, which shows its coefficient table. Returns whether the
+ * command was such a replay.
+ */
+export function replayAfterSvy(session, name, text, ctx) {
+  const model = session.estimates;
+  if (!model?.svy) return false;
+  if (name === "ereturn") {
+    if (!/^\s*di(s(p(l(ay?)?)?)?)?\b/.test(text)) return false;
+    const rest = text.replace(/^\s*\w+/, ""),
+      { options } = session.parse("[, Level(cilevel) | EForm(string)]", rest);
+    model.svyCoefficients(ctx, options.level);
+    return true;
+  }
+  if (!/^\s*(,|$)/.test(text)) return false;
+  replaySvy(session, text, ctx, name);
+  return true;
+}
+export const REPLAYED_AFTER_SVY = new Set([
+  "regress",
+  "logit",
+  "logistic",
+  "probit",
+  "poisson",
+  "ologit",
+  "mean",
+  "proportion",
+  "ratio",
+  "total",
+  "ereturn",
+]);
+
 function topColon(text) {
   let depth = 0,
     quote = false;
@@ -425,9 +649,16 @@ function readSubpop(session, text) {
   const m = /^\s*([A-Za-z_]\w*)?\s*(?:\bif\b([\s\S]+))?$/.exec(text);
   if (!m || (!m[1] && !m[2]) || m[1] === "if")
     throw refuse("invalid subpop() option");
-  const variable = m[1] ? session.data.get(session.varlist(m[1])[0]) : null;
-  if (variable && isStringType(variable.type))
-    throw new StataError("type mismatch", 109);
+  let variable = null;
+  if (m[1]) {
+    try {
+      variable = session.data.get(session.varlist(m[1])[0]);
+    } catch (error) {
+      throw new StataError("invalid subpop() option", error.code);
+    }
+    if (isStringType(variable.type))
+      throw new StataError("invalid subpop() option", 109);
+  }
   if (m[2]) session.compile(m[2]);
   return { variable, condition: m[2]?.trim() ?? null };
 }
@@ -580,54 +811,108 @@ const TITLES = {
   total: ["Total estimation", "Total"],
 };
 
-/** The ratios of ratio's list: y/x, (y/x) or (name: y/x). */
+/**
+ * The ratios of ratio's list: (y/x) (name: y/x) ..., where the last may
+ * stand without parentheses, as may a single y/x, name: y/x or y x. Text
+ * outside parentheses is one ratio, so y/x z/x has a / too many.
+ */
 function readRatios(session, text) {
-  const pattern =
-      /\(\s*(?:([A-Za-z_]\w*)\s*:)?\s*([^\s/():]+)\s*\/\s*([^\s/():]+)\s*\)|([^\s/():]+)\s*\/\s*([^\s/():]+)/gy,
-    ratios = [];
-  let rest = text.trim(),
-    m;
-  pattern.lastIndex = 0;
+  const ratios = [],
+    one = (spec) => {
+      const m = /^\s*(?:([A-Za-z_]\w*)\s*:)?([\s\S]*)$/.exec(spec);
+      if ((m[2].match(/\//g) ?? []).length > 1)
+        throw refuse("invalid ratio specification: too many '/'");
+      const names = m[2].split(/[\s/]+/).filter(Boolean);
+      if (names.length !== 2) throw refuse("invalid ratio specification");
+      const [y, x] = names.map((name) =>
+        session.data.get(session.varlist(name)[0]),
+      );
+      ratios.push({ name: m[1] ?? `_ratio_${ratios.length + 1}`, y, x });
+    };
+  let rest = text.trim();
   while (rest) {
-    pattern.lastIndex = 0;
-    m = pattern.exec(rest);
-    if (!m) throw refuse("invalid ratio specification");
-    const [y, x] = m[2] ? [m[2], m[3]] : [m[4], m[5]];
-    ratios.push({
-      name: m[1] ?? `_ratio_${ratios.length + 1}`,
-      y: session.data.get(session.varlist(y)[0]),
-      x: session.data.get(session.varlist(x)[0]),
-    });
-    rest = rest.slice(m[0].length).trim();
+    if (rest.startsWith("(")) {
+      const close = rest.indexOf(")");
+      if (close < 0) throw refuse("invalid ratio specification");
+      one(rest.slice(1, close));
+      rest = rest.slice(close + 1).trim();
+    } else {
+      one(rest);
+      rest = "";
+    }
   }
   if (!ratios.length) throw refuse("varlist required");
   return ratios;
 }
 
+/**
+ * The cells of a row of a t table: the estimate, its standard error, t and
+ * its p-value, and the confidence interval. A missing standard error leaves
+ * all but the estimate missing; with no design degrees of freedom the
+ * p-value and the interval are missing. With eform the estimate and its
+ * interval are exponentiated and the error is the delta method's; tested
+ * false leaves t and the p-value blank, as for a cut point.
+ */
+function tCells(b, se, d, critical, { tested = true, eform = false } = {}) {
+  const show = eform ? Math.exp : (v) => v,
+    dot = (width) => ".".padStart(width),
+    number = (v, width) => (isMissing(v) ? dot(width) : g(v).padStart(width));
+  if (isMissing(se))
+    return `${number(show(b), 11)}${dot(11)}${tested ? `${dot(9)}${dot(8)}` : " ".repeat(17)}${dot(13)}${dot(12)}`;
+  const t = b / se,
+    tail = ttail(d, Math.abs(t)),
+    p = isMissing(tail) ? MISSING : 2 * tail,
+    open = isMissing(critical);
+  return `${number(show(b), 11)}${number(eform ? Math.exp(b) * se : se, 11)}${tested ? `${applyFormat(t, "%9.2f")}${isMissing(p) ? dot(8) : applyFormat(p, "%8.3f")}` : " ".repeat(17)}${open ? dot(13) : number(show(b - critical * se), 13)}${open ? dot(12) : number(show(b + critical * se), 12)}`;
+}
+
+/**
+ * The coefficient table ereturn display prints: the estimates as
+ * coefficients, under the label of their statistic, with t tests.
+ */
+function coefficientTable(session, ctx, { table, label, b, se, d, level }) {
+  const w = tableWidth(session, table),
+    critical = invttail(d, (1 - level / 100) / 2),
+    rule = "-".repeat(66 + w);
+  ctx.out(rule);
+  ctx.out(`${" ".repeat(w + 1)}|             Linearized`);
+  ctx.out(
+    `${abbreviate(label, w).padStart(w)} | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+  );
+  ctx.out(`${"-".repeat(w + 1)}+${"-".repeat(64)}`);
+  termRows(session, table, (k) => tCells(b[k], se[k], d, critical), w).forEach(
+    ctx.out,
+  );
+  ctx.out(rule);
+}
+
 function summary(session, text, ctx, prefix, kind) {
   const parsed = session.parse(
-      `anything [if] [in] [, Level(cilevel) OVer(varname)${kind === "proportion" ? " CItype(string)" : ""} | NOLabel MISSing STDize(varname) STDWeight(varname) NOSTDRescale COEFLegend NOFVLabel CFORMAT(string) PFORMAT(string) SFORMAT(string)]`,
+      `anything [if] [in] [, Level(cilevel) OVer(string) noHEADer noLEGend${kind === "proportion" ? " CItype(string) PERcent" : ""} | NOLabel MISSing STDize(varname) STDWeight(varname) NOSTDRescale COEFLegend NOFVLabel CFORMAT(string) PFORMAT(string) SFORMAT(string)]`,
       text,
     ),
     options = parsed.options,
     level = levelOf(session, prefix, options, text),
     numeric = (name) => session.data.get(name),
-    ratios = kind === "ratio" ? readRatios(session, parsed.anything) : null,
-    variables = ratios
-      ? [...new Set(ratios.flatMap((r) => [r.y, r.x]))]
-      : session.varlist(parsed.anything).map(numeric),
-    over = options.over ? session.data.get(options.over) : null;
-  if (over && kind !== "mean" && kind !== "total")
+    over = options.over?.trim()
+      ? session.varlist(options.over).map(numeric)
+      : [];
+  if (over.length && kind !== "mean" && kind !== "total")
     throw refuse(`svy: ${kind} with over() is not available here`);
-  if (over && isStringType(over.type))
-    throw refuse("over() with a string variable is not available here");
   const citype = (options.citype ?? "logit").trim();
   if (kind === "proportion" && !["logit", "wald", "normal"].includes(citype))
     throw refuse(
       `citype(${citype}) is not available here; citype(logit) and citype(wald) are`,
     );
-  const needed = [...variables, ...(over ? [over] : [])];
+  // ratio reads its list once it has said what it runs.
+  const plain =
+    kind === "ratio" ? null : session.varlist(parsed.anything).map(numeric);
   ctx.out(`(running ${kind} on estimation sample)`);
+  const ratios = kind === "ratio" ? readRatios(session, parsed.anything) : null,
+    variables = ratios
+      ? [...new Set(ratios.flatMap((r) => [r.y, r.x]))]
+      : plain,
+    needed = [...variables, ...over];
   const text1 = variables.find((v) => isStringType(v.type));
   if (text1)
     throw new StataError(
@@ -636,37 +921,68 @@ function summary(session, text, ctx, prefix, kind) {
         : `string variables not allowed in varlist;\n${text1.name} is a string variable`,
       109,
     );
+  const textOver = over.find((v) => isStringType(v.type));
+  if (textOver)
+    throw new StataError(
+      `string variables not allowed in varlist;\n${textOver.name} is a string variable\ninvalid over() option`,
+      109,
+    );
   const survey = surveySample(
     session,
     session.rows(parsed, null),
     (i) => needed.every((v) => !absent(v.data[i])),
     prefix,
+    ctx,
+    (i) => over.every((v) => !absent(v.data[i])),
+    "summary",
   );
   if (prefix.dof) survey.df = prefix.dof;
   const { rows, ew } = survey,
     present = (value) => !absent(value),
-    levelsOf = (variable) =>
-      [
-        ...new Set(
-          rows.filter((_, j) => survey.sub[j]).map((i) => variable.data[i]),
-        ),
-      ]
-        .filter(present)
-        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    order = (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+    // The groups of over(): each combination of its variables' values in
+    // the subpopulation, the first variable varying slowest.
+    groups = over.length
+      ? [
+          ...new Map(
+            rows
+              .filter(
+                (i, j) =>
+                  survey.sub[j] && over.every((v) => present(v.data[i])),
+              )
+              .map((i) => {
+                const tuple = over.map((v) => v.data[i]);
+                return [tuple.join("\u0001"), tuple];
+              }),
+          ).values(),
+        ].sort((a, b) => {
+          for (let k = 0; k < a.length; k++)
+            if (a[k] !== b[k]) return order(a[k], b[k]);
+          return 0;
+        })
+      : [null],
+    // The first level of each over() variable, which a constraint writes
+    // as 1bn.
+    firstLevels = over.map((_, k) =>
+      groups.reduce(
+        (t, tuple) => (order(tuple[k], t) < 0 ? tuple[k] : t),
+        groups[0][k],
+      ),
+    ),
+    inGroup = (tuple, i) =>
+      tuple === null || over.every((v, k) => v.data[i] === tuple[k]),
     // Each estimate: its label in the table, its value and each
     // observation's score.
     items = [];
-  const groups = over ? levelsOf(over) : [null],
-    inGroup = (level, i) => level === null || over.data[i] === level;
   if (kind === "mean" || kind === "total")
     for (const variable of variables)
-      for (const level of groups) {
+      for (const tuple of groups) {
         const weight = rows.reduce(
-            (t, i, j) => t + (inGroup(level, i) ? ew[j] : 0),
+            (t, i, j) => t + (inGroup(tuple, i) ? ew[j] : 0),
             0,
           ),
           sum = rows.reduce(
-            (t, i, j) => t + (inGroup(level, i) ? ew[j] * variable.data[i] : 0),
+            (t, i, j) => t + (inGroup(tuple, i) ? ew[j] * variable.data[i] : 0),
             0,
           ),
           value = kind === "mean" ? sum / weight : sum;
@@ -674,10 +990,10 @@ function summary(session, text, ctx, prefix, kind) {
           throw new StataError("no observations", 2000);
         items.push({
           variable,
-          level,
+          tuple,
           value,
           score: (i, j) =>
-            inGroup(level, i)
+            inGroup(tuple, i)
               ? kind === "mean"
                 ? (ew[j] * (variable.data[i] - value)) / weight
                 : ew[j] * variable.data[i]
@@ -698,10 +1014,11 @@ function summary(session, text, ctx, prefix, kind) {
     }
   else {
     const weight = ew.reduce((t, v) => t + v, 0);
-    for (const variable of variables)
-      for (const level of [...new Set(rows.map((i) => variable.data[i]))].sort(
-        (a, b) => (a < b ? -1 : a > b ? 1 : 0),
-      )) {
+    for (const variable of variables) {
+      const levels = [...new Set(rows.map((i) => variable.data[i]))]
+        .filter(present)
+        .sort(order);
+      for (const level of levels) {
         const value =
           rows.reduce(
             (t, i, j) => t + (variable.data[i] === level ? ew[j] : 0),
@@ -710,6 +1027,7 @@ function summary(session, text, ctx, prefix, kind) {
         items.push({
           variable,
           level,
+          first: level === levels[0],
           value,
           // A level the subpopulation does not have.
           empty: !rows.some(
@@ -719,49 +1037,70 @@ function summary(session, text, ctx, prefix, kind) {
             (ew[j] * (Number(variable.data[i] === level) - value)) / weight,
         });
       }
+    }
   }
   const k = items.length,
-    scores = rows.map((i, j) => items.map((item) => item.score(i, j))),
+    // An observation without weight in the estimate, outside the
+    // subpopulation or of zero weight, scores zero, though its values may
+    // be missing.
+    scores = rows.map((i, j) =>
+      items.map((item) => (ew[j] ? item.score(i, j) : 0)),
+    ),
     variance = linearizedVariance(survey, scores, k),
-    se = items.map((_, a) => root(variance.V[a][a]));
+    se = items.map((item, a) => shownError(item.value, variance.V[a][a]));
   // The table's rows as termRows lays them out.
   const terms = new Map(),
     termOf = (key, make) => {
       if (!terms.has(key)) terms.set(key, make());
       return terms.get(key);
     },
+    overName = over.map((v) => v.name).join("#"),
     columns = items.map((item) => {
       if (item.ratio)
         return {
           name: item.ratio.name,
+          shown: item.ratio.name,
           term: termOf(item.ratio.name, () => ({
             variable: { name: item.ratio.name },
             components: [],
           })),
         };
-      if (item.level === null)
+      if (kind === "proportion")
+        return {
+          name: `${item.level}.${item.variable.name}`,
+          shown: `${item.level}${item.first ? "bn" : ""}.${item.variable.name}`,
+          term: termOf(item.variable.name, () => ({
+            components: [{ variable: item.variable, factor: true }],
+            header: item.variable.name,
+          })),
+          levels: [item.level],
+          level: item.level,
+        };
+      if (item.tuple === null)
         return {
           name: item.variable.name,
+          shown: item.variable.name,
           term: termOf(item.variable.name, () => ({
             variable: item.variable,
             components: [{ variable: item.variable, factor: false }],
           })),
         };
-      const factor = kind === "proportion" ? item.variable : over;
+      const at = (marked) =>
+        item.tuple
+          .map(
+            (level, n) =>
+              `${level}${marked && level === firstLevels[n] ? "bn" : ""}.${over[n].name}`,
+          )
+          .join("#");
       return {
-        name:
-          kind === "proportion"
-            ? `${item.level}.${item.variable.name}`
-            : `c.${item.variable.name}@${item.level}.${over.name}`,
+        name: `c.${item.variable.name}@${at(false)}`,
+        shown: `c.${item.variable.name}@${at(true)}`,
         term: termOf(item.variable.name, () => ({
-          components: [{ variable: factor, factor: true }],
-          header:
-            kind === "proportion"
-              ? item.variable.name
-              : `c.${item.variable.name}@${over.name}`,
+          components: over.map((variable) => ({ variable, factor: true })),
+          header: `c.${item.variable.name}@${overName}`,
         })),
-        levels: [item.level],
-        level: item.level,
+        levels: item.tuple,
+        level: item.tuple[0],
       };
     }),
     table = {
@@ -771,59 +1110,76 @@ function summary(session, text, ctx, prefix, kind) {
     },
     w = tableWidth(session, table),
     width = w + 50,
-    critical = invttail(survey.df, (1 - level / 100) / 2),
-    [title, statistic] = TITLES[kind],
-    interval = (value, s) => {
-      if (isMissing(s)) return [MISSING, MISSING];
-      if (kind === "proportion" && citype === "logit") {
-        const spread = (critical * s) / (value * (1 - value)),
-          logit = Math.log(value / (1 - value));
-        return [
-          1 / (1 + Math.exp(-(logit - spread))),
-          1 / (1 + Math.exp(-(logit + spread))),
-        ];
-      }
-      return [value - critical * s, value + critical * s];
-    };
-  if (prefix.header)
-    header(ctx, survey, {
-      title: `Survey: ${title}`,
-      width,
-      summaryScheme: true,
-    });
-  if (ratios) {
-    ratios.forEach((r) =>
-      ctx.out(`${r.name.padStart(13)}: ${r.y.name}/${r.x.name}`),
+    percent = kind === "proportion" && !!options.percent,
+    [title, statistic] = percent
+      ? ["Percent estimation", "Percent"]
+      : TITLES[kind],
+    scale = percent ? 100 : 1,
+    // percent shows two decimals, as its cformat does.
+    shownValue = (v) =>
+      isMissing(v)
+        ? "."
+        : percent
+          ? applyFormat(v * scale, "%9.2f").trim()
+          : g(v),
+    legend = options.legend !== false;
+  const display = (out, { level: shownLevel, header: withHeader }) => {
+    const critical = invttail(survey.df, (1 - shownLevel / 100) / 2),
+      interval = (value, s) => {
+        if (isMissing(s) || isMissing(critical)) return [MISSING, MISSING];
+        if (kind === "proportion" && citype === "logit") {
+          const spread = (critical * s) / (value * (1 - value)),
+            logit = Math.log(value / (1 - value));
+          return [
+            1 / (1 + Math.exp(-(logit - spread))),
+            1 / (1 + Math.exp(-(logit + spread))),
+          ];
+        }
+        return [value - critical * s, value + critical * s];
+      };
+    if (withHeader)
+      header(out, survey, {
+        title: `Survey: ${title}`,
+        width,
+        summaryScheme: true,
+      });
+    if (ratios && legend) {
+      ratios.forEach((r) =>
+        out.out(`${r.name.padStart(13)}: ${r.y.name}/${r.x.name}`),
+      );
+      out.out("");
+    }
+    const rule = "-".repeat(width);
+    out.out(rule);
+    out.out(
+      `${" ".repeat(w + 1)}|             Linearized${kind === "proportion" ? (citype === "logit" ? "            Logit" : "            Normal") : ""}`,
     );
-    ctx.out("");
-  }
-  const rule = "-".repeat(width);
-  ctx.out(rule);
-  ctx.out(
-    `${" ".repeat(w + 1)}|             Linearized${kind === "proportion" ? (citype === "logit" ? "            Logit" : "            Normal") : ""}`,
-  );
-  ctx.out(
-    `${" ".repeat(w + 1)}|${statistic.padStart(11)}   std. err.     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(`${"-".repeat(w + 1)}+${"-".repeat(48)}`);
-  termRows(
-    session,
-    table,
-    (a) => {
-      if (items[a].empty) return `${"0".padStart(11)}  (no observations)`;
-      const [low, high] = interval(items[a].value, se[a]);
-      return `${g(items[a].value).padStart(11)}${g(se[a]).padStart(11)}${g(low).padStart(14)}${g(high).padStart(12)}`;
-    },
-    w,
-  ).forEach(ctx.out);
-  ctx.out(rule);
-  footnotes(ctx, survey, variance, width, k > 1);
+    out.out(
+      `${" ".repeat(w + 1)}|${statistic.padStart(11)}   std. err.     [${g(shownLevel)}% conf. interval]`,
+    );
+    out.out(`${"-".repeat(w + 1)}+${"-".repeat(48)}`);
+    termRows(
+      session,
+      table,
+      (a) => {
+        if (items[a].empty) return `${"0".padStart(11)}  (no observations)`;
+        const [low, high] = interval(items[a].value, se[a]);
+        return `${shownValue(items[a].value).padStart(11)}${shownValue(se[a]).padStart(11)}${shownValue(low).padStart(14)}${shownValue(high).padStart(12)}`;
+      },
+      w,
+    ).forEach(out.out);
+    out.out(rule);
+    footnotes(out, survey, variance, width, k > 1);
+  };
+  display(ctx, { level, header: prefix.header && options.header !== false });
   session.estimates = {
     command: kind,
     title: `Survey: ${title}`,
     // lincom heads its table with the statistic.
     depvar: statistic,
     names: table.names,
+    // A constraint writes the first level of a factor as 1bn.
+    shownNames: columns.map((c) => c.shown),
     columns,
     b: items.map((item) => item.value),
     V: variance.V,
@@ -835,13 +1191,41 @@ function summary(session, text, ctx, prefix, kind) {
     vcetype: "Linearized",
     svy: true,
     sample: survey.rows,
+    level,
+    replayedBy: [kind],
+    svyDisplay: (out, asked) => display(out, asked),
+    svyCoefficients: (out, shownLevel = level) =>
+      coefficientTable(session, out, {
+        table,
+        label: TITLES[kind][1],
+        b: items.map((item) => item.value),
+        se,
+        d: survey.df,
+        level: shownLevel,
+      }),
   };
   session.results.e = surveyResults(survey, {
     singleton: Number(variance.singleton),
     k_eq: 1,
     cmd: kind,
+    cmdname: kind,
     title: `Survey: ${title}`,
-    ...(over ? { over: over.name, N_over: groups.length } : {}),
+    N_over: groups.length,
+    ...(over.length
+      ? {
+          over: over.map((v) => v.name).join(" "),
+          over_namelist: groups
+            .map((tuple) =>
+              tuple
+                .map(
+                  (level, n) =>
+                    `${level}${level === firstLevels[n] ? "bn" : ""}.${over[n].name}`,
+                )
+                .join("#"),
+            )
+            .join(" "),
+        }
+      : {}),
     level,
   });
 }
@@ -942,7 +1326,28 @@ function model(session, text, ctx, prefix, asked) {
     family = MODELS[kind],
     ordered = kind === "ologit",
     eform = family.exponentiated?.[0],
-    parsed = session.parse(
+    failed = (message = "") =>
+      new StataError(
+        `${message}${message ? "\n" : ""}an error occurred when svy executed ${asked}`,
+        2000,
+      );
+  // noheader: Stata refuses it for regress under svy, and poisson and
+  // logistic refuse it themselves; logit, probit and ologit take it and
+  // show their header all the same.
+  const [, ownOptions] = splitAtComma(text);
+  if (/(^|\s)nohead(e(r)?)?(?=\s|$)/.test(ownOptions ?? "")) {
+    if (asked === "regress")
+      throw refuse("option noheader not allowed with the svy prefix");
+    if (asked === "poisson" || asked === "logistic") {
+      ctx.out(`(running ${asked} on estimation sample)`);
+      throw new StataError(
+        `option noheader not allowed\nan error occurred when svy executed ${asked}`,
+        198,
+      );
+    }
+    text = text.replace(/(^|\s)nohead(e(r)?)?(?=\s|$)/, "$1");
+  }
+  const parsed = session.parse(
       `anything [if] [in] [, Level(cilevel) noCONStant${eform ? ` ${eform === "or" ? "OR" : "IRr"}` : ""}${ordered ? " OR" : ""} noLOg BASElevels ALLBASElevels | OFFset(varname) EXPosure(varname) ASIS COEFLegend NOFVLabel CFORMAT(string) PFORMAT(string) SFORMAT(string) Beta HAScons TSScons]`,
       text,
     ),
@@ -951,11 +1356,28 @@ function model(session, text, ctx, prefix, asked) {
     constant = options.constant !== false && !ordered;
   if (ordered && options.constant === false)
     throw refuse("option noconstant not allowed");
-  // Which observations have every variable of the model.
+  // Which observations have every variable of the model. With none in
+  // the design at all, svy stops before it runs the command; with none
+  // that has the model's variables, the command stops.
   const rows = session.rows(parsed, null),
-    complete = new Set(design(session, parsed.anything, rows, true).sample);
+    complete = new Set(design(session, parsed.anything, rows, true).sample),
+    set = designOf(session),
+    designed = rows.filter((i) =>
+      [set.weight, set.psu, set.strata, set.fpc]
+        .filter(Boolean)
+        .every((name) => !absent(session.data.get(name).data[i])),
+    );
+  if (!designed.length) throw new StataError("no observations", 2000);
+  checkSubpop(session, rows, prefix, ctx);
   ctx.out(`(running ${asked} on estimation sample)`);
-  const survey = surveySample(session, rows, (i) => complete.has(i), prefix);
+  if (!designed.some((i) => complete.has(i))) throw failed("no observations");
+  const survey = surveySample(
+    session,
+    rows,
+    (i) => complete.has(i),
+    prefix,
+    ctx,
+  );
   if (prefix.dof) survey.df = prefix.dof;
   // The columns are judged on the subpopulation the model is fitted to.
   const fitted = survey.rows.filter((_, j) => survey.sub[j]),
@@ -981,14 +1403,11 @@ function model(session, text, ctx, prefix, asked) {
     weight = used.map((i) => survey.ew[at.get(i)]),
     W = weight.reduce((t, v) => t + v, 0);
   let y = used.map((i) => dependent.data[i]);
-  if (!used.length) throw new StataError("no observations", 2000);
+  if (!used.length) throw failed("no observations");
   if (family.binary) {
     y = y.map((v) => Number(v !== 0));
-    if (y.every((v) => v === y[0]))
-      throw new StataError(
-        "outcome does not vary; remember:\n                                  0 = negative outcome,\n        all other nonmissing values = positive outcome",
-        2000,
-      );
+    // Stata shows only that the command failed.
+    if (y.every((v) => v === y[0])) throw failed();
     perfectPredictors(session, active, used, y, kind);
   }
   if (kind === "poisson" && y.some((v) => v < 0))
@@ -1157,9 +1576,12 @@ function model(session, text, ctx, prefix, asked) {
     variance = linearizedVariance(survey, scores, parameters, bread),
     V = variance.V;
   // The adjusted Wald test that every coefficient but the constant and
-  // the cut points is zero.
-  const slopes = active.map((_, a) => a),
-    d = survey.df;
+  // the cut points is zero. A coefficient without variance, as when every
+  // stratum is a certainty unit, drops out of it.
+  const d = survey.df,
+    slopes = active
+      .map((_, a) => a)
+      .filter((a) => !isMissing(shownError(theta[a], V[a][a])));
   let test;
   if (variance.missing) test = { df1: 0, df2: d, F: MISSING };
   else {
@@ -1184,6 +1606,10 @@ function model(session, text, ctx, prefix, asked) {
       p: isMissing(F) ? MISSING : Ftail(q, d - q + 1, F),
     };
   }
+  // The rank of the variance: the parameters that have one.
+  const rank = theta.filter(
+    (v, a) => !isMissing(shownError(v, V[a][a])) || variance.missing,
+  ).length;
   const names = [...columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
     place = [
       ...columns.map((c) => active.indexOf(c)),
@@ -1208,23 +1634,9 @@ function model(session, text, ctx, prefix, asked) {
             ...(ordered ? outcomes.slice(1).map((_, j) => `/cut${j + 1}`) : []),
           ],
     ),
-    critical = invttail(d, (1 - level / 100) / 2),
-    transform =
-      (eform && (options[eform] || asked === "logistic")) ||
-      (ordered && options.or),
-    head = transform
-      ? ordered || eform === "or"
-        ? "Odds ratio"
-        : "IRR"
-      : "Coefficient",
-    shown_ = transform ? Math.exp : (v) => v,
-    cells = (b, se, tested, plain = !tested) => {
-      const show = plain ? (v) => v : shown_;
-      if (isMissing(se))
-        return `${g(show(b)).padStart(11)}${".".padStart(11)}${tested ? `${".".padStart(9)}${".".padStart(8)}` : " ".repeat(17)}${".".padStart(13)}${".".padStart(12)}`;
-      const t = b / se;
-      return `${g(show(b)).padStart(11)}${g(transform && !plain ? Math.exp(b) * se : se).padStart(11)}${tested ? `${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(d, Math.abs(t)), "%8.3f")}` : " ".repeat(17)}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
-    };
+    transformed =
+      !!(eform && (options[eform] || asked === "logistic")) ||
+      !!(ordered && options.or);
   // Stata's built-in logit and probit note what they omit; regress,
   // poisson and ologit under svy do not.
   const notes = family.binary
@@ -1232,46 +1644,71 @@ function model(session, text, ctx, prefix, asked) {
         .filter((c) => c.omitted)
         .map((c) => `note: ${c.name} omitted because of collinearity.`)
     : [];
-  if (prefix.header)
-    header(ctx, survey, {
-      title: `Survey: ${family.title}`,
-      notes,
-      width: 78,
-      test,
-      r2: kind === "regress" ? r2 : undefined,
-    });
-  const rule = "-".repeat(66 + w),
-    split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
-  ctx.out(rule);
-  ctx.out(`${" ".repeat(w + 1)}|             Linearized`);
-  ctx.out(
-    `${abbreviate(dependent.name, w).padStart(w)} | ${head.padStart(10).padEnd(11)}  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(split);
-  termRows(
-    session,
-    shown,
-    (j) => cells(shown.b[j], root(shown.V[j][j]), true),
-    w,
-    transform ? 1 : 0,
-  ).forEach(ctx.out);
-  if (ordered) {
-    ctx.out(split);
-    outcomes
-      .slice(1)
-      .forEach((_, j) =>
-        ctx.out(
-          `${`/cut${j + 1}`.padStart(w)} |${cells(theta[k + j], root(V[k + j][k + j]), false)}`,
-        ),
+  // The table, as the command shows it and as a replay shows it again:
+  // without the notes on what was omitted, at the level asked for.
+  const table = (out, shownLevel, transform) => {
+      const critical = invttail(d, (1 - shownLevel / 100) / 2),
+        head = transform
+          ? ordered || eform === "or"
+            ? "Odds ratio"
+            : "IRR"
+          : "Coefficient",
+        rule = "-".repeat(66 + w),
+        split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
+      out.out(rule);
+      out.out(`${" ".repeat(w + 1)}|             Linearized`);
+      out.out(
+        `${abbreviate(dependent.name, w).padStart(w)} | ${head.padStart(10).padEnd(11)}  std. err.      t    P>|t|     [${g(shownLevel)}% conf. interval]`,
       );
-  }
-  ctx.out(rule);
-  if (transform && constant) ctx.out(family.exponentiated[2]);
-  if (transform && ordered)
-    ctx.out(
-      "Note: Estimates are transformed only in the first equation to odds ratios.",
-    );
-  footnotes(ctx, survey, variance, 79, parameters > 1);
+      out.out(split);
+      termRows(
+        session,
+        shown,
+        (j) =>
+          tCells(
+            shown.b[j],
+            shownError(shown.b[j], shown.V[j][j]),
+            d,
+            critical,
+            { eform: transform },
+          ),
+        w,
+        transform ? 1 : 0,
+      ).forEach(out.out);
+      if (ordered) {
+        out.out(split);
+        outcomes
+          .slice(1)
+          .forEach((_, j) =>
+            out.out(
+              `${`/cut${j + 1}`.padStart(w)} |${tCells(theta[k + j], shownError(theta[k + j], V[k + j][k + j]), d, critical, { tested: false })}`,
+            ),
+          );
+      }
+      out.out(rule);
+    },
+    display = (
+      out,
+      { level: shownLevel, header: withHeader, transform },
+      first,
+    ) => {
+      if (withHeader)
+        header(out, survey, {
+          title: `Survey: ${family.title}`,
+          notes: first ? notes : [],
+          width: 78,
+          test,
+          r2: kind === "regress" ? r2 : undefined,
+        });
+      table(out, shownLevel, transform);
+      if (transform && constant) out.out(family.exponentiated[2]);
+      if (transform && ordered)
+        out.out(
+          "Note: Estimates are transformed only in the first equation to odds ratios.",
+        );
+      footnotes(out, survey, variance, 79, parameters > 1);
+    };
+  display(ctx, { level, header: prefix.header, transform: transformed }, true);
   const result = {
     command: kind,
     kind,
@@ -1286,7 +1723,7 @@ function model(session, text, ctx, prefix, asked) {
     N: survey.N,
     df_m: test.df1,
     df_r: d,
-    rank: parameters,
+    rank,
     r2,
     dist: "t",
     vce: "linearized",
@@ -1297,6 +1734,12 @@ function model(session, text, ctx, prefix, asked) {
     sample: used,
     level,
     baseLevels: shown.baseLevels,
+    // What svy, the command typed alone and ereturn display show.
+    replayedBy: kind === "logit" ? ["logit", "logistic"] : [asked],
+    exponentiated: eform ?? (ordered ? "or" : null),
+    transformed,
+    svyDisplay: (out, asked) => display(out, asked, false),
+    svyCoefficients: (out, shownLevel = level) => table(out, shownLevel, false),
     ...(family.mean
       ? {
           family: {
@@ -1338,10 +1781,11 @@ function model(session, text, ctx, prefix, asked) {
     df_m: test.df1,
     F: test.F,
     ...(kind === "regress" ? { r2 } : {}),
-    rank: parameters,
+    rank,
     k: names.length + (ordered ? outcomes.length - 1 : 0),
     ...(ordered ? { k_cat: outcomes.length } : {}),
     cmd: asked === "logistic" ? "logistic" : kind,
+    cmdname: asked === "logistic" ? "logistic" : kind,
     depvar: dependent.name,
     title: `Survey: ${family.title}`,
     level,
@@ -1414,7 +1858,7 @@ function perfectPredictors(session, active, rows, y, kind) {
 
 function svyTabulate(session, text, ctx, prefix) {
   const parsed = session.parse(
-      "varlist(min=1 max=2) [if] [in] [, noLabel CELL COUNT ROW COLumn OBS PROPortion PERcent noMARGinals FORmat(string) | MISSing TAB(varname) SUBpop(string) STDize(varname) STDWeight(varname) SE CI DEFF DEFT CV SRSsubpop VERTical CELLWidth(integer 0) CSEPwidth(integer 0) STUBWidth(integer 0) NOTABle PEARson LR NULL WALD LLWald noADJust Level(cilevel)]",
+      "varlist(min=1 max=2) [if] [in] [, noLabel CELL COUNT ROW COLumn OBS PROPortion PERcent noMARGinals FORmat(string) noHEADer | MISSing TAB(varname) SUBpop(string) STDize(varname) STDWeight(varname) SE CI DEFF DEFT CV SRSsubpop VERTical CELLWidth(integer 0) CSEPwidth(integer 0) STUBWidth(integer 0) NOTABle PEARson LR NULL WALD LLWald noADJust Level(cilevel)]",
       text,
     ),
     options = parsed.options,
@@ -1430,18 +1874,23 @@ function svyTabulate(session, text, ctx, prefix) {
   if (names.length === 2 && names[0] === names[1])
     throw refuse("row and column variable may not be the same");
   const variables = names.map((name) => session.data.get(name));
+  checkSubpop(session, session.rows(parsed, null), prefix, ctx);
   ctx.out("(running tabulate on estimation sample)");
   const survey = surveySample(
     session,
     session.rows(parsed, null),
     (i) => variables.every((v) => !absent(v.data[i])),
     prefix,
+    ctx,
+    (i) => variables.every((v) => !absent(v.data[i])),
   );
   if (prefix.dof) survey.df = prefix.dof;
   const { rows, ew } = survey,
     order = (a, b) => (a < b ? -1 : a > b ? 1 : 0),
     levels = variables.map((v) =>
-      [...new Set(rows.map((i) => v.data[i]))].sort(order),
+      [...new Set(rows.map((i) => v.data[i]))]
+        .filter((value) => !absent(value))
+        .sort(order),
     ),
     [rowLevels, colLevels = [null]] = levels,
     nr = rowLevels.length,
@@ -1463,251 +1912,309 @@ function svyTabulate(session, text, ctx, prefix) {
     }),
     variance = linearizedVariance(survey, scores, cells),
     V = variance.V;
-  if (prefix.header) header(ctx, survey, { width: 78 });
-  // The table, as tabdisp lays it out: a stub of nine characters, labels
-  // cut to eight, cells of %6.0g unless format() says otherwise. Each cell
-  // shows the items asked for, one under another.
-  const tabled = variables[1] ? [variables[0], variables[1]] : [variables[0]],
-    label = (variable, value) =>
-      labelled(session, variable, value, useLabels).slice(0, 8),
-    shownAs = options.format ?? "%6.0g",
-    cell = (value) => applyFormat(value, shownAs).trim(),
-    stub = (text) => text.padStart(9),
-    pieces = (text, size) => {
-      const out = [];
-      for (let at = 0; at < text.length; at += size)
-        out.push(text.slice(at, at + size));
-      return out;
-    },
-    rowNames = pieces(variables[0].name, 9),
-    stubs =
-      rowNames.length === 1
-        ? [stub(rowNames[0])]
-        : rowNames.map((piece) => piece.padEnd(9)),
-    rowTotals = rowLevels.map((_, r) =>
-      p.slice(r * nc, r * nc + nc).reduce((t, v) => t + v, 0),
-    ),
-    colTotals = colLevels.map((_, c) =>
-      rowLevels.reduce((t, __, r) => t + p[r * nc + c], 0),
-    ),
-    // The proportion in row r and column c, either of which may be the
-    // margin (nr or nc).
-    share = (r, c) =>
-      r === nr
-        ? c === nc
-          ? 1
-          : colTotals[c]
-        : c === nc
-          ? rowTotals[r]
-          : p[r * nc + c],
-    observations = (r, c) =>
-      rows.filter(
-        (i, j) =>
-          survey.sub[j] &&
-          (r === nr || variables[0].data[i] === rowLevels[r]) &&
-          (c === nc || !variables[1] || variables[1].data[i] === colLevels[c]),
-      ).length,
-    scale = options.percent ? 100 : 1,
-    kinds = {
-      cell: {
-        value: (r, c) => share(r, c) * scale,
-        key: options.percent ? "Cell percentage" : "Cell proportion",
-        name: options.percent ? "percentage" : "proportion",
+  const results = {};
+  const display = (out) => {
+    // Stata's svy: tabulate shows its header whatever noheader says.
+    header(out, survey, { width: 78 });
+    // The table, as tabdisp lays it out: a stub of nine characters, labels
+    // cut to eight, cells of %6.0g unless format() says otherwise. Each cell
+    // shows the items asked for, one under another.
+    const tabled = variables[1] ? [variables[0], variables[1]] : [variables[0]],
+      label = (variable, value) =>
+        labelled(session, variable, value, useLabels).slice(0, 8),
+      shownAs = options.format ?? "%6.0g",
+      cell = (value) => applyFormat(value, shownAs).trim(),
+      stub = (text) => text.padStart(9),
+      pieces = (text, size) => {
+        const out = [];
+        for (let at = 0; at < text.length; at += size)
+          out.push(text.slice(at, at + size));
+        return out;
       },
-      count: {
-        value: (r, c) => share(r, c) * W,
-        key: "Weighted count",
-        name: "count",
-      },
-      row: {
-        value: (r, c) => (share(r, c) / share(r, nc)) * scale,
-        key: options.percent ? "Row percentage" : "Row proportion",
-      },
-      column: {
-        value: (r, c) => (share(r, c) / share(nr, c)) * scale,
-        key: options.percent ? "Column percentage" : "Column proportion",
-      },
-      obs: { value: observations, key: "Number of observations" },
-    },
-    wanted = ["cell", "count", "row", "column", "obs"].filter(
-      (k) => options[k],
-    );
-  if (!wanted.some((k) => k !== "obs")) wanted.unshift("cell");
-  const items = wanted.map((k) => kinds[k]),
-    margins = options.marginals !== false;
-  if (!variables[1]) {
-    if (options.row)
-      throw refuse("option row is not allowed for tables with a single column");
-    if (items.length > 1 || wanted[0] === "column")
-      throw refuse(
-        "svy: tabulate of one variable shows one of proportion, count or percent here",
-      );
-    const item = items[0],
-      body = rowLevels.map((_, r) => cell(item.value(r, 0))),
-      totalText = cell(item.value(nr, 0)),
-      width = Math.max(10, ...[...body, totalText].map((v) => v.length)),
-      rule = "-".repeat(11 + width + 1);
-    ctx.out(rule);
-    stubs.slice(0, -1).forEach((line) => ctx.out(`${line} |`));
-    ctx.out(`${stubs.at(-1)} | ${item.name.padStart(width)}`);
-    ctx.out(`${"-".repeat(10)}+${"-".repeat(width + 1)}`);
-    rowLevels.forEach((level, r) =>
-      ctx.out(
-        `${stub(label(variables[0], level))} | ${body[r].padStart(width)}`,
+      rowNames = pieces(variables[0].name, 9),
+      stubs =
+        rowNames.length === 1
+          ? [stub(rowNames[0])]
+          : rowNames.map((piece) => piece.padEnd(9)),
+      rowTotals = rowLevels.map((_, r) =>
+        p.slice(r * nc, r * nc + nc).reduce((t, v) => t + v, 0),
       ),
-    );
-    if (margins) {
-      ctx.out(`${" ".repeat(10)}| `);
-      ctx.out(`${stub("Total")} | ${totalText.padStart(width)}`);
-    }
-    ctx.out(rule);
-    ctx.out(`Key: ${item.name.padStart(8)} = ${item.key}`);
-  } else {
-    if (!margins && items.length > 1)
-      throw refuse(
-        "svy: tabulate with nomarginals and more than one item in a cell is not available here",
+      colTotals = colLevels.map((_, c) =>
+        rowLevels.reduce((t, __, r) => t + p[r * nc + c], 0),
+      ),
+      // The proportion in row r and column c, either of which may be the
+      // margin (nr or nc).
+      share = (r, c) =>
+        r === nr
+          ? c === nc
+            ? 1
+            : colTotals[c]
+          : c === nc
+            ? rowTotals[r]
+            : p[r * nc + c],
+      observations = (r, c) =>
+        rows.filter(
+          (i, j) =>
+            survey.member[j] &&
+            (r === nr || variables[0].data[i] === rowLevels[r]) &&
+            (c === nc ||
+              !variables[1] ||
+              variables[1].data[i] === colLevels[c]),
+        ).length,
+      scale = options.percent ? 100 : 1,
+      kinds = {
+        cell: {
+          value: (r, c) => share(r, c) * scale,
+          key: options.percent ? "Cell percentage" : "Cell proportion",
+          name: options.percent ? "percentage" : "proportion",
+        },
+        count: {
+          value: (r, c) => share(r, c) * W,
+          key: "Weighted count",
+          name: "count",
+        },
+        row: {
+          value: (r, c) => (share(r, c) / share(r, nc)) * scale,
+          key: options.percent ? "Row percentage" : "Row proportion",
+        },
+        column: {
+          value: (r, c) => (share(r, c) / share(nr, c)) * scale,
+          key: options.percent ? "Column percentage" : "Column proportion",
+        },
+        obs: { value: observations, key: "Number of observations" },
+      },
+      wanted = ["cell", "count", "row", "column", "obs"].filter(
+        (k) => options[k],
       );
-    const columnsShown = margins ? nc + 1 : nc,
-      rowsShown = margins ? nr + 1 : nr,
-      text = items.map((item) =>
-        Array.from({ length: rowsShown }, (_, r) =>
-          Array.from({ length: columnsShown }, (__, c) =>
-            cell(item.value(r, c)),
+    if (!wanted.some((k) => k !== "obs")) wanted.unshift("cell");
+    const items = wanted.map((k) => kinds[k]),
+      margins = options.marginals !== false;
+    if (!variables[1]) {
+      if (options.row)
+        throw refuse(
+          "option row is not allowed for tables with a single column",
+        );
+      if (items.length > 1 || wanted[0] === "column")
+        throw refuse(
+          "svy: tabulate of one variable shows one of proportion, count or percent here",
+        );
+      const item = items[0],
+        body = rowLevels.map((_, r) => cell(item.value(r, 0))),
+        totalText = cell(item.value(nr, 0)),
+        width = Math.max(10, ...[...body, totalText].map((v) => v.length)),
+        rule = "-".repeat(11 + width + 1);
+      out.out(rule);
+      stubs.slice(0, -1).forEach((line) => out.out(`${line} |`));
+      out.out(`${stubs.at(-1)} | ${item.name.padStart(width)}`);
+      out.out(`${"-".repeat(10)}+${"-".repeat(width + 1)}`);
+      rowLevels.forEach((level, r) =>
+        out.out(
+          `${stub(label(variables[0], level))} | ${body[r].padStart(width)}`,
+        ),
+      );
+      if (margins) {
+        out.out(`${" ".repeat(10)}| `);
+        out.out(`${stub("Total")} | ${totalText.padStart(width)}`);
+      }
+      out.out(rule);
+      out.out(`Key: ${item.name.padStart(8)} = ${item.key}`);
+    } else {
+      if (!margins && items.length > 1)
+        throw refuse(
+          "svy: tabulate with nomarginals and more than one item in a cell is not available here",
+        );
+      const columnsShown = margins ? nc + 1 : nc,
+        rowsShown = margins ? nr + 1 : nr,
+        text = items.map((item) =>
+          Array.from({ length: rowsShown }, (_, r) =>
+            Array.from({ length: columnsShown }, (__, c) =>
+              cell(item.value(r, c)),
+            ),
           ),
         ),
-      ),
-      headings = [
-        ...colLevels.map((v) => label(variables[1], v)),
-        ...(margins ? ["Total"] : []),
-      ],
-      width = Math.max(
-        ...headings.map((h) => h.length),
-        ...text.flat(2).map((v) => v.length),
-      ),
-      area = 1 + headings.length * width + (headings.length - 1) * 2;
-    if (11 + area > (session.settings?.linesize ?? 80))
-      throw refuse(
-        "a svy: tabulate table wider than the line is not available here; set linesize larger",
-      );
-    const rule = "-".repeat(11 + area),
-      line = (cellsText) =>
-        ` ${cellsText.map((value) => value.padStart(width)).join("  ")}`,
-      centred = (value) =>
-        `${" ".repeat(Math.ceil((area - value.length) / 2))}${value}`,
-      colLines = pieces(variables[1].name, area),
-      headerLines = [
-        ...colLines.slice(0, -1),
-        centred(colLines.at(-1)),
-        line(headings),
-      ],
-      total = Math.max(headerLines.length, stubs.length),
-      stubPadded = [
-        ...new Array(total - stubs.length).fill(" ".repeat(9)),
-        ...stubs,
-      ],
-      headPadded = [
-        ...new Array(total - headerLines.length).fill(""),
-        ...headerLines,
-      ],
-      blank = `${" ".repeat(10)}| `,
-      group = (title, r) =>
-        text.forEach((item, k) =>
-          ctx.out(`${k ? " ".repeat(9) : stub(title)} |${line(item[r])}`),
-        );
-    ctx.out(rule);
-    for (let k = 0; k < total; k++)
-      ctx.out(`${stubPadded[k]} |${headPadded[k]}`);
-    ctx.out(`${"-".repeat(10)}+${"-".repeat(area)}`);
-    rowLevels.forEach((level, r) => {
-      group(label(variables[0], level), r);
-      if (items.length > 1 && r < nr - 1) ctx.out(blank);
-    });
-    if (margins) {
-      ctx.out(blank);
-      group("Total", nr);
-    }
-    ctx.out(rule);
-    items.forEach((item, k) => ctx.out(`${k ? "     " : "Key: "}${item.key}`));
-  }
-  // The design-based Pearson test, with Rao and Scott's second-order
-  // correction, as svy: tabulate reports it.
-  const results = {};
-  const zero = rowTotals.some((v) => v === 0) || colTotals.some((v) => v === 0);
-  if (variables[1]) {
-    if (zero) {
-      ctx.out("");
-      ctx.out("  Table contains a zero in the marginals.");
-      ctx.out("  Statistics cannot be computed.");
-    } else if (nr === 1 || nc === 1) {
-      ctx.out("");
-      ctx.out(`  Only one ${nr === 1 ? "row" : "column"} category.`);
-      ctx.out("  Statistics cannot be computed.");
-    } else {
-      const dfnom = (nr - 1) * (nc - 1);
-      if (survey.df < dfnom)
-        note(
-          ctx,
-          `Note: Variance estimate degrees of freedom = ${survey.df} are less than nominal table degrees of freedom = ${dfnom}`,
-          79,
-        );
-      const expected = p.map(
-          (_, c) => rowTotals[Math.floor(c / nc)] * colTotals[c % nc],
+        headings = [
+          ...colLevels.map((v) => label(variables[1], v)),
+          ...(margins ? ["Total"] : []),
+        ],
+        width = Math.max(
+          ...headings.map((h) => h.length),
+          ...text.flat(2).map((v) => v.length),
         ),
-        pearson =
-          survey.N *
-          p.reduce((t, v, c) => t + (v - expected[c]) ** 2 / expected[c], 0),
-        contrast = independence(nr, nc),
-        [trace, trace2] = variance.missing
-          ? [MISSING, MISSING]
-          : deffTraces(survey.N, p, V, contrast),
-        F = variance.missing ? MISSING : pearson / trace,
-        df1 = (trace * trace) / trace2,
-        df2 = df1 * survey.df,
-        pValue = variance.missing ? MISSING : Ftail(df1, df2, F),
-        dfText = (v) =>
-          isMissing(v)
-            ? "."
-            : Number.isInteger(v)
-              ? String(v)
-              : applyFormat(v, "%4.2f").trim();
-      Object.assign(results, {
-        cun_Pear: pearson,
-        F_Pear: variance.missing ? MISSING : F,
-        df1_Pear: variance.missing ? MISSING : df1,
-        df2_Pear: variance.missing ? MISSING : df2,
-        p_Pear: pValue,
-      });
-      const fixed = (value, format, width) =>
-        isMissing(value) ? ".".padStart(width) : applyFormat(value, format);
-      ctx.out("");
-      ctx.out("  Pearson:");
-      ctx.out(
-        `${"    Uncorrected".padEnd(18)}${`chi2(${dfnom})`.padEnd(16)}= ${fixed(pearson, "%9.4f", 9)}`,
-      );
-      ctx.out(
-        `${`${"    Design-based".padEnd(18)}F(${dfText(variance.missing ? MISSING : df1)}, ${dfText(variance.missing ? MISSING : df2)})`.padEnd(34)}= ${fixed(F, "%9.4f", 9)}`.padEnd(
-          50,
-        ) + `P = ${fixed(pValue, "%6.4f", 6)}`,
-      );
-      if (variance.singleton) {
-        ctx.out("");
-        if (survey.set.singleunit === "missing")
-          note(
-            ctx,
-            "Note: Missing test statistics because of stratum with single sampling unit.",
-            79,
+        area = 1 + headings.length * width + (headings.length - 1) * 2;
+      if (11 + area > (session.settings?.linesize ?? 80))
+        throw refuse(
+          "a svy: tabulate table wider than the line is not available here; set linesize larger",
+        );
+      const rule = "-".repeat(11 + area),
+        line = (cellsText) =>
+          ` ${cellsText.map((value) => value.padStart(width)).join("  ")}`,
+        centred = (value) =>
+          `${" ".repeat(Math.ceil((area - value.length) / 2))}${value}`,
+        colLines = pieces(variables[1].name, area),
+        headerLines = [
+          ...colLines.slice(0, -1),
+          centred(colLines.at(-1)),
+          line(headings),
+        ],
+        total = Math.max(headerLines.length, stubs.length),
+        stubPadded = [
+          ...new Array(total - stubs.length).fill(" ".repeat(9)),
+          ...stubs,
+        ],
+        headPadded = [
+          ...new Array(total - headerLines.length).fill(""),
+          ...headerLines,
+        ],
+        blank = `${" ".repeat(10)}| `,
+        group = (title, r) =>
+          text.forEach((item, k) =>
+            out.out(`${k ? " ".repeat(9) : stub(title)} |${line(item[r])}`),
           );
-        else footnotes(ctx, { ...survey, omitted: 0 }, variance, 79, true);
+      out.out(rule);
+      for (let k = 0; k < total; k++)
+        out.out(`${stubPadded[k]} |${headPadded[k]}`);
+      out.out(`${"-".repeat(10)}+${"-".repeat(area)}`);
+      rowLevels.forEach((level, r) => {
+        group(label(variables[0], level), r);
+        if (items.length > 1 && r < nr - 1) out.out(blank);
+      });
+      if (margins) {
+        out.out(blank);
+        group("Total", nr);
+      }
+      out.out(rule);
+      items.forEach((item, k) =>
+        out.out(`${k ? "     " : "Key: "}${item.key}`),
+      );
+    }
+    // The design-based Pearson test, with Rao and Scott's second-order
+    // correction, as svy: tabulate reports it.
+    const zero =
+      rowTotals.some((v) => v === 0) || colTotals.some((v) => v === 0);
+    if (variables[1]) {
+      if (zero) {
+        out.out("");
+        out.out("  Table contains a zero in the marginals.");
+        out.out("  Statistics cannot be computed.");
+      } else if (nr === 1 || nc === 1) {
+        out.out("");
+        out.out(`  Only one ${nr === 1 ? "row" : "column"} category.`);
+        out.out("  Statistics cannot be computed.");
+      } else {
+        const dfnom = (nr - 1) * (nc - 1);
+        // This note is wrapped at the line size, not at the table's width.
+        if (survey.df < dfnom)
+          note(
+            out,
+            `Note: Variance estimate degrees of freedom = ${survey.df} are less than nominal table degrees of freedom = ${dfnom}`,
+            (session.settings?.linesize ?? 80) - 1,
+          );
+        const expected = p.map(
+            (_, c) => rowTotals[Math.floor(c / nc)] * colTotals[c % nc],
+          ),
+          pearson =
+            survey.N *
+            p.reduce((t, v, c) => t + (v - expected[c]) ** 2 / expected[c], 0),
+          contrast = independence(nr, nc),
+          [trace, trace2] = variance.missing
+            ? [MISSING, MISSING]
+            : deffTraces(survey.N, p, V, contrast),
+          F = variance.missing ? MISSING : pearson / trace,
+          df1 = (trace * trace) / trace2,
+          df2 = df1 * survey.df,
+          pValue = variance.missing ? MISSING : Ftail(df1, df2, F),
+          dfText = (v) =>
+            isMissing(v)
+              ? "."
+              : Number.isInteger(v)
+                ? String(v)
+                : applyFormat(v, "%4.2f").trim();
+        Object.assign(results, {
+          cun_Pear: pearson,
+          F_Pear: variance.missing ? MISSING : F,
+          df1_Pear: variance.missing ? MISSING : df1,
+          df2_Pear: variance.missing ? MISSING : df2,
+          p_Pear: pValue,
+          // The same statistics with the design effects taken under
+          // independence (svytab's Penl), and the likelihood-ratio statistic
+          // with each (LR and LRnl).
+          ...adjustedStatistics(
+            "Penl",
+            pearson,
+            variance.missing
+              ? [MISSING, MISSING]
+              : deffTraces(survey.N, expected, V, contrast),
+            survey.df,
+          ),
+          ...adjustedStatistics(
+            "LR",
+            likelihoodRatio(survey.N, p, expected),
+            [trace, trace2],
+            survey.df,
+          ),
+          ...adjustedStatistics(
+            "LRnl",
+            likelihoodRatio(survey.N, p, expected),
+            variance.missing
+              ? [MISSING, MISSING]
+              : deffTraces(survey.N, expected, V, contrast),
+            survey.df,
+          ),
+        });
+        const fixed = (value, format, width) =>
+          isMissing(value) ? ".".padStart(width) : applyFormat(value, format);
+        out.out("");
+        out.out("  Pearson:");
+        out.out(
+          `${"    Uncorrected".padEnd(18)}${`chi2(${dfnom})`.padEnd(16)}= ${fixed(pearson, "%9.4f", 9)}`,
+        );
+        out.out(
+          `${`${"    Design-based".padEnd(18)}F(${dfText(variance.missing ? MISSING : df1)}, ${dfText(variance.missing ? MISSING : df2)})`.padEnd(34)}= ${fixed(F, "%9.4f", 9)}`.padEnd(
+            50,
+          ) + `P = ${fixed(pValue, "%6.4f", 6)}`,
+        );
+        if (variance.singleton) {
+          out.out("");
+          if (survey.set.singleunit === "missing")
+            note(
+              out,
+              "Note: Missing test statistics because of stratum with single sampling unit.",
+              79,
+            );
+          else footnotes(out, { ...survey, omitted: 0 }, variance, 79, true);
+        }
       }
     }
-  }
-  if (survey.omitted) {
-    ctx.out("");
-    footnotes(ctx, survey, { singleton: false }, 79, true);
-  }
+    if (survey.omitted) {
+      out.out("");
+      footnotes(out, survey, { singleton: false }, 79, true);
+    }
+  };
+  display(ctx);
   session.estimates = {
     command: "tabulate",
     title: "",
+    replayedBy: [],
+    svyDisplay: (out) => display(out),
+    svyCoefficients: (out, shownLevel = 95) =>
+      coefficientTable(session, out, {
+        table: {
+          names: p.map((_, c) => `p${Math.floor(c / nc) + 1}${(c % nc) + 1}`),
+          columns: p.map((_, c) => ({
+            name: `p${Math.floor(c / nc) + 1}${(c % nc) + 1}`,
+            term: {
+              variable: { name: `p${Math.floor(c / nc) + 1}${(c % nc) + 1}` },
+              components: [],
+            },
+          })),
+          estimable: p.map(() => true),
+        },
+        label: "Mean",
+        b: p,
+        se: p.map((v, c) => shownError(v, V[c][c])),
+        d: survey.df,
+        level: shownLevel,
+      }),
     columns: [],
     names: p.map((_, c) => `p${Math.floor(c / nc) + 1}${(c % nc) + 1}`),
     b: p,
@@ -1734,6 +2241,29 @@ function svyTabulate(session, text, ctx, prefix) {
   });
 }
 
+/**
+ * A design-adjusted statistic as svytab's MakeStat stores it: the
+ * uncorrected statistic, F = statistic / trace, its degrees of freedom and
+ * p-value.
+ */
+function adjustedStatistics(name, statistic, [trace, trace2], df) {
+  const missing = isMissing(trace) || isMissing(trace2) || isMissing(statistic),
+    F = missing ? MISSING : statistic / trace,
+    df1 = missing ? MISSING : (trace * trace) / trace2,
+    df2 = missing ? MISSING : df1 * df;
+  return {
+    [`cun_${name}`]: statistic,
+    [`F_${name}`]: F,
+    [`df1_${name}`]: df1,
+    [`df2_${name}`]: df2,
+    [`p_${name}`]: missing ? MISSING : Ftail(df1, df2, F),
+  };
+}
+/** The likelihood-ratio statistic 2n sum p log(p / p0); missing at a zero. */
+function likelihoodRatio(n, p, expected) {
+  if (p.some((v) => !(v > 0))) return MISSING;
+  return 2 * n * p.reduce((t, v, c) => t + v * Math.log(v / expected[c]), 0);
+}
 /** The contrasts of the interaction in a nr by nc table (svytab's IndCon). */
 function independence(nr, nc) {
   // A = [I(nc-1); -1 ... -1], nc by nc-1.

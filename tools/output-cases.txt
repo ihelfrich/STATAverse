@@ -7276,3 +7276,328 @@ svy: tabulate g b, nomarginals
 svy: tabulate g b, row column
 display e(F_Pear) " " e(df1_Pear) " " e(df2_Pear) " " e(p_Pear) " " e(cun_Pear)
 display e(N) " " e(N_strata) " " e(N_psu) " " e(N_pop) " " e(df_r) " " e(r) " " e(c)
+=== svy-every-stratum-single-unit
+clear
+set seed 31
+set obs 40
+generate s = 1 + floor((_n-1)/10)
+generate w = 1 + runiform()
+generate y = runiform()
+generate x = runiform()
+generate b = runiform() < .5
+svyset s [pw=w], strata(s) singleunit(certainty)
+svy: mean y
+svy: regress y x
+display e(df_r) " " e(singleton) " " e(F) " " e(df_m) " " e(rank)
+svy: logit b x
+svy: proportion b
+svy: tabulate b
+svy: total y
+svy: ratio y/x
+svyset s [pw=w], strata(s) singleunit(scaled)
+svy: mean y
+svy: regress y x
+svyset s [pw=w], strata(s) singleunit(scaled) dof(3)
+svy: mean y
+svy: regress y x
+svyset s [pw=w], strata(s) singleunit(centered)
+svy: mean y
+svy: regress y x
+display e(df_r) " " e(singleton) " " e(F) " " e(df_m) " " e(rank)
+svy: proportion b
+svy: logit b x
+svyset s [pw=w], strata(s) singleunit(centered) dof(3)
+svy: mean y
+svy: regress y x
+svy: proportion b
+svyset s [pw=w], strata(s) singleunit(certainty) dof(3)
+svy: regress y x
+generate k = 5
+svyset s [pw=w]
+svy: mean k
+=== svy-zero-weights-in-subpopulation
+clear
+set seed 2468
+set obs 400
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate school = region*100 + 1 + floor(runiform()*6)
+generate wt = 0.5 + 3*runiform()
+generate age = 18 + floor(runiform()*50)
+generate educ = 1 + floor(runiform()*4)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "College+"
+label values educ ed
+generate employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())
+generate hours = 20 + 20*runiform()
+replace income = . if runiform() < .05
+replace hours = . if runiform() < .03
+svyset school [pweight=wt], strata(region)
+generate one = 1
+replace wt = 0 in 1/3
+svy, subpop(one): mean income
+svy, subpop(employed): regress income age
+display e(N) " " e(N_sub) " " e(N_subpop) " " e(N_subpsu)
+svy, subpop(employed): proportion educ
+svy, subpop(employed): tabulate educ
+svy, subpop(if region==1 & employed): total income
+svy, subpop(if region==1): tabulate educ employed
+replace wt = 1 + runiform() in 1/3
+replace wt = 0 if school == 101 & employed == 1
+capture noisily svy, subpop(if school == 101 & employed == 1): mean age
+svy, subpop(if school <= 102 & employed == 1): total age
+display e(N_sub) " " e(N_subpsu) " " e(N_strata_omit)
+svy, subpop(if region == 1 & educ == 4): proportion educ
+generate sub2 = cond(age > 50, 2, cond(age < 25, ., 0))
+svy, subpop(sub2): mean income
+svy, subpop(sub2 if educ > 2): mean income
+svy, subpop(region): regress income age
+svy, subpop(if hours > 30): regress income age
+generate negw = wt
+replace negw = -1 in 10
+svyset school [pweight=negw], strata(region)
+capture noisily svy: mean income
+capture noisily svy: mean age
+svy: mean income if _n != 10
+svyset school [pweight=wt], strata(region)
+svy: mean income
+svy: mean income hours
+svy: ratio income/hours
+svy: regress income age
+svy, subpop(employed): mean income
+generate inc2 = income
+replace inc2 = . if wt == 0
+svy: mean inc2
+replace educ = . in 8
+svy: proportion educ
+svy: tabulate educ employed
+svy: mean income, over(educ)
+svy, subpop(if region == 1): mean income, over(educ)
+svy: regress income i.educ
+=== svy-over-groups-and-replay
+clear
+set seed 2468
+set obs 400
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate school = region*100 + 1 + floor(runiform()*6)
+generate wt = 0.5 + 3*runiform()
+generate age = 18 + floor(runiform()*50)
+generate educ = 1 + floor(runiform()*4)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "College+"
+label values educ ed
+generate employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())
+generate hours = 20 + 20*runiform()
+replace income = . if runiform() < .05
+replace hours = . if runiform() < .03
+svyset school [pweight=wt], strata(region)
+svy: mean income, over(educ)
+lincom c.income@2.educ - c.income@1.educ
+lincom income@2.educ - income@1.educ
+test c.income@2.educ = c.income@1.educ
+svy
+svy, level(90)
+mean
+ereturn display
+display e(cmdname) " " e(N_over) " " e(over)
+capture noisily logit
+svy: mean income age, over(employed)
+lincom income@1.employed - age@0.employed
+lincom _b[c.income@1.employed] - _b[c.income@0.employed]
+lincom c.inc@1.employed - c.inc@0.employed
+svy: total income, over(employed)
+lincom c.income@1.employed - c.income@0.employed
+svy: mean income, over(region employed)
+display e(N_over) " " e(over) " " e(over_namelist)
+lincom c.income@1.region#1.employed - c.income@1.region#0.employed
+test c.income@1.region#1.employed = c.income@1.region#0.employed
+svy: total income, over(employed educ)
+generate r2 = region
+svy: mean income, over(r2 employed)
+svy: mean income age, over(employed r2)
+svy: proportion educ
+lincom 2.educ - 1.educ
+ereturn display
+svy: ratio income/hours
+ereturn display
+svy: mean income age
+display e(cmd) " " e(N_over) " " _b[income] " " _se[age]
+svy, noheader
+mean, noheader
+svy: regress income age
+svy
+svy, level(90)
+regress
+regress, level(80) noheader
+ereturn display
+display e(cmd) " " e(prefix) " " e(cmdname) " " e(vce) " " e(vcetype)
+svy: logit employed age
+display e(cmd) " " e(prefix) " " e(cmdname)
+logit
+svy: logistic employed age
+logit
+logistic
+svy: tabulate educ employed
+display e(F_Penl) " " e(df1_Penl) " " e(df2_Penl) " " e(p_Penl) " " e(F_Pear)
+display e(cun_LR) " " e(F_LR) " " e(p_LR) " " e(F_LRnl) " " e(p_LRnl)
+svy
+ereturn display
+regress income age
+capture noisily svy
+svy: regress income i.region age if region == 1
+svy, subpop(if region == 1): regress income i.region age
+svy: regress income i.region i.educ age if region == 1
+svy: regress income ib2.educ age employed
+regress income i.region age if region == 1
+svy: mean income age hours
+estat vce, corr
+=== svy-options-and-messages
+clear
+set seed 2468
+set obs 400
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate school = region*100 + 1 + floor(runiform()*6)
+generate wt = 0.5 + 3*runiform()
+generate age = 18 + floor(runiform()*50)
+generate educ = 1 + floor(runiform()*4)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "College+"
+label values educ ed
+generate employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())
+generate hours = 20 + 20*runiform()
+replace income = . if runiform() < .05
+replace hours = . if runiform() < .03
+generate sex = cond(runiform()<.5, "male", "female")
+generate allmiss = .
+capture noisily svyset nosuch [pw=wt]
+capture noisily svyset school region
+capture noisily svyset school [pw=wt], strata(nosuch)
+capture noisily svyset school [pw=wt], fpc(nosuch)
+capture noisily svyset school [pw=wt], strata(region) fpc(sex)
+capture noisily svyset school [pw=wt], singleunit(bogus)
+capture noisily svyset school [pw=wt], dof(-2)
+capture noisily svyset school [pw=wt], dof(0)
+capture noisily svyset school [pw=wt], dof(abc)
+svyset sch [pweight=wt], strat(region)
+svy: mean income, noheader
+svy: mean income, nolegend
+svy: ratio income/hours, nolegend
+svy: proportion educ, percent
+svy, subpop(employed): proportion educ, percent
+capture noisily svy: ratio income/hours age/hours
+capture noisily svy: ratio income/hours/age
+svy: ratio income hours
+svy: ratio (income/hours) age/hours
+svy: ratio income / hours
+svy: ratio myr: income/hours
+capture noisily svy: regress income age, noheader
+svy: logit employed age, noheader
+svy: probit employed age, noheader
+capture noisily svy: poisson educ age, noheader
+capture noisily svy: logistic employed age, noheader
+svy: tabulate educ, noheader
+capture noisily svy: mean income, over(sex)
+capture noisily svy: regress income age [pw=wt]
+capture noisily svy: regress income age, robust
+capture noisily svy: regress income age, cluster(school)
+capture noisily svy: regress income age, vce(robust)
+capture noisily svy: mean income, vce(linearized)
+capture noisily svy, subpop(sex): mean income
+capture noisily svy, subpop(nosuch): mean income
+capture noisily svy, subpop(employed): logit employed age
+capture noisily svy: logit allmiss age
+capture noisily svy: regress allmiss age
+capture noisily svy: logit employed age if age > 200
+capture noisily svy: regress income age if age > 200
+capture noisily svy: mean income if age > 200
+capture noisily svy mean income
+rename wt weight
+capture noisily svy: mean age
+capture noisily svyset
+rename weight wt
+svy: mean age
+generate k8 = 1 + floor(runiform()*8)
+svy: tabulate k8 educ
+set linesize 80
+svy: tabulate k8 educ
+set linesize 200
+=== factor-base-operators-and-vce-correlation
+clear
+set seed 2468
+set obs 400
+generate region = 1 + floor(runiform()*4)
+generate age = 18 + floor(runiform()*50)
+generate educ = 1 + floor(runiform()*4)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "College+"
+label values educ ed
+generate employed = runiform() < .6
+generate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())
+generate hours = 20 + 20*runiform()
+regress income ib2.educ age
+estat vce, corr
+estat vce, correlation
+estat vce, covariance
+regress income ib(first).educ age
+regress income ib(last).educ age
+regress income ibn.educ age, noconstant
+regress income ib(freq).educ age
+regress income b2.educ age
+regress income ib(#2).educ age
+regress income ib3.educ##c.age
+capture noisily regress income ib(#7).educ age
+logit employed ib4.educ
+regress income age hours
+estat vce, corr
+=== svy-subpop-values-and-notes
+clear
+set seed 2468
+set obs 400
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate school = region*100 + 1 + floor(runiform()*6)
+generate wt = 0.5 + 3*runiform()
+generate age = 18 + floor(runiform()*50)
+generate educ = 1 + floor(runiform()*4)
+label define ed 1 "Less than HS" 2 "HS" 3 "Some college" 4 "College+"
+label values educ ed
+generate employed = runiform() < .6
+label define yn 0 "No" 1 "Yes"
+label values employed yn
+generate income = 20000 + 300*age + 2000*educ + 8000*invnormal(runiform())
+generate hours = 20 + 20*runiform()
+replace income = . if runiform() < .05
+replace hours = . if runiform() < .03
+generate sex = cond(runiform()<.5, "male", "female")
+svyset school [pweight=wt], strata(region)
+generate sub2 = cond(age > 50, 2, cond(age < 25, ., 0))
+svy, subpop(sub2): mean income
+svy, subpop(sub2): total income
+svy, subpop(sub2): ratio income/hours
+svy, subpop(sub2): proportion educ
+svy, subpop(sub2): tabulate educ
+svy, subpop(sub2): regress income age
+svy, subpop(sub2): logit employed age
+svy, subpop(sub2 if educ > 2): mean income
+replace wt = 0 in 1/3
+svy, subpop(sub2): mean income
+svy, subpop(sub2): regress income age
+svy, subpop(sub2): tabulate educ
+svy, subpop(sub2): proportion educ
+replace wt = 1 in 1/3
+replace wt = 0 if school == 101 & employed == 1
+svy, subpop(sub2): mean income
+svy, subpop(sub2): mean age
+svy, subpop(sub2): regress income age
+svy, subpop(sub2): proportion educ

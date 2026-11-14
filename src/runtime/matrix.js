@@ -13,10 +13,16 @@ function fromEstimates(session, kind, name) {
     const model = session.estimates;
     if (!model) throw new StataError("last estimates not found", 301);
     // A variable omitted for collinearity is o.name in the stripe.
+    // So is a factor's level, as 1o.reg, when it is not the base.
     const names = model.names.map((n, k) =>
       model.columns?.[k]?.term?.variable && !model.estimable?.[k]
         ? `o.${n}`
-        : n,
+        : model.columns?.[k]?.term?.factor &&
+            !model.estimable?.[k] &&
+            !model.columns[k].base &&
+            /^\d+\./.test(n)
+          ? n.replace(".", "o.")
+          : n,
     );
     if (name === "b")
       return {

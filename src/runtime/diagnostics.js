@@ -261,16 +261,39 @@ function imtest(session, model, text, ctx) {
 }
 
 function vce(session, model, text, ctx) {
+  const { options } = session.parse(
+      "[, COVariance CORRelation | EQuation(string) BLOCK DIAG FORmat(string) NOLines]",
+      text,
+    ),
+    correlation = !!options.correlation;
+  if (correlation && options.covariance)
+    throw new StataError(
+      "options covariance and correlation may not be combined",
+      198,
+    );
   const used = model.names.map((_, k) => k).filter((k) => model.estimable[k]),
-    wide = (value) => applyFormat(value, "%10.0g").trim().padStart(11);
+    // The correlation matrix is shown to four decimals in columns of ten,
+    // the covariance matrix in %10.0g in columns of twelve.
+    size = correlation ? 10 : 12,
+    value = (r, c) =>
+      correlation
+        ? model.V[r][c] / Math.sqrt(model.V[r][r] * model.V[c][c])
+        : model.V[r][c],
+    wide = (v) =>
+      (correlation
+        ? applyFormat(v, "%9.4f").trim()
+        : applyFormat(v, "%10.0g").trim()
+      ).padStart(size - 1);
   ctx.out("");
-  ctx.out(`Covariance matrix of coefficients of ${model.command} model`);
+  ctx.out(
+    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.command} model`,
+  );
   ctx.out("");
   // A factor level's name is split over two lines: 2. above g.
   const parts = used.map((k) => /^(\d+\.)(\w+)$/.exec(model.names[k])),
     heading = (items) =>
       items
-        .map((item) => item.padStart(12))
+        .map((item) => item.padStart(size))
         .join("")
         .slice(1);
   if (parts.some(Boolean))
@@ -278,12 +301,12 @@ function vce(session, model, text, ctx) {
   ctx.out(
     `${"e(V)".padStart(12)} |${heading(parts.map((m, j) => (m ? m[2] : model.names[used[j]])))} `,
   );
-  ctx.out(`-------------+${"-".repeat(12 * used.length - 1)}`);
+  ctx.out(`-------------+${"-".repeat(size * used.length - 1)}`);
   used.forEach((r, a) =>
     ctx.out(
       `${model.names[r].padStart(12)} |${used
         .map((c, b) =>
-          b <= a ? wide(model.V[r][c]).padStart(12) : " ".repeat(12),
+          b <= a ? wide(value(r, c)).padStart(size) : " ".repeat(size),
         )
         .join("")
         .slice(1)} `,

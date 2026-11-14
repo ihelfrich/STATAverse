@@ -32,7 +32,13 @@ import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
 import { DATA_COMMANDS } from "./data-commands.js";
-import { GUARDED_AFTER_SVY, SVY_COMMANDS, guardAfterSvy } from "./svy.js";
+import {
+  GUARDED_AFTER_SVY,
+  REPLAYED_AFTER_SVY,
+  SVY_COMMANDS,
+  guardAfterSvy,
+  replayAfterSvy,
+} from "./svy.js";
 import {
   count,
   countCommand,
@@ -1912,6 +1918,19 @@ COMMANDS.forEach((c, k) => {
       guardAfterSvy(session, c.name, text);
       return c.run(session, text, ctx);
     },
+  };
+});
+// After a svy estimate, the estimation command typed alone shows it again,
+// and ereturn display shows its coefficient table.
+COMMANDS.forEach((c, k) => {
+  if (!REPLAYED_AFTER_SVY.has(c.name)) return;
+  const run = COMMANDS[k].run;
+  COMMANDS[k] = {
+    ...COMMANDS[k],
+    run: (session, text, ctx) =>
+      replayAfterSvy(session, c.name, text, ctx)
+        ? undefined
+        : run(session, text, ctx),
   };
 });
 function findCommandName(session, word) {
