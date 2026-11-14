@@ -10,10 +10,16 @@ import { compileExpression } from "./expression.js";
 import { applySyntax } from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
-import { applyFormat, stringOf } from "./format.js";
-import { formatNumber } from "./values.js";
+import { applyFormat, parseFormat, stringOf } from "./format.js";
+import {
+  MISSING,
+  defaultFormat,
+  formatNumber,
+  isStringType,
+} from "./values.js";
 import { COMMANDS, extendedFunction } from "./commands.js";
-import { changed, markChanged } from "./data-commands.js";
+import { changed, fold, markChanged } from "./data-commands.js";
+import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientIndex } from "./estimation.js";
@@ -955,12 +961,19 @@ export class Session {
   }
 
   // ----- data entry -----
+  /**
+   * input: the rows of an input block become observations. As in Stata's
+   * log, input echoes a header of the variables, each right-aligned in its
+   * display width plus two, then each row as typed, numbered, and the end
+   * that closes it. A row with a value that is not a number is reported
+   * and left out, and the next row takes its number.
+   */
   input(node, frame, output) {
     const header = this.expand(node.text, frame).replace(/^inp(ut?)?\s*/, ""),
       specs = [];
     let type = null;
     for (const token of header.split(/\s+/).filter(Boolean)) {
-      if (/^(byte|int|long|float|double|str\d*|strL)$/.test(token))
+      if (/^(byte|int|long|float|double|str\d+|strL)$/.test(token))
         type = token;
       else {
         specs.push({ name: token, type });
@@ -970,34 +983,86 @@ export class Session {
     const fresh = specs.filter((s) => !this.data.has(s.name));
     if (fresh.length !== specs.length && fresh.length)
       throw new StataError("input may not mix new and existing variables", 198);
-    const rows = node.rows.map((row) => macroWords(this.expand(row, frame)));
-    const start = fresh.length ? 0 : this.data.n;
-    if (
-      fresh.length &&
-      this.data.variables.length &&
-      rows.length !== this.data.n
-    )
+    const adding = fresh.length && this.data.variables.length,
+      text = specs.map((spec) =>
+        fresh.length
+          ? /^str/.test(spec.type ?? "")
+          : isStringType(this.data.get(spec.name).type),
+      ),
+      width = (spec) => {
+        if (!fresh.length)
+          return parseFormat(this.data.get(spec.name).format)?.width ?? 9;
+        const kind = spec.type ?? this.data.defaultType;
+        return parseFormat(defaultFormat(kind)).width;
+      },
+      lines = [""],
+      linesize = this.settings.linesize ?? 80;
+    fold(
+      "   " +
+        specs
+          .map((spec) =>
+            abbreviateName(spec.name, width(spec)).padStart(width(spec) + 2),
+          )
+          .join(""),
+      linesize,
+    ).forEach((line) => lines.push(line));
+    // A row as it was typed: the source line when it is the row, with tabs
+    // set to every eighth column.
+    const typed = (row, r) => {
+      const raw = this.sourceLines?.[(node.rowLines?.[r] ?? 0) - 1];
+      if (raw === undefined || raw.replace(/\s+/g, " ").trim() !== row)
+        return row;
+      let out = "";
+      for (const c of raw.trimEnd())
+        out += c === "\t" ? " ".repeat(8 - (out.length % 8)) : c;
+      return out;
+    };
+    const rows = [];
+    let number = 1;
+    node.rows.forEach((row, r) => {
+      lines.push(`${String(number).padStart(3)}. ${typed(row, r)}`);
+      const cells = macroWords(this.expand(row, frame)),
+        values = [];
+      for (let k = 0; k < specs.length; k++) {
+        const cell = cells[k];
+        if (text[k]) {
+          values.push(cell?.text ?? "");
+          continue;
+        }
+        let value = MISSING;
+        if (cell) {
+          try {
+            value = this.scalar(cell.text);
+          } catch (error) {
+            if (!(error instanceof StataError)) throw error;
+            value = null;
+          }
+          if (typeof value !== "number") {
+            lines.push(`'${cell.text}' cannot be read as a number`);
+            return;
+          }
+        }
+        values.push(value);
+      }
+      rows.push(values);
+      number++;
+    });
+    // New variables for data already there take one row per observation;
+    // Stata reads that many rows and no end.
+    if (adding && rows.length !== this.data.n)
       throw new StataError("input must supply every observation", 198);
-    if (!this.data.variables.length || !fresh.length)
-      this.data.setObservations(start + rows.length);
+    if (!adding) lines.push(`${String(number).padStart(3)}. end`);
+    // New variables that get no values are not created.
+    if (fresh.length && !rows.length && !adding)
+      return this.record(output, node.text, lines, 0);
+    const start = fresh.length ? 0 : this.data.n;
+    if (!adding) this.data.setObservations(start + rows.length);
     specs.forEach((spec, k) => {
-      const text = spec.type ? /^str/.test(spec.type) : false,
-        values = rows.map((row) => {
-          const cell = row[k];
-          if (text) return cell?.text ?? "";
-          if (!cell) return this.scalar(".");
-          const value = this.scalar(cell.text);
-          if (typeof value === "string")
-            throw new StataError(
-              `'${cell.text}' cannot be read as a number`,
-              198,
-            );
-          return value;
-        });
+      const values = rows.map((row) => row[k]);
       if (fresh.length)
         this.data.generate(spec.name, values, {
-          type: spec.type && spec.type !== "str" ? spec.type : undefined,
-          string: text,
+          type: spec.type ?? undefined,
+          string: text[k],
         });
       else {
         const all = Array.from(this.data.get(spec.name).data);
@@ -1009,6 +1074,6 @@ export class Session {
         );
       }
     });
-    this.record(output, node.text, [], 0);
+    this.record(output, node.text, lines, 0);
   }
 }

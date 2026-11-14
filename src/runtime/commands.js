@@ -14,7 +14,11 @@ import { ESTIMATION_COMMANDS } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
-import { EVERYDAY_COMMANDS } from "./everyday.js";
+import {
+  EVERYDAY_COMMANDS,
+  labelSubcommand,
+  widenForLabel,
+} from "./everyday.js";
 import { MORE_ESTIMATORS } from "./more-estimators.js";
 import { TEST_COMMANDS } from "./tests.js";
 import { DATA_UTILITIES } from "./data-utilities.js";
@@ -40,7 +44,7 @@ import {
   remade,
   settle,
 } from "./data-commands.js";
-import { describe } from "./data-utilities.js";
+import { describe, renameGroup } from "./data-utilities.js";
 import { characteristicsOf } from "./store.js";
 import {
   GUARDED_AFTER_SVY,
@@ -400,8 +404,14 @@ export function displayText(session, text, asMacro = false) {
 
 // ----- generate and replace -----
 function generate(session, text, ctx) {
-  const parsed = session.parse("newvarname =exp [if] [in]", text),
-    compiled = session.compile(parsed.exp),
+  const parsed = session.parse(
+      "newvarname =exp [if] [in] [, Before(varname) After(varname)]",
+      text,
+    ),
+    { before, after } = parsed.options;
+  if (before && after)
+    throw new StataError("before() may not be combined with after()", 198);
+  const compiled = session.compile(parsed.exp),
     string = compiled.type === "string",
     name = parsed.varlist[0],
     typed = parsed.typed[0],
@@ -421,6 +431,12 @@ function generate(session, text, ctx) {
     });
   session.data.sortedBy = sorted;
   if (parsed.labels[0]) session.data.get(name).valueLabel = parsed.labels[0];
+  // before() and after() place the new variable next to another one.
+  if (before || after) {
+    const rest = session.data.names.filter((other) => other !== name),
+      at = rest.indexOf(before ?? after) + (after ? 1 : 0);
+    session.data.order([...rest.slice(0, at), name, ...rest.slice(at)]);
+  }
   if (result.missing)
     ctx.out(
       `(${count(result.missing)} missing value${result.missing === 1 ? "" : "s"} generated)`,
@@ -531,52 +547,18 @@ function gsort(session, text) {
   if (!keys.length) throw new StataError("varlist required", 100);
   session.data.sort(keys);
 }
-function rename(session, text) {
-  const data = session.data,
-    [head, optionText] = splitAtComma(text),
-    option = (optionText ?? "").trim();
-  // rename varlist, lower | upper | proper
-  if (option) {
-    const change = /^l(o(w(er?)?)?)?$/.test(option)
-      ? (name) => name.toLowerCase()
-      : /^u(p(p(er?)?)?)?$/.test(option)
-        ? (name) => name.toUpperCase()
-        : /^p(r(o(p(er?)?)?)?)?$/.test(option)
-          ? (name) => name[0].toUpperCase() + name.slice(1).toLowerCase()
-          : null;
-    if (!change) throw new StataError(`option ${option} not allowed`, 198);
-    const names = session.varlist(head),
-      planned = names.map(change),
-      others = data.names.filter((name) => !names.includes(name));
-    for (const name of planned)
-      if (others.includes(name) || planned.filter((n) => n === name).length > 1)
-        throw new StataError(`variable ${name} already defined`, 110);
-    names.forEach((name, k) => {
-      if (planned[k] !== name) data.get(name).name = planned[k];
-    });
-    data.sortedBy = data.sortedBy.map(
-      (name) => planned[names.indexOf(name)] ?? name,
-    );
-    return;
-  }
-  // rename (a b) (c d)
-  const groups = /^\s*\(([^)]*)\)\s*\(([^)]*)\)\s*$/.exec(head);
-  if (groups) {
-    const from = session.varlist(groups[1]),
-      to = groups[2].trim().split(/\s+/).filter(Boolean);
-    if (from.length !== to.length)
-      throw new StataError(
-        "the two lists must have the same number of names",
-        198,
-      );
-    // Rename through temporary names so that swaps work.
-    from.forEach((name, k) => data.rename(name, `__rename${k}`));
-    from.forEach((name, k) => data.rename(`__rename${k}`, to[k]));
-    return;
-  }
-  const words = head.split(/\s+/).filter(Boolean);
-  if (words.length !== 2) throw invalid();
-  data.rename(session.varlist(words[0])[0], words[1]);
+function rename(session, text, ctx) {
+  // Two plain names: Stata's built-in rename, which allows the old name to
+  // be abbreviated. Anything else is rename's group syntax.
+  const words = text.trim().split(/\s+/);
+  if (
+    words.length === 2 &&
+    isName(words[0]) &&
+    isName(words[1]) &&
+    words[0] !== words[1]
+  )
+    return session.data.rename(session.varlist(words[0])[0], words[1]);
+  renameGroup(session, text, ctx);
 }
 function order(session, text) {
   const parsed = session.parse(
@@ -616,6 +598,26 @@ function recast(session, text, ctx) {
 const BYTES = { byte: 1, int: 2, long: 4, float: 4, double: 8 };
 const bytesOf = (type) =>
   BYTES[type] ?? (type === "strL" ? 0 : Number(type.slice(3)));
+/**
+ * The memory Stata counts for a strL variable, as its compress reports it:
+ * 8 bytes for an empty value, 32 for any other, and the length of each
+ * stored text plus 57. A value that repeats the one before it shares that
+ * one's storage, as the values of generate or replace with the same text
+ * do in Stata.
+ */
+function strLBytes(values) {
+  let total = 0;
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+    if (value === "") {
+      total += 8;
+      continue;
+    }
+    total += 32;
+    if (i === 0 || values[i - 1] !== value) total += byteLength(value) + 57;
+  }
+  return total;
+}
 function compress(session, text, ctx) {
   const names = session.parse("[varlist]", text).varlist,
     changes = [];
@@ -626,9 +628,26 @@ function compress(session, text, ctx) {
     const variable = session.data.get(name),
       before = variable.type;
     let target = before;
-    if (isStringType(before)) {
-      if (before !== "strL")
-        target = "str" + Math.max(1, greatest(variable.data.map(byteLength)));
+    if (before === "strL") {
+      // A strL becomes the str# that holds its longest value, unless a value
+      // is binary (holds a null byte) or longer than a str# can be.
+      const widest = Math.max(1, greatest(variable.data.map(byteLength)));
+      if (
+        widest <= MAX_STRING_WIDTH &&
+        !variable.data.some((value) => value.includes("\0"))
+      ) {
+        target = "str" + widest;
+        session.data.recast(name, target, { force: true });
+        saved += strLBytes(variable.data) - widest * session.data.n;
+        changes.push({
+          name,
+          text: `  variable ${name} was strL now ${target}`,
+          pass: 3,
+        });
+      }
+      continue;
+    } else if (isStringType(before)) {
+      target = "str" + Math.max(1, greatest(variable.data.map(byteLength)));
     } else {
       const smallest = inferType(Array.from(variable.data));
       // compress moves to an integer type when it can, and never to float.
@@ -731,32 +750,6 @@ function clear(session, text) {
 
 // ----- reports -----
 
-/**
- * When a value label is attached or grows, Stata widens the %g, %f or %e
- * format of each variable carrying it to the bytes of its longest text,
- * dropping a - or 0 modifier; it never narrows one, and leaves dates and
- * the binary formats alone.
- */
-function widenForLabel(session, name) {
-  const map = session.data.valueLabels.get(name);
-  if (!map) return;
-  let longest = 0;
-  for (const text of map.values())
-    longest = Math.max(longest, byteLength(text));
-  for (const variable of session.data.variables ?? []) {
-    if (variable.valueLabel !== name) continue;
-    const spec = parseFormat(variable.format ?? "");
-    if (
-      spec?.kind !== "number" ||
-      !/^%-?0?\d+\.\d+[gfe]c?$/.test(variable.format)
-    )
-      continue;
-    const width = Math.min(longest, 2045);
-    if (width > spec.width)
-      variable.format = `%${width}.${spec.digits}${spec.style}${spec.commas ? "c" : ""}`;
-  }
-}
-
 // ----- labels and formats -----
 function label(session, text, ctx) {
   const data = session.data;
@@ -833,7 +826,7 @@ function label(session, text, ctx) {
     const names = [...data.valueLabels.keys()].reverse();
     names.forEach((name) => ctx.out(name));
     session.results.r = names.length ? { names: names.join(" ") } : {};
-  } else throw invalid();
+  } else if (!labelSubcommand(session, text, ctx)) throw invalid();
 }
 /**
  * label list: each label's values in order, right-aligned in twelve columns,
@@ -1264,6 +1257,11 @@ function egen(session, text, ctx) {
     throw new StataError(`egen ... ${fcn}() may not be combined with by`, 190);
   if (parsed.options.field && parsed.options.track)
     throw invalid("only one of options field or track is allowed");
+  // _gpctile.ado takes a percentile strictly between 0 and 100.
+  if (fcn === "pctile" && !(parsed.options.p > 0 && parsed.options.p < 100))
+    throw invalid(
+      `p(${formatNumber(parsed.options.p)}) must be between 0 and 100`,
+    );
   // With no observations and by(), Stata's egen finds nothing to work on.
   if (!data.n && (parsed.options.by || ctx.by))
     throw new StataError("no observations to group", 111);
@@ -1435,6 +1433,13 @@ function egen(session, text, ctx) {
       if (parsed.options.group) {
         if (parsed.options.at)
           throw invalid("cannot specify both at() and group() option");
+        // pctile's limits on nquantiles(), counted over all observations.
+        if (parsed.options.group < 2)
+          throw invalid("nquantiles() must be greater than or equal to 2");
+        if (parsed.options.group > data.n + 1)
+          throw invalid(
+            "nquantiles() must be less than or equal to number of observations plus one",
+          );
         // Groups of roughly equal size, numbered from 0, divided at the
         // quantiles pctile reports.
         const sortedValues = rows
@@ -1529,12 +1534,23 @@ function collapse(session, text, ctx) {
     // [aweight=exp] and the like, wherever it stands before the comma.
     weightClause = /\[\s*([A-Za-z]+)\s*=\s*([^\]]+)\]/.exec(fullHead),
     head = weightClause ? fullHead.replace(weightClause[0], " ") : fullHead,
+    // [weight=exp], or w for short, is an analytic weight, as collapse's
+    // syntax lists aweights first; frequency and cellsize are the long
+    // names of fweight and aweight.
+    weightWord = weightClause?.[1] ?? "",
     weightType = weightClause
-      ? ["fweight", "aweight", "pweight", "iweight"].find(
-          (name) =>
-            name.startsWith(weightClause[1].toLowerCase()) &&
-            weightClause[1].length >= 2,
-        )
+      ? [
+          ["fweight", 2, "fweight"],
+          ["frequency", 4, "fweight"],
+          ["aweight", 2, "aweight"],
+          ["cellsize", 4, "aweight"],
+          ["pweight", 2, "pweight"],
+          ["iweight", 2, "iweight"],
+          ["weight", 1, "aweight"],
+        ].find(
+          ([full, shortest]) =>
+            weightWord.length >= shortest && full.startsWith(weightWord),
+        )?.[2]
       : null,
     optionText = optionSplit ?? "",
     parsed = session.parse(
@@ -1578,6 +1594,8 @@ function collapse(session, text, ctx) {
     typeof column[i] === "string" ? column[i] === "" : isMissing(column[i]);
   if (weightClause && !weightType)
     throw new StataError(`${weightClause[1]} is not a kind of weight`, 198);
+  if (weightType && "weight".startsWith(weightWord))
+    ctx.out("(analytic weights assumed)");
   const weights = weightType
     ? evaluateAll(session.compile(weightClause[2]), data.n)
     : null;

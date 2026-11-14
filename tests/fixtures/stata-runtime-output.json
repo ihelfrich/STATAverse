@@ -99004,6 +99004,2445 @@
       ]
     },
     {
+      "id": "fix6-datamgmt-numlabel",
+      "source": "clear\ninput byte sex\n1\n2\n.\n.a\n.b\nend\nlabel define sexlbl 1 \"Male\" 2 \"Female\" .a \"Refused\"\nlabel values sex sexlbl\nlabel define b 1 \"one\" 2 \"two\"\nnumlabel sexlbl, add\nlabel list sexlbl\nlist sex\ntabulate sex, missing\ndescribe sex\nnumlabel, add\nnumlabel sexlbl, remove\nlabel list\nnumlabel sexlbl, add mask(\"[#] \")\nlabel list sexlbl\nnumlabel, remove mask(\"[#] \")\nlabel define b 1 \"1. one\", modify\ncapture noisily numlabel b, add\ncapture noisily numlabel b, add detail\nnumlabel b, add force\nlabel list b\ncapture noisily numlabel b, add remove\ncapture noisily numlabel b\ncapture noisily numlabel b, add mask(\"##\")\ncapture noisily numlabel nosuch, add\nlabel dir\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte sex",
+          "lines": [
+            "          sex",
+            "  1. 1",
+            "  2. 2",
+            "  3. .",
+            "  4. .a",
+            "  5. .b",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "label define sexlbl 1 \"Male\" 2 \"Female\" .a \"Refused\"",
+          "lines": []
+        },
+        { "command": "label values sex sexlbl", "lines": [] },
+        { "command": "label define b 1 \"one\" 2 \"two\"", "lines": [] },
+        { "command": "numlabel sexlbl, add", "lines": [] },
+        {
+          "command": "label list sexlbl",
+          "lines": [
+            "sexlbl:",
+            "           1 1. Male",
+            "           2 2. Female",
+            "          .a .a. Refused"
+          ]
+        },
+        {
+          "command": "list sex",
+          "lines": [
+            "     +-------------+",
+            "     |         sex |",
+            "     |-------------|",
+            "  1. |     1. Male |",
+            "  2. |   2. Female |",
+            "  3. |           . |",
+            "  4. | .a. Refused |",
+            "  5. |          .b |",
+            "     +-------------+"
+          ]
+        },
+        {
+          "command": "tabulate sex, missing",
+          "lines": [
+            "        sex |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "    1. Male |          1       20.00       20.00",
+            "  2. Female |          1       20.00       40.00",
+            "          . |          1       20.00       60.00",
+            ".a. Refused |          1       20.00       80.00",
+            "         .b |          1       20.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          5      100.00"
+          ]
+        },
+        {
+          "command": "describe sex",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             byte    %11.0g     sexlbl"
+          ]
+        },
+        { "command": "numlabel, add", "lines": [] },
+        { "command": "numlabel sexlbl, remove", "lines": [] },
+        {
+          "command": "label list",
+          "lines": [
+            "sexlbl:",
+            "           1 Male",
+            "           2 Female",
+            "          .a Refused",
+            "b:",
+            "           1 1. one",
+            "           2 2. two"
+          ]
+        },
+        { "command": "numlabel sexlbl, add mask(\"[#] \")", "lines": [] },
+        {
+          "command": "label list sexlbl",
+          "lines": [
+            "sexlbl:",
+            "           1 [1] Male",
+            "           2 [2] Female",
+            "          .a [.a] Refused"
+          ]
+        },
+        { "command": "numlabel, remove mask(\"[#] \")", "lines": [] },
+        { "command": "label define b 1 \"1. one\", modify", "lines": [] },
+        {
+          "command": "capture noisily numlabel b, add",
+          "lines": ["(no value label to be modified)"]
+        },
+        {
+          "command": "capture noisily numlabel b, add detail",
+          "lines": ["(no value label to be modified)"]
+        },
+        {
+          "command": "numlabel b, add force",
+          "lines": ["(no value label to be modified)"]
+        },
+        {
+          "command": "label list b",
+          "lines": ["b:", "           1 1. one", "           2 2. two"]
+        },
+        {
+          "command": "capture noisily numlabel b, add remove",
+          "lines": ["options add and remove must not be both specified"]
+        },
+        {
+          "command": "capture noisily numlabel b",
+          "lines": ["option add or remove should be specified"]
+        },
+        {
+          "command": "capture noisily numlabel b, add mask(\"##\")",
+          "lines": ["mask ## should contain 1 substitution char #"]
+        },
+        {
+          "command": "capture noisily numlabel nosuch, add",
+          "lines": ["value label nosuch not found"]
+        },
+        { "command": "label dir", "lines": ["b", "sexlbl"] }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-compress-strl",
+      "source": "clear\nset obs 5\ngenerate strL essay = \"short text \" + string(_n)\nreplace essay = essay + \"x\" in 3\ngenerate long id = _n\ncompress\ndescribe essay\nclear\nset obs 4\ngenerate strL s = \"x\" + string(_n)\ngenerate str20 t = \"y\"\ngenerate long id = _n\ngenerate double d = 1.5\ncompress\ndescribe\nclear\nset obs 5\ngenerate strL s = \"same value here\"\ncompress s\nclear\nset obs 5\ngenerate strL s = \"\"\nreplace s = \"abc\" in 4/5\ncompress\nclear\nset obs 4\ngenerate strL s = cond(mod(_n, 2), \"aaaa\", \"bbbb\")\ncompress\nclear\nset obs 3\ngenerate strL s = 3000 * \"a\"\ncompress\ndescribe\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        {
+          "command": "generate strL essay = \"short text \" + string(_n)",
+          "lines": []
+        },
+        {
+          "command": "replace essay = essay + \"x\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate long id = _n", "lines": [] },
+        {
+          "command": "compress",
+          "lines": [
+            "  variable id was long now byte",
+            "  variable essay was strL now str13",
+            "  (456 bytes saved)"
+          ]
+        },
+        {
+          "command": "describe essay",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "essay           str13   %13s"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate strL s = \"x\" + string(_n)", "lines": [] },
+        { "command": "generate str20 t = \"y\"", "lines": [] },
+        { "command": "generate long id = _n", "lines": [] },
+        { "command": "generate double d = 1.5", "lines": [] },
+        {
+          "command": "compress",
+          "lines": [
+            "  variable id was long now byte",
+            "  variable t was str20 now str1",
+            "  variable s was strL now str2",
+            "  (444 bytes saved)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             4",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               str2    %9s",
+            "t               str1    %9s",
+            "id              byte    %12.0g",
+            "d               double  %10.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate strL s = \"same value here\"", "lines": [] },
+        {
+          "command": "compress s",
+          "lines": ["  variable s was strL now str15", "  (157 bytes saved)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        {
+          "command": "generate strL s = \"\"",
+          "lines": ["(5 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"abc\" in 4/5",
+          "lines": ["(2 real changes made)"]
+        },
+        {
+          "command": "compress",
+          "lines": ["  variable s was strL now str3", "  (133 bytes saved)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate strL s = cond(mod(_n, 2), \"aaaa\", \"bbbb\")",
+          "lines": []
+        },
+        {
+          "command": "compress",
+          "lines": ["  variable s was strL now str4", "  (356 bytes saved)"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate strL s = 3000 * \"a\"", "lines": [] },
+        { "command": "compress", "lines": ["  (0 bytes saved)"] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             1",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               strL    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-rename-groups",
+      "source": "clear\nset obs 1\ngenerate inc2019 = 1\ngenerate inc2020 = 1\ngenerate x1 = 1\ngenerate janstat = 1\ngenerate janinc = 1\ngenerate jans = 1\ngenerate v1 = 1\ngenerate v10 = 1\ngenerate v2 = 1\ngenerate v01 = 1\ngenerate stat10 = 1\ngenerate a12 = 1\ngenerate a13 = 1\ngenerate bpstata = 1\ngenerate mid_jan_inc = 1\ngenerate _tmp = 1\npreserve\ncapture noisily rename inc* income*\ndescribe, simple\nrestore, preserve\ncapture noisily rename * *_v\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020) =_z\ndescribe, simple\nrestore, preserve\ncapture noisily rename i* I*\ndescribe, simple\nrestore, preserve\ncapture noisily rename *2019 y2019*\ndescribe, simple\nrestore, preserve\ncapture noisily rename jan* *1\ndescribe, simple\nrestore, preserve\ncapture noisily rename jan? ?1\ndescribe, simple\nrestore, preserve\ncapture noisily rename *jan* **\ndescribe, simple\nrestore, preserve\ncapture noisily rename *jan* *\ndescribe, simple\nrestore, preserve\ncapture noisily rename *jan* .*\ndescribe, simple\nrestore, preserve\ncapture noisily rename *stat pre=\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 x1) admit=\ndescribe, simple\nrestore, preserve\ncapture noisily rename x1 pre=fix\ndescribe, simple\nrestore, preserve\ncapture noisily rename v# stat#\ndescribe, simple\nrestore, preserve\ncapture noisily rename v(#) stat(#)\ndescribe, simple\nrestore, preserve\ncapture noisily rename v# v(##)\ndescribe, simple\nrestore, preserve\ncapture noisily rename v(##) v(#)\ndescribe, simple\nrestore, preserve\ncapture noisily rename stat(##) stat_20(##)\ndescribe, simple\nrestore, preserve\ncapture noisily rename v(#)# (a b)\ndescribe, simple\nrestore, preserve\ncapture noisily rename v# v#, renumber\ndescribe, simple\nrestore, preserve\ncapture noisily rename jan* v#, renumber\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020 x1) v#, addnumber\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020 x1) v#, addnumber(5)\ndescribe, simple\nrestore, preserve\ncapture noisily rename a(#)(#) a(#)[2](#)[1]\ndescribe, simple\nrestore, preserve\ncapture noisily rename *stat* *[2]stat*[1]\ndescribe, simple\nrestore, preserve\ncapture noisily rename nosuch* y*\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc2019 x1\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc2019 1abc\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020) (a)\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020) (a b c)\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc2019 inc2019\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020) (inc2020 inc2019)\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc2019 income, dryrun\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 inc2020) (inc2020 inc2019), dryrun\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 x1 v1) (inc2019 x1 v1), dryrun\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc* y*, dryrun\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc*, upper\ndescribe, simple\nrestore, preserve\ncapture noisily rename *, proper\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc*, upper lower\ndescribe, simple\nrestore, preserve\ncapture noisily rename i*20* *20*_*\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc# inc_#\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc#9 inc#\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc* a?\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc* a#b#, renumber\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc** a\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc= a\ndescribe, simple\nrestore, preserve\ncapture noisily rename v(###) w(###)\ndescribe, simple\nrestore, preserve\ncapture noisily rename inc2019 x1 v1\ndescribe, simple\nrestore, preserve\ncapture noisily rename (inc2019 x1 v1) (1a 2b 3c)\ndescribe, simple\nrestore, preserve\ncapture noisily rename * x#, addnumber\ndescribe, simple\nrestore, preserve\nrename inc* y*, r\nreturn list\nrestore\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate inc2019 = 1", "lines": [] },
+        { "command": "generate inc2020 = 1", "lines": [] },
+        { "command": "generate x1 = 1", "lines": [] },
+        { "command": "generate janstat = 1", "lines": [] },
+        { "command": "generate janinc = 1", "lines": [] },
+        { "command": "generate jans = 1", "lines": [] },
+        { "command": "generate v1 = 1", "lines": [] },
+        { "command": "generate v10 = 1", "lines": [] },
+        { "command": "generate v2 = 1", "lines": [] },
+        { "command": "generate v01 = 1", "lines": [] },
+        { "command": "generate stat10 = 1", "lines": [] },
+        { "command": "generate a12 = 1", "lines": [] },
+        { "command": "generate a13 = 1", "lines": [] },
+        { "command": "generate bpstata = 1", "lines": [] },
+        { "command": "generate mid_jan_inc = 1", "lines": [] },
+        { "command": "generate _tmp = 1", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "capture noisily rename inc* income*", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "income2019   x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "income2020   janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename * *_v", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019_v     x1_v          janinc_v      v1_v          v2_v          stat10_v      a13_v         mid_jan_in~v",
+            "inc2020_v     janstat_v     jans_v        v10_v         v01_v         a12_v         bpstata_v     _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020) =_z",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019_z    x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020_z    janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename i* I*", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "Inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "Inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename *2019 y2019*", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "y2019inc     x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename jan* *1", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           inc1         v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      stat1        s1           v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename jan? ?1", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      s1           v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename *jan* **", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019   inc2020   x1        stat      inc       s         v1        v10       v2        v01       stat10    a12       a13       bpstata   mid__inc  _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename *jan* *",
+          "lines": [
+            "3 new variable names invalid",
+            "    You attempted to rename janstat to , janinc to , ...  Those are invalid Stata variable names."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename *jan* .*", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019  inc2020  x1       stat     inc      s        v1       v10      v2       v01      stat10   a12      a13      bpstata  _inc     _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename *stat pre=", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      prejanstat   jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 x1) admit=",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "admitinc2019  admitx1       janinc        v1            v2            stat10        a13           mid_jan_inc",
+            "inc2020       janstat       jans          v10           v01           a12           bpstata       _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename x1 pre=fix", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      prex1fix     janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename v# stat#",
+          "lines": [
+            "1 variable already exists",
+            "    You requested that variable v10 be renamed stat10.  stat10 is already an existing variable in the data."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename v(#) stat(#)", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       stat1        stat2        stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename v# v(##)",
+          "lines": [
+            "1 new name specified repeatedly in newname",
+            "    You requested the name v01 be assigned to 2 existing variables:  v1 and v01."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename v(##) v(#)",
+          "lines": [
+            "1 variable already exists",
+            "    You requested that variable v01 be renamed v1.  v1 is already an existing variable in the data."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename stat(##) stat_20(##)",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat_2010    a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename v(#)# (a b)", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         a            b            a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename v# v#, renumber", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v3           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v2           v4           a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename jan* v#, renumber",
+          "lines": [
+            "2 variables already exist",
+            "    For instance, you requested that variable janstat be renamed v1.  v1 is already an existing variable in the data.  The variables you specified that already exist are v1 and v2."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020 x1) v#, addnumber",
+          "lines": [
+            "2 variables already exist",
+            "    For instance, you requested that variable inc2019 be renamed v1.  v1 is already an existing variable in the data.  The variables you specified that already exist are v1 and v2."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020 x1) v#, addnumber(5)",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "v5           v7           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "v6           janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename a(#)(#) a(#)[2](#)[1]",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a31          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a21          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename *stat* *[2]stat*[1]",
+          "lines": [
+            "1 new variable name invalid",
+            "    You attempted to rename stat10 to 10stat.  That is an invalid Stata variable name."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename nosuch* y*",
+          "lines": ["variable nosuch* not found"]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc2019 x1",
+          "lines": ["variable x1 already defined"]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc2019 1abc",
+          "lines": [
+            "1 new variable name invalid",
+            "    You attempted to rename inc2019 to 1abc.  That is an invalid Stata variable name."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020) (a)",
+          "lines": [
+            "1 new name specified repeatedly in newname",
+            "    You requested the name a be assigned to 2 existing variables:  inc2019 and inc2020."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020) (a b c)",
+          "lines": [
+            "corresponding oldnames and newnames mismatch",
+            "    You specified or implied 2 oldnames and 3 newnames;"
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc2019 inc2019",
+          "lines": ["  (all newnames==oldnames)"]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020) (inc2020 inc2019)",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2020      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2019      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc2019 income, dryrun",
+          "lines": [
+            "   oldname | newname",
+            "  ---------+---------",
+            "   inc2019 | income",
+            "  -------------------"
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 inc2020) (inc2020 inc2019), dryrun",
+          "lines": [
+            "   oldname | newname",
+            "  ---------+---------",
+            "   inc2019 | inc2020",
+            "   inc2020 | inc2019",
+            "  -------------------",
+            "  Note: 2 names appear in both the oldname and newname columns.  Existing variable inc2019 would be renamed inc2020 and existing variable inc2020 would be renamed inc2019.  rename can handle that."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 x1 v1) (inc2019 x1 v1), dryrun",
+          "lines": [
+            "   oldname | newname",
+            "  ---------+---------",
+            "   inc2019 | inc2019",
+            "        x1 | x1",
+            "        v1 | v1",
+            "  -------------------",
+            "  Note: 3 variables would be renamed to themselves.  For instance, variable inc2019 would be renamed inc2019.  rename can handle that."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc* y*, dryrun",
+          "lines": [
+            "   oldname | newname",
+            "  ---------+---------",
+            "   inc2019 | y2019",
+            "   inc2020 | y2020",
+            "  -------------------"
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename inc*, upper", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "INC2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "INC2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename *, proper", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "Inc2019      X1           Janinc       V1           V2           Stat10       A13          Mid_Jan_Inc",
+            "Inc2020      Janstat      Jans         V10          V01          A12          Bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc*, upper lower",
+          "lines": ["options upper and lower cannot be specified together"]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename i*20* *20*_*",
+          "lines": [
+            "too many wildcards in newname",
+            "    You requested i*20* be renamed *20*_*.  There are more wildcards in new than in old.  Wildcards in old and new correspond one-to-one from left-to-right unless you specify explicit subscripts in",
+            "    new.  Anyway, rename ran out of wildcards in old when matching the wildcards in new.  Perhaps you just made a mistake or perhaps you forgot an explicit subscript in new.  Or perhaps you forgot",
+            "    to specify option addnumber, which allows you to specify an extra #, (#), (##), ..."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename inc# inc_#", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc_2019     x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc_2020     janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename inc#9 inc#", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc201       x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc* a?",
+          "lines": [
+            "? in newname incompatible with * in oldname",
+            "    You requested inc* be renamed a?.  Only ? or . in newname are compatible with ? in oldname.  ? means substitute the character here.  . means to skip substituting the character altogether."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc* a#b#, renumber",
+          "lines": [
+            "more than one # specifier in newname",
+            "    You specified newname a#b# and you specified option renumber.  Only one # specifier may appear in newname in this case.  The one # may be specified in any of its guises: #, (#), (##), ...  You",
+            "    can have more than one # in oldname to filter which variables are renamed if you wish.  In that case, you must match those extra #s in oldname with * in newname.  For example, you could specify",
+            "    rename y#m# y*m#, renumber and there would.  be no confusion as to which # in newname the renumber refers."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc** a",
+          "lines": [
+            "** not allowed in oldname",
+            "    Syntax is rename oldname newname",
+            "    * in oldname means 0 or more characters go here.  * is greedy, e.g., l*a matches la and it matches louisiana.  ** would have no meaning because the second * would always match 0 characters."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc= a",
+          "lines": [
+            "= not allowed in oldname",
+            "    Syntax is rename oldname newname",
+            "    You used = in oldname, not newname.  = is used in newname to indicate that the entire old name goes here.  E.g., \"rename *pop a=\" adds an a to the front of every variable that ends in pop."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename v(###) w(###)",
+          "lines": ["variable v??? not found"]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename inc2019 x1 v1",
+          "lines": [
+            "syntax error",
+            "    Syntax is",
+            "        rename  oldname    newname   [, renumber[(#)] addnumber[(#)] sort ...]",
+            "        rename (oldnames) (newnames) [, renumber[(#)] addnumber[(#)] sort ...]",
+            "        rename  oldnames              , {upper|lower|proper}"
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "capture noisily rename (inc2019 x1 v1) (1a 2b 3c)",
+          "lines": [
+            "oldnames and newnames do not match",
+            "    You specified 1 pattern or name for oldname and 3 patterns or names for newnames."
+          ]
+        },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "inc2019      x1           janinc       v1           v2           stat10       a13          mid_jan_inc",
+            "inc2020      janstat      jans         v10          v01          a12          bpstata      _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "capture noisily rename * x#, addnumber", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "x1    x2    x3    x4    x5    x6    x7    x8    x9    x10   x11   x12   x13   x14   x15   _tmp"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "rename inc* y*, r", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(n) =  2",
+            "",
+            "macros:",
+            "           r(oldnames) : \"inc2019 inc2020\"",
+            "           r(newnames) : \"y2019 y2020\""
+          ]
+        },
+        { "command": "restore", "lines": [] }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-collapse-weight",
+      "source": "clear\nset seed 12345\nset obs 12\ngenerate id = _n\ngenerate sex = mod(_n, 2)\ngenerate score = 20 + 15 * runiform()\ngenerate income = 1000 * runiform()\npreserve\ncollapse (mean) score [w=id], by(sex)\nlist\nrestore, preserve\ncollapse (mean) score [weight=income], by(sex)\nlist\nrestore, preserve\ncollapse (sum) score (count) n=score [w=id], by(sex)\nlist\nrestore, preserve\ncollapse (mean) score [freq=id], by(sex)\nlist\nrestore\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate sex = mod(_n, 2)", "lines": [] },
+        { "command": "generate score = 20 + 15 * runiform()", "lines": [] },
+        { "command": "generate income = 1000 * runiform()", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (mean) score [w=id], by(sex)",
+          "lines": ["(analytic weights assumed)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     | sex      score |",
+            "     |----------------|",
+            "  1. |   0   24.29473 |",
+            "  2. |   1   24.06918 |",
+            "     +----------------+"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "collapse (mean) score [weight=income], by(sex)",
+          "lines": ["(analytic weights assumed)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     | sex      score |",
+            "     |----------------|",
+            "  1. |   0   24.30686 |",
+            "  2. |   1   25.83001 |",
+            "     +----------------+"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        {
+          "command": "collapse (sum) score (count) n=score [w=id], by(sex)",
+          "lines": [
+            "(analytic weights assumed)",
+            "(note: aweights not used to compute counts)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     | sex      score   n |",
+            "     |--------------------|",
+            "  1. |   0   145.7684   6 |",
+            "  2. |   1    144.415   6 |",
+            "     +--------------------+"
+          ]
+        },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "collapse (mean) score [freq=id], by(sex)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     | sex      score |",
+            "     |----------------|",
+            "  1. |   0   24.29473 |",
+            "  2. |   1   24.06918 |",
+            "     +----------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-decode-maxlength",
+      "source": "clear\nset obs 4\ngenerate byte g = mod(_n, 2)\nlabel define gl 0 \"Alpha\" 1 \"Betaville\"\nlabel values g gl\nlabel variable g \"Group\"\ndecode g, generate(s) maxlength(2)\ndescribe s\nlist g s\ndecode g, generate(t) maxlength(3)\ndescribe t\ncapture noisily decode g, generate(u) maxlength(0)\ncapture noisily decode g, generate(u) maxlength(-1)\ndecode g, generate(u) maxlength(2046)\ndescribe u\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate byte g = mod(_n, 2)", "lines": [] },
+        {
+          "command": "label define gl 0 \"Alpha\" 1 \"Betaville\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "label variable g \"Group\"", "lines": [] },
+        { "command": "decode g, generate(s) maxlength(2)", "lines": [] },
+        {
+          "command": "describe s",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s               str2    %9s                   Group"
+          ]
+        },
+        {
+          "command": "list g s",
+          "lines": [
+            "     +----------------+",
+            "     |         g    s |",
+            "     |----------------|",
+            "  1. | Betaville   Be |",
+            "  2. |     Alpha   Al |",
+            "  3. | Betaville   Be |",
+            "  4. |     Alpha   Al |",
+            "     +----------------+"
+          ]
+        },
+        { "command": "decode g, generate(t) maxlength(3)", "lines": [] },
+        {
+          "command": "describe t",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "t               str3    %9s                   Group"
+          ]
+        },
+        {
+          "command": "capture noisily decode g, generate(u) maxlength(0)",
+          "lines": ["maxlength must be between 1 and 32000"]
+        },
+        {
+          "command": "capture noisily decode g, generate(u) maxlength(-1)",
+          "lines": ["maxlength must be between 1 and 32000"]
+        },
+        { "command": "decode g, generate(u) maxlength(2046)", "lines": [] },
+        {
+          "command": "describe u",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "u               str9    %9s                   Group"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-label-copy-save",
+      "source": "clear\nset obs 5\ngenerate sex = mod(_n, 2)\nlabel define sexl 0 \"male\" 1 \"female\"\nlabel values sex sexl\nlabel define new 1 \"a\" 2 \"b\" .a \"missing\"\nlabel copy new new2\nlabel list new2\ncapture noisily label copy new new2\nlabel copy sexl new2, replace\nlabel list new2\ncapture noisily label copy nosuch new3\nlabel dir\nlabel save sexl using dm6lab, replace\nlabel save using dm6lab2\ncapture noisily label save using dm6lab2\nlabel drop _all\nrun dm6lab2\nlabel list\nlabel rename new2 other\nlabel values sex other\nlabel rename other sexl2\ndescribe sex\nlabel dir\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate sex = mod(_n, 2)", "lines": [] },
+        { "command": "label define sexl 0 \"male\" 1 \"female\"", "lines": [] },
+        { "command": "label values sex sexl", "lines": [] },
+        {
+          "command": "label define new 1 \"a\" 2 \"b\" .a \"missing\"",
+          "lines": []
+        },
+        { "command": "label copy new new2", "lines": [] },
+        {
+          "command": "label list new2",
+          "lines": [
+            "new2:",
+            "           1 a",
+            "           2 b",
+            "          .a missing"
+          ]
+        },
+        {
+          "command": "capture noisily label copy new new2",
+          "lines": ["label new2 already defined"]
+        },
+        { "command": "label copy sexl new2, replace", "lines": [] },
+        {
+          "command": "label list new2",
+          "lines": ["new2:", "           0 male", "           1 female"]
+        },
+        {
+          "command": "capture noisily label copy nosuch new3",
+          "lines": ["label nosuch not found"]
+        },
+        { "command": "label dir", "lines": ["new2", "new", "sexl"] },
+        {
+          "command": "label save sexl using dm6lab, replace",
+          "lines": ["(file dm6lab.do not found)", "file dm6lab.do saved"]
+        },
+        {
+          "command": "label save using dm6lab2",
+          "lines": ["file dm6lab2.do saved"]
+        },
+        {
+          "command": "capture noisily label save using dm6lab2",
+          "lines": ["file dm6lab2.do already exists"]
+        },
+        { "command": "label drop _all", "lines": [] },
+        { "command": "run dm6lab2", "lines": [] },
+        {
+          "command": "label list",
+          "lines": [
+            "sexl:",
+            "           0 male",
+            "           1 female",
+            "new:",
+            "           1 a",
+            "           2 b",
+            "          .a missing",
+            "new2:",
+            "           0 male",
+            "           1 female"
+          ]
+        },
+        { "command": "label rename new2 other", "lines": [] },
+        { "command": "label values sex other", "lines": [] },
+        { "command": "label rename other sexl2", "lines": [] },
+        {
+          "command": "describe sex",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             float   %9.0g      sexl2"
+          ]
+        },
+        { "command": "label dir", "lines": ["sexl2", "sexl", "new"] }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-label-language",
+      "source": "clear\nset obs 4\ngenerate byte sex = mod(_n, 2)\ngenerate float gpa = 2 + _n / 2\ngenerate z = 1\nlabel define sexen 0 \"Male\" 1 \"Female\"\nlabel values sex sexen\nlabel variable sex \"Sex\"\nlabel variable gpa \"Grade point average\"\nlabel data \"English data\"\nlabel language\nreturn list\nchar list\nlabel language en, rename\nchar list\nlabel language fr, new\nchar list\ndescribe\nlabel define sexfr 0 \"Homme\" 1 \"Femme with a much longer label\"\nlabel values sex sexfr\nlabel variable sex \"Sexe\"\nlabel variable gpa \"Moyenne\"\nlabel language\nlabel language en\nchar list\ndescribe\nlabel language fr\nlabel language de, new copy\nchar list\ndescribe\nlabel language\nreturn list\ncapture noisily label language xx\ncapture noisily label language fr, new\ncapture noisily label language en, rename\ncapture noisily label language de\ncapture noisily label language q1, new copy rename\ncapture noisily label language q1, copy\ncapture noisily label language abcdefghijklmnopqrstuvwxyz, new\nlabel language fr, delete\nchar list\nlabel language de, delete\nlabel language\nchar list\ndescribe\ncapture noisily label language en, delete\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate byte sex = mod(_n, 2)", "lines": [] },
+        { "command": "generate float gpa = 2 + _n / 2", "lines": [] },
+        { "command": "generate z = 1", "lines": [] },
+        {
+          "command": "label define sexen 0 \"Male\" 1 \"Female\"",
+          "lines": []
+        },
+        { "command": "label values sex sexen", "lines": [] },
+        { "command": "label variable sex \"Sex\"", "lines": [] },
+        {
+          "command": "label variable gpa \"Grade point average\"",
+          "lines": []
+        },
+        { "command": "label data \"English data\"", "lines": [] },
+        {
+          "command": "label language",
+          "lines": [
+            "Language for variable and value labels",
+            "--------------------------------------",
+            "",
+            "    In this dataset, value and variable labels have been defined in only one language:  default",
+            "",
+            "    To create new language:         . label language <name>, new",
+            "    To rename current language:     . label language <name>, rename"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(k) =  1",
+            "",
+            "macros:",
+            "          r(languages) : \"default\"",
+            "           r(language) : \"default\""
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_list]:           default",
+            "  _dta[_lang_c]:              default"
+          ]
+        },
+        {
+          "command": "label language en, rename",
+          "lines": ["(language default renamed en)"]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_c]:              en",
+            "  _dta[_lang_list]:           en"
+          ]
+        },
+        {
+          "command": "label language fr, new",
+          "lines": ["(language fr now current language)"]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_c]:              fr",
+            "  _dta[_lang_v_en]:           English data",
+            "  _dta[_lang_list]:           en fr",
+            "  sex[_lang_l_en]:            sexen",
+            "  sex[_lang_v_en]:            Sex",
+            "  gpa[_lang_v_en]:            Grade point average"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             byte    %8.0g",
+            "gpa             float   %9.0g",
+            "z               float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "label define sexfr 0 \"Homme\" 1 \"Femme with a much longer label\"",
+          "lines": []
+        },
+        { "command": "label values sex sexfr", "lines": [] },
+        { "command": "label variable sex \"Sexe\"", "lines": [] },
+        { "command": "label variable gpa \"Moyenne\"", "lines": [] },
+        {
+          "command": "label language",
+          "lines": [
+            "Language for variable and value labels",
+            "--------------------------------------",
+            "",
+            "    Available languages:",
+            "            en",
+            "            fr",
+            "",
+            "    Currently set is:               . label language fr",
+            "",
+            "    To select different language:   . label language <name>",
+            "",
+            "    To create new language:         . label language <name>, new",
+            "    To rename current language:     . label language <name>, rename"
+          ]
+        },
+        { "command": "label language en", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_c]:              en",
+            "  _dta[_lang_list]:           en fr",
+            "  sex[_lang_l_fr]:            sexfr",
+            "  sex[_lang_v_fr]:            Sexe",
+            "  gpa[_lang_v_fr]:            Moyenne"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             4                  English data",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             byte    %30.0g     sexen      Sex",
+            "gpa             float   %9.0g                 Grade point average",
+            "z               float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "label language fr", "lines": [] },
+        {
+          "command": "label language de, new copy",
+          "lines": ["(language de now current language)"]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_c]:              de",
+            "  _dta[_lang_list]:           en fr de",
+            "  _dta[_lang_v_en]:           English data",
+            "  sex[_lang_l_fr]:            sexfr",
+            "  sex[_lang_v_fr]:            Sexe",
+            "  sex[_lang_l_en]:            sexen",
+            "  sex[_lang_v_en]:            Sex",
+            "  gpa[_lang_v_fr]:            Moyenne",
+            "  gpa[_lang_v_en]:            Grade point average"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             byte    %30.0g     sexfr      Sexe",
+            "gpa             float   %9.0g                 Moyenne",
+            "z               float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "label language",
+          "lines": [
+            "Language for variable and value labels",
+            "--------------------------------------",
+            "",
+            "    Available languages:",
+            "            de",
+            "            en",
+            "            fr",
+            "",
+            "    Currently set is:               . label language de",
+            "",
+            "    To select different language:   . label language <name>",
+            "",
+            "    To create new language:         . label language <name>, new",
+            "    To rename current language:     . label language <name>, rename"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(k) =  3",
+            "",
+            "macros:",
+            "          r(languages) : \"de en fr\"",
+            "           r(language) : \"de\""
+          ]
+        },
+        {
+          "command": "capture noisily label language xx",
+          "lines": ["language xx not defined"]
+        },
+        {
+          "command": "capture noisily label language fr, new",
+          "lines": ["language fr already exists"]
+        },
+        {
+          "command": "capture noisily label language en, rename",
+          "lines": ["language en already exists"]
+        },
+        {
+          "command": "capture noisily label language de",
+          "lines": ["(de already current language)"]
+        },
+        {
+          "command": "capture noisily label language q1, new copy rename",
+          "lines": [
+            "options -delete-, -new-, and -rename- may be not be combined"
+          ]
+        },
+        {
+          "command": "capture noisily label language q1, copy",
+          "lines": [
+            "option -copy- may only be specified with option -new-",
+            "language q1 not defined"
+          ]
+        },
+        {
+          "command": "capture noisily label language abcdefghijklmnopqrstuvwxyz, new",
+          "lines": ["abcdefghijklmnopqrstuvwxyz invalid name"]
+        },
+        { "command": "label language fr, delete", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_list]:           de en",
+            "  _dta[_lang_c]:              de",
+            "  _dta[_lang_v_en]:           English data",
+            "  sex[_lang_l_en]:            sexen",
+            "  sex[_lang_v_en]:            Sex",
+            "  gpa[_lang_v_en]:            Grade point average"
+          ]
+        },
+        {
+          "command": "label language de, delete",
+          "lines": ["(language en now current language)"]
+        },
+        {
+          "command": "label language",
+          "lines": [
+            "Language for variable and value labels",
+            "--------------------------------------",
+            "",
+            "    In this dataset, value and variable labels have been defined in only one language:  en",
+            "",
+            "    To create new language:         . label language <name>, new",
+            "    To rename current language:     . label language <name>, rename"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_lang_list]:           en",
+            "  _dta[_lang_c]:              en"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             4                  English data",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sex             byte    %30.0g     sexen      Sex",
+            "gpa             float   %9.0g                 Grade point average",
+            "z               float   %9.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "capture noisily label language en, delete",
+          "lines": [
+            "language en is the only language defined; it may not be deleted"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-labelbook",
+      "source": "clear\nset obs 3\ngenerate byte sex = mod(_n, 2)\ngenerate q = _n\ngenerate r = _n\nlabel define sexen 0 \"Male\" 1 \"Female\"\nlabel define qq 1 \"Strongly agree with it all\" 2 \"Strongly agree with it\" 5 \"3\" .a \"Refused\" -3 \" \" 4 \" pad\" 10 \"Strongly agree\"\nlabel define unused 1 \"x\"\nlabel define zz 1 \"same\" 2 \"same\"\nlabel values sex sexen\nlabel values q qq\nlabel values r qq\nlabelbook\nreturn list\nlabelbook sexen, problems\nlabelbook, problems\nlabelbook qq, length(5) alpha\nset seed 5\nlabelbook qq, list(2)\ndisplay runiform()\nlabelbook sexen, list(0)\ndisplay runiform()\ncapture noisily labelbook nosuch\ncapture noisily labelbook, length(0)\ncapture noisily labelbook, list(-1)\nlabel language en, rename\nlabel language fr, new\nlabel values sex zz\nlabelbook sexen zz\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate byte sex = mod(_n, 2)", "lines": [] },
+        { "command": "generate q = _n", "lines": [] },
+        { "command": "generate r = _n", "lines": [] },
+        {
+          "command": "label define sexen 0 \"Male\" 1 \"Female\"",
+          "lines": []
+        },
+        {
+          "command": "label define qq 1 \"Strongly agree with it all\" 2 \"Strongly agree with it\" 5 \"3\" .a \"Refused\" -3 \" \" 4 \" pad\" 10 \"Strongly agree\"",
+          "lines": []
+        },
+        { "command": "label define unused 1 \"x\"", "lines": [] },
+        { "command": "label define zz 1 \"same\" 2 \"same\"", "lines": [] },
+        { "command": "label values sex sexen", "lines": [] },
+        { "command": "label values q qq", "lines": [] },
+        { "command": "label values r qq", "lines": [] },
+        {
+          "command": "labelbook",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label qq",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [-3,10]                   String length:  [1,26]",
+            "           N:  7                 Unique at full length:  yes",
+            "        Gaps:  yes                 Unique at length 12:  no",
+            "  Missing .*:  1                           Null string:  yes",
+            "                               Leading/trailing blanks:  yes",
+            "                                    Numeric -> numeric:  yes",
+            "  Definition",
+            "          -3",
+            "           1   Strongly agree with it all",
+            "           2   Strongly agree with it",
+            "           4   pad",
+            "           5   3",
+            "          10   Strongly agree",
+            "          .a   Refused",
+            "",
+            "   Variables:  q r",
+            "",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label sexen",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [0,1]                     String length:  [4,6]",
+            "           N:  2                 Unique at full length:  yes",
+            "        Gaps:  no                  Unique at length 12:  yes",
+            "  Missing .*:  0                           Null string:  no",
+            "                               Leading/trailing blanks:  no",
+            "                                    Numeric -> numeric:  no",
+            "  Definition",
+            "           0   Male",
+            "           1   Female",
+            "",
+            "   Variables:  sex",
+            "",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label unused",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [1,1]                     String length:  [1,1]",
+            "           N:  1                 Unique at full length:  yes",
+            "        Gaps:  no                  Unique at length 12:  yes",
+            "  Missing .*:  0                           Null string:  no",
+            "                               Leading/trailing blanks:  no",
+            "                                    Numeric -> numeric:  no",
+            "  Definition",
+            "           1   x",
+            "",
+            "   Variables:",
+            "",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label zz",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [1,2]                     String length:  [4,4]",
+            "           N:  2                 Unique at full length:  no",
+            "        Gaps:  no                  Unique at length 12:  no",
+            "  Missing .*:  0                           Null string:  no",
+            "                               Leading/trailing blanks:  no",
+            "                                    Numeric -> numeric:  no",
+            "  Definition",
+            "           1   same",
+            "           2   same",
+            "",
+            "   Variables:"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "macros:",
+            "            r(notused) : \"unused zz\"",
+            "           r(nuniq_sh) : \"qq zz\"",
+            "              r(nuniq) : \"zz\"",
+            "               r(null) : \"qq\"",
+            "             r(blanks) : \"qq\"",
+            "            r(numeric) : \"qq\"",
+            "               r(gaps) : \"qq\"",
+            "              r(names) : \"qq sexen unused zz\""
+          ]
+        },
+        {
+          "command": "labelbook sexen, problems",
+          "lines": ["no potential problems in dataset [unnamed]"]
+        },
+        {
+          "command": "labelbook, problems",
+          "lines": [
+            "   Potential problems in dataset   [unnamed]",
+            "",
+            "               Potential problem   Value labels",
+            "--------------------------------------------------",
+            "              Numeric -> numeric   qq",
+            "           Gaps in mapped values   qq",
+            "      Leading or trailing blanks   qq",
+            "             Numeric -> null str   qq",
+            "                Duplicate labels   zz",
+            "     Duplicate lab. at length 12   qq zz",
+            "           Not used by variables   unused zz",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "labelbook qq, length(5) alpha",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label qq",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [-3,10]                   String length:  [1,26]",
+            "           N:  7                 Unique at full length:  yes",
+            "        Gaps:  yes                  Unique at length 5:  no",
+            "  Missing .*:  1                           Null string:  yes",
+            "                               Leading/trailing blanks:  yes",
+            "                                    Numeric -> numeric:  yes",
+            "  Definition",
+            "          -3",
+            "           4   pad",
+            "           5   3",
+            "          .a   Refused",
+            "          10   Strongly agree",
+            "           2   Strongly agree with it",
+            "           1   Strongly agree with it all",
+            "",
+            "   Variables:  q r"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "labelbook qq, list(2)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label qq",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [-3,10]                   String length:  [1,26]",
+            "           N:  7                 Unique at full length:  yes",
+            "        Gaps:  yes                 Unique at length 12:  no",
+            "  Missing .*:  1                           Null string:  yes",
+            "                               Leading/trailing blanks:  yes",
+            "                                    Numeric -> numeric:  yes",
+            "  Definition",
+            "       2 random examples out of 7 labels",
+            "",
+            "           1   Strongly agree with it all",
+            "           5   3",
+            "",
+            "   Variables:  q r"
+          ]
+        },
+        { "command": "display runiform()", "lines": [".68777916"] },
+        {
+          "command": "labelbook sexen, list(0)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label sexen",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [0,1]                     String length:  [4,6]",
+            "           N:  2                 Unique at full length:  yes",
+            "        Gaps:  no                  Unique at length 12:  yes",
+            "  Missing .*:  0                           Null string:  no",
+            "                               Leading/trailing blanks:  no",
+            "                                    Numeric -> numeric:  no",
+            "",
+            "   Variables:  sex"
+          ]
+        },
+        { "command": "display runiform()", "lines": [".05196688"] },
+        {
+          "command": "capture noisily labelbook nosuch",
+          "lines": ["value label nosuch not found"]
+        },
+        {
+          "command": "capture noisily labelbook, length(0)",
+          "lines": ["length() should be in range [1,2045]"]
+        },
+        {
+          "command": "capture noisily labelbook, list(-1)",
+          "lines": ["list() should be positive"]
+        },
+        {
+          "command": "label language en, rename",
+          "lines": ["(language default renamed en)"]
+        },
+        {
+          "command": "label language fr, new",
+          "lines": ["(language fr now current language)"]
+        },
+        { "command": "label values sex zz", "lines": [] },
+        {
+          "command": "labelbook sexen zz",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label sexen",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [0,1]                     String length:  [4,6]",
+            "           N:  2                 Unique at full length:  yes",
+            "        Gaps:  no                  Unique at length 12:  yes",
+            "  Missing .*:  0                           Null string:  no",
+            "                               Leading/trailing blanks:  no",
+            "                                    Numeric -> numeric:  no",
+            "  Definition",
+            "           0   Male",
+            "           1   Female",
+            "",
+            "   in en attached to sex",
+            "",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Value label zz",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "",
+            "      Values                                    Labels",
+            "       Range:  [1,2]                     String length:  [4,4]",
+            "           N:  2                 Unique at full length:  no",
+            "        Gaps:  no                  Unique at length 12:  no",
+            "  Missing .*:  0                           Null string:  no",
+            "                               Leading/trailing blanks:  no",
+            "                                    Numeric -> numeric:  no",
+            "  Definition",
+            "           1   same",
+            "           2   same",
+            "",
+            "   in fr attached to sex"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-merge-joinby-sort",
+      "source": "clear\nset obs 4\ngenerate k = _n\ngenerate u = 10 * _n\nquietly save dm6u4, replace\nclear\nset obs 6\ngenerate k = _n\ngenerate u = 10 * _n\nquietly save dm6u6, replace\nclear\nset obs 8\ngenerate id = _n\ngenerate k = mod(_n, 4) + 1\ngenerate score = runiform()\nquietly save dm6m8, replace\nuse dm6m8, clear\nmerge m:1 k using dm6u6, keep(match) nogenerate\nlocal s : sortedby\ndisplay \"A [`s']\"\ncapture noisily by k: generate n = _n\nuse dm6m8, clear\nsort k id\nmerge m:1 k using dm6u4, nogenerate\nlocal s : sortedby\ndisplay \"B [`s']\"\nuse dm6u6, clear\nmerge 1:m k using dm6m8, nogenerate keep(3)\nlocal s : sortedby\ndisplay \"C [`s']\"\nuse dm6u4, clear\nmerge 1:1 k using dm6u6, nogenerate\nlocal s : sortedby\ndisplay \"D [`s']\"\nuse dm6u6, clear\nmerge 1:1 k using dm6u4, nogenerate\nlocal s : sortedby\ndisplay \"E [`s']\"\nuse dm6u4, clear\nmerge 1:1 k using dm6u6, nogenerate keep(1 3)\nlocal s : sortedby\ndisplay \"F [`s']\"\nuse dm6m8, clear\nsort k id\njoinby k using dm6u4\nlocal s : sortedby\ndisplay \"G [`s']\"\nby k: generate n = _n\nlist id k n in 1/4\nuse dm6m8, clear\nsort score\njoinby k using dm6u6, unmatched(both)\nlocal s : sortedby\ndisplay \"H [`s']\"\nuse dm6m8, clear\njoinby using dm6u4\ncapture noisily joinby k using dm6u4, unmatched(foo)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate k = _n", "lines": [] },
+        { "command": "generate u = 10 * _n", "lines": [] },
+        { "command": "quietly save dm6u4, replace", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate k = _n", "lines": [] },
+        { "command": "generate u = 10 * _n", "lines": [] },
+        { "command": "quietly save dm6u6, replace", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate k = mod(_n, 4) + 1", "lines": [] },
+        { "command": "generate score = runiform()", "lines": [] },
+        { "command": "quietly save dm6m8, replace", "lines": [] },
+        { "command": "use dm6m8, clear", "lines": [] },
+        {
+          "command": "merge m:1 k using dm6u6, keep(match) nogenerate",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 8",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"A [`s']\"", "lines": ["A []"] },
+        {
+          "command": "capture noisily by k: generate n = _n",
+          "lines": ["not sorted"]
+        },
+        { "command": "use dm6m8, clear", "lines": [] },
+        { "command": "sort k id", "lines": [] },
+        {
+          "command": "merge m:1 k using dm6u4, nogenerate",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 8",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"B [`s']\"", "lines": ["B []"] },
+        { "command": "use dm6u6, clear", "lines": [] },
+        {
+          "command": "merge 1:m k using dm6m8, nogenerate keep(3)",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 8",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"C [`s']\"", "lines": ["C []"] },
+        { "command": "use dm6u4, clear", "lines": [] },
+        {
+          "command": "merge 1:1 k using dm6u6, nogenerate",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         0",
+            "        from using                          2",
+            "",
+            "    Matched                                 4",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"D [`s']\"", "lines": ["D []"] },
+        { "command": "use dm6u6, clear", "lines": [] },
+        {
+          "command": "merge 1:1 k using dm6u4, nogenerate",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         2",
+            "        from using                          0",
+            "",
+            "    Matched                                 4",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"E [`s']\"", "lines": ["E [k]"] },
+        { "command": "use dm6u4, clear", "lines": [] },
+        {
+          "command": "merge 1:1 k using dm6u6, nogenerate keep(1 3)",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 4",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"F [`s']\"", "lines": ["F [k]"] },
+        { "command": "use dm6m8, clear", "lines": [] },
+        { "command": "sort k id", "lines": [] },
+        { "command": "joinby k using dm6u4", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"G [`s']\"", "lines": ["G [k id]"] },
+        { "command": "by k: generate n = _n", "lines": [] },
+        {
+          "command": "list id k n in 1/4",
+          "lines": [
+            "     +------------+",
+            "     | id   k   n |",
+            "     |------------|",
+            "  1. |  4   1   1 |",
+            "  2. |  8   1   2 |",
+            "  3. |  1   2   1 |",
+            "  4. |  5   2   2 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "use dm6m8, clear", "lines": [] },
+        { "command": "sort score", "lines": [] },
+        { "command": "joinby k using dm6u6, unmatched(both)", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"H [`s']\"", "lines": ["H [score]"] },
+        { "command": "use dm6m8, clear", "lines": [] },
+        {
+          "command": "joinby using dm6u4",
+          "lines": ["join on common variables: k"]
+        },
+        {
+          "command": "capture noisily joinby k using dm6u4, unmatched(foo)",
+          "lines": ["foo is invalid value for unmatch()"]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-xtset-panel-only",
+      "source": "clear\nset seed 4242\nset obs 12\ngenerate id = ceil(_n / 3)\ngenerate year = 2018 + mod(_n - 1, 3) + 1\ngenerate inc = runiform() * 100\nsort inc\nxtset id\nlist id year in 1/4\nlocal s : sortedby\ndisplay \"[`s']\"\nxtset id year\nlocal s : sortedby\ndisplay \"[`s']\"\nsort inc\nxtset, clear\nxtset id\nlocal s : sortedby\ndisplay \"[`s']\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate id = ceil(_n / 3)", "lines": [] },
+        { "command": "generate year = 2018 + mod(_n - 1, 3) + 1", "lines": [] },
+        { "command": "generate inc = runiform() * 100", "lines": [] },
+        { "command": "sort inc", "lines": [] },
+        { "command": "xtset id", "lines": ["Panel variable: id (balanced)"] },
+        {
+          "command": "list id year in 1/4",
+          "lines": [
+            "     +-----------+",
+            "     | id   year |",
+            "     |-----------|",
+            "  1. |  4   2021 |",
+            "  2. |  4   2019 |",
+            "  3. |  1   2019 |",
+            "  4. |  2   2019 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"[`s']\"", "lines": ["[inc]"] },
+        {
+          "command": "xtset id year",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: year, 2019 to 2021",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"[`s']\"", "lines": ["[id year]"] },
+        { "command": "sort inc", "lines": [] },
+        { "command": "xtset, clear", "lines": [] },
+        { "command": "xtset id", "lines": ["Panel variable: id (balanced)"] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"[`s']\"", "lines": ["[inc]"] }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-strl-keys",
+      "source": "clear\nset obs 2\ngenerate strL s = \"abc\" + string(_n)\ngenerate x = _n\nquietly save dm6outL, replace\nclear\nset obs 3\ngenerate str4 s = \"abc\" + string(_n)\ngenerate y = _n\nquietly save dm6out4, replace\nuse dm6out4, clear\ncapture noisily merge 1:1 s using dm6outL\nuse dm6outL, clear\ncapture noisily merge 1:1 s using dm6out4\nuse dm6outL, clear\ncapture noisily merge 1:1 s using dm6outL\nuse dm6out4, clear\ncapture noisily merge m:1 s using dm6outL\nuse dm6outL, clear\ncapture noisily merge m:1 s using dm6out4\nuse dm6outL, clear\ncapture noisily merge m:1 s using dm6outL\nuse dm6out4, clear\ncapture noisily merge 1:m s using dm6outL\nuse dm6outL, clear\ncapture noisily merge 1:m s using dm6out4\nuse dm6outL, clear\ncapture noisily merge 1:m s using dm6outL\nuse dm6out4, clear\ncapture noisily joinby s using dm6outL\nuse dm6outL, clear\ncapture noisily joinby s using dm6out4\ncapture noisily joinby s using dm6outL\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate strL s = \"abc\" + string(_n)", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "quietly save dm6outL, replace", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate str4 s = \"abc\" + string(_n)", "lines": [] },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "quietly save dm6out4, replace", "lines": [] },
+        { "command": "use dm6out4, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 s using dm6outL",
+          "lines": [
+            "key variable s is strL in using data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 s using dm6out4",
+          "lines": [
+            "key variable s is strL in master data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 s using dm6outL",
+          "lines": [
+            "key variable s is strL in master data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6out4, clear", "lines": [] },
+        {
+          "command": "capture noisily merge m:1 s using dm6outL",
+          "lines": [
+            "key variable s is strL in using data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily merge m:1 s using dm6out4",
+          "lines": [
+            "key variable s is strL in master data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily merge m:1 s using dm6outL",
+          "lines": [
+            "key variable s is strL",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6out4, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:m s using dm6outL",
+          "lines": [
+            "key variable s is strL in using data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:m s using dm6out4",
+          "lines": [
+            "key variable s is strL in master data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:m s using dm6outL",
+          "lines": [
+            "key variable s is strL in master data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6out4, clear", "lines": [] },
+        {
+          "command": "capture noisily joinby s using dm6outL",
+          "lines": [
+            "key variable s is strL in using data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        { "command": "use dm6outL, clear", "lines": [] },
+        {
+          "command": "capture noisily joinby s using dm6out4",
+          "lines": [
+            "key variable s is strL in master data.",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        },
+        {
+          "command": "capture noisily joinby s using dm6outL",
+          "lines": [
+            "key variable s is strL",
+            "    The key variables (on which observations are matched) can be str#, but they cannot be strLs."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-promotion-order",
+      "source": "clear\nset obs 2\ngenerate double c = 1.5\ngenerate e = 1\ngenerate str1 a = \"x\"\ngenerate long d = 100000\ngenerate str9 b = \"abcdefghi\"\ngenerate id = _n\nquietly save dm6using1, replace\nclear\nset obs 2\ngenerate id = _n\ngenerate byte a = 1\ngenerate str2 b = \"ab\"\ngenerate int c = 1\ngenerate byte d = 1\ngenerate str1 e = \"z\"\nquietly save dm6master1, replace\ncapture noisily append using dm6using1\nappend using dm6using1, force\nuse dm6master1, clear\nmerge 1:1 id using dm6using1, force nogenerate\nuse dm6master1, clear\ncapture noisily merge 1:1 id using dm6using1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate double c = 1.5", "lines": [] },
+        { "command": "generate e = 1", "lines": [] },
+        { "command": "generate str1 a = \"x\"", "lines": [] },
+        { "command": "generate long d = 100000", "lines": [] },
+        { "command": "generate str9 b = \"abcdefghi\"", "lines": [] },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "quietly save dm6using1, replace", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate byte a = 1", "lines": [] },
+        { "command": "generate str2 b = \"ab\"", "lines": [] },
+        { "command": "generate int c = 1", "lines": [] },
+        { "command": "generate byte d = 1", "lines": [] },
+        { "command": "generate str1 e = \"z\"", "lines": [] },
+        { "command": "quietly save dm6master1, replace", "lines": [] },
+        {
+          "command": "capture noisily append using dm6using1",
+          "lines": [
+            "variable e is str1 in master but float in using data",
+            "    You could specify append's force option to ignore this string/numeric mismatch.  The using variable would then be treated as if it contained \"\"."
+          ]
+        },
+        {
+          "command": "append using dm6using1, force",
+          "lines": [
+            "(note: variable e was float in the using data, but will be str1 now)",
+            "(note: variable a was str1 in the using data, but will be byte now)",
+            "(variable c was int, now double to accommodate using data's values)",
+            "(variable d was byte, now long to accommodate using data's values)",
+            "(variable b was str2, now str9 to accommodate using data's values)"
+          ]
+        },
+        { "command": "use dm6master1, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dm6using1, force nogenerate",
+          "lines": [
+            "(note: variable e was float in the using data, but will be str1 now)",
+            "(note: variable a was str1 in the using data, but will be byte now)",
+            "(variable c was int, now double to accommodate using data's values)",
+            "(variable d was byte, now long to accommodate using data's values)",
+            "(variable b was str2, now str9 to accommodate using data's values)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "use dm6master1, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dm6using1",
+          "lines": [
+            "variable e is str1 in master but float in using data",
+            "    You could specify merge's force option to ignore this string/numeric mismatch.  The using variable would then be treated as if it contained \"\"."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-input-echo",
+      "source": "clear\ninput x y\n1 2\n3 4\nend\nclear\ninput str12 a str12 b\n\"1\" \"1,234\"\n\"2.5\" \"2,000.5\"\nend\nlist\nclear\ninput byte b int i long l float f double d str1 s1 str5 s5 str20 s20 strL sl str s\n1 2 3 4 5 a bb ccc dddd e\n6 7 8 9 10 a bb ccc dddd 11 12\nend\nlist\nclear\ninput averyveryverylongname another_long_name_here x2\n1 2 3\nend\nclear\ninput x\nend\ndescribe, short\nclear\ninput x\n     1\n  2\n3 e\nabc\n4\n5\n6\n7\n8\n9\n10\nend\nlist, clean\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x y",
+          "lines": [
+            "             x          y",
+            "  1. 1 2",
+            "  2. 3 4",
+            "  3. end"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str12 a str12 b",
+          "lines": [
+            "                a             b",
+            "  1. \"1\" \"1,234\"",
+            "  2. \"2.5\" \"2,000.5\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------+",
+            "     |   a         b |",
+            "     |---------------|",
+            "  1. |   1     1,234 |",
+            "  2. | 2.5   2,000.5 |",
+            "     +---------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte b int i long l float f double d str1 s1 str5 s5 str20 s20 strL sl str s",
+          "lines": [
+            "            b         i             l          f           d         s1         s5                   s20         sl        str          s",
+            "  1. 1 2 3 4 5 a bb ccc dddd e",
+            "'e' cannot be read as a number",
+            "  1. 6 7 8 9 10 a bb ccc dddd 11 12",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------------------------------+",
+            "     | b   i   l   f    d   s1   s5   s20     sl   str    s |",
+            "     |------------------------------------------------------|",
+            "  1. | 6   7   8   9   10    a   bb   ccc   dddd    11   12 |",
+            "     +------------------------------------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input averyveryverylongname another_long_name_here x2",
+          "lines": [
+            "     averyve~e  another~e         x2",
+            "  1. 1 2 3",
+            "  2. end"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "input x", "lines": ["             x", "  1. end"] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x",
+          "lines": [
+            "             x",
+            "  1.      1",
+            "  2.   2",
+            "  3. 3 e",
+            "  4. abc",
+            "'abc' cannot be read as a number",
+            "  4. 4",
+            "  5. 5",
+            "  6. 6",
+            "  7. 7",
+            "  8. 8",
+            "  9. 9",
+            " 10. 10",
+            " 11. end"
+          ]
+        },
+        {
+          "command": "list, clean",
+          "lines": [
+            "        x",
+            "  1.    1",
+            "  2.    2",
+            "  3.    3",
+            "  4.    4",
+            "  5.    5",
+            "  6.    6",
+            "  7.    7",
+            "  8.    8",
+            "  9.    9",
+            " 10.   10"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-expand-split-egen",
+      "source": "clear\nset obs 10\ngenerate v = 2\nreplace v = . in 3/4\ngenerate score = _n * 1.5\ngenerate str10 dob = \"2001-0\" + string(_n) + \"-1\"\ngenerate str5 name = \"a b c\"\npreserve\nexpand v\ncount\nrestore, preserve\nreplace v = 0 in 5\nreplace v = -1 in 6\nreplace v = .a in 7\nreplace v = 0.5 in 1\nreplace v = 2.7 in 2\nreplace v = -0.3 in 8\nexpand v\ncount\nrestore, preserve\nreplace v = 1\nexpand v\nrestore\nsplit dob, parse(-) generate(d)\ncapture noisily split dob, parse(-) generate(d)\ncapture noisily split dob, parse(-) generate(e) limit(0)\ncapture noisily split dob, parse(-) generate(e) limit(-2)\nsplit dob, parse(-) generate(f) limit(1)\ncapture noisily egen x = pctile(score), p(-5)\ncapture noisily egen x = pctile(score), p(100)\ncapture noisily egen x = pctile(score), p(0)\negen x4 = pctile(score), p(50.5)\ncapture noisily egen c1 = cut(score), group(100)\negen c2 = cut(score), group(11)\ncapture noisily egen c3 = cut(score), group(12)\ncapture noisily egen c4 = cut(score), group(0)\ncapture noisily egen c5 = cut(score), group(1)\ncapture noisily egen c6 = cut(score), group(-1)\negen c7 = cut(score) if score > 6, group(8)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate v = 2", "lines": [] },
+        {
+          "command": "replace v = . in 3/4",
+          "lines": ["(2 real changes made, 2 to missing)"]
+        },
+        { "command": "generate score = _n * 1.5", "lines": [] },
+        {
+          "command": "generate str10 dob = \"2001-0\" + string(_n) + \"-1\"",
+          "lines": []
+        },
+        { "command": "generate str5 name = \"a b c\"", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "expand v",
+          "lines": [
+            "(2 missing counts ignored; observations not deleted)",
+            "(8 observations created)"
+          ]
+        },
+        { "command": "count", "lines": ["  18"] },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "replace v = 0 in 5", "lines": ["(1 real change made)"] },
+        { "command": "replace v = -1 in 6", "lines": ["(1 real change made)"] },
+        {
+          "command": "replace v = .a in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace v = 0.5 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace v = 2.7 in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace v = -0.3 in 8",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "expand v",
+          "lines": [
+            "(3 missing counts ignored; observations not deleted)",
+            "(3 noninteger counts rounded to integer)",
+            "(1 negative count ignored; observation not deleted)",
+            "(2 zero counts ignored; observations not deleted)",
+            "(4 observations created)"
+          ]
+        },
+        { "command": "count", "lines": ["  14"] },
+        { "command": "restore, preserve", "lines": [] },
+        { "command": "replace v = 1", "lines": ["(10 real changes made)"] },
+        { "command": "expand v", "lines": ["(0 observations created)"] },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "split dob, parse(-) generate(d)",
+          "lines": ["variables created as string:", "d1  d2  d3"]
+        },
+        {
+          "command": "capture noisily split dob, parse(-) generate(d)",
+          "lines": ["cannot generate new variables using stub d"]
+        },
+        {
+          "command": "capture noisily split dob, parse(-) generate(e) limit(0)",
+          "lines": [
+            "limit() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily split dob, parse(-) generate(e) limit(-2)",
+          "lines": [
+            "limit() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "split dob, parse(-) generate(f) limit(1)",
+          "lines": ["variable created as string:", "f1"]
+        },
+        {
+          "command": "capture noisily egen x = pctile(score), p(-5)",
+          "lines": ["p(-5) must be between 0 and 100"]
+        },
+        {
+          "command": "capture noisily egen x = pctile(score), p(100)",
+          "lines": ["p(100) must be between 0 and 100"]
+        },
+        {
+          "command": "capture noisily egen x = pctile(score), p(0)",
+          "lines": ["p(0) must be between 0 and 100"]
+        },
+        { "command": "egen x4 = pctile(score), p(50.5)", "lines": [] },
+        {
+          "command": "capture noisily egen c1 = cut(score), group(100)",
+          "lines": [
+            "nquantiles() must be less than or equal to number of observations plus one"
+          ]
+        },
+        { "command": "egen c2 = cut(score), group(11)", "lines": [] },
+        {
+          "command": "capture noisily egen c3 = cut(score), group(12)",
+          "lines": [
+            "nquantiles() must be less than or equal to number of observations plus one"
+          ]
+        },
+        {
+          "command": "capture noisily egen c4 = cut(score), group(0)",
+          "lines": ["one of at() or group() must be specified"]
+        },
+        {
+          "command": "capture noisily egen c5 = cut(score), group(1)",
+          "lines": ["nquantiles() must be greater than or equal to 2"]
+        },
+        {
+          "command": "capture noisily egen c6 = cut(score), group(-1)",
+          "lines": ["nquantiles() must be greater than or equal to 2"]
+        },
+        {
+          "command": "egen c7 = cut(score) if score > 6, group(8)",
+          "lines": ["(4 missing values generated)"]
+        }
+      ]
+    },
+    {
+      "id": "fix6-datamgmt-generate-before-after",
+      "source": "clear\nset seed 7\nset obs 5\ngenerate id = _n\ngenerate income = runiform() * 1000\ngenerate age = 20 + _n\ngenerate y = income, after(id)\ngenerate y2 = income, before(id)\ncapture noisily generate y3 = income, after(nosuch)\ncapture noisily generate z = 1, last\ngenerate double w = 2 * age, after(age)\ncapture noisily generate q = 1, after(id) before(age)\ngenerate str5 qq = \"a\", before(income)\ngenerate r = cond(id > 2, 1, 0), after(y2)\ndescribe, simple\nlist in 1/2\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate income = runiform() * 1000", "lines": [] },
+        { "command": "generate age = 20 + _n", "lines": [] },
+        { "command": "generate y = income, after(id)", "lines": [] },
+        { "command": "generate y2 = income, before(id)", "lines": [] },
+        {
+          "command": "capture noisily generate y3 = income, after(nosuch)",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "capture noisily generate z = 1, last",
+          "lines": ["option last not allowed"]
+        },
+        { "command": "generate double w = 2 * age, after(age)", "lines": [] },
+        {
+          "command": "capture noisily generate q = 1, after(id) before(age)",
+          "lines": ["before() may not be combined with after()"]
+        },
+        { "command": "generate str5 qq = \"a\", before(income)", "lines": [] },
+        {
+          "command": "generate r = cond(id > 2, 1, 0), after(y2)",
+          "lines": []
+        },
+        {
+          "command": "describe, simple",
+          "lines": ["y2      r       id      y       qq      income  age     w"]
+        },
+        {
+          "command": "list in 1/2",
+          "lines": [
+            "     +---------------------------------------------------------+",
+            "     |       y2   r   id          y   qq     income   age    w |",
+            "     |---------------------------------------------------------|",
+            "  1. | 754.3853   0    1   754.3853    a   754.3853    21   42 |",
+            "  2. | 949.3012   0    2   949.3012    a   949.3012    22   44 |",
+            "     +---------------------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

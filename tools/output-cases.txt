@@ -13137,3 +13137,617 @@ use frh, clear
 collapse (mean) lninc, by(female)
 capture noisily save, replace
 describe, short
+=== fix6-datamgmt-numlabel
+clear
+input byte sex
+1
+2
+.
+.a
+.b
+end
+label define sexlbl 1 "Male" 2 "Female" .a "Refused"
+label values sex sexlbl
+label define b 1 "one" 2 "two"
+numlabel sexlbl, add
+label list sexlbl
+list sex
+tabulate sex, missing
+describe sex
+numlabel, add
+numlabel sexlbl, remove
+label list
+numlabel sexlbl, add mask("[#] ")
+label list sexlbl
+numlabel, remove mask("[#] ")
+label define b 1 "1. one", modify
+capture noisily numlabel b, add
+capture noisily numlabel b, add detail
+numlabel b, add force
+label list b
+capture noisily numlabel b, add remove
+capture noisily numlabel b
+capture noisily numlabel b, add mask("##")
+capture noisily numlabel nosuch, add
+label dir
+=== fix6-datamgmt-compress-strl
+clear
+set obs 5
+generate strL essay = "short text " + string(_n)
+replace essay = essay + "x" in 3
+generate long id = _n
+compress
+describe essay
+clear
+set obs 4
+generate strL s = "x" + string(_n)
+generate str20 t = "y"
+generate long id = _n
+generate double d = 1.5
+compress
+describe
+clear
+set obs 5
+generate strL s = "same value here"
+compress s
+clear
+set obs 5
+generate strL s = ""
+replace s = "abc" in 4/5
+compress
+clear
+set obs 4
+generate strL s = cond(mod(_n, 2), "aaaa", "bbbb")
+compress
+clear
+set obs 3
+generate strL s = 3000 * "a"
+compress
+describe
+=== fix6-datamgmt-rename-groups
+clear
+set obs 1
+generate inc2019 = 1
+generate inc2020 = 1
+generate x1 = 1
+generate janstat = 1
+generate janinc = 1
+generate jans = 1
+generate v1 = 1
+generate v10 = 1
+generate v2 = 1
+generate v01 = 1
+generate stat10 = 1
+generate a12 = 1
+generate a13 = 1
+generate bpstata = 1
+generate mid_jan_inc = 1
+generate _tmp = 1
+preserve
+capture noisily rename inc* income*
+describe, simple
+restore, preserve
+capture noisily rename * *_v
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) =_z
+describe, simple
+restore, preserve
+capture noisily rename i* I*
+describe, simple
+restore, preserve
+capture noisily rename *2019 y2019*
+describe, simple
+restore, preserve
+capture noisily rename jan* *1
+describe, simple
+restore, preserve
+capture noisily rename jan? ?1
+describe, simple
+restore, preserve
+capture noisily rename *jan* **
+describe, simple
+restore, preserve
+capture noisily rename *jan* *
+describe, simple
+restore, preserve
+capture noisily rename *jan* .*
+describe, simple
+restore, preserve
+capture noisily rename *stat pre=
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 x1) admit=
+describe, simple
+restore, preserve
+capture noisily rename x1 pre=fix
+describe, simple
+restore, preserve
+capture noisily rename v# stat#
+describe, simple
+restore, preserve
+capture noisily rename v(#) stat(#)
+describe, simple
+restore, preserve
+capture noisily rename v# v(##)
+describe, simple
+restore, preserve
+capture noisily rename v(##) v(#)
+describe, simple
+restore, preserve
+capture noisily rename stat(##) stat_20(##)
+describe, simple
+restore, preserve
+capture noisily rename v(#)# (a b)
+describe, simple
+restore, preserve
+capture noisily rename v# v#, renumber
+describe, simple
+restore, preserve
+capture noisily rename jan* v#, renumber
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020 x1) v#, addnumber
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020 x1) v#, addnumber(5)
+describe, simple
+restore, preserve
+capture noisily rename a(#)(#) a(#)[2](#)[1]
+describe, simple
+restore, preserve
+capture noisily rename *stat* *[2]stat*[1]
+describe, simple
+restore, preserve
+capture noisily rename nosuch* y*
+describe, simple
+restore, preserve
+capture noisily rename inc2019 x1
+describe, simple
+restore, preserve
+capture noisily rename inc2019 1abc
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (a)
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (a b c)
+describe, simple
+restore, preserve
+capture noisily rename inc2019 inc2019
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (inc2020 inc2019)
+describe, simple
+restore, preserve
+capture noisily rename inc2019 income, dryrun
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 inc2020) (inc2020 inc2019), dryrun
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 x1 v1) (inc2019 x1 v1), dryrun
+describe, simple
+restore, preserve
+capture noisily rename inc* y*, dryrun
+describe, simple
+restore, preserve
+capture noisily rename inc*, upper
+describe, simple
+restore, preserve
+capture noisily rename *, proper
+describe, simple
+restore, preserve
+capture noisily rename inc*, upper lower
+describe, simple
+restore, preserve
+capture noisily rename i*20* *20*_*
+describe, simple
+restore, preserve
+capture noisily rename inc# inc_#
+describe, simple
+restore, preserve
+capture noisily rename inc#9 inc#
+describe, simple
+restore, preserve
+capture noisily rename inc* a?
+describe, simple
+restore, preserve
+capture noisily rename inc* a#b#, renumber
+describe, simple
+restore, preserve
+capture noisily rename inc** a
+describe, simple
+restore, preserve
+capture noisily rename inc= a
+describe, simple
+restore, preserve
+capture noisily rename v(###) w(###)
+describe, simple
+restore, preserve
+capture noisily rename inc2019 x1 v1
+describe, simple
+restore, preserve
+capture noisily rename (inc2019 x1 v1) (1a 2b 3c)
+describe, simple
+restore, preserve
+capture noisily rename * x#, addnumber
+describe, simple
+restore, preserve
+rename inc* y*, r
+return list
+restore
+=== fix6-datamgmt-collapse-weight
+clear
+set seed 12345
+set obs 12
+generate id = _n
+generate sex = mod(_n, 2)
+generate score = 20 + 15 * runiform()
+generate income = 1000 * runiform()
+preserve
+collapse (mean) score [w=id], by(sex)
+list
+restore, preserve
+collapse (mean) score [weight=income], by(sex)
+list
+restore, preserve
+collapse (sum) score (count) n=score [w=id], by(sex)
+list
+restore, preserve
+collapse (mean) score [freq=id], by(sex)
+list
+restore
+=== fix6-datamgmt-decode-maxlength
+clear
+set obs 4
+generate byte g = mod(_n, 2)
+label define gl 0 "Alpha" 1 "Betaville"
+label values g gl
+label variable g "Group"
+decode g, generate(s) maxlength(2)
+describe s
+list g s
+decode g, generate(t) maxlength(3)
+describe t
+capture noisily decode g, generate(u) maxlength(0)
+capture noisily decode g, generate(u) maxlength(-1)
+decode g, generate(u) maxlength(2046)
+describe u
+=== fix6-datamgmt-label-copy-save
+clear
+set obs 5
+generate sex = mod(_n, 2)
+label define sexl 0 "male" 1 "female"
+label values sex sexl
+label define new 1 "a" 2 "b" .a "missing"
+label copy new new2
+label list new2
+capture noisily label copy new new2
+label copy sexl new2, replace
+label list new2
+capture noisily label copy nosuch new3
+label dir
+label save sexl using dm6lab, replace
+label save using dm6lab2
+capture noisily label save using dm6lab2
+label drop _all
+run dm6lab2
+label list
+label rename new2 other
+label values sex other
+label rename other sexl2
+describe sex
+label dir
+=== fix6-datamgmt-label-language
+clear
+set obs 4
+generate byte sex = mod(_n, 2)
+generate float gpa = 2 + _n / 2
+generate z = 1
+label define sexen 0 "Male" 1 "Female"
+label values sex sexen
+label variable sex "Sex"
+label variable gpa "Grade point average"
+label data "English data"
+label language
+return list
+char list
+label language en, rename
+char list
+label language fr, new
+char list
+describe
+label define sexfr 0 "Homme" 1 "Femme with a much longer label"
+label values sex sexfr
+label variable sex "Sexe"
+label variable gpa "Moyenne"
+label language
+label language en
+char list
+describe
+label language fr
+label language de, new copy
+char list
+describe
+label language
+return list
+capture noisily label language xx
+capture noisily label language fr, new
+capture noisily label language en, rename
+capture noisily label language de
+capture noisily label language q1, new copy rename
+capture noisily label language q1, copy
+capture noisily label language abcdefghijklmnopqrstuvwxyz, new
+label language fr, delete
+char list
+label language de, delete
+label language
+char list
+describe
+capture noisily label language en, delete
+=== fix6-datamgmt-labelbook
+clear
+set obs 3
+generate byte sex = mod(_n, 2)
+generate q = _n
+generate r = _n
+label define sexen 0 "Male" 1 "Female"
+label define qq 1 "Strongly agree with it all" 2 "Strongly agree with it" 5 "3" .a "Refused" -3 " " 4 " pad" 10 "Strongly agree"
+label define unused 1 "x"
+label define zz 1 "same" 2 "same"
+label values sex sexen
+label values q qq
+label values r qq
+labelbook
+return list
+labelbook sexen, problems
+labelbook, problems
+labelbook qq, length(5) alpha
+set seed 5
+labelbook qq, list(2)
+display runiform()
+labelbook sexen, list(0)
+display runiform()
+capture noisily labelbook nosuch
+capture noisily labelbook, length(0)
+capture noisily labelbook, list(-1)
+label language en, rename
+label language fr, new
+label values sex zz
+labelbook sexen zz
+=== fix6-datamgmt-merge-joinby-sort
+clear
+set obs 4
+generate k = _n
+generate u = 10 * _n
+quietly save dm6u4, replace
+clear
+set obs 6
+generate k = _n
+generate u = 10 * _n
+quietly save dm6u6, replace
+clear
+set obs 8
+generate id = _n
+generate k = mod(_n, 4) + 1
+generate score = runiform()
+quietly save dm6m8, replace
+use dm6m8, clear
+merge m:1 k using dm6u6, keep(match) nogenerate
+local s : sortedby
+display "A [`s']"
+capture noisily by k: generate n = _n
+use dm6m8, clear
+sort k id
+merge m:1 k using dm6u4, nogenerate
+local s : sortedby
+display "B [`s']"
+use dm6u6, clear
+merge 1:m k using dm6m8, nogenerate keep(3)
+local s : sortedby
+display "C [`s']"
+use dm6u4, clear
+merge 1:1 k using dm6u6, nogenerate
+local s : sortedby
+display "D [`s']"
+use dm6u6, clear
+merge 1:1 k using dm6u4, nogenerate
+local s : sortedby
+display "E [`s']"
+use dm6u4, clear
+merge 1:1 k using dm6u6, nogenerate keep(1 3)
+local s : sortedby
+display "F [`s']"
+use dm6m8, clear
+sort k id
+joinby k using dm6u4
+local s : sortedby
+display "G [`s']"
+by k: generate n = _n
+list id k n in 1/4
+use dm6m8, clear
+sort score
+joinby k using dm6u6, unmatched(both)
+local s : sortedby
+display "H [`s']"
+use dm6m8, clear
+joinby using dm6u4
+capture noisily joinby k using dm6u4, unmatched(foo)
+=== fix6-datamgmt-xtset-panel-only
+clear
+set seed 4242
+set obs 12
+generate id = ceil(_n / 3)
+generate year = 2018 + mod(_n - 1, 3) + 1
+generate inc = runiform() * 100
+sort inc
+xtset id
+list id year in 1/4
+local s : sortedby
+display "[`s']"
+xtset id year
+local s : sortedby
+display "[`s']"
+sort inc
+xtset, clear
+xtset id
+local s : sortedby
+display "[`s']"
+=== fix6-datamgmt-strl-keys
+clear
+set obs 2
+generate strL s = "abc" + string(_n)
+generate x = _n
+quietly save dm6outL, replace
+clear
+set obs 3
+generate str4 s = "abc" + string(_n)
+generate y = _n
+quietly save dm6out4, replace
+use dm6out4, clear
+capture noisily merge 1:1 s using dm6outL
+use dm6outL, clear
+capture noisily merge 1:1 s using dm6out4
+use dm6outL, clear
+capture noisily merge 1:1 s using dm6outL
+use dm6out4, clear
+capture noisily merge m:1 s using dm6outL
+use dm6outL, clear
+capture noisily merge m:1 s using dm6out4
+use dm6outL, clear
+capture noisily merge m:1 s using dm6outL
+use dm6out4, clear
+capture noisily merge 1:m s using dm6outL
+use dm6outL, clear
+capture noisily merge 1:m s using dm6out4
+use dm6outL, clear
+capture noisily merge 1:m s using dm6outL
+use dm6out4, clear
+capture noisily joinby s using dm6outL
+use dm6outL, clear
+capture noisily joinby s using dm6out4
+capture noisily joinby s using dm6outL
+=== fix6-datamgmt-promotion-order
+clear
+set obs 2
+generate double c = 1.5
+generate e = 1
+generate str1 a = "x"
+generate long d = 100000
+generate str9 b = "abcdefghi"
+generate id = _n
+quietly save dm6using1, replace
+clear
+set obs 2
+generate id = _n
+generate byte a = 1
+generate str2 b = "ab"
+generate int c = 1
+generate byte d = 1
+generate str1 e = "z"
+quietly save dm6master1, replace
+capture noisily append using dm6using1
+append using dm6using1, force
+use dm6master1, clear
+merge 1:1 id using dm6using1, force nogenerate
+use dm6master1, clear
+capture noisily merge 1:1 id using dm6using1
+=== fix6-datamgmt-input-echo
+clear
+input x y
+1 2
+3 4
+end
+clear
+input str12 a str12 b
+"1" "1,234"
+"2.5" "2,000.5"
+end
+list
+clear
+input byte b int i long l float f double d str1 s1 str5 s5 str20 s20 strL sl str s
+1 2 3 4 5 a bb ccc dddd e
+6 7 8 9 10 a bb ccc dddd 11 12
+end
+list
+clear
+input averyveryverylongname another_long_name_here x2
+1 2 3
+end
+clear
+input x
+end
+describe, short
+clear
+input x
+     1
+  2
+3 e
+abc
+4
+5
+6
+7
+8
+9
+10
+end
+list, clean
+=== fix6-datamgmt-expand-split-egen
+clear
+set obs 10
+generate v = 2
+replace v = . in 3/4
+generate score = _n * 1.5
+generate str10 dob = "2001-0" + string(_n) + "-1"
+generate str5 name = "a b c"
+preserve
+expand v
+count
+restore, preserve
+replace v = 0 in 5
+replace v = -1 in 6
+replace v = .a in 7
+replace v = 0.5 in 1
+replace v = 2.7 in 2
+replace v = -0.3 in 8
+expand v
+count
+restore, preserve
+replace v = 1
+expand v
+restore
+split dob, parse(-) generate(d)
+capture noisily split dob, parse(-) generate(d)
+capture noisily split dob, parse(-) generate(e) limit(0)
+capture noisily split dob, parse(-) generate(e) limit(-2)
+split dob, parse(-) generate(f) limit(1)
+capture noisily egen x = pctile(score), p(-5)
+capture noisily egen x = pctile(score), p(100)
+capture noisily egen x = pctile(score), p(0)
+egen x4 = pctile(score), p(50.5)
+capture noisily egen c1 = cut(score), group(100)
+egen c2 = cut(score), group(11)
+capture noisily egen c3 = cut(score), group(12)
+capture noisily egen c4 = cut(score), group(0)
+capture noisily egen c5 = cut(score), group(1)
+capture noisily egen c6 = cut(score), group(-1)
+egen c7 = cut(score) if score > 6, group(8)
+=== fix6-datamgmt-generate-before-after
+clear
+set seed 7
+set obs 5
+generate id = _n
+generate income = runiform() * 1000
+generate age = 20 + _n
+generate y = income, after(id)
+generate y2 = income, before(id)
+capture noisily generate y3 = income, after(nosuch)
+capture noisily generate z = 1, last
+generate double w = 2 * age, after(age)
+capture noisily generate q = 1, after(id) before(age)
+generate str5 qq = "a", before(income)
+generate r = cond(id > 2, 1, 0), after(y2)
+describe, simple
+list in 1/2
